@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Elovaire</string>
+    <string name="permission_title">Elovaire needs audio access</string>
+    <string name="permission_body">The app scans the device Music folder for offline playback and local library artwork.</string>
+</resources>
+
