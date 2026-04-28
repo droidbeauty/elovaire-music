@@ -1,32 +1,39 @@
 # Elovaire
 
-Elovaire is a modern Android-only offline music player scaffold focused on elegant album-driven presentation, lightweight local playback, and a codebase that can grow cleanly toward deeper audio features.
+Elovaire is an Android music player built for local libraries, refined playback, and a more atmospheric visual experience than the usual utilitarian offline player. It focuses on album-first browsing, adaptive artwork-driven surfaces, and a UI that still feels calm and intentional while staying fully offline-first.
 
-## Current foundation
+## Core features
 
-- Kotlin + Jetpack Compose single-app-module project targeting `minSdk 27` and `targetSdk 37`
-- Local library scan from the device `Music` folder via `MediaStore`
-- Album-centric home screen with horizontal cover flow treatment
-- Album detail screen, now playing screen, and adaptive artwork-based gradients
-- Offline playback queue powered by Media3 ExoPlayer
-- Light, dark, and system-following appearance modes
-- 16-band EQ UI plus bass, treble, and spaciousness controls with persisted state
+- Offline playback for local music stored on the device
+- Album-first navigation with dedicated album, artist, playlist, and now playing views
+- Adaptive artwork-led visuals across playback surfaces and key cards
+- Compact now playing bar with quick access to transport controls
+- Full now playing screen with queue, lyrics overlay, volume control, and playback mode controls
+- Local library scanning through Android `MediaStore`, including automatic refresh behavior
+- Light, dark, and system theme support with custom in-app appearance controls
+- Persisted sound shaping controls and equalizer-ready playback architecture
+- Notification playback controls and media-session integration
+- Release-update flow wired to GitHub releases
 
-## Deliberate extension seams
+## Built with
 
-- `LyricsRepository` is the integration point for embedded-tag parsing and Genius-backed lyric retrieval
-- `PlaybackManager` owns playback state and is the place to connect advanced DSP or a media session service
-- `MediaStoreScanner` centralizes local storage discovery and can be expanded for richer metadata extraction
+- Kotlin
+- Jetpack Compose
+- Android Media3 / ExoPlayer
+- Android `MediaStore`
+- Android Storage Access Framework
+- Haze for frosted / blur-driven UI layers
 
-## Notes
+## Project notes
 
-- Media3 already covers common offline formats such as MP3, M4A, AAC, WAV, OGG/Vorbis, and Opus. FLAC support is stronger on newer Android versions, but fully universal ALAC and broader long-tail codec coverage still require decoder-extension work.
-- The current EQ screen persists settings and is ready for DSP hookup, but it does not yet alter playback output.
-- The current lyrics flow reports missing embedded lyrics and keeps the repository boundary ready for a Genius implementation.
+- The app currently targets `minSdk 27` and `targetSdk 37`
+- The project uses a single Android app module
+- Versioning is centralized in `buildSrc/src/main/kotlin/AppBuildConfig.kt`
+- Changelog content is defined in `app/src/main/res/xml/changelog.xml`
 
 ## Build
 
-The project includes a Gradle wrapper and is set to use the Android Studio bundled JDK on this machine so it can build cleanly alongside the system Java 26 install.
+The repository includes the Gradle wrapper, so cloning it should be enough for another developer to open the project in Android Studio and build a debug APK locally.
 
 ```bash
 ./gradlew assembleDebug
