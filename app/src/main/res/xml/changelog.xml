@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<changelog>
+    <!--
+      Add future releases in descending order.
+      Example:
+      <release version="1.1" date="2026-05-01">
+          <change>Improved library scanning speed</change>
+          <change>Added lyrics overlay refinements</change>
+      </release>
+    -->
+    <release version="1.0" date="2026-04-28">
+        <change>Initial public release</change>
+    </release>
+</changelog>

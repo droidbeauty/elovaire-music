@@ -118,6 +118,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import elovaire.music.app.BuildConfig
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -9104,7 +9105,7 @@ private fun SettingsScreen(
                                 shape = RoundedCornerShape(ElovaireRadii.pill),
                             ) {
                                 Text(
-                                    text = "1.0",
+                                    text = BuildConfig.VERSION_NAME,
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     style = MaterialTheme.typography.labelLarge,
                                 )

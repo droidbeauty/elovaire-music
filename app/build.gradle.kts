@@ -7,18 +7,16 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-val appPackageName = "elovaire.music.app"
-
 android {
-    namespace = appPackageName
+    namespace = AppBuildConfig.packageName
     compileSdk = 37
 
     defaultConfig {
-        applicationId = appPackageName
+        applicationId = AppBuildConfig.packageName
         minSdk = 27
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = AppBuildConfig.versionCode
+        versionName = AppBuildConfig.versionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -56,8 +54,8 @@ android {
 androidComponents {
     onVariants(selector().all()) { variant ->
         val buildLabel = variant.buildType ?: variant.name
-        val apkFileName = "$appPackageName-$buildLabel.apk"
-        val aabFileName = "$appPackageName-$buildLabel.aab"
+        val apkFileName = "${AppBuildConfig.packageName}-$buildLabel.apk"
+        val aabFileName = "${AppBuildConfig.packageName}-$buildLabel.aab"
         val variantName = variant.name
         val buildDirPath = layout.buildDirectory.asFile.get().absolutePath
         val variantTaskSuffix = variantName.replaceFirstChar { char ->
