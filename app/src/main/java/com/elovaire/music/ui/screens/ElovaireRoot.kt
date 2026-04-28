@@ -291,13 +291,28 @@ private fun resolveTreePath(uri: Uri): String {
         .replace("//", "/")
 }
 
-private fun internalStorageRootPickerUri(): Uri? {
+private fun defaultLibraryPickerUri(preferredUri: Uri? = null): Uri? {
+    if (preferredUri != null) return preferredUri
     return runCatching {
         DocumentsContract.buildDocumentUri(
             "com.android.externalstorage.documents",
-            "primary:",
+            "primary:Music",
         )
     }.getOrNull()
+}
+
+private fun createLibraryFolderPickerIntent(initialUri: Uri?): Intent {
+    return Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
+        addFlags(
+            Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && initialUri != null) {
+            putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
+        }
+    }
 }
 
 private val LocalSongMenuActions = compositionLocalOf { SongMenuActions() }
@@ -789,6 +804,7 @@ fun ElovaireRoot(
     val searchHistory by container.preferenceStore.searchHistory.collectAsStateWithLifecycle()
     val playlists by container.preferenceStore.playlists.collectAsStateWithLifecycle()
     val favoriteSongIds by container.preferenceStore.favoriteSongIds.collectAsStateWithLifecycle()
+    val libraryFolderUri by container.preferenceStore.libraryFolderUri.collectAsStateWithLifecycle()
     val libraryFolderPath by container.preferenceStore.libraryFolderPath.collectAsStateWithLifecycle()
     val favoriteSongIdSet = remember(favoriteSongIds) { favoriteSongIds.toHashSet() }
     val albumPlayCounts by container.preferenceStore.albumPlayCounts.collectAsStateWithLifecycle()
@@ -844,10 +860,13 @@ fun ElovaireRoot(
         }
     }
     val libraryFolderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocumentTree(),
-    ) { uri ->
-        if (uri != null) {
-            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
+        contract = ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        val uri = result.data?.data
+        if (result.resultCode == Activity.RESULT_OK && uri != null) {
+            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
             runCatching {
                 context.contentResolver.takePersistableUriPermission(uri, takeFlags)
             }
@@ -1665,7 +1684,13 @@ fun ElovaireRoot(
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
                             onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
                             onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
-                            onChangeLibraryFolder = { libraryFolderPickerLauncher.launch(internalStorageRootPickerUri()) },
+                            onChangeLibraryFolder = {
+                                libraryFolderPickerLauncher.launch(
+                                    createLibraryFolderPickerIntent(
+                                        defaultLibraryPickerUri(libraryFolderUri),
+                                    ),
+                                )
+                            },
                         )
                     }
 
@@ -9227,7 +9252,7 @@ private fun ChangelogScreen(
             overscrollEffect = null,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = topBarOccupiedHeight() + 8.dp,
+                top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
                 bottom = navigationBarInsetDp() + 24.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),

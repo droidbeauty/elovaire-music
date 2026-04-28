@@ -1,13 +1,18 @@
 # macOS
 .DS_Store
+**/.DS_Store
 
 # Gradle / Android build output
 .gradle/
 build/
 app/build/
+app/debug/
+app/release/
 captures/
 externalNativeBuild/
 .cxx/
+*.apk
+*.aab
 
 # Local machine config
 local.properties
