@@ -234,6 +234,7 @@ import elovaire.music.app.ui.theme.elovaireScaledSp
 import elovaire.music.app.ui.theme.rememberElovaireOverscrollFactory
 import elovaire.music.app.ui.theme.InkText
 import kotlin.math.cos
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -8605,10 +8606,11 @@ private fun BoxScope.FastScrollbar(
         bottomInset = bottomInset,
         modifier = modifier,
         onJumpToFraction = { fraction ->
-            val targetIndex = ((totalItems - 1).coerceAtLeast(0) * fraction)
+            val maxFirstVisibleIndex = (totalItems - visibleItems.size).coerceAtLeast(0)
+            val targetIndex = (maxFirstVisibleIndex * fraction)
                 .roundToInt()
-                .coerceIn(0, (totalItems - 1).coerceAtLeast(0))
-            state.scrollToItem(targetIndex)
+                .coerceIn(0, maxFirstVisibleIndex)
+            state.requestScrollToItem(targetIndex)
         },
     )
 }
@@ -8627,10 +8629,18 @@ private fun BoxScope.FastScrollbar(
 
     val viewportHeightPx = (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat().coerceAtLeast(1f)
     val averageItemHeightPx = visibleItems.map { it.size.height }.average().toFloat().coerceAtLeast(1f)
-    val estimatedContentHeightPx = max(viewportHeightPx, averageItemHeightPx * totalItems)
+    val firstRowOffsetY = visibleItems.firstOrNull()?.offset?.y
+    val spanCount = visibleItems
+        .takeWhile { it.offset.y == firstRowOffsetY }
+        .size
+        .coerceAtLeast(1)
+    val totalRows = ceil(totalItems.toFloat() / spanCount.toFloat()).toInt().coerceAtLeast(1)
+    val visibleRows = ceil(visibleItems.size.toFloat() / spanCount.toFloat()).toInt().coerceAtLeast(1)
+    val estimatedContentHeightPx = max(viewportHeightPx, averageItemHeightPx * totalRows)
     val scrollableContentHeightPx = max(estimatedContentHeightPx - viewportHeightPx, 1f)
     val currentScrollPx =
-        (state.firstVisibleItemIndex * averageItemHeightPx + state.firstVisibleItemScrollOffset).coerceAtLeast(0f)
+        ((state.firstVisibleItemIndex / spanCount) * averageItemHeightPx + state.firstVisibleItemScrollOffset)
+            .coerceAtLeast(0f)
     val scrollFraction = (currentScrollPx / scrollableContentHeightPx).coerceIn(0f, 1f)
 
     FastScrollbarTrack(
@@ -8642,10 +8652,12 @@ private fun BoxScope.FastScrollbar(
         bottomInset = bottomInset,
         modifier = modifier,
         onJumpToFraction = { fraction ->
-            val targetIndex = ((totalItems - 1).coerceAtLeast(0) * fraction)
+            val maxFirstVisibleRow = (totalRows - visibleRows).coerceAtLeast(0)
+            val targetRow = (maxFirstVisibleRow * fraction)
                 .roundToInt()
-                .coerceIn(0, (totalItems - 1).coerceAtLeast(0))
-            state.scrollToItem(targetIndex)
+                .coerceIn(0, maxFirstVisibleRow)
+            val targetIndex = (targetRow * spanCount).coerceIn(0, (totalItems - 1).coerceAtLeast(0))
+            state.requestScrollToItem(targetIndex)
         },
     )
 }
@@ -8664,6 +8676,9 @@ private fun BoxScope.FastScrollbarTrack(
     if (totalItems <= visibleItemsCount) return
 
     val scope = rememberCoroutineScope()
+    var isDragging by remember { mutableStateOf(false) }
+    var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
+    var lastRequestedFraction by remember { mutableFloatStateOf(-1f) }
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val trackColor = if (darkTheme) {
         Color.White.copy(alpha = 0.12f)
@@ -8676,8 +8691,8 @@ private fun BoxScope.FastScrollbarTrack(
         InkText.copy(alpha = 0.72f)
     }
     val animatedScrollFraction by animateFloatAsState(
-        targetValue = scrollFraction.coerceIn(0f, 1f),
-        animationSpec = tween(120),
+        targetValue = if (isDragging) dragFraction.coerceIn(0f, 1f) else scrollFraction.coerceIn(0f, 1f),
+        animationSpec = if (isDragging) tween(50) else tween(90),
         label = "fast_scrollbar_fraction",
     )
     BoxWithConstraints(
@@ -8685,8 +8700,8 @@ private fun BoxScope.FastScrollbarTrack(
             .align(Alignment.CenterEnd)
             .zIndex(3f)
             .fillMaxHeight()
-            .padding(top = topInset, end = 4.dp, bottom = bottomInset)
-            .width(26.dp),
+            .padding(top = topInset, end = 1.dp, bottom = bottomInset)
+            .width(18.dp),
     ) {
         val density = LocalDensity.current
         val trackHeightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
@@ -8696,15 +8711,25 @@ private fun BoxScope.FastScrollbarTrack(
         val fractionForPosition: (Float) -> Float = { y ->
             ((y - (thumbHeightPx / 2f)) / trackTravelPx).coerceIn(0f, 1f)
         }
+        val jumpToFraction: (Float) -> Unit = { fraction ->
+            val normalized = fraction.coerceIn(0f, 1f)
+            dragFraction = normalized
+            if (kotlin.math.abs(normalized - lastRequestedFraction) >= 0.0025f) {
+                lastRequestedFraction = normalized
+                scope.launch {
+                    onJumpToFraction(normalized)
+                }
+            }
+        }
 
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
                     detectTapGestures { offset ->
-                        scope.launch {
-                            onJumpToFraction(fractionForPosition(offset.y))
-                        }
+                        isDragging = true
+                        jumpToFraction(fractionForPosition(offset.y))
+                        isDragging = false
                     }
                 },
         ) {
@@ -8714,15 +8739,18 @@ private fun BoxScope.FastScrollbarTrack(
                     .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
                         detectVerticalDragGestures(
                             onDragStart = { offset ->
-                                scope.launch {
-                                    onJumpToFraction(fractionForPosition(offset.y))
-                                }
+                                isDragging = true
+                                jumpToFraction(fractionForPosition(offset.y))
                             },
                             onVerticalDrag = { change, _ ->
                                 change.consume()
-                                scope.launch {
-                                    onJumpToFraction(fractionForPosition(change.position.y))
-                                }
+                                jumpToFraction(fractionForPosition(change.position.y))
+                            },
+                            onDragEnd = {
+                                isDragging = false
+                            },
+                            onDragCancel = {
+                                isDragging = false
                             },
                         )
                     },
