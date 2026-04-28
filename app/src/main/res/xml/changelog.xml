@@ -8,10 +8,10 @@
           <change>Added lyrics overlay refinements</change>
       </release>
     -->
-    <release version="1.0" date="2026-04-28">
-        <change>Initial public release of Elovaire</change>
-        <change>Support for lossy and lossless audio codecs including FLAC up to 32-bit/384kHz</change>
-        <change>Nice UI with Android-native animations system</change>
-        <change>Built-in lyrics parsing for offline songs based on tags. Feature requires Wi-Fi or mobile data connection</change>
+    <release version="1.1" date="2026-04-28">
+        <change>1st update ever to the app</change>
+        <change>tweaked look of changelog screen</change>
+        <change>added ability for OTA updates based Github repository changes</change>
+        <change>tweaked file system permissions for flawless music library scanning</change>
     </release>
 </changelog>

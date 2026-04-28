@@ -9199,9 +9199,7 @@ private fun ChangelogScreen(
             overscrollEffect = null,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
-                end = 18.dp,
                 bottom = navigationBarInsetDp() + 24.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -9213,60 +9211,73 @@ private fun ChangelogScreen(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(ElovaireRadii.module))
                         .aspectRatio(16f / 9f),
                 )
             }
 
             item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                Row(
+                    modifier = Modifier.padding(horizontal = 18.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = "What’s new?",
                         style = MaterialTheme.typography.headlineMedium,
                     )
-                    Text(
-                        text = "Version ${BuildConfig.VERSION_NAME}",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = readableSecondaryTextColor(),
-                    )
+                    Surface(
+                        shape = RoundedCornerShape(ElovaireRadii.pill),
+                        color = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+                            Color.White.copy(alpha = 0.16f)
+                        } else {
+                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                        },
+                        contentColor = MaterialTheme.colorScheme.onSurface,
+                    ) {
+                        Text(
+                            text = BuildConfig.VERSION_NAME,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                        )
+                    }
                 }
             }
 
             item {
-                ModuleCard {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        release?.changes
-                            ?.filter { it.isNotBlank() }
-                            ?.forEach { change ->
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                    verticalAlignment = Alignment.Top,
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .padding(top = 8.dp)
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)),
-                                    )
-                                    Text(
-                                        text = change,
-                                        modifier = Modifier.weight(1f),
-                                        style = MaterialTheme.typography.bodyLarge,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                    )
+                Box(modifier = Modifier.padding(horizontal = 18.dp)) {
+                    ModuleCard {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                        ) {
+                            release?.changes
+                                ?.filter { it.isNotBlank() }
+                                ?.forEach { change ->
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                        verticalAlignment = Alignment.Top,
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .padding(top = 8.dp)
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)),
+                                        )
+                                        Text(
+                                            text = change,
+                                            modifier = Modifier.weight(1f),
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                    }
                                 }
-                            }
-                            ?: Text(
-                                text = "No changelog entries yet",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = readableSecondaryTextColor(),
-                            )
+                                ?: Text(
+                                    text = "No changelog entries yet",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = readableSecondaryTextColor(),
+                                )
+                        }
                     }
                 }
             }
