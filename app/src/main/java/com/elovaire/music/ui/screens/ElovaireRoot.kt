@@ -294,9 +294,9 @@ private fun resolveTreePath(uri: Uri): String {
 private fun defaultLibraryPickerUri(preferredUri: Uri? = null): Uri? {
     if (preferredUri != null) return preferredUri
     return runCatching {
-        DocumentsContract.buildDocumentUri(
+        DocumentsContract.buildTreeDocumentUri(
             "com.android.externalstorage.documents",
-            "primary:Music",
+            "primary:",
         )
     }.getOrNull()
 }
@@ -2773,7 +2773,7 @@ private fun LastPlayedAlbumModule(
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val artwork = rememberArtworkBitmap(album.artUri, size = 768)
+    val artwork = rememberArtworkBitmap(album.artUri, size = 512)
     val year = remember(album.songs) { album.songs.firstNotNullOfOrNull { it.releaseYear } }
     val genre = remember(album.songs) {
         album.songs.firstOrNull { it.genre.isNotBlank() && it.genre != "Unknown Genre" }?.genre
@@ -2819,8 +2819,8 @@ private fun LastPlayedAlbumModule(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .matchParentSize()
-                    .blur(54.dp),
-                alpha = 0.9f,
+                    .blur(40.dp),
+                alpha = 0.88f,
             )
         }
         Box(
@@ -9295,7 +9295,7 @@ private fun ChangelogScreen(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(16f / 9f),
+                        .height(236.dp),
                 )
             }
 

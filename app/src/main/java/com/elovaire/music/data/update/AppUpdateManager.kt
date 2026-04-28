@@ -15,7 +15,6 @@ import java.net.URL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -50,17 +49,11 @@ class AppUpdateManager(
     private val appContext = context.applicationContext
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
-    private var periodicCheckJob: Job? = null
     private var downloadJob: Job? = null
 
     init {
+        clearDownloadedInstallers()
         checkForUpdates()
-        periodicCheckJob = scope.launch {
-            while (true) {
-                delay(PERIODIC_CHECK_INTERVAL_MS)
-                checkForUpdates()
-            }
-        }
     }
 
     fun checkForUpdates(force: Boolean = false) {
@@ -152,6 +145,16 @@ class AppUpdateManager(
         }
     }
 
+    fun clearDownloadedInstallers() {
+        runCatching {
+            updatesDirectory().listFiles()?.forEach { file ->
+                if (file.isFile && file.extension.equals("apk", ignoreCase = true)) {
+                    file.delete()
+                }
+            }
+        }
+    }
+
     private fun fetchLatestRelease(): AppReleaseInfo? {
         val connection = (URL(LATEST_RELEASE_URL).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -195,7 +198,7 @@ class AppUpdateManager(
     }
 
     private fun downloadReleaseApk(release: AppReleaseInfo): File {
-        val updatesDir = File(appContext.cacheDir, "updates").apply { mkdirs() }
+        val updatesDir = updatesDirectory().apply { mkdirs() }
         val targetFile = File(updatesDir, release.assetFileName)
         val connection = (URL(release.downloadUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -299,10 +302,11 @@ class AppUpdateManager(
         }
     }
 
+    private fun updatesDirectory(): File = File(appContext.cacheDir, "updates")
+
     private companion object {
         const val LATEST_RELEASE_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases/latest"
         const val NETWORK_TIMEOUT_MS = 12_000
-        const val PERIODIC_CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
 }
