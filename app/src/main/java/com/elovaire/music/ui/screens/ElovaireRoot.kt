@@ -2773,6 +2773,7 @@ private fun LastPlayedAlbumModule(
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val artwork = rememberArtworkBitmap(album.artUri, size = 768)
     val year = remember(album.songs) { album.songs.firstNotNullOfOrNull { it.releaseYear } }
     val genre = remember(album.songs) {
         album.songs.firstOrNull { it.genre.isNotBlank() && it.genre != "Unknown Genre" }?.genre
@@ -2788,18 +2789,49 @@ private fun LastPlayedAlbumModule(
         .copy(alpha = 0.24f)
         .compositeOver(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
     val playTint = if (playBackground.luminance() > 0.56f) InkText else Color.White
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
+    val albumTint = gradient.first().copy(alpha = 0.46f)
+    val resolvedSurface = albumTint.compositeOver(baseTint)
+    val contentColor = if (resolvedSurface.luminance() > 0.42f) InkText else Color.White
+    val secondaryContentColor = contentColor.copy(alpha = 0.72f)
 
-    ModuleCard(
+    Box(
         modifier = modifier
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+            )
+            .clip(RoundedCornerShape(ElovaireRadii.module))
+            .background(baseTint)
+            .border(
+                width = 1.dp,
+                color = Color.White.copy(alpha = if (darkTheme) 0.05f else 0.04f),
+                shape = RoundedCornerShape(ElovaireRadii.module),
             ),
     ) {
+        artwork.value?.let { artworkBitmap ->
+            Image(
+                bitmap = artworkBitmap,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .matchParentSize()
+                    .blur(54.dp),
+                alpha = 0.9f,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(albumTint),
+        )
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(18.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -2817,14 +2849,14 @@ private fun LastPlayedAlbumModule(
                 Text(
                     text = album.title,
                     style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = contentColor,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = album.artist,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = readableSecondaryTextColor(),
+                    color = secondaryContentColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -2832,7 +2864,7 @@ private fun LastPlayedAlbumModule(
                     Text(
                         text = metaItems.joinToString("  •  "),
                         style = MaterialTheme.typography.labelLarge,
-                        color = readableSecondaryTextColor(),
+                        color = secondaryContentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -9252,7 +9284,6 @@ private fun ChangelogScreen(
             overscrollEffect = null,
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
                 bottom = navigationBarInsetDp() + 24.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
