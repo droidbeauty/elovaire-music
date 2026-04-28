@@ -28,6 +28,12 @@ class PreferenceStore(context: Context) {
     private val _playbackVolume = MutableStateFlow(loadPlaybackVolume())
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
 
+    private val _libraryFolderUri = MutableStateFlow(loadLibraryFolderUri())
+    val libraryFolderUri: StateFlow<Uri?> = _libraryFolderUri.asStateFlow()
+
+    private val _libraryFolderPath = MutableStateFlow(loadLibraryFolderPath())
+    val libraryFolderPath: StateFlow<String> = _libraryFolderPath.asStateFlow()
+
     private val _searchHistory = MutableStateFlow(loadSearchHistory())
     val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
     private val _albumPlayCounts = MutableStateFlow(loadAlbumPlayCounts())
@@ -176,6 +182,23 @@ class PreferenceStore(context: Context) {
         _playbackVolume.value = volume
     }
 
+    fun setLibraryFolder(
+        uri: Uri?,
+        path: String,
+    ) {
+        val normalizedPath = path.trim()
+        preferences.edit {
+            if (uri != null) {
+                putString(KEY_LIBRARY_FOLDER_URI, uri.toString())
+            } else {
+                remove(KEY_LIBRARY_FOLDER_URI)
+            }
+            putString(KEY_LIBRARY_FOLDER_PATH, normalizedPath)
+        }
+        _libraryFolderUri.value = uri
+        _libraryFolderPath.value = normalizedPath
+    }
+
     private fun persistEqSettings(settings: EqSettings) {
         preferences.edit {
             putString(KEY_BANDS, settings.bands.joinToString(","))
@@ -214,6 +237,16 @@ class PreferenceStore(context: Context) {
 
     private fun loadPlaybackVolume(): Float {
         return preferences.getFloat(KEY_PLAYBACK_VOLUME, 1f).coerceIn(0f, 1f)
+    }
+
+    private fun loadLibraryFolderUri(): Uri? {
+        return preferences.getString(KEY_LIBRARY_FOLDER_URI, null)
+            ?.takeIf { it.isNotBlank() }
+            ?.let(Uri::parse)
+    }
+
+    private fun loadLibraryFolderPath(): String {
+        return preferences.getString(KEY_LIBRARY_FOLDER_PATH, null).orEmpty()
     }
 
     private fun loadSearchHistory(): List<SearchHistoryEntry> {
@@ -372,6 +405,8 @@ class PreferenceStore(context: Context) {
         const val KEY_ALBUM_PLAY_COUNTS = "album_play_counts"
         const val KEY_SONG_PLAY_COUNTS = "song_play_counts"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
+        const val KEY_LIBRARY_FOLDER_URI = "library_folder_uri"
+        const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
         const val KEY_BANDS = "eq_bands"
         const val KEY_BASS = "eq_bass"
         const val KEY_TREBLE = "eq_treble"

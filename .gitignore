@@ -1,9 +1,36 @@
-.gradle/
-/build/
-/app/build/
-/local.properties
-/captures/
-/.idea/
-*.iml
+# macOS
 .DS_Store
-/elovairemusic.jks
+
+# Gradle / Android build output
+.gradle/
+build/
+app/build/
+captures/
+externalNativeBuild/
+.cxx/
+
+# Local machine config
+local.properties
+.idea/
+*.iml
+*.log
+
+# Signing keys / certificates / private material
+*.jks
+*.keystore
+*.p12
+*.pem
+*.key
+*.der
+
+# Local environment / secrets
+.env
+.env.*
+*.properties.local
+keystore.properties
+signing.properties
+secrets.properties
+
+# Kotlin / IntelliJ caches
+.kotlin/
+out/

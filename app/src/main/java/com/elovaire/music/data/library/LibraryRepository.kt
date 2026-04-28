@@ -220,6 +220,19 @@ class LibraryRepository(
 
     fun albumById(albumId: Long): Album? = _state.value.albums.firstOrNull { it.id == albumId }
 
+    fun defaultMediaFolderPath(): String = scanner.musicDirectory().absolutePath
+
+    fun setPreferredLibraryFolderPath(path: String?) {
+        scanner.setPreferredLibraryFolderPath(path)
+        if (_state.value.permissionGranted) {
+            refresh(
+                forceMediaIndex = true,
+                enrichMetadata = false,
+                showLoadingIndicator = _state.value.songs.isEmpty(),
+            )
+        }
+    }
+
     private fun scheduleMediaRefresh(
         forceMediaIndex: Boolean = false,
     ) {
@@ -353,6 +366,8 @@ class LibraryRepository(
             "opus",
             "wma",
             "ape",
+            "dsf",
+            "dff",
             "amr",
             "3gp",
             "mp4",

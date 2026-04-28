@@ -2,6 +2,7 @@ package elovaire.music.app.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -42,18 +43,37 @@ fun ElovaireTheme(
     textSizePreset: TextSizePreset,
     content: @Composable () -> Unit,
 ) {
-    val darkTheme = when (themeMode) {
-        ThemeMode.System -> isSystemInDarkTheme()
-        ThemeMode.Light -> false
-        ThemeMode.Dark -> true
-    }
+    val darkTheme = resolveDarkTheme(themeMode = themeMode, systemDark = isSystemInDarkTheme())
+    val colorScheme = resolvedColorScheme(darkTheme)
 
     CompositionLocalProvider(LocalTextScale provides textSizePreset.scaleFactor) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkColors else LightColors,
+            colorScheme = colorScheme,
             typography = elovaireTypography(textSizePreset.scaleFactor),
             shapes = elovaireShapes(),
             content = content,
         )
     }
+}
+
+fun resolveDarkTheme(
+    themeMode: ThemeMode,
+    systemDark: Boolean,
+): Boolean {
+    return when (themeMode) {
+        ThemeMode.System -> systemDark
+        ThemeMode.Light -> false
+        ThemeMode.Dark -> true
+    }
+}
+
+fun themeBackgroundForMode(
+    themeMode: ThemeMode,
+    systemDark: Boolean,
+): Color {
+    return resolvedColorScheme(resolveDarkTheme(themeMode, systemDark)).background
+}
+
+private fun resolvedColorScheme(darkTheme: Boolean): ColorScheme {
+    return if (darkTheme) DarkColors else LightColors
 }

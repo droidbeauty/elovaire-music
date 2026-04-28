@@ -3,17 +3,25 @@ package elovaire.music.app.data.playback
 import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.database.ContentObserver
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioFormat
+import android.media.AudioMixerAttributes
 import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
+import android.os.Build
 import android.os.Looper
 import android.provider.Settings
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
+import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaSession
 import elovaire.music.app.MainActivity
 import elovaire.music.app.domain.model.Album
@@ -64,17 +72,32 @@ class PlaybackManager(
     private val scope = scope
     private val appContext = context.applicationContext
     private val audioManager = context.getSystemService(AudioManager::class.java)
+    private val playbackAudioAttributes = AudioAttributes.Builder()
+        .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+        .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
+        .build()
+    private val platformPlaybackAudioAttributes = android.media.AudioAttributes.Builder()
+        .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
+        .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
+        .build()
     private var userVolume = currentSystemVolumeFraction()
     private var volumeFineGain = 1f
+    private var lastKnownSystemVolumeFraction = userVolume
     private var ignoreObservedSystemVolumeStep: Int? = null
+    private var usbOutputDevice: AudioDeviceInfo? = null
+    private var bitPerfectUsbPlaybackActive = false
+    private val extractorsFactory = DefaultExtractorsFactory()
+        .setConstantBitrateSeekingEnabled(true)
     private val player = ExoPlayer.Builder(context)
-        .setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(androidx.media3.common.C.USAGE_MEDIA)
-                .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
-                .build(),
-            false,
+        .setRenderersFactory(
+            DefaultRenderersFactory(context)
+                .setEnableAudioFloatOutput(true)
+                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
         )
+        .setMediaSourceFactory(
+            DefaultMediaSourceFactory(context, extractorsFactory),
+        )
+        .setAudioAttributes(playbackAudioAttributes, false)
         .setHandleAudioBecomingNoisy(true)
         .build()
         .apply {
@@ -82,14 +105,24 @@ class PlaybackManager(
         }
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
-            android.media.AudioAttributes.Builder()
-                .setUsage(android.media.AudioAttributes.USAGE_MEDIA)
-                .setContentType(android.media.AudioAttributes.CONTENT_TYPE_MUSIC)
-                .build(),
+            platformPlaybackAudioAttributes,
         )
         .setOnAudioFocusChangeListener(::handleAudioFocusChange)
         .setAcceptsDelayedFocusGain(false)
         .build()
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            usbOutputDevice = findUsbOutputDevice()
+            refreshUsbBitPerfectMode()
+            syncFromObservedSystemVolume()
+        }
+
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+            usbOutputDevice = findUsbOutputDevice()
+            refreshUsbBitPerfectMode()
+            syncFromObservedSystemVolume()
+        }
+    }
     private var lastRecordedSongId: Long? = null
     private var fadeJob: Job? = null
     private var hasAudioFocus = false
@@ -97,6 +130,7 @@ class PlaybackManager(
     private var isPauseTransitioningToStopped = false
     private var isManualPausePending = false
     private var shouldResumeAfterTransientFocusLoss = false
+    private var duckRecoveryJob: Job? = null
     private var isStoppingQueue = false
     private var isRecoveringPlayback = false
     private var lastKnownQueueIndex = -1
@@ -144,6 +178,8 @@ class PlaybackManager(
             true,
             systemVolumeObserver,
         )
+        audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
+        usbOutputDevice = findUsbOutputDevice()
         syncFromObservedSystemVolume()
         player.volume = effectivePlayerGain()
         player.addListener(
@@ -235,6 +271,13 @@ class PlaybackManager(
     }
 
     fun setVolume(volume: Float) {
+        if (shouldBypassSystemStreamVolume()) {
+            userVolume = volume.quantizedVolume()
+            volumeFineGain = userVolume
+            player.volume = effectivePlayerGain()
+            updateState()
+            return
+        }
         applyFineGrainedVolume(volume.quantizedVolume())
         player.volume = effectivePlayerGain()
         updateState()
@@ -306,8 +349,11 @@ class PlaybackManager(
 
     fun release() {
         fadeJob?.cancel()
+        duckRecoveryJob?.cancel()
+        clearUsbBitPerfectMode()
         abandonAudioFocus()
         appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
+        audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
         mediaSession.release()
         player.release()
     }
@@ -338,6 +384,7 @@ class PlaybackManager(
             player.playWhenReady = false
         }
         _state.value = _state.value.copy(queue = songs, sourceLabel = sourceLabel)
+        refreshUsbBitPerfectMode(song = songs.getOrNull(startIndex))
         updateState()
     }
 
@@ -352,6 +399,7 @@ class PlaybackManager(
         player.clearMediaItems()
         isManualPausePending = false
         isPauseTransitioningToStopped = false
+        clearUsbBitPerfectMode()
         abandonAudioFocus()
         lastRecordedSongId = null
         _state.value = _state.value.copy(
@@ -389,6 +437,7 @@ class PlaybackManager(
         if (currentSong == null) {
             lastRecordedSongId = null
         }
+        refreshUsbBitPerfectMode(currentSong)
         userVolume = currentEffectiveVolumeFraction()
 
         val updatedState = existingState.copy(
@@ -460,6 +509,7 @@ class PlaybackManager(
 
     private fun fadeToDuckedVolume() {
         if (!player.isPlaying) return
+        duckRecoveryJob?.cancel()
         isDucked = true
         animateVolumeTo(
             targetVolume = effectivePlayerGain(),
@@ -467,10 +517,18 @@ class PlaybackManager(
         ) {
             updateState()
         }
+        duckRecoveryJob = scope.launch {
+            delay(DUCK_RECOVERY_TIMEOUT_MS)
+            if (isDucked) {
+                restoreFromDuck()
+            }
+        }
     }
 
     private fun restoreFromDuck() {
         if (!isDucked) return
+        duckRecoveryJob?.cancel()
+        duckRecoveryJob = null
         isDucked = false
         animateVolumeTo(
             targetVolume = effectivePlayerGain(),
@@ -518,6 +576,8 @@ class PlaybackManager(
     private fun handleAudioFocusChange(focusChange: Int) {
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
+                duckRecoveryJob?.cancel()
+                duckRecoveryJob = null
                 hasAudioFocus = true
                 if (shouldResumeAfterTransientFocusLoss && _state.value.queue.isNotEmpty()) {
                     resumePlayback()
@@ -531,6 +591,8 @@ class PlaybackManager(
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                duckRecoveryJob?.cancel()
+                duckRecoveryJob = null
                 shouldResumeAfterTransientFocusLoss = player.isPlaying || player.playWhenReady
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
@@ -541,6 +603,8 @@ class PlaybackManager(
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
+                duckRecoveryJob?.cancel()
+                duckRecoveryJob = null
                 shouldResumeAfterTransientFocusLoss = false
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
@@ -585,11 +649,24 @@ class PlaybackManager(
     }
 
     private fun effectivePlayerGain(): Float {
+        if (bitPerfectUsbPlaybackActive) return 1f
         val duckMultiplier = if (isDucked) DUCKED_VOLUME_MULTIPLIER else 1f
-        return (volumeFineGain * duckMultiplier).coerceIn(0f, 1f)
+        val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
+        return (baseGain * duckMultiplier).coerceIn(0f, 1f)
     }
 
     private fun applyFineGrainedVolume(targetVolume: Float) {
+        if (bitPerfectUsbPlaybackActive) {
+            userVolume = targetVolume
+            player.volume = 1f
+            return
+        }
+        if (usesFixedVolumeOutput()) {
+            userVolume = targetVolume
+            volumeFineGain = targetVolume
+            player.volume = effectivePlayerGain()
+            return
+        }
         val manager = audioManager
         if (manager == null) {
             userVolume = targetVolume
@@ -614,6 +691,20 @@ class PlaybackManager(
     }
 
     private fun syncFromObservedSystemVolume() {
+        if (bitPerfectUsbPlaybackActive) {
+            ignoreObservedSystemVolumeStep = null
+            lastKnownSystemVolumeFraction = currentSystemVolumeFraction()
+            player.volume = 1f
+            updateState()
+            return
+        }
+        if (usesFixedVolumeOutput()) {
+            ignoreObservedSystemVolumeStep = null
+            lastKnownSystemVolumeFraction = currentSystemVolumeFraction()
+            player.volume = effectivePlayerGain()
+            updateState()
+            return
+        }
         val observedSystemStep = currentSystemVolumeStep()
         if (ignoreObservedSystemVolumeStep == observedSystemStep) {
             ignoreObservedSystemVolumeStep = null
@@ -622,13 +713,122 @@ class PlaybackManager(
             volumeFineGain = if (observedSystemStep <= 0) 0f else 1f
             userVolume = currentSystemVolumeFraction().quantizedVolume()
         }
+        lastKnownSystemVolumeFraction = currentSystemVolumeFraction()
         player.volume = effectivePlayerGain()
         updateState()
     }
 
     private fun currentEffectiveVolumeFraction(): Float {
+        if (shouldBypassSystemStreamVolume()) return userVolume
         val currentSystemFraction = currentSystemVolumeFraction()
         return (currentSystemFraction * volumeFineGain).coerceIn(0f, 1f).quantizedVolume()
+    }
+
+    private fun shouldBypassSystemStreamVolume(): Boolean {
+        return bitPerfectUsbPlaybackActive || usesFixedVolumeOutput()
+    }
+
+    private fun usesFixedVolumeOutput(): Boolean {
+        return audioManager?.isVolumeFixed == true
+    }
+
+    private fun refreshUsbBitPerfectMode(song: Song? = _state.value.currentSong) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            bitPerfectUsbPlaybackActive = false
+            return
+        }
+        val manager = audioManager ?: run {
+            bitPerfectUsbPlaybackActive = false
+            return
+        }
+        val device = findUsbOutputDevice().also { usbOutputDevice = it } ?: run {
+            clearUsbBitPerfectMode()
+            return
+        }
+        val preferredMixer = song
+            ?.let(::buildPreferredUsbMixerAttributes)
+            ?.let { preferred ->
+                manager.getSupportedMixerAttributes(device).firstOrNull { supported ->
+                    supported.mixerBehavior == AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT &&
+                        supported.matchesPlaybackFormat(preferred.format)
+                }
+            }
+
+        if (preferredMixer == null) {
+            clearUsbBitPerfectMode()
+            return
+        }
+
+        val applied = manager.setPreferredMixerAttributes(
+            platformPlaybackAudioAttributes,
+            device,
+            preferredMixer,
+        )
+        bitPerfectUsbPlaybackActive = applied
+        if (applied) {
+            volumeFineGain = 1f
+            userVolume = lastKnownSystemVolumeFraction.quantizedVolume()
+        }
+        player.volume = effectivePlayerGain()
+    }
+
+    private fun clearUsbBitPerfectMode() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val manager = audioManager
+            val device = usbOutputDevice
+            if (manager != null && device != null) {
+                runCatching {
+                    manager.clearPreferredMixerAttributes(platformPlaybackAudioAttributes, device)
+                }
+            }
+        }
+        bitPerfectUsbPlaybackActive = false
+        player.volume = effectivePlayerGain()
+    }
+
+    private fun findUsbOutputDevice(): AudioDeviceInfo? {
+        val manager = audioManager ?: return null
+        return manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .firstOrNull { device ->
+                device.isSink && (
+                    device.type == AudioDeviceInfo.TYPE_USB_DEVICE ||
+                        device.type == AudioDeviceInfo.TYPE_USB_HEADSET
+                    )
+            }
+    }
+
+    private fun buildPreferredUsbMixerAttributes(song: Song): AudioMixerAttributes? {
+        val playbackFormat = buildUsbPlaybackFormat(song) ?: return null
+        return AudioMixerAttributes.Builder(playbackFormat)
+            .setMixerBehavior(AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT)
+            .build()
+    }
+
+    private fun buildUsbPlaybackFormat(song: Song): AudioFormat? {
+        val normalizedFormat = song.audioFormat.uppercase()
+        if (normalizedFormat !in BIT_PERFECT_USB_COMPATIBLE_FORMATS) return null
+        val parsedQuality = parsePlaybackQuality(song.audioQuality) ?: return null
+        val encoding = when (parsedQuality.bitDepth) {
+            16 -> AudioFormat.ENCODING_PCM_16BIT
+            24 -> AudioFormat.ENCODING_PCM_24BIT_PACKED
+            32 -> AudioFormat.ENCODING_PCM_32BIT
+            else -> return null
+        }
+        return AudioFormat.Builder()
+            .setEncoding(encoding)
+            .setSampleRate(parsedQuality.sampleRateHz)
+            .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+            .build()
+    }
+
+    private fun parsePlaybackQuality(quality: String?): ParsedPlaybackQuality? {
+        val match = QUALITY_REGEX.matchEntire(quality.orEmpty()) ?: return null
+        val bitDepth = match.groupValues[1].toIntOrNull() ?: return null
+        val sampleRateKhz = match.groupValues[2].toFloatOrNull() ?: return null
+        return ParsedPlaybackQuality(
+            bitDepth = bitDepth,
+            sampleRateHz = (sampleRateKhz * 1000f).roundToInt(),
+        )
     }
 
     private fun currentSystemVolumeStep(): Int {
@@ -662,9 +862,24 @@ class PlaybackManager(
         const val PAUSE_FADE_DURATION_MS = 500L
         const val INTERRUPTION_FADE_DURATION_MS = 1_100L
         const val DUCK_FADE_DURATION_MS = 280L
+        const val DUCK_RECOVERY_TIMEOUT_MS = 1_800L
         const val FADE_STEP_MS = 40L
         const val DUCKED_VOLUME_MULTIPLIER = 0.35f
+        val QUALITY_REGEX = Regex("""(\d{1,2})/(\d{1,3}(?:\.\d)?)kHz""", RegexOption.IGNORE_CASE)
+        val BIT_PERFECT_USB_COMPATIBLE_FORMATS = setOf("FLAC", "WAV", "AIFF", "ALAC")
     }
+}
+
+private data class ParsedPlaybackQuality(
+    val bitDepth: Int,
+    val sampleRateHz: Int,
+)
+
+private fun AudioMixerAttributes.matchesPlaybackFormat(format: AudioFormat): Boolean {
+    val candidateFormat = this.format
+    return candidateFormat.encoding == format.encoding &&
+        candidateFormat.sampleRate == format.sampleRate &&
+        candidateFormat.channelMask == format.channelMask
 }
 
 private fun Float.quantizedVolume(): Float {

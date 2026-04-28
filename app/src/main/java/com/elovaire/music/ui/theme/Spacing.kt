@@ -46,7 +46,7 @@ object ElovaireSpacing {
     val sectionVerticalGap: Dp = 20.dp
 
     // Gap between now playing artwork and the title/artist row.
-    val nowPlayingTitleTopGap: Dp = 6.dp
+    val nowPlayingTitleTopGap: Dp = 5.dp
 
     // Gap between the now playing title/artist row and the progress section below it.
     val nowPlayingTitleBottomGap: Dp = 0.dp

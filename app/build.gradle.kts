@@ -1,3 +1,4 @@
+import java.io.File
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -6,12 +7,14 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val appPackageName = "elovaire.music.app"
+
 android {
-    namespace = "elovaire.music.app"
+    namespace = appPackageName
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "elovaire.music.app"
+        applicationId = appPackageName
         minSdk = 27
         targetSdk = 37
         versionCode = 1
@@ -50,6 +53,53 @@ android {
     }
 }
 
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        val buildLabel = variant.buildType ?: variant.name
+        val apkFileName = "$appPackageName-$buildLabel.apk"
+        val aabFileName = "$appPackageName-$buildLabel.aab"
+        val variantName = variant.name
+        val buildDirPath = layout.buildDirectory.asFile.get().absolutePath
+        val variantTaskSuffix = variantName.replaceFirstChar { char ->
+            if (char.isLowerCase()) char.titlecase() else char.toString()
+        }
+
+        tasks.matching { task ->
+            task.name == "assemble$variantTaskSuffix" ||
+                task.name == "bundle$variantTaskSuffix" ||
+                task.name == "sign${variantTaskSuffix}Bundle"
+        }.configureEach {
+            doLast {
+                val apkDir = File(buildDirPath, "outputs/apk/$variantName")
+                apkDir
+                    .listFiles()
+                    ?.asList()
+                    .orEmpty()
+                    .filter { file: File -> file.isFile && file.extension == "apk" && !file.name.contains("androidTest") }
+                    .forEach { file: File ->
+                        val target = file.parentFile.resolve(apkFileName)
+                        if (file.name != apkFileName && file.absolutePath != target.absolutePath) {
+                            file.copyTo(target, overwrite = true)
+                        }
+                    }
+
+                val bundleDir = File(buildDirPath, "outputs/bundle/$variantName")
+                bundleDir
+                    .listFiles()
+                    ?.asList()
+                    .orEmpty()
+                    .filter { file: File -> file.isFile && file.extension == "aab" }
+                    .forEach { file: File ->
+                        val target = file.parentFile.resolve(aabFileName)
+                        if (file.name != aabFileName && file.absolutePath != target.absolutePath) {
+                            file.copyTo(target, overwrite = true)
+                        }
+                    }
+            }
+        }
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_17
@@ -71,6 +121,7 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
 
     implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.extractor)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
     implementation(libs.haze)
