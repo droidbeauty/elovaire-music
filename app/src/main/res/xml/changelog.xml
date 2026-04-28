@@ -9,6 +9,9 @@
       </release>
     -->
     <release version="1.0" date="2026-04-28">
-        <change>Initial public release</change>
+        <change>Initial public release of Elovaire</change>
+        <change>Support for lossy and lossless audio codecs including FLAC up to 32-bit/384kHz</change>
+        <change>Nice UI with Android-native animations system</change>
+        <change>Built-in lyrics parsing for offline songs based on tags. Feature requires Wi-Fi or mobile data connection</change>
     </release>
 </changelog>

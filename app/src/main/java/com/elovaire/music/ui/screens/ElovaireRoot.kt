@@ -204,6 +204,8 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.app.R
 import elovaire.music.app.core.AppContainer
+import elovaire.music.app.data.changelog.ChangelogRelease
+import elovaire.music.app.data.changelog.ChangelogRepository
 import elovaire.music.app.data.library.LibraryUiState
 import elovaire.music.app.data.lyrics.LyricsLine
 import elovaire.music.app.data.lyrics.LyricsPayload
@@ -212,6 +214,8 @@ import elovaire.music.app.data.lyrics.LyricsService
 import elovaire.music.app.data.playback.PlaybackProgressState
 import elovaire.music.app.data.playback.PlaybackRepeatMode
 import elovaire.music.app.data.playback.PlaybackUiState
+import elovaire.music.app.data.update.AppReleaseInfo
+import elovaire.music.app.data.update.AppUpdateUiState
 import elovaire.music.app.domain.model.Album
 import elovaire.music.app.domain.model.EqSettings
 import elovaire.music.app.domain.model.Playlist
@@ -249,6 +253,7 @@ private const val SEARCH_ROUTE = "search"
 private const val PLAYER_ROUTE = "player"
 private const val EQUALIZER_ROUTE = "equalizer"
 private const val SETTINGS_ROUTE = "settings"
+private const val CHANGELOG_ROUTE = "changelog"
 private const val ALBUM_ROUTE = "album"
 private const val LIBRARY_COLLECTION_ROUTE = "library_collection"
 private const val GENRE_ROUTE = "genre"
@@ -788,6 +793,8 @@ fun ElovaireRoot(
     val albumPlayCounts by container.preferenceStore.albumPlayCounts.collectAsStateWithLifecycle()
     val songPlayCounts by container.preferenceStore.songPlayCounts.collectAsStateWithLifecycle()
     val openPlayerRequestVersion by container.openPlayerRequestVersion.collectAsStateWithLifecycle()
+    val appUpdateState by container.appUpdateManager.uiState.collectAsStateWithLifecycle()
+    val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
     val rootScope = rememberCoroutineScope()
     var hasPermission by remember { mutableStateOf(hasAudioPermission(context)) }
     var hasNotificationPermission by remember { mutableStateOf(hasNotificationPermission(context)) }
@@ -1656,7 +1663,15 @@ fun ElovaireRoot(
                             onBassChanged = container.preferenceStore::updateBass,
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
                             onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
+                            onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
                             onChangeLibraryFolder = { libraryFolderPickerLauncher.launch(internalStorageRootPickerUri()) },
+                        )
+                    }
+
+                    composable(CHANGELOG_ROUTE) {
+                        ChangelogScreen(
+                            releases = changelogReleases,
+                            onBack = navController::navigateUp,
                         )
                     }
                 }
@@ -1666,6 +1681,35 @@ fun ElovaireRoot(
                             .fillMaxSize()
                             .background(MaterialTheme.colorScheme.background.copy(alpha = navHostScrimAlpha)),
                     )
+                }
+                AnimatedVisibility(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(
+                            start = 16.dp,
+                            end = 16.dp,
+                            top = topBarHeight + 8.dp,
+                        ),
+                    visible = showTopLevelChrome && appUpdateState.availableRelease != null,
+                    enter = fadeIn(animationSpec = tween(220)) +
+                        slideInVertically(
+                            animationSpec = tween(280, easing = FastOutSlowInEasing),
+                            initialOffsetY = { -(it / 2) },
+                        ),
+                    exit = fadeOut(animationSpec = tween(180)) +
+                        slideOutVertically(
+                            animationSpec = tween(220, easing = FastOutSlowInEasing),
+                            targetOffsetY = { -(it / 3) },
+                        ),
+                ) {
+                    appUpdateState.availableRelease?.let { release ->
+                        UpdateAvailableBanner(
+                            release = release,
+                            uiState = appUpdateState,
+                            onDismiss = container.appUpdateManager::dismissAvailableUpdate,
+                            onUpdate = container.appUpdateManager::startUpdate,
+                        )
+                    }
                 }
                 if (canHostCompactNowPlaying) {
                     playbackState.currentSong?.let { currentSong ->
@@ -8909,6 +8953,7 @@ private fun SettingsScreen(
     onBassChanged: (Float) -> Unit,
     onSpaciousnessChanged: (Float) -> Unit,
     onOpenEqualizer: () -> Unit,
+    onOpenChangelog: () -> Unit,
     onChangeLibraryFolder: () -> Unit,
 ) {
     Box(
@@ -9092,23 +9137,32 @@ private fun SettingsScreen(
                         ) {
                             Text("Elovaire", style = MaterialTheme.typography.titleLarge)
                             Surface(
-                                color = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                                    Color.White.copy(alpha = 0.2f)
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
-                                },
-                                contentColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                                    Color.White
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
                                 shape = RoundedCornerShape(ElovaireRadii.pill),
+                                color = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+                                    Color.White.copy(alpha = 0.16f)
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                                },
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                                onClick = onOpenChangelog,
                             ) {
-                                Text(
-                                    text = BuildConfig.VERSION_NAME,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    style = MaterialTheme.typography.labelLarge,
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        text = "Changelog",
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                    )
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(14.dp)
+                                            .rotate(180f),
+                                    )
+                                }
                             }
                         }
                         Text(
@@ -9125,6 +9179,179 @@ private fun SettingsScreen(
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
+    }
+}
+
+@Composable
+private fun ChangelogScreen(
+    releases: List<ChangelogRelease>,
+    onBack: () -> Unit,
+) {
+    val release = remember(releases) {
+        releases.firstOrNull { it.version == BuildConfig.VERSION_NAME } ?: releases.firstOrNull()
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        LazyColumn(
+            overscrollEffect = null,
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = topBarOccupiedHeight() + 8.dp,
+                end = 18.dp,
+                bottom = navigationBarInsetDp() + 24.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            item {
+                Image(
+                    painter = painterResource(id = R.drawable.changelog_header),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(ElovaireRadii.module))
+                        .aspectRatio(16f / 9f),
+                )
+            }
+
+            item {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(
+                        text = "What’s new?",
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    Text(
+                        text = "Version ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = readableSecondaryTextColor(),
+                    )
+                }
+            }
+
+            item {
+                ModuleCard {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        release?.changes
+                            ?.filter { it.isNotBlank() }
+                            ?.forEach { change ->
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                    verticalAlignment = Alignment.Top,
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .padding(top = 8.dp)
+                                            .size(6.dp)
+                                            .clip(CircleShape)
+                                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)),
+                                    )
+                                    Text(
+                                        text = change,
+                                        modifier = Modifier.weight(1f),
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                            }
+                            ?: Text(
+                                text = "No changelog entries yet",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = readableSecondaryTextColor(),
+                            )
+                    }
+                }
+            }
+        }
+        PinnedBackTopBar(
+            title = "Changelog",
+            onBack = onBack,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+    }
+}
+
+@Composable
+private fun UpdateAvailableBanner(
+    release: AppReleaseInfo,
+    uiState: AppUpdateUiState,
+    onDismiss: () -> Unit,
+    onUpdate: () -> Unit,
+) {
+    ModuleCard(
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = "Update available",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Text(
+                        text = "Version ${release.versionName} is ready to install",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = readableSecondaryTextColor(),
+                    )
+                }
+                HeaderIconButton(
+                    iconResId = R.drawable.ic_lucide_chevron_down,
+                    contentDescription = "Dismiss update",
+                    showBackground = false,
+                    onClick = onDismiss,
+                    modifier = Modifier.rotate(90f),
+                )
+            }
+            if (uiState.isDownloading) {
+                LinearProgressIndicator(
+                    progress = { uiState.downloadProgress ?: 0f },
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Surface(
+                    onClick = onUpdate,
+                    shape = RoundedCornerShape(ElovaireRadii.pill),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Text(
+                        text = when {
+                            uiState.isInstalling -> "Installing"
+                            uiState.isDownloading -> {
+                                val percent = ((uiState.downloadProgress ?: 0f) * 100f).roundToInt()
+                                "Downloading $percent%"
+                            }
+                            else -> "Update"
+                        },
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                }
+            }
+        }
     }
 }
 

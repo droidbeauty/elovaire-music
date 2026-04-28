@@ -8,6 +8,7 @@ import elovaire.music.app.data.playback.PlaybackEffectsController
 import elovaire.music.app.data.playback.PlaybackManager
 import elovaire.music.app.data.playback.PlaybackNotificationController
 import elovaire.music.app.data.settings.PreferenceStore
+import elovaire.music.app.data.update.AppUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -25,6 +26,11 @@ class AppContainer(
     private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     val preferenceStore = PreferenceStore(applicationContext)
+    val appUpdateManager = AppUpdateManager(
+        context = applicationContext,
+        scope = appScope,
+        preferenceStore = preferenceStore,
+    )
     val playbackManager = PlaybackManager(
         context = applicationContext,
         scope = appScope,

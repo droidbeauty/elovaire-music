@@ -33,6 +33,8 @@ class PreferenceStore(context: Context) {
 
     private val _libraryFolderPath = MutableStateFlow(loadLibraryFolderPath())
     val libraryFolderPath: StateFlow<String> = _libraryFolderPath.asStateFlow()
+    private val _dismissedUpdateVersion = MutableStateFlow(loadDismissedUpdateVersion())
+    val dismissedUpdateVersion: StateFlow<String?> = _dismissedUpdateVersion.asStateFlow()
 
     private val _searchHistory = MutableStateFlow(loadSearchHistory())
     val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
@@ -199,6 +201,17 @@ class PreferenceStore(context: Context) {
         _libraryFolderPath.value = normalizedPath
     }
 
+    fun setDismissedUpdateVersion(versionName: String?) {
+        preferences.edit {
+            if (versionName.isNullOrBlank()) {
+                remove(KEY_DISMISSED_UPDATE_VERSION)
+            } else {
+                putString(KEY_DISMISSED_UPDATE_VERSION, versionName.trim())
+            }
+        }
+        _dismissedUpdateVersion.value = versionName?.trim()?.takeIf { it.isNotBlank() }
+    }
+
     private fun persistEqSettings(settings: EqSettings) {
         preferences.edit {
             putString(KEY_BANDS, settings.bands.joinToString(","))
@@ -247,6 +260,12 @@ class PreferenceStore(context: Context) {
 
     private fun loadLibraryFolderPath(): String {
         return preferences.getString(KEY_LIBRARY_FOLDER_PATH, null).orEmpty()
+    }
+
+    private fun loadDismissedUpdateVersion(): String? {
+        return preferences.getString(KEY_DISMISSED_UPDATE_VERSION, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
     }
 
     private fun loadSearchHistory(): List<SearchHistoryEntry> {
@@ -407,6 +426,7 @@ class PreferenceStore(context: Context) {
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_LIBRARY_FOLDER_URI = "library_folder_uri"
         const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
+        const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
         const val KEY_BANDS = "eq_bands"
         const val KEY_BASS = "eq_bass"
         const val KEY_TREBLE = "eq_treble"
