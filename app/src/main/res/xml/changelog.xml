@@ -9,6 +9,7 @@
       </release>
     -->
     <release version="1.2" date="2026-04-28">
+        <change>smoother app update behavior</change>
         <change>slight tweaks in settings layout to adjust for new changelog screen</change>
         <change>tweaked file system permissions for flawless music library scanning</change>
     </release>

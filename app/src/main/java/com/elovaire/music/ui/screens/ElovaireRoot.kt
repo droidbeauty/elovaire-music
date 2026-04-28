@@ -804,8 +804,6 @@ fun ElovaireRoot(
     val searchHistory by container.preferenceStore.searchHistory.collectAsStateWithLifecycle()
     val playlists by container.preferenceStore.playlists.collectAsStateWithLifecycle()
     val favoriteSongIds by container.preferenceStore.favoriteSongIds.collectAsStateWithLifecycle()
-    val libraryFolderUri by container.preferenceStore.libraryFolderUri.collectAsStateWithLifecycle()
-    val libraryFolderPath by container.preferenceStore.libraryFolderPath.collectAsStateWithLifecycle()
     val favoriteSongIdSet = remember(favoriteSongIds) { favoriteSongIds.toHashSet() }
     val albumPlayCounts by container.preferenceStore.albumPlayCounts.collectAsStateWithLifecycle()
     val songPlayCounts by container.preferenceStore.songPlayCounts.collectAsStateWithLifecycle()
@@ -859,22 +857,6 @@ fun ElovaireRoot(
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
-    val libraryFolderPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult(),
-    ) { result ->
-        val uri = result.data?.data
-        if (result.resultCode == Activity.RESULT_OK && uri != null) {
-            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(uri, takeFlags)
-            }
-            val resolvedPath = resolveTreePath(uri).ifBlank { uri.toString() }
-            container.preferenceStore.setLibraryFolder(uri, resolvedPath)
-            container.libraryRepository.setPreferredLibraryFolderPath(resolvedPath)
-        }
-    }
     val deleteSongLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
@@ -915,10 +897,6 @@ fun ElovaireRoot(
 
     LaunchedEffect(hasNotificationPermission) {
         container.setNotificationsEnabled(hasNotificationPermission)
-    }
-
-    LaunchedEffect(libraryFolderPath) {
-        container.libraryRepository.setPreferredLibraryFolderPath(libraryFolderPath.takeIf { it.isNotBlank() })
     }
 
     if (!hasPermission) {
@@ -1675,7 +1653,6 @@ fun ElovaireRoot(
                             themeMode = themeMode,
                             textSizePreset = textSizePreset,
                             eqSettings = eqSettings,
-                            libraryFolderPath = libraryFolderPath.ifBlank { container.libraryRepository.defaultMediaFolderPath() },
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onThemeModeSelected = container.preferenceStore::setThemeMode,
@@ -1684,13 +1661,6 @@ fun ElovaireRoot(
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
                             onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
                             onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
-                            onChangeLibraryFolder = {
-                                libraryFolderPickerLauncher.launch(
-                                    createLibraryFolderPickerIntent(
-                                        defaultLibraryPickerUri(libraryFolderUri),
-                                    ),
-                                )
-                            },
                         )
                     }
 
@@ -9030,7 +9000,6 @@ private fun SettingsScreen(
     themeMode: ThemeMode,
     textSizePreset: TextSizePreset,
     eqSettings: EqSettings,
-    libraryFolderPath: String,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onThemeModeSelected: (ThemeMode) -> Unit,
@@ -9039,7 +9008,6 @@ private fun SettingsScreen(
     onSpaciousnessChanged: (Float) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenChangelog: () -> Unit,
-    onChangeLibraryFolder: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -9146,52 +9114,6 @@ private fun SettingsScreen(
                                 )
                                 Text("Open equalizer")
                             }
-                        }
-                    }
-                }
-            }
-
-            item {
-                SettingsSectionHeader(
-                    title = "Others",
-                    iconResId = R.drawable.ic_lucide_library,
-                )
-            }
-
-            item {
-                ModuleCard {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            SectionTitleRow(
-                                title = "Default media folder",
-                                compact = true,
-                            )
-                            Text(
-                                text = libraryFolderPath,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        Surface(
-                            onClick = onChangeLibraryFolder,
-                            shape = RoundedCornerShape(ElovaireRadii.pill),
-                            color = MaterialTheme.colorScheme.primary,
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ) {
-                            Text(
-                                text = "Change",
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 9.dp),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            )
                         }
                     }
                 }
