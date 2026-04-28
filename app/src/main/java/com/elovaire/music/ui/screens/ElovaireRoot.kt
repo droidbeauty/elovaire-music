@@ -2079,12 +2079,8 @@ private fun BottomNavigationBar(
                     onClick = {},
                 )
         ) {
-            FrostedTopBarBackground(
+            BottomNavigationHazeBackground(
                 darkTheme = darkTheme,
-                overlayAlpha = 0.7f,
-                flatOverlay = true,
-                edge = ProgressiveChromeEdge.Bottom,
-                showEdgeLine = false,
                 modifier = Modifier.matchParentSize(),
             )
 
@@ -2123,6 +2119,22 @@ private fun BottomNavigationBar(
             }
         }
     }
+}
+
+@OptIn(ExperimentalHazeApi::class)
+@Composable
+private fun BottomNavigationHazeBackground(
+    darkTheme: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    ChromeHazeLayer(
+        darkTheme = darkTheme,
+        edge = ProgressiveChromeEdge.Bottom,
+        overlayAlpha = 0.7f,
+        flatOverlay = true,
+        showEdgeLine = false,
+        modifier = modifier,
+    )
 }
 
 @Composable
