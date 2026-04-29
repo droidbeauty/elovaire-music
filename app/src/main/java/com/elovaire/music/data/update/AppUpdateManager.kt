@@ -2,10 +2,7 @@ package elovaire.music.app.data.update
 
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
-import android.provider.Settings
 import androidx.core.content.FileProvider
 import elovaire.music.app.BuildConfig
 import elovaire.music.app.data.settings.PreferenceStore
@@ -85,10 +82,6 @@ class AppUpdateManager(
     fun startUpdate() {
         val release = _uiState.value.availableRelease ?: return
         if (downloadJob?.isActive == true) return
-        if (!canRequestPackageInstalls()) {
-            openInstallUnknownAppsSettings()
-            return
-        }
         downloadJob = scope.launch {
             _uiState.update {
                 it.copy(
@@ -242,18 +235,6 @@ class AppUpdateManager(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        appContext.startActivity(intent)
-    }
-
-    private fun canRequestPackageInstalls(): Boolean {
-        return appContext.packageManager.canRequestPackageInstalls()
-    }
-
-    private fun openInstallUnknownAppsSettings() {
-        val intent = Intent(
-            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-            Uri.parse("package:${appContext.packageName}"),
-        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         appContext.startActivity(intent)
     }
 

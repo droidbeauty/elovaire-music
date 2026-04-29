@@ -43,6 +43,7 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.Canvas
@@ -9315,56 +9316,73 @@ private fun UpdateAvailableBanner(
     onDismiss: () -> Unit,
     onUpdate: () -> Unit,
 ) {
-    ModuleCard(
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val containerColor = if (darkTheme) {
+        readableCardSurfaceColor().copy(alpha = 0.96f)
+    } else {
+        readableCardSurfaceColor().copy(alpha = 0.98f)
+    }
+    val primaryTextColor = if (darkTheme) Color.White else InkText
+    val secondaryTextColor = if (darkTheme) {
+        Color.White.copy(alpha = 0.7f)
+    } else {
+        InkText.copy(alpha = 0.7f)
+    }
+    Surface(
         modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = containerColor,
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (darkTheme) {
+                Color.White.copy(alpha = 0.12f)
+            } else {
+                Color.Black.copy(alpha = 0.08f)
+            },
+        ),
     ) {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top,
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = "Update available",
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    )
-                    Text(
-                        text = "Version ${release.versionName} is ready to install",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = readableSecondaryTextColor(),
-                    )
-                }
-                HeaderIconButton(
-                    iconResId = R.drawable.ic_lucide_chevron_down,
-                    contentDescription = "Dismiss update",
-                    showBackground = false,
-                    onClick = onDismiss,
-                    modifier = Modifier.rotate(90f),
+                Text(
+                    text = "There’s new update\navailable",
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.SemiBold,
+                        lineHeight = 28.sp,
+                    ),
+                    color = primaryTextColor,
+                )
+                Text(
+                    text = "Version ${release.versionName}",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = secondaryTextColor,
                 )
             }
-            if (uiState.isDownloading) {
-                LinearProgressIndicator(
-                    progress = { uiState.downloadProgress ?: 0f },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = MaterialTheme.colorScheme.primary,
-                    trackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.18f),
-                )
-            }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+            Surface(
+                onClick = onUpdate,
+                shape = RoundedCornerShape(ElovaireRadii.pill),
+                color = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                enabled = !uiState.isInstalling,
             ) {
-                Surface(
-                    onClick = onUpdate,
-                    shape = RoundedCornerShape(ElovaireRadii.pill),
-                    color = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                Row(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = when {
@@ -9373,10 +9391,14 @@ private fun UpdateAvailableBanner(
                                 val percent = ((uiState.downloadProgress ?: 0f) * 100f).roundToInt()
                                 "Downloading $percent%"
                             }
-                            else -> "Update"
+                            else -> "Download"
                         },
-                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_download),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }
@@ -9420,6 +9442,11 @@ private fun TextSizeStepper(
     val maxIndex = (presets.size - 1).coerceAtLeast(1)
     val knobSize = 20.dp
     val dotColor = MaterialTheme.colorScheme.onSurface
+    val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText.copy(alpha = 0.18f)
+    } else {
+        Color.White.copy(alpha = 0.2f)
+    }
     var isDragging by remember { mutableStateOf(false) }
     var dragCenterPx by remember { mutableFloatStateOf(0f) }
 
@@ -9515,7 +9542,7 @@ private fun TextSizeStepper(
                         .align(Alignment.Center)
                         .height(2.dp)
                         .clip(RoundedCornerShape(ElovaireRadii.pill))
-                        .background(Color.White.copy(alpha = 0.2f)),
+                        .background(lineColor),
                 )
 
                 Canvas(
@@ -9689,6 +9716,26 @@ private fun DigitalSoundKnob(
     val glowColor = Color(0xFF61F6A2)
     val inactiveDot = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.26f)
     val arcAlpha = 0.3f + (animatedValue * 0.7f)
+    val trackColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText.copy(alpha = 0.16f)
+    } else {
+        Color.White.copy(alpha = 0.12f)
+    }
+    val arcStartColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText.copy(alpha = 0.3f)
+    } else {
+        Color.White.copy(alpha = 0.3f)
+    }
+    val arcEndColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText.copy(alpha = arcAlpha)
+    } else {
+        Color.White.copy(alpha = arcAlpha)
+    }
+    val tipColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText
+    } else {
+        Color.White
+    }
 
     Column(
         modifier = modifier,
@@ -9730,7 +9777,7 @@ private fun DigitalSoundKnob(
                 val activeSweep = sweepAngle * animatedValue
 
                 drawArc(
-                    color = Color.White.copy(alpha = 0.12f),
+                    color = trackColor,
                     startAngle = startAngle,
                     sweepAngle = sweepAngle,
                     useCenter = false,
@@ -9742,8 +9789,8 @@ private fun DigitalSoundKnob(
                 drawArc(
                     brush = Brush.sweepGradient(
                         colors = listOf(
-                            Color.White.copy(alpha = 0.3f),
-                            Color.White.copy(alpha = arcAlpha),
+                            arcStartColor,
+                            arcEndColor,
                         ),
                         center = arcCenter,
                     ),
@@ -9773,7 +9820,7 @@ private fun DigitalSoundKnob(
                     pathMeasure.getPosTan(pathMeasure.length, position, null)
                     val tipCenter = Offset(position[0], position[1])
                     drawCircle(
-                        color = Color.White,
+                        color = tipColor,
                         radius = tipRadius,
                         center = tipCenter,
                     )
