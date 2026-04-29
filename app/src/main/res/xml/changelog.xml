@@ -6,8 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.4.1">
-        <item>general optimizations and removed deprecated feature implementations</item>
-        <item>bug fixes for volume bar status being inaccurate sometimes</item>
+    <release version="1.4.2">
+        <item>better implementation of bass boost feature</item>
+        <item>bug fixes</item>
     </release>
 </changelog>
