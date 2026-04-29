@@ -9443,19 +9443,24 @@ private fun UpdateAvailableBanner(
                     ),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(
-                    text = "There’s new update\navailable",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.SemiBold,
-                        lineHeight = 22.sp,
-                    ),
-                    color = primaryTextColor,
-                )
-                Text(
-                    text = "Version ${release.versionName}",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = secondaryTextColor,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = "Update available",
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            lineHeight = 22.sp,
+                        ),
+                        color = primaryTextColor,
+                    )
+                    Text(
+                        text = release.versionName,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = secondaryTextColor,
+                    )
+                }
             }
             Surface(
                 onClick = onUpdate,
