@@ -309,7 +309,7 @@ private fun createLibraryFolderPickerIntent(initialUri: Uri?): Intent {
                 Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
                 Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
         )
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && initialUri != null) {
+        if (initialUri != null) {
             putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
         }
     }
@@ -577,10 +577,10 @@ private fun SnapshotBackdropBlurLayer(
 private fun ProgressiveChromeBackdrop(
     darkTheme: Boolean,
     edge: ProgressiveChromeEdge,
+    modifier: Modifier = Modifier,
     overlayAlpha: Float? = null,
     flatOverlay: Boolean = false,
     showEdgeLine: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val backdropBitmap = LocalChromeBackdropBitmap.current
@@ -721,10 +721,10 @@ private fun ProgressiveChromeBackdrop(
 private fun ChromeHazeLayer(
     darkTheme: Boolean,
     edge: ProgressiveChromeEdge,
+    modifier: Modifier = Modifier,
     overlayAlpha: Float? = null,
     flatOverlay: Boolean = false,
     showEdgeLine: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     ProgressiveChromeBackdrop(
         darkTheme = darkTheme,
@@ -740,11 +740,11 @@ private fun ChromeHazeLayer(
 @Composable
 private fun FrostedTopBarBackground(
     darkTheme: Boolean,
+    modifier: Modifier = Modifier,
     edge: ProgressiveChromeEdge = ProgressiveChromeEdge.Top,
     overlayAlpha: Float? = null,
     flatOverlay: Boolean = false,
     showEdgeLine: Boolean = true,
-    modifier: Modifier = Modifier,
 ) {
     ChromeHazeLayer(
         darkTheme = darkTheme,

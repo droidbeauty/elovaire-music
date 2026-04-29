@@ -114,16 +114,20 @@ class PlaybackManager(
         .build()
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
-            bitPerfectUsbManager.refreshConnectedDevices()
-            applyPreferredAudioDevice()
-            player.volume = effectivePlayerGain()
+            if (addedDevices.hasUsbOutputDeviceChange()) {
+                bitPerfectUsbManager.refreshConnectedDevices()
+                applyPreferredAudioDevice()
+                scheduleBitPerfectRefresh(currentSong(), force = true)
+            }
             syncFromObservedSystemVolume()
         }
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
-            bitPerfectUsbManager.refreshConnectedDevices()
-            applyPreferredAudioDevice()
-            player.volume = effectivePlayerGain()
+            if (removedDevices.hasUsbOutputDeviceChange()) {
+                bitPerfectUsbManager.refreshConnectedDevices()
+                applyPreferredAudioDevice()
+                scheduleBitPerfectRefresh(currentSong(), force = true)
+            }
             syncFromObservedSystemVolume()
         }
     }
@@ -688,14 +692,24 @@ class PlaybackManager(
         }
     }
 
-    private fun scheduleBitPerfectRefresh(song: Song?) {
+    private fun scheduleBitPerfectRefresh(
+        song: Song?,
+        force: Boolean = false,
+    ) {
         val songId = song?.id
-        if (songId == lastBitPerfectSongId && bitPerfectTrackRefreshJob?.isActive == true) {
+        if (!force && songId == lastBitPerfectSongId && bitPerfectTrackRefreshJob?.isActive == true) {
             return
         }
         lastBitPerfectSongId = songId
         bitPerfectTrackRefreshJob?.cancel()
         if (song == null) {
+            bitPerfectUsbManager.updateTrackFormat(null)
+            applyPreferredAudioDevice()
+            player.volume = effectivePlayerGain()
+            updateState()
+            return
+        }
+        if (!bitPerfectUsbManager.hasUsbOutputCandidate() || !song.isBitPerfectUsbCandidate()) {
             bitPerfectUsbManager.updateTrackFormat(null)
             applyPreferredAudioDevice()
             player.volume = effectivePlayerGain()
@@ -846,6 +860,16 @@ private fun Float.quantizedVolume(): Float {
     return ((coerceIn(0f, 1f) * 100f).roundToInt() / 100f).coerceIn(0f, 1f)
 }
 
+private fun Array<out AudioDeviceInfo>.hasUsbOutputDeviceChange(): Boolean {
+    return any { device ->
+        device.isSink && device.type in BIT_PERFECT_USB_DEVICE_TYPES
+    }
+}
+
+internal fun Song.isBitPerfectUsbCandidate(): Boolean {
+    return audioFormat.uppercase() in BIT_PERFECT_USB_COMPATIBLE_FORMATS
+}
+
     private fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
         return when (this) {
             Player.REPEAT_MODE_ONE -> PlaybackRepeatMode.One
@@ -861,3 +885,11 @@ private fun Float.quantizedVolume(): Float {
             PlaybackRepeatMode.All -> Player.REPEAT_MODE_ALL
         }
     }
+
+private val BIT_PERFECT_USB_DEVICE_TYPES = setOf(
+    AudioDeviceInfo.TYPE_USB_DEVICE,
+    AudioDeviceInfo.TYPE_USB_HEADSET,
+    AudioDeviceInfo.TYPE_USB_ACCESSORY,
+)
+
+private val BIT_PERFECT_USB_COMPATIBLE_FORMATS = setOf("FLAC", "WAV", "AIFF", "ALAC")

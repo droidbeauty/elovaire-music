@@ -5,9 +5,11 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
+import android.media.AudioMixerAttributes
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioSink
 import elovaire.music.app.BuildConfig
 import java.util.concurrent.Executor
@@ -35,7 +37,6 @@ internal class BitPerfectUsbManager(
     private var applySucceeded = false
     private var verifiedActive = false
     private var lastErrorMessage: String? = null
-    private var lastVerifiedAudioTrackConfig: AudioSink.AudioTrackConfig? = null
     private var preferredMixerListenerHandle: Any? = null
 
     init {
@@ -85,8 +86,8 @@ internal class BitPerfectUsbManager(
         applyCurrentConfiguration("track-format-update")
     }
 
+    @androidx.annotation.OptIn(markerClass = [UnstableApi::class])
     fun onAudioTrackInitialized(audioTrackConfig: AudioSink.AudioTrackConfig) {
-        lastVerifiedAudioTrackConfig = audioTrackConfig
         val requested = requestedFormatData ?: run {
             verifiedActive = false
             updateStatus("audio-track-init-no-request")
@@ -114,7 +115,6 @@ internal class BitPerfectUsbManager(
         applySucceeded = false
         verifiedActive = false
         lastErrorMessage = null
-        lastVerifiedAudioTrackConfig = null
         clearPreferredMixerAttributes()
         updateStatus("playback-stop")
     }
@@ -129,6 +129,8 @@ internal class BitPerfectUsbManager(
     fun preferredAudioDevice(): AudioDeviceInfo? = selectedUsbDevice
 
     fun shouldBypassProcessing(): Boolean = status.value.shouldBypassProcessing
+
+    fun hasUsbOutputCandidate(): Boolean = selectedUsbDevice != null
 
     private fun applyCurrentConfiguration(reason: String) {
         val manager = audioManager
@@ -298,7 +300,7 @@ internal class BitPerfectUsbManager(
                     .setEncoding(format.encoding)
                     .build(),
             )
-                .setMixerBehavior(BitPerfectUsbPolicy.BIT_PERFECT_MIXER_BEHAVIOR)
+                .setMixerBehavior(AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT)
                 .build()
             return manager.setPreferredMixerAttributes(audioAttributes, device, mixerAttributes)
         }

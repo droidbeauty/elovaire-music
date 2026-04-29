@@ -1,6 +1,7 @@
 package elovaire.music.app.data.playback
 
 import android.content.Context
+import android.os.Build
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
@@ -60,6 +61,7 @@ internal class PlaybackTrackFormatResolver(
     }
 
     private fun readBitsPerSample(song: Song): Int? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
         return runCatching {
             val retriever = MediaMetadataRetriever()
             try {

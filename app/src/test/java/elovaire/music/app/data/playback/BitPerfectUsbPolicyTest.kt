@@ -234,4 +234,25 @@ class BitPerfectUsbPolicyTest {
         assertEquals(BitPerfectUsbState.UnsupportedDeviceOrFormat, status.state)
         assertNotNull(status.fallbackReason)
     }
+
+    @Test
+    fun ignoresBluetoothAndWiredRoutesWhenSelectingUsbDevice() {
+        val selected = policy.selectUsbDevice(
+            devices = listOf(
+                UsbAudioDeviceDescriptor(
+                    id = 11,
+                    type = AudioDeviceInfo.TYPE_BLUETOOTH_A2DP,
+                    isSink = true,
+                ),
+                UsbAudioDeviceDescriptor(
+                    id = 12,
+                    type = AudioDeviceInfo.TYPE_WIRED_HEADPHONES,
+                    isSink = true,
+                ),
+            ),
+        )
+
+        assertNull(selected)
+    }
+
 }

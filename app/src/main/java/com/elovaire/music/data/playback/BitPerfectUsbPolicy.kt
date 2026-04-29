@@ -1,5 +1,6 @@
 package elovaire.music.app.data.playback
 
+import android.annotation.SuppressLint
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.os.Build
@@ -22,6 +23,7 @@ internal class BitPerfectUsbPolicy(
         return candidates.firstOrNull { it.id == currentDeviceId } ?: candidates.firstOrNull()
     }
 
+    @SuppressLint("InlinedApi")
     fun mapTrackFormat(trackFormat: TrackPlaybackFormat): PlatformAudioFormatData? {
         val channelMask = channelMaskForCount(trackFormat.channelCount) ?: return null
         val encoding = when (trackFormat.encoding) {
