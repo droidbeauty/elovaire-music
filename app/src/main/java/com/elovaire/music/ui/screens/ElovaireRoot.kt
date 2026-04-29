@@ -1015,7 +1015,7 @@ fun ElovaireRoot(
         val window = (rootView.context as? Activity)?.window ?: return@SideEffect
         val controller = WindowCompat.getInsetsController(window, rootView)
         val usesLightSystemBarIcons = if (currentRoute == PLAYER_ROUTE) {
-            playerAdaptivePalette.backdropBase.luminance() > 0.56f
+            playerAdaptivePalette.contentColor.luminance() > 0.56f
         } else {
             !darkTheme
         }
@@ -1432,6 +1432,7 @@ fun ElovaireRoot(
                             playbackState = playbackState,
                             albumPlayCounts = albumPlayCounts,
                             recentSearches = searchHistory,
+                            favoriteSongIds = favoriteSongIdSet,
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
                             onSearchQueryActiveChanged = { isSearchQueryActive = it },
@@ -1456,6 +1457,7 @@ fun ElovaireRoot(
                             onRememberArtistSearch = { song ->
                                 container.preferenceStore.addSearchHistoryEntry(artistSearchHistoryEntry(song))
                             },
+                            onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
                             onClearSearchHistory = {
                                 container.preferenceStore.clearSearchHistory()
                             },
@@ -1962,7 +1964,7 @@ private fun PinnedBackTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 18.dp, end = 18.dp, top = 3.dp, bottom = 13.dp)
+                    .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 13.dp)
                     .height(40.dp),
             ) {
                 HeaderIconButton(
@@ -1989,8 +1991,8 @@ private fun PinnedBackTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 18.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
-                horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 HeaderIconButton(
@@ -2256,6 +2258,16 @@ private fun NowPlayingBar(
         animationSpec = tween(ElovaireMotion.Controls),
         label = "mini_player_button_icon_tint",
     )
+    val resolvedPrimaryTextColor by animateColorAsState(
+        targetValue = controlIconTint,
+        animationSpec = tween(ElovaireMotion.Controls),
+        label = "mini_player_text_primary",
+    )
+    val resolvedSecondaryTextColor by animateColorAsState(
+        targetValue = controlIconTint.copy(alpha = 0.72f),
+        animationSpec = tween(ElovaireMotion.Controls),
+        label = "mini_player_text_secondary",
+    )
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val buttonScale by animateFloatAsState(
@@ -2339,7 +2351,7 @@ private fun NowPlayingBar(
                         text = song.title,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                         maxLines = 1,
-                        color = contentColor,
+                        color = resolvedPrimaryTextColor,
                         overflow = TextOverflow.Clip,
                         modifier = Modifier.basicMarquee(
                             iterations = Int.MAX_VALUE,
@@ -2352,7 +2364,7 @@ private fun NowPlayingBar(
                     Text(
                         text = song.artist,
                         style = MaterialTheme.typography.labelLarge,
-                        color = secondaryContentColor,
+                        color = resolvedSecondaryTextColor,
                         maxLines = 1,
                     )
                 }
@@ -2787,8 +2799,12 @@ private fun LastPlayedAlbumModule(
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
     val albumTint = gradient.first().copy(alpha = 0.46f)
-    val resolvedSurface = albumTint.compositeOver(baseTint)
-    val contentColor = if (resolvedSurface.luminance() > 0.42f) InkText else Color.White
+    val controlBaseTint = if (darkTheme) {
+        gradient.last().copy(alpha = 0.28f).compositeOver(Color.Black.copy(alpha = 0.16f))
+    } else {
+        gradient.last().copy(alpha = 0.22f).compositeOver(Color.White.copy(alpha = 0.16f))
+    }
+    val contentColor = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White
     val secondaryContentColor = contentColor.copy(alpha = 0.72f)
 
     Box(
@@ -4160,6 +4176,7 @@ private fun SearchScreen(
     playbackState: PlaybackUiState,
     albumPlayCounts: Map<Long, Int>,
     recentSearches: List<SearchHistoryEntry>,
+    favoriteSongIds: Set<Long>,
     topPadding: Dp,
     bottomPadding: Dp,
     onSearchQueryActiveChanged: (Boolean) -> Unit,
@@ -4168,6 +4185,7 @@ private fun SearchScreen(
     onArtistSelected: (String) -> Unit,
     onRememberAlbumSearch: (Album) -> Unit,
     onRememberArtistSearch: (Song) -> Unit,
+    onToggleFavorite: (Long) -> Unit,
     onClearSearchHistory: () -> Unit,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
@@ -4397,19 +4415,16 @@ private fun SearchScreen(
                     key = { _, song -> song.id },
                     contentType = { _, _ -> "search_song_row" },
                 ) { index, song ->
-                    GroupedListRowContainer(
-                        index = index,
-                        lastIndex = matchingSongs.lastIndex,
-                    ) {
-                        SearchSongRow(
-                            song = song,
-                            onClick = {
-                                onRememberArtistSearch(song)
-                                onSongSelected(song, matchingSongs)
-                            },
-                            showDivider = index != matchingSongs.lastIndex,
-                        )
-                    }
+                    HomeRecentSongRow(
+                        song = song,
+                        isFavorite = song.id in favoriteSongIds,
+                        onClick = {
+                            onRememberArtistSearch(song)
+                            onSongSelected(song, matchingSongs)
+                        },
+                        onToggleFavorite = { onToggleFavorite(song.id) },
+                        showDivider = index != matchingSongs.lastIndex,
+                    )
                 }
             }
 
@@ -6467,8 +6482,8 @@ private fun DetailListTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(start = 18.dp, end = 18.dp, top = 3.dp, bottom = 13.dp),
-            horizontalArrangement = Arrangement.spacedBy(18.dp),
+                .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             HeaderIconButton(
@@ -9246,13 +9261,15 @@ private fun ChangelogScreen(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(236.dp),
+                        .height(354.dp),
                 )
             }
 
             item {
                 Row(
-                    modifier = Modifier.padding(horizontal = 18.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 18.dp)
+                        .fillMaxWidth(0.9f),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -9360,7 +9377,7 @@ private fun UpdateAvailableBanner(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 18.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+                .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -9376,9 +9393,9 @@ private fun UpdateAvailableBanner(
             ) {
                 Text(
                     text = "There’s new update\navailable",
-                    style = MaterialTheme.typography.titleLarge.copy(
+                    style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.SemiBold,
-                        lineHeight = 28.sp,
+                        lineHeight = 22.sp,
                     ),
                     color = primaryTextColor,
                 )
@@ -9396,7 +9413,7 @@ private fun UpdateAvailableBanner(
                 enabled = !uiState.isInstalling,
             ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
