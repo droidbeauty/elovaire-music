@@ -6,48 +6,48 @@ import androidx.compose.ui.unit.dp
 
 @Immutable
 object ElovaireSpacing {
-    // Height of the main top bar content, excluding the Android status bar above it.
+    // Main top bar height on home/library/playlists/search.
     val topBarContentHeight: Dp = 56.dp
 
-    // Height of detail top bars like album, playlist, artist, and similar drill-in screens.
+    // Top bar height on detail screens like album, playlist, artist, and changelog.
     val detailTopBarContentHeight: Dp = 58.dp
 
-    // Gap between a top bar and the first main piece of content below it on top-level screens.
+    // Default vertical gap between a top bar and the first content block on main screens.
     val topBarToFirstContentGap: Dp = 22.dp
 
-    // Extra space between a detail top bar and a large hero header like album or playlist artwork.
+    // Space above large hero artwork/headers on drill-in screens.
     val albumHeaderTopGap: Dp = 32.dp
 
-    // Reserved stack height for the compact now playing bar.
+    // Total reserved height for the compact now playing bar area.
     val miniPlayerReservedHeight: Dp = 86.dp
 
-    // Visible body height of the bottom navigation bar.
+    // Visible height of the bottom navigation dock itself.
     val bottomNavigationBodyHeight: Dp = 78.dp
 
-    // Outer bottom inset used to lift the bottom navigation bar off the system edge.
+    // Extra bottom lift for the dock when it is not fully edge-to-edge.
     val bottomNavigationOuterPadding: Dp = 8.dp
 
-    // Shared tail space at the bottom of scrollable screens.
+    // Shared extra scroll room below the last list item.
     val scrollTailPadding: Dp = 20.dp
 
-    // Top inset used before the first standard list/grid content block on detail screens.
+    // Default top gap before the first list/grid block on detail screens.
     val detailListTopGap: Dp = 18.dp
 
-    // Slightly tighter top inset used before compact chips or controls under detail top bars.
+    // Tighter top gap for compact control rows and chips under detail headers.
     val detailCompactTopGap: Dp = 14.dp
 
-    // Larger top inset used before grouped modules on detail screens.
+    // Larger top gap before full grouped sections/modules on detail screens.
     val detailSectionTopGap: Dp = 24.dp
 
-    // Default horizontal page padding used by most scrollable screens.
+    // Standard left/right screen padding used across most screens.
     val screenHorizontalPadding: Dp = 20.dp
 
-    // Shared vertical gap between major sections stacked in a screen.
+    // Standard gap between major stacked sections/modules.
     val sectionVerticalGap: Dp = 20.dp
 
-    // Gap between now playing artwork and the title/artist row.
+    // Top gap between now playing artwork and the title/artist row.
     val nowPlayingTitleTopGap: Dp = 5.dp
 
-    // Gap between the now playing title/artist row and the progress section below it.
+    // Bottom gap between the title/artist row and the progress bar in now playing.
     val nowPlayingTitleBottomGap: Dp = 0.dp
 }

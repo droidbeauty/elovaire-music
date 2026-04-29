@@ -6,7 +6,6 @@ import org.xmlpull.v1.XmlPullParser
 
 data class ChangelogRelease(
     val version: String,
-    val date: String,
     val changes: List<String>,
 )
 
@@ -17,7 +16,6 @@ class ChangelogRepository(
         val parser = context.resources.getXml(R.xml.changelog)
         val releases = mutableListOf<ChangelogRelease>()
         var currentVersion = ""
-        var currentDate = ""
         val currentChanges = mutableListOf<String>()
 
         while (parser.eventType != XmlPullParser.END_DOCUMENT) {
@@ -26,11 +24,10 @@ class ChangelogRepository(
                     when (parser.name) {
                         "release" -> {
                             currentVersion = parser.getAttributeValue(null, "version").orEmpty()
-                            currentDate = parser.getAttributeValue(null, "date").orEmpty()
                             currentChanges.clear()
                         }
 
-                        "change" -> {
+                        "item", "change" -> {
                             currentChanges += parser.nextText().trim()
                         }
                     }
@@ -40,11 +37,9 @@ class ChangelogRepository(
                     if (parser.name == "release") {
                         releases += ChangelogRelease(
                             version = currentVersion,
-                            date = currentDate,
                             changes = currentChanges.toList(),
                         )
                         currentVersion = ""
-                        currentDate = ""
                         currentChanges.clear()
                     }
                 }

@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import elovaire.music.app.domain.model.TextSizePreset
 import elovaire.music.app.domain.model.ThemeMode
 
+// Light mode palette used across the whole app.
 private val LightColors = lightColorScheme(
     primary = RoseAccent,
     onPrimary = Cloud,
@@ -24,6 +25,7 @@ private val LightColors = lightColorScheme(
     onSurfaceVariant = InkTextSecondary,
 )
 
+// Dark mode palette used across the whole app.
 private val DarkColors = darkColorScheme(
     primary = RoseAccent,
     onPrimary = Cloud,
@@ -43,13 +45,18 @@ fun ElovaireTheme(
     textSizePreset: TextSizePreset,
     content: @Composable () -> Unit,
 ) {
+    // Resolves whether the app should render in dark mode for the current theme setting.
     val darkTheme = resolveDarkTheme(themeMode = themeMode, systemDark = isSystemInDarkTheme())
+
+    // Picks the full Material color scheme for the resolved mode above.
     val colorScheme = resolvedColorScheme(darkTheme)
 
     CompositionLocalProvider(LocalTextScale provides textSizePreset.scaleFactor) {
         MaterialTheme(
             colorScheme = colorScheme,
+            // Global typography scaling for the text-size setting.
             typography = elovaireTypography(textSizePreset.scaleFactor),
+            // Shared shape system for cards, pills, and buttons.
             shapes = elovaireShapes(),
             content = content,
         )
@@ -60,6 +67,7 @@ fun resolveDarkTheme(
     themeMode: ThemeMode,
     systemDark: Boolean,
 ): Boolean {
+    // Controls how the System / Light / Dark picker maps to real theme output.
     return when (themeMode) {
         ThemeMode.System -> systemDark
         ThemeMode.Light -> false
@@ -71,9 +79,11 @@ fun themeBackgroundForMode(
     themeMode: ThemeMode,
     systemDark: Boolean,
 ): Color {
+    // Convenience helper used when UI needs the resolved screen background color directly.
     return resolvedColorScheme(resolveDarkTheme(themeMode, systemDark)).background
 }
 
 private fun resolvedColorScheme(darkTheme: Boolean): ColorScheme {
+    // Single switch point between the light and dark palettes above.
     return if (darkTheme) DarkColors else LightColors
 }

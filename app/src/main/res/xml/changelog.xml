@@ -1,16 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <changelog>
     <!--
-      Add future releases in descending order.
-      Example:
-      <release version="1.1" date="2026-05-01">
-          <change>Improved library scanning speed</change>
-          <change>Added lyrics overlay refinements</change>
-      </release>
+      Keep this file simple:
+      1. Change the version value below.
+      2. Edit the bullet points inside that release.
+      3. Add newer releases above older ones.
     -->
-    <release version="1.2" date="2026-04-28">
-        <change>smoother app update behavior</change>
-        <change>slight tweaks in settings layout to adjust for new changelog screen</change>
-        <change>tweaked file system permissions for flawless music library scanning</change>
+    <release version="1.3">
+        <item>Improvements for bit-perfect playback for external DACs</item>
     </release>
 </changelog>
