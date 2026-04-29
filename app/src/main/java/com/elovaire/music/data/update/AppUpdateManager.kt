@@ -181,8 +181,7 @@ class AppUpdateManager(
     private fun parseReleaseInfo(json: JSONObject): AppReleaseInfo? {
         if (json.optBoolean("draft") || json.optBoolean("prerelease")) return null
         val tagName = json.optString("tag_name").orEmpty()
-        val versionName = normalizeVersionLabel(tagName.ifBlank { json.optString("name").orEmpty() })
-        if (versionName.isBlank()) return null
+        val releaseName = json.optString("name").orEmpty()
         val assets = json.optJSONArray("assets") ?: return null
         val asset = (0 until assets.length())
             .mapNotNull { index -> assets.optJSONObject(index) }
@@ -197,6 +196,13 @@ class AppUpdateManager(
                     assetJson.optString("name").orEmpty().lowercase().endsWith(".apk")
                 }
             ?: return null
+        val assetName = asset.optString("name").orEmpty()
+        val versionName = resolveReleaseVersionLabel(
+            tagName = tagName,
+            releaseName = releaseName,
+            assetFileName = assetName,
+        )
+        if (versionName.isBlank()) return null
 
         return AppReleaseInfo(
             versionName = versionName,
@@ -260,6 +266,23 @@ class AppUpdateManager(
         return raw.trim().removePrefix("v").removePrefix("V")
     }
 
+    private fun resolveReleaseVersionLabel(
+        tagName: String,
+        releaseName: String,
+        assetFileName: String,
+    ): String {
+        val normalizedTag = normalizeVersionLabel(tagName)
+        if (normalizedTag.looksLikeSemanticVersion()) return normalizedTag
+
+        val normalizedName = normalizeVersionLabel(releaseName)
+        if (normalizedName.looksLikeSemanticVersion()) return normalizedName
+
+        return VERSION_REGEX.find(assetFileName)
+            ?.value
+            ?.let(::normalizeVersionLabel)
+            .orEmpty()
+    }
+
     private fun isVersionNewer(candidate: String, installed: String): Boolean {
         return compareVersions(candidate, installed) > 0
     }
@@ -284,6 +307,10 @@ class AppUpdateManager(
             .removePrefix("V")
             .split('.', '-', '_')
             .mapNotNull { it.toIntOrNull() }
+    }
+
+    private fun String.looksLikeSemanticVersion(): Boolean {
+        return VERSION_REGEX.containsMatchIn(this)
     }
 
     private inline fun <T> HttpURLConnection.useJsonArray(block: (JSONArray) -> T): T {
@@ -319,5 +346,6 @@ class AppUpdateManager(
         const val RELEASES_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases"
         const val NETWORK_TIMEOUT_MS = 12_000
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
+        val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")
     }
 }
