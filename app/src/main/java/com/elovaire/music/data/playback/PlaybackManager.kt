@@ -82,7 +82,6 @@ class PlaybackManager(
         .build()
     private var userVolume = currentSystemVolumeFraction()
     private var volumeFineGain = 1f
-    private var lastKnownSystemVolumeFraction = userVolume
     private var ignoreObservedSystemVolumeStep: Int? = null
     private val trackFormatResolver = PlaybackTrackFormatResolver(appContext)
     private val bitPerfectUsbManager = BitPerfectUsbManager(
@@ -123,6 +122,7 @@ class PlaybackManager(
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             if (addedDevices.hasUsbOutputDeviceChange()) {
+                hasUsbOutputRoute = currentUsbOutputDescriptor() != null
                 usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
                 bitPerfectUsbManager.refreshConnectedDevices()
                 applyPreferredAudioDevice()
@@ -133,6 +133,7 @@ class PlaybackManager(
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
             if (removedDevices.hasUsbOutputDeviceChange()) {
+                hasUsbOutputRoute = currentUsbOutputDescriptor() != null
                 usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
                 bitPerfectUsbManager.refreshConnectedDevices()
                 applyPreferredAudioDevice()
@@ -155,6 +156,7 @@ class PlaybackManager(
     private var isRecoveringPlayback = false
     private var lastKnownQueueIndex = -1
     private var lastKnownPositionMs = 0L
+    private var hasUsbOutputRoute = false
     private val systemVolumeObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             syncFromObservedSystemVolume()
@@ -194,11 +196,12 @@ class PlaybackManager(
         .build()
 
     init {
+        hasUsbOutputRoute = currentUsbOutputDescriptor() != null
         appContext.contentResolver.registerContentObserver(
             Settings.System.CONTENT_URI,
             true,
             systemVolumeObserver,
-        )
+            )
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
         usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
         bitPerfectUsbManager.refreshConnectedDevices()
@@ -524,7 +527,7 @@ class PlaybackManager(
             repeatMode = player.repeatMode.toPlaybackRepeatMode(),
             shuffleEnabled = player.shuffleModeEnabled,
             sourceLabel = existingState.sourceLabel ?: currentSong?.album,
-            volume = userVolume,
+            volume = currentDisplayedVolumeFraction(),
             audioSessionId = player.audioSessionId.takeIf { it > 0 } ?: 0,
             recentSongIds = recentSongIds,
             recentAlbumIds = recentAlbumIds,
@@ -816,7 +819,6 @@ class PlaybackManager(
     private fun syncFromObservedSystemVolume() {
         if (bitPerfectUsbManager.shouldBypassProcessing() || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
             ignoreObservedSystemVolumeStep = null
-            lastKnownSystemVolumeFraction = currentSystemVolumeFraction()
             player.volume = 1f
             userVolume = currentEffectiveVolumeFraction()
             updateState()
@@ -824,7 +826,6 @@ class PlaybackManager(
         }
         if (usesFixedVolumeOutput()) {
             ignoreObservedSystemVolumeStep = null
-            lastKnownSystemVolumeFraction = currentSystemVolumeFraction()
             player.volume = effectivePlayerGain()
             updateState()
             return
@@ -837,7 +838,6 @@ class PlaybackManager(
             volumeFineGain = if (observedSystemStep <= 0) 0f else 1f
             userVolume = currentSystemVolumeFraction().quantizedVolume()
         }
-        lastKnownSystemVolumeFraction = currentSystemVolumeFraction()
         player.volume = effectivePlayerGain()
         updateState()
     }
@@ -849,6 +849,14 @@ class PlaybackManager(
         if (shouldBypassSystemStreamVolume()) return userVolume
         val currentSystemFraction = currentSystemVolumeFraction()
         return (currentSystemFraction * volumeFineGain).coerceIn(0f, 1f).quantizedVolume()
+    }
+
+    private fun currentDisplayedVolumeFraction(): Float {
+        return if (hasUsbOutputRoute) {
+            currentSystemVolumeFraction().quantizedVolume()
+        } else {
+            currentEffectiveVolumeFraction()
+        }
     }
 
     private fun shouldBypassSystemStreamVolume(): Boolean {

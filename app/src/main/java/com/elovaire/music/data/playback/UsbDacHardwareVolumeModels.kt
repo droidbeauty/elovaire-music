@@ -80,13 +80,15 @@ internal data class UsbDacHardwareVolumeStatus(
     val currentNormalizedVolume: Float? = null,
     val range: UsbDacHardwareVolumeRange? = null,
     val identity: UsbDacDeviceIdentity? = null,
+    val canWriteVolume: Boolean = false,
     val reason: String? = null,
 ) {
     val shouldOwnVolumeControls: Boolean
-        get() = state == UsbDacHardwareVolumeState.ExternalDacDetected ||
-            state == UsbDacHardwareVolumeState.HardwareVolumeSupported ||
-            state == UsbDacHardwareVolumeState.HardwareVolumeActive ||
-            state == UsbDacHardwareVolumeState.HardwareVolumeUnavailable
+        get() = canWriteVolume &&
+            (
+                state == UsbDacHardwareVolumeState.HardwareVolumeSupported ||
+                    state == UsbDacHardwareVolumeState.HardwareVolumeActive
+                )
 
     val shouldBypassSoftwareVolume: Boolean
         get() = shouldOwnVolumeControls
@@ -133,6 +135,7 @@ internal class UsbDacHardwareVolumeController {
             currentNormalizedVolume = currentNormalizedVolume,
             range = capability?.range,
             identity = identity,
+            canWriteVolume = capability?.canWriteVolume == true,
             reason = lastReason,
         )
     }

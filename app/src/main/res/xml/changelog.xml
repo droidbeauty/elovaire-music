@@ -6,9 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.4">
-        <item>added support for separate volume controls for external DACs that have it</item>
-        <item>color scheme mismatches fixed</item>
-        <item>lots of other bugs fixes for more stable experience</item>
+    <release version="1.4.1">
+        <item>general optimizations and removed deprecated feature implementations</item>
+        <item>bug fixes for volume bar status being inaccurate sometimes</item>
     </release>
 </changelog>
