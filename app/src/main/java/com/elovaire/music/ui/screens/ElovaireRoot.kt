@@ -4204,9 +4204,10 @@ private fun SearchScreen(
             emptyList()
         } else {
             libraryState.songs.filter { song ->
-                song.title.contains(trimmedQuery, ignoreCase = true) ||
-                    song.artist.contains(trimmedQuery, ignoreCase = true) ||
-                    song.album.contains(trimmedQuery, ignoreCase = true)
+                searchMatchesComposite(
+                    query = trimmedQuery,
+                    fields = listOf(song.title, song.artist, song.album),
+                )
             }.take(20)
         }
     }
@@ -4215,8 +4216,10 @@ private fun SearchScreen(
             emptyList()
         } else {
             libraryState.albums.filter { album ->
-                album.title.contains(trimmedQuery, ignoreCase = true) ||
-                    album.artist.contains(trimmedQuery, ignoreCase = true)
+                searchMatchesComposite(
+                    query = trimmedQuery,
+                    fields = listOf(album.title, album.artist),
+                )
             }.take(12)
         }
     }
@@ -4239,7 +4242,10 @@ private fun SearchScreen(
                     )
                 }
                 .filter { artist ->
-                    artist.title.contains(trimmedQuery, ignoreCase = true)
+                    searchMatchesComposite(
+                        query = trimmedQuery,
+                        fields = listOf(artist.title),
+                    )
                 }
                 .take(6)
         }
@@ -4411,25 +4417,25 @@ private fun SearchScreen(
                         subtitle = "${matchingSongs.size} matching song results",
                     )
                 }
-                itemsIndexed(
-                    items = matchingSongs,
-                    key = { _, song -> song.id },
-                    contentType = { _, _ -> "search_song_row" },
-                ) { index, song ->
-                    HomeRecentSongRow(
-                        song = song,
-                        isFavorite = song.id in favoriteSongIds,
-                        onClick = {
-                            onRememberArtistSearch(song)
-                            onSongSelected(song, matchingSongs)
-                        },
-                        onToggleFavorite = { onToggleFavorite(song.id) },
-                        showDivider = index != matchingSongs.lastIndex,
-                    )
+                item {
+                    Column {
+                        matchingSongs.forEachIndexed { index, song ->
+                            HomeRecentSongRow(
+                                song = song,
+                                isFavorite = song.id in favoriteSongIds,
+                                onClick = {
+                                    onRememberArtistSearch(song)
+                                    onSongSelected(song, matchingSongs)
+                                },
+                                onToggleFavorite = { onToggleFavorite(song.id) },
+                                showDivider = index != matchingSongs.lastIndex,
+                            )
+                        }
+                    }
                 }
             }
 
-            if (matchingAlbums.isEmpty() && matchingSongs.isEmpty()) {
+            if (matchingAlbums.isEmpty() && matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
                 item {
                     EmptyStateCard(
                         title = "No results",
@@ -4525,6 +4531,26 @@ private fun SearchQuickPick(
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+private fun searchMatchesComposite(
+    query: String,
+    fields: List<String>,
+): Boolean {
+    val normalizedQuery = query
+        .trim()
+        .lowercase()
+    if (normalizedQuery.isBlank()) return true
+    val tokens = normalizedQuery
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() }
+    if (tokens.isEmpty()) return true
+    val haystack = fields
+        .asSequence()
+        .map { it.trim().lowercase() }
+        .filter { it.isNotBlank() }
+        .joinToString(separator = " ")
+    return tokens.all { token -> haystack.contains(token) }
 }
 
 @Composable
@@ -10299,7 +10325,7 @@ private fun recentAlbumsFor(
 ): List<Album> {
     val albumsById = libraryState.albums.associateBy { it.id }
     val played = playbackState.recentAlbumIds.mapNotNull(albumsById::get)
-    return if (played.isNotEmpty()) played.take(6) else libraryState.albums.take(6)
+    return played.take(6)
 }
 
 private fun favoriteAlbumsFor(
