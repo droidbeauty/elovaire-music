@@ -93,7 +93,8 @@ class PlaybackManager(
     private val player = ExoPlayer.Builder(context)
         .setRenderersFactory(
             DefaultRenderersFactory(context)
-                .setEnableAudioFloatOutput(true)
+                .setEnableAudioFloatOutput(false)
+                .setEnableDecoderFallback(true)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
         )
         .setMediaSourceFactory(

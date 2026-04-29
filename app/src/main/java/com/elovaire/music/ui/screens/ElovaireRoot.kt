@@ -340,6 +340,13 @@ private enum class SongSortMode(
     Album("Album"),
 }
 
+private enum class AlbumSortMode(
+    val label: String,
+) {
+    Artist("Artist name"),
+    Album("Album name"),
+}
+
 private enum class LibraryCollectionKind {
     Songs,
     Albums,
@@ -2889,8 +2896,22 @@ private fun AlbumCollectionContent(
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
     var layoutMode by rememberSaveable { mutableStateOf(AlbumLayoutMode.Grid) }
+    var sortMode by rememberSaveable { mutableStateOf(AlbumSortMode.Artist) }
+    var showSortOptions by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val gridState = rememberLazyGridState()
+    val sortedAlbums = remember(albums, sortMode) {
+        when (sortMode) {
+            AlbumSortMode.Artist -> albums.sortedWith(
+                compareBy<Album> { it.artist.lowercase() }
+                    .thenBy { it.title.lowercase() },
+            )
+            AlbumSortMode.Album -> albums.sortedWith(
+                compareBy<Album> { it.title.lowercase() }
+                    .thenBy { it.artist.lowercase() },
+            )
+        }
+    }
     Box(modifier = Modifier.fillMaxSize()) {
         if (layoutMode == AlbumLayoutMode.Grid) {
             LazyVerticalGrid(
@@ -2912,9 +2933,19 @@ private fun AlbumCollectionContent(
                 item(span = { GridItemSpan(2) }) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        AlbumSortControl(
+                            selected = sortMode,
+                            expanded = showSortOptions,
+                            onToggleExpanded = { showSortOptions = !showSortOptions },
+                            onSelect = { selectedMode ->
+                                sortMode = selectedMode
+                                showSortOptions = false
+                            },
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
                             onLayoutModeChanged = { layoutMode = it },
@@ -2922,7 +2953,7 @@ private fun AlbumCollectionContent(
                     }
                 }
 
-                items(albums, key = { it.id }) { album ->
+                items(sortedAlbums, key = { it.id }) { album ->
                     AlbumGridCard(
                         album = album,
                         onOpen = { origin -> onAlbumSelected(album, origin) },
@@ -2952,9 +2983,19 @@ private fun AlbumCollectionContent(
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        AlbumSortControl(
+                            selected = sortMode,
+                            expanded = showSortOptions,
+                            onToggleExpanded = { showSortOptions = !showSortOptions },
+                            onSelect = { selectedMode ->
+                                sortMode = selectedMode
+                                showSortOptions = false
+                            },
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
                             onLayoutModeChanged = { layoutMode = it },
@@ -2962,7 +3003,7 @@ private fun AlbumCollectionContent(
                     }
                 }
 
-                items(albums, key = { it.id }) { album ->
+                items(sortedAlbums, key = { it.id }) { album ->
                     CompactAlbumRow(
                         album = album,
                         onOpen = { origin -> onAlbumSelected(album, origin) },
@@ -2974,6 +3015,99 @@ private fun AlbumCollectionContent(
                 topInset = topPadding + 16.dp,
                 bottomInset = bottomPadding + 16.dp,
             )
+        }
+    }
+}
+
+@Composable
+private fun AlbumSortControl(
+    selected: AlbumSortMode,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onSelect: (AlbumSortMode) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Surface(
+            onClick = onToggleExpanded,
+            shape = RoundedCornerShape(ElovaireRadii.pill),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
+        ) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_align_left),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = selected.label,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_chevron_down),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(16.dp)
+                        .rotate(if (expanded) 180f else 0f),
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = expanded,
+            enter = fadeIn(animationSpec = tween(ElovaireMotion.Quick)) +
+                slideInVertically(
+                    animationSpec = tween(ElovaireMotion.Quick),
+                    initialOffsetY = { -it / 4 },
+                ),
+            exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick)) +
+                slideOutVertically(
+                    animationSpec = tween(ElovaireMotion.Quick),
+                    targetOffsetY = { -it / 4 },
+                ),
+        ) {
+            Surface(
+                shape = RoundedCornerShape(ElovaireRadii.card),
+                color = MaterialTheme.colorScheme.surface,
+            ) {
+                Column {
+                    AlbumSortMode.entries.forEachIndexed { index, mode ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = { onSelect(mode) },
+                                )
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = mode.label,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (mode == selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
+                            )
+                            if (mode == selected) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lucide_check),
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                            }
+                        }
+                        if (index != AlbumSortMode.entries.lastIndex) {
+                            DividerLine()
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -3514,9 +3648,7 @@ private fun ArtistCollectionScreen(
     onBack: () -> Unit,
     onArtistSelected: (String) -> Unit,
 ) {
-    var layoutMode by rememberSaveable { mutableStateOf(AlbumLayoutMode.Compact) }
     val listState = rememberLazyListState()
-    val gridState = rememberLazyGridState()
     val artists = remember(songs) {
         songs
             .groupBy { it.artist.ifBlank { "Unknown Artist" } }
@@ -3532,96 +3664,41 @@ private fun ArtistCollectionScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (layoutMode == AlbumLayoutMode.Grid) {
-            LazyVerticalGrid(
-                state = gridState,
-                overscrollEffect = null,
-                columns = GridCells.Fixed(2),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .ensureSingleItemRubberBand(gridState),
-                contentPadding = PaddingValues(
-                    start = 20.dp,
-                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
-                    end = 20.dp,
-                    bottom = bottomPadding,
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                item(span = { GridItemSpan(2) }) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        LibraryModeToggle(
-                            layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutMode = it },
-                        )
-                    }
-                }
-                items(artists, key = { it.name }) { artist ->
-                    ArtistGridCard(
-                        artist = artist,
-                        onClick = { onArtistSelected(artist.name) },
-                    )
-                }
-            }
-            FastScrollbar(
-                state = gridState,
-                topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
-                bottomInset = bottomPadding + 16.dp,
-            )
-        } else {
-            LazyColumn(
-                state = listState,
-                overscrollEffect = null,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .ensureSingleItemRubberBand(listState),
-                contentPadding = PaddingValues(
-                    start = 20.dp,
-                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
-                    end = 20.dp,
-                    bottom = bottomPadding,
-                ),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        LibraryModeToggle(
-                            layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutMode = it },
-                        )
-                    }
-                }
-                item {
-                    ModuleCard {
-                        Column {
-                            artists.forEachIndexed { index, artist ->
-                                ArtistRow(
-                                    artist = artist,
-                                    onClick = { onArtistSelected(artist.name) },
-                                )
-                                if (index != artists.lastIndex) {
-                                    DividerLine()
-                                }
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(
+                start = 20.dp,
+                top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
+                end = 20.dp,
+                bottom = bottomPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item {
+                ModuleCard {
+                    Column {
+                        artists.forEachIndexed { index, artist ->
+                            ArtistRow(
+                                artist = artist,
+                                onClick = { onArtistSelected(artist.name) },
+                            )
+                            if (index != artists.lastIndex) {
+                                DividerLine()
                             }
                         }
                     }
                 }
             }
-            FastScrollbar(
-                state = listState,
-                topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
-                bottomInset = bottomPadding + 16.dp,
-            )
         }
+        FastScrollbar(
+            state = listState,
+            topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
+            bottomInset = bottomPadding + 16.dp,
+        )
 
         DetailListTopBar(
             title = "Artists",
@@ -5603,7 +5680,15 @@ private fun AlbumScreen(
     }
     val showDiscSections = discGroups.size > 1
     val isAlbumFavorite = albumSongIds.isNotEmpty() && albumSongIds.all { it in favoriteSongIds }
-    val albumFavoriteBackground = gradient.first().copy(alpha = 0.26f).compositeOver(Color.Black.copy(alpha = 0.18f))
+    val albumFavoriteBackground = gradient.first()
+        .copy(alpha = if (isLightTheme) 0.2f else 0.26f)
+        .compositeOver(
+            if (isLightTheme) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.92f)
+            } else {
+                Color.Black.copy(alpha = 0.18f)
+            },
+        )
     val albumFavoriteTint = if (albumFavoriteBackground.luminance() > 0.56f) InkText else Color.White
     val albumOnSurface = MaterialTheme.colorScheme.onSurface
     val albumActionBackground = gradient.first()
@@ -5670,7 +5755,7 @@ private fun AlbumScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(gradient)),
+            .background(MaterialTheme.colorScheme.background),
     ) {
         val listState = rememberLazyListState()
         LazyColumn(
@@ -5705,20 +5790,20 @@ private fun AlbumScreen(
                                 .background(
                                     brush = Brush.radialGradient(
                                         colors = listOf(
-                                            gradient.first().copy(alpha = 0.41f),
-                                            gradient.last().copy(alpha = 0.14f),
+                                            gradient.first().copy(alpha = if (isLightTheme) 0.28f else 0.41f),
+                                            gradient.last().copy(alpha = if (isLightTheme) 0.1f else 0.14f),
                                             Color.Transparent,
                                         ),
                                         radius = 780f,
                                     ),
                                     shape = RoundedCornerShape(ElovaireRadii.module),
                                 )
-                                .blur(40.dp),
+                                .blur(if (isLightTheme) 32.dp else 40.dp),
                         )
                         Surface(
                             modifier = Modifier.matchParentSize(),
                             shape = RoundedCornerShape(ElovaireRadii.module),
-                            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.16f),
+                            color = MaterialTheme.colorScheme.surface.copy(alpha = if (isLightTheme) 0.08f else 0.16f),
                             tonalElevation = 0.dp,
                             shadowElevation = 22.dp,
                         ) {
