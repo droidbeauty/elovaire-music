@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.hardware.usb.UsbManager
 import android.database.ContentObserver
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
@@ -70,6 +71,7 @@ class PlaybackManager(
     private val scope = scope
     private val appContext = context.applicationContext
     private val audioManager = context.getSystemService(AudioManager::class.java)
+    private val usbManager = context.getSystemService(UsbManager::class.java)
     private val playbackAudioAttributes = AudioAttributes.Builder()
         .setUsage(androidx.media3.common.C.USAGE_MEDIA)
         .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MUSIC)
@@ -87,6 +89,11 @@ class PlaybackManager(
         context = appContext,
         audioManager = audioManager,
         playbackAudioAttributes = platformPlaybackAudioAttributes,
+    )
+    private val usbDacHardwareVolumeManager = UsbDacHardwareVolumeManager(
+        context = appContext,
+        audioManager = audioManager,
+        usbManager = usbManager,
     )
     private val extractorsFactory = DefaultExtractorsFactory()
         .setConstantBitrateSeekingEnabled(true)
@@ -116,6 +123,7 @@ class PlaybackManager(
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             if (addedDevices.hasUsbOutputDeviceChange()) {
+                usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
                 bitPerfectUsbManager.refreshConnectedDevices()
                 applyPreferredAudioDevice()
                 scheduleBitPerfectRefresh(currentSong(), force = true)
@@ -125,6 +133,7 @@ class PlaybackManager(
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
             if (removedDevices.hasUsbOutputDeviceChange()) {
+                usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
                 bitPerfectUsbManager.refreshConnectedDevices()
                 applyPreferredAudioDevice()
                 scheduleBitPerfectRefresh(currentSong(), force = true)
@@ -191,6 +200,7 @@ class PlaybackManager(
             systemVolumeObserver,
         )
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
+        usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
         bitPerfectUsbManager.refreshConnectedDevices()
         applyPreferredAudioDevice()
         syncFromObservedSystemVolume()
@@ -223,6 +233,16 @@ class PlaybackManager(
                     reason: Int,
                 ) {
                     scheduleBitPerfectRefresh(currentSong())
+                    updateProgressState()
+                    updateState()
+                }
+
+                override fun onPositionDiscontinuity(
+                    oldPosition: Player.PositionInfo,
+                    newPosition: Player.PositionInfo,
+                    reason: Int,
+                ) {
+                    updateProgressState()
                     updateState()
                 }
 
@@ -257,8 +277,9 @@ class PlaybackManager(
 
         scope.launch {
             while (isActive) {
+                syncFromObservedSystemVolume()
                 updateProgressState()
-                delay(if (player.isPlaying || player.currentMediaItemIndex >= 0) 250L else 1000L)
+                delay(if (player.isPlaying || player.currentMediaItemIndex >= 0) 120L else 350L)
             }
         }
     }
@@ -309,18 +330,29 @@ class PlaybackManager(
 
     fun seekTo(positionMs: Long) {
         player.seekTo(positionMs.coerceAtLeast(0L))
+        updateProgressState()
         updateState()
     }
 
     fun setVolume(volume: Float) {
+        val requestedVolume = volume.quantizedVolume()
+        if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
+            val handled = usbDacHardwareVolumeManager.setHardwareVolume(requestedVolume)
+            if (handled || usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
+                userVolume = usbDacHardwareVolumeManager.currentHardwareVolume() ?: requestedVolume
+                player.volume = effectivePlayerGain()
+                updateState()
+                return
+            }
+        }
         if (shouldBypassSystemStreamVolume()) {
-            userVolume = volume.quantizedVolume()
+            userVolume = requestedVolume
             volumeFineGain = userVolume
             player.volume = effectivePlayerGain()
             updateState()
             return
         }
-        applyFineGrainedVolume(volume.quantizedVolume())
+        applyFineGrainedVolume(requestedVolume)
         player.volume = effectivePlayerGain()
         updateState()
     }
@@ -394,6 +426,7 @@ class PlaybackManager(
         fadeJob?.cancel()
         duckRecoveryJob?.cancel()
         bitPerfectUsbManager.release()
+        usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
         appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
         audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
@@ -737,14 +770,16 @@ class PlaybackManager(
     }
 
     private fun effectivePlayerGain(): Float {
-        if (bitPerfectUsbManager.shouldBypassProcessing()) return 1f
+        if (bitPerfectUsbManager.shouldBypassProcessing() || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
+            return 1f
+        }
         val duckMultiplier = if (isDucked) DUCKED_VOLUME_MULTIPLIER else 1f
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
         return (baseGain * duckMultiplier).coerceIn(0f, 1f)
     }
 
     private fun applyFineGrainedVolume(targetVolume: Float) {
-        if (bitPerfectUsbManager.shouldBypassProcessing()) {
+        if (bitPerfectUsbManager.shouldBypassProcessing() || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
             userVolume = targetVolume
             player.volume = 1f
             return
@@ -779,10 +814,11 @@ class PlaybackManager(
     }
 
     private fun syncFromObservedSystemVolume() {
-        if (bitPerfectUsbManager.shouldBypassProcessing()) {
+        if (bitPerfectUsbManager.shouldBypassProcessing() || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
             ignoreObservedSystemVolumeStep = null
             lastKnownSystemVolumeFraction = currentSystemVolumeFraction()
             player.volume = 1f
+            userVolume = currentEffectiveVolumeFraction()
             updateState()
             return
         }
@@ -807,13 +843,18 @@ class PlaybackManager(
     }
 
     private fun currentEffectiveVolumeFraction(): Float {
+        if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
+            return usbDacHardwareVolumeManager.currentHardwareVolume() ?: userVolume
+        }
         if (shouldBypassSystemStreamVolume()) return userVolume
         val currentSystemFraction = currentSystemVolumeFraction()
         return (currentSystemFraction * volumeFineGain).coerceIn(0f, 1f).quantizedVolume()
     }
 
     private fun shouldBypassSystemStreamVolume(): Boolean {
-        return bitPerfectUsbManager.shouldBypassProcessing() || usesFixedVolumeOutput()
+        return bitPerfectUsbManager.shouldBypassProcessing() ||
+            usbDacHardwareVolumeManager.shouldOwnVolumeControls() ||
+            usesFixedVolumeOutput()
     }
 
     private fun usesFixedVolumeOutput(): Boolean {
@@ -830,6 +871,22 @@ class PlaybackManager(
         val maxStep = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val currentStep = currentSystemVolumeStep()
         return currentStep.toFloat() / maxStep.toFloat()
+    }
+
+    private fun currentUsbOutputDescriptor(): UsbAudioDeviceDescriptor? {
+        val manager = audioManager ?: return null
+        return manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+            .firstOrNull { device ->
+                device.isSink && device.type in BIT_PERFECT_USB_DEVICE_TYPES
+            }
+            ?.let { device ->
+                UsbAudioDeviceDescriptor(
+                    id = device.id,
+                    type = device.type,
+                    isSink = device.isSink,
+                    productName = device.productName?.toString(),
+                )
+            }
     }
 
     private fun pushRecentId(

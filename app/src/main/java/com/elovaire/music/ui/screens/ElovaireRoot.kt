@@ -1015,7 +1015,7 @@ fun ElovaireRoot(
         val window = (rootView.context as? Activity)?.window ?: return@SideEffect
         val controller = WindowCompat.getInsetsController(window, rootView)
         val usesLightSystemBarIcons = if (currentRoute == PLAYER_ROUTE) {
-            playerAdaptivePalette.contentColor.luminance() > 0.56f
+            playerAdaptivePalette.contentColor.luminance() < 0.56f
         } else {
             !darkTheme
         }
@@ -6734,12 +6734,8 @@ private fun NowPlayingScreen(
 
     var dragValue by remember(currentSong?.id) { mutableFloatStateOf(0f) }
     var isScrubbing by remember(currentSong?.id) { mutableStateOf(false) }
-    var pendingSeekPositionMs by remember(currentSong?.id) { mutableStateOf<Long?>(null) }
-    var pendingSeekIssuedAtMs by remember(currentSong?.id) { mutableLongStateOf(0L) }
 
     LaunchedEffect(currentSong?.id, playbackProgress.durationMs) {
-        pendingSeekPositionMs = null
-        pendingSeekIssuedAtMs = 0L
         dragValue = if (playbackProgress.durationMs > 0) {
             playbackProgress.positionMs.toFloat() / playbackProgress.durationMs.toFloat()
         } else {
@@ -6747,30 +6743,15 @@ private fun NowPlayingScreen(
         }
     }
 
-    LaunchedEffect(playbackProgress.positionMs, playbackProgress.durationMs, isScrubbing, pendingSeekPositionMs, pendingSeekIssuedAtMs) {
+    LaunchedEffect(playbackProgress.positionMs, playbackProgress.durationMs, isScrubbing) {
         if (playbackProgress.durationMs <= 0) {
             dragValue = 0f
-            pendingSeekPositionMs = null
-            pendingSeekIssuedAtMs = 0L
             return@LaunchedEffect
         }
 
         val actualFraction = (playbackProgress.positionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
         if (isScrubbing) return@LaunchedEffect
-
-        val targetPendingPositionMs = pendingSeekPositionMs
-        if (targetPendingPositionMs != null) {
-            dragValue = (targetPendingPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-            val isPlayerCaughtUp = kotlin.math.abs(playbackProgress.positionMs - targetPendingPositionMs) <= 600L ||
-                System.currentTimeMillis() - pendingSeekIssuedAtMs >= 1_200L
-            if (isPlayerCaughtUp) {
-                pendingSeekPositionMs = null
-                pendingSeekIssuedAtMs = 0L
-                dragValue = actualFraction
-            }
-        } else {
-            dragValue = actualFraction
-        }
+        dragValue = actualFraction
     }
 
     Box(
@@ -6893,8 +6874,8 @@ private fun NowPlayingScreen(
             val centeredInfoWidth = 0.95f
             val nowPlayingTitleTopGap = ElovaireSpacing.nowPlayingTitleTopGap
             val nowPlayingTitleBottomGap = ElovaireSpacing.nowPlayingTitleBottomGap
-            val displayedPositionMs = remember(dragValue, isScrubbing, pendingSeekPositionMs, playbackProgress.positionMs, playbackProgress.durationMs) {
-                if ((isScrubbing || pendingSeekPositionMs != null) && playbackProgress.durationMs > 0) {
+            val displayedPositionMs = remember(dragValue, isScrubbing, playbackProgress.positionMs, playbackProgress.durationMs) {
+                if (isScrubbing && playbackProgress.durationMs > 0) {
                     (playbackProgress.durationMs * dragValue.coerceIn(0f, 1f)).toLong()
                 } else {
                     playbackProgress.positionMs
@@ -7074,12 +7055,10 @@ private fun NowPlayingScreen(
                             ) {
                                 PlaybackProgressBar(
                                     progress = dragValue,
-                                    isInteracting = isScrubbing || pendingSeekPositionMs != null,
+                                    isInteracting = isScrubbing,
                                     contentColor = contentColor,
                                     onScrubStarted = {
                                         isScrubbing = true
-                                        pendingSeekPositionMs = null
-                                        pendingSeekIssuedAtMs = 0L
                                     },
                                     onScrubFractionChanged = { fraction ->
                                         dragValue = fraction
@@ -7088,8 +7067,6 @@ private fun NowPlayingScreen(
                                         isScrubbing = false
                                         dragValue = fraction
                                         val target = (playbackProgress.durationMs * fraction.coerceIn(0f, 1f)).toLong()
-                                        pendingSeekPositionMs = target
-                                        pendingSeekIssuedAtMs = System.currentTimeMillis()
                                         onSeekTo(target)
                                     },
                                 )
@@ -8586,9 +8563,9 @@ private fun VolumeControlBar(
 ) {
     val animatedVolume by animateFloatAsState(
         targetValue = volume.coerceIn(0f, 1f),
-        animationSpec = spring(
-            dampingRatio = 0.82f,
-            stiffness = 280f,
+        animationSpec = tween(
+            durationMillis = 110,
+            easing = LinearOutSlowInEasing,
         ),
         label = "player_volume_slider",
     )
