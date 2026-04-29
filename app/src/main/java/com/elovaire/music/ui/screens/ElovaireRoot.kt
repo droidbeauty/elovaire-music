@@ -2905,22 +2905,15 @@ private fun AlbumCollectionContent(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item(span = { GridItemSpan(2) }) {
-                    ModuleCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            SectionTitleRow(
-                                title = title,
-                                subtitle = subtitle,
-                                compact = true,
-                            )
-                            LibraryModeToggle(
-                                layoutMode = layoutMode,
-                                onLayoutModeChanged = { layoutMode = it },
-                            )
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LibraryModeToggle(
+                            layoutMode = layoutMode,
+                            onLayoutModeChanged = { layoutMode = it },
+                        )
                     }
                 }
 
@@ -2952,22 +2945,15 @@ private fun AlbumCollectionContent(
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 item {
-                    ModuleCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            SectionTitleRow(
-                                title = title,
-                                subtitle = subtitle,
-                                compact = true,
-                            )
-                            LibraryModeToggle(
-                                layoutMode = layoutMode,
-                                onLayoutModeChanged = { layoutMode = it },
-                            )
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LibraryModeToggle(
+                            layoutMode = layoutMode,
+                            onLayoutModeChanged = { layoutMode = it },
+                        )
                     }
                 }
 
@@ -3321,42 +3307,25 @@ private fun SongCollectionScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item(span = { GridItemSpan(2) }) {
-                    ModuleCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                SectionTitleRow(
-                                    title = "All songs",
-                                    subtitle = "Every track in your offline library",
-                                    compact = true,
-                                )
-                                SongSortControl(
-                                    selected = sortMode,
-                                    expanded = showSortOptions,
-                                    onToggleExpanded = { showSortOptions = !showSortOptions },
-                                    onSelect = { selectedMode ->
-                                        sortMode = selectedMode
-                                        showSortOptions = false
-                                    },
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier.align(Alignment.Top),
-                            )
-                            {
-                                LibraryModeToggle(
-                                    layoutMode = layoutMode,
-                                    onLayoutModeChanged = { layoutMode = it },
-                                )
-                            }
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SongSortControl(
+                            selected = sortMode,
+                            expanded = showSortOptions,
+                            onToggleExpanded = { showSortOptions = !showSortOptions },
+                            onSelect = { selectedMode ->
+                                sortMode = selectedMode
+                                showSortOptions = false
+                            },
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        LibraryModeToggle(
+                            layoutMode = layoutMode,
+                            onLayoutModeChanged = { layoutMode = it },
+                        )
                     }
                 }
                 items(sortedSongs, key = { it.id }) { song ->
@@ -3384,42 +3353,25 @@ private fun SongCollectionScreen(
                 verticalArrangement = Arrangement.spacedBy(0.dp),
             ) {
                 item {
-                    ModuleCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                SectionTitleRow(
-                                    title = "All songs",
-                                    subtitle = "Every track in your offline library",
-                                    compact = true,
-                                )
-                                SongSortControl(
-                                    selected = sortMode,
-                                    expanded = showSortOptions,
-                                    onToggleExpanded = { showSortOptions = !showSortOptions },
-                                    onSelect = { selectedMode ->
-                                        sortMode = selectedMode
-                                        showSortOptions = false
-                                    },
-                                )
-                            }
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier.align(Alignment.Top),
-                            )
-                            {
-                                LibraryModeToggle(
-                                    layoutMode = layoutMode,
-                                    onLayoutModeChanged = { layoutMode = it },
-                                )
-                            }
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        SongSortControl(
+                            selected = sortMode,
+                            expanded = showSortOptions,
+                            onToggleExpanded = { showSortOptions = !showSortOptions },
+                            onSelect = { selectedMode ->
+                                sortMode = selectedMode
+                                showSortOptions = false
+                            },
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        LibraryModeToggle(
+                            layoutMode = layoutMode,
+                            onLayoutModeChanged = { layoutMode = it },
+                        )
                     }
                 }
                 item {
@@ -3593,22 +3545,15 @@ private fun ArtistCollectionScreen(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item(span = { GridItemSpan(2) }) {
-                    ModuleCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            SectionTitleRow(
-                                title = "All artists",
-                                subtitle = "Artist names pulled from your local tags",
-                                compact = true,
-                            )
-                            LibraryModeToggle(
-                                layoutMode = layoutMode,
-                                onLayoutModeChanged = { layoutMode = it },
-                            )
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LibraryModeToggle(
+                            layoutMode = layoutMode,
+                            onLayoutModeChanged = { layoutMode = it },
+                        )
                     }
                 }
                 items(artists, key = { it.name }) { artist ->
@@ -3639,22 +3584,15 @@ private fun ArtistCollectionScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 item {
-                    ModuleCard {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            SectionTitleRow(
-                                title = "All artists",
-                                subtitle = "Artist names pulled from your local tags",
-                                compact = true,
-                            )
-                            LibraryModeToggle(
-                                layoutMode = layoutMode,
-                                onLayoutModeChanged = { layoutMode = it },
-                            )
-                        }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        LibraryModeToggle(
+                            layoutMode = layoutMode,
+                            onLayoutModeChanged = { layoutMode = it },
+                        )
                     }
                 }
                 item {
@@ -3724,15 +3662,6 @@ private fun GenreCollectionScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            item {
-                ModuleCard {
-                    SectionTitleRow(
-                        title = "Genres",
-                        subtitle = "Albums grouped from your embedded genre tags",
-                        compact = true,
-                    )
-                }
-            }
             item {
                 ModuleCard {
                     Column {
@@ -4676,19 +4605,12 @@ private fun ToggleIconChip(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val backgroundColor by animateColorAsState(
-        targetValue = if (selected) {
-            MaterialTheme.colorScheme.onSurface.copy(
-                alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) 0.1f else 0.05f,
-            )
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        animationSpec = tween(ElovaireMotion.Quick),
-        label = "toggle_chip_background",
-    )
     val contentColor by animateColorAsState(
-        targetValue = if (selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onSurface
+        } else {
+            readableMutedIconColor()
+        },
         animationSpec = tween(ElovaireMotion.Quick),
         label = "toggle_chip_content",
     )
@@ -4704,13 +4626,13 @@ private fun ToggleIconChip(
         modifier = Modifier.scale(scale),
         onClick = onClick,
         shape = RoundedCornerShape(ElovaireRadii.button),
-        color = backgroundColor,
+        color = Color.Transparent,
         contentColor = contentColor,
         shadowElevation = 0.dp,
         interactionSource = interactionSource,
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 11.dp),
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -5514,7 +5436,11 @@ private fun CompactAlbumRow(
     Surface(
         onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
         shape = RoundedCornerShape(ElovaireRadii.tile),
-        color = readableCardSurfaceColor(),
+        color = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+            MaterialTheme.colorScheme.background
+        } else {
+            readableCardSurfaceColor()
+        },
         shadowElevation = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 6.dp else 1.dp,
         modifier = Modifier.onGloballyPositioned { bounds = it.boundsInWindow() },
     ) {
@@ -9442,6 +9368,11 @@ private fun TextSizeStepper(
     val maxIndex = (presets.size - 1).coerceAtLeast(1)
     val knobSize = 20.dp
     val dotColor = MaterialTheme.colorScheme.onSurface
+    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText
+    } else {
+        Color.White
+    }
     val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText.copy(alpha = 0.18f)
     } else {
@@ -9566,7 +9497,7 @@ private fun TextSizeStepper(
                         .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
                         .size(knobSize)
                         .clip(CircleShape)
-                        .background(Color.White)
+                        .background(knobColor)
                         .align(Alignment.CenterStart),
                 )
             }
