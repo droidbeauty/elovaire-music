@@ -8,6 +8,7 @@ import kotlin.math.abs
 class PlaybackEffectsController {
     private var currentAudioSessionId: Int = 0
     private var currentSettings: EqSettings = EqSettings()
+    private var bypassedForBitPerfectUsb = false
     private var equalizer: Equalizer? = null
     private var bassBoost: BassBoost? = null
 
@@ -22,13 +23,23 @@ class PlaybackEffectsController {
         applySettings()
     }
 
+    fun setBitPerfectBypass(enabled: Boolean) {
+        if (bypassedForBitPerfectUsb == enabled) return
+        bypassedForBitPerfectUsb = enabled
+        if (enabled) {
+            releaseEffects()
+        } else {
+            rebuildEffects()
+        }
+    }
+
     fun release() {
         releaseEffects()
     }
 
     private fun rebuildEffects() {
         releaseEffects()
-        if (currentAudioSessionId <= 0) return
+        if (currentAudioSessionId <= 0 || bypassedForBitPerfectUsb) return
 
         equalizer = createEqualizer(currentAudioSessionId)
         bassBoost = createBassBoost(currentAudioSessionId)
@@ -36,6 +47,10 @@ class PlaybackEffectsController {
     }
 
     private fun applySettings() {
+        if (bypassedForBitPerfectUsb) {
+            releaseEffects()
+            return
+        }
         val bandValues = currentSettings.bands.map { it.coerceIn(-1f, 1f) }
         val bassValue = currentSettings.bass.coerceIn(-1f, 1f)
         val trebleValue = currentSettings.treble.coerceIn(-1f, 1f)

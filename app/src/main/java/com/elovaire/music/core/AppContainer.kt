@@ -60,6 +60,12 @@ class AppContainer(
             preferenceStore.eqSettings.collect(playbackEffectsController::updateSettings)
         }
         appScope.launch {
+            playbackManager.bitPerfectUsbStatus
+                .map { it.shouldBypassProcessing }
+                .distinctUntilChanged()
+                .collect(playbackEffectsController::setBitPerfectBypass)
+        }
+        appScope.launch {
             playbackManager.state
                 .map { it.currentSong?.id to it.currentSong?.albumId }
                 .distinctUntilChanged()

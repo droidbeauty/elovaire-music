@@ -7,6 +7,6 @@
       3. Add newer releases above older ones.
     -->
     <release version="1.3">
-        <item>Improvements for bit-perfect playback for external DACs</item>
+        <item>Improvements to bit-perfect playback for external DACs</item>
     </release>
 </changelog>

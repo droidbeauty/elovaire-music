@@ -5,7 +5,6 @@ import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
-import android.media.AudioMixerAttributes
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -22,9 +21,12 @@ internal class BitPerfectUsbManager(
     private val playbackAudioAttributes: AudioAttributes,
     private val policy: BitPerfectUsbPolicy = BitPerfectUsbPolicy(),
 ) {
-    private val appContext = context.applicationContext
     private val callbackExecutor = Executor { command -> command.run() }
-    private val _status = MutableStateFlow(BitPerfectUsbStatus(policy.deriveState(Build.VERSION.SDK_INT, null, null, null, false, false).state))
+    private val _status = MutableStateFlow(
+        BitPerfectUsbStatus(
+            policy.deriveState(Build.VERSION.SDK_INT, null, false, null, null, false, false).state,
+        ),
+    )
     val status: StateFlow<BitPerfectUsbStatus> = _status.asStateFlow()
 
     private var selectedUsbDevice: AudioDeviceInfo? = null
@@ -34,29 +36,26 @@ internal class BitPerfectUsbManager(
     private var verifiedActive = false
     private var lastErrorMessage: String? = null
     private var lastVerifiedAudioTrackConfig: AudioSink.AudioTrackConfig? = null
-
-    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
-    private val preferredMixerListener = AudioManager.OnPreferredMixerAttributesChangedListener {
-            _,
-            device,
-            mixerAttributes,
-        ->
-        if (device.id != selectedUsbDevice?.id) return@OnPreferredMixerAttributesChangedListener
-        val requested = requestedFormatData
-        val stillMatching = requested != null &&
-            mixerAttributes?.matchesRequestedFormat(requested) == true &&
-            mixerAttributes.mixerBehavior == AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT
-        if (!stillMatching) {
-            applySucceeded = false
-            verifiedActive = false
-            lastErrorMessage = null
-            updateStatus("Preferred mixer attributes changed externally")
-        }
-    }
+    private var preferredMixerListenerHandle: Any? = null
 
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            Api34.registerPreferredMixerListener(audioManager, callbackExecutor, preferredMixerListener)
+            preferredMixerListenerHandle = Api34.registerPreferredMixerListener(
+                manager = audioManager,
+                executor = callbackExecutor,
+            ) { deviceId, format, mixerBehavior ->
+                if (deviceId != selectedUsbDevice?.id) return@registerPreferredMixerListener
+                val requested = requestedFormatData
+                val stillMatching = requested != null &&
+                    format == requested &&
+                    mixerBehavior == BitPerfectUsbPolicy.BIT_PERFECT_MIXER_BEHAVIOR
+                if (!stillMatching) {
+                    applySucceeded = false
+                    verifiedActive = false
+                    lastErrorMessage = null
+                    updateStatus("preferred-mixer-attributes-changed")
+                }
+            }
         }
         refreshConnectedDevices()
     }
@@ -123,7 +122,7 @@ internal class BitPerfectUsbManager(
     fun release() {
         clearForStop()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            Api34.unregisterPreferredMixerListener(audioManager, preferredMixerListener)
+            Api34.unregisterPreferredMixerListener(audioManager, preferredMixerListenerHandle)
         }
     }
 
@@ -153,20 +152,11 @@ internal class BitPerfectUsbManager(
             )
             return
         }
-        val preferredMixerAttributes = AudioMixerAttributes.Builder(
-            AudioFormat.Builder()
-                .setSampleRate(requested.sampleRateHz)
-                .setChannelMask(requested.channelMask)
-                .setEncoding(requested.encoding)
-                .build(),
-        )
-            .setMixerBehavior(AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT)
-            .build()
         val applied = Api34.setPreferredMixerAttributes(
             manager = manager,
             audioAttributes = playbackAudioAttributes,
             device = device,
-            mixerAttributes = preferredMixerAttributes,
+            format = requested,
         )
         applySucceeded = applied
         verifiedActive = false
@@ -193,6 +183,7 @@ internal class BitPerfectUsbManager(
         val status = policy.deriveState(
             apiLevel = Build.VERSION.SDK_INT,
             selectedDevice = selectedUsbDevice?.let(::toDescriptor),
+            trackFormatKnown = currentTrackFormat != null,
             requestedFormat = requestedFormatData,
             matchedProfile = matchedProfile(),
             applySucceeded = applySucceeded,
@@ -241,13 +232,6 @@ internal class BitPerfectUsbManager(
         }
     }
 
-    private fun AudioMixerAttributes.matchesRequestedFormat(requested: PlatformAudioFormatData): Boolean {
-        val format = this.format
-        return format.sampleRate == requested.sampleRateHz &&
-            format.channelMask == requested.channelMask &&
-            format.encoding == requested.encoding
-    }
-
     private fun logDebug(message: String) {
         if (!BuildConfig.DEBUG) return
         Log.d(TAG, message)
@@ -258,16 +242,31 @@ internal class BitPerfectUsbManager(
         fun registerPreferredMixerListener(
             manager: AudioManager?,
             executor: Executor,
-            listener: AudioManager.OnPreferredMixerAttributesChangedListener,
-        ) {
+            onChange: (deviceId: Int, format: PlatformAudioFormatData?, mixerBehavior: Int) -> Unit,
+        ): Any? {
+            val listener = AudioManager.OnPreferredMixerAttributesChangedListener { _, device, mixerAttributes ->
+                onChange(
+                    device.id,
+                    mixerAttributes?.let {
+                        PlatformAudioFormatData(
+                            sampleRateHz = it.format.sampleRate,
+                            channelMask = it.format.channelMask,
+                            encoding = it.format.encoding,
+                        )
+                    },
+                    mixerAttributes?.mixerBehavior ?: -1,
+                )
+            }
             manager?.addOnPreferredMixerAttributesChangedListener(executor, listener)
+            return listener
         }
 
         fun unregisterPreferredMixerListener(
             manager: AudioManager?,
-            listener: AudioManager.OnPreferredMixerAttributesChangedListener,
+            listener: Any?,
         ) {
-            manager?.removeOnPreferredMixerAttributesChangedListener(listener)
+            val typedListener = listener as? AudioManager.OnPreferredMixerAttributesChangedListener ?: return
+            manager?.removeOnPreferredMixerAttributesChangedListener(typedListener)
         }
 
         fun getSupportedMixerProfiles(
@@ -290,8 +289,17 @@ internal class BitPerfectUsbManager(
             manager: AudioManager,
             audioAttributes: AudioAttributes,
             device: AudioDeviceInfo,
-            mixerAttributes: AudioMixerAttributes,
+            format: PlatformAudioFormatData,
         ): Boolean {
+            val mixerAttributes = android.media.AudioMixerAttributes.Builder(
+                AudioFormat.Builder()
+                    .setSampleRate(format.sampleRateHz)
+                    .setChannelMask(format.channelMask)
+                    .setEncoding(format.encoding)
+                    .build(),
+            )
+                .setMixerBehavior(BitPerfectUsbPolicy.BIT_PERFECT_MIXER_BEHAVIOR)
+                .build()
             return manager.setPreferredMixerAttributes(audioAttributes, device, mixerAttributes)
         }
 

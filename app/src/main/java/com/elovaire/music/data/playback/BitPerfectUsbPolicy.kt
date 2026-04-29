@@ -2,11 +2,12 @@ package elovaire.music.app.data.playback
 
 import android.media.AudioDeviceInfo
 import android.media.AudioFormat
-import android.media.AudioMixerAttributes
 import android.os.Build
 
 internal class BitPerfectUsbPolicy(
-    private val bitPerfectBehavior: Int = AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT,
+    // AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT is API 34+, so the policy keeps the raw
+    // constant instead of referencing the class directly.
+    private val bitPerfectBehavior: Int = BIT_PERFECT_MIXER_BEHAVIOR,
     private val minimumSupportedApi: Int = Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
 ) {
     fun selectUsbDevice(
@@ -25,11 +26,7 @@ internal class BitPerfectUsbPolicy(
         val channelMask = channelMaskForCount(trackFormat.channelCount) ?: return null
         val encoding = when (trackFormat.encoding) {
             UsbPcmEncoding.Pcm16Bit -> AudioFormat.ENCODING_PCM_16BIT
-            UsbPcmEncoding.Pcm24BitPacked -> {
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return null
-                AudioFormat.ENCODING_PCM_24BIT_PACKED
-            }
-
+            UsbPcmEncoding.Pcm24BitPacked -> AudioFormat.ENCODING_PCM_24BIT_PACKED
             UsbPcmEncoding.Pcm32Bit -> AudioFormat.ENCODING_PCM_32BIT
             UsbPcmEncoding.PcmFloat -> AudioFormat.ENCODING_PCM_FLOAT
         }
@@ -53,6 +50,7 @@ internal class BitPerfectUsbPolicy(
     fun deriveState(
         apiLevel: Int,
         selectedDevice: UsbAudioDeviceDescriptor?,
+        trackFormatKnown: Boolean,
         requestedFormat: PlatformAudioFormatData?,
         matchedProfile: SupportedMixerProfile?,
         applySucceeded: Boolean,
@@ -75,8 +73,13 @@ internal class BitPerfectUsbPolicy(
         }
         if (requestedFormat == null) {
             return BitPerfectUsbStatus(
-                state = BitPerfectUsbState.UsbDetected,
+                state = if (trackFormatKnown) {
+                    BitPerfectUsbState.UnsupportedDeviceOrFormat
+                } else {
+                    BitPerfectUsbState.UsbDetected
+                },
                 selectedDeviceId = selectedDevice.id,
+                fallbackReason = if (trackFormatKnown) "Track format could not be mapped to PCM output" else null,
             )
         }
         if (matchedProfile == null) {
@@ -117,7 +120,8 @@ internal class BitPerfectUsbPolicy(
         }
     }
 
-    private companion object {
+    internal companion object {
+        const val BIT_PERFECT_MIXER_BEHAVIOR = 1
         val USB_OUTPUT_DEVICE_TYPES = setOf(
             AudioDeviceInfo.TYPE_USB_DEVICE,
             AudioDeviceInfo.TYPE_USB_HEADSET,
