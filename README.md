@@ -10,7 +10,7 @@ Elovaire is an Android music player built for local libraries, refined playback,
 - Compact now playing bar with quick access to transport controls
 - Full now playing screen with queue, lyrics overlay, volume control, and playback mode controls
 - Local library scanning through Android `MediaStore`, including automatic refresh behavior
-- Light, dark, and system theme support with custom in-app appearance controls
+- Light, dark, and system theme support
 - Persisted sound shaping controls and equalizer-ready playback architecture
 - Notification playback controls and media-session integration
 - Release-update flow wired to GitHub releases

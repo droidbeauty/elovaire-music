@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 
 data class AppReleaseInfo(
@@ -57,11 +58,15 @@ class AppUpdateManager(
         if (_uiState.value.isChecking || _uiState.value.isDownloading || _uiState.value.isInstalling) return
         scope.launch {
             _uiState.update { it.copy(isChecking = true, errorMessage = null) }
-            val latestRelease = runCatching { withContext(Dispatchers.IO) { fetchLatestRelease() } }.getOrNull()
-            val dismissedVersion = preferenceStore.dismissedUpdateVersion.value
-            val shouldShow = latestRelease != null &&
-                isVersionNewer(latestRelease.versionName, BuildConfig.VERSION_NAME) &&
-                (force || dismissedVersion != latestRelease.versionName)
+            val installedVersion = normalizeVersionLabel(BuildConfig.VERSION_NAME)
+            val dismissedVersion = preferenceStore.dismissedUpdateVersion.value?.trim()?.takeIf { it.isNotBlank() }
+            if (dismissedVersion != null && !isVersionNewer(dismissedVersion, installedVersion)) {
+                preferenceStore.setDismissedUpdateVersion(null)
+            }
+            val latestRelease = runCatching {
+                withContext(Dispatchers.IO) { fetchLatestRelease(installedVersion) }
+            }.getOrNull()
+            val shouldShow = latestRelease != null && (force || dismissedVersion != latestRelease.versionName)
 
             _uiState.update { current ->
                 current.copy(
@@ -148,8 +153,21 @@ class AppUpdateManager(
         }
     }
 
-    private fun fetchLatestRelease(): AppReleaseInfo? {
-        val connection = (URL(LATEST_RELEASE_URL).openConnection() as HttpURLConnection).apply {
+    private fun fetchLatestRelease(installedVersion: String): AppReleaseInfo? {
+        val releases = openGithubConnection(RELEASES_URL).useJsonArray { json ->
+            (0 until json.length())
+                .mapNotNull(json::optJSONObject)
+                .mapNotNull(::parseReleaseInfo)
+        }
+        return releases
+            .filter { release -> isVersionNewer(release.versionName, installedVersion) }
+            .maxWithOrNull { left, right -> compareVersions(left.versionName, right.versionName) }
+            ?: openGithubConnection(LATEST_RELEASE_URL).useJsonObject(::parseReleaseInfo)
+                ?.takeIf { release -> isVersionNewer(release.versionName, installedVersion) }
+    }
+
+    private fun openGithubConnection(url: String): HttpURLConnection {
+        return (URL(url).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = NETWORK_TIMEOUT_MS
             readTimeout = NETWORK_TIMEOUT_MS
@@ -158,36 +176,36 @@ class AppUpdateManager(
             setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
             instanceFollowRedirects = true
         }
+    }
 
-        return connection.useJsonObject { json ->
-            if (json.optBoolean("draft") || json.optBoolean("prerelease")) return@useJsonObject null
-            val tagName = json.optString("tag_name").orEmpty()
-            val versionName = normalizeVersionLabel(tagName.ifBlank { json.optString("name").orEmpty() })
-            if (versionName.isBlank()) return@useJsonObject null
-            val assets = json.optJSONArray("assets") ?: return@useJsonObject null
-            val asset = (0 until assets.length())
+    private fun parseReleaseInfo(json: JSONObject): AppReleaseInfo? {
+        if (json.optBoolean("draft") || json.optBoolean("prerelease")) return null
+        val tagName = json.optString("tag_name").orEmpty()
+        val versionName = normalizeVersionLabel(tagName.ifBlank { json.optString("name").orEmpty() })
+        if (versionName.isBlank()) return null
+        val assets = json.optJSONArray("assets") ?: return null
+        val asset = (0 until assets.length())
+            .mapNotNull { index -> assets.optJSONObject(index) }
+            .firstOrNull { assetJson ->
+                val name = assetJson.optString("name").orEmpty().lowercase()
+                name.endsWith(".apk") &&
+                    ("release" in name || BuildConfig.APPLICATION_ID.lowercase() in name)
+            }
+            ?: (0 until assets.length())
                 .mapNotNull { index -> assets.optJSONObject(index) }
                 .firstOrNull { assetJson ->
-                    val name = assetJson.optString("name").orEmpty().lowercase()
-                    name.endsWith(".apk") &&
-                        ("release" in name || BuildConfig.APPLICATION_ID.lowercase() in name)
+                    assetJson.optString("name").orEmpty().lowercase().endsWith(".apk")
                 }
-                ?: (0 until assets.length())
-                    .mapNotNull { index -> assets.optJSONObject(index) }
-                    .firstOrNull { assetJson ->
-                        assetJson.optString("name").orEmpty().lowercase().endsWith(".apk")
-                    }
-                ?: return@useJsonObject null
+            ?: return null
 
-            AppReleaseInfo(
-                versionName = versionName,
-                tagName = tagName,
-                downloadUrl = asset.optString("browser_download_url").orEmpty(),
-                notes = json.optString("body").orEmpty(),
-                publishedAt = json.optString("published_at").orEmpty(),
-                assetFileName = asset.optString("name").orEmpty().ifBlank { "elovaire-update.apk" },
-            ).takeIf { it.downloadUrl.isNotBlank() }
-        }
+        return AppReleaseInfo(
+            versionName = versionName,
+            tagName = tagName,
+            downloadUrl = asset.optString("browser_download_url").orEmpty(),
+            notes = json.optString("body").orEmpty(),
+            publishedAt = json.optString("published_at").orEmpty(),
+            assetFileName = asset.optString("name").orEmpty().ifBlank { "elovaire-update.apk" },
+        ).takeIf { it.downloadUrl.isNotBlank() }
     }
 
     private fun downloadReleaseApk(release: AppReleaseInfo): File {
@@ -243,17 +261,21 @@ class AppUpdateManager(
     }
 
     private fun isVersionNewer(candidate: String, installed: String): Boolean {
-        val candidateParts = candidate.normalizeVersionParts()
-        val installedParts = installed.normalizeVersionParts()
-        val maxSize = maxOf(candidateParts.size, installedParts.size)
+        return compareVersions(candidate, installed) > 0
+    }
+
+    private fun compareVersions(left: String, right: String): Int {
+        val leftParts = left.normalizeVersionParts()
+        val rightParts = right.normalizeVersionParts()
+        val maxSize = maxOf(leftParts.size, rightParts.size)
         for (index in 0 until maxSize) {
-            val candidatePart = candidateParts.getOrElse(index) { 0 }
-            val installedPart = installedParts.getOrElse(index) { 0 }
-            if (candidatePart != installedPart) {
-                return candidatePart > installedPart
+            val leftPart = leftParts.getOrElse(index) { 0 }
+            val rightPart = rightParts.getOrElse(index) { 0 }
+            if (leftPart != rightPart) {
+                return leftPart.compareTo(rightPart)
             }
         }
-        return false
+        return 0
     }
 
     private fun String.normalizeVersionParts(): List<Int> {
@@ -262,6 +284,19 @@ class AppUpdateManager(
             .removePrefix("V")
             .split('.', '-', '_')
             .mapNotNull { it.toIntOrNull() }
+    }
+
+    private inline fun <T> HttpURLConnection.useJsonArray(block: (JSONArray) -> T): T {
+        return try {
+            connect()
+            if (responseCode !in 200..299) {
+                throw IllegalStateException("Release check failed")
+            }
+            val payload = inputStream.bufferedReader().use { it.readText() }
+            block(JSONArray(payload))
+        } finally {
+            disconnect()
+        }
     }
 
     private inline fun <T> HttpURLConnection.useJsonObject(block: (JSONObject) -> T): T {
@@ -281,6 +316,7 @@ class AppUpdateManager(
 
     private companion object {
         const val LATEST_RELEASE_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases/latest"
+        const val RELEASES_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases"
         const val NETWORK_TIMEOUT_MS = 12_000
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
