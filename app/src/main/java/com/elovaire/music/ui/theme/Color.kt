@@ -31,3 +31,6 @@ val InkTextSecondary = Color(0xC20D0D0D)
 
 // Global accent color for highlighted buttons, active states, and key actions.
 val RoseAccent = Color(0xFF2A63EA)
+
+// Shared destructive action color for delete/remove actions.
+val DestructiveRed = Color(0xFFF53838)

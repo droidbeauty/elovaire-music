@@ -6,6 +6,7 @@ import android.media.AudioDeviceInfo
 import android.media.AudioFormat
 import android.media.AudioManager
 import android.media.AudioMixerAttributes
+import android.media.AudioTrack
 import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresApi
@@ -13,6 +14,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioSink
 import elovaire.music.app.BuildConfig
 import java.util.concurrent.Executor
+import java.util.concurrent.ConcurrentHashMap
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -34,10 +36,12 @@ internal class BitPerfectUsbManager(
     private var selectedUsbDevice: AudioDeviceInfo? = null
     private var currentTrackFormat: TrackPlaybackFormat? = null
     private var requestedFormatData: PlatformAudioFormatData? = null
+    private var probeResult: UsbFormatProbeResult? = null
     private var applySucceeded = false
     private var verifiedActive = false
     private var lastErrorMessage: String? = null
     private var preferredMixerListenerHandle: Any? = null
+    private val formatProbeCache = ConcurrentHashMap<String, UsbFormatProbeResult>()
 
     init {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
@@ -62,6 +66,7 @@ internal class BitPerfectUsbManager(
     }
 
     fun refreshConnectedDevices() {
+        val previousDeviceId = selectedUsbDevice?.id
         val descriptors = audioManager
             ?.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
             ?.map(::toDescriptor)
@@ -71,7 +76,15 @@ internal class BitPerfectUsbManager(
             currentDeviceId = selectedUsbDevice?.id,
         )
         selectedUsbDevice = selectedDescriptor?.let(::findDeviceById)
+        if (selectedUsbDevice?.id != previousDeviceId) {
+            formatProbeCache.clear()
+            probeResult = null
+            applySucceeded = false
+            verifiedActive = false
+        }
         if (selectedUsbDevice == null) {
+            probeResult = null
+            formatProbeCache.clear()
             clearPreferredMixerAttributes()
         }
         applyCurrentConfiguration("usb-device-refresh")
@@ -80,6 +93,7 @@ internal class BitPerfectUsbManager(
     fun updateTrackFormat(trackFormat: TrackPlaybackFormat?) {
         currentTrackFormat = trackFormat
         requestedFormatData = trackFormat?.let(policy::mapTrackFormat)
+        probeResult = null
         applySucceeded = false
         verifiedActive = false
         lastErrorMessage = null
@@ -112,6 +126,7 @@ internal class BitPerfectUsbManager(
     fun clearForStop() {
         currentTrackFormat = null
         requestedFormatData = null
+        probeResult = null
         applySucceeded = false
         verifiedActive = false
         lastErrorMessage = null
@@ -136,38 +151,52 @@ internal class BitPerfectUsbManager(
         val manager = audioManager
         val device = selectedUsbDevice
         val requested = requestedFormatData
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || manager == null || device == null || requested == null) {
+        if (!policy.shouldAttemptPreferredDeviceRouting(Build.VERSION.SDK_INT) || manager == null || device == null || requested == null) {
+            probeResult = null
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && (device == null || requested == null)) {
                 clearPreferredMixerAttributes()
             }
             updateStatus(reason)
             return
         }
-        val supportedProfiles = Api34.getSupportedMixerProfiles(manager, device)
-        val matchedProfile = policy.selectSupportedProfile(requested, supportedProfiles)
-        if (matchedProfile == null) {
-            clearPreferredMixerAttributes()
-            updateStatus(reason)
-            logDebug(
-                "event=no_supported_profile api=${Build.VERSION.SDK_INT} device=${device.displayName()} " +
-                    "sampleRate=${requested.sampleRateHz} encoding=${requested.encoding} channelMask=${requested.channelMask}",
-            )
-            return
+
+        probeResult = probeUsbFormatSupport(device, requested)
+        val mixerMatch = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            val supportedProfiles = Api34.getSupportedMixerProfiles(manager, device)
+            policy.selectSupportedProfile(requested, supportedProfiles)
+        } else {
+            null
         }
-        val applied = Api34.setPreferredMixerAttributes(
-            manager = manager,
-            audioAttributes = playbackAudioAttributes,
-            device = device,
-            format = requested,
+        probeResult = probeResult?.copy(
+            mixerAttributesSupported = mixerMatch != null,
+            routeStrategy = when {
+                mixerMatch != null -> UsbBitPerfectRouteStrategy.MixerAttributesBitPerfect
+                probeResult?.exactFormatSupported == true && probeResult?.directPlaybackSupported == true -> UsbBitPerfectRouteStrategy.ExactFormatDirect
+                probeResult?.exactFormatSupported == true -> UsbBitPerfectRouteStrategy.BestEffortPreferredDevice
+                else -> UsbBitPerfectRouteStrategy.None
+            },
         )
-        applySucceeded = applied
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && mixerMatch != null) {
+            applySucceeded = Api34.setPreferredMixerAttributes(
+                manager = manager,
+                audioAttributes = playbackAudioAttributes,
+                device = device,
+                format = requested,
+            )
+        } else {
+            clearPreferredMixerAttributes()
+            applySucceeded = probeResult?.exactFormatSupported == true
+        }
         verifiedActive = false
         lastErrorMessage = null
         updateStatus(reason)
         logDebug(
             "event=apply api=${Build.VERSION.SDK_INT} device=${device.displayName()} " +
                 "sampleRate=${requested.sampleRateHz} encoding=${requested.encoding} channelMask=${requested.channelMask} " +
-                "bitPerfectRequested=true success=$applied fallback=${status.value.fallbackReason.orEmpty()}",
+                "bitPerfectRequested=${mixerMatch != null} success=$applySucceeded strategy=${probeResult?.routeStrategy} " +
+                "direct=${probeResult?.directPlaybackSupported} exact=${probeResult?.exactFormatSupported} " +
+                "fallback=${status.value.fallbackReason.orEmpty()}",
         )
     }
 
@@ -187,7 +216,7 @@ internal class BitPerfectUsbManager(
             selectedDevice = selectedUsbDevice?.let(::toDescriptor),
             trackFormatKnown = currentTrackFormat != null,
             requestedFormat = requestedFormatData,
-            matchedProfile = matchedProfile(),
+            probeResult = probeResult,
             applySucceeded = applySucceeded,
             verifiedActive = verifiedActive,
             errorMessage = lastErrorMessage,
@@ -197,18 +226,9 @@ internal class BitPerfectUsbManager(
             "event=status reason=$reason state=${status.state.javaClass.simpleName} api=${Build.VERSION.SDK_INT} " +
                 "device=${selectedUsbDevice?.displayName().orEmpty()} sampleRate=${status.requestedFormat?.sampleRateHz ?: -1} " +
                 "encoding=${status.requestedFormat?.encoding ?: -1} channelMask=${status.requestedFormat?.channelMask ?: -1} " +
-                "bitPerfectRequested=${matchedProfile() != null} success=$applySucceeded fallback=${status.fallbackReason.orEmpty()}",
+                "strategy=${status.routeStrategy} bypass=${status.shouldBypassProcessing} success=$applySucceeded " +
+                "fallback=${status.fallbackReason.orEmpty()}",
         )
-    }
-
-    private fun matchedProfile(): SupportedMixerProfile? {
-        val manager = audioManager
-        val device = selectedUsbDevice
-        val requested = requestedFormatData
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE || manager == null || device == null || requested == null) {
-            return null
-        }
-        return policy.selectSupportedProfile(requested, Api34.getSupportedMixerProfiles(manager, device))
     }
 
     private fun toDescriptor(device: AudioDeviceInfo): UsbAudioDeviceDescriptor {
@@ -217,6 +237,8 @@ internal class BitPerfectUsbManager(
             type = device.type,
             isSink = device.isSink,
             productName = device.productName?.toString(),
+            sampleRates = device.sampleRates,
+            encodings = device.encodings,
         )
     }
 
@@ -239,6 +261,74 @@ internal class BitPerfectUsbManager(
         Log.d(TAG, message)
     }
 
+    private fun probeUsbFormatSupport(
+        device: AudioDeviceInfo,
+        requested: PlatformAudioFormatData,
+    ): UsbFormatProbeResult {
+        val cacheKey = buildProbeCacheKey(device, requested)
+        formatProbeCache[cacheKey]?.let { return it }
+
+        val directPlaybackSupported = supportsDirectPlayback(requested)
+        val probeSucceeded = tryInitializeExactAudioTrack(device, requested)
+        val result = policy.evaluateExactFormatSupport(
+            selectedDevice = toDescriptor(device),
+            requestedFormat = requested,
+            directPlaybackSupported = directPlaybackSupported,
+            audioTrackProbeSucceeded = probeSucceeded,
+        )
+        formatProbeCache[cacheKey] = result
+        return result
+    }
+
+    @Suppress("DEPRECATION")
+    private fun supportsDirectPlayback(requested: PlatformAudioFormatData): Boolean {
+        val audioFormat = requested.toAudioFormat()
+        return when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && audioManager != null ->
+                AudioManager.getDirectPlaybackSupport(audioFormat, playbackAudioAttributes) != AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q ->
+                AudioTrack.isDirectPlaybackSupported(audioFormat, playbackAudioAttributes)
+            else -> false
+        }
+    }
+
+    private fun tryInitializeExactAudioTrack(
+        device: AudioDeviceInfo,
+        requested: PlatformAudioFormatData,
+    ): Boolean {
+        val minBufferSize = AudioTrack.getMinBufferSize(
+            requested.sampleRateHz,
+            requested.channelMask,
+            requested.encoding,
+        )
+        if (minBufferSize <= 0) return false
+        val track = runCatching {
+            AudioTrack.Builder()
+                .setAudioAttributes(playbackAudioAttributes)
+                .setAudioFormat(requested.toAudioFormat())
+                .setBufferSizeInBytes(minBufferSize * 2)
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .setSessionId(AudioManager.AUDIO_SESSION_ID_GENERATE)
+                .build()
+        }.getOrNull() ?: return false
+
+        return try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                runCatching { track.preferredDevice = device }
+            }
+            track.state == AudioTrack.STATE_INITIALIZED
+        } finally {
+            runCatching { track.release() }
+        }
+    }
+
+    private fun buildProbeCacheKey(
+        device: AudioDeviceInfo,
+        requested: PlatformAudioFormatData,
+    ): String {
+        return "${device.id}:${requested.sampleRateHz}:${requested.channelMask}:${requested.encoding}"
+    }
+
     @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
     private object Api34 {
         fun registerPreferredMixerListener(
@@ -254,6 +344,7 @@ internal class BitPerfectUsbManager(
                             sampleRateHz = it.format.sampleRate,
                             channelMask = it.format.channelMask,
                             encoding = it.format.encoding,
+                            channelCount = it.format.channelCount,
                         )
                     },
                     mixerAttributes?.mixerBehavior ?: -1,
@@ -281,6 +372,7 @@ internal class BitPerfectUsbManager(
                         sampleRateHz = mixerAttributes.format.sampleRate,
                         channelMask = mixerAttributes.format.channelMask,
                         encoding = mixerAttributes.format.encoding,
+                        channelCount = mixerAttributes.format.channelCount,
                     ),
                     mixerBehavior = mixerAttributes.mixerBehavior,
                 )
@@ -319,4 +411,12 @@ internal class BitPerfectUsbManager(
     private companion object {
         const val TAG = "BitPerfectUsb"
     }
+}
+
+private fun PlatformAudioFormatData.toAudioFormat(): AudioFormat {
+    return AudioFormat.Builder()
+        .setSampleRate(sampleRateHz)
+        .setChannelMask(channelMask)
+        .setEncoding(encoding)
+        .build()
 }

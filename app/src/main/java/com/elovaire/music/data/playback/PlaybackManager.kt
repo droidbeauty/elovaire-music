@@ -64,9 +64,13 @@ class PlaybackManager(
     context: Context,
     scope: CoroutineScope,
     audioProcessors: Array<AudioProcessor> = emptyArray(),
+    initialRecentSongIds: List<Long> = emptyList(),
+    initialRecentAlbumIds: List<Long> = emptyList(),
+    onRecentPlaybackChanged: (songIds: List<Long>, albumIds: List<Long>) -> Unit = { _, _ -> },
 ) {
     private val scope = scope
     private val appContext = context.applicationContext
+    private val onRecentPlaybackChanged = onRecentPlaybackChanged
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private val usbManager = context.getSystemService(UsbManager::class.java)
     private val playbackAudioAttributes = AudioAttributes.Builder()
@@ -213,7 +217,13 @@ class PlaybackManager(
         }
     }
 
-    private val _state = MutableStateFlow(PlaybackUiState(volume = userVolume))
+    private val _state = MutableStateFlow(
+        PlaybackUiState(
+            volume = userVolume,
+            recentSongIds = initialRecentSongIds.distinct(),
+            recentAlbumIds = initialRecentAlbumIds.distinct(),
+        ),
+    )
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
     private val _progressState = MutableStateFlow(PlaybackProgressState())
     val progressState: StateFlow<PlaybackProgressState> = _progressState.asStateFlow()
@@ -557,6 +567,15 @@ class PlaybackManager(
         )
         if (updatedState != existingState) {
             _state.value = updatedState
+            if (
+                updatedState.recentSongIds != existingState.recentSongIds ||
+                updatedState.recentAlbumIds != existingState.recentAlbumIds
+            ) {
+                onRecentPlaybackChanged(
+                    updatedState.recentSongIds,
+                    updatedState.recentAlbumIds,
+                )
+            }
         }
         publishProgressSnapshot()
     }

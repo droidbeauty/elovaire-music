@@ -52,6 +52,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -67,6 +68,7 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -146,12 +148,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -234,6 +238,7 @@ import elovaire.music.app.ui.components.rememberArtworkGradient
 import elovaire.music.app.ui.theme.ElovaireMotion
 import elovaire.music.app.ui.theme.ElovaireRadii
 import elovaire.music.app.ui.theme.ElovaireSpacing
+import elovaire.music.app.ui.theme.DestructiveRed
 import elovaire.music.app.ui.theme.elovaireScaledSp
 import elovaire.music.app.ui.theme.rememberElovaireOverscrollFactory
 import elovaire.music.app.ui.theme.InkText
@@ -586,6 +591,101 @@ private fun SnapshotBackdropBlurLayer(
 }
 
 @Composable
+private fun blurSurfaceOverlayColor(): Color = MaterialTheme.colorScheme.surface
+
+@Composable
+private fun blurSurfaceBorderColor(): Color {
+    return if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color.White.copy(alpha = 0.12f)
+    } else {
+        InkText.copy(alpha = 0.08f)
+    }
+}
+
+@Composable
+private fun Modifier.horizontalGestureSafe(): Modifier {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+        this.systemGestureExclusion()
+    } else {
+        this
+    }
+}
+
+@OptIn(ExperimentalHazeApi::class)
+@Composable
+private fun DynamicBackdropSurface(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(0.dp),
+    overlayAlpha: Float = 0.7f,
+    borderColor: Color? = null,
+    showTopEdgeLine: Boolean = false,
+    showBottomEdgeLine: Boolean = false,
+    content: @Composable BoxScope.() -> Unit = {},
+) {
+    val hazeState = LocalChromeHazeState.current
+    val backdropBitmap = LocalChromeBackdropBitmap.current
+    val overlayColor = blurSurfaceOverlayColor()
+    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .onGloballyPositioned { bounds = it.boundsInWindow() },
+    ) {
+        if (hazeState != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .hazeEffect(hazeState) {
+                        blurRadius = 28.dp
+                        backgroundColor = overlayColor.copy(alpha = overlayAlpha)
+                        tints = listOf(HazeTint(overlayColor.copy(alpha = overlayAlpha)))
+                        noiseFactor = 0.02f
+                    },
+            )
+        } else {
+            SnapshotBackdropBlurLayer(
+                backdropBitmap = backdropBitmap,
+                bounds = bounds,
+                blurRadius = 30.dp,
+                modifier = Modifier.matchParentSize(),
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(overlayColor.copy(alpha = overlayAlpha)),
+            )
+        }
+        if (borderColor != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .border(1.dp, borderColor, shape),
+            )
+        }
+        if (showTopEdgeLine) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(blurSurfaceBorderColor()),
+            )
+        }
+        if (showBottomEdgeLine) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(blurSurfaceBorderColor()),
+            )
+        }
+        content()
+    }
+}
+
+@Composable
 private fun ProgressiveChromeBackdrop(
     darkTheme: Boolean,
     edge: ProgressiveChromeEdge,
@@ -594,138 +694,12 @@ private fun ProgressiveChromeBackdrop(
     flatOverlay: Boolean = false,
     showEdgeLine: Boolean = true,
 ) {
-    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val backdropBitmap = LocalChromeBackdropBitmap.current
-    val matteColor = if (darkTheme) {
-        Color(0xFF141414)
-    } else {
-        Color.White
-    }
-    val depthTint = if (darkTheme) {
-        Color.Black.copy(alpha = 0.18f)
-    } else {
-        Color.White.copy(alpha = 0.18f)
-    }
-    val edgeTint = if (darkTheme) {
-        Color.White.copy(alpha = 0.12f)
-    } else {
-        Color.White.copy(alpha = 0.42f)
-    }
-    val highlightTint = if (darkTheme) {
-        Color.White.copy(alpha = 0.06f)
-    } else {
-        Color.White.copy(alpha = 0.18f)
-    }
-    val matteBrush = if (flatOverlay) {
-        Brush.verticalGradient(
-            colors = List(2) { matteColor.copy(alpha = overlayAlpha ?: 0.7f) },
-        )
-    } else {
-        when (edge) {
-            ProgressiveChromeEdge.Top -> Brush.verticalGradient(
-                colors = listOf(
-                    matteColor.copy(alpha = overlayAlpha ?: 0.82f),
-                    matteColor.copy(alpha = overlayAlpha ?: 0.72f),
-                    matteColor.copy(alpha = overlayAlpha ?: 0.62f),
-                    matteColor.copy(alpha = overlayAlpha ?: 0.48f),
-                ),
-            )
-            ProgressiveChromeEdge.Bottom -> Brush.verticalGradient(
-                colors = listOf(
-                    matteColor.copy(alpha = overlayAlpha ?: 0.26f),
-                    matteColor.copy(alpha = overlayAlpha ?: 0.38f),
-                    matteColor.copy(alpha = overlayAlpha ?: 0.5f),
-                    matteColor.copy(alpha = overlayAlpha ?: 0.64f),
-                ),
-            )
-        }
-    }
-    val depthBrush = when (edge) {
-        ProgressiveChromeEdge.Top -> Brush.verticalGradient(
-            colors = listOf(
-                depthTint.copy(alpha = 0.78f),
-                depthTint.copy(alpha = 0.32f),
-                Color.Transparent,
-            ),
-        )
-        ProgressiveChromeEdge.Bottom -> Brush.verticalGradient(
-            colors = listOf(
-                Color.Transparent,
-                depthTint.copy(alpha = 0.18f),
-                depthTint.copy(alpha = 0.42f),
-            ),
-        )
-    }
-    val highlightBrush = when (edge) {
-        ProgressiveChromeEdge.Top -> Brush.verticalGradient(
-            colors = listOf(
-                highlightTint,
-                Color.Transparent,
-            ),
-        )
-        ProgressiveChromeEdge.Bottom -> Brush.verticalGradient(
-            colors = listOf(
-                Color.Transparent,
-                highlightTint,
-            ),
-        )
-    }
-
-    Box(
-        modifier = modifier
-            .onGloballyPositioned { bounds = it.boundsInWindow() },
-    ) {
-        SnapshotBackdropBlurLayer(
-            backdropBitmap = backdropBitmap,
-            bounds = bounds,
-            blurRadius = if (edge == ProgressiveChromeEdge.Bottom) 72.dp else 60.dp,
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer { alpha = 0.98f },
-        )
-        SnapshotBackdropBlurLayer(
-            backdropBitmap = backdropBitmap,
-            bounds = bounds,
-            blurRadius = if (edge == ProgressiveChromeEdge.Bottom) 34.dp else 26.dp,
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer { alpha = if (edge == ProgressiveChromeEdge.Bottom) 0.48f else 0.34f },
-        )
-        if (!flatOverlay) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .graphicsLayer { alpha = 0.99f }
-                    .blur(22.dp)
-                    .background(depthBrush),
-            )
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(highlightBrush),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(matteBrush),
-        )
-        if (showEdgeLine) {
-            Box(
-                modifier = Modifier
-                    .align(
-                        if (edge == ProgressiveChromeEdge.Top) {
-                            Alignment.BottomCenter
-                        } else {
-                            Alignment.TopCenter
-                        },
-                    )
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(edgeTint),
-            )
-        }
-    }
+    DynamicBackdropSurface(
+        modifier = modifier,
+        overlayAlpha = overlayAlpha ?: 0.7f,
+        showTopEdgeLine = edge == ProgressiveChromeEdge.Bottom && showEdgeLine,
+        showBottomEdgeLine = edge == ProgressiveChromeEdge.Top && showEdgeLine,
+    )
 }
 
 @OptIn(ExperimentalHazeApi::class)
@@ -852,7 +826,9 @@ fun ElovaireRoot(
         hasNotificationPermission = granted
         container.setNotificationsEnabled(granted)
     }
-    val lyricsService = remember(container) { LyricsService() }
+    val lyricsService = remember(container, context.applicationContext) {
+        LyricsService(context.applicationContext)
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -1422,6 +1398,8 @@ fun ElovaireRoot(
                             onCreatePlaylist = { name ->
                                 container.preferenceStore.createPlaylist(name)
                             },
+                            onRenamePlaylist = container.preferenceStore::renamePlaylist,
+                            onDeletePlaylists = container.preferenceStore::deletePlaylists,
                             onOpenPlaylist = { playlist, origin ->
                                 detailExpandOrigin = origin
                                 navController.navigate("$PLAYLIST_ROUTE/${playlist.id}")
@@ -1996,7 +1974,7 @@ private fun PinnedBackTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 13.dp)
+                    .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
                     .height(40.dp),
             ) {
                 HeaderIconButton(
@@ -2023,8 +2001,8 @@ private fun PinnedBackTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 HeaderIconButton(
@@ -2095,6 +2073,7 @@ private fun HeaderIconButton(
             painter = painterResource(id = iconResId),
             contentDescription = contentDescription,
             tint = tint.copy(alpha = if (enabled) 1f else 0.35f),
+            modifier = Modifier.size(20.dp),
         )
     }
 }
@@ -3087,7 +3066,7 @@ private fun AlbumSortControl(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_align_left),
+                    painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )
@@ -3167,11 +3146,17 @@ private fun PlaylistsScreen(
     topPadding: Dp,
     bottomPadding: Dp,
     onCreatePlaylist: (String) -> Long,
+    onRenamePlaylist: (Long, String) -> Unit,
+    onDeletePlaylists: (Set<Long>) -> Unit,
     onOpenPlaylist: (Playlist, ExpandOrigin) -> Unit,
 ) {
     var showCreateDialog by rememberSaveable { mutableStateOf(false) }
+    var playlistBeingRenamed by remember { mutableStateOf<Playlist?>(null) }
+    var selectedPlaylistIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
+    var deleteConfirmationVisible by rememberSaveable { mutableStateOf(false) }
     val songsById = remember(libraryState.songs) { libraryState.songs.associateBy { it.id } }
     val gridState = rememberLazyGridState()
+    val editMode = selectedPlaylistIds.isNotEmpty()
 
     Box(
         modifier = Modifier
@@ -3209,8 +3194,100 @@ private fun PlaylistsScreen(
                     PlaylistGridTile(
                         playlist = playlist,
                         previewSongs = playlist.songIds.mapNotNull(songsById::get),
-                        onClick = { origin -> onOpenPlaylist(playlist, origin) },
+                        selected = playlist.id in selectedPlaylistIds,
+                        selectionMode = editMode,
+                        onClick = { origin ->
+                            if (editMode && !playlist.isSystem) {
+                                selectedPlaylistIds = selectedPlaylistIds.togglePlaylistSelection(playlist.id)
+                                if (selectedPlaylistIds.isEmpty()) {
+                                    deleteConfirmationVisible = false
+                                }
+                            } else {
+                                onOpenPlaylist(playlist, origin)
+                            }
+                        },
+                        onLongPress = {
+                            if (!playlist.isSystem) {
+                                selectedPlaylistIds = selectedPlaylistIds.togglePlaylistSelection(playlist.id)
+                                deleteConfirmationVisible = false
+                            }
+                        },
                     )
+                }
+            }
+        }
+
+        AnimatedVisibility(
+            visible = editMode,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 14.dp),
+            enter = fadeIn(animationSpec = tween(180)) + slideInVertically(
+                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                initialOffsetY = { it / 2 },
+            ),
+            exit = fadeOut(animationSpec = tween(160)) + slideOutVertically(
+                animationSpec = tween(180, easing = FastOutSlowInEasing),
+                targetOffsetY = { it / 2 },
+            ),
+        ) {
+            val renameEnabled = selectedPlaylistIds.size == 1
+            val deleteLabel = if (deleteConfirmationVisible) "Delete" else "Delete"
+            DynamicBackdropSurface(
+                shape = RoundedCornerShape(ElovaireRadii.pill),
+                overlayAlpha = 0.7f,
+                borderColor = blurSurfaceBorderColor(),
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (deleteConfirmationVisible) {
+                        PlaylistActionPill(
+                            label = "Delete",
+                            enabled = true,
+                            backgroundColor = DestructiveRed.copy(alpha = 0.2f),
+                            contentColor = DestructiveRed,
+                            onClick = {
+                                onDeletePlaylists(selectedPlaylistIds)
+                                selectedPlaylistIds = emptySet()
+                                deleteConfirmationVisible = false
+                            },
+                        )
+                        PlaylistActionPill(
+                            label = "Cancel",
+                            enabled = true,
+                            backgroundColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f),
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            onClick = { deleteConfirmationVisible = false },
+                        )
+                    } else {
+                        PlaylistActionPill(
+                            label = "Rename",
+                            enabled = renameEnabled,
+                            backgroundColor = if (renameEnabled) {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.72f)
+                            } else {
+                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f)
+                            },
+                            contentColor = if (renameEnabled) {
+                                MaterialTheme.colorScheme.onSurface
+                            } else {
+                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                            },
+                            onClick = {
+                                playlistBeingRenamed = playlists.firstOrNull { it.id == selectedPlaylistIds.firstOrNull() }
+                            },
+                        )
+                        PlaylistActionPill(
+                            label = deleteLabel,
+                            enabled = true,
+                            backgroundColor = DestructiveRed.copy(alpha = 0.2f),
+                            contentColor = DestructiveRed,
+                            onClick = { deleteConfirmationVisible = true },
+                        )
+                    }
                 }
             }
         }
@@ -3223,6 +3300,21 @@ private fun PlaylistsScreen(
                     if (createdId > 0) {
                         showCreateDialog = false
                     }
+                },
+            )
+        }
+
+        playlistBeingRenamed?.let { playlist ->
+            PlaylistNameDialog(
+                title = "Rename playlist",
+                confirmLabel = "Save",
+                initialName = playlist.name,
+                onDismiss = { playlistBeingRenamed = null },
+                onConfirm = { name ->
+                    onRenamePlaylist(playlist.id, name)
+                    playlistBeingRenamed = null
+                    selectedPlaylistIds = emptySet()
+                    deleteConfirmationVisible = false
                 },
             )
         }
@@ -3616,7 +3708,7 @@ private fun SongSortControl(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_align_left),
+                    painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
                 )
@@ -4048,7 +4140,10 @@ private fun CreatePlaylistTile(
 private fun PlaylistGridTile(
     playlist: Playlist,
     previewSongs: List<Song>,
+    selected: Boolean,
+    selectionMode: Boolean,
     onClick: (ExpandOrigin) -> Unit,
+    onLongPress: () -> Unit,
 ) {
     val screenSizePx = screenContainerSizePx()
     val screenWidthPx = screenSizePx.width.toFloat()
@@ -4058,14 +4153,29 @@ private fun PlaylistGridTile(
     Column(
         modifier = Modifier
             .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .clickable { onClick(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onClick(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+                onLongClick = onLongPress,
+            ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        PlaylistArtworkPreview(
-            songs = previewSongs,
-            title = playlist.name,
-            modifier = Modifier.fillMaxWidth(),
-        )
+        Box {
+            PlaylistArtworkPreview(
+                songs = previewSongs,
+                title = playlist.name,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (selectionMode && !playlist.isSystem) {
+                PlaylistSelectionIndicator(
+                    selected = selected,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(10.dp),
+                )
+            }
+        }
         Text(
             text = playlist.name,
             style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
@@ -4075,6 +4185,69 @@ private fun PlaylistGridTile(
             text = "${playlist.songIds.size} songs",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+private fun Set<Long>.togglePlaylistSelection(playlistId: Long): Set<Long> {
+    return if (playlistId in this) this - playlistId else this + playlistId
+}
+
+@Composable
+private fun PlaylistSelectionIndicator(
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val tint = MaterialTheme.colorScheme.onSurface
+    Box(
+        modifier = modifier
+            .size(26.dp)
+            .clip(CircleShape)
+            .background(
+                if (selected) {
+                    tint.copy(alpha = 0.3f)
+                } else {
+                    Color.Transparent
+                },
+            )
+            .border(
+                width = 1.dp,
+                color = tint.copy(alpha = if (selected) 0f else 0.64f),
+                shape = CircleShape,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_check),
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(14.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlaylistActionPill(
+    label: String,
+    enabled: Boolean,
+    backgroundColor: Color,
+    contentColor: Color,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = backgroundColor,
+        contentColor = contentColor,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = contentColor,
         )
     }
 }
@@ -4170,13 +4343,16 @@ private fun PlaylistArtworkPreview(
 
 @Composable
 private fun PlaylistNameDialog(
+    title: String = "New playlist",
+    confirmLabel: String = "Create",
+    initialName: String = "",
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
+    var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("New playlist") },
+        title = { Text(title) },
         text = {
             OutlinedTextField(
                 value = name,
@@ -4191,7 +4367,7 @@ private fun PlaylistNameDialog(
                 onClick = { onConfirm(name) },
                 enabled = name.isNotBlank(),
             ) {
-                Text("Create")
+                Text(confirmLabel)
             }
         },
         dismissButton = {
@@ -4425,6 +4601,7 @@ private fun SearchScreen(
                 item {
                     LazyRow(
                         overscrollEffect = null,
+                        modifier = Modifier.horizontalGestureSafe(),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         items(matchingAlbums, key = { it.id }) { album ->
@@ -6505,7 +6682,14 @@ private fun GroupedListRowContainer(
         shape = shape,
         color = MaterialTheme.colorScheme.surface,
     ) {
-        content()
+        Box(
+            modifier = Modifier.padding(
+                top = if (index == 0) 6.dp else 0.dp,
+                bottom = if (index == lastIndex) 6.dp else 0.dp,
+            ),
+        ) {
+            content()
+        }
     }
 }
 
@@ -6540,8 +6724,8 @@ private fun DetailListTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(start = 16.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             HeaderIconButton(
@@ -6766,6 +6950,13 @@ private fun NowPlayingScreen(
     LaunchedEffect(currentSong?.id, playbackState.currentIndex, playbackState.queue.size) {
         val queue = playbackState.queue
         val currentIndex = playbackState.currentIndex
+        lyricsService.cancelObsoleteRequests(
+            listOf(
+                currentSong,
+                queue.getOrNull(currentIndex + 1),
+                queue.getOrNull(currentIndex - 1),
+            ),
+        )
         currentSong?.let { lyricsService.prefetchLyrics(it) }
         queue.getOrNull(currentIndex + 1)?.let { lyricsService.prefetchLyrics(it) }
         queue.getOrNull(currentIndex - 1)?.let { lyricsService.prefetchLyrics(it) }
@@ -7169,7 +7360,7 @@ private fun NowPlayingScreen(
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         PlayerTransportButton(
-                                            iconResId = R.drawable.ic_elovaire_fast_previous_filled,
+                                            iconResId = R.drawable.ic_elovaire_backward_filled,
                                             contentDescription = "Previous",
                                             tint = contentColor,
                                             iconSize = 34.dp,
@@ -7183,7 +7374,7 @@ private fun NowPlayingScreen(
                                             onClick = onTogglePlayback,
                                         )
                                         PlayerTransportButton(
-                                            iconResId = R.drawable.ic_elovaire_fast_forward_filled,
+                                            iconResId = R.drawable.ic_elovaire_forward_filled,
                                             contentDescription = "Next",
                                             tint = contentColor,
                                             iconSize = 34.dp,
@@ -7961,11 +8152,11 @@ private fun SongOverflowMenuButton(
                         actions.onAddToQueue(song)
                     },
                 )
-                DividerLine()
                 SongContextMenuItem(
                     iconResId = R.drawable.ic_lucide_trash_2,
                     text = "Delete from library",
-                    tint = Color(0xFFFF5C5C),
+                    tint = DestructiveRed,
+                    containerColor = DestructiveRed.copy(alpha = 0.2f),
                     onClick = {
                         expanded = false
                         menuBounds = null
@@ -7996,84 +8187,13 @@ private fun FrostedContextMenuSurface(
     menuBounds: androidx.compose.ui.geometry.Rect?,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val shape = RoundedCornerShape(ElovaireRadii.card)
-    val croppedBackdrop = remember(backdropBitmap, menuBounds) {
-        if (backdropBitmap == null || menuBounds == null) {
-            null
-        } else {
-            runCatching {
-                val sourceBitmap = backdropBitmap.bitmap
-                val scaleX = sourceBitmap.width.toFloat() / backdropBitmap.sourceWidth.toFloat()
-                val scaleY = sourceBitmap.height.toFloat() / backdropBitmap.sourceHeight.toFloat()
-                val left = (menuBounds.left * scaleX).roundToInt().coerceIn(0, sourceBitmap.width - 1)
-                val top = (menuBounds.top * scaleY).roundToInt().coerceIn(0, sourceBitmap.height - 1)
-                val width = (menuBounds.width * scaleX).roundToInt().coerceAtLeast(1)
-                    .coerceAtMost(sourceBitmap.width - left)
-                val height = (menuBounds.height * scaleY).roundToInt().coerceAtLeast(1)
-                    .coerceAtMost(sourceBitmap.height - top)
-                Bitmap.createBitmap(sourceBitmap, left, top, width, height)
-            }.getOrNull()
-        }
-    }
-    val matteTint = if (darkTheme) {
-        Color(0xFF141414).copy(alpha = 0.5f)
-    } else {
-        readableCardSurfaceColor().copy(alpha = 0.5f)
-    }
-    val softTint = if (darkTheme) {
-        Color.Black.copy(alpha = 0.14f)
-    } else {
-        Color.White.copy(alpha = 0.16f)
-    }
-    val edgeTint = if (darkTheme) {
-        Color.White.copy(alpha = 0.14f)
-    } else {
-        Color.White.copy(alpha = 0.48f)
-    }
-
-    Box(
-        modifier = modifier
-            .clip(shape)
-            .border(1.dp, edgeTint, shape)
-            .background(Color.Transparent),
+    DynamicBackdropSurface(
+        modifier = modifier,
+        shape = shape,
+        overlayAlpha = 0.7f,
+        borderColor = blurSurfaceBorderColor(),
     ) {
-        if (croppedBackdrop != null) {
-            Image(
-                bitmap = croppedBackdrop.asImageBitmap(),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .matchParentSize()
-                    .graphicsLayer { alpha = 0.995f }
-                    .blur(52.dp),
-            )
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer { alpha = 0.99f }
-                .blur(14.dp)
-                .background(softTint),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(matteTint),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.White.copy(alpha = if (darkTheme) 0.04f else 0.1f),
-                            Color.Transparent,
-                            Color.Transparent,
-                        ),
-                    ),
-                ),
-        )
         Column(modifier = Modifier.fillMaxWidth()) {
             content()
         }
@@ -8085,27 +8205,34 @@ private fun SongContextMenuItem(
     @DrawableRes iconResId: Int,
     text: String,
     tint: Color,
+    containerColor: Color = Color.Transparent,
     onClick: () -> Unit,
 ) {
-    Row(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
+            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(containerColor)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = painterResource(id = iconResId),
-            contentDescription = null,
-            tint = tint,
-            modifier = Modifier.size(17.dp),
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge,
-            color = tint,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = iconResId),
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(17.dp),
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge,
+                color = tint,
+            )
+        }
     }
 }
 
@@ -9072,7 +9199,9 @@ private fun EqualizerScreen(
                     val graphContentWidth = maxWidth * 1.72f
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                         Column(
-                            modifier = Modifier.horizontalScroll(graphScrollState),
+                            modifier = Modifier
+                                .horizontalGestureSafe()
+                                .horizontalScroll(graphScrollState),
                             verticalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             EqResponseGraph(
@@ -9081,9 +9210,6 @@ private fun EqualizerScreen(
                                 modifier = Modifier
                                     .width(graphContentWidth)
                                     .height(248.dp),
-                            )
-                            EqBandFrequencyLabels(
-                                modifier = Modifier.width(graphContentWidth),
                             )
                         }
                         EqHorizontalScrollbar(
@@ -9142,7 +9268,6 @@ private fun EqualizerScreen(
         PinnedBackTopBar(
             title = "Equalizer",
             onBack = onBack,
-            centeredTitle = true,
             modifier = Modifier.align(Alignment.TopCenter),
         )
     }
@@ -9467,29 +9592,17 @@ private fun UpdateAvailableBanner(
     onUpdate: () -> Unit,
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val containerColor = if (darkTheme) {
-        readableCardSurfaceColor().copy(alpha = 0.96f)
-    } else {
-        readableCardSurfaceColor().copy(alpha = 0.98f)
-    }
     val primaryTextColor = if (darkTheme) Color.White else InkText
     val secondaryTextColor = if (darkTheme) {
         Color.White.copy(alpha = 0.7f)
     } else {
         InkText.copy(alpha = 0.7f)
     }
-    Surface(
+    DynamicBackdropSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(ElovaireRadii.pill),
-        color = containerColor,
-        border = BorderStroke(
-            width = 1.dp,
-            color = if (darkTheme) {
-                Color.White.copy(alpha = 0.12f)
-            } else {
-                Color.Black.copy(alpha = 0.08f)
-            },
-        ),
+        overlayAlpha = 0.7f,
+        borderColor = blurSurfaceBorderColor(),
     ) {
         Row(
             modifier = Modifier
@@ -9614,7 +9727,8 @@ private fun TextSizeStepper(
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(36.dp),
+                .height(36.dp)
+                .horizontalGestureSafe(),
         ) {
             val density = LocalDensity.current
             val maxWidthPx = with(density) { maxWidth.toPx() }
@@ -9768,6 +9882,7 @@ private fun ThemeModeSegmentedPicker(
     BoxWithConstraints(
         modifier = modifier
             .height(46.dp)
+            .horizontalGestureSafe()
             .clip(RoundedCornerShape(percent = 50))
             .background(
                 if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
@@ -9788,11 +9903,7 @@ private fun ThemeModeSegmentedPicker(
             ),
             label = "theme_picker_offset",
         )
-        val indicatorColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-            Color.White
-        } else {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.94f)
-        }
+        val indicatorColor = MaterialTheme.colorScheme.primary
 
         Box(
             modifier = Modifier
@@ -9834,7 +9945,7 @@ private fun ThemeModeSegmentedPicker(
                             painter = painterResource(id = iconResId),
                             contentDescription = null,
                             tint = if (selected) {
-                                MaterialTheme.colorScheme.onSurface
+                                MaterialTheme.colorScheme.onPrimary
                             } else {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
                             },
@@ -9844,7 +9955,7 @@ private fun ThemeModeSegmentedPicker(
                             text = option.name,
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                             color = if (selected) {
-                                MaterialTheme.colorScheme.onSurface
+                                MaterialTheme.colorScheme.onPrimary
                             } else {
                                 MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f)
                             },
@@ -10209,6 +10320,7 @@ private fun EqPresetMenu(
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .horizontalGestureSafe()
             .horizontalScroll(horizontalScrollState),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -10406,10 +10518,12 @@ private fun EqHorizontalScrollbar(
     contentWidth: Dp,
     modifier: Modifier = Modifier,
 ) {
+    val scope = rememberCoroutineScope()
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(12.dp),
+            .height(36.dp)
+            .horizontalGestureSafe(),
     ) {
         val density = LocalDensity.current
         val viewportWidthPx = with(density) { maxWidth.toPx() }
@@ -10430,24 +10544,67 @@ private fun EqHorizontalScrollbar(
         } else {
             Color.White.copy(alpha = 0.62f)
         }
+        val updateScrollFromX: (Float) -> Unit = { xPosition ->
+            if (maxScrollPx <= 0f || viewportWidthPx <= 0f) {
+                Unit
+            } else {
+            val fraction = (xPosition / viewportWidthPx).coerceIn(0f, 1f)
+            val targetScroll = (maxScrollPx * fraction).roundToInt()
+            scope.launch {
+                scrollState.scrollTo(targetScroll)
+            }
+            }
+        }
 
         Box(
             modifier = Modifier
-                .align(Alignment.Center)
-                .fillMaxWidth()
-                .height(2.dp)
-                .clip(RoundedCornerShape(ElovaireRadii.pill))
-                .background(trackColor),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .offset { IntOffset(x = thumbOffsetPx.roundToInt(), y = 0) }
-                .width(with(density) { thumbWidthPx.toDp() })
-                .height(4.dp)
-                .clip(RoundedCornerShape(ElovaireRadii.pill))
-                .background(thumbColor),
-        )
+                .matchParentSize()
+                .pointerInput(viewportWidthPx, maxScrollPx) {
+                    detectTapGestures { offset ->
+                        updateScrollFromX(offset.x)
+                    }
+                }
+                .pointerInput(viewportWidthPx, maxScrollPx) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset -> updateScrollFromX(offset.x) },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            updateScrollFromX(change.position.x)
+                        },
+                    )
+                },
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .height(18.dp)
+                    .clipToBounds(),
+            ) {
+                EqBandFrequencyLabels(
+                    modifier = Modifier
+                        .width(contentWidth)
+                        .offset { IntOffset(-scrollState.value, 0) },
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .background(trackColor),
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .offset { IntOffset(x = thumbOffsetPx.roundToInt(), y = 0) }
+                    .width(with(density) { thumbWidthPx.toDp() })
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .background(thumbColor),
+            )
+        }
     }
 }
 
@@ -10486,7 +10643,8 @@ private fun ThinContinuousSlider(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(32.dp),
+            .height(32.dp)
+            .horizontalGestureSafe(),
     ) {
         val density = LocalDensity.current
         val maxWidthPx = with(density) { maxWidth.toPx() }

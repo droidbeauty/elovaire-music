@@ -6,11 +6,13 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.5">
-        <item>rebuilt EQ from both technical side and its UI</item>
-        <item>streamlined the rubber banding animation on all scrollable lists in the app</item>
-        <item>updated UI for new updates pop-up</item>
-        <item>fixed unresponsiveness in the track progress scrollbar</item>
+    <release version="1.6">
+        <item>faster and more reliable lyrics parsing</item>
+        <item>added a playlist management system</item>
+        <item>improved dynamic blur implementation for parts of UI that use it</item>
+        <item>fixed EQ range which was too narrow previously</item>
+        <item>fixed recently played album section and recently played songs list in Home tab resetting after every fresh launch of the app</item>
+        <item>scrollbar in EQ now made responsive to interactions</item>
         <item>bug fixes</item>
     </release>
 </changelog>

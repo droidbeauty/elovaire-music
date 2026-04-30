@@ -9,7 +9,7 @@ internal class BitPerfectUsbPolicy(
     // AudioMixerAttributes.MIXER_BEHAVIOR_BIT_PERFECT is API 34+, so the policy keeps the raw
     // constant instead of referencing the class directly.
     private val bitPerfectBehavior: Int = BIT_PERFECT_MIXER_BEHAVIOR,
-    private val minimumSupportedApi: Int = Build.VERSION_CODES.UPSIDE_DOWN_CAKE,
+    private val minimumPreferredDeviceApi: Int = Build.VERSION_CODES.M,
 ) {
     fun selectUsbDevice(
         devices: List<UsbAudioDeviceDescriptor>,
@@ -37,6 +37,7 @@ internal class BitPerfectUsbPolicy(
             sampleRateHz = trackFormat.sampleRateHz,
             channelMask = channelMask,
             encoding = encoding,
+            channelCount = trackFormat.channelCount,
         )
     }
 
@@ -49,25 +50,61 @@ internal class BitPerfectUsbPolicy(
         }
     }
 
+    fun shouldAttemptPreferredDeviceRouting(apiLevel: Int): Boolean {
+        return apiLevel >= minimumPreferredDeviceApi
+    }
+
+    fun evaluateExactFormatSupport(
+        selectedDevice: UsbAudioDeviceDescriptor,
+        requestedFormat: PlatformAudioFormatData,
+        directPlaybackSupported: Boolean,
+        audioTrackProbeSucceeded: Boolean,
+    ): UsbFormatProbeResult {
+        val encodingSupported = selectedDevice.encodings.isEmpty() || selectedDevice.encodings.contains(requestedFormat.encoding)
+        val sampleRateSupported = selectedDevice.sampleRates.isEmpty() || selectedDevice.sampleRates.contains(requestedFormat.sampleRateHz)
+        val descriptorCompatible = encodingSupported && sampleRateSupported
+        val exactFormatSupported = audioTrackProbeSucceeded && descriptorCompatible
+        val routeStrategy = when {
+            exactFormatSupported && directPlaybackSupported -> UsbBitPerfectRouteStrategy.ExactFormatDirect
+            exactFormatSupported -> UsbBitPerfectRouteStrategy.BestEffortPreferredDevice
+            else -> UsbBitPerfectRouteStrategy.None
+        }
+        val fallbackReason = when {
+            !encodingSupported -> "USB device does not advertise requested PCM encoding"
+            !sampleRateSupported -> "USB device does not advertise requested sample rate"
+            !audioTrackProbeSucceeded -> "Exact-format AudioTrack initialization failed"
+            else -> null
+        }
+        return UsbFormatProbeResult(
+            requestedFormat = requestedFormat,
+            exactFormatSupported = exactFormatSupported,
+            routeStrategy = routeStrategy,
+            directPlaybackSupported = directPlaybackSupported,
+            mixerAttributesSupported = false,
+            probedSuccessfully = audioTrackProbeSucceeded,
+            fallbackReason = fallbackReason,
+        )
+    }
+
     fun deriveState(
         apiLevel: Int,
         selectedDevice: UsbAudioDeviceDescriptor?,
         trackFormatKnown: Boolean,
         requestedFormat: PlatformAudioFormatData?,
-        matchedProfile: SupportedMixerProfile?,
+        probeResult: UsbFormatProbeResult?,
         applySucceeded: Boolean,
         verifiedActive: Boolean,
         errorMessage: String? = null,
     ): BitPerfectUsbStatus {
         if (errorMessage != null) {
             return BitPerfectUsbStatus(
-                state = BitPerfectUsbState.Error(errorMessage),
+                state = BitPerfectUsbState.ErrorRecoverable(errorMessage),
                 requestedFormat = requestedFormat,
                 selectedDeviceId = selectedDevice?.id,
                 fallbackReason = errorMessage,
             )
         }
-        if (apiLevel < minimumSupportedApi) {
+        if (!shouldAttemptPreferredDeviceRouting(apiLevel)) {
             return BitPerfectUsbStatus(state = BitPerfectUsbState.UnsupportedAndroidVersion)
         }
         if (selectedDevice == null) {
@@ -76,7 +113,7 @@ internal class BitPerfectUsbPolicy(
         if (requestedFormat == null) {
             return BitPerfectUsbStatus(
                 state = if (trackFormatKnown) {
-                    BitPerfectUsbState.UnsupportedDeviceOrFormat
+                    BitPerfectUsbState.UnsupportedFormat
                 } else {
                     BitPerfectUsbState.UsbDetected
                 },
@@ -84,30 +121,45 @@ internal class BitPerfectUsbPolicy(
                 fallbackReason = if (trackFormatKnown) "Track format could not be mapped to PCM output" else null,
             )
         }
-        if (matchedProfile == null) {
+        if (probeResult == null) {
             return BitPerfectUsbStatus(
-                state = BitPerfectUsbState.UnsupportedDeviceOrFormat,
+                state = BitPerfectUsbState.ProbingCapabilities,
                 requestedFormat = requestedFormat,
                 selectedDeviceId = selectedDevice.id,
-                fallbackReason = "No matching USB mixer attributes",
+                routeStrategy = UsbBitPerfectRouteStrategy.None,
             )
         }
-        if (!applySucceeded) {
+        if (!probeResult.exactFormatSupported) {
             return BitPerfectUsbStatus(
-                state = BitPerfectUsbState.FallbackActive,
+                state = BitPerfectUsbState.FallbackNormalPlayback,
                 requestedFormat = requestedFormat,
                 selectedDeviceId = selectedDevice.id,
-                fallbackReason = "Preferred mixer attribute request was rejected",
+                fallbackReason = probeResult.fallbackReason ?: "Exact USB output format not supported",
+                routeStrategy = UsbBitPerfectRouteStrategy.None,
+            )
+        }
+        if (probeResult.mixerAttributesSupported && !applySucceeded) {
+            return BitPerfectUsbStatus(
+                state = BitPerfectUsbState.ExactFormatSupported,
+                requestedFormat = requestedFormat,
+                selectedDeviceId = selectedDevice.id,
+                fallbackReason = "Preferred mixer attributes rejected, keeping exact-format USB path",
+                routeStrategy = UsbBitPerfectRouteStrategy.ExactFormatDirect,
             )
         }
         return BitPerfectUsbStatus(
-            state = if (verifiedActive) {
-                BitPerfectUsbState.BitPerfectActive
-            } else {
-                BitPerfectUsbState.BitPerfectAvailable
+            state = when {
+                probeResult.mixerAttributesSupported && verifiedActive && applySucceeded -> BitPerfectUsbState.BitPerfectActive
+                probeResult.mixerAttributesSupported && applySucceeded -> BitPerfectUsbState.BitPerfectAvailable
+                probeResult.routeStrategy == UsbBitPerfectRouteStrategy.ExactFormatDirect && verifiedActive -> BitPerfectUsbState.ExactFormatUsbActive
+                probeResult.routeStrategy == UsbBitPerfectRouteStrategy.ExactFormatDirect -> BitPerfectUsbState.ExactFormatSupported
+                probeResult.routeStrategy == UsbBitPerfectRouteStrategy.BestEffortPreferredDevice -> BitPerfectUsbState.BestEffortUsbActive
+                else -> BitPerfectUsbState.FallbackNormalPlayback
             },
             requestedFormat = requestedFormat,
             selectedDeviceId = selectedDevice.id,
+            fallbackReason = probeResult.fallbackReason,
+            routeStrategy = probeResult.routeStrategy,
         )
     }
 

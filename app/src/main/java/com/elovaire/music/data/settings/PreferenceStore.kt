@@ -43,6 +43,10 @@ class PreferenceStore(context: Context) {
     val albumPlayCounts: StateFlow<Map<Long, Int>> = _albumPlayCounts.asStateFlow()
     private val _songPlayCounts = MutableStateFlow(loadSongPlayCounts())
     val songPlayCounts: StateFlow<Map<Long, Int>> = _songPlayCounts.asStateFlow()
+    private val _recentSongIds = MutableStateFlow(loadRecentSongIds())
+    val recentSongIds: StateFlow<List<Long>> = _recentSongIds.asStateFlow()
+    private val _recentAlbumIds = MutableStateFlow(loadRecentAlbumIds())
+    val recentAlbumIds: StateFlow<List<Long>> = _recentAlbumIds.asStateFlow()
 
     private val _userPlaylists = MutableStateFlow(loadPlaylists())
     private val _favoriteSongIds = MutableStateFlow(loadFavoriteSongIds())
@@ -102,6 +106,26 @@ class PreferenceStore(context: Context) {
         persistSongPlayCounts(updated)
     }
 
+    fun setRecentPlaybackIds(
+        songIds: List<Long>,
+        albumIds: List<Long>,
+    ) {
+        val normalizedSongIds = songIds
+            .filter { it > 0L }
+            .distinct()
+            .take(MAX_RECENT_PLAYBACK_IDS)
+        val normalizedAlbumIds = albumIds
+            .filter { it > 0L }
+            .distinct()
+            .take(MAX_RECENT_PLAYBACK_IDS)
+        preferences.edit {
+            putString(KEY_RECENT_SONG_IDS, normalizedSongIds.joinToString(","))
+            putString(KEY_RECENT_ALBUM_IDS, normalizedAlbumIds.joinToString(","))
+        }
+        _recentSongIds.value = normalizedSongIds
+        _recentAlbumIds.value = normalizedAlbumIds
+    }
+
     fun createPlaylist(name: String): Long {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) return -1L
@@ -122,6 +146,24 @@ class PreferenceStore(context: Context) {
                 playlist.copy(songIds = (playlist.songIds + songIds).distinct())
             }
         }
+        persistPlaylists(updated)
+    }
+
+    fun renamePlaylist(
+        playlistId: Long,
+        name: String,
+    ) {
+        val trimmedName = name.trim()
+        if (trimmedName.isBlank()) return
+        val updated = _userPlaylists.value.map { playlist ->
+            if (playlist.id != playlistId) playlist else playlist.copy(name = trimmedName)
+        }
+        persistPlaylists(updated)
+    }
+
+    fun deletePlaylists(playlistIds: Set<Long>) {
+        if (playlistIds.isEmpty()) return
+        val updated = _userPlaylists.value.filterNot { it.id in playlistIds }
         persistPlaylists(updated)
     }
 
@@ -332,6 +374,22 @@ class PreferenceStore(context: Context) {
             .orEmpty()
     }
 
+    private fun loadRecentSongIds(): List<Long> {
+        return preferences.getString(KEY_RECENT_SONG_IDS, null)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(",")
+            ?.mapNotNull { it.toLongOrNull() }
+            .orEmpty()
+    }
+
+    private fun loadRecentAlbumIds(): List<Long> {
+        return preferences.getString(KEY_RECENT_ALBUM_IDS, null)
+            ?.takeIf { it.isNotBlank() }
+            ?.split(",")
+            ?.mapNotNull { it.toLongOrNull() }
+            .orEmpty()
+    }
+
     private fun SearchHistoryEntry.serialize(): String {
         return listOf(
             key,
@@ -451,6 +509,8 @@ class PreferenceStore(context: Context) {
         const val KEY_FAVORITE_SONG_IDS = "favorite_song_ids"
         const val KEY_ALBUM_PLAY_COUNTS = "album_play_counts"
         const val KEY_SONG_PLAY_COUNTS = "song_play_counts"
+        const val KEY_RECENT_SONG_IDS = "recent_song_ids"
+        const val KEY_RECENT_ALBUM_IDS = "recent_album_ids"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_LIBRARY_FOLDER_URI = "library_folder_uri"
         const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
@@ -460,6 +520,7 @@ class PreferenceStore(context: Context) {
         const val KEY_TREBLE = "eq_treble"
         const val KEY_SPACIOUSNESS = "eq_spaciousness"
         const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"
+        const val MAX_RECENT_PLAYBACK_IDS = 24
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"
     }

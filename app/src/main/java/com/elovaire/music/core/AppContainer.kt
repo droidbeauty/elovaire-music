@@ -36,6 +36,9 @@ class AppContainer(
         context = applicationContext,
         scope = appScope,
         audioProcessors = playbackEffectsController.audioProcessors(),
+        initialRecentSongIds = preferenceStore.recentSongIds.value,
+        initialRecentAlbumIds = preferenceStore.recentAlbumIds.value,
+        onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
     )
     private val playbackNotificationController = PlaybackNotificationController(
         context = applicationContext,
