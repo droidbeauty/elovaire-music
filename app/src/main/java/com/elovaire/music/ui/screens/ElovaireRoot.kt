@@ -187,6 +187,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
@@ -626,13 +627,21 @@ private fun DynamicBackdropSurface(
     val backdropBitmap = LocalChromeBackdropBitmap.current
     val overlayColor = blurSurfaceOverlayColor()
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val hasSnapshotBackdrop = backdropBitmap != null && bounds != null
 
     Box(
         modifier = modifier
             .clip(shape)
             .onGloballyPositioned { bounds = it.boundsInWindow() },
     ) {
-        if (hazeState != null) {
+        if (hasSnapshotBackdrop) {
+            SnapshotBackdropBlurLayer(
+                backdropBitmap = backdropBitmap,
+                bounds = bounds,
+                blurRadius = 30.dp,
+                modifier = Modifier.matchParentSize(),
+            )
+        } else if (hazeState != null) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -643,19 +652,12 @@ private fun DynamicBackdropSurface(
                         noiseFactor = 0.02f
                     },
             )
-        } else {
-            SnapshotBackdropBlurLayer(
-                backdropBitmap = backdropBitmap,
-                bounds = bounds,
-                blurRadius = 30.dp,
-                modifier = Modifier.matchParentSize(),
-            )
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(overlayColor.copy(alpha = overlayAlpha)),
-            )
         }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(overlayColor.copy(alpha = overlayAlpha)),
+        )
         if (borderColor != null) {
             Box(
                 modifier = Modifier
@@ -2110,20 +2112,6 @@ private fun BottomNavigationBar(
                 modifier = Modifier.matchParentSize(),
             )
 
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(
-                        if (darkTheme) {
-                            Color.White.copy(alpha = 0.08f)
-                        } else {
-                            Color.Black.copy(alpha = 0.06f)
-                        },
-                    ),
-            )
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -2153,12 +2141,12 @@ private fun BottomNavigationHazeBackground(
     darkTheme: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    ChromeHazeLayer(
+    FrostedTopBarBackground(
         darkTheme = darkTheme,
         edge = ProgressiveChromeEdge.Bottom,
         overlayAlpha = 0.7f,
         flatOverlay = true,
-        showEdgeLine = false,
+        showEdgeLine = true,
         modifier = modifier,
     )
 }
@@ -6897,6 +6885,7 @@ private fun NowPlayingScreen(
     val currentSong = playbackState.currentSong
     val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
     val playerHazeState = rememberHazeState()
+    val scope = rememberCoroutineScope()
     var playerDismissTriggered by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(currentSong?.id) {
         if (currentSong == null) {
@@ -7088,6 +7077,17 @@ private fun NowPlayingScreen(
             animationSpec = tween(120),
             label = "player_drag_alpha",
         )
+        var dismissAnimationRunning by remember(currentSong?.id) { mutableStateOf(false) }
+        val dismissNowPlaying: () -> Unit = {
+            if (!dismissAnimationRunning) {
+                dismissAnimationRunning = true
+                dragOffsetY = 188f
+                scope.launch {
+                    delay(160L)
+                    onBack()
+                }
+            }
+        }
 
         CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
             Column(
@@ -7134,6 +7134,7 @@ private fun NowPlayingScreen(
                         detectVerticalDragGestures(
                             onVerticalDrag = { change, dragAmount ->
                                 change.consume()
+                                if (dismissAnimationRunning) return@detectVerticalDragGestures
                                 if (dragAmount > 0f) {
                                     dragOffsetY = (dragOffsetY + dragAmount).coerceIn(0f, 320f)
                                 } else {
@@ -7142,13 +7143,15 @@ private fun NowPlayingScreen(
                             },
                             onDragEnd = {
                                 if (dragOffsetY > 120f) {
-                                    onBack()
+                                    dismissNowPlaying()
                                 } else {
                                     dragOffsetY = 0f
                                 }
                             },
                             onDragCancel = {
-                                dragOffsetY = 0f
+                                if (!dismissAnimationRunning) {
+                                    dragOffsetY = 0f
+                                }
                             },
                         )
                     },
@@ -7164,7 +7167,7 @@ private fun NowPlayingScreen(
                             contentDescription = "Minimize",
                             showBackground = false,
                             tint = contentColor,
-                            onClick = onBack,
+                            onClick = dismissNowPlaying,
                             modifier = Modifier.align(Alignment.CenterStart),
                         )
                         Row(
@@ -8118,6 +8121,7 @@ private fun SongOverflowMenuButton(
                 menuBounds = null
                 backdropBitmap = null
             },
+            offset = DpOffset(x = 0.dp, y = (-10).dp),
             containerColor = Color.Transparent,
             shadowElevation = 0.dp,
             tonalElevation = 0.dp,
@@ -8212,7 +8216,7 @@ private fun SongContextMenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 6.dp)
-            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .clip(RoundedCornerShape(ElovaireRadii.card * 0.72f))
             .background(containerColor)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
