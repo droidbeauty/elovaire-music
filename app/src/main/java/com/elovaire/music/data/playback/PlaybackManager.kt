@@ -13,6 +13,7 @@ import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -58,15 +59,11 @@ data class PlaybackUiState(
         get() = queue.getOrNull(currentIndex)
 }
 
-data class PlaybackProgressState(
-    val positionMs: Long = 0L,
-    val durationMs: Long = 0L,
-)
-
 @SuppressLint("UnsafeOptInUsageError")
 class PlaybackManager(
     context: Context,
     scope: CoroutineScope,
+    audioProcessors: Array<AudioProcessor> = emptyArray(),
 ) {
     private val scope = scope
     private val appContext = context.applicationContext
@@ -98,7 +95,7 @@ class PlaybackManager(
         .setConstantBitrateSeekingEnabled(true)
     private val player = ExoPlayer.Builder(context)
         .setRenderersFactory(
-            DefaultRenderersFactory(context)
+            ElovaireRenderersFactory(context, audioProcessors)
                 .setEnableAudioFloatOutput(false)
                 .setEnableDecoderFallback(true)
                 .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
@@ -157,6 +154,52 @@ class PlaybackManager(
     private var lastKnownQueueIndex = -1
     private var lastKnownPositionMs = 0L
     private var hasUsbOutputRoute = false
+    private val playbackProgressController = PlaybackProgressController()
+    private var progressUpdateJob: Job? = null
+    private val playerListener = object : Player.Listener {
+        override fun onMediaItemTransition(
+            mediaItem: MediaItem?,
+            reason: Int,
+        ) {
+            scheduleBitPerfectRefresh(currentSong())
+            updateState()
+        }
+
+        override fun onPositionDiscontinuity(
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int,
+        ) {
+            updateState()
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState == Player.STATE_ENDED && player.repeatMode == Player.REPEAT_MODE_OFF) {
+                stopAndClearQueue()
+            } else if (
+                playbackState == Player.STATE_IDLE &&
+                !isStoppingQueue &&
+                _state.value.queue.isNotEmpty() &&
+                !isRecoveringPlayback
+            ) {
+                recoverUnexpectedIdleState(shouldAutoPlay = _state.value.isPlaying || player.playWhenReady)
+            } else {
+                updateState()
+            }
+        }
+
+        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+            if (_state.value.queue.isNotEmpty() && !isStoppingQueue && !isRecoveringPlayback) {
+                recoverUnexpectedIdleState(shouldAutoPlay = _state.value.isPlaying || player.playWhenReady)
+            } else {
+                updateState()
+            }
+        }
+
+        override fun onEvents(player: Player, events: Player.Events) {
+            updateState()
+        }
+    }
     private val systemVolumeObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
             syncFromObservedSystemVolume()
@@ -229,60 +272,19 @@ class PlaybackManager(
                 }
             },
         )
-        player.addListener(
-            object : Player.Listener {
-                override fun onMediaItemTransition(
-                    mediaItem: MediaItem?,
-                    reason: Int,
-                ) {
-                    scheduleBitPerfectRefresh(currentSong())
-                    updateProgressState()
-                    updateState()
-                }
+        player.addListener(playerListener)
 
-                override fun onPositionDiscontinuity(
-                    oldPosition: Player.PositionInfo,
-                    newPosition: Player.PositionInfo,
-                    reason: Int,
-                ) {
-                    updateProgressState()
-                    updateState()
-                }
-
-                override fun onPlaybackStateChanged(playbackState: Int) {
-                    if (playbackState == Player.STATE_ENDED && player.repeatMode == Player.REPEAT_MODE_OFF) {
-                        stopAndClearQueue()
-                    } else if (
-                        playbackState == Player.STATE_IDLE &&
-                        !isStoppingQueue &&
-                        _state.value.queue.isNotEmpty() &&
-                        !isRecoveringPlayback
-                    ) {
-                        recoverUnexpectedIdleState(shouldAutoPlay = _state.value.isPlaying || player.playWhenReady)
-                    } else {
-                        updateState()
-                    }
-                }
-
-                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                    if (_state.value.queue.isNotEmpty() && !isStoppingQueue && !isRecoveringPlayback) {
-                        recoverUnexpectedIdleState(shouldAutoPlay = _state.value.isPlaying || player.playWhenReady)
-                    } else {
-                        updateState()
-                    }
-                }
-
-                override fun onEvents(player: Player, events: Player.Events) {
-                    updateState()
-                }
-            },
-        )
-
-        scope.launch {
+        progressUpdateJob = scope.launch {
             while (isActive) {
                 syncFromObservedSystemVolume()
-                updateProgressState()
-                delay(if (player.isPlaying || player.currentMediaItemIndex >= 0) 120L else 350L)
+                publishProgressSnapshot()
+                delay(
+                    when {
+                        player.isPlaying -> 220L
+                        player.currentMediaItemIndex >= 0 -> 320L
+                        else -> 500L
+                    },
+                )
             }
         }
     }
@@ -332,9 +334,28 @@ class PlaybackManager(
     }
 
     fun seekTo(positionMs: Long) {
+        _progressState.value = playbackProgressController.cancelScrub()
         player.seekTo(positionMs.coerceAtLeast(0L))
-        updateProgressState()
+        publishProgressSnapshot()
         updateState()
+    }
+
+    fun beginScrub() {
+        _progressState.value = playbackProgressController.beginScrub()
+    }
+
+    fun updateScrubPosition(positionMs: Long) {
+        _progressState.value = playbackProgressController.updateScrubPosition(positionMs)
+    }
+
+    fun finishScrub(positionMs: Long) {
+        val result = playbackProgressController.finishScrub(positionMs)
+        _progressState.value = result.state
+        result.seekPositionMs?.let(player::seekTo)
+    }
+
+    fun cancelScrub() {
+        _progressState.value = playbackProgressController.cancelScrub()
     }
 
     fun setVolume(volume: Float) {
@@ -425,6 +446,7 @@ class PlaybackManager(
     }
 
     fun release() {
+        progressUpdateJob?.cancel()
         bitPerfectTrackRefreshJob?.cancel()
         fadeJob?.cancel()
         duckRecoveryJob?.cancel()
@@ -433,6 +455,7 @@ class PlaybackManager(
         abandonAudioFocus()
         appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
         audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
+        player.removeListener(playerListener)
         mediaSession.release()
         player.release()
     }
@@ -491,7 +514,7 @@ class PlaybackManager(
             sourceLabel = null,
             audioSessionId = 0,
         )
-        _progressState.value = PlaybackProgressState()
+        _progressState.value = playbackProgressController.clear()
         isStoppingQueue = false
     }
 
@@ -535,13 +558,16 @@ class PlaybackManager(
         if (updatedState != existingState) {
             _state.value = updatedState
         }
-        updateProgressState()
+        publishProgressSnapshot()
     }
 
-    private fun updateProgressState() {
-        val updatedProgress = PlaybackProgressState(
+    private fun publishProgressSnapshot() {
+        val updatedProgress = playbackProgressController.onPlayerSnapshot(
+            mediaId = currentSong()?.id,
             positionMs = player.currentPosition.coerceAtLeast(0L),
             durationMs = player.duration.takeIf { it > 0 }?.coerceAtLeast(0L) ?: 0L,
+            bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
+            isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
         )
         if (updatedProgress != _progressState.value) {
             _progressState.value = updatedProgress

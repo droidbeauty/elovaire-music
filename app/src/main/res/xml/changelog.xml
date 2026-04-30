@@ -6,8 +6,11 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.4.2">
-        <item>better implementation of bass boost feature</item>
+    <release version="1.5">
+        <item>rebuilt EQ from both technical side and its UI</item>
+        <item>streamlined the rubber banding animation on all scrollable lists in the app</item>
+        <item>updated UI for new updates pop-up</item>
+        <item>fixed unresponsiveness in the track progress scrollbar</item>
         <item>bug fixes</item>
     </release>
 </changelog>

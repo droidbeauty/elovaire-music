@@ -7,6 +7,7 @@ import elovaire.music.app.domain.model.EqSettings
 import elovaire.music.app.domain.model.Playlist
 import elovaire.music.app.domain.model.SearchHistoryEntry
 import elovaire.music.app.domain.model.SearchHistoryKind
+import elovaire.music.app.domain.model.SpaciousnessMode
 import elovaire.music.app.domain.model.TextSizePreset
 import elovaire.music.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -176,6 +177,29 @@ class PreferenceStore(context: Context) {
         persistEqSettings(_eqSettings.value.copy(spaciousness = value.coerceIn(-1f, 1f)))
     }
 
+    fun updateSpaciousnessMode(mode: SpaciousnessMode) {
+        persistEqSettings(_eqSettings.value.copy(spaciousnessMode = mode))
+    }
+
+    fun setEqSettings(settings: EqSettings) {
+        val normalizedBands = List(BAND_COUNT) { index ->
+            settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
+        }
+        persistEqSettings(
+            settings.copy(
+                bands = normalizedBands,
+                bass = settings.bass.coerceIn(-1f, 1f),
+                treble = settings.treble.coerceIn(-1f, 1f),
+                spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
+                spaciousnessMode = settings.spaciousnessMode,
+            ),
+        )
+    }
+
+    fun resetEqSettings() {
+        persistEqSettings(EqSettings())
+    }
+
     fun setPlaybackVolume(value: Float) {
         val volume = value.coerceIn(0f, 1f)
         preferences.edit {
@@ -218,6 +242,7 @@ class PreferenceStore(context: Context) {
             putFloat(KEY_BASS, settings.bass)
             putFloat(KEY_TREBLE, settings.treble)
             putFloat(KEY_SPACIOUSNESS, settings.spaciousness)
+            putString(KEY_SPACIOUSNESS_MODE, settings.spaciousnessMode.name)
         }
         _eqSettings.value = settings
     }
@@ -239,6 +264,9 @@ class PreferenceStore(context: Context) {
             bass = preferences.getFloat(KEY_BASS, 0f),
             treble = preferences.getFloat(KEY_TREBLE, 0f),
             spaciousness = preferences.getFloat(KEY_SPACIOUSNESS, 0f),
+            spaciousnessMode = preferences.getString(KEY_SPACIOUSNESS_MODE, SpaciousnessMode.StereoWidth.name)
+                ?.let { saved -> SpaciousnessMode.entries.firstOrNull { it.name == saved } }
+                ?: SpaciousnessMode.StereoWidth,
         )
     }
 
@@ -414,7 +442,7 @@ class PreferenceStore(context: Context) {
     }
 
     private companion object {
-        const val BAND_COUNT = 16
+        const val BAND_COUNT = 24
         const val MAX_SEARCH_HISTORY = 6
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_TEXT_SIZE_PRESET = "text_size_preset"
@@ -431,6 +459,7 @@ class PreferenceStore(context: Context) {
         const val KEY_BASS = "eq_bass"
         const val KEY_TREBLE = "eq_treble"
         const val KEY_SPACIOUSNESS = "eq_spaciousness"
+        const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"
     }

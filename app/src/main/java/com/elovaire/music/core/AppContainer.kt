@@ -31,11 +31,12 @@ class AppContainer(
         scope = appScope,
         preferenceStore = preferenceStore,
     )
+    private val playbackEffectsController = PlaybackEffectsController(appScope)
     val playbackManager = PlaybackManager(
         context = applicationContext,
         scope = appScope,
+        audioProcessors = playbackEffectsController.audioProcessors(),
     )
-    private val playbackEffectsController = PlaybackEffectsController(appScope)
     private val playbackNotificationController = PlaybackNotificationController(
         context = applicationContext,
         playbackManager = playbackManager,
@@ -67,12 +68,6 @@ class AppContainer(
         }
         appScope.launch {
             playbackManager.state
-                .map { parseSampleRateHz(it.currentSong?.audioQuality) ?: DEFAULT_AUDIO_SAMPLE_RATE_HZ }
-                .distinctUntilChanged()
-                .collect(playbackEffectsController::updateOutputSampleRate)
-        }
-        appScope.launch {
-            playbackManager.state
                 .map { it.currentSong?.id to it.currentSong?.albumId }
                 .distinctUntilChanged()
                 .collect { (songId, albumId) ->
@@ -92,18 +87,5 @@ class AppContainer(
 
     fun requestOpenPlayer() {
         openPlayerRequestVersion.value += 1L
-    }
-
-    private fun parseSampleRateHz(audioQuality: String?): Int? {
-        val quality = audioQuality?.trim().orEmpty()
-        if (quality.isBlank()) return null
-        val khzToken = SAMPLE_RATE_REGEX.find(quality)?.groupValues?.getOrNull(1)?.toFloatOrNull() ?: return null
-        return (khzToken * 1000f).toInt().coerceAtLeast(MIN_AUDIO_SAMPLE_RATE_HZ)
-    }
-
-    private companion object {
-        const val DEFAULT_AUDIO_SAMPLE_RATE_HZ = 48_000
-        const val MIN_AUDIO_SAMPLE_RATE_HZ = 8_000
-        val SAMPLE_RATE_REGEX = Regex("""(\d+(?:\.\d+)?)\s*kHz""", RegexOption.IGNORE_CASE)
     }
 }

@@ -76,8 +76,18 @@ data class SearchHistoryEntry(
 )
 
 data class EqSettings(
-    val bands: List<Float> = List(16) { 0f },
+    val bands: List<Float> = List(24) { 0f },
     val bass: Float = 0f,
     val treble: Float = 0f,
     val spaciousness: Float = 0f,
+    val spaciousnessMode: SpaciousnessMode = SpaciousnessMode.StereoWidth,
 )
+
+enum class SpaciousnessMode {
+    Off,
+    StereoWidth,
+    CrossfeedDepth,
+    EarlyReflectionRoom,
+    HaasSpace,
+    HarmonicAir,
+}

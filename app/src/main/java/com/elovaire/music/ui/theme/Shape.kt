@@ -14,7 +14,7 @@ object ElovaireRadii {
     val card: Dp = 14.dp
     val tile: Dp = 14.dp
     val button: Dp = 16.dp
-    val artwork: Dp = 10.dp
+    val artwork: Dp = 8.dp
     val artworkSmall: Dp = 4.dp
     val input: Dp = 16.dp
     val dialog: Dp = 16.dp

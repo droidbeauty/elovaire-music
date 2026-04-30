@@ -213,6 +213,8 @@ import elovaire.music.app.data.lyrics.LyricsLine
 import elovaire.music.app.data.lyrics.LyricsPayload
 import elovaire.music.app.data.lyrics.LyricsResult
 import elovaire.music.app.data.lyrics.LyricsService
+import elovaire.music.app.data.playback.EqualizerDspModel
+import elovaire.music.app.data.playback.PlaybackManager
 import elovaire.music.app.data.playback.PlaybackProgressState
 import elovaire.music.app.data.playback.PlaybackRepeatMode
 import elovaire.music.app.data.playback.PlaybackUiState
@@ -237,6 +239,7 @@ import elovaire.music.app.ui.theme.rememberElovaireOverscrollFactory
 import elovaire.music.app.ui.theme.InkText
 import kotlin.math.cos
 import kotlin.math.ceil
+import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
@@ -806,7 +809,6 @@ fun ElovaireRoot(
     val context = LocalContext.current
     val libraryState by container.libraryRepository.state.collectAsStateWithLifecycle()
     val playbackState by container.playbackManager.state.collectAsStateWithLifecycle()
-    val playbackProgress by container.playbackManager.progressState.collectAsStateWithLifecycle()
     val eqSettings by container.preferenceStore.eqSettings.collectAsStateWithLifecycle()
     val themeMode by container.preferenceStore.themeMode.collectAsStateWithLifecycle()
     val textSizePreset by container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
@@ -1632,10 +1634,9 @@ fun ElovaireRoot(
                     }
 
                     composable(PLAYER_ROUTE) {
-                        val playbackProgress by container.playbackManager.progressState.collectAsStateWithLifecycle()
                         NowPlayingScreen(
+                            playbackManager = container.playbackManager,
                             playbackState = playbackState,
-                            playbackProgress = playbackProgress,
                             isFavorite = playbackState.currentSong?.id in favoriteSongIdSet,
                             lyricsService = lyricsService,
                             onBack = navController::navigateUp,
@@ -1645,7 +1646,6 @@ fun ElovaireRoot(
                             onCycleRepeatMode = container.playbackManager::cycleRepeatMode,
                             onToggleShuffle = container.playbackManager::toggleShuffle,
                             onToggleFavorite = { songId -> container.preferenceStore.toggleFavoriteSong(songId) },
-                            onSeekTo = container.playbackManager::seekTo,
                             onQueueItemSelected = container.playbackManager::playQueueIndex,
                             onVolumeChanged = { volume ->
                                 container.playbackManager.setVolume(volume)
@@ -1661,6 +1661,8 @@ fun ElovaireRoot(
                             onBassChanged = container.preferenceStore::updateBass,
                             onTrebleChanged = container.preferenceStore::updateTreble,
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
+                            onApplyPreset = container.preferenceStore::setEqSettings,
+                            onReset = container.preferenceStore::resetEqSettings,
                         )
                     }
 
@@ -1735,14 +1737,10 @@ fun ElovaireRoot(
                                 ),
                             contentAlignment = Alignment.BottomCenter,
                         ) {
-                            StandaloneNowPlayingDock(
+                            CompactNowPlayingDockHost(
+                                playbackManager = container.playbackManager,
                                 song = currentSong,
                                 isPlaying = playbackState.isPlaying,
-                                progress = if (playbackProgress.durationMs > 0L) {
-                                    (playbackProgress.positionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-                                } else {
-                                    0f
-                                },
                                 visible = showGlobalNowPlaying,
                                 onOpenPlayer = { navController.navigate(PLAYER_ROUTE) },
                                 onTogglePlayback = container.playbackManager::togglePlayback,
@@ -1792,6 +1790,39 @@ fun ElovaireRoot(
             }
         }
     }
+}
+
+@Composable
+private fun CompactNowPlayingDockHost(
+    playbackManager: PlaybackManager,
+    song: Song,
+    isPlaying: Boolean,
+    visible: Boolean,
+    onOpenPlayer: () -> Unit,
+    onTogglePlayback: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onSkipNext: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
+    val progress = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs) {
+        if (playbackProgress.durationMs > 0L) {
+            (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+    StandaloneNowPlayingDock(
+        song = song,
+        isPlaying = isPlaying,
+        progress = progress,
+        visible = visible,
+        onOpenPlayer = onOpenPlayer,
+        onTogglePlayback = onTogglePlayback,
+        onSkipPrevious = onSkipPrevious,
+        onSkipNext = onSkipNext,
+        modifier = modifier,
+    )
 }
 
 @Composable
@@ -6586,14 +6617,18 @@ private fun AddSongsToPlaylistDialog(
         availableSongs.filterNot { it.id in existingSongIds }.take(24)
     }
     val selectedSongIds = remember { mutableStateOf(setOf<Long>()) }
+    val listState = rememberLazyListState()
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add songs") },
         text = {
             LazyColumn(
+                state = listState,
                 overscrollEffect = null,
-                modifier = Modifier.height(320.dp),
+                modifier = Modifier
+                    .height(320.dp)
+                    .ensureSingleItemRubberBand(listState),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 items(candidates, key = { it.id }) { song ->
@@ -6661,8 +6696,8 @@ private fun AddSongsToPlaylistDialog(
 
 @Composable
 private fun NowPlayingScreen(
+    playbackManager: PlaybackManager,
     playbackState: PlaybackUiState,
-    playbackProgress: PlaybackProgressState,
     isFavorite: Boolean,
     lyricsService: LyricsService,
     onBack: () -> Unit,
@@ -6672,11 +6707,11 @@ private fun NowPlayingScreen(
     onCycleRepeatMode: () -> Unit,
     onToggleShuffle: () -> Unit,
     onToggleFavorite: (Long) -> Unit,
-    onSeekTo: (Long) -> Unit,
     onQueueItemSelected: (Int) -> Unit,
     onVolumeChanged: (Float) -> Unit,
 ) {
     val currentSong = playbackState.currentSong
+    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
     val playerHazeState = rememberHazeState()
     var playerDismissTriggered by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(currentSong?.id) {
@@ -6758,27 +6793,10 @@ private fun NowPlayingScreen(
             value = lyricsService.fetchLyrics(currentSong).toUiState()
         }
     }
-
-    var dragValue by remember(currentSong?.id) { mutableFloatStateOf(0f) }
-    var isScrubbing by remember(currentSong?.id) { mutableStateOf(false) }
-
-    LaunchedEffect(currentSong?.id, playbackProgress.durationMs) {
-        dragValue = if (playbackProgress.durationMs > 0) {
-            playbackProgress.positionMs.toFloat() / playbackProgress.durationMs.toFloat()
-        } else {
-            0f
+    DisposableEffect(currentSong?.id) {
+        onDispose {
+            playbackManager.cancelScrub()
         }
-    }
-
-    LaunchedEffect(playbackProgress.positionMs, playbackProgress.durationMs, isScrubbing) {
-        if (playbackProgress.durationMs <= 0) {
-            dragValue = 0f
-            return@LaunchedEffect
-        }
-
-        val actualFraction = (playbackProgress.positionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-        if (isScrubbing) return@LaunchedEffect
-        dragValue = actualFraction
     }
 
     Box(
@@ -6901,11 +6919,12 @@ private fun NowPlayingScreen(
             val centeredInfoWidth = 0.95f
             val nowPlayingTitleTopGap = ElovaireSpacing.nowPlayingTitleTopGap
             val nowPlayingTitleBottomGap = ElovaireSpacing.nowPlayingTitleBottomGap
-            val displayedPositionMs = remember(dragValue, isScrubbing, playbackProgress.positionMs, playbackProgress.durationMs) {
-                if (isScrubbing && playbackProgress.durationMs > 0) {
-                    (playbackProgress.durationMs * dragValue.coerceIn(0f, 1f)).toLong()
+            val displayedPositionMs = playbackProgress.displayPositionMs
+            val displayedProgressFraction = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs) {
+                if (playbackProgress.durationMs > 0L) {
+                    (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
                 } else {
-                    playbackProgress.positionMs
+                    0f
                 }
             }
             val artworkScale by animateFloatAsState(
@@ -7081,20 +7100,25 @@ private fun NowPlayingScreen(
                                 verticalArrangement = Arrangement.spacedBy(3.dp),
                             ) {
                                 PlaybackProgressBar(
-                                    progress = dragValue,
-                                    isInteracting = isScrubbing,
+                                    progress = displayedProgressFraction,
+                                    isInteracting = playbackProgress.isUserScrubbing,
                                     contentColor = contentColor,
                                     onScrubStarted = {
-                                        isScrubbing = true
+                                        playbackManager.beginScrub()
                                     },
                                     onScrubFractionChanged = { fraction ->
-                                        dragValue = fraction
+                                        val target = fractionToDurationPosition(
+                                            fraction = fraction,
+                                            durationMs = playbackProgress.durationMs,
+                                        )
+                                        playbackManager.updateScrubPosition(target)
                                     },
                                     onScrubFinished = { fraction ->
-                                        isScrubbing = false
-                                        dragValue = fraction
-                                        val target = (playbackProgress.durationMs * fraction.coerceIn(0f, 1f)).toLong()
-                                        onSeekTo(target)
+                                        val target = fractionToDurationPosition(
+                                            fraction = fraction,
+                                            durationMs = playbackProgress.durationMs,
+                                        )
+                                        playbackManager.finishScrub(target)
                                     },
                                 )
                                 Row(
@@ -7290,7 +7314,7 @@ private fun NowPlayingScreen(
                 tintColor = baseSurface.copy(alpha = 0.66f),
                 contentColor = contentColor,
                 secondaryContentColor = secondaryContentColor,
-                onSeekTo = onSeekTo,
+                onSeekTo = playbackManager::seekTo,
                 onHideLyrics = { showLyricsSheet = false },
             )
         }
@@ -8091,6 +8115,7 @@ private fun AddToPlaylistPickerDialog(
     onDismiss: () -> Unit,
     onPlaylistSelected: (Long) -> Unit,
 ) {
+    val listState = rememberLazyListState()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add to playlist") },
@@ -8103,8 +8128,11 @@ private fun AddToPlaylistPickerDialog(
                 )
             } else {
                 LazyColumn(
+                    state = listState,
                     overscrollEffect = null,
-                    modifier = Modifier.height(280.dp),
+                    modifier = Modifier
+                        .height(280.dp)
+                        .ensureSingleItemRubberBand(listState),
                 ) {
                     items(playlists, key = { it.id }) { playlist ->
                         Surface(
@@ -9014,74 +9042,103 @@ private fun EqualizerScreen(
     onBassChanged: (Float) -> Unit,
     onTrebleChanged: (Float) -> Unit,
     onSpaciousnessChanged: (Float) -> Unit,
+    onApplyPreset: (EqSettings) -> Unit,
+    onReset: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
+    val graphScrollState = rememberScrollState()
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
         LazyColumn(
+            state = listState,
             overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
-                .navigationBarsPadding(),
+                .navigationBarsPadding()
+                .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
                 end = 18.dp,
-                bottom = 28.dp,
+                bottom = navigationBarInsetDp() + 40.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item {
-                ModuleCard {
+                BoxWithConstraints {
+                    val graphContentWidth = maxWidth * 1.72f
                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        SectionHeader(
-                            title = "Live response",
-                            subtitle = "Drag directly on the curve to shape the spectrum",
+                        Column(
+                            modifier = Modifier.horizontalScroll(graphScrollState),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            EqResponseGraph(
+                                settings = settings,
+                                onBandChanged = onBandChanged,
+                                modifier = Modifier
+                                    .width(graphContentWidth)
+                                    .height(248.dp),
+                            )
+                            EqBandFrequencyLabels(
+                                modifier = Modifier.width(graphContentWidth),
+                            )
+                        }
+                        EqHorizontalScrollbar(
+                            scrollState = graphScrollState,
+                            contentWidth = graphContentWidth,
                         )
-                        EqResponseGraph(
-                            settings = settings,
-                            onBandChanged = onBandChanged,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(232.dp),
+                        EqPresetMenu(
+                            currentSettings = settings,
+                            onApplyPreset = onApplyPreset,
+                            onReset = onReset,
                         )
                     }
                 }
             }
             item {
                 ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                        SectionHeader(
-                            title = "Tone shaping",
-                            subtitle = "Macro controls tuned to stay musical and clean",
-                        )
-                        EqMacroSliderCard(
+                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        SettingsCategoryText(title = "Tone shaping")
+                        EqMacroSliderRow(
                             title = "Bass",
-                            subtitle = "Weight and punch",
-                            accent = Color(0xFFFF8A5B),
-                            value = settings.bass,
+                            value = settings.bass.coerceIn(0f, 1f),
+                            valueText = "${(settings.bass.coerceIn(0f, 1f) * 100f).roundToInt()}%",
                             onValueChange = onBassChanged,
+                            valueRange = 0f..1f,
                         )
-                        EqMacroSliderCard(
+                        EqMacroSliderRow(
                             title = "Treble",
-                            subtitle = "Air and clarity",
-                            accent = Color(0xFF7D8BFF),
-                            value = settings.treble,
+                            value = settings.treble.coerceIn(-1f, 1f),
+                            valueText = "${(settings.treble.coerceIn(-1f, 1f) * 100f).roundToInt()}%",
                             onValueChange = onTrebleChanged,
+                            valueRange = -1f..1f,
                         )
-                        EqMacroSliderCard(
+                    }
+                }
+            }
+            item {
+                ModuleCard {
+                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                        SettingsCategoryText(title = "Spaciousness")
+                        EqMacroSliderRow(
                             title = "Spaciousness",
-                            subtitle = "Width without hollow mids",
-                            accent = Color(0xFF6DE0B5),
-                            value = settings.spaciousness,
+                            value = settings.spaciousness.coerceIn(0f, 1f),
+                            valueText = "${(settings.spaciousness.coerceIn(0f, 1f) * 100f).roundToInt()}%",
                             onValueChange = onSpaciousnessChanged,
+                            valueRange = 0f..1f,
                         )
                     }
                 }
             }
         }
+        FastScrollbar(
+            state = listState,
+            topInset = topBarOccupiedHeight() + 16.dp,
+            bottomInset = navigationBarInsetDp() + 20.dp,
+        )
         PinnedBackTopBar(
             title = "Equalizer",
             onBack = onBack,
@@ -9105,14 +9162,18 @@ private fun SettingsScreen(
     onOpenEqualizer: () -> Unit,
     onOpenChangelog: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
         LazyColumn(
+            state = listState,
             overscrollEffect = null,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
@@ -9290,6 +9351,7 @@ private fun ChangelogScreen(
     releases: List<ChangelogRelease>,
     onBack: () -> Unit,
 ) {
+    val listState = rememberLazyListState()
     val release = remember(releases) {
         releases.firstOrNull { it.version == BuildConfig.VERSION_NAME } ?: releases.firstOrNull()
     }
@@ -9299,8 +9361,11 @@ private fun ChangelogScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         LazyColumn(
+            state = listState,
             overscrollEffect = null,
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .fillMaxSize()
+                .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 bottom = navigationBarInsetDp() + 24.dp,
             ),
@@ -10083,12 +10148,12 @@ private fun EqBandSlider(
 }
 
 @Composable
-private fun EqMacroSliderCard(
+private fun EqMacroSliderRow(
     title: String,
-    subtitle: String,
-    accent: Color,
     value: Float,
+    valueText: String,
     onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(
@@ -10096,31 +10161,107 @@ private fun EqMacroSliderCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, style = MaterialTheme.typography.titleLarge)
-                Text(
-                    subtitle,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = readableSecondaryTextColor(),
-                )
-            }
+            Text(title, style = MaterialTheme.typography.titleLarge)
             Text(
-                text = "${(value * 100).toInt()}%",
+                text = valueText,
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
             )
         }
-        Slider(
+        ThinContinuousSlider(
             value = value,
             onValueChange = onValueChange,
-            valueRange = -1f..1f,
-            colors = androidx.compose.material3.SliderDefaults.colors(
-                thumbColor = Color.White,
-                activeTrackColor = accent,
-                inactiveTrackColor = Color.White.copy(alpha = 0.12f),
-                activeTickColor = Color.Transparent,
-                inactiveTickColor = Color.Transparent,
-            ),
+            valueRange = valueRange,
+        )
+    }
+}
+
+private data class EqPresetDefinition(
+    val name: String,
+    val settings: EqSettings,
+)
+
+@Composable
+private fun EqPresetMenu(
+    currentSettings: EqSettings,
+    onApplyPreset: (EqSettings) -> Unit,
+    onReset: () -> Unit,
+) {
+    val presets = remember {
+        listOf(
+            eqPreset("Electronic", 0.40f, 0.58f, 0.42f, 0.26f, 0.10f, 0.08f, 0.16f, 0.24f),
+            eqPreset("Jazz", 0.18f, 0.26f, 0.14f, -0.08f, 0.10f, 0.22f, 0.18f, 0.12f),
+            eqPreset("Classical", 0.12f, 0.16f, 0.08f, -0.04f, 0.06f, 0.18f, 0.24f, 0.18f),
+            eqPreset("Acoustic", 0.10f, 0.14f, 0.06f, -0.12f, 0.14f, 0.20f, 0.18f, 0.10f),
+            eqPreset("Pop", 0.24f, 0.32f, 0.18f, -0.08f, 0.10f, 0.16f, 0.20f, 0.14f),
+            eqPreset("Rock", 0.28f, 0.22f, 0.10f, -0.12f, 0.08f, 0.18f, 0.28f, 0.22f),
+            eqPreset("Metal", 0.22f, 0.18f, 0.08f, -0.14f, 0.12f, 0.24f, 0.30f, 0.26f),
+            eqPreset("Vocal", -0.08f, -0.12f, -0.04f, -0.10f, 0.20f, 0.28f, 0.16f, 0.06f),
+            eqPreset("R&B", 0.30f, 0.34f, 0.16f, -0.10f, 0.12f, 0.16f, 0.12f, 0.08f),
+            eqPreset("Hip-Hop", 0.42f, 0.46f, 0.22f, -0.12f, 0.10f, 0.12f, 0.08f, 0.04f),
+        )
+    }
+    val horizontalScrollState = rememberScrollState()
+    val activePresetName = remember(currentSettings, presets) {
+        presets.firstOrNull { preset -> preset.settings == currentSettings.normalizedEqSettings() }?.name
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(horizontalScrollState),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        EqPresetPill(
+            label = "Reset",
+            selected = activePresetName == null && currentSettings != EqSettings(),
+            emphasized = true,
+            onClick = onReset,
+        )
+        presets.forEach { preset ->
+            EqPresetPill(
+                label = preset.name,
+                selected = preset.name == activePresetName,
+                onClick = { onApplyPreset(preset.settings) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun EqPresetPill(
+    label: String,
+    selected: Boolean,
+    emphasized: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val backgroundColor = if (emphasized) {
+        MaterialTheme.colorScheme.primary
+    } else if (selected) {
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+    } else {
+        MaterialTheme.colorScheme.surfaceVariant.copy(
+            alpha = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 0.7f else 0.48f,
+        )
+    }
+    val contentColor = if (emphasized) {
+        MaterialTheme.colorScheme.onPrimary
+    } else if (selected) {
+        MaterialTheme.colorScheme.primary
+    } else {
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
+    }
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = backgroundColor,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 9.dp),
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+            color = contentColor,
         )
     }
 }
@@ -10131,37 +10272,47 @@ private fun EqResponseGraph(
     onBandChanged: (Int, Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val bandValues = settings.bands.ifEmpty { List(16) { 0f } }
+    val graphPointCount = EqualizerDspModel.BAND_COUNT
+    val bandValues = remember(settings.bands) {
+        normalizeEqBandValues(settings.bands, graphPointCount)
+    }
+    val bandFractions = remember {
+        eqBandFractions()
+    }
+    val lineColor = Color(0xFF39E38E)
+    val guideColor = MaterialTheme.colorScheme.onSurface
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(ElovaireRadii.module))
-            .background(readableCardSurfaceColor().copy(alpha = 0.72f))
-            .pointerInput(bandValues) {
+            .pointerInput(bandFractions) {
                 detectTapGestures { offset ->
-                    val lastIndex = bandValues.lastIndex.coerceAtLeast(1)
-                    val index = ((offset.x / size.width.toFloat()) * lastIndex)
-                        .roundToInt()
-                        .coerceIn(0, bandValues.lastIndex)
+                    if (size.width == 0 || size.height == 0) return@detectTapGestures
+                    val bandIndex = nearestEqBandIndex(
+                        fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f),
+                        bandFractions = bandFractions,
+                    )
                     val normalized = (1f - (offset.y / size.height.toFloat())).coerceIn(0f, 1f)
-                    onBandChanged(index, ((normalized * 2f) - 1f).coerceIn(-1f, 1f))
+                    onBandChanged(bandIndex, ((normalized * 2f) - 1f).coerceIn(-1f, 1f))
                 }
             }
-            .pointerInput(bandValues) {
+            .pointerInput(bandFractions) {
                 detectDragGestures(
                     onDragStart = { offset ->
-                        val lastIndex = bandValues.lastIndex.coerceAtLeast(1)
-                        val index = ((offset.x / size.width.toFloat()) * lastIndex)
-                            .roundToInt()
-                            .coerceIn(0, bandValues.lastIndex)
+                        if (size.width == 0 || size.height == 0) return@detectDragGestures
+                        val bandIndex = nearestEqBandIndex(
+                            fraction = (offset.x / size.width.toFloat()).coerceIn(0f, 1f),
+                            bandFractions = bandFractions,
+                        )
                         val normalized = (1f - (offset.y / size.height.toFloat())).coerceIn(0f, 1f)
-                        onBandChanged(index, ((normalized * 2f) - 1f).coerceIn(-1f, 1f))
+                        onBandChanged(bandIndex, ((normalized * 2f) - 1f).coerceIn(-1f, 1f))
                     },
                     onDrag = { change, _ ->
                         change.consume()
-                        val lastIndex = bandValues.lastIndex.coerceAtLeast(1)
-                        val index = ((change.position.x / size.width.toFloat()) * lastIndex)
-                            .roundToInt()
-                            .coerceIn(0, bandValues.lastIndex)
+                        if (size.width == 0 || size.height == 0) return@detectDragGestures
+                        val index = nearestEqBandIndex(
+                            fraction = (change.position.x / size.width.toFloat()).coerceIn(0f, 1f),
+                            bandFractions = bandFractions,
+                        )
                         val normalized = (1f - (change.position.y / size.height.toFloat())).coerceIn(0f, 1f)
                         onBandChanged(index, ((normalized * 2f) - 1f).coerceIn(-1f, 1f))
                     },
@@ -10169,20 +10320,24 @@ private fun EqResponseGraph(
             },
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
-            val midY = size.height / 2f
-            repeat(7) { step ->
-                val y = size.height * (step / 6f)
+            val topPadding = size.height * 0.08f
+            val bottomPadding = size.height * 0.12f
+            val graphHeight = size.height - topPadding - bottomPadding
+            val midY = topPadding + (graphHeight / 2f)
+
+            repeat(5) { step ->
+                val y = topPadding + (graphHeight * (step / 4f))
                 drawLine(
-                    color = Color.White.copy(alpha = if (step == 3) 0.12f else 0.05f),
+                    color = guideColor.copy(alpha = if (step == 2) 0.12f else 0.05f),
                     start = Offset(0f, y),
                     end = Offset(size.width, y),
                     strokeWidth = 1.dp.toPx(),
                 )
             }
-            repeat(bandValues.lastIndex) { index ->
-                val x = size.width * (index / bandValues.lastIndex.coerceAtLeast(1).toFloat())
+            repeat(bandValues.lastIndex + 1) { index ->
+                val x = size.width * bandFractions.getOrElse(index) { 0f }
                 drawLine(
-                    color = Color.White.copy(alpha = 0.04f),
+                    color = guideColor.copy(alpha = 0.035f),
                     start = Offset(x, 0f),
                     end = Offset(x, size.height),
                     strokeWidth = 1.dp.toPx(),
@@ -10190,24 +10345,16 @@ private fun EqResponseGraph(
             }
 
             val points = bandValues.mapIndexed { index, band ->
-                val x = size.width * (index / bandValues.lastIndex.coerceAtLeast(1).toFloat())
-                val y = midY - (band.coerceIn(-1f, 1f) * (size.height * 0.34f))
+                val x = size.width * bandFractions.getOrElse(index) { 0f }
+                val y = midY - (band.coerceIn(-1f, 1f) * (graphHeight * 0.46f))
                 Offset(x, y)
             }
 
-            val strokePath = androidx.compose.ui.graphics.Path().apply {
-                points.forEachIndexed { index, point ->
-                    if (index == 0) {
-                        moveTo(point.x, point.y)
-                    } else {
-                        lineTo(point.x, point.y)
-                    }
-                }
-            }
+            val strokePath = smoothPathFromPoints(points)
             val fillPath = androidx.compose.ui.graphics.Path().apply {
-                moveTo(points.first().x, midY)
-                points.forEach { lineTo(it.x, it.y) }
-                lineTo(points.last().x, midY)
+                moveTo(points.first().x, size.height - bottomPadding)
+                addPath(strokePath)
+                lineTo(points.last().x, size.height - bottomPadding)
                 close()
             }
 
@@ -10215,33 +10362,302 @@ private fun EqResponseGraph(
                 path = fillPath,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF7D8BFF).copy(alpha = 0.34f),
-                        Color(0xFF7D8BFF).copy(alpha = 0.08f),
+                        lineColor.copy(alpha = 0.34f),
+                        lineColor.copy(alpha = 0.1f),
+                        Color.Transparent,
                     ),
+                    endY = size.height,
                 ),
             )
             drawPath(
                 path = strokePath,
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        Color(0xFFFF6F61),
-                        Color(0xFFB05CFF),
-                        Color(0xFF57D4FF),
-                        Color(0xFF6DE0B5),
-                    ),
-                ),
+                color = lineColor,
                 style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round),
             )
-            points.forEachIndexed { index, point ->
-                if (index % 2 == 0) {
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.94f),
-                        radius = 4.dp.toPx(),
-                        center = point,
-                    )
-                }
+        }
+    }
+}
+
+@Composable
+private fun EqBandFrequencyLabels(
+    modifier: Modifier = Modifier,
+) {
+    val labels = remember {
+        EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.map(::formatEqFrequencyLabel)
+    }
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        labels.forEach { label ->
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.2f)),
+                color = readableSecondaryTextColor().copy(alpha = 0.88f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun EqHorizontalScrollbar(
+    scrollState: androidx.compose.foundation.ScrollState,
+    contentWidth: Dp,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(12.dp),
+    ) {
+        val density = LocalDensity.current
+        val viewportWidthPx = with(density) { maxWidth.toPx() }
+        val contentWidthPx = with(density) { contentWidth.toPx() }.coerceAtLeast(viewportWidthPx)
+        val maxScrollPx = scrollState.maxValue.toFloat().coerceAtLeast(0f)
+        val viewportFraction = (viewportWidthPx / contentWidthPx).coerceIn(0.08f, 1f)
+        val thumbWidthPx = (viewportWidthPx * viewportFraction).coerceAtLeast(with(density) { 46.dp.toPx() })
+        val thumbTravelPx = (viewportWidthPx - thumbWidthPx).coerceAtLeast(0f)
+        val thumbOffsetFraction = if (maxScrollPx <= 0f) 0f else (scrollState.value / maxScrollPx).coerceIn(0f, 1f)
+        val thumbOffsetPx = thumbTravelPx * thumbOffsetFraction
+        val trackColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+            InkText.copy(alpha = 0.12f)
+        } else {
+            Color.White.copy(alpha = 0.14f)
+        }
+        val thumbColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+            InkText.copy(alpha = 0.58f)
+        } else {
+            Color.White.copy(alpha = 0.62f)
+        }
+
+        Box(
+            modifier = Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .height(2.dp)
+                .clip(RoundedCornerShape(ElovaireRadii.pill))
+                .background(trackColor),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .offset { IntOffset(x = thumbOffsetPx.roundToInt(), y = 0) }
+                .width(with(density) { thumbWidthPx.toDp() })
+                .height(4.dp)
+                .clip(RoundedCornerShape(ElovaireRadii.pill))
+                .background(thumbColor),
+        )
+    }
+}
+
+@Composable
+private fun SettingsCategoryText(title: String) {
+    Text(
+        text = title,
+        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+    )
+}
+
+@Composable
+private fun ThinContinuousSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+    valueRange: ClosedFloatingPointRange<Float>,
+    modifier: Modifier = Modifier,
+) {
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
+    val fraction = ((coercedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start))
+        .coerceIn(0f, 1f)
+    val knobSize = 20.dp
+    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText
+    } else {
+        Color.White
+    }
+    val inactiveLineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText.copy(alpha = 0.18f)
+    } else {
+        Color.White.copy(alpha = 0.2f)
+    }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(32.dp),
+    ) {
+        val density = LocalDensity.current
+        val maxWidthPx = with(density) { maxWidth.toPx() }
+        val knobSizePx = with(density) { knobSize.toPx() }
+        val activeWidth by animateDpAsState(
+            targetValue = maxWidth * fraction,
+            animationSpec = tween(durationMillis = 70),
+            label = "eq_macro_slider_fill",
+        )
+        val knobOffset by animateDpAsState(
+            targetValue = with(density) { ((maxWidthPx * fraction) - (knobSizePx / 2f)).toDp() },
+            animationSpec = tween(durationMillis = 70),
+            label = "eq_macro_slider_knob",
+        )
+
+        val updateFromX: (Float) -> Unit = { xPosition ->
+            if (maxWidthPx > 0f) {
+                val normalized = (xPosition / maxWidthPx).coerceIn(0f, 1f)
+                val rangedValue = valueRange.start + ((valueRange.endInclusive - valueRange.start) * normalized)
+                currentOnValueChange(rangedValue.coerceIn(valueRange.start, valueRange.endInclusive))
             }
         }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(maxWidthPx, valueRange.start, valueRange.endInclusive) {
+                    detectTapGestures { offset ->
+                        updateFromX(offset.x)
+                    }
+                }
+                .pointerInput(maxWidthPx, valueRange.start, valueRange.endInclusive) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset -> updateFromX(offset.x) },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            updateFromX(change.position.x)
+                        },
+                    )
+                },
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .fillMaxWidth()
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .background(inactiveLineColor),
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .width(activeWidth)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .background(knobColor),
+            )
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
+                    .size(knobSize)
+                    .clip(CircleShape)
+                    .background(knobColor)
+                    .align(Alignment.CenterStart),
+            )
+        }
+    }
+}
+
+private fun eqBandFractions(): List<Float> {
+    val frequencies = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.toList()
+    val minLog = ln(frequencies.first().toDouble())
+    val maxLog = ln(frequencies.last().toDouble())
+    val span = (maxLog - minLog).toFloat().coerceAtLeast(0.0001f)
+    return frequencies.map { frequency ->
+        ((ln(frequency.toDouble()) - minLog) / span).toFloat().coerceIn(0f, 1f)
+    }
+}
+
+private fun nearestEqBandIndex(
+    fraction: Float,
+    bandFractions: List<Float>,
+): Int {
+    return bandFractions
+        .withIndex()
+        .minByOrNull { (_, value) -> kotlin.math.abs(value - fraction) }
+        ?.index
+        ?: 0
+}
+
+private fun formatEqFrequencyLabel(frequencyHz: Float): String {
+    return when {
+        frequencyHz >= 1_000f -> {
+            val kilo = frequencyHz / 1_000f
+            if (kilo % 1f == 0f) "${kilo.roundToInt()}k" else "${((kilo * 10f).roundToInt()) / 10f}k"
+        }
+        frequencyHz % 1f == 0f -> frequencyHz.roundToInt().toString()
+        else -> frequencyHz.toString()
+    }
+}
+
+private fun normalizeEqBandValues(
+    values: List<Float>,
+    targetCount: Int,
+): List<Float> {
+    if (values.isEmpty()) return List(targetCount) { 0f }
+    return List(targetCount) { index ->
+        values.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
+    }
+}
+
+private fun eqPreset(
+    name: String,
+    bass: Float,
+    subBass: Float,
+    lowBass: Float,
+    lowMid: Float,
+    presence: Float,
+    upperMid: Float,
+    brilliance: Float,
+    air: Float,
+): EqPresetDefinition {
+    val bandShape = List(EqualizerDspModel.BAND_COUNT) { index ->
+        when (index) {
+            0, 1 -> bass
+            2, 3, 4, 5 -> subBass
+            6, 7, 8, 9, 10 -> lowBass
+            11, 12, 13, 14, 15 -> lowMid
+            16, 17, 18 -> presence
+            19, 20 -> upperMid
+            21, 22 -> brilliance
+            23 -> air
+            else -> 0f
+        }.coerceIn(-1f, 1f)
+    }
+    val settings = EqSettings(
+        bands = bandShape,
+        bass = ((bass + subBass + lowBass) / 3f).coerceIn(-1f, 1f),
+        treble = ((upperMid + brilliance + air) / 3f).coerceIn(-1f, 1f),
+        spaciousness = ((presence + upperMid + air) / 3f).coerceIn(-1f, 1f).coerceAtLeast(0f),
+    ).normalizedEqSettings()
+    return EqPresetDefinition(name = name, settings = settings)
+}
+
+private fun EqSettings.normalizedEqSettings(): EqSettings {
+    return copy(
+        bands = List(EqualizerDspModel.BAND_COUNT) { index ->
+            bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
+        },
+        bass = bass.coerceIn(-1f, 1f),
+        treble = treble.coerceIn(-1f, 1f),
+        spaciousness = spaciousness.coerceIn(-1f, 1f),
+    )
+}
+
+private fun smoothPathFromPoints(points: List<Offset>): androidx.compose.ui.graphics.Path {
+    return androidx.compose.ui.graphics.Path().apply {
+        if (points.isEmpty()) return@apply
+        moveTo(points.first().x, points.first().y)
+        if (points.size == 1) return@apply
+        for (index in 1 until points.size) {
+            val previous = points[index - 1]
+            val current = points[index]
+            val midPoint = Offset(
+                x = (previous.x + current.x) / 2f,
+                y = (previous.y + current.y) / 2f,
+            )
+            quadraticTo(previous.x, previous.y, midPoint.x, midPoint.y)
+        }
+        val last = points.last()
+        lineTo(last.x, last.y)
     }
 }
 
@@ -10414,6 +10830,14 @@ private fun lyricsSeekPositionMs(
     if (durationMs <= 0L) return null
     val fraction = if (lines.size == 1) 0f else index.toFloat() / lines.lastIndex.toFloat()
     return (durationMs * fraction).roundToInt().toLong().coerceAtLeast(0L)
+}
+
+private fun fractionToDurationPosition(
+    fraction: Float,
+    durationMs: Long,
+): Long {
+    if (durationMs <= 0L) return 0L
+    return (durationMs * fraction.coerceIn(0f, 1f)).roundToInt().toLong().coerceIn(0L, durationMs)
 }
 
 private fun suggestedAlbumsFor(
