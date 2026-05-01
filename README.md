@@ -7,10 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-    <img alt="Latest release" src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=flat-square&label=latest%20release">
-  </a>
-  <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-    <img alt="Download Elovaire" src="https://img.shields.io/badge/download-APK-2ea44f?style=flat-square&logo=android&logoColor=white">
+    <img alt="Latest release" src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=flat-square&label=latest">
   </a>
   <a href="https://ko-fi.com/droidbeauty">
     <img alt="Support on Ko-fi" src="https://img.shields.io/badge/support-Ko--fi-ff5f5f?style=flat-square&logo=kofi&logoColor=white">
@@ -21,21 +18,21 @@
 
 <table>
   <tr>
-    <td width="50%" align="center">
-      <h3>Get Elovaire</h3>
+    <td width="55%" align="center">
+      <h3>Latest release</h3>
       <p>
-        Download the latest release APK and start listening to your local music library with a smoother, more visual interface.
+        Download the newest Elovaire build from GitHub Releases.
       </p>
       <p>
         <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-          <img alt="Download latest release" src="https://img.shields.io/badge/Download%20latest%20release-111111?style=for-the-badge&logo=github&logoColor=white">
+          <img alt="Download latest release" src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20Elovaire&logo=github&logoColor=white&color=111111">
         </a>
       </p>
     </td>
-    <td width="50%" align="center">
-      <h3>Support development</h3>
+    <td width="45%" align="center">
+      <h3>Support</h3>
       <p>
-        Enjoying the project? A small tip helps support continued polish, testing, and new features.
+        Like the project? A small tip helps keep development going.
       </p>
       <p>
         <a href="https://ko-fi.com/droidbeauty">
@@ -45,7 +42,6 @@
     </td>
   </tr>
 </table>
-
 ---
 
 ## About
