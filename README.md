@@ -2,7 +2,7 @@
 
 <p align="center">
   <b>An elegant offline music player for Android.</b><br>
-  A polished local-library experience built around albums, artwork, smooth playback, and a calmer way to listen.
+  A polished local-library experience built around albums, artwork, smooth playback, and a calmer way to listen
 </p>
 
 <p align="center">
@@ -21,7 +21,7 @@
     <td width="55%" align="center">
       <h3>Latest release</h3>
       <p>
-        Download the newest Elovaire build from GitHub Releases.
+        Download the newest Elovaire build from GitHub Releases
       </p>
       <p>
         <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
@@ -32,7 +32,7 @@
     <td width="45%" align="center">
       <h3>Support</h3>
       <p>
-        Like the project? A small tip helps keep development going.
+        Like the project? A small tip helps keep development going
       </p>
       <p>
         <a href="https://ko-fi.com/droidbeauty">
