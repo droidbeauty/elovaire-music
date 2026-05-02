@@ -84,10 +84,32 @@ internal data class EqualizerDspConfig(
 
 internal object EqualizerDspModel {
     const val BAND_COUNT = 24
-    val BAND_CENTER_FREQUENCIES_HZ: FloatArray = FloatArray(BAND_COUNT) { index ->
-        val fraction = index.toDouble() / (BAND_COUNT - 1).coerceAtLeast(1).toDouble()
-        (20.0 * (16_000.0 / 20.0).pow(fraction)).toFloat()
-    }
+    val BAND_CENTER_FREQUENCIES_HZ: FloatArray = floatArrayOf(
+        20f,
+        27f,
+        36f,
+        48f,
+        64f,
+        86f,
+        116f,
+        155f,
+        208f,
+        279f,
+        374f,
+        501f,
+        672f,
+        901f,
+        1_208f,
+        1_620f,
+        2_172f,
+        2_912f,
+        3_904f,
+        5_234f,
+        7_018f,
+        9_408f,
+        12_613f,
+        16_000f,
+    )
     private const val FLAT_EPSILON = 0.0005f
 
     fun normalizedBandToDb(

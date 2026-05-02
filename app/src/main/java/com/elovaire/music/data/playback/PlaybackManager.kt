@@ -158,6 +158,7 @@ class PlaybackManager(
     private var lastKnownQueueIndex = -1
     private var lastKnownPositionMs = 0L
     private var hasUsbOutputRoute = false
+    private var crossfadeEnabled = false
     private val playbackProgressController = PlaybackProgressController()
     private var progressUpdateJob: Job? = null
     private val playerListener = object : Player.Listener {
@@ -165,6 +166,9 @@ class PlaybackManager(
             mediaItem: MediaItem?,
             reason: Int,
         ) {
+            if (crossfadeEnabled && player.playWhenReady) {
+                fadeInAfterTransition()
+            }
             scheduleBitPerfectRefresh(currentSong())
             updateState()
         }
@@ -405,10 +409,14 @@ class PlaybackManager(
         updateState()
     }
 
+    fun setCrossfadeEnabled(enabled: Boolean) {
+        crossfadeEnabled = enabled
+    }
+
     fun skipNext() {
         shouldResumeAfterTransientFocusLoss = false
         if (player.hasNextMediaItem()) {
-            player.seekToNextMediaItem()
+            transitionToNextOrPrevious { player.seekToNextMediaItem() }
         } else {
             stopAndClearQueue()
         }
@@ -420,7 +428,7 @@ class PlaybackManager(
         if (player.currentPosition > PREVIOUS_SEEK_THRESHOLD_MS) {
             player.seekTo(0)
         } else if (player.hasPreviousMediaItem()) {
-            player.seekToPreviousMediaItem()
+            transitionToNextOrPrevious { player.seekToPreviousMediaItem() }
         } else {
             stopAndClearQueue()
         }
@@ -430,11 +438,26 @@ class PlaybackManager(
     fun playQueueIndex(index: Int) {
         if (index !in _state.value.queue.indices) return
         shouldResumeAfterTransientFocusLoss = false
-        player.seekToDefaultPosition(index)
-        if (requestAudioFocus()) {
-            player.volume = effectivePlayerGain()
-            player.playWhenReady = true
-            player.play()
+        val performSeek = {
+            player.seekToDefaultPosition(index)
+            if (requestAudioFocus()) {
+                player.volume = if (crossfadeEnabled) 0f else effectivePlayerGain()
+                player.playWhenReady = true
+                player.play()
+                if (crossfadeEnabled) {
+                    fadeInAfterTransition()
+                }
+            }
+        }
+        if (crossfadeEnabled && player.isPlaying) {
+            animateVolumeTo(
+                targetVolume = 0f,
+                durationMs = CROSSFADE_OUT_DURATION_MS,
+            ) {
+                performSeek()
+            }
+        } else {
+            performSeek()
         }
         updateState()
     }
@@ -659,6 +682,33 @@ class PlaybackManager(
         animateVolumeTo(
             targetVolume = effectivePlayerGain(),
             durationMs = DUCK_FADE_DURATION_MS,
+        ) {
+            updateState()
+        }
+    }
+
+    private fun transitionToNextOrPrevious(action: () -> Unit) {
+        if (crossfadeEnabled && player.isPlaying) {
+            animateVolumeTo(
+                targetVolume = 0f,
+                durationMs = CROSSFADE_OUT_DURATION_MS,
+            ) {
+                action()
+                if (player.playWhenReady) {
+                    player.volume = 0f
+                    fadeInAfterTransition()
+                }
+            }
+        } else {
+            action()
+        }
+    }
+
+    private fun fadeInAfterTransition() {
+        player.volume = 0f
+        animateVolumeTo(
+            targetVolume = effectivePlayerGain(),
+            durationMs = CROSSFADE_IN_DURATION_MS,
         ) {
             updateState()
         }
@@ -938,6 +988,8 @@ class PlaybackManager(
                     type = device.type,
                     isSink = device.isSink,
                     productName = device.productName?.toString(),
+                    sampleRates = device.sampleRates,
+                    encodings = device.encodings,
                 )
             }
     }
@@ -962,6 +1014,8 @@ class PlaybackManager(
         const val INTERRUPTION_FADE_DURATION_MS = 1_100L
         const val DUCK_FADE_DURATION_MS = 280L
         const val DUCK_RECOVERY_TIMEOUT_MS = 1_800L
+        const val CROSSFADE_OUT_DURATION_MS = 90L
+        const val CROSSFADE_IN_DURATION_MS = 180L
         const val FADE_STEP_MS = 40L
         const val DUCKED_VOLUME_MULTIPLIER = 0.35f
     }

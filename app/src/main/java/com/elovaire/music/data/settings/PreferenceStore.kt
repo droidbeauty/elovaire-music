@@ -223,6 +223,10 @@ class PreferenceStore(context: Context) {
         persistEqSettings(_eqSettings.value.copy(spaciousnessMode = mode))
     }
 
+    fun updateCrossfadeEnabled(enabled: Boolean) {
+        persistEqSettings(_eqSettings.value.copy(crossfadeEnabled = enabled))
+    }
+
     fun setEqSettings(settings: EqSettings) {
         val normalizedBands = List(BAND_COUNT) { index ->
             settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
@@ -234,6 +238,7 @@ class PreferenceStore(context: Context) {
                 treble = settings.treble.coerceIn(-1f, 1f),
                 spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
                 spaciousnessMode = settings.spaciousnessMode,
+                crossfadeEnabled = settings.crossfadeEnabled,
             ),
         )
     }
@@ -285,6 +290,7 @@ class PreferenceStore(context: Context) {
             putFloat(KEY_TREBLE, settings.treble)
             putFloat(KEY_SPACIOUSNESS, settings.spaciousness)
             putString(KEY_SPACIOUSNESS_MODE, settings.spaciousnessMode.name)
+            putBoolean(KEY_CROSSFADE_ENABLED, settings.crossfadeEnabled)
         }
         _eqSettings.value = settings
     }
@@ -309,6 +315,7 @@ class PreferenceStore(context: Context) {
             spaciousnessMode = preferences.getString(KEY_SPACIOUSNESS_MODE, SpaciousnessMode.StereoWidth.name)
                 ?.let { saved -> SpaciousnessMode.entries.firstOrNull { it.name == saved } }
                 ?: SpaciousnessMode.StereoWidth,
+            crossfadeEnabled = preferences.getBoolean(KEY_CROSSFADE_ENABLED, false),
         )
     }
 
@@ -520,6 +527,7 @@ class PreferenceStore(context: Context) {
         const val KEY_TREBLE = "eq_treble"
         const val KEY_SPACIOUSNESS = "eq_spaciousness"
         const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"
+        const val KEY_CROSSFADE_ENABLED = "eq_crossfade_enabled"
         const val MAX_RECENT_PLAYBACK_IDS = 24
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"

@@ -78,5 +78,8 @@ internal data class BitPerfectUsbStatus(
 ) {
     val shouldBypassProcessing: Boolean
         get() = state == BitPerfectUsbState.BitPerfectActive ||
-            state == BitPerfectUsbState.ExactFormatUsbActive
+            state == BitPerfectUsbState.BitPerfectAvailable ||
+            state == BitPerfectUsbState.ExactFormatUsbActive ||
+            state == BitPerfectUsbState.ExactFormatSupported ||
+            state == BitPerfectUsbState.BestEffortUsbActive
 }

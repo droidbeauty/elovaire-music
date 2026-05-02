@@ -231,6 +231,7 @@ import elovaire.music.app.domain.model.Playlist
 import elovaire.music.app.domain.model.SearchHistoryEntry
 import elovaire.music.app.domain.model.SearchHistoryKind
 import elovaire.music.app.domain.model.Song
+import elovaire.music.app.domain.model.SpaciousnessMode
 import elovaire.music.app.domain.model.TextSizePreset
 import elovaire.music.app.domain.model.ThemeMode
 import elovaire.music.app.ui.components.ArtworkImage
@@ -992,6 +993,9 @@ fun ElovaireRoot(
         enabled = currentRoute != PLAYER_ROUTE,
         refreshKey = "$darkTheme:$currentRoute",
     )
+    LaunchedEffect(eqSettings.crossfadeEnabled) {
+        container.playbackManager.setCrossfadeEnabled(eqSettings.crossfadeEnabled)
+    }
     SideEffect {
         val window = (rootView.context as? Activity)?.window ?: return@SideEffect
         val controller = WindowCompat.getInsetsController(window, rootView)
@@ -1627,6 +1631,9 @@ fun ElovaireRoot(
                             onToggleShuffle = container.playbackManager::toggleShuffle,
                             onToggleFavorite = { songId -> container.preferenceStore.toggleFavoriteSong(songId) },
                             onQueueItemSelected = container.playbackManager::playQueueIndex,
+                            eqSettings = eqSettings,
+                            onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
+                            onCrossfadeEnabledChanged = container.preferenceStore::updateCrossfadeEnabled,
                             onVolumeChanged = { volume ->
                                 container.playbackManager.setVolume(volume)
                             },
@@ -1641,6 +1648,7 @@ fun ElovaireRoot(
                             onBassChanged = container.preferenceStore::updateBass,
                             onTrebleChanged = container.preferenceStore::updateTreble,
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
+                            onSpaciousnessModeChanged = container.preferenceStore::updateSpaciousnessMode,
                             onApplyPreset = container.preferenceStore::setEqSettings,
                             onReset = container.preferenceStore::resetEqSettings,
                         )
@@ -6880,6 +6888,9 @@ private fun NowPlayingScreen(
     onToggleShuffle: () -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onQueueItemSelected: (Int) -> Unit,
+    eqSettings: EqSettings,
+    onSpaciousnessChanged: (Float) -> Unit,
+    onCrossfadeEnabledChanged: (Boolean) -> Unit,
     onVolumeChanged: (Float) -> Unit,
 ) {
     val currentSong = playbackState.currentSong
@@ -6936,6 +6947,7 @@ private fun NowPlayingScreen(
     }
     var showLyricsSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
+    var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(currentSong?.id, playbackState.currentIndex, playbackState.queue.size) {
         val queue = playbackState.queue
         val currentIndex = playbackState.currentIndex
@@ -6950,6 +6962,12 @@ private fun NowPlayingScreen(
         queue.getOrNull(currentIndex + 1)?.let { lyricsService.prefetchLyrics(it) }
         queue.getOrNull(currentIndex - 1)?.let { lyricsService.prefetchLyrics(it) }
     }
+    LaunchedEffect(queueStatusText) {
+        if (queueStatusText != null) {
+            delay(2000L)
+            queueStatusText = null
+        }
+    }
     val lyricsUiState by produceState<LyricsUiState>(
         initialValue = when {
             !showLyricsSheet || currentSong == null -> LyricsUiState.Hidden
@@ -6963,15 +6981,7 @@ private fun NowPlayingScreen(
             return@produceState
         }
         value = lyricsService.cachedLyrics(currentSong)?.toUiState() ?: LyricsUiState.Loading
-        val immediateResult = kotlinx.coroutines.withTimeoutOrNull(2_400L) {
-            lyricsService.fetchLyrics(currentSong)
-        }
-        if (immediateResult != null) {
-            value = immediateResult.toUiState()
-        } else {
-            value = LyricsUiState.Loading
-            value = lyricsService.fetchLyrics(currentSong).toUiState()
-        }
+        value = lyricsService.fetchLyrics(currentSong).toUiState()
     }
     DisposableEffect(currentSong?.id) {
         onDispose {
@@ -7118,6 +7128,8 @@ private fun NowPlayingScreen(
                     0f
                 }
             }
+            val spaciousnessEnabled = eqSettings.spaciousness > 0.02f
+            val crossfadeEnabled = eqSettings.crossfadeEnabled
             val artworkScale by animateFloatAsState(
                 targetValue = if (playbackState.isPlaying) 1f else 0.95f,
                 animationSpec = spring(
@@ -7125,6 +7137,21 @@ private fun NowPlayingScreen(
                     stiffness = 260f,
                 ),
                 label = "now_playing_artwork_scale",
+            )
+            val favoriteAlpha by animateFloatAsState(
+                targetValue = if (showQueueSheet) 0f else 1f,
+                animationSpec = tween(180),
+                label = "queue_favorite_alpha",
+            )
+            val transportAlpha by animateFloatAsState(
+                targetValue = if (showQueueSheet) 0f else 1f,
+                animationSpec = tween(180),
+                label = "queue_transport_alpha",
+            )
+            val animatedArtworkCornerRadius by animateDpAsState(
+                targetValue = if (showQueueSheet) 10.dp else ElovaireRadii.module,
+                animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                label = "queue_artwork_corner_radius",
             )
 
             Box(
@@ -7193,78 +7220,198 @@ private fun NowPlayingScreen(
                             )
                         }
                     }
-                    AnimatedContent(
-                        targetState = currentSong.id,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(220)) togetherWith
-                                fadeOut(animationSpec = tween(180))
-                        },
-                        label = "player_artwork_content",
-                    ) { songId ->
-                        val animatedSong = playbackState.queue.firstOrNull { it.id == songId } ?: currentSong
-                        ArtworkImage(
-                            uri = animatedSong.artUri,
-                            title = animatedSong.title,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .scale(artworkScale)
-                                .aspectRatio(1f),
-                            cornerRadius = ElovaireRadii.module,
+                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                        val expandedArtworkWidth = maxWidth
+                        val compactArtworkWidth = maxWidth * 0.38f
+                        val animatedArtworkWidth by animateDpAsState(
+                            targetValue = if (showQueueSheet) compactArtworkWidth else expandedArtworkWidth,
+                            animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                            label = "queue_artwork_width",
                         )
+                        val compactContentStart = compactArtworkWidth + 18.dp
+                        AnimatedContent(
+                            targetState = currentSong.id,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(220)) togetherWith
+                                    fadeOut(animationSpec = tween(180))
+                            },
+                            label = "player_artwork_content",
+                        ) { songId ->
+                            val animatedSong = playbackState.queue.firstOrNull { it.id == songId } ?: currentSong
+                            ArtworkImage(
+                                uri = animatedSong.artUri,
+                                title = animatedSong.title,
+                                modifier = Modifier
+                                    .width(animatedArtworkWidth)
+                                    .scale(artworkScale)
+                                    .aspectRatio(1f),
+                                cornerRadius = animatedArtworkCornerRadius,
+                            )
+                        }
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = showQueueSheet,
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = compactContentStart, end = 2.dp),
+                            enter = fadeIn(animationSpec = tween(200, easing = LinearOutSlowInEasing)) +
+                                slideInVertically(
+                                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                    initialOffsetY = { it / 5 },
+                                ),
+                            exit = fadeOut(animationSpec = tween(120)),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = currentSong.title,
+                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(20f)),
+                                        color = contentColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Clip,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .basicMarquee(
+                                                iterations = Int.MAX_VALUE,
+                                                animationMode = MarqueeAnimationMode.Immediately,
+                                                repeatDelayMillis = 2500,
+                                                initialDelayMillis = 2500,
+                                                velocity = 24.dp,
+                                            ),
+                                    )
+                                    if (currentSong.isExplicit) {
+                                        Text(
+                                            text = "E",
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                fontSize = elovaireScaledSp(6f),
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
+                                            color = contentColor.copy(alpha = 0.7f),
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = currentSong.artist,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(17f)),
+                                    color = secondaryContentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Clip,
+                                    modifier = Modifier.basicMarquee(
+                                        iterations = Int.MAX_VALUE,
+                                        animationMode = MarqueeAnimationMode.Immediately,
+                                        repeatDelayMillis = 2500,
+                                        initialDelayMillis = 2500,
+                                        velocity = 24.dp,
+                                    ),
+                                )
+                                CompactPlaybackProgressBar(
+                                    progress = displayedProgressFraction,
+                                    contentColor = contentColor,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                CompactPlaybackTimingRow(
+                                    displayedPositionMs = displayedPositionMs,
+                                    durationMs = playbackProgress.durationMs,
+                                    contentColor = contentColor,
+                                    secondaryContentColor = secondaryContentColor,
+                                )
+                            }
+                        }
                     }
                 }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth(centeredInfoWidth)
-                    .padding(top = nowPlayingTitleTopGap, bottom = nowPlayingTitleBottomGap)
-                    .align(Alignment.CenterHorizontally),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            androidx.compose.animation.AnimatedVisibility(
+                visible = !showQueueSheet,
+                enter = fadeIn(animationSpec = tween(180)),
+                exit = fadeOut(animationSpec = tween(140)),
             ) {
-                AnimatedContent(
-                    targetState = currentSong.id,
-                    transitionSpec = {
-                        fadeIn(animationSpec = tween(220)) togetherWith
-                            fadeOut(animationSpec = tween(180))
-                    },
-                    label = "player_metadata_content",
-                    modifier = Modifier.weight(1f),
-                ) { songId ->
-                    val animatedSong = playbackState.queue.firstOrNull { it.id == songId } ?: currentSong
-                    Column(
-                        modifier = Modifier,
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(centeredInfoWidth)
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = nowPlayingTitleTopGap, bottom = nowPlayingTitleBottomGap)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = animatedSong.title,
-                            style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(22f)),
-                            color = contentColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Clip,
-                            modifier = Modifier.basicMarquee(
-                                iterations = Int.MAX_VALUE,
-                                animationMode = MarqueeAnimationMode.Immediately,
-                                repeatDelayMillis = 2500,
-                                initialDelayMillis = 2500,
-                                velocity = 28.dp,
-                            ),
-                        )
-                        Text(
-                            text = animatedSong.artist,
-                            style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
-                            color = secondaryContentColor,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        AnimatedContent(
+                            targetState = currentSong.id,
+                            transitionSpec = {
+                                fadeIn(animationSpec = tween(220)) togetherWith
+                                    fadeOut(animationSpec = tween(180))
+                            },
+                            label = "player_metadata_content",
+                            modifier = Modifier.weight(1f),
+                        ) { songId ->
+                            val animatedSong = playbackState.queue.firstOrNull { it.id == songId } ?: currentSong
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = animatedSong.title,
+                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(22f)),
+                                        color = contentColor,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Clip,
+                                        modifier = Modifier
+                                            .weight(1f)
+                                            .basicMarquee(
+                                                iterations = Int.MAX_VALUE,
+                                                animationMode = MarqueeAnimationMode.Immediately,
+                                                repeatDelayMillis = 2500,
+                                                initialDelayMillis = 2500,
+                                                velocity = 28.dp,
+                                            ),
+                                    )
+                                    if (animatedSong.isExplicit) {
+                                        Text(
+                                            text = "E",
+                                            style = MaterialTheme.typography.labelLarge.copy(
+                                                fontSize = elovaireScaledSp(6f),
+                                                fontWeight = FontWeight.SemiBold,
+                                            ),
+                                            color = contentColor.copy(alpha = 0.7f),
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = animatedSong.artist,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
+                                    color = secondaryContentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .width(48.dp)
+                                .alpha(favoriteAlpha),
+                            contentAlignment = Alignment.CenterEnd,
+                        ) {
+                            FavoriteSongButton(
+                                isFavorite = isFavorite,
+                                tint = contentColor,
+                                onClick = { onToggleFavorite(currentSong.id) },
+                            )
+                        }
                     }
                 }
-                FavoriteSongButton(
-                    isFavorite = isFavorite,
-                    tint = contentColor,
-                    onClick = { onToggleFavorite(currentSong.id) },
-                )
             }
 
             Column(
@@ -7354,6 +7501,7 @@ private fun NowPlayingScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
+                                    modifier = Modifier.alpha(transportAlpha),
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(22.dp),
                                 ) {
@@ -7366,21 +7514,21 @@ private fun NowPlayingScreen(
                                             iconResId = R.drawable.ic_elovaire_backward_filled,
                                             contentDescription = "Previous",
                                             tint = contentColor,
-                                            iconSize = 34.dp,
+                                            iconSize = 42.dp,
                                             onClick = onSkipPrevious,
                                         )
                                         PlayerTransportButton(
                                             iconResId = if (playbackState.isPlaying) R.drawable.ic_elovaire_pause_filled else R.drawable.ic_lucide_play,
                                             contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
                                             tint = contentColor,
-                                            iconSize = 42.dp,
+                                            iconSize = 46.dp,
                                             onClick = onTogglePlayback,
                                         )
                                         PlayerTransportButton(
                                             iconResId = R.drawable.ic_elovaire_forward_filled,
                                             contentDescription = "Next",
                                             tint = contentColor,
-                                            iconSize = 34.dp,
+                                            iconSize = 42.dp,
                                             onClick = onSkipNext,
                                         )
                                     }
@@ -7420,50 +7568,74 @@ private fun NowPlayingScreen(
                             secondaryTint = secondaryContentColor,
                             modifier = Modifier.fillMaxSize(),
                             onSongSelected = onQueueItemSelected,
+                            shuffleEnabled = playbackState.shuffleEnabled,
+                            onToggleShuffle = {
+                                queueStatusText = if (!playbackState.shuffleEnabled) "Shuffle | Enabled" else null
+                                onToggleShuffle()
+                            },
+                            spaciousnessEnabled = spaciousnessEnabled,
+                            onToggleSpaciousness = {
+                                val enabling = !spaciousnessEnabled
+                                queueStatusText = if (enabling) "Spaciousness | Enabled" else null
+                                onSpaciousnessChanged(if (enabling) 0.5f else 0f)
+                            },
+                            spaciousnessAmount = eqSettings.spaciousness.coerceIn(0f, 1f),
+                            onSpaciousnessAmountChanged = onSpaciousnessChanged,
+                            crossfadeEnabled = crossfadeEnabled,
+                            onToggleCrossfade = {
+                                val enabling = !crossfadeEnabled
+                                queueStatusText = if (enabling) "Fade In/Out | Enabled" else null
+                                onCrossfadeEnabledChanged(enabling)
+                            },
+                            statusText = queueStatusText,
+                            onDismiss = { showQueueSheet = false },
+                            isPlaying = playbackState.isPlaying,
                         )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = !showQueueSheet,
+                    enter = fadeIn(animationSpec = tween(160)),
+                    exit = fadeOut(animationSpec = tween(120)),
                 ) {
-                    PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_align_left,
-                        label = "Lyrics",
-                        tint = contentColor,
-                        showBackground = false,
-                        onClick = {
-                            showQueueSheet = false
-                            showLyricsSheet = true
-                        },
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    PlayerSecondaryActionButton(
-                        iconResId = repeatModeIconRes(playbackState.repeatMode),
-                        label = repeatModeLabel(playbackState.repeatMode),
-                        tint = contentColor,
-                        showBackground = playbackState.repeatMode != PlaybackRepeatMode.Off,
-                        onClick = onCycleRepeatMode,
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_shuffle,
-                        label = "Shuffle",
-                        tint = contentColor,
-                        showBackground = playbackState.shuffleEnabled,
-                        onClick = onToggleShuffle,
-                    )
-                    Spacer(modifier = Modifier.width(10.dp))
-                    QueueMenuButton(
-                        iconResId = R.drawable.ic_lucide_ellipsis_vertical,
-                        tint = contentColor,
-                        active = showQueueSheet,
-                        onClick = { showQueueSheet = !showQueueSheet },
-                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PlayerSecondaryActionButton(
+                            iconResId = R.drawable.ic_lucide_align_left,
+                            label = "Lyrics",
+                            tint = contentColor,
+                            showBackground = false,
+                            onClick = {
+                                showQueueSheet = false
+                                showLyricsSheet = true
+                            },
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        PlayerSecondaryActionButton(
+                            iconResId = repeatModeIconRes(playbackState.repeatMode),
+                            label = repeatModeLabel(playbackState.repeatMode),
+                            tint = contentColor,
+                            showBackground = playbackState.repeatMode != PlaybackRepeatMode.Off,
+                            onClick = onCycleRepeatMode,
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        PlayerSecondaryActionButton(
+                            iconResId = R.drawable.ic_lucide_list_music,
+                            label = "Queue",
+                            tint = contentColor,
+                            showBackground = showQueueSheet,
+                            onClick = {
+                                showLyricsSheet = false
+                                showQueueSheet = !showQueueSheet
+                            },
+                        )
+                    }
                 }
             }
 
@@ -7554,15 +7726,103 @@ private fun SongFileInfoPill(
 }
 
 @Composable
+private fun CompactPlaybackProgressBar(
+    progress: Float,
+    contentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val clampedProgress = progress.coerceIn(0f, 1f)
+    Box(
+        modifier = modifier
+            .height(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxWidth()
+                .height(4.dp)
+                .clip(RoundedCornerShape(ElovaireRadii.pill))
+                .background(contentColor.copy(alpha = 0.18f)),
+        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .fillMaxWidth(clampedProgress)
+                .height(4.dp)
+                .clip(RoundedCornerShape(ElovaireRadii.pill))
+                .background(contentColor),
+        )
+    }
+}
+
+@Composable
+private fun CompactPlaybackTimingRow(
+    displayedPositionMs: Long,
+    durationMs: Long,
+    contentColor: Color,
+    secondaryContentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = formatPlaybackPosition(displayedPositionMs),
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = contentColor,
+            maxLines = 1,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = "・",
+            style = MaterialTheme.typography.labelLarge,
+            color = contentColor.copy(alpha = 0.5f),
+            maxLines = 1,
+        )
+        Spacer(modifier = Modifier.width(6.dp))
+        Text(
+            text = formatDuration(durationMs),
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
+            color = secondaryContentColor.copy(alpha = 0.7f),
+            maxLines = 1,
+        )
+    }
+}
+
+@Composable
 private fun QueueSheet(
     queue: List<Song>,
     currentIndex: Int,
     tint: Color,
     secondaryTint: Color,
     onSongSelected: (Int) -> Unit,
+    shuffleEnabled: Boolean,
+    onToggleShuffle: () -> Unit,
+    spaciousnessEnabled: Boolean,
+    onToggleSpaciousness: () -> Unit,
+    spaciousnessAmount: Float,
+    onSpaciousnessAmountChanged: (Float) -> Unit,
+    crossfadeEnabled: Boolean,
+    onToggleCrossfade: () -> Unit,
+    statusText: String?,
+    onDismiss: () -> Unit,
+    isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val listState = rememberLazyListState()
+    var showSpaciousnessSlider by remember(spaciousnessEnabled) { mutableStateOf(spaciousnessEnabled) }
+    val footerExpanded = showSpaciousnessSlider || statusText != null
+    val footerHeight by animateDpAsState(
+        targetValue = if (footerExpanded) 106.dp else 70.dp,
+        animationSpec = tween(220, easing = FastOutSlowInEasing),
+        label = "queue_footer_height",
+    )
+    LaunchedEffect(spaciousnessEnabled) {
+        if (!spaciousnessEnabled) {
+            showSpaciousnessSlider = false
+        }
+    }
     LaunchedEffect(currentIndex, queue.size) {
         if (currentIndex in queue.indices) {
             listState.scrollToItem((currentIndex - 2).coerceAtLeast(0))
@@ -7575,27 +7835,231 @@ private fun QueueSheet(
         shape = RoundedCornerShape(ElovaireRadii.module),
         color = tint.copy(alpha = 0.2f),
     ) {
-        LazyColumn(
-            state = listState,
-            overscrollEffect = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .ensureSingleItemRubberBand(listState),
-            contentPadding = PaddingValues(vertical = 6.dp),
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            itemsIndexed(queue, key = { index, song -> "${song.id}_$index" }) { index, song ->
-                QueueSongRow(
-                    song = song,
-                    index = index,
-                    active = index == currentIndex,
-                    tint = tint,
-                    secondaryTint = secondaryTint,
-                    showDivider = index != queue.lastIndex,
-                    onClick = { onSongSelected(index) },
-                )
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .height(40.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_list_music),
+                            contentDescription = null,
+                            tint = tint.copy(alpha = 0.92f),
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = "Queue",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = elovaireScaledSp(18f),
+                                fontWeight = FontWeight.Medium,
+                            ),
+                            color = tint,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.offset(x = 6.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = formatCountLabel(queue.size, "track"),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
+                            color = secondaryTint.copy(alpha = 0.7f),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(tint.copy(alpha = 0.2f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onDismiss,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_x),
+                                contentDescription = "Close queue",
+                                tint = tint.copy(alpha = 0.92f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                }
+            }
+            QueueSeparator(tint = tint, modifier = Modifier.fillMaxWidth())
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f),
+            ) {
+                LazyColumn(
+                    state = listState,
+                    overscrollEffect = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .ensureSingleItemRubberBand(listState),
+                    contentPadding = PaddingValues(vertical = 14.dp),
+                ) {
+                    itemsIndexed(queue, key = { index, song -> "${song.id}_$index" }) { index, song ->
+                        QueueSongRow(
+                            song = song,
+                            index = index,
+                            active = index == currentIndex,
+                            tint = tint,
+                            secondaryTint = secondaryTint,
+                            showDivider = index != queue.lastIndex,
+                            onClick = { onSongSelected(index) },
+                            isPlaying = isPlaying,
+                        )
+                    }
+                }
+            }
+            QueueSeparator(tint = tint, modifier = Modifier.fillMaxWidth())
+            val bottomSectionOpacity = 0.3f
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(footerHeight)
+                    .background(tint.copy(alpha = bottomSectionOpacity)),
+            ) {
+                AnimatedContent(
+                    targetState = statusText,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
+                            slideInVertically(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                initialOffsetY = { it / 5 },
+                            ) togetherWith
+                            fadeOut(animationSpec = tween(140))
+                    },
+                    label = "queue_status_text",
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 12.dp),
+                ) { queueStatus ->
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(20.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (queueStatus != null && !showSpaciousnessSlider) {
+                            Text(
+                                text = queueStatus,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = tint.copy(alpha = 0.92f),
+                                textAlign = TextAlign.Center,
+                            )
+                        }
+                    }
+                }
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = showSpaciousnessSlider,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 14.dp),
+                    enter = fadeIn(animationSpec = tween(180)) + slideInVertically(
+                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        initialOffsetY = { it / 3 },
+                    ),
+                    exit = fadeOut(animationSpec = tween(140)) + slideOutVertically(
+                        animationSpec = tween(180, easing = FastOutLinearInEasing),
+                        targetOffsetY = { it / 4 },
+                    ),
+                ) {
+                    ThinContinuousSlider(
+                        value = spaciousnessAmount.coerceIn(0f, 1f),
+                        onValueChange = {
+                            val clamped = it.coerceIn(0f, 1f)
+                            onSpaciousnessAmountChanged(clamped)
+                            if (clamped <= 0.001f) {
+                                showSpaciousnessSlider = false
+                                if (spaciousnessEnabled) {
+                                    onToggleSpaciousness()
+                                }
+                            }
+                        },
+                        valueRange = 0f..1f,
+                        lineThickness = 4.dp,
+                        knobSize = 18.dp,
+                        modifier = Modifier.fillMaxWidth(0.9f),
+                    )
+                }
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    PlayerSecondaryActionButton(
+                        iconResId = R.drawable.ic_lucide_wind,
+                        label = if (spaciousnessEnabled || showSpaciousnessSlider) "${(spaciousnessAmount.coerceIn(0f, 1f) * 100f).roundToInt()}%" else "",
+                        tint = tint,
+                        showBackground = spaciousnessEnabled,
+                        onClick = {
+                            if (!spaciousnessEnabled) {
+                                showSpaciousnessSlider = true
+                                if (spaciousnessAmount < 0.02f) {
+                                    onSpaciousnessAmountChanged(0.5f)
+                                }
+                                onToggleSpaciousness()
+                            } else if (!showSpaciousnessSlider) {
+                                showSpaciousnessSlider = true
+                            } else {
+                                showSpaciousnessSlider = false
+                                onToggleSpaciousness()
+                            }
+                        },
+                    )
+                    PlayerSecondaryActionButton(
+                        iconResId = R.drawable.ic_lucide_shuffle,
+                        label = if (shuffleEnabled) "Shuffle" else "",
+                        tint = tint,
+                        showBackground = shuffleEnabled,
+                        onClick = onToggleShuffle,
+                    )
+                    PlayerSecondaryActionButton(
+                        iconResId = R.drawable.ic_lucide_send_to_back,
+                        label = if (crossfadeEnabled) "Fade In/Out" else "",
+                        tint = tint,
+                        showBackground = crossfadeEnabled,
+                        onClick = onToggleCrossfade,
+                    )
+                }
             }
         }
     }
+}
+
+@Composable
+private fun QueueSeparator(
+    tint: Color,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .height(1.dp)
+            .background(tint.copy(alpha = 0.3f)),
+    )
 }
 
 @Composable
@@ -7603,33 +8067,57 @@ private fun QueueSongRow(
     song: Song,
     index: Int,
     active: Boolean,
+    isPlaying: Boolean,
     tint: Color,
     secondaryTint: Color,
     showDivider: Boolean,
     onClick: () -> Unit,
 ) {
-    Column {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.9f)
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(vertical = 14.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = (index + 1).toString(),
-                style = MaterialTheme.typography.labelLarge,
-                color = if (active) tint else secondaryTint,
-                modifier = Modifier.width(20.dp),
-            )
+            Box(
+                modifier = Modifier.width(30.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                AnimatedContent(
+                    targetState = active && isPlaying,
+                    transitionSpec = {
+                        fadeIn(animationSpec = tween(180)) togetherWith fadeOut(animationSpec = tween(140))
+                    },
+                    label = "queue_row_track_indicator",
+                ) { showSignal ->
+                    if (showSignal) {
+                        AnimatedAudioLinesIcon(
+                            tint = tint.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp),
+                        )
+                    } else {
+                        Text(
+                            text = (index + 1).toString(),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = secondaryTint,
+                            textAlign = TextAlign.Center,
+                        )
+                    }
+                }
+            }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
                     text = song.title,
@@ -7641,7 +8129,7 @@ private fun QueueSongRow(
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.labelLarge,
-                    color = secondaryTint,
+                    color = secondaryTint.copy(alpha = 0.78f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -7649,12 +8137,17 @@ private fun QueueSongRow(
             Text(
                 text = formatDuration(song.durationMs),
                 style = MaterialTheme.typography.labelLarge,
-                color = secondaryTint,
+                color = secondaryTint.copy(alpha = 0.78f),
                 maxLines = 1,
+                textAlign = TextAlign.End,
             )
         }
         if (showDivider) {
-            DividerLine()
+            QueueSeparator(
+                tint = tint,
+                modifier = Modifier
+                    .fillMaxWidth(0.9f),
+            )
         }
     }
 }
@@ -8646,7 +9139,7 @@ private fun PlayerSecondaryActionButton(
         Row(
             modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (label.isBlank()) 0.dp else 10.dp),
         ) {
             Icon(
                 painter = painterResource(id = iconResId),
@@ -8654,11 +9147,13 @@ private fun PlayerSecondaryActionButton(
                 tint = tint.copy(alpha = 0.92f),
                 modifier = Modifier.size(18.dp),
             )
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelLarge,
-                color = tint.copy(alpha = 0.88f),
-            )
+            if (label.isNotBlank()) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = tint.copy(alpha = 0.88f),
+                )
+            }
         }
     }
     LaunchedEffect(transientHighlight) {
@@ -9140,7 +9635,7 @@ private fun repeatModeLabel(repeatMode: PlaybackRepeatMode): String {
 @DrawableRes
 private fun repeatModeIconRes(repeatMode: PlaybackRepeatMode): Int {
     return when (repeatMode) {
-        PlaybackRepeatMode.Off -> R.drawable.ic_lucide_list_music
+        PlaybackRepeatMode.Off -> R.drawable.ic_lucide_arrow_line_down
         PlaybackRepeatMode.One -> R.drawable.ic_lucide_repeat_1
         PlaybackRepeatMode.All -> R.drawable.ic_lucide_repeat
     }
@@ -9173,6 +9668,7 @@ private fun EqualizerScreen(
     onBassChanged: (Float) -> Unit,
     onTrebleChanged: (Float) -> Unit,
     onSpaciousnessChanged: (Float) -> Unit,
+    onSpaciousnessModeChanged: (SpaciousnessMode) -> Unit,
     onApplyPreset: (EqSettings) -> Unit,
     onReset: () -> Unit,
 ) {
@@ -9194,7 +9690,7 @@ private fun EqualizerScreen(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
                 end = 18.dp,
-                bottom = navigationBarInsetDp() + 40.dp,
+                bottom = navigationBarInsetDp() + 96.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -9253,6 +9749,10 @@ private fun EqualizerScreen(
                 ModuleCard {
                     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                         SettingsCategoryText(title = "Spaciousness")
+                        SpaciousnessModeMenu(
+                            currentMode = settings.spaciousnessMode,
+                            onModeSelected = onSpaciousnessModeChanged,
+                        )
                         EqMacroSliderRow(
                             title = "Spaciousness",
                             value = settings.spaciousness.coerceIn(0f, 1f),
@@ -9267,7 +9767,7 @@ private fun EqualizerScreen(
         FastScrollbar(
             state = listState,
             topInset = topBarOccupiedHeight() + 16.dp,
-            bottomInset = navigationBarInsetDp() + 20.dp,
+            bottomInset = navigationBarInsetDp() + 48.dp,
         )
         PinnedBackTopBar(
             title = "Equalizer",
@@ -10346,6 +10846,49 @@ private fun EqPresetMenu(
 }
 
 @Composable
+private fun SpaciousnessModeMenu(
+    currentMode: SpaciousnessMode,
+    onModeSelected: (SpaciousnessMode) -> Unit,
+) {
+    val modes = remember {
+        listOf(
+            SpaciousnessMode.StereoWidth,
+            SpaciousnessMode.CrossfeedDepth,
+            SpaciousnessMode.EarlyReflectionRoom,
+            SpaciousnessMode.HaasSpace,
+            SpaciousnessMode.HarmonicAir,
+        )
+    }
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalGestureSafe()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        modes.forEach { mode ->
+            EqPresetPill(
+                label = mode.displayLabel(),
+                selected = mode == currentMode,
+                onClick = { onModeSelected(mode) },
+            )
+        }
+    }
+}
+
+private fun SpaciousnessMode.displayLabel(): String {
+    return when (this) {
+        SpaciousnessMode.Off -> "Off"
+        SpaciousnessMode.StereoWidth -> "Stereo Width"
+        SpaciousnessMode.CrossfeedDepth -> "Crossfeed"
+        SpaciousnessMode.EarlyReflectionRoom -> "Room"
+        SpaciousnessMode.HaasSpace -> "Haas Space"
+        SpaciousnessMode.HarmonicAir -> "Harmonic Air"
+    }
+}
+
+@Composable
 private fun EqPresetPill(
     label: String,
     selected: Boolean,
@@ -10626,13 +11169,14 @@ private fun ThinContinuousSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,
+    lineThickness: Dp = 2.dp,
+    knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
 ) {
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
     val fraction = ((coercedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start))
         .coerceIn(0f, 1f)
-    val knobSize = 20.dp
     val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
@@ -10694,7 +11238,7 @@ private fun ThinContinuousSlider(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .fillMaxWidth()
-                    .height(2.dp)
+                    .height(lineThickness)
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
                     .background(inactiveLineColor),
             )
@@ -10702,7 +11246,7 @@ private fun ThinContinuousSlider(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
                     .width(activeWidth)
-                    .height(2.dp)
+                    .height(lineThickness)
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
                     .background(knobColor),
             )
@@ -10788,7 +11332,8 @@ private fun eqPreset(
         bands = bandShape,
         bass = ((bass + subBass + lowBass) / 3f).coerceIn(-1f, 1f),
         treble = ((upperMid + brilliance + air) / 3f).coerceIn(-1f, 1f),
-        spaciousness = ((presence + upperMid + air) / 3f).coerceIn(-1f, 1f).coerceAtLeast(0f),
+        spaciousness = 0f,
+        spaciousnessMode = SpaciousnessMode.StereoWidth,
     ).normalizedEqSettings()
     return EqPresetDefinition(name = name, settings = settings)
 }
@@ -10800,7 +11345,7 @@ private fun EqSettings.normalizedEqSettings(): EqSettings {
         },
         bass = bass.coerceIn(-1f, 1f),
         treble = treble.coerceIn(-1f, 1f),
-        spaciousness = spaciousness.coerceIn(-1f, 1f),
+        spaciousness = spaciousness.coerceIn(0f, 1f),
     )
 }
 

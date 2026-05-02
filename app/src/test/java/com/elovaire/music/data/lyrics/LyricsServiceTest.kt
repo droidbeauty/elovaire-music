@@ -84,4 +84,9 @@ class LyricsServiceTest {
         assertNull(sanitizeLyricLine("You might also like"))
         assertEquals("Actual lyric", sanitizeLyricLine("  Actual lyric  "))
     }
+
+    @Test
+    fun `normalize for match removes diacritics`() {
+        assertEquals("francais turkce portugues", "Français Türkçe Português".normalizeForMatch())
+    }
 }
