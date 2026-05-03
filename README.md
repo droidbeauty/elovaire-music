@@ -14,7 +14,7 @@
   <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
     <img
       alt="Download the latest Elovaire release"
-      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20latest&logo=github&logoColor=white&color=00afb9"
+      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20latest&logo=github&logoColor=white&color=1dd3b0"
     />
   </a>
   &nbsp;
@@ -78,7 +78,7 @@ The latest public build is available from the GitHub Releases page:
   <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
     <img
       alt="Download latest Elovaire release"
-      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20Elovaire&logo=github&logoColor=white&color=111111"
+      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20Elovaire&logo=github&logoColor=white&color=1dd3b0"
     />
   </a>
 </p>
