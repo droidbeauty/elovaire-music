@@ -48,15 +48,21 @@ Unlike streaming-first players, Elovaire focuses on music stored directly on you
 ## Highlights
 
 - Offline-first playback for music stored directly on your Android device
-- Album, artist, playlist, and now-playing views
-- Artwork-led UI surfaces with a polished visual style
-- Compact now playing bar for quick playback control
-- Full now playing screen with queue, lyrics overlay, volume control, and playback modes
+- Artwork-led UI surfaces with sleek, consistent visual style
+- Organized access to music library via album, artist, playlist, and now-playing views
 - Local library scanning through Android `MediaStore`
-- Light and dark theme built-in
 - Smooth animations designed around default Android motion framework
+
+## Features
+
+- Full now playing screen with queue, lyrics overlay, volume control, and playback modes
+- Compact now playing bar for quick playback control
+- Light and dark theme built-in
+- 24-band EQ built-in with dedicated screen in the UI to adjust settings
+- Spaciousness effect with 5 presets that change the feel of sound profile to a more extensive soundstage
+- Auto pause feature so playback doesn't disrupt other apps that might play other media
 - Notification playback controls and media-session integration
-- OTA update flow built into the apb based on automatic GitHub releases check
+- OTA update flow built into the app based on automatic GitHub releases check
 
 ## Built with
 
