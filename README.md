@@ -92,7 +92,7 @@ The latest public build is available from the GitHub Releases page:
 
 ## Support
 
-Elovaire is a personal project. Support is completely optional, but always appreciated.
+Elovaire is a personal project made in genuine pursuit of a great looking alternative to music streaming apps. Support is completely optional, but always appreciated
 
 <p align="center">
   <a href="https://ko-fi.com/droidbeauty">
@@ -105,7 +105,7 @@ Elovaire is a personal project. Support is completely optional, but always appre
 
 ## Forking and building
 
-You can fork the project on GitHub, clone your fork locally, and open it in Android Studio.
+You can fork the project on GitHub, clone your fork locally, and open it in Android Studio
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/elovaire-music.git
