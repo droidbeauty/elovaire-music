@@ -1,47 +1,38 @@
 # Elovaire
 
 <p align="center">
-  <b>An elegant offline music player for Android.</b><br>
-  A polished local-library experience built around albums, artwork, smooth playback, and a calmer way to listen
+  <img
+    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/1.png"
+    alt="Elovaire music player preview"
+    width="100%"
+  />
 </p>
 
 <p align="center">
   <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-    <img alt="Latest release" src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=flat-square&label=latest">
+    <img
+      alt="Download latest Elovaire release"
+      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20latest&logo=github&logoColor=white&color=111111"
+    />
   </a>
+  &nbsp;
   <a href="https://ko-fi.com/droidbeauty">
-    <img alt="Support on Ko-fi" src="https://img.shields.io/badge/support-Ko--fi-ff5f5f?style=flat-square&logo=kofi&logoColor=white">
+    <img
+      alt="Support Elovaire on Ko-fi"
+      src="https://img.shields.io/badge/Support%20on%20Ko--fi-ff5f5f?style=for-the-badge&logo=kofi&logoColor=white"
+    />
   </a>
 </p>
 
-<br>
+<p align="center">
+  <b>Your music, refined into an elegant offline listening experience.</b>
+</p>
 
-<table>
-  <tr>
-    <td width="55%" align="center">
-      <h3>Latest release</h3>
-      <p>
-        Download the newest Elovaire build from GitHub Releases
-      </p>
-      <p>
-        <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-          <img alt="Download latest release" src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20Elovaire&logo=github&logoColor=white&color=111111">
-        </a>
-      </p>
-    </td>
-    <td width="45%" align="center">
-      <h3>Support</h3>
-      <p>
-        Like the project? A small tip helps keep development going
-      </p>
-      <p>
-        <a href="https://ko-fi.com/droidbeauty">
-          <img alt="Support on Ko-fi" src="https://img.shields.io/badge/Support%20on%20Ko--fi-ff5f5f?style=for-the-badge&logo=kofi&logoColor=white">
-        </a>
-      </p>
-    </td>
-  </tr>
-</table>
+<p align="center">
+  Elovaire is an Android music player built for local libraries, album-first browsing,
+  adaptive artwork-led surfaces, and calm, polished playback.
+</p>
+
 ---
 
 ## About
@@ -79,27 +70,40 @@ Elovaire is built as a native Android project using:
 
 ## Download
 
-<p>
+The latest public build is available from the GitHub Releases page:
+
+<p align="center">
   <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-    <img alt="Download latest APK" src="https://img.shields.io/badge/Download%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white">
+    <img
+      alt="Download latest Elovaire release"
+      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20Elovaire&logo=github&logoColor=white&color=111111"
+    />
   </a>
 </p>
 
-The latest public build is available from the GitHub Releases page.
+> Direct APK downloads can be linked if each release includes an APK with a stable filename, for example `Elovaire.apk`.  
+> In that case, the button link can be changed to:
+>
+> ```txt
+> https://github.com/droidbeauty/elovaire-music/releases/latest/download/Elovaire.apk
+> ```
 
 ## Support
 
-<p>
+Elovaire is a personal project. Support is completely optional, but always appreciated.
+
+<p align="center">
   <a href="https://ko-fi.com/droidbeauty">
-    <img alt="Support on Ko-fi" src="https://img.shields.io/badge/Leave%20a%20tip-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi&logoColor=white">
+    <img
+      alt="Support Elovaire on Ko-fi"
+      src="https://img.shields.io/badge/Leave%20a%20tip-Ko--fi-ff5f5f?style=for-the-badge&logo=kofi&logoColor=white"
+    />
   </a>
 </p>
 
-Elovaire is a personal project. Support is completely optional, but always appreciated.
-
 ## Forking and building
 
-You can fork the project from GitHub, clone your fork locally, and open it in Android Studio.
+You can fork the project on GitHub, clone your fork locally, and open it in Android Studio.
 
 ```bash
 git clone https://github.com/YOUR_USERNAME/elovaire-music.git
