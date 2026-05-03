@@ -72,23 +72,16 @@ Elovaire is built as a native Android project using:
 
 ## Download
 
-The latest public build is available from the GitHub Releases page:
+The latest public build is available from the GitHub Releases page.
 
 <p align="center">
   <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
     <img
       alt="Download latest Elovaire release"
-      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20Elovaire&logo=github&logoColor=white&color=1dd3b0"
+      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20Elovaire&logo=github&logoColor=white&color=111111"
     />
   </a>
 </p>
-
-> Direct APK downloads can be linked if each release includes an APK with a stable filename, for example `Elovaire.apk`.  
-> In that case, the button link can be changed to:
->
-> ```txt
-> https://github.com/droidbeauty/elovaire-music/releases/latest/download/Elovaire.apk
-> ```
 
 ## Support
 
