@@ -19,6 +19,15 @@ internal enum class UsbAudioClassVersion {
     Unknown,
 }
 
+internal data class UsbAudioDeviceDescriptor(
+    val id: Int,
+    val type: Int,
+    val isSink: Boolean,
+    val productName: String? = null,
+    val sampleRates: IntArray = intArrayOf(),
+    val encodings: IntArray = intArrayOf(),
+)
+
 internal data class UsbDacDeviceIdentity(
     val vendorId: Int,
     val productId: Int,

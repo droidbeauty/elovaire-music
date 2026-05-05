@@ -74,20 +74,21 @@ class EqualizerAudioProcessorTest {
     }
 
     @Test
-    fun bitPerfectBypassKeepsPcmUntouched() {
+    fun monoSettingCollapsesStereoChannelsToTheSameSignal() {
         val processor = configuredProcessor(
-            settings = EqSettings(bands = List(EqualizerDspModel.BAND_COUNT) { if (it == 10) 0.7f else 0f }),
+            settings = EqSettings(monoEnabled = true),
+            channelCount = 2,
         )
         val source = shortArrayOf(3000, -4000, 1200, -1300)
         val input = ByteBuffer.allocateDirect(source.size * 2).order(ByteOrder.nativeOrder())
         source.forEach(input::putShort)
         input.flip()
 
-        processor.setBitPerfectBypass(true)
         processor.queueInput(input)
 
         val output = processor.outputAsShorts()
-        assertArrayEquals(source, output.toShortArray())
+        assertEquals(output[0], output[1])
+        assertEquals(output[2], output[3])
     }
 
     @Test

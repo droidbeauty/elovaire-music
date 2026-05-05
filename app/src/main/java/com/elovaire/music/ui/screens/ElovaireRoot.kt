@@ -244,6 +244,7 @@ import elovaire.music.app.ui.theme.DestructiveRed
 import elovaire.music.app.ui.theme.elovaireScaledSp
 import elovaire.music.app.ui.theme.rememberElovaireOverscrollFactory
 import elovaire.music.app.ui.theme.InkText
+import elovaire.music.app.ui.theme.ToggleEnabledGreen
 import kotlin.math.cos
 import kotlin.math.ceil
 import kotlin.math.ln
@@ -931,6 +932,7 @@ fun ElovaireRoot(
     var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
     var browsingOriginRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
     var selectedBottomRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
+    var homeScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     val showTopLevelChrome = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE, SEARCH_ROUTE)
     val showBottomNavigation = currentRoute in setOf(
         HOME_ROUTE,
@@ -1350,6 +1352,7 @@ fun ElovaireRoot(
                             favoriteSongIds = favoriteSongIdSet,
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
+                            scrollToTopRequestVersion = homeScrollRequestVersion,
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
                                 navController.navigate("$ALBUM_ROUTE/${album.id}")
@@ -1621,6 +1624,7 @@ fun ElovaireRoot(
                         NowPlayingScreen(
                             playbackManager = container.playbackManager,
                             playbackState = playbackState,
+                            enrichedSongsById = songsById,
                             isFavorite = playbackState.currentSong?.id in favoriteSongIdSet,
                             lyricsService = lyricsService,
                             onBack = navController::navigateUp,
@@ -1665,6 +1669,7 @@ fun ElovaireRoot(
                             onTextSizePresetSelected = container.preferenceStore::setTextSizePreset,
                             onBassChanged = container.preferenceStore::updateBass,
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
+                            onMonoPlaybackChanged = container.preferenceStore::updateMonoPlaybackEnabled,
                             onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
                             onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
                         )
@@ -1759,6 +1764,9 @@ fun ElovaireRoot(
                         currentRoute = activeBottomRoute,
                         destinations = topLevelDestinations,
                         onNavigate = { route ->
+                            if (route == HOME_ROUTE && currentRoute == HOME_ROUTE) {
+                                homeScrollRequestVersion += 1L
+                            }
                             browsingOriginRoute = route
                             selectedBottomRoute = route
                             val poppedToExistingRoot = navController.popBackStack(route, inclusive = false)
@@ -2551,12 +2559,18 @@ private fun HomeScreen(
     favoriteSongIds: Set<Long>,
     topPadding: Dp,
     bottomPadding: Dp,
+    scrollToTopRequestVersion: Long,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onPlayAlbum: (Album) -> Unit,
     onSongSelected: (Song) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
     val listState = rememberLazyListState()
+    LaunchedEffect(scrollToTopRequestVersion) {
+        if (scrollToTopRequestVersion > 0L && listState.firstVisibleItemIndex + listState.firstVisibleItemScrollOffset > 0) {
+            listState.animateScrollToItem(0)
+        }
+    }
     val showInitialLoadingState = isLibraryLoading &&
         recentlyAddedAlbums.isEmpty() &&
         favoriteAlbums.isEmpty() &&
@@ -2968,7 +2982,7 @@ private fun AlbumCollectionContent(
                                 showSortOptions = false
                             },
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(11.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
                             onLayoutModeChanged = { layoutMode = it },
@@ -3064,7 +3078,7 @@ private fun AlbumSortControl(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                 )
                 Text(
                     text = selected.label,
@@ -3596,7 +3610,7 @@ private fun SongCollectionScreen(
                                 showSortOptions = false
                             },
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
+                        Spacer(modifier = Modifier.width(11.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
                             onLayoutModeChanged = { layoutMode = it },
@@ -3706,7 +3720,7 @@ private fun SongSortControl(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
                     contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                    modifier = Modifier.size(14.dp),
                 )
                 Text(
                     text = selected.label,
@@ -6878,6 +6892,7 @@ private fun AddSongsToPlaylistDialog(
 private fun NowPlayingScreen(
     playbackManager: PlaybackManager,
     playbackState: PlaybackUiState,
+    enrichedSongsById: Map<Long, Song>,
     isFavorite: Boolean,
     lyricsService: LyricsService,
     onBack: () -> Unit,
@@ -6894,6 +6909,7 @@ private fun NowPlayingScreen(
     onVolumeChanged: (Float) -> Unit,
 ) {
     val currentSong = playbackState.currentSong
+    val displaySong = currentSong?.let { enrichedSongsById[it.id] ?: it }
     val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
     val playerHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
@@ -7360,7 +7376,9 @@ private fun NowPlayingScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(centeredInfoWidth),
+                        modifier = Modifier
+                            .fillMaxWidth(centeredInfoWidth)
+                            .align(Alignment.Center),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -7498,8 +7516,8 @@ private fun NowPlayingScreen(
                                         )
                                     }
                                     SongFileInfoPill(
-                                        format = currentSong.audioFormat,
-                                        quality = currentSong.audioQuality,
+                                        format = displaySong?.audioFormat ?: currentSong.audioFormat,
+                                        quality = displaySong?.audioQuality ?: currentSong.audioQuality,
                                         tint = contentColor,
                                     )
                                     Box(
@@ -9515,8 +9533,8 @@ private fun BoxScope.FastScrollbarTrack(
             .align(Alignment.CenterEnd)
             .zIndex(3f)
             .fillMaxHeight()
-            .padding(top = topInset, end = 1.dp, bottom = bottomInset)
-            .width(18.dp),
+            .padding(top = topInset, end = 3.dp, bottom = bottomInset)
+            .width(28.dp),
     ) {
         val density = LocalDensity.current
         val trackHeightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
@@ -9524,7 +9542,7 @@ private fun BoxScope.FastScrollbarTrack(
         val trackTravelPx = max(trackHeightPx - thumbHeightPx, 1f)
         val thumbOffsetPx = trackTravelPx * animatedScrollFraction
         val fractionForPosition: (Float) -> Float = { y ->
-            ((y - (thumbHeightPx / 2f)) / trackTravelPx).coerceIn(0f, 1f)
+            (y / trackHeightPx).coerceIn(0f, 1f)
         }
         val jumpToFraction: (Float) -> Unit = { fraction ->
             val normalized = fraction.coerceIn(0f, 1f)
@@ -9582,7 +9600,7 @@ private fun BoxScope.FastScrollbarTrack(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .offset(y = with(density) { thumbOffsetPx.toDp() })
-                    .width(4.dp)
+                    .width(5.dp)
                     .height(with(density) { thumbHeightPx.toDp() })
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
                     .background(thumbColor),
@@ -9826,6 +9844,7 @@ private fun SettingsScreen(
     onTextSizePresetSelected: (TextSizePreset) -> Unit,
     onBassChanged: (Float) -> Unit,
     onSpaciousnessChanged: (Float) -> Unit,
+    onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenChangelog: () -> Unit,
 ) {
@@ -9872,7 +9891,7 @@ private fun SettingsScreen(
                             ThemeModeSegmentedPicker(
                                 selectedMode = themeMode,
                                 onModeSelected = onThemeModeSelected,
-                                modifier = Modifier.fillMaxWidth(),
+                                modifier = Modifier.fillMaxWidth(0.9f),
                             )
                         }
                         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -9880,10 +9899,16 @@ private fun SettingsScreen(
                                 title = "Text size",
                                 compact = true,
                             )
-                            TextSizeStepper(
-                                selectedPreset = textSizePreset,
-                                onPresetSelected = onTextSizePresetSelected,
-                            )
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                TextSizeStepper(
+                                    selectedPreset = textSizePreset,
+                                    onPresetSelected = onTextSizePresetSelected,
+                                    modifier = Modifier.fillMaxWidth(0.9f),
+                                )
+                            }
                         }
                     }
                 }
@@ -9944,6 +9969,30 @@ private fun SettingsScreen(
             }
 
             item {
+                SettingsSectionHeader(
+                    title = "Other settings",
+                    iconResId = R.drawable.ic_lucide_settings,
+                )
+            }
+
+            item {
+                ModuleCard {
+                    Box(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SettingToggleRow(
+                            title = "Enable mono",
+                            subtitle = "Switches stereo playback to mono",
+                            enabled = eqSettings.monoEnabled,
+                            onEnabledChanged = onMonoPlaybackChanged,
+                            modifier = Modifier.fillMaxWidth(0.9f),
+                        )
+                    }
+                }
+            }
+
+            item {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -9978,9 +10027,11 @@ private fun SettingsScreen(
                                 onClick = onOpenChangelog,
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                                    modifier = Modifier
+                                        .padding(horizontal = 14.dp, vertical = 8.dp)
+                                        .fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    horizontalArrangement = Arrangement.Center,
                                 ) {
                                     Text(
                                         text = "Changelog",
@@ -10082,37 +10133,43 @@ private fun ChangelogScreen(
             item {
                 Box(modifier = Modifier.padding(horizontal = 18.dp)) {
                     ModuleCard {
+                        val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
                         Column(
-                            verticalArrangement = Arrangement.spacedBy(14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(0.dp),
                         ) {
-                            release?.changes
-                                ?.filter { it.isNotBlank() }
-                                ?.forEach { change ->
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.Top,
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .padding(top = 8.dp)
-                                                .size(6.dp)
-                                                .clip(CircleShape)
-                                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.88f)),
-                                        )
-                                        Text(
-                                            text = change,
-                                            modifier = Modifier.weight(1f),
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                        )
-                                    }
-                                }
-                                ?: Text(
+                            if (changes.isEmpty()) {
+                                Text(
                                     text = "No changelog entries yet",
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = readableSecondaryTextColor(),
                                 )
+                            } else {
+                                changes.forEachIndexed { index, change ->
+                                    Column(
+                                        modifier = Modifier.fillMaxWidth(0.9f),
+                                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                                    ) {
+                                        Text(
+                                            text = change,
+                                            style = MaterialTheme.typography.bodyLarge,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        if (index != changes.lastIndex) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .height(1.dp)
+                                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+                                            )
+                                        }
+                                    }
+                                    if (index != changes.lastIndex) {
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -10244,6 +10301,7 @@ private fun SettingsSectionHeader(
 private fun TextSizeStepper(
     selectedPreset: TextSizePreset,
     onPresetSelected: (TextSizePreset) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val presets = TextSizePreset.entries
     val currentSelectedPreset by rememberUpdatedState(selectedPreset)
@@ -10267,7 +10325,7 @@ private fun TextSizeStepper(
 
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         BoxWithConstraints(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxWidth()
                 .height(36.dp)
                 .horizontalGestureSafe(),
@@ -10409,6 +10467,90 @@ private fun TextSizeStepper(
                 contentDescription = "Larger text",
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(17.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingToggleRow(
+    title: String,
+    subtitle: String,
+    enabled: Boolean,
+    onEnabledChanged: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            )
+        }
+        Spacer(modifier = Modifier.width(18.dp))
+        MonoPlaybackToggle(
+            checked = enabled,
+            onCheckedChange = onEnabledChanged,
+        )
+    }
+}
+
+@Composable
+private fun MonoPlaybackToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val knobColor = if (checked) {
+        Color.White
+    } else if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText
+    } else {
+        Color.White
+    }
+    val trackColor by animateColorAsState(
+        targetValue = if (checked) {
+            ToggleEnabledGreen
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 0.16f else 0.2f)
+        },
+        animationSpec = tween(160),
+        label = "mono_toggle_track",
+    )
+    val thumbOffset by animateDpAsState(
+        targetValue = if (checked) 18.dp else 2.dp,
+        animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
+        label = "mono_toggle_thumb_offset",
+    )
+    Surface(
+        onClick = { onCheckedChange(!checked) },
+        shape = RoundedCornerShape(percent = 50),
+        color = trackColor,
+        contentColor = knobColor,
+    ) {
+        Box(
+            modifier = Modifier
+                .width(40.dp)
+                .height(24.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .offset(x = thumbOffset, y = 2.dp)
+                    .size(20.dp)
+                    .clip(CircleShape)
+                    .background(knobColor),
             )
         }
     }
@@ -11082,17 +11224,29 @@ private fun EqBandFrequencyLabels(
     val labels = remember {
         EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.map(::formatEqFrequencyLabel)
     }
-    Row(
-        modifier = modifier,
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        labels.forEach { label ->
-            Text(
-                text = label,
-                style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.2f)),
-                color = readableSecondaryTextColor().copy(alpha = 0.88f),
-            )
+    val fractions = remember { eqBandFractions() }
+    BoxWithConstraints(modifier = modifier) {
+        val density = LocalDensity.current
+        val widthPx = with(density) { maxWidth.toPx() }
+        val labelWidth = 32.dp
+        labels.forEachIndexed { index, label ->
+            val xOffset = with(density) {
+                ((widthPx * fractions.getOrElse(index) { 0f }).toDp() - (labelWidth / 2f))
+            }
+            Box(
+                modifier = Modifier
+                    .offset(x = xOffset)
+                    .width(labelWidth),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = elovaireScaledSp(9.2f)),
+                    color = readableSecondaryTextColor().copy(alpha = 0.88f),
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
@@ -11133,11 +11287,11 @@ private fun EqHorizontalScrollbar(
             if (maxScrollPx <= 0f || viewportWidthPx <= 0f) {
                 Unit
             } else {
-            val fraction = (xPosition / viewportWidthPx).coerceIn(0f, 1f)
-            val targetScroll = (maxScrollPx * fraction).roundToInt()
-            scope.launch {
-                scrollState.scrollTo(targetScroll)
-            }
+                val fraction = ((xPosition - (thumbWidthPx / 2f)) / thumbTravelPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
+                val targetScroll = (maxScrollPx * fraction).roundToInt()
+                scope.launch {
+                    scrollState.scrollTo(targetScroll)
+                }
             }
         }
 

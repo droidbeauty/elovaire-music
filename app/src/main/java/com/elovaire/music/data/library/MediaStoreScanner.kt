@@ -384,57 +384,54 @@ class MediaStoreScanner(
         fileName: String,
         mediaStoreYear: Int?,
     ): SongMetadata {
+        val extractorMetadata = readExtractorMetadata(songUri)
+        val resolvedFormat = resolveAudioFormat(
+            fileName = fileName,
+            mimeType = extractorMetadata.mimeType,
+        )
+        val retrieverMetadata = readRetrieverMetadata(songUri)
+        val year = retrieverMetadata.year ?: mediaStoreYear
+        val sampleRate = retrieverMetadata.sampleRate ?: extractorMetadata.sampleRate
+        val bitDepth = retrieverMetadata.bitDepth
+        val bitrate = retrieverMetadata.bitrate ?: extractorMetadata.bitrate
+        val genre = retrieverMetadata.genre ?: queryGenre(songId)
+        return SongMetadata(
+            releaseYear = year,
+            genre = genre,
+            format = resolvedFormat,
+            quality = formatAudioQuality(
+                format = resolvedFormat,
+                bitDepth = bitDepth,
+                sampleRate = sampleRate,
+                bitrate = bitrate,
+            ),
+        )
+    }
+
+    private fun readRetrieverMetadata(songUri: Uri): RetrieverMetadata {
         return runCatching {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, songUri)
-                val extractorMetadata = readExtractorMetadata(songUri)
-                val year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
-                    ?.take(4)
-                    ?.toIntOrNull()
-                    ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE)
-                        ?.let(::parseYearFromDateTag)
-                    ?: mediaStoreYear
-                val sampleRate = extractRetrieverSampleRate(retriever) ?: extractorMetadata.sampleRate
-                val bitDepth = extractRetrieverBitDepth(retriever)
-                val bitrate = runCatching {
-                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull()
-                }.getOrNull() ?: extractorMetadata.bitrate
-                val genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
-                    ?.substringBefore(';')
-                    ?.substringBefore('/')
-                    ?.trim()
-                    ?.takeIf { it.isNotBlank() }
-                    ?: queryGenre(songId)
-
-                SongMetadata(
-                    releaseYear = year,
-                    genre = genre,
-                    format = resolveAudioFormat(
-                        fileName = fileName,
-                        mimeType = extractorMetadata.mimeType,
-                    ),
-                    quality = formatAudioQuality(
-                        format = resolveAudioFormat(
-                            fileName = fileName,
-                            mimeType = extractorMetadata.mimeType,
-                        ),
-                        bitDepth = bitDepth,
-                        sampleRate = sampleRate,
-                        bitrate = bitrate,
-                    ),
+                RetrieverMetadata(
+                    year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
+                        ?.take(4)
+                        ?.toIntOrNull()
+                        ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE)
+                            ?.let(::parseYearFromDateTag),
+                    sampleRate = extractRetrieverSampleRate(retriever),
+                    bitDepth = extractRetrieverBitDepth(retriever),
+                    bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull(),
+                    genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
+                        ?.substringBefore(';')
+                        ?.substringBefore('/')
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() },
                 )
             } finally {
                 runCatching { retriever.release() }
             }
-        }.getOrElse {
-            SongMetadata(
-                releaseYear = null,
-                genre = null,
-                format = resolveAudioFormat(fileName = fileName),
-                quality = null,
-            )
-        }
+        }.getOrDefault(RetrieverMetadata())
     }
 
     private fun readExtractorMetadata(songUri: Uri): ExtractorMetadata {
@@ -623,6 +620,14 @@ private data class ExtractorMetadata(
     val sampleRate: Int? = null,
     val bitrate: Int? = null,
     val mimeType: String? = null,
+)
+
+private data class RetrieverMetadata(
+    val year: Int? = null,
+    val sampleRate: Int? = null,
+    val bitDepth: Int? = null,
+    val bitrate: Int? = null,
+    val genre: String? = null,
 )
 
 internal fun Song.qualityNeedsEnrichment(): Boolean {

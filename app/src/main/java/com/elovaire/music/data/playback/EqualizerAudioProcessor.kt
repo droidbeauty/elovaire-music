@@ -266,9 +266,6 @@ internal class EqualizerAudioProcessor(
     private var currentSettings: EqSettings = EqSettings()
 
     @Volatile
-    private var bitPerfectBypassed = false
-
-    @Volatile
     private var manualPreampDb = 0f
 
     private var channelCount = 0
@@ -307,13 +304,9 @@ internal class EqualizerAudioProcessor(
             treble = settings.treble.coerceIn(-1f, 1f),
             spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
             spaciousnessMode = settings.spaciousnessMode,
+            monoEnabled = settings.monoEnabled,
         )
         targetsDirty = true
-    }
-
-    fun setBitPerfectBypass(enabled: Boolean) {
-        bitPerfectBypassed = enabled
-        spaciousnessProcessor.setBitPerfectBypass(enabled)
     }
 
     fun setManualPreampDb(value: Float) {
@@ -340,12 +333,6 @@ internal class EqualizerAudioProcessor(
         if (!configInitialized) {
             resetProcessingState()
         }
-        if (bitPerfectBypassed) {
-            outputBuffer.put(inputBuffer)
-            outputBuffer.flip()
-            resetRuntimeStates()
-            return
-        }
         updateTargets()
         val frameSize = inputAudioFormat.bytesPerFrame
         if (frameSize <= 0) {
@@ -368,8 +355,22 @@ internal class EqualizerAudioProcessor(
                     scratchWetFrame[channelIndex] = processChannelSample(channelIndex, drySample)
                 }
                 spaciousnessProcessor.processFrame(scratchWetFrame, channelCount)
+                if (currentSettings.monoEnabled && channelCount >= 2) {
+                    var monoSample = 0f
+                    for (channelIndex in 0 until channelCount) {
+                        monoSample += scratchWetFrame[channelIndex]
+                    }
+                    monoSample /= channelCount.toFloat()
+                    for (channelIndex in 0 until channelCount) {
+                        scratchWetFrame[channelIndex] = monoSample
+                    }
+                }
                 for (channelIndex in 0 until channelCount) {
-                    val mixed = mixDryWet(scratchDryFrame[channelIndex], scratchWetFrame[channelIndex], currentWetMix)
+                    val mixed = if (currentSettings.monoEnabled) {
+                        scratchWetFrame[channelIndex]
+                    } else {
+                        mixDryWet(scratchDryFrame[channelIndex], scratchWetFrame[channelIndex], currentWetMix)
+                    }
                     writeSample(outputBuffer, encoding, transparentSafetyLimit(mixed))
                 }
             }
@@ -439,7 +440,7 @@ internal class EqualizerAudioProcessor(
         val settingsSnapshot = currentSettings
         val safeConfig = config.sanitized()
         val flat = EqualizerDspModel.isFlat(settingsSnapshot)
-        targetWetMix = if (flat) 0f else 1f
+        targetWetMix = if (flat && !settingsSnapshot.monoEnabled) 0f else 1f
         settingsSnapshot.bands.forEachIndexed { index, normalized ->
             val bandFrequencyHz = activeBandFrequenciesHz.getOrElse(index) { -1f }
             targetBandGainsDb[index] = if (bandFrequencyHz > 0f) {
@@ -632,7 +633,7 @@ internal class EqualizerAudioProcessor(
                 if (!spaciousnessProcessor.isBypassed()) 1 else 0,
             limiterPeakReduction = limiterPeakReduction,
             limiterEvents = limiterEvents,
-            dspBypassed = bitPerfectBypassed || targetWetMix == 0f,
+            dspBypassed = targetWetMix == 0f,
         )
     }
 }

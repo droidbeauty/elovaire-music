@@ -34,7 +34,6 @@ internal data class SpaciousnessDiagnosticsSnapshot(
     val peakOut: Float,
     val headroomCompensationDb: Float,
     val resetEvents: Long,
-    val bitPerfectBypassEvents: Long,
 )
 
 internal object SpaciousnessProcessorModel {
@@ -74,8 +73,6 @@ internal class SpaciousnessProcessor {
     private var pendingConfig = SpaciousnessConfig()
 
     @Volatile
-    private var bitPerfectBypassed = false
-
     private var activeConfig = pendingConfig.sanitized()
     private var activeMode = activeConfig.mode
     private var sampleRateHz = 48_000
@@ -89,7 +86,6 @@ internal class SpaciousnessProcessor {
     private var peakIn = 0f
     private var peakOut = 0f
     private var resetEvents = 0L
-    private var bitPerfectBypassEvents = 0L
 
     private val sideLowPass = OnePoleLowPassState()
     private val crossfeedLowPassL = OnePoleLowPassState()
@@ -132,19 +128,8 @@ internal class SpaciousnessProcessor {
         reset()
     }
 
-    fun setBitPerfectBypass(enabled: Boolean) {
-        if (enabled && !bitPerfectBypassed) {
-            bitPerfectBypassEvents += 1
-        }
-        bitPerfectBypassed = enabled
-        if (enabled) {
-            reset()
-        }
-    }
-
     fun isBypassed(): Boolean {
-        return bitPerfectBypassed ||
-            channelCount != 2 ||
+        return channelCount != 2 ||
             SpaciousnessProcessorModel.isBypassed(activeConfig) ||
             targetAmount <= 0.0005f
     }
@@ -217,7 +202,6 @@ internal class SpaciousnessProcessor {
             peakOut = peakOut,
             headroomCompensationDb = SpaciousnessProcessorModel.automaticHeadroomDb(activeMode, targetAmount),
             resetEvents = resetEvents,
-            bitPerfectBypassEvents = bitPerfectBypassEvents,
         )
     }
 

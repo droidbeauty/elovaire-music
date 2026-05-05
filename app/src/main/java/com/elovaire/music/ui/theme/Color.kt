@@ -34,3 +34,6 @@ val RoseAccent = Color(0xFF2A63EA)
 
 // Shared destructive action color for delete/remove actions.
 val DestructiveRed = Color(0xFFF53838)
+
+// Dedicated green used by on/off setting toggles when enabled.
+val ToggleEnabledGreen = Color(0xFF27D17F)

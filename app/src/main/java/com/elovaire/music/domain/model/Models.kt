@@ -82,6 +82,7 @@ data class EqSettings(
     val spaciousness: Float = 0f,
     val spaciousnessMode: SpaciousnessMode = SpaciousnessMode.StereoWidth,
     val crossfadeEnabled: Boolean = false,
+    val monoEnabled: Boolean = false,
 )
 
 enum class SpaciousnessMode {

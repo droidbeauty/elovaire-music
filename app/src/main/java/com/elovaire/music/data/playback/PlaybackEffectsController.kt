@@ -12,7 +12,6 @@ class PlaybackEffectsController(
 ) {
     private val equalizerProcessor = EqualizerAudioProcessor()
     private var currentSettings: EqSettings = EqSettings()
-    private var bypassedForBitPerfectUsb = false
 
     fun audioProcessors(): Array<AudioProcessor> = arrayOf(equalizerProcessor)
 
@@ -35,13 +34,9 @@ class PlaybackEffectsController(
             treble = settings.treble.coerceIn(-1f, 1f),
             spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
             spaciousnessMode = settings.spaciousnessMode,
+            monoEnabled = settings.monoEnabled,
         )
         equalizerProcessor.updateSettings(currentSettings)
-    }
-
-    fun setBitPerfectBypass(enabled: Boolean) {
-        bypassedForBitPerfectUsb = enabled
-        equalizerProcessor.setBitPerfectBypass(enabled)
     }
 
     fun release() = Unit

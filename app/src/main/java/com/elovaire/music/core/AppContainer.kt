@@ -5,6 +5,7 @@ import android.content.Context
 import elovaire.music.app.data.library.LibraryRepository
 import elovaire.music.app.data.library.MediaStoreScanner
 import elovaire.music.app.data.playback.PlaybackEffectsController
+import elovaire.music.app.data.playback.PlaybackKeepAliveService
 import elovaire.music.app.data.playback.PlaybackManager
 import elovaire.music.app.data.playback.PlaybackNotificationController
 import elovaire.music.app.data.settings.PreferenceStore
@@ -64,12 +65,6 @@ class AppContainer(
             preferenceStore.eqSettings.collect(playbackEffectsController::updateSettings)
         }
         appScope.launch {
-            playbackManager.bitPerfectUsbStatus
-                .map { it.shouldBypassProcessing }
-                .distinctUntilChanged()
-                .collect(playbackEffectsController::setBitPerfectBypass)
-        }
-        appScope.launch {
             playbackManager.state
                 .map { it.currentSong?.id to it.currentSong?.albumId }
                 .distinctUntilChanged()
@@ -79,6 +74,18 @@ class AppContainer(
                     }
                     if (albumId != null) {
                         preferenceStore.incrementAlbumPlayCount(albumId)
+                    }
+                }
+        }
+        appScope.launch {
+            playbackManager.state
+                .map { state -> state.isPlaying && state.currentSong != null }
+                .distinctUntilChanged()
+                .collect { shouldKeepAlive ->
+                    if (shouldKeepAlive) {
+                        PlaybackKeepAliveService.start(applicationContext)
+                    } else {
+                        PlaybackKeepAliveService.stop(applicationContext)
                     }
                 }
         }

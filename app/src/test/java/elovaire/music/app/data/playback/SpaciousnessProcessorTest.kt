@@ -164,16 +164,15 @@ class SpaciousnessProcessorTest {
     }
 
     @Test
-    fun bitPerfectBypassLeavesFramesUntouched() {
+    fun disabledProcessorLeavesFramesUntouched() {
         val processor = configuredProcessor(
             SpaciousnessConfig(
-                enabled = true,
+                enabled = false,
                 mode = SpaciousnessMode.StereoWidth,
                 amountNormalized = 1f,
             ),
         )
         val frame = floatArrayOf(0.22f, -0.37f)
-        processor.setBitPerfectBypass(true)
 
         processor.processFrame(frame, 2)
 

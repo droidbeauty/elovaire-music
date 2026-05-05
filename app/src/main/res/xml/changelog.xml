@@ -12,6 +12,7 @@
         <item>another batch of tweaks to EQ interface</item>
         <item>improved interactions and layout of queue menu in now playing UI</item>
         <item>fixed choppy scrollbars all throughout the UI</item>
+        <item>new animation to minimize/expand now playing screen</item>
         <item>new app icon</item>
         <item>some other bug fixes</item>
     </release>
