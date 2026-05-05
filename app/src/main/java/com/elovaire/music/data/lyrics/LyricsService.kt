@@ -41,18 +41,18 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
-private const val DEFAULT_LYRIC_SWITCH_GRACE_MS = 900L
+private const val DEFAULT_LYRIC_SWITCH_GRACE_MS = 350L
 private const val MIN_SONG_DURATION_FOR_REMOTE_OPENING_FIX_MS = 90_000L
 private const val REMOTE_ZERO_OPENING_THRESHOLD_MS = 1_200L
 private const val REMOTE_EARLY_OPENING_THRESHOLD_MS = 3_500L
 private const val REMOTE_FAST_THIRD_LINE_THRESHOLD_MS = 11_000L
 private const val REMOTE_FAST_FOURTH_LINE_THRESHOLD_MS = 17_000L
-private const val REMOTE_MIN_FIRST_VOCAL_TIME_MS = 22_000L
-private const val REMOTE_SOFT_MIN_FIRST_VOCAL_TIME_MS = 14_000L
-private const val REMOTE_MAX_AUTO_OPENING_SHIFT_MS = 32_000L
+private const val REMOTE_MIN_FIRST_VOCAL_TIME_MS = 16_000L
+private const val REMOTE_SOFT_MIN_FIRST_VOCAL_TIME_MS = 9_000L
+private const val REMOTE_MAX_AUTO_OPENING_SHIFT_MS = 0L
 private const val REMOTE_MIN_SYNCED_TIMELINE_COVERAGE = 0.52f
 private const val REMOTE_MIN_HEALTHY_MEDIAN_GAP_MS = 950L
-private const val MAX_NORMALIZED_LYRIC_LINE_LENGTH = 72
+private const val MAX_NORMALIZED_LYRIC_LINE_LENGTH = 34
 private val REMOTE_PLAUSIBLE_FIRST_LINE_RANGE_MS = 8_000L..40_000L
 
 data class LyricsLine(
@@ -63,14 +63,20 @@ data class LyricsLine(
 data class LyricsPayload(
     val lines: List<LyricsLine>,
     val isSynced: Boolean,
+    /**
+     * Positive values intentionally delay lyric highlighting without changing the underlying
+     * timestamps used for seeking. This is mainly for remote synced lyrics whose timestamps are
+     * consistently earlier than the actual audio in the local file.
+     */
+    val displayTimingOffsetMs: Long = 0L,
 ) {
     /**
      * Returns the lyric line that should be highlighted at [positionMs].
      *
      * Use this instead of a raw "last timestamp <= position" lookup in the UI. It intentionally
-     * waits a tiny grace period before switching lines so the highlight does not run ahead of the
-     * vocal, and it returns null before the first timed line instead of activating the first lyric
-     * during an instrumental intro.
+     * applies the provider-specific display delay and waits a tiny grace period before switching
+     * lines so the highlight does not run ahead of the vocal. It returns null before the first
+     * corrected timed line instead of activating the first lyric during an instrumental intro.
      */
     fun currentLineIndexAt(
         positionMs: Long,
@@ -78,7 +84,7 @@ data class LyricsPayload(
         switchGraceMs: Long = DEFAULT_LYRIC_SWITCH_GRACE_MS,
     ): Int? {
         if (!isSynced || lines.isEmpty()) return null
-        val correctedPosition = positionMs - timingOffsetMs - switchGraceMs
+        val correctedPosition = positionMs - timingOffsetMs - displayTimingOffsetMs - switchGraceMs
         if (correctedPosition < 0L) return null
 
         var low = 0
@@ -175,21 +181,28 @@ class LyricsService(
     private val inFlightRequests = ConcurrentHashMap<String, Deferred<LyricsLookupOutcome>>()
     private val serviceScope = CoroutineScope(SupervisorJob() + ioDispatcher)
 
-    fun cachedLyrics(song: Song): LyricsResult? = synchronized(cacheLock) {
+    fun cachedLyrics(
+        song: Song,
+        includeNotFound: Boolean = true,
+    ): LyricsResult? = synchronized(cacheLock) {
         val key = buildCacheKey(song)
         val entry = cache[key] ?: return@synchronized null
         if (entry.isExpired()) {
             cache.remove(key)
+            null
+        } else if (!includeNotFound && entry.result == LyricsResult.NotFound) {
             null
         } else {
             entry.result
         }
     }
 
+    fun isLookupInFlight(song: Song): Boolean = inFlightRequests.containsKey(buildCacheKey(song))
+
     fun prefetchLyrics(song: Song) {
-        if (cachedLyrics(song) != null || inFlightRequests.containsKey(buildCacheKey(song))) return
+        if (cachedLyrics(song, includeNotFound = false) != null || inFlightRequests.containsKey(buildCacheKey(song))) return
         serviceScope.launch {
-            fetchLyrics(song)
+            fetchLyrics(song, allowCachedNotFound = false)
         }
     }
 
@@ -204,9 +217,12 @@ class LyricsService(
         }
     }
 
-    suspend fun fetchLyrics(song: Song): LyricsResult = coroutineScope {
+    suspend fun fetchLyrics(
+        song: Song,
+        allowCachedNotFound: Boolean = true,
+    ): LyricsResult = coroutineScope {
         val cacheKey = buildCacheKey(song)
-        cachedLyrics(song)?.let {
+        cachedLyrics(song, includeNotFound = allowCachedNotFound)?.let {
             logMetrics(
                 LyricsDebugMetrics(
                     cacheKey = cacheKey,
@@ -519,6 +535,7 @@ class LyricsService(
                 }
             }
             .awaitAll()
+            .filterNotNull()
             .firstOrNull()
     }
 
@@ -902,19 +919,19 @@ class LyricsService(
     private companion object {
         const val TAG = "LyricsService"
         const val MAX_CACHE_ENTRIES = 128
-        const val NOT_FOUND_CACHE_TTL_MS = 2 * 60 * 1000L
-        const val OFFLINE_NOT_FOUND_CACHE_TTL_MS = 90 * 1000L
-        const val TIMEOUT_NOT_FOUND_CACHE_TTL_MS = 20 * 1000L
-        const val ERROR_CACHE_TTL_MS = 2 * 60 * 1000L
+        const val NOT_FOUND_CACHE_TTL_MS = 15 * 1000L
+        const val OFFLINE_NOT_FOUND_CACHE_TTL_MS = 20 * 1000L
+        const val TIMEOUT_NOT_FOUND_CACHE_TTL_MS = 3 * 1000L
+        const val ERROR_CACHE_TTL_MS = 5 * 1000L
         const val NETWORK_CONNECT_TIMEOUT_MS = 900
         const val NETWORK_READ_TIMEOUT_MS = 2_400
-        const val REMOTE_LOOKUP_TOTAL_TIMEOUT_MS = 2_800L
-        const val LRCLIB_DIRECT_LOOKUP_TIMEOUT_MS = 2_000L
-        const val LRCLIB_SEARCH_LOOKUP_TIMEOUT_MS = 1_500L
-        const val REMOTE_SEARCH_PHASE_TIMEOUT_MS = 1_600L
-        const val REMOTE_FALLBACK_PHASE_TIMEOUT_MS = 800L
-        const val LRCLIB_DIRECT_REQUEST_TIMEOUT_MS = 1_050L
-        const val FALLBACK_REQUEST_TIMEOUT_MS = 850L
+        const val REMOTE_LOOKUP_TOTAL_TIMEOUT_MS = 5_800L
+        const val LRCLIB_DIRECT_LOOKUP_TIMEOUT_MS = 3_200L
+        const val LRCLIB_SEARCH_LOOKUP_TIMEOUT_MS = 2_400L
+        const val REMOTE_SEARCH_PHASE_TIMEOUT_MS = 2_600L
+        const val REMOTE_FALLBACK_PHASE_TIMEOUT_MS = 1_200L
+        const val LRCLIB_DIRECT_REQUEST_TIMEOUT_MS = 1_600L
+        const val FALLBACK_REQUEST_TIMEOUT_MS = 1_200L
         const val DIRECT_REQUEST_CONNECT_TIMEOUT_MS = 450
         const val DIRECT_REQUEST_READ_TIMEOUT_MS = 900
         const val SEARCH_REQUEST_CONNECT_TIMEOUT_MS = 500
@@ -1267,15 +1284,16 @@ internal fun LrcLibCandidate.toLyricsPayload(song: Song? = null): LyricsPayload?
     val syncedLines = parseSyncedLyrics(syncedLyrics)?.takeIf { it.isNotEmpty() }
 
     if (syncedLines != null) {
-        val adjustedLines = adjustRemoteSyncedTiming(syncedLines, song)
+        val sortedLines = syncedLines.sortedBy { it.startTimeMs ?: Long.MAX_VALUE }
         val syncedPayload = LyricsPayload(
-            lines = adjustedLines,
+            lines = sortedLines,
             isSynced = true,
+            displayTimingOffsetMs = estimateRemoteDisplayTimingOffsetMs(sortedLines, song),
         )
 
-        // Bad remote LRC is worse than plain lyrics because it actively highlights the wrong
-        // sentence. If the timeline clearly races through the song, fall back to clean plain
-        // lyrics instead of showing a misleading synced highlight.
+        // Keep synced lyrics whenever the remote timeline is structurally usable. Timing drift is
+        // corrected at display time through displayTimingOffsetMs; falling back to plain lyrics is
+        // reserved for obviously broken synced files only.
         if (song == null || syncedPayload.hasHealthyRemoteTimeline(song)) {
             return syncedPayload
         }
@@ -1289,6 +1307,55 @@ internal fun LrcLibCandidate.toLyricsPayload(song: Song? = null): LyricsPayload?
     }
 
     return null
+}
+
+
+private fun estimateRemoteDisplayTimingOffsetMs(
+    lines: List<LyricsLine>,
+    song: Song?,
+): Long {
+    if (song == null || song.durationMs < 60_000L) return 0L
+    val timedLines = lines.mapNotNull { it.startTimeMs }.sorted()
+    if (timedLines.size < 4) return 0L
+
+    val first = timedLines.first()
+    val second = timedLines.getOrNull(1) ?: first
+    val third = timedLines.getOrNull(2) ?: second
+    val fifth = timedLines.getOrNull(4) ?: third
+    val eighth = timedLines.getOrNull(7) ?: fifth
+    val last = timedLines.last()
+    val gaps = timedLines
+        .zipWithNext { current, next -> next - current }
+        .filter { it > 0L }
+        .sorted()
+    val medianGap = gaps.getOrNull(gaps.size / 2) ?: Long.MAX_VALUE
+    val coverage = if (song.durationMs > 0L) last.toFloat() / song.durationMs.toFloat() else 1f
+
+    // LRCLIB entries often match the written lyric text correctly but are timed for another cut
+    // of the song, or their first vocal line is timestamped at 0:00. Correct only at display time
+    // so the original LRC timestamps stay available for diagnostics and seeking.
+    val openingDelay = when {
+        first <= 700L && fifth <= 16_000L -> 16_000L
+        first <= 1_500L && fifth <= 20_000L -> 13_000L
+        first <= 3_500L && fifth <= 24_000L -> 9_000L
+        first <= 6_000L && eighth <= 34_000L -> 6_000L
+        first <= 3_000L -> 4_000L
+        else -> 0L
+    }
+
+    val densityDelay = when {
+        medianGap in 1L..1_250L && timedLines.size >= 18 -> 5_000L
+        medianGap in 1_251L..1_650L && timedLines.size >= 18 -> 2_500L
+        else -> 0L
+    }
+
+    val coverageDelay = when {
+        coverage in 0f..0.55f && timedLines.size >= 12 -> 5_000L
+        coverage in 0.55f..0.68f && timedLines.size >= 12 -> 2_500L
+        else -> 0L
+    }
+
+    return max(openingDelay, max(densityDelay, coverageDelay)).coerceIn(0L, 18_000L)
 }
 
 private fun adjustRemoteSyncedTiming(
@@ -1344,13 +1411,9 @@ private fun LyricsPayload.hasHealthyRemoteTimeline(song: Song): Boolean {
     val timelineEndsFarTooEarly = coverage < REMOTE_MIN_SYNCED_TIMELINE_COVERAGE
     val linesRaceTooFast = medianGap < REMOTE_MIN_HEALTHY_MEDIAN_GAP_MS && timedLines.size >= 16
     val hasTooManyDuplicateTimestamps = duplicateRatio > 0.18f
-    val startsImmediatelyAndRaces = first <= REMOTE_ZERO_OPENING_THRESHOLD_MS &&
-        timedLines.getOrNull(5)?.let { sixthLine -> sixthLine <= 18_000L } == true
-
     return !timelineEndsFarTooEarly &&
         !linesRaceTooFast &&
-        !hasTooManyDuplicateTimestamps &&
-        !startsImmediatelyAndRaces
+        !hasTooManyDuplicateTimestamps
 }
 
 private fun LrcLibCandidate.remoteSyncedTimingQualityScore(song: Song): Int {

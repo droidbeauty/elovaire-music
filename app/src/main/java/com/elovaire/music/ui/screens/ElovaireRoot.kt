@@ -6971,7 +6971,7 @@ private fun NowPlayingScreen(
     val lyricsUiState by produceState<LyricsUiState>(
         initialValue = when {
             !showLyricsSheet || currentSong == null -> LyricsUiState.Hidden
-            else -> lyricsService.cachedLyrics(currentSong)?.toUiState() ?: LyricsUiState.Loading
+            else -> lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.toUiState() ?: LyricsUiState.Loading
         },
         key1 = showLyricsSheet,
         key2 = currentSong?.id,
@@ -6980,8 +6980,29 @@ private fun NowPlayingScreen(
             value = LyricsUiState.Hidden
             return@produceState
         }
-        value = lyricsService.cachedLyrics(currentSong)?.toUiState() ?: LyricsUiState.Loading
-        value = lyricsService.fetchLyrics(currentSong).toUiState()
+
+        lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.let { cached ->
+            value = cached.toUiState()
+            return@produceState
+        }
+
+        value = LyricsUiState.Loading
+        var lastLookup: LyricsResult = LyricsResult.NotFound
+        repeat(3) { attempt ->
+            lastLookup = lyricsService.fetchLyrics(currentSong, allowCachedNotFound = false)
+            if (lastLookup is LyricsResult.Found) {
+                value = lastLookup.toUiState()
+                return@produceState
+            }
+            // A first LRCLIB request can occasionally return no result while another query variant
+            // or just-opened network request succeeds moments later. Keep the overlay loading and
+            // retry briefly instead of flashing a false “no lyrics” state on first open.
+            if (attempt < 2) {
+                delay(if (attempt == 0) 450L else 900L)
+                value = LyricsUiState.Loading
+            }
+        }
+        value = lastLookup.toUiState()
     }
     DisposableEffect(currentSong?.id) {
         onDispose {
@@ -8833,17 +8854,25 @@ private fun LyricsOverlay(
         when (lyricsUiState) {
             is LyricsUiState.Ready -> {
                 val payload = lyricsUiState.payload
-                payload.currentLineIndexAt(playbackProgress.positionMs)
-                    ?: if (payload.isSynced) {
-                        -1
-                    } else {
-                        activeLyricLineIndex(
-                            lines = lyricLines,
-                            isSynced = false,
+                if (payload.isSynced) {
+                    // This is the only synced-lyrics highlighter path. It respects the service's
+                    // per-provider displayTimingOffsetMs correction, then falls back to no grace
+                    // only after the corrected line start has genuinely been reached. This keeps
+                    // the active line visible without letting it jump ahead during an intro.
+                    payload.currentLineIndexAt(playbackProgress.positionMs)
+                        ?: payload.currentLineIndexAt(
                             positionMs = playbackProgress.positionMs,
-                            durationMs = playbackProgress.durationMs,
+                            switchGraceMs = 0L,
                         )
-                    }
+                        ?: -1
+                } else {
+                    activeLyricLineIndex(
+                        lines = lyricLines,
+                        isSynced = false,
+                        positionMs = playbackProgress.positionMs,
+                        durationMs = playbackProgress.durationMs,
+                    )
+                }
             }
 
             else -> -1
@@ -9011,9 +9040,9 @@ private fun LyricsOverlay(
                                     val isActive = index == activeLyricLineIndex
                                     val lineFontSize by animateFloatAsState(
                                         targetValue = if (isActive) {
-                                            MaterialTheme.typography.headlineMedium.fontSize.value - 1f
+                                            MaterialTheme.typography.headlineMedium.fontSize.value
                                         } else {
-                                            MaterialTheme.typography.headlineMedium.fontSize.value - 3f
+                                            MaterialTheme.typography.headlineMedium.fontSize.value - 4f
                                         },
                                         animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
                                         label = "lyrics_line_font_$index",
@@ -9022,10 +9051,10 @@ private fun LyricsOverlay(
                                         text = line.text,
                                         style = MaterialTheme.typography.headlineMedium.copy(
                                             fontSize = lineFontSize.sp,
-                                            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
                                             lineHeight = 37.sp,
                                         ),
-                                        color = if (isActive) contentColor else contentColor.copy(alpha = 0.7f),
+                                        color = if (isActive) contentColor.copy(alpha = 1f) else contentColor.copy(alpha = 0.42f),
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -9038,6 +9067,7 @@ private fun LyricsOverlay(
                                                         index = index,
                                                         isSynced = state.payload.isSynced,
                                                         durationMs = playbackProgress.durationMs,
+                                                        displayTimingOffsetMs = state.payload.displayTimingOffsetMs,
                                                     )?.let(onSeekTo)
                                                 },
                                             ),
@@ -11535,11 +11565,14 @@ private fun lyricsSeekPositionMs(
     index: Int,
     isSynced: Boolean,
     durationMs: Long,
+    displayTimingOffsetMs: Long = 0L,
 ): Long? {
     if (lines.isEmpty() || index !in lines.indices) return null
 
     if (isSynced) {
-        return lines[index].startTimeMs?.coerceAtLeast(0L)
+        return lines[index].startTimeMs
+            ?.plus(displayTimingOffsetMs)
+            ?.coerceAtLeast(0L)
     }
 
     if (durationMs <= 0L) return null
