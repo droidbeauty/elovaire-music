@@ -41,6 +41,9 @@ import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
 
+private const val EARLY_ZERO_TIMESTAMP_WINDOW_MS = 1_500L
+private const val INFERRED_SPLIT_LINE_SPACING_MS = 1_350L
+
 data class LyricsLine(
     val text: String,
     val startTimeMs: Long?,
@@ -49,7 +52,65 @@ data class LyricsLine(
 data class LyricsPayload(
     val lines: List<LyricsLine>,
     val isSynced: Boolean,
-)
+) {
+    /**
+     * Returns the lyric line that should be highlighted for the current playback position.
+     *
+     * Keep timingOffsetMs at 0 for normal LRCLIB/local lyrics. Positive values delay the
+     * highlight; negative values advance it. This makes offset tuning explicit instead of
+     * baking a universal delay into parsed timestamps, which caused some songs to start
+     * too late while others started too early.
+     */
+    fun currentLineIndexAt(
+        positionMs: Long,
+        timingOffsetMs: Long = 0L,
+        switchGraceMs: Long = 350L,
+        instrumentalIntroGuardMs: Long = 0L,
+    ): Int {
+        if (!isSynced || lines.isEmpty()) return -1
+
+        val firstTimedLine = lines.firstOrNull { it.startTimeMs != null } ?: return -1
+        val firstStartMs = firstTimedLine.startTimeMs ?: return -1
+        val safePositionMs = positionMs.coerceAtLeast(0L)
+        val activationPositionMs = safePositionMs - timingOffsetMs - switchGraceMs.coerceAtLeast(0L)
+
+        if (activationPositionMs < firstStartMs) return -1
+        if (
+            firstStartMs <= EARLY_ZERO_TIMESTAMP_WINDOW_MS &&
+            instrumentalIntroGuardMs > 0L &&
+            safePositionMs < instrumentalIntroGuardMs
+        ) {
+            return -1
+        }
+
+        var low = 0
+        var high = lines.lastIndex
+        var best = -1
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val startMs = lines[mid].startTimeMs ?: Long.MAX_VALUE
+            if (startMs <= activationPositionMs) {
+                best = mid
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+        return best
+    }
+
+    fun currentLineAt(
+        positionMs: Long,
+        timingOffsetMs: Long = 0L,
+        switchGraceMs: Long = 350L,
+        instrumentalIntroGuardMs: Long = 0L,
+    ): LyricsLine? = currentLineIndexAt(
+        positionMs = positionMs,
+        timingOffsetMs = timingOffsetMs,
+        switchGraceMs = switchGraceMs,
+        instrumentalIntroGuardMs = instrumentalIntroGuardMs,
+    ).takeIf { it >= 0 }?.let(lines::get)
+}
 
 sealed interface LyricsResult {
     data class Found(val payload: LyricsPayload) : LyricsResult
@@ -381,15 +442,31 @@ class LyricsService(
     private suspend fun searchLrcLib(
         queries: List<LyricsQueryVariant>,
     ): List<LrcLibCandidate> = coroutineScope {
-        return@coroutineScope queries
-            .map { query ->
+        val urls = queries.flatMap { query ->
+            buildList {
+                add(
+                    buildString {
+                        append("https://lrclib.net/api/search?")
+                        append("artist_name=").append(query.artist.urlEncode())
+                        append("&track_name=").append(query.title.urlEncode())
+                        if (!query.album.isNullOrBlank()) {
+                            append("&album_name=").append(query.album.urlEncode())
+                        }
+                    },
+                )
+                add(
+                    buildString {
+                        append("https://lrclib.net/api/search?q=")
+                        append("${query.artist} ${query.title}".trim().urlEncode())
+                    },
+                )
+            }
+        }.distinct()
+
+        return@coroutineScope urls
+            .map { url ->
                 async(ioDispatcher) {
                     withTimeoutOrNull(LRCLIB_SEARCH_LOOKUP_TIMEOUT_MS) {
-                        val url = buildString {
-                            append("https://lrclib.net/api/search?")
-                            append("artist_name=").append(query.artist.urlEncode())
-                            append("&track_name=").append(query.title.urlEncode())
-                        }
                         getJsonArray(
                             url = url,
                             connectTimeoutMs = SEARCH_REQUEST_CONNECT_TIMEOUT_MS,
@@ -464,7 +541,7 @@ class LyricsService(
                 }
             }
             .awaitAll()
-            .firstOrNull()
+            .firstOrNull { it != null }
     }
 
     private suspend fun fetchLyricsOvhFallback(
@@ -847,27 +924,27 @@ class LyricsService(
     private companion object {
         const val TAG = "LyricsService"
         const val MAX_CACHE_ENTRIES = 128
-        const val NOT_FOUND_CACHE_TTL_MS = 2 * 60 * 1000L
+        const val NOT_FOUND_CACHE_TTL_MS = 30 * 1000L
         const val OFFLINE_NOT_FOUND_CACHE_TTL_MS = 90 * 1000L
         const val TIMEOUT_NOT_FOUND_CACHE_TTL_MS = 20 * 1000L
         const val ERROR_CACHE_TTL_MS = 2 * 60 * 1000L
         const val NETWORK_CONNECT_TIMEOUT_MS = 900
         const val NETWORK_READ_TIMEOUT_MS = 2_400
-        const val REMOTE_LOOKUP_TOTAL_TIMEOUT_MS = 2_800L
+        const val REMOTE_LOOKUP_TOTAL_TIMEOUT_MS = 4_200L
         const val LRCLIB_DIRECT_LOOKUP_TIMEOUT_MS = 2_000L
         const val LRCLIB_SEARCH_LOOKUP_TIMEOUT_MS = 1_500L
-        const val REMOTE_SEARCH_PHASE_TIMEOUT_MS = 1_600L
-        const val REMOTE_FALLBACK_PHASE_TIMEOUT_MS = 800L
+        const val REMOTE_SEARCH_PHASE_TIMEOUT_MS = 2_300L
+        const val REMOTE_FALLBACK_PHASE_TIMEOUT_MS = 1_300L
         const val LRCLIB_DIRECT_REQUEST_TIMEOUT_MS = 1_050L
         const val FALLBACK_REQUEST_TIMEOUT_MS = 850L
         const val DIRECT_REQUEST_CONNECT_TIMEOUT_MS = 450
         const val DIRECT_REQUEST_READ_TIMEOUT_MS = 900
         const val SEARCH_REQUEST_CONNECT_TIMEOUT_MS = 500
-        const val SEARCH_REQUEST_READ_TIMEOUT_MS = 1_100
+        const val SEARCH_REQUEST_READ_TIMEOUT_MS = 1_600
         const val FALLBACK_REQUEST_CONNECT_TIMEOUT_MS = 500
-        const val FALLBACK_REQUEST_READ_TIMEOUT_MS = 900
-        const val MAX_REMOTE_QUERY_VARIANTS = 4
-        const val MIN_FALLBACK_CONFIDENCE = 23
+        const val FALLBACK_REQUEST_READ_TIMEOUT_MS = 1_200
+        const val MAX_REMOTE_QUERY_VARIANTS = 8
+        const val MIN_FALLBACK_CONFIDENCE = 20
         const val PREFERRED_DIRECT_CONFIDENCE = 28
         const val EMBEDDED_TAG_BUFFER_BYTES = 64 * 1024
         const val MAX_EMBEDDED_TAG_BYTES = 1_500_000
@@ -916,10 +993,7 @@ internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
     val parsedLines = mutableListOf<LyricsLine>()
     val fallbackPlainLines = mutableListOf<String>()
 
-    rawLyrics
-        .removeBom()
-        .replace("\r\n", "\n")
-        .replace('\r', '\n')
+    normalizeRawLyricsText(rawLyrics)
         .lineSequence()
         .forEach { rawLine ->
             val line = rawLine.trim()
@@ -937,24 +1011,22 @@ internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
                 return@forEach
             }
 
-            val lyricText = sanitizeLyricLine(line.substring(timeTags.last().range.last + 1))
-            if (lyricText == null) {
-                return@forEach
-            }
+            val lyricFragments = splitLyricFragments(line.substring(timeTags.last().range.last + 1))
+            if (lyricFragments.isEmpty()) return@forEach
 
             timeTags.forEach { match ->
-                val startTimeMs = parseTimestampMatch(match)?.plus(offsetMs)?.coerceAtLeast(0L) ?: return@forEach
-                parsedLines += LyricsLine(
-                    text = lyricText,
-                    startTimeMs = startTimeMs,
-                )
+                val baseStartTimeMs = parseTimestampMatch(match)?.plus(offsetMs)?.coerceAtLeast(0L) ?: return@forEach
+                lyricFragments.forEachIndexed { fragmentIndex, fragment ->
+                    parsedLines += LyricsLine(
+                        text = fragment,
+                        startTimeMs = baseStartTimeMs + (fragmentIndex * INFERRED_SPLIT_LINE_SPACING_MS),
+                    )
+                }
             }
         }
 
-    val sortedLines = parsedLines
-        .sortedBy { it.startTimeMs ?: Long.MAX_VALUE }
-        .takeIf { it.isNotEmpty() }
-    if (!sortedLines.isNullOrEmpty()) {
+    val sortedLines = tidySyncedLines(parsedLines)
+    if (sortedLines.isNotEmpty()) {
         return sortedLines
     }
 
@@ -963,15 +1035,10 @@ internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
 
 internal fun parsePlainLyrics(rawLyrics: String?): List<LyricsLine>? {
     if (rawLyrics.isNullOrBlank()) return null
-    val lines = rawLyrics
-        .removeBom()
-        .replace("\r\n", "\n")
-        .replace('\r', '\n')
+    val lines = normalizeRawLyricsText(rawLyrics)
         .lineSequence()
-        .map { it.trim() }
-        .mapNotNull { line ->
-            sanitizeLyricLine(line)?.let { LyricsLine(text = it, startTimeMs = null) }
-        }
+        .flatMap { splitLyricFragments(it).asSequence() }
+        .map { LyricsLine(text = it, startTimeMs = null) }
         .toList()
     if (lines.isEmpty()) return null
     val nonMetadataCount = lines.count { line ->
@@ -982,8 +1049,11 @@ internal fun parsePlainLyrics(rawLyrics: String?): List<LyricsLine>? {
 
 internal fun sanitizeLyricLine(line: String): String? {
     val cleaned = line
+        .decodeCommonHtmlEntities()
         .replace('\u00A0', ' ')
-        .replace(Regex("""\s{2,}"""), " ")
+        .replace(Regex("""[ \t]{2,}"""), " ")
+        .trim()
+        .trim('-', '–', '—')
         .trim()
 
     if (cleaned.isBlank()) return null
@@ -993,7 +1063,100 @@ internal fun sanitizeLyricLine(line: String): String? {
     if (normalized.startsWith("you might also like")) return null
     if (normalized.startsWith("submit corrections")) return null
     if (normalized.startsWith("contributors")) return null
-    return cleaned
+    if (METADATA_ONLY_LINE_REGEX.matches(cleaned)) return null
+    return cleaned.smartCapitalizeLyricLine()
+}
+
+private fun normalizeRawLyricsText(rawLyrics: String): String {
+    return rawLyrics
+        .removeBom()
+        .replace("\\r\\n", "\n")
+        .replace("\\n", "\n")
+        .replace("\\r", "\n")
+        .replace("\r\n", "\n")
+        .replace('\r', '\n')
+        .replace(Regex("""(?i)<br\s*/?>"""), "\n")
+        .replace(Regex("""(?i)</p\s*>"""), "\n")
+        .replace(Regex("""(?i)<[^>]+>"""), "")
+        .replace(Regex("""(?=\[(?:verse|chorus|pre-chorus|bridge|intro|outro|hook|refrain|post-chorus|instrumental)[^]]*])"""), "\n")
+        .replace(Regex("""[\t ]{3,}"""), "\n")
+}
+
+private fun splitLyricFragments(rawLine: String): List<String> {
+    val withoutInlineTimestamps = rawLine.replace(INLINE_TIMESTAMP_REGEX, " ")
+    val firstPass = withoutInlineTimestamps
+        .split('\n')
+        .flatMap { segment ->
+            segment.split(Regex("""(?<=[.!?])\s+(?=[A-ZÁ-ŹÀ-ÖØ-Þ])"""))
+        }
+        .flatMap { segment ->
+            if (segment.length >= OVERLONG_LYRIC_LINE_CHARS) {
+                segment.split(Regex("""\s+(?:/|\\|•|·|\|)\s+"""))
+            } else {
+                listOf(segment)
+            }
+        }
+        .flatMap { segment ->
+            if (segment.length >= OVERLONG_LYRIC_LINE_CHARS) {
+                segment.split(Regex("""(?<=[.!?])\s+"""))
+            } else {
+                listOf(segment)
+            }
+        }
+
+    return firstPass
+        .mapNotNull(::sanitizeLyricLine)
+        .filterNot { SECTION_HEADER_REGEX.matches(it) }
+        .distinctAdjacent()
+}
+
+private fun tidySyncedLines(lines: List<LyricsLine>): List<LyricsLine> {
+    if (lines.isEmpty()) return emptyList()
+    val sorted = lines
+        .filter { it.startTimeMs != null && it.text.isNotBlank() }
+        .sortedWith(compareBy<LyricsLine> { it.startTimeMs ?: Long.MAX_VALUE }.thenBy { it.text.length })
+
+    val output = mutableListOf<LyricsLine>()
+    sorted.forEach { line ->
+        val previous = output.lastOrNull()
+        if (
+            previous != null &&
+            previous.text.equals(line.text, ignoreCase = true) &&
+            abs((line.startTimeMs ?: 0L) - (previous.startTimeMs ?: 0L)) <= DUPLICATE_SYNCED_LINE_WINDOW_MS
+        ) {
+            return@forEach
+        }
+        output += line
+    }
+    return output
+}
+
+private fun String.smartCapitalizeLyricLine(): String {
+    val firstLetterIndex = indexOfFirst { it.isLetter() }
+    if (firstLetterIndex < 0) return this
+    val firstLetter = this[firstLetterIndex]
+    if (!firstLetter.isLowerCase()) return this
+    val hasUppercaseAfterFirst = drop(firstLetterIndex + 1).any { it.isUpperCase() }
+    val shouldCapitalize = !hasUppercaseAfterFirst || firstLetterIndex <= 2
+    if (!shouldCapitalize) return this
+    return replaceRange(firstLetterIndex, firstLetterIndex + 1, firstLetter.titlecase(Locale.getDefault()))
+}
+
+private fun String.decodeCommonHtmlEntities(): String {
+    return replace("&amp;", "&")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'")
+        .replace("&apos;", "'")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+}
+
+private fun <T> Iterable<T>.distinctAdjacent(): List<T> {
+    val output = mutableListOf<T>()
+    forEach { item ->
+        if (output.lastOrNull() != item) output += item
+    }
+    return output
 }
 
 internal fun normalizeTrackTitle(value: String): String {
@@ -1455,7 +1618,11 @@ private fun String.urlEncode(): String = URLEncoder.encode(this, Charsets.UTF_8.
 
 private val METADATA_LINE_REGEX = Regex("""^\[([A-Za-z]+):(.*)]$""")
 private val METADATA_ONLY_LINE_REGEX = Regex("""^\[(ar|ti|al|by|offset):.*]$""", RegexOption.IGNORE_CASE)
+private val SECTION_HEADER_REGEX = Regex("""^\[(?:verse|chorus|pre-chorus|bridge|intro|outro|hook|refrain|post-chorus|instrumental)[^]]*]$""", RegexOption.IGNORE_CASE)
+private val INLINE_TIMESTAMP_REGEX = Regex("""<\d{1,2}:\d{2}(?:[.:]\d{1,3})?>""")
 private val TIMESTAMP_REGEX = Regex("""\[(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
 private val VERSION_DECORATOR_REGEX = Regex("""(?i)\b(live|acoustic|remaster(?:ed)?|mono|stereo|demo|karaoke|instrumental|reprise|edit|mix|version)\b""")
 private val DIACRITIC_REGEX = Regex("\\p{Mn}+")
 private const val MAX_SIDECAR_FILE_BYTES = 256 * 1024L
+private const val OVERLONG_LYRIC_LINE_CHARS = 120
+private const val DUPLICATE_SYNCED_LINE_WINDOW_MS = 800L
