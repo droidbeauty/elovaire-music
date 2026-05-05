@@ -10,7 +10,7 @@
         <item>Fixed player controls in notification area not showing properly</item>
         <item>Fixed audio bitrate not showing properly for all supported audio formats</item>
         <item>Layout tweaks for favorite albums module in Home tab</item>
-        <item>Layout tweaks to album preview list</item>
+        <item>Layout tweaks for album preview list</item>
         <item>Improvements for lyrics displaying and fetching</item>
     </release>
 </changelog>
