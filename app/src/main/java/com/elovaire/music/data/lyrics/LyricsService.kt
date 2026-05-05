@@ -52,7 +52,6 @@ private const val REMOTE_SOFT_MIN_FIRST_VOCAL_TIME_MS = 9_000L
 private const val REMOTE_MAX_AUTO_OPENING_SHIFT_MS = 0L
 private const val REMOTE_MIN_SYNCED_TIMELINE_COVERAGE = 0.52f
 private const val REMOTE_MIN_HEALTHY_MEDIAN_GAP_MS = 950L
-private const val MAX_NORMALIZED_LYRIC_LINE_LENGTH = 34
 private val REMOTE_PLAUSIBLE_FIRST_LINE_RANGE_MS = 8_000L..40_000L
 
 data class LyricsLine(
@@ -1024,7 +1023,6 @@ internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
     val sortedLines = parsedLines
         .sortedBy { it.startTimeMs ?: Long.MAX_VALUE }
         .takeIf { it.isNotEmpty() }
-        ?.let(::expandSyncedDisplayLines)
     if (!sortedLines.isNullOrEmpty()) {
         return sortedLines
     }
@@ -1047,43 +1045,6 @@ internal fun parsePlainLyrics(rawLyrics: String?): List<LyricsLine>? {
     return lines.takeIf { nonMetadataCount > 0 }
 }
 
-private fun expandSyncedDisplayLines(lines: List<LyricsLine>): List<LyricsLine> {
-    if (lines.isEmpty()) return emptyList()
-
-    val expanded = mutableListOf<LyricsLine>()
-    lines.forEachIndexed { index, line ->
-        val startTimeMs = line.startTimeMs
-        val fragments = splitLyricDisplayText(line.text)
-        if (fragments.isEmpty() || startTimeMs == null) return@forEachIndexed
-
-        if (fragments.size == 1) {
-            expanded += LyricsLine(fragments.first(), startTimeMs)
-            return@forEachIndexed
-        }
-
-        val nextStartTimeMs = lines
-            .drop(index + 1)
-            .firstOrNull { it.startTimeMs != null && it.startTimeMs > startTimeMs }
-            ?.startTimeMs
-        val availableGapMs = nextStartTimeMs?.minus(startTimeMs)?.coerceAtLeast(0L)
-        val inferredStepMs = when {
-            availableGapMs != null && availableGapMs >= fragments.size * 1_100L -> availableGapMs / fragments.size
-            else -> 1_400L
-        }
-
-        fragments.forEachIndexed { fragmentIndex, fragment ->
-            expanded += LyricsLine(
-                text = fragment,
-                startTimeMs = startTimeMs + inferredStepMs * fragmentIndex,
-            )
-        }
-    }
-
-    return expanded
-        .distinctBy { "${it.startTimeMs}|${it.text.normalizeForMatch()}" }
-        .sortedBy { it.startTimeMs ?: Long.MAX_VALUE }
-}
-
 private fun String.normalizeLyricBreaks(): String {
     return removeBom()
         .replace("\r\n", "\n")
@@ -1098,50 +1059,7 @@ private fun String.normalizeLyricBreaks(): String {
 
 private fun splitLyricDisplayText(rawLine: String): List<String> {
     val sanitized = sanitizeLyricLine(rawLine) ?: return emptyList()
-    val explicitPieces = sanitized
-        .split('\n')
-        .mapNotNull(::sanitizeLyricLine)
-
-    return explicitPieces.flatMap(::splitLongLyricLine)
-}
-
-private fun splitLongLyricLine(line: String): List<String> {
-    if (line.length <= MAX_NORMALIZED_LYRIC_LINE_LENGTH) return listOf(line)
-
-    val pieces = line
-        .replace(Regex("""([.!?])\s+([A-Za-z])"""), "$1\n$2")
-        .replace(Regex("""([;:])\s+([A-Za-z])"""), "$1\n$2")
-        .replace(Regex("""\s+-\s+"""), "\n")
-        .split('\n')
-        .map { it.trim() }
-        .filter { it.isNotBlank() }
-
-    return pieces.flatMap { piece ->
-        if (piece.length <= MAX_NORMALIZED_LYRIC_LINE_LENGTH) {
-            listOf(piece)
-        } else {
-            splitOversizedLyricPiece(piece)
-        }
-    }.mapNotNull(::sanitizeLyricLine)
-}
-
-private fun splitOversizedLyricPiece(piece: String): List<String> {
-    val words = piece.split(Regex("""\s+""")).filter { it.isNotBlank() }
-    if (words.isEmpty()) return emptyList()
-
-    val result = mutableListOf<String>()
-    val current = StringBuilder()
-    words.forEach { word ->
-        val projectedLength = if (current.isEmpty()) word.length else current.length + 1 + word.length
-        if (projectedLength > MAX_NORMALIZED_LYRIC_LINE_LENGTH && current.isNotEmpty()) {
-            result += current.toString()
-            current.clear()
-        }
-        if (current.isNotEmpty()) current.append(' ')
-        current.append(word)
-    }
-    if (current.isNotEmpty()) result += current.toString()
-    return result
+    return listOf(sanitized)
 }
 
 internal fun sanitizeLyricLine(line: String): String? {

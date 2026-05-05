@@ -44,6 +44,21 @@ class LyricsServiceTest {
     }
 
     @Test
+    fun `parse synced lyrics keeps long display lines intact`() {
+        val parsed = parseSyncedLyrics(
+            """
+            [00:01.00]I'll fix these broken things, repair your broken wings
+            [00:05.00]And make sure everything's alright
+            """.trimIndent(),
+        )
+
+        assertNotNull(parsed)
+        assertEquals(2, parsed!!.size)
+        assertEquals("I'll fix these broken things, repair your broken wings", parsed[0].text)
+        assertEquals("And make sure everything's alright", parsed[1].text)
+    }
+
+    @Test
     fun `parse plain lyrics removes bom and garbage`() {
         val parsed = parsePlainLyrics(
             "\uFEFFTranslationsFrançais\nYou might also like\nLine one\nLine two",
@@ -51,6 +66,17 @@ class LyricsServiceTest {
 
         assertNotNull(parsed)
         assertEquals(listOf("Line one", "Line two"), parsed!!.map { it.text })
+    }
+
+    @Test
+    fun `parse plain lyrics keeps long lines intact`() {
+        val parsed = parsePlainLyrics(
+            "Into every inch of you because I know that's what you want me to do",
+        )
+
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.size)
+        assertEquals("Into every inch of you because I know that's what you want me to do", parsed[0].text)
     }
 
     @Test

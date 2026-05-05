@@ -34,6 +34,28 @@ class PlaybackNotificationController(
     )
         .setMediaDescriptionAdapter(NotificationDescriptionAdapter())
         .setCustomActionReceiver(ShuffleActionReceiver())
+        .setNotificationListener(
+            object : PlayerNotificationManager.NotificationListener {
+                override fun onNotificationPosted(
+                    notificationId: Int,
+                    notification: android.app.Notification,
+                    ongoing: Boolean,
+                ) {
+                    if (ongoing) {
+                        PlaybackKeepAliveService.start(context, notificationId, notification)
+                    } else {
+                        PlaybackKeepAliveService.stop(context)
+                    }
+                }
+
+                override fun onNotificationCancelled(
+                    notificationId: Int,
+                    dismissedByUser: Boolean,
+                ) {
+                    PlaybackKeepAliveService.stop(context)
+                }
+            },
+        )
         .build()
         .apply {
             setSmallIcon(R.drawable.ic_lucide_disc_3)

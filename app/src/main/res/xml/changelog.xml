@@ -6,14 +6,11 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.7">
-        <item>Refined look for recently played albums module in Home tab</item>
-        <item>All new queue menu in now playing screen with more functional layout</item>
-        <item>Another batch of tweaks to EQ interface</item>
-        <item>Added the ability to switch playback from stereo to mono for accessibility</item>
-        <item>Improved interactions and layout of queue menu in now playing UI</item>
-        <item>Fixed choppy scrollbars all throughout the UI</item>
-        <item>New animation to minimize/expand now playing screen</item>
-        <item>Some other bug fixes</item>
+    <release version="1.7.1">
+        <item>Fixed player controls in notification area not showing properly</item>
+        <item>Fixed audio bitrate not showing properly for all supported audio formats</item>
+        <item>Layout tweaks for favorite albums module in Home tab</item>
+        <item>Layout tweaks to album preview list</item>
+        <item>Improvements for lyrics displaying and fetching</item>
     </release>
 </changelog>

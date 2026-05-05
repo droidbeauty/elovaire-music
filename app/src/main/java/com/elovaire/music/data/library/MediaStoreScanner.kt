@@ -82,6 +82,7 @@ class MediaStoreScanner(
             val durationIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
             val trackIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
             val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val sizeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
             val yearIndex = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             val dataIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
 
@@ -96,6 +97,8 @@ class MediaStoreScanner(
                 val songUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
                 val title = cursor.getString(titleIndex).orUnknown("Untitled Track")
                 val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
+                val fileSizeBytes = sizeIndex.takeIf { it >= 0 }?.let(cursor::getLong)?.takeIf { it > 0L }
+                val durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L)
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
                 val mediaStoreYear = yearIndex.takeIf { it >= 0 }
                     ?.let(cursor::getInt)
@@ -114,6 +117,8 @@ class MediaStoreScanner(
                             songUri = songUri,
                             fileName = fileName,
                             mediaStoreYear = mediaStoreYear,
+                            fileSizeBytes = fileSizeBytes,
+                            durationMs = durationMs,
                         )
                     } else {
                         SongMetadata(
@@ -142,7 +147,7 @@ class MediaStoreScanner(
                     audioQuality = songMetadata.quality,
                     fileName = fileName,
                     albumId = albumId,
-                    durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L),
+                    durationMs = durationMs,
                     trackNumber = normalizeTrackNumber(rawTrack),
                     discNumber = normalizeDiscNumber(rawTrack),
                     dateAddedSeconds = dateAddedSeconds,
@@ -275,6 +280,7 @@ class MediaStoreScanner(
             MediaStore.Audio.Media.DISPLAY_NAME,
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.TRACK,
+            MediaStore.Audio.Media.SIZE,
             MediaStore.Audio.Media.YEAR,
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.DATA,
@@ -383,6 +389,8 @@ class MediaStoreScanner(
         songUri: Uri,
         fileName: String,
         mediaStoreYear: Int?,
+        fileSizeBytes: Long?,
+        durationMs: Long,
     ): SongMetadata {
         val extractorMetadata = readExtractorMetadata(songUri)
         val resolvedFormat = resolveAudioFormat(
@@ -393,7 +401,13 @@ class MediaStoreScanner(
         val year = retrieverMetadata.year ?: mediaStoreYear
         val sampleRate = retrieverMetadata.sampleRate ?: extractorMetadata.sampleRate
         val bitDepth = retrieverMetadata.bitDepth
-        val bitrate = retrieverMetadata.bitrate ?: extractorMetadata.bitrate
+        val bitrate = retrieverMetadata.bitrate
+            ?: extractorMetadata.bitrate
+            ?: estimateBitrateBitsPerSecond(
+                fileSizeBytes = fileSizeBytes,
+                durationMs = durationMs,
+                resolvedFormat = resolvedFormat,
+            )
         val genre = retrieverMetadata.genre ?: queryGenre(songId)
         return SongMetadata(
             releaseYear = year,
@@ -529,6 +543,18 @@ class MediaStoreScanner(
     private fun Float.roundQuality(): String {
         val rounded = kotlin.math.round(this)
         return if (kotlin.math.abs(this - rounded) < 0.05f) rounded.toInt().toString() else String.format(Locale.ROOT, "%.1f", this)
+    }
+
+    private fun estimateBitrateBitsPerSecond(
+        fileSizeBytes: Long?,
+        durationMs: Long,
+        resolvedFormat: String,
+    ): Int? {
+        if (fileSizeBytes == null || fileSizeBytes <= 0L || durationMs <= 0L) return null
+        if (resolvedFormat.uppercase() in setOf("WAV", "AIFF", "FLAC", "ALAC", "APE", "DSD")) return null
+        val seconds = durationMs / 1000.0
+        if (seconds <= 0.0) return null
+        return ((fileSizeBytes * 8.0) / seconds).toInt().takeIf { it > 0 }
     }
 
     private fun buildOrderBy(): String {

@@ -5091,7 +5091,7 @@ private fun MutedSectionHeader(
 @Composable
 private fun FavoriteAlbumsModule(
     albums: List<Album>,
-    title: String = "Your favourite albums",
+    title: String = "Your favorite albums",
     subtitle: String = "Check out your most frequently played stuff",
     iconResId: Int = R.drawable.ic_lucide_star,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
@@ -5168,20 +5168,22 @@ private fun FavoriteAlbumsModule(
                 )
             }
 
-            albums.chunked(2).take(3).forEach { rowAlbums ->
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    rowAlbums.forEach { album ->
-                        FavoriteAlbumCompactCell(
-                            album = album,
-                            modifier = Modifier.weight(1f),
-                            onOpen = { origin -> onAlbumSelected(album, origin) },
-                        )
-                    }
-                    repeat((2 - rowAlbums.size).coerceAtLeast(0)) {
-                        SpacerTile(modifier = Modifier.weight(1f))
+            Column(verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                albums.chunked(2).take(3).forEach { rowAlbums ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        rowAlbums.forEach { album ->
+                            FavoriteAlbumCompactCell(
+                                album = album,
+                                modifier = Modifier.weight(1f),
+                                onOpen = { origin -> onAlbumSelected(album, origin) },
+                            )
+                        }
+                        repeat((2 - rowAlbums.size).coerceAtLeast(0)) {
+                            SpacerTile(modifier = Modifier.weight(1f))
+                        }
                     }
                 }
             }
@@ -6006,7 +6008,6 @@ private fun AlbumScreen(
             albumYear?.toString()?.let(::add)
             albumGenre
                 ?.let(::add)
-            add("${album.songCount} tracks")
         }
     }
     val albumMetaText = remember(albumMetaItems, albumOnSurface) {
@@ -6021,11 +6022,35 @@ private fun AlbumScreen(
                 pushStyle(
                     SpanStyle(
                         color = if (isYear) albumOnSurface else albumOnSurface.copy(alpha = 0.72f),
+                        fontWeight = if (isYear) FontWeight.SemiBold else FontWeight.Normal,
                     ),
                 )
                 append(item)
                 pop()
             }
+        }
+    }
+    val albumFooterText = remember(album.songCount, album.durationMs, albumOnSurface) {
+        buildAnnotatedString {
+            pushStyle(
+                SpanStyle(
+                    color = albumOnSurface.copy(alpha = 0.7f),
+                    fontWeight = FontWeight.Normal,
+                ),
+            )
+            append("${album.songCount} tracks")
+            pop()
+            pushStyle(SpanStyle(color = albumOnSurface.copy(alpha = 0.5f)))
+            append("  •  ")
+            pop()
+            pushStyle(
+                SpanStyle(
+                    color = albumOnSurface,
+                    fontWeight = FontWeight.Normal,
+                ),
+            )
+            append(formatDuration(album.durationMs))
+            pop()
         }
     }
     val detailTopPadding = detailTopBarOccupiedHeight()
@@ -6244,6 +6269,23 @@ private fun AlbumScreen(
                     item("disc_spacer_$discNumber") {
                         Spacer(modifier = Modifier.height(14.dp))
                     }
+                }
+            }
+
+            item {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 14.dp, bottom = 6.dp),
+                    contentAlignment = Alignment.CenterStart,
+                ) {
+                    Text(
+                        text = albumFooterText,
+                        style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(12f)),
+                        color = albumOnSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }
@@ -7322,54 +7364,56 @@ private fun NowPlayingScreen(
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(10.dp),
                             ) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Text(
+                                            text = currentSong.title,
+                                            style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(22f)),
+                                            color = contentColor,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Clip,
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .basicMarquee(
+                                                    iterations = Int.MAX_VALUE,
+                                                    animationMode = MarqueeAnimationMode.Immediately,
+                                                    repeatDelayMillis = 2500,
+                                                    initialDelayMillis = 2500,
+                                                    velocity = 24.dp,
+                                                ),
+                                        )
+                                        if (currentSong.isExplicit) {
+                                            Text(
+                                                text = "E",
+                                                style = MaterialTheme.typography.labelLarge.copy(
+                                                    fontSize = elovaireScaledSp(6f),
+                                                    fontWeight = FontWeight.SemiBold,
+                                                ),
+                                                color = contentColor.copy(alpha = 0.7f),
+                                            )
+                                        }
+                                    }
                                     Text(
-                                        text = currentSong.title,
-                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(20f)),
-                                        color = contentColor,
+                                        text = currentSong.artist,
+                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
+                                        color = secondaryContentColor,
                                         maxLines = 1,
                                         overflow = TextOverflow.Clip,
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .basicMarquee(
-                                                iterations = Int.MAX_VALUE,
-                                                animationMode = MarqueeAnimationMode.Immediately,
-                                                repeatDelayMillis = 2500,
-                                                initialDelayMillis = 2500,
-                                                velocity = 24.dp,
-                                            ),
+                                        modifier = Modifier.basicMarquee(
+                                            iterations = Int.MAX_VALUE,
+                                            animationMode = MarqueeAnimationMode.Immediately,
+                                            repeatDelayMillis = 2500,
+                                            initialDelayMillis = 2500,
+                                            velocity = 24.dp,
+                                        ),
                                     )
-                                    if (currentSong.isExplicit) {
-                                        Text(
-                                            text = "E",
-                                            style = MaterialTheme.typography.labelLarge.copy(
-                                                fontSize = elovaireScaledSp(6f),
-                                                fontWeight = FontWeight.SemiBold,
-                                            ),
-                                            color = contentColor.copy(alpha = 0.7f),
-                                        )
-                                    }
                                 }
-                                Text(
-                                    text = currentSong.artist,
-                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(17f)),
-                                    color = secondaryContentColor,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Clip,
-                                    modifier = Modifier.basicMarquee(
-                                        iterations = Int.MAX_VALUE,
-                                        animationMode = MarqueeAnimationMode.Immediately,
-                                        repeatDelayMillis = 2500,
-                                        initialDelayMillis = 2500,
-                                        velocity = 24.dp,
-                                    ),
-                                )
                                 CompactPlaybackProgressBar(
                                     progress = displayedProgressFraction,
                                     contentColor = contentColor,
@@ -7895,7 +7939,7 @@ private fun QueueSheet(
             .fillMaxWidth()
             .playerFrostedSurface(tint = tint),
         shape = RoundedCornerShape(ElovaireRadii.module),
-        color = tint.copy(alpha = 0.2f),
+        color = tint.copy(alpha = 0.05f),
     ) {
         Column(
             modifier = Modifier.fillMaxSize(),
@@ -7994,7 +8038,7 @@ private fun QueueSheet(
                 }
             }
             QueueSeparator(tint = tint, modifier = Modifier.fillMaxWidth())
-            val bottomSectionOpacity = 0.3f
+            val bottomSectionOpacity = 0.1f
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -8067,9 +8111,8 @@ private fun QueueSheet(
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
                         .padding(horizontal = 14.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PlayerSecondaryActionButton(
@@ -10227,7 +10270,7 @@ private fun UpdateAvailableBanner(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, end = 10.dp, top = 10.dp, bottom = 10.dp),
+                .padding(start = 32.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -11479,12 +11522,10 @@ private fun ThinContinuousSlider(
 }
 
 private fun eqBandFractions(): List<Float> {
-    val frequencies = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.toList()
-    val minLog = ln(frequencies.first().toDouble())
-    val maxLog = ln(frequencies.last().toDouble())
-    val span = (maxLog - minLog).toFloat().coerceAtLeast(0.0001f)
-    return frequencies.map { frequency ->
-        ((ln(frequency.toDouble()) - minLog) / span).toFloat().coerceIn(0f, 1f)
+    val bandCount = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.size
+    val maxIndex = (bandCount - 1).coerceAtLeast(1)
+    return List(bandCount) { index ->
+        index.toFloat() / maxIndex.toFloat()
     }
 }
 
