@@ -79,6 +79,18 @@ Unlike streaming-first players, Elovaire focuses on music stored directly on you
 - Notification playback controls and media-session integration
 - OTA update flow built into the app based on automatic GitHub releases check
 
+---
+
+<p align="center">
+  <img
+    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/4.png"
+    alt="Smooth listening experience for your entire offline library. Elovaire supports all major losless and lossy audio codecs"
+    width="100%"
+  />
+</p>
+
+---
+
 ## Built with
 
 Elovaire is built as a native Android project using:
