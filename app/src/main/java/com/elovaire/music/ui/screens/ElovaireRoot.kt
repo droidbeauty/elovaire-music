@@ -7334,12 +7334,12 @@ private fun NowPlayingScreen(
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth(centeredInfoWidth)
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = nowPlayingTitleTopGap, bottom = nowPlayingTitleBottomGap)
+                        .fillMaxWidth()
+                        .padding(top = nowPlayingTitleTopGap, bottom = nowPlayingTitleBottomGap),
+                    contentAlignment = Alignment.Center,
                 ) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth(centeredInfoWidth),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -8831,12 +8831,20 @@ private fun LyricsOverlay(
     val listState = rememberLazyListState()
     val activeLyricLineIndex = remember(playbackProgress.positionMs, playbackProgress.durationMs, lyricLines, lyricsUiState) {
         when (lyricsUiState) {
-            is LyricsUiState.Ready -> activeLyricLineIndex(
-                lines = lyricLines,
-                isSynced = lyricsUiState.payload.isSynced,
-                positionMs = playbackProgress.positionMs,
-                durationMs = playbackProgress.durationMs,
-            )
+            is LyricsUiState.Ready -> {
+                val payload = lyricsUiState.payload
+                payload.currentLineIndexAt(playbackProgress.positionMs)
+                    ?: if (payload.isSynced) {
+                        -1
+                    } else {
+                        activeLyricLineIndex(
+                            lines = lyricLines,
+                            isSynced = false,
+                            positionMs = playbackProgress.positionMs,
+                            durationMs = playbackProgress.durationMs,
+                        )
+                    }
+            }
 
             else -> -1
         }
