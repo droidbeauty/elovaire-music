@@ -33,16 +33,17 @@ class MediaStoreScanner(
         metadataCache.clear()
         songs.forEach { song ->
             val hasMeaningfulGenre = song.genre.isNotBlank() && song.genre != "Unknown Genre"
+            val cachedMetadata = SongMetadata(
+                releaseYear = song.releaseYear,
+                genre = song.genre.takeIf { hasMeaningfulGenre },
+                format = song.audioFormat,
+                quality = song.audioQuality,
+            )
             metadataCache[song.id] = CachedSongMetadata(
                 fileName = song.fileName,
                 dateAddedSeconds = song.dateAddedSeconds,
-                isEnriched = song.releaseYear != null || hasMeaningfulGenre || !song.audioQuality.isNullOrBlank(),
-                metadata = SongMetadata(
-                    releaseYear = song.releaseYear,
-                    genre = song.genre.takeIf { hasMeaningfulGenre },
-                    format = song.audioFormat,
-                    quality = song.audioQuality,
-                ),
+                isEnriched = cachedMetadata.isMeaningfullyEnriched(),
+                metadata = cachedMetadata,
             )
         }
     }
@@ -131,7 +132,7 @@ class MediaStoreScanner(
                 refreshedMetadataCache[id] = CachedSongMetadata(
                     fileName = fileName,
                     dateAddedSeconds = dateAddedSeconds,
-                    isEnriched = enrichMetadata,
+                    isEnriched = songMetadata.isMeaningfullyEnriched(),
                     metadata = songMetadata,
                 )
                 val rawTrack = cursor.getInt(trackIndex)
@@ -471,21 +472,31 @@ class MediaStoreScanner(
     }
 
     private fun queryGenre(songId: Long): String? {
-        val genreUri = MediaStore.Audio.Genres.getContentUriForAudioId("external", songId.toInt())
-        return runCatching {
-            context.contentResolver.query(
-                genreUri,
-                arrayOf(MediaStore.Audio.Genres.NAME),
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Genres.NAME)
-                generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }
-                    .map { it.trim() }
-                    .firstOrNull { it.isNotBlank() }
+        val volumeNames = buildList {
+            add("external")
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                add(MediaStore.VOLUME_EXTERNAL)
+                add(MediaStore.VOLUME_EXTERNAL_PRIMARY)
             }
-        }.getOrNull()
+        }.distinct()
+
+        return volumeNames.firstNotNullOfOrNull { volumeName ->
+            val genreUri = MediaStore.Audio.Genres.getContentUriForAudioId(volumeName, songId.toInt())
+            runCatching {
+                context.contentResolver.query(
+                    genreUri,
+                    arrayOf(MediaStore.Audio.Genres.NAME),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Genres.NAME)
+                    generateSequence { if (cursor.moveToNext()) cursor.getString(nameIndex) else null }
+                        .map { it.trim() }
+                        .firstOrNull { it.isNotBlank() }
+                }
+            }.getOrNull()
+        }
     }
 
     private fun parseYearFromDateTag(value: String): Int? {
@@ -641,6 +652,17 @@ private data class SongMetadata(
     val format: String,
     val quality: String?,
 )
+
+private fun SongMetadata.isMeaningfullyEnriched(): Boolean {
+    val hasMeaningfulGenre = !genre.isNullOrBlank() && genre != "Unknown Genre"
+    val qualityLooksReady = when {
+        quality.isNullOrBlank() -> false
+        isLossyFormat(format.uppercase()) -> quality.contains("/")
+        isLosslessFormat(format.uppercase()) -> LOSSLESS_QUALITY_REGEX.matches(quality)
+        else -> true
+    }
+    return releaseYear != null || hasMeaningfulGenre || qualityLooksReady
+}
 
 private data class ExtractorMetadata(
     val sampleRate: Int? = null,

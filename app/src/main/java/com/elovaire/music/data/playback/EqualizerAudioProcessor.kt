@@ -349,21 +349,23 @@ internal class EqualizerAudioProcessor(
                 totalFrames - processedFrames,
             )
             repeat(blockFrames) {
+                var monoInputSample = 0f
                 for (channelIndex in 0 until channelCount) {
                     val drySample = readSample(inputBuffer, encoding)
                     scratchDryFrame[channelIndex] = drySample
-                    scratchWetFrame[channelIndex] = processChannelSample(channelIndex, drySample)
+                    monoInputSample += drySample
                 }
-                spaciousnessProcessor.processFrame(scratchWetFrame, channelCount)
                 if (currentSettings.monoEnabled && channelCount >= 2) {
-                    var monoSample = 0f
+                    monoInputSample /= channelCount.toFloat()
                     for (channelIndex in 0 until channelCount) {
-                        monoSample += scratchWetFrame[channelIndex]
+                        scratchDryFrame[channelIndex] = monoInputSample
                     }
-                    monoSample /= channelCount.toFloat()
-                    for (channelIndex in 0 until channelCount) {
-                        scratchWetFrame[channelIndex] = monoSample
-                    }
+                }
+                for (channelIndex in 0 until channelCount) {
+                    scratchWetFrame[channelIndex] = processChannelSample(channelIndex, scratchDryFrame[channelIndex])
+                }
+                if (!currentSettings.monoEnabled) {
+                    spaciousnessProcessor.processFrame(scratchWetFrame, channelCount)
                 }
                 for (channelIndex in 0 until channelCount) {
                     val mixed = if (currentSettings.monoEnabled) {

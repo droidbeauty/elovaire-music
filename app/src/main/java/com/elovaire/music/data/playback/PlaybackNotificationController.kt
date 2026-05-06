@@ -41,7 +41,7 @@ class PlaybackNotificationController(
                     notification: android.app.Notification,
                     ongoing: Boolean,
                 ) {
-                    if (ongoing) {
+                    if (ongoing || playbackManager.state.value.currentSong != null) {
                         PlaybackKeepAliveService.start(context, notificationId, notification)
                     } else {
                         PlaybackKeepAliveService.stop(context)

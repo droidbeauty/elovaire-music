@@ -57,6 +57,7 @@ private val REMOTE_PLAUSIBLE_FIRST_LINE_RANGE_MS = 8_000L..40_000L
 data class LyricsLine(
     val text: String,
     val startTimeMs: Long?,
+    val endTimeMs: Long? = null,
 )
 
 data class LyricsPayload(
@@ -83,7 +84,7 @@ data class LyricsPayload(
         switchGraceMs: Long = DEFAULT_LYRIC_SWITCH_GRACE_MS,
     ): Int? {
         if (!isSynced || lines.isEmpty()) return null
-        val correctedPosition = positionMs - timingOffsetMs - displayTimingOffsetMs - switchGraceMs
+        val correctedPosition = positionMs - timingOffsetMs - displayTimingOffsetMs
         if (correctedPosition < 0L) return null
 
         var low = 0
@@ -99,7 +100,18 @@ data class LyricsPayload(
                 high = mid - 1
             }
         }
-        return result
+        val candidateIndex = result ?: return null
+        val candidate = lines[candidateIndex]
+        val candidateStart = candidate.startTimeMs ?: return null
+        if (correctedPosition + switchGraceMs < candidateStart) return null
+        val candidateEnd = candidate.endTimeMs
+        if (candidateEnd != null && correctedPosition >= candidateEnd) {
+            return lines.indexOfLast { line ->
+                val start = line.startTimeMs ?: Long.MAX_VALUE
+                start <= correctedPosition
+            }.takeIf { it >= 0 }
+        }
+        return candidateIndex
     }
 
     fun currentLineAt(
@@ -1024,7 +1036,7 @@ internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
         .sortedBy { it.startTimeMs ?: Long.MAX_VALUE }
         .takeIf { it.isNotEmpty() }
     if (!sortedLines.isNullOrEmpty()) {
-        return sortedLines
+        return finalizeSyncedLyrics(sortedLines)
     }
 
     return parsePlainLyrics(fallbackPlainLines.joinToString("\n"))
@@ -1083,26 +1095,7 @@ internal fun sanitizeLyricLine(line: String): String? {
     if (normalized.startsWith("submit corrections")) return null
     if (normalized.startsWith("contributors")) return null
     if (METADATA_ONLY_LINE_REGEX.matches(cleaned)) return null
-    return smartCapitalizeLyricLine(cleaned)
-}
-
-private fun smartCapitalizeLyricLine(value: String): String {
-    val chars = value.toCharArray()
-    var shouldCapitalizeNextLetter = true
-
-    for (index in chars.indices) {
-        val char = chars[index]
-        if (char.isLetter()) {
-            if (shouldCapitalizeNextLetter && char.isLowerCase()) {
-                chars[index] = char.titlecaseChar()
-            }
-            shouldCapitalizeNextLetter = false
-        } else if (char == '.' || char == '!' || char == '?' || char == '\n') {
-            shouldCapitalizeNextLetter = true
-        }
-    }
-
-    return String(chars)
+    return cleaned
 }
 
 internal fun normalizeTrackTitle(value: String): String {
@@ -1588,9 +1581,79 @@ private fun parseSyncedLines(lines: List<LyricsLine>): LyricsPayload? {
         .filter { !it.text.isBlank() && it.startTimeMs != null }
         .sortedBy { it.startTimeMs }
     return validLines.takeIf { it.isNotEmpty() }?.let {
-        LyricsPayload(lines = it, isSynced = true)
+        LyricsPayload(lines = finalizeSyncedLyrics(it), isSynced = true)
     }
 }
+
+private fun finalizeSyncedLyrics(lines: List<LyricsLine>): List<LyricsLine> {
+    val merged = mergeContinuationLyricLines(lines)
+    return merged.mapIndexed { index, line ->
+        line.copy(endTimeMs = merged.getOrNull(index + 1)?.startTimeMs)
+    }
+}
+
+private fun mergeContinuationLyricLines(lines: List<LyricsLine>): List<LyricsLine> {
+    if (lines.isEmpty()) return emptyList()
+    val merged = mutableListOf<LyricsLine>()
+    var index = 0
+    while (index < lines.size) {
+        var current = lines[index]
+        while (index + 1 < lines.size && shouldMergeLyricLines(current, lines[index + 1])) {
+            val next = lines[index + 1]
+            current = current.copy(text = joinLyricSegments(current.text, next.text))
+            index += 1
+        }
+        merged += current
+        index += 1
+    }
+    return merged
+}
+
+private fun shouldMergeLyricLines(current: LyricsLine, next: LyricsLine): Boolean {
+    val currentStart = current.startTimeMs ?: return false
+    val nextStart = next.startTimeMs ?: return false
+    val gapMs = (nextStart - currentStart).coerceAtLeast(0L)
+    if (gapMs > 2_600L) return false
+    if (current.text.length + next.text.length > 140) return false
+    if (current.text.trimEnd().endsWithAny('.', '!', '?')) return false
+
+    val currentTrimmed = current.text.trim()
+    val nextTrimmed = next.text.trim()
+    if (currentTrimmed.endsWith(",") || currentTrimmed.endsWith(":") || currentTrimmed.endsWith(";")) {
+        return true
+    }
+
+    val nextLead = nextTrimmed.trimStart('(', '[', '"', '\'')
+    val nextFirst = nextLead.firstOrNull() ?: return false
+    if (nextFirst.isLowerCase()) return true
+
+    val normalizedLead = nextLead.lowercase(Locale.US)
+    return normalizedLead.startsWith("and ") ||
+        normalizedLead.startsWith("or ") ||
+        normalizedLead.startsWith("but ") ||
+        normalizedLead.startsWith("so ") ||
+        normalizedLead.startsWith("because ") ||
+        normalizedLead.startsWith("of ") ||
+        normalizedLead.startsWith("to ") ||
+        normalizedLead.startsWith("for ") ||
+        normalizedLead.startsWith("with ") ||
+        normalizedLead.startsWith("in ") ||
+        normalizedLead.startsWith("on ") ||
+        normalizedLead.startsWith("at ")
+}
+
+private fun joinLyricSegments(first: String, second: String): String {
+    val left = first.trimEnd()
+    val right = second.trimStart()
+    if (left.isBlank()) return right
+    if (right.isBlank()) return left
+    return when {
+        left.endsWith("-") || left.endsWith("—") || left.endsWith("–") -> left + right
+        else -> "$left $right"
+    }
+}
+
+private fun String.endsWithAny(vararg chars: Char): Boolean = chars.any { trimEnd().endsWith(it) }
 
 private fun looksLikeTimedLyrics(value: String): Boolean = TIMESTAMP_REGEX.containsMatchIn(value)
 

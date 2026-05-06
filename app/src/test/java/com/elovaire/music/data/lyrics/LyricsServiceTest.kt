@@ -3,6 +3,7 @@ package elovaire.music.app.data.lyrics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LyricsServiceTest {
@@ -59,6 +60,23 @@ class LyricsServiceTest {
     }
 
     @Test
+    fun `parse synced lyrics merges continuation lines that were split mid sentence`() {
+        val parsed = parseSyncedLyrics(
+            """
+            [00:01.00]And her heart is breaking in front
+            [00:02.40]of me
+            [00:05.00]I have no choice
+            """.trimIndent(),
+        )
+
+        assertNotNull(parsed)
+        assertEquals(2, parsed!!.size)
+        assertEquals("And her heart is breaking in front of me", parsed[0].text)
+        assertEquals(1000L, parsed[0].startTimeMs)
+        assertEquals(5000L, parsed[0].endTimeMs)
+    }
+
+    @Test
     fun `parse plain lyrics removes bom and garbage`() {
         val parsed = parsePlainLyrics(
             "\uFEFFTranslationsFrançais\nYou might also like\nLine one\nLine two",
@@ -109,6 +127,51 @@ class LyricsServiceTest {
         assertNull(sanitizeLyricLine("TranslationsFrançaisTürkçePortuguês"))
         assertNull(sanitizeLyricLine("You might also like"))
         assertEquals("Actual lyric", sanitizeLyricLine("  Actual lyric  "))
+    }
+
+    @Test
+    fun `current line index follows corrected playback position without early jump`() {
+        val payload = LyricsPayload(
+            lines = listOf(
+                LyricsLine(text = "Line one", startTimeMs = 1_000L, endTimeMs = 4_000L),
+                LyricsLine(text = "Line two", startTimeMs = 4_000L, endTimeMs = 7_000L),
+                LyricsLine(text = "Line three", startTimeMs = 7_000L, endTimeMs = null),
+            ),
+            isSynced = true,
+        )
+
+        assertNull(payload.currentLineIndexAt(positionMs = 800L, switchGraceMs = 90L))
+        assertEquals(0, payload.currentLineIndexAt(positionMs = 1_140L, switchGraceMs = 90L))
+        assertEquals(1, payload.currentLineIndexAt(positionMs = 4_120L, switchGraceMs = 90L))
+        assertEquals(2, payload.currentLineIndexAt(positionMs = 8_000L, switchGraceMs = 90L))
+    }
+
+    @Test
+    fun `current line index respects display timing offset`() {
+        val payload = LyricsPayload(
+            lines = listOf(
+                LyricsLine(text = "Late line", startTimeMs = 2_000L, endTimeMs = 5_000L),
+            ),
+            isSynced = true,
+            displayTimingOffsetMs = 600L,
+        )
+
+        assertNull(payload.currentLineIndexAt(positionMs = 2_500L, switchGraceMs = 0L))
+        assertEquals(0, payload.currentLineIndexAt(positionMs = 2_650L, switchGraceMs = 0L))
+    }
+
+    @Test
+    fun `parse synced lyrics handles empty instrumental timed line safely`() {
+        val parsed = parseSyncedLyrics(
+            """
+            [00:01.00]
+            [00:03.00]First vocal line
+            """.trimIndent(),
+        )
+
+        assertNotNull(parsed)
+        assertEquals(1, parsed!!.size)
+        assertEquals("First vocal line", parsed[0].text)
     }
 
     @Test
