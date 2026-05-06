@@ -81,7 +81,6 @@ data class EqSettings(
     val treble: Float = 0f,
     val spaciousness: Float = 0f,
     val spaciousnessMode: SpaciousnessMode = SpaciousnessMode.StereoWidth,
-    val crossfadeEnabled: Boolean = false,
     val monoEnabled: Boolean = false,
 )
 

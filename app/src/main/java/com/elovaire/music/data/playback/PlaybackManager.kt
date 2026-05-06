@@ -134,7 +134,6 @@ class PlaybackManager(
         }
     }
     private var lastRecordedSongId: Long? = null
-    private var fadeJob: Job? = null
     private var hasAudioFocus = false
     private var isPauseTransitioningToStopped = false
     private var isManualPausePending = false
@@ -144,7 +143,6 @@ class PlaybackManager(
     private var lastKnownQueueIndex = -1
     private var lastKnownPositionMs = 0L
     private var hasUsbOutputRoute = false
-    private var crossfadeEnabled = false
     private val playbackProgressController = PlaybackProgressController()
     private var progressUpdateJob: Job? = null
     private val playerListener = object : Player.Listener {
@@ -152,9 +150,6 @@ class PlaybackManager(
             mediaItem: MediaItem?,
             reason: Int,
         ) {
-            if (crossfadeEnabled && player.playWhenReady) {
-                fadeInAfterTransition()
-            }
             updateState()
         }
 
@@ -310,15 +305,15 @@ class PlaybackManager(
     fun togglePlayback() {
         shouldResumeAfterTransientFocusLoss = false
         if (isManualPausePending) {
-            fadeJob?.cancel()
-            fadeJob = null
             isManualPausePending = false
             isPauseTransitioningToStopped = false
             resumePlayback()
         } else if (player.isPlaying) {
             isPauseTransitioningToStopped = true
             isManualPausePending = true
-            fadeOutAndPause()
+            player.pause()
+            player.volume = effectivePlayerGain()
+            abandonAudioFocus()
         } else {
             isManualPausePending = false
             isPauseTransitioningToStopped = false
@@ -389,14 +384,10 @@ class PlaybackManager(
         updateState()
     }
 
-    fun setCrossfadeEnabled(enabled: Boolean) {
-        crossfadeEnabled = enabled
-    }
-
     fun skipNext() {
         shouldResumeAfterTransientFocusLoss = false
         if (player.hasNextMediaItem()) {
-            transitionToNextOrPrevious { player.seekToNextMediaItem() }
+            player.seekToNextMediaItem()
         } else {
             stopAndClearQueue()
         }
@@ -408,7 +399,7 @@ class PlaybackManager(
         if (player.currentPosition > PREVIOUS_SEEK_THRESHOLD_MS) {
             player.seekTo(0)
         } else if (player.hasPreviousMediaItem()) {
-            transitionToNextOrPrevious { player.seekToPreviousMediaItem() }
+            player.seekToPreviousMediaItem()
         } else {
             stopAndClearQueue()
         }
@@ -418,26 +409,11 @@ class PlaybackManager(
     fun playQueueIndex(index: Int) {
         if (index !in _state.value.queue.indices) return
         shouldResumeAfterTransientFocusLoss = false
-        val performSeek = {
-            player.seekToDefaultPosition(index)
-            if (requestAudioFocus()) {
-                player.volume = if (crossfadeEnabled) 0f else effectivePlayerGain()
-                player.playWhenReady = true
-                player.play()
-                if (crossfadeEnabled) {
-                    fadeInAfterTransition()
-                }
-            }
-        }
-        if (crossfadeEnabled && player.isPlaying) {
-            animateVolumeTo(
-                targetVolume = 0f,
-                durationMs = CROSSFADE_OUT_DURATION_MS,
-            ) {
-                performSeek()
-            }
-        } else {
-            performSeek()
+        player.seekToDefaultPosition(index)
+        if (requestAudioFocus()) {
+            player.volume = effectivePlayerGain()
+            player.playWhenReady = true
+            player.play()
         }
         updateState()
     }
@@ -460,7 +436,6 @@ class PlaybackManager(
 
     fun release() {
         progressUpdateJob?.cancel()
-        fadeJob?.cancel()
         usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
         appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
@@ -501,8 +476,6 @@ class PlaybackManager(
 
     private fun stopAndClearQueue() {
         isStoppingQueue = true
-        fadeJob?.cancel()
-        fadeJob = null
         shouldResumeAfterTransientFocusLoss = false
         player.pause()
         player.playWhenReady = false
@@ -589,90 +562,12 @@ class PlaybackManager(
     }
 
     private fun resumePlayback() {
-        fadeJob?.cancel()
-        fadeJob = null
         isManualPausePending = false
         if (!requestAudioFocus()) return
         isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
         player.volume = effectivePlayerGain()
         player.play()
-    }
-
-    private fun fadeOutAndPause(
-        durationMs: Long = PAUSE_FADE_DURATION_MS,
-        abandonFocusAfterPause: Boolean = true,
-    ) {
-        val wasPlaying = player.isPlaying || player.playWhenReady
-        if (!wasPlaying) {
-            player.pause()
-            isManualPausePending = false
-            isPauseTransitioningToStopped = false
-            player.volume = effectivePlayerGain()
-            if (abandonFocusAfterPause) abandonAudioFocus()
-            updateState()
-            return
-        }
-
-        animateVolumeTo(
-            targetVolume = 0f,
-            durationMs = durationMs,
-        ) {
-            player.pause()
-            isManualPausePending = false
-            isPauseTransitioningToStopped = false
-            player.volume = effectivePlayerGain()
-            if (abandonFocusAfterPause) abandonAudioFocus()
-            updateState()
-        }
-    }
-
-    private fun transitionToNextOrPrevious(action: () -> Unit) {
-        if (crossfadeEnabled && player.isPlaying) {
-            animateVolumeTo(
-                targetVolume = 0f,
-                durationMs = CROSSFADE_OUT_DURATION_MS,
-            ) {
-                action()
-                if (player.playWhenReady) {
-                    player.volume = 0f
-                    fadeInAfterTransition()
-                }
-            }
-        } else {
-            action()
-        }
-    }
-
-    private fun fadeInAfterTransition() {
-        player.volume = 0f
-        animateVolumeTo(
-            targetVolume = effectivePlayerGain(),
-            durationMs = CROSSFADE_IN_DURATION_MS,
-        ) {
-            updateState()
-        }
-    }
-
-    private fun animateVolumeTo(
-        targetVolume: Float,
-        durationMs: Long,
-        onComplete: (() -> Unit)? = null,
-    ) {
-        fadeJob?.cancel()
-        fadeJob = scope.launch {
-            val startVolume = player.volume.coerceIn(0f, 1f)
-            val endVolume = targetVolume.coerceIn(0f, 1f)
-            val steps = (durationMs / FADE_STEP_MS).toInt().coerceAtLeast(1)
-            repeat(steps) { step ->
-                val fraction = (step + 1f) / steps.toFloat()
-                player.volume = startVolume + ((endVolume - startVolume) * fraction)
-                delay((durationMs / steps).coerceAtLeast(1L))
-            }
-            player.volume = endVolume
-            fadeJob = null
-            onComplete?.invoke()
-        }
     }
 
     private fun requestAudioFocus(): Boolean {
@@ -701,30 +596,28 @@ class PlaybackManager(
                 shouldResumeAfterTransientFocusLoss = player.isPlaying || player.playWhenReady
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
-                fadeOutAndPause(
-                    durationMs = INTERRUPTION_FADE_DURATION_MS,
-                    abandonFocusAfterPause = false,
-                )
+                player.pause()
+                player.volume = effectivePlayerGain()
+                updateState()
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 shouldResumeAfterTransientFocusLoss = player.isPlaying || player.playWhenReady
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
-                fadeOutAndPause(
-                    durationMs = INTERRUPTION_FADE_DURATION_MS,
-                    abandonFocusAfterPause = false,
-                )
+                player.pause()
+                player.volume = effectivePlayerGain()
+                updateState()
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
                 shouldResumeAfterTransientFocusLoss = false
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
-                fadeOutAndPause(
-                    durationMs = INTERRUPTION_FADE_DURATION_MS,
-                    abandonFocusAfterPause = true,
-                )
+                player.pause()
+                player.volume = effectivePlayerGain()
+                abandonAudioFocus()
+                updateState()
             }
         }
     }
@@ -738,8 +631,6 @@ class PlaybackManager(
             ?: 0
         val recoverPosition = lastKnownPositionMs.coerceAtLeast(0L)
         isRecoveringPlayback = true
-        fadeJob?.cancel()
-        fadeJob = null
         scope.launch {
             val mediaItems = snapshot.queue.map { song ->
                 MediaItem.Builder()
@@ -907,11 +798,6 @@ class PlaybackManager(
     private companion object {
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val MAX_HISTORY_ITEMS = 12
-        const val PAUSE_FADE_DURATION_MS = 500L
-        const val INTERRUPTION_FADE_DURATION_MS = 1_100L
-        const val CROSSFADE_OUT_DURATION_MS = 90L
-        const val CROSSFADE_IN_DURATION_MS = 180L
-        const val FADE_STEP_MS = 40L
     }
 }
 

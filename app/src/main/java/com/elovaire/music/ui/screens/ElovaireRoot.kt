@@ -1031,9 +1031,6 @@ fun ElovaireRoot(
             nowPlayingTransitionSnapshot = null
         }
     }
-    LaunchedEffect(eqSettings.crossfadeEnabled) {
-        container.playbackManager.setCrossfadeEnabled(eqSettings.crossfadeEnabled)
-    }
     SideEffect {
         val window = (rootView.context as? Activity)?.window ?: return@SideEffect
         val controller = WindowCompat.getInsetsController(window, rootView)
@@ -1105,16 +1102,6 @@ fun ElovaireRoot(
             Scaffold(
                 modifier = Modifier.fillMaxSize(),
                 containerColor = MaterialTheme.colorScheme.background,
-                topBar = {
-                    if (showTopLevelChrome) {
-                        UnifiedTopBar(
-                            title = topBarTitle(currentRoute),
-                            showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
-                            onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                },
             ) { innerPadding ->
             val topBarHeight = topBarOccupiedHeight()
             val detailTopBarHeight = detailTopBarOccupiedHeight()
@@ -1133,11 +1120,12 @@ fun ElovaireRoot(
                     (if (reserveCompactNowPlayingSpace) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
                     ElovaireSpacing.scrollTailPadding
 
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .hazeSource(chromeHazeState),
-            ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .hazeSource(chromeHazeState),
+                ) {
                 NavHost(
                     navController = navController,
                     startDestination = HOME_ROUTE,
@@ -1640,9 +1628,22 @@ fun ElovaireRoot(
                             .background(MaterialTheme.colorScheme.background.copy(alpha = navHostScrimAlpha)),
                     )
                 }
+                }
+                if (showTopLevelChrome) {
+                    UnifiedTopBar(
+                        title = topBarTitle(currentRoute),
+                        showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
+                        onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .zIndex(8f),
+                    )
+                }
                 AnimatedVisibility(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
+                        .zIndex(7f)
                         .padding(
                             start = 16.dp,
                             end = 16.dp,
@@ -1674,6 +1675,7 @@ fun ElovaireRoot(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
+                                .zIndex(7f)
                                 .padding(
                                     start = 16.dp,
                                     end = 16.dp,
@@ -1699,6 +1701,7 @@ fun ElovaireRoot(
                 AnimatedVisibility(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
+                        .zIndex(8f)
                         .fillMaxWidth(),
                     visible = showBottomNavigation,
                     enter = if (reenteringFromPlayer) {
@@ -1747,19 +1750,7 @@ fun ElovaireRoot(
                     modifier = Modifier
                         .fillMaxSize()
                         .clipToBounds()
-                        .zIndex(20f)
-                        .pointerInput(playbackState.currentSong?.id, isPlayerOverlayVisible) {
-                            awaitEachGesture {
-                                do {
-                                    val event = awaitPointerEvent(PointerEventPass.Final)
-                                    event.changes.forEach { change ->
-                                        if (!change.isConsumed) {
-                                            change.consume()
-                                        }
-                                    }
-                                } while (event.changes.any { it.pressed })
-                            }
-                        },
+                        .zIndex(20f),
                 ) {
                     NowPlayingScreen(
                         playbackManager = container.playbackManager,
@@ -1778,7 +1769,6 @@ fun ElovaireRoot(
                         onQueueItemSelected = container.playbackManager::playQueueIndex,
                         eqSettings = eqSettings,
                         onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
-                        onCrossfadeEnabledChanged = container.preferenceStore::updateCrossfadeEnabled,
                         onVolumeChanged = { volume ->
                             container.playbackManager.setVolume(volume)
                         },
@@ -6992,7 +6982,6 @@ private fun NowPlayingScreen(
     onQueueItemSelected: (Int) -> Unit,
     eqSettings: EqSettings,
     onSpaciousnessChanged: (Float) -> Unit,
-    onCrossfadeEnabledChanged: (Boolean) -> Unit,
     onVolumeChanged: (Float) -> Unit,
     transitionSnapshot: NowPlayingTransitionSnapshot?,
     modifier: Modifier = Modifier,
@@ -7037,14 +7026,14 @@ private fun NowPlayingScreen(
         )
     }
     val expandSettleAnimationSpec = remember {
-        spring<Float>(
-            dampingRatio = 0.84f,
-            stiffness = 520f,
+        tween<Float>(
+            durationMillis = 420,
+            easing = FastOutSlowInEasing,
         )
     }
     val collapseSettleAnimationSpec = remember {
         tween<Float>(
-            durationMillis = 320,
+            durationMillis = 340,
             easing = FastOutSlowInEasing,
         )
     }
@@ -7260,6 +7249,10 @@ private fun NowPlayingScreen(
         val playerControlsTranslationPx = with(density) { (1f - controlsRevealProgress) * 30.dp.toPx() }
         val playerSurfaceCorner = lerpFloat(with(density) { ElovaireRadii.card.toPx() }, 0f, effectiveTransitionProgress)
         val sharedArtworkBounds = lerpRect(sourceArtworkBounds, targetArtworkBounds, artworkRevealProgress).coerceWithin(fullSurfaceBounds)
+        val metadataSectionProgress = ((effectiveTransitionProgress - 0.34f) / 0.24f).coerceIn(0f, 1f)
+        val progressSectionProgress = ((effectiveTransitionProgress - 0.44f) / 0.2f).coerceIn(0f, 1f)
+        val transportSectionProgress = ((effectiveTransitionProgress - 0.54f) / 0.18f).coerceIn(0f, 1f)
+        val actionsSectionProgress = ((effectiveTransitionProgress - 0.64f) / 0.16f).coerceIn(0f, 1f)
         val useSharedArtworkOverlay =
             activeTransitionSnapshot != null &&
                 transitionState != PlayerOverlayTransitionState.Expanded &&
@@ -7380,7 +7373,6 @@ private fun NowPlayingScreen(
                 }
             }
             val spaciousnessEnabled = eqSettings.spaciousness > 0.02f
-            val crossfadeEnabled = eqSettings.crossfadeEnabled
             val artworkScale by animateFloatAsState(
                 targetValue = if (playbackState.isPlaying) 1f else 0.95f,
                 animationSpec = spring(
@@ -7597,11 +7589,7 @@ private fun NowPlayingScreen(
                 }
             }
 
-            androidx.compose.animation.AnimatedVisibility(
-                visible = !showQueueSheet,
-                enter = fadeIn(animationSpec = tween(180)),
-                exit = fadeOut(animationSpec = tween(140)),
-            ) {
+            if (!showQueueSheet || metadataSectionProgress > 0f) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -7611,7 +7599,11 @@ private fun NowPlayingScreen(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth(centeredInfoWidth)
-                            .align(Alignment.Center),
+                            .align(Alignment.Center)
+                            .graphicsLayer {
+                                alpha = if (showQueueSheet) 0f else metadataSectionProgress
+                                translationY = (1f - metadataSectionProgress) * 20f
+                            },
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -7716,14 +7708,14 @@ private fun NowPlayingScreen(
                         .fillMaxWidth()
                         .weight(1f),
                 ) {
-                    androidx.compose.animation.AnimatedVisibility(
-                        visible = !showQueueSheet,
-                        modifier = Modifier.fillMaxSize(),
-                        enter = fadeIn(animationSpec = tween(ElovaireMotion.Standard)),
-                        exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick)),
-                    ) {
+                    if (!showQueueSheet || progressSectionProgress > 0f || transportSectionProgress > 0f) {
                         Column(
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .graphicsLayer {
+                                    alpha = if (showQueueSheet) 0f else progressSectionProgress
+                                    translationY = (1f - progressSectionProgress) * 24f
+                                },
                             verticalArrangement = Arrangement.spacedBy(0.dp),
                         ) {
                             Column(
@@ -7791,7 +7783,10 @@ private fun NowPlayingScreen(
                                 contentAlignment = Alignment.Center,
                             ) {
                                 Column(
-                                    modifier = Modifier.alpha(transportAlpha),
+                                    modifier = Modifier.graphicsLayer {
+                                        alpha = if (showQueueSheet) 0f else transportSectionProgress * transportAlpha
+                                        translationY = (1f - transportSectionProgress) * 28f
+                                    },
                                     horizontalAlignment = Alignment.CenterHorizontally,
                                     verticalArrangement = Arrangement.spacedBy(22.dp),
                                 ) {
@@ -7871,12 +7866,6 @@ private fun NowPlayingScreen(
                             },
                             spaciousnessAmount = eqSettings.spaciousness.coerceIn(0f, 1f),
                             onSpaciousnessAmountChanged = onSpaciousnessChanged,
-                            crossfadeEnabled = crossfadeEnabled,
-                            onToggleCrossfade = {
-                                val enabling = !crossfadeEnabled
-                                queueStatusText = if (enabling) "Fade In/Out | Enabled" else null
-                                onCrossfadeEnabledChanged(enabling)
-                            },
                             statusText = queueStatusText,
                             onDismiss = { showQueueSheet = false },
                             isPlaying = playbackState.isPlaying,
@@ -7886,13 +7875,14 @@ private fun NowPlayingScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = !showQueueSheet,
-                    enter = fadeIn(animationSpec = tween(160)),
-                    exit = fadeOut(animationSpec = tween(120)),
-                ) {
+                if (!showQueueSheet || actionsSectionProgress > 0f) {
                     Row(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .graphicsLayer {
+                                alpha = if (showQueueSheet) 0f else actionsSectionProgress
+                                translationY = (1f - actionsSectionProgress) * 32f
+                            },
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
@@ -8130,8 +8120,6 @@ private fun QueueSheet(
     onToggleSpaciousness: () -> Unit,
     spaciousnessAmount: Float,
     onSpaciousnessAmountChanged: (Float) -> Unit,
-    crossfadeEnabled: Boolean,
-    onToggleCrossfade: () -> Unit,
     statusText: String?,
     onDismiss: () -> Unit,
     isPlaying: Boolean,
@@ -8362,13 +8350,6 @@ private fun QueueSheet(
                         tint = tint,
                         showBackground = shuffleEnabled,
                         onClick = onToggleShuffle,
-                    )
-                    PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_send_to_back,
-                        label = if (crossfadeEnabled) "Fade In/Out" else "",
-                        tint = tint,
-                        showBackground = crossfadeEnabled,
-                        onClick = onToggleCrossfade,
                     )
                 }
             }
