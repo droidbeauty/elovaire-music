@@ -167,6 +167,7 @@ import androidx.compose.ui.graphics.asComposeRenderEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.TransformOrigin
@@ -185,6 +186,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -991,8 +993,9 @@ fun ElovaireRoot(
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val hideCompactNowPlaying = (keyboardVisible && currentRoute == PLAYLISTS_ROUTE) ||
         (currentRoute == SEARCH_ROUTE && isSearchQueryActive)
-    val canHostCompactNowPlaying = playbackState.currentSong != null && !isPlayerOverlayVisible
-    val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying
+    val reserveCompactNowPlayingSpace = playbackState.currentSong != null && !hideCompactNowPlaying
+    val canHostCompactNowPlaying = playbackState.currentSong != null
+    val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && !isPlayerOverlayVisible
     val reenteringFromPlayer = false
     val overscrollFactory = rememberElovaireOverscrollFactory()
     val navHostBlur = 0.dp
@@ -1126,20 +1129,25 @@ fun ElovaireRoot(
         },
         LocalChromeHazeState provides chromeHazeState,
     ) {
-        Scaffold(
-            modifier = Modifier.fillMaxSize(),
-            containerColor = MaterialTheme.colorScheme.background,
-            topBar = {
-                if (showTopLevelChrome) {
-                UnifiedTopBar(
-                    title = topBarTitle(currentRoute),
-                    showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
-                    onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                }
-            },
-        ) { innerPadding ->
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clipToBounds(),
+        ) {
+            Scaffold(
+                modifier = Modifier.fillMaxSize(),
+                containerColor = MaterialTheme.colorScheme.background,
+                topBar = {
+                    if (showTopLevelChrome) {
+                        UnifiedTopBar(
+                            title = topBarTitle(currentRoute),
+                            showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
+                            onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                },
+            ) { innerPadding ->
             val topBarHeight = topBarOccupiedHeight()
             val detailTopBarHeight = detailTopBarOccupiedHeight()
             val bottomNavHeight = if (showBottomNavigation) bottomNavigationOccupiedHeight() else 0.dp
@@ -1150,12 +1158,12 @@ fun ElovaireRoot(
             }
             val bottomContentPadding =
                 bottomNavHeight +
-                (if (showGlobalNowPlaying) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
-                ElovaireSpacing.scrollTailPadding
+                    (if (reserveCompactNowPlayingSpace) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
+                    ElovaireSpacing.scrollTailPadding
             val detailBottomPadding =
                 bottomNavHeight +
-                (if (showGlobalNowPlaying) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
-                ElovaireSpacing.scrollTailPadding
+                    (if (reserveCompactNowPlayingSpace) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
+                    ElovaireSpacing.scrollTailPadding
 
             Box(
                 modifier = Modifier
@@ -1764,7 +1772,27 @@ fun ElovaireRoot(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                if (isPlayerOverlayVisible) {
+            }
+            }
+            if (isPlayerOverlayVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clipToBounds()
+                        .zIndex(20f)
+                        .pointerInput(playbackState.currentSong?.id, isPlayerOverlayVisible) {
+                            awaitEachGesture {
+                                do {
+                                    val event = awaitPointerEvent(PointerEventPass.Final)
+                                    event.changes.forEach { change ->
+                                        if (!change.isConsumed) {
+                                            change.consume()
+                                        }
+                                    }
+                                } while (event.changes.any { it.pressed })
+                            }
+                        },
+                ) {
                     NowPlayingScreen(
                         playbackManager = container.playbackManager,
                         playbackState = playbackState,
@@ -1787,6 +1815,7 @@ fun ElovaireRoot(
                             container.playbackManager.setVolume(volume)
                         },
                         transitionSnapshot = nowPlayingTransitionSnapshot,
+                        modifier = Modifier.fillMaxSize(),
                     )
                 }
             }
@@ -1850,23 +1879,10 @@ private fun StandaloneNowPlayingDock(
     val resolvedSurface = albumTint.compositeOver(baseTint)
     val contentColor = if (resolvedSurface.luminance() > 0.42f) InkText else Color.White
     val secondaryContentColor = contentColor.copy(alpha = 0.72f)
-    AnimatedVisibility(
-        modifier = modifier,
-        visible = visible,
-        enter = if (suppressEnterAnimation) {
-            EnterTransition.None
-        } else {
-            fadeIn(animationSpec = tween(ElovaireMotion.Standard)) +
-                slideInVertically(
-                    animationSpec = tween(ElovaireMotion.Standard),
-                    initialOffsetY = { -it / 2 },
-                )
+    Box(
+        modifier = modifier.graphicsLayer {
+            alpha = if (visible) 1f else 0f
         },
-        exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick)) +
-            slideOutVertically(
-                animationSpec = tween(ElovaireMotion.Quick),
-                targetOffsetY = { it / 2 },
-            ),
     ) {
         Box(
             modifier = Modifier
@@ -2324,7 +2340,7 @@ private fun NowPlayingBar(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(ElovaireRadii.card))
-            .onGloballyPositioned { barBounds = it.boundsInWindow() }
+            .onGloballyPositioned { barBounds = it.boundsInRoot() }
             .background(Color.Transparent)
             .border(
                 width = 1.dp,
@@ -2392,7 +2408,7 @@ private fun NowPlayingBar(
                     title = song.title,
                     modifier = Modifier
                         .size(48.dp)
-                        .onGloballyPositioned { artworkBounds = it.boundsInWindow() },
+                        .onGloballyPositioned { artworkBounds = it.boundsInRoot() },
                     cornerRadius = ElovaireRadii.artworkSmall,
                 )
                 Column(
@@ -7011,6 +7027,7 @@ private fun NowPlayingScreen(
     onCrossfadeEnabledChanged: (Boolean) -> Unit,
     onVolumeChanged: (Float) -> Unit,
     transitionSnapshot: NowPlayingTransitionSnapshot?,
+    modifier: Modifier = Modifier,
 ) {
     val currentSong = playbackState.currentSong
     val displaySong = currentSong?.let { enrichedSongsById[it.id] ?: it }
@@ -7032,7 +7049,7 @@ private fun NowPlayingScreen(
     }
     val appBackground = MaterialTheme.colorScheme.background
     val gradient = rememberArtworkGradient(currentSong?.artUri).value
-    val artwork = rememberArtworkBitmap(currentSong?.artUri, size = 1024)
+    val artwork = rememberArtworkBitmap(currentSong?.artUri, size = 768)
     val activeTransitionSnapshot = remember(transitionSnapshot, currentSong?.id) {
         transitionSnapshot?.takeIf {
             it.songId == currentSong?.id &&
@@ -7227,8 +7244,9 @@ private fun NowPlayingScreen(
     }
 
     BoxWithConstraints(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
+            .clipToBounds()
             .hazeSource(playerHazeState),
     ) {
         val screenWidthPx = with(density) { maxWidth.toPx() }
@@ -7287,7 +7305,7 @@ private fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    baseSurface.copy(alpha = 0.12f * effectiveTransitionProgress.coerceIn(0f, 1f)),
+                    baseSurface.copy(alpha = 0.68f * effectiveTransitionProgress.coerceIn(0f, 1f)),
                 ),
         )
         SnapshotBackdropBlurLayer(
@@ -7985,7 +8003,8 @@ private fun NowPlayingScreen(
                         )
                     }
                     .width(with(density) { sharedArtworkBounds.width.toDp() })
-                    .aspectRatio(1f)
+                    .height(with(density) { sharedArtworkBounds.height.toDp() })
+                    .clipToBounds()
                     .graphicsLayer {
                         clip = true
                         shape = RoundedCornerShape(sharedArtworkCornerRadius)
