@@ -59,6 +59,7 @@ internal class LibrarySnapshotStore(
                             dateAddedSeconds = songJson.optLong("dateAddedSeconds"),
                             uri = Uri.parse(songJson.optString("uri")),
                             artUri = songJson.optString("artUri").takeIf { it.isNotBlank() }?.let(Uri::parse),
+                            metadataResolved = songJson.optBoolean("metadataResolved", false),
                         ),
                     )
                 }
@@ -105,6 +106,7 @@ internal class LibrarySnapshotStore(
                                     put("dateAddedSeconds", song.dateAddedSeconds)
                                     put("uri", song.uri.toString())
                                     put("artUri", song.artUri?.toString().orEmpty())
+                                    put("metadataResolved", song.metadataResolved)
                                 },
                             )
                         }
@@ -122,8 +124,8 @@ internal class LibrarySnapshotStore(
     }
 
     private companion object {
-        const val SNAPSHOT_FILE_NAME = "library_snapshot_v2.json"
-        const val SNAPSHOT_VERSION = 2
+        const val SNAPSHOT_FILE_NAME = "library_snapshot_v3.json"
+        const val SNAPSHOT_VERSION = 3
     }
 }
 
@@ -163,4 +165,3 @@ internal fun buildAlbumsFromSongs(
             ),
         )
 }
-

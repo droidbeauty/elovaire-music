@@ -20,6 +20,7 @@ data class Song(
     val dateAddedSeconds: Long,
     val uri: Uri,
     val artUri: Uri?,
+    val metadataResolved: Boolean = false,
 )
 
 data class Album(

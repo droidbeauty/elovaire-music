@@ -42,7 +42,7 @@ class MediaStoreScanner(
             metadataCache[song.id] = CachedSongMetadata(
                 fileName = song.fileName,
                 dateAddedSeconds = song.dateAddedSeconds,
-                isEnriched = cachedMetadata.isMeaningfullyEnriched(),
+                isEnriched = song.metadataResolved,
                 metadata = cachedMetadata,
             )
         }
@@ -132,7 +132,7 @@ class MediaStoreScanner(
                 refreshedMetadataCache[id] = CachedSongMetadata(
                     fileName = fileName,
                     dateAddedSeconds = dateAddedSeconds,
-                    isEnriched = songMetadata.isMeaningfullyEnriched(),
+                    isEnriched = enrichMetadata || cachedMetadata?.isEnriched == true,
                     metadata = songMetadata,
                 )
                 val rawTrack = cursor.getInt(trackIndex)
@@ -154,6 +154,7 @@ class MediaStoreScanner(
                     dateAddedSeconds = dateAddedSeconds,
                     uri = songUri,
                     artUri = albumArtworkUri(albumId),
+                    metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
                 )
                 scannedSongs += 1
                 if (scannedSongs == totalSongs || scannedSongs % 24 == 0) {
@@ -652,17 +653,6 @@ private data class SongMetadata(
     val format: String,
     val quality: String?,
 )
-
-private fun SongMetadata.isMeaningfullyEnriched(): Boolean {
-    val hasMeaningfulGenre = !genre.isNullOrBlank() && genre != "Unknown Genre"
-    val qualityLooksReady = when {
-        quality.isNullOrBlank() -> false
-        isLossyFormat(format.uppercase()) -> quality.contains("/")
-        isLosslessFormat(format.uppercase()) -> LOSSLESS_QUALITY_REGEX.matches(quality)
-        else -> true
-    }
-    return releaseYear != null || hasMeaningfulGenre || qualityLooksReady
-}
 
 private data class ExtractorMetadata(
     val sampleRate: Int? = null,

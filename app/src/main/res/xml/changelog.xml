@@ -6,12 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.7.2">
-        <item>New interaction - tapping on song title/artist stack in now playing screen opens album list view</item>
-        <item>Improved library metadata fetching precision</item>
-        <item>Improved lyrics fetching accuracy</item>
-        <item>Improved EQ and spaciousness effects implementation</item>
-        <item>Fixed notification center player disappearing right away after pausing playback</item>
-        <item>Animations tweaks</item>
+    <release version="1.7.3">
+        <item>layout and animation improvements for now playing screen</item>
+        <item>modified frequency bands in EQ to be more useful for actual sound customization</item>
+        <item>improved sound from built-in EQ preset profiles</item>
     </release>
 </changelog>

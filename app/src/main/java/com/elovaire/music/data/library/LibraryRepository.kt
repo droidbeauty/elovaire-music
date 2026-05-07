@@ -94,7 +94,8 @@ class LibraryRepository(
             if (cachedSnapshot != null) {
                 scanner.primeMetadataCache(cachedSnapshot.snapshot.songs)
                 val cachedSnapshotNeedsMetadata = cachedSnapshot.snapshot.songs.any { song ->
-                    song.releaseYear == null ||
+                    !song.metadataResolved ||
+                        song.releaseYear == null ||
                         song.qualityNeedsEnrichment() ||
                         song.genre.isBlank() ||
                         song.genre == "Unknown Genre"

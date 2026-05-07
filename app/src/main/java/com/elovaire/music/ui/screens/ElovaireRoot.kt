@@ -7379,15 +7379,8 @@ private fun NowPlayingScreen(
                     0f
                 }
             }
+            val isPlaybackActuallyPlaying = playbackProgress.isPlaying
             val spaciousnessEnabled = eqSettings.spaciousness > 0.02f
-            val artworkScale by animateFloatAsState(
-                targetValue = if (playbackState.isPlaying) 1f else 0.985f,
-                animationSpec = tween(
-                    durationMillis = 220,
-                    easing = FastOutSlowInEasing,
-                ),
-                label = "now_playing_artwork_scale",
-            )
             val favoriteAlpha by animateFloatAsState(
                 targetValue = if (showQueueSheet) 0f else 1f,
                 animationSpec = tween(180),
@@ -7509,7 +7502,6 @@ private fun NowPlayingScreen(
                                     title = animatedSong.title,
                                     modifier = Modifier
                                         .width(animatedArtworkWidth)
-                                        .scale(artworkScale)
                                         .aspectRatio(1f),
                                     cornerRadius = animatedArtworkCornerRadius,
                                 )
@@ -7807,8 +7799,8 @@ private fun NowPlayingScreen(
                                             onClick = onSkipPrevious,
                                         )
                                         PlayerTransportButton(
-                                            iconResId = if (playbackState.isPlaying) R.drawable.ic_elovaire_pause_filled else R.drawable.ic_lucide_play,
-                                            contentDescription = if (playbackState.isPlaying) "Pause" else "Play",
+                                            iconResId = if (isPlaybackActuallyPlaying) R.drawable.ic_elovaire_pause_filled else R.drawable.ic_lucide_play,
+                                            contentDescription = if (isPlaybackActuallyPlaying) "Pause" else "Play",
                                             tint = contentColor,
                                             iconSize = 46.dp,
                                             onClick = onTogglePlayback,
@@ -7873,7 +7865,7 @@ private fun NowPlayingScreen(
                     visible = showQueueSheet,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.975f)
+                        .fillMaxHeight(0.992f)
                         .align(Alignment.BottomCenter),
                     enter = fadeIn(animationSpec = tween(ElovaireMotion.Standard)) +
                         scaleIn(
@@ -11815,10 +11807,15 @@ private fun ThinContinuousSlider(
 }
 
 private fun eqBandFractions(): List<Float> {
-    val bandCount = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.size
-    val maxIndex = (bandCount - 1).coerceAtLeast(1)
-    return List(bandCount) { index ->
-        index.toFloat() / maxIndex.toFloat()
+    val frequencies = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ
+    if (frequencies.isEmpty()) return emptyList()
+    val minFrequency = frequencies.first().coerceAtLeast(1f)
+    val maxFrequency = frequencies.last().coerceAtLeast(minFrequency + 1f)
+    val minLog = kotlin.math.ln(minFrequency)
+    val maxLog = kotlin.math.ln(maxFrequency)
+    val span = (maxLog - minLog).takeIf { it > 0f } ?: 1f
+    return frequencies.map { frequency ->
+        ((kotlin.math.ln(frequency.coerceAtLeast(minFrequency)) - minLog) / span).coerceIn(0f, 1f)
     }
 }
 
@@ -11837,11 +11834,20 @@ private fun formatEqFrequencyLabel(frequencyHz: Float): String {
     return when {
         frequencyHz >= 1_000f -> {
             val kilo = frequencyHz / 1_000f
-            if (kilo % 1f == 0f) "${kilo.roundToInt()}k" else "${((kilo * 10f).roundToInt()) / 10f}k"
+            formatEqKiloLabel(kilo)
         }
         frequencyHz % 1f == 0f -> frequencyHz.roundToInt().toString()
         else -> frequencyHz.toString()
     }
+}
+
+private fun formatEqKiloLabel(kiloValue: Float): String {
+    val formatted = when {
+        kiloValue >= 10f || kiloValue % 1f == 0f -> kiloValue.roundToInt().toString()
+        (kiloValue * 10f) % 1f == 0f -> String.format(java.util.Locale.ROOT, "%.1f", kiloValue)
+        else -> String.format(java.util.Locale.ROOT, "%.2f", kiloValue)
+    }.trimEnd('0').trimEnd('.')
+    return "${formatted}k"
 }
 
 private fun normalizeEqBandValues(
@@ -11868,13 +11874,13 @@ private fun eqPreset(
     val bandShape = List(EqualizerDspModel.BAND_COUNT) { index ->
         when (index) {
             0, 1 -> bass
-            2, 3, 4, 5 -> subBass
-            6, 7, 8, 9, 10 -> lowBass
-            11, 12, 13, 14, 15 -> lowMid
-            16, 17, 18 -> presence
-            19, 20 -> upperMid
-            21, 22 -> brilliance
-            23 -> air
+            2, 3 -> subBass
+            4, 5, 6 -> lowBass
+            7, 8, 9, 10 -> lowMid
+            11, 12, 13, 14 -> presence
+            15, 16, 17 -> upperMid
+            18, 19, 20, 21 -> brilliance
+            22, 23 -> air
             else -> 0f
         }.coerceIn(-1f, 1f)
     }
