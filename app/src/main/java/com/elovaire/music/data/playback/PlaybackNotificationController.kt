@@ -15,6 +15,7 @@ import elovaire.music.app.MainActivity
 import elovaire.music.app.R
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
@@ -52,6 +53,13 @@ class PlaybackNotificationController(
                     notificationId: Int,
                     dismissedByUser: Boolean,
                 ) {
+                    if (dismissedByUser) {
+                        val currentState = playbackManager.state.value
+                        if (currentState.currentSong != null && !currentState.isPlaying) {
+                            notificationDismissedWhilePaused = true
+                            pauseHideJob?.cancel()
+                        }
+                    }
                     PlaybackKeepAliveService.stop(context)
                 }
             },
@@ -71,14 +79,28 @@ class PlaybackNotificationController(
 
     private var notificationsEnabled = false
     private var pauseHideJob: Job? = null
+    private var notificationDismissedWhilePaused = false
+    private var lastManualPlaybackStartVersion = 0L
 
     init {
+        scope.launch {
+            playbackManager.manualPlaybackStartVersion.collect { version ->
+                if (version == lastManualPlaybackStartVersion) return@collect
+                lastManualPlaybackStartVersion = version
+                notificationDismissedWhilePaused = false
+                val currentState = playbackManager.state.value
+                if (notificationsEnabled && currentState.currentSong != null) {
+                    notificationManager.setPlayer(playbackManager.playerInstance)
+                }
+            }
+        }
         scope.launch {
             playbackManager.state.collectLatest { state ->
                 if (!notificationsEnabled) return@collectLatest
                 when {
                     state.currentSong == null -> {
                         pauseHideJob?.cancel()
+                        notificationDismissedWhilePaused = false
                         notificationManager.setPlayer(null)
                     }
                     state.isPlaying -> {
@@ -86,12 +108,21 @@ class PlaybackNotificationController(
                         notificationManager.setPlayer(playbackManager.playerInstance)
                     }
                     else -> {
-                        notificationManager.setPlayer(playbackManager.playerInstance)
                         pauseHideJob?.cancel()
+                        if (notificationDismissedWhilePaused) {
+                            notificationManager.setPlayer(null)
+                            return@collectLatest
+                        }
+                        notificationManager.setPlayer(playbackManager.playerInstance)
                         pauseHideJob = launch {
                             delay(PAUSE_NOTIFICATION_TIMEOUT_MS)
                             val latestState = playbackManager.state.value
-                            if (notificationsEnabled && latestState.currentSong != null && !latestState.isPlaying) {
+                            if (
+                                notificationsEnabled &&
+                                latestState.currentSong != null &&
+                                !latestState.isPlaying &&
+                                !notificationDismissedWhilePaused
+                            ) {
                                 notificationManager.setPlayer(null)
                             }
                         }
@@ -109,7 +140,7 @@ class PlaybackNotificationController(
             return
         }
         val currentState = playbackManager.state.value
-        if (currentState.currentSong != null) {
+        if (currentState.currentSong != null && (currentState.isPlaying || !notificationDismissedWhilePaused)) {
             notificationManager.setPlayer(playbackManager.playerInstance)
         } else {
             notificationManager.setPlayer(null)

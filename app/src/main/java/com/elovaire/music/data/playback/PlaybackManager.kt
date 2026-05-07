@@ -211,6 +211,8 @@ class PlaybackManager(
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
     private val _progressState = MutableStateFlow(PlaybackProgressState())
     val progressState: StateFlow<PlaybackProgressState> = _progressState.asStateFlow()
+    private val _manualPlaybackStartVersion = MutableStateFlow(0L)
+    val manualPlaybackStartVersion: StateFlow<Long> = _manualPlaybackStartVersion.asStateFlow()
     val playerInstance: Player
         get() = player
     val mediaSessionToken
@@ -284,6 +286,7 @@ class PlaybackManager(
         sourceLabel: String? = song.album,
         shuffleEnabled: Boolean = false,
     ) {
+        recordManualPlaybackStart()
         val startIndex = collection.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         setQueue(collection, startIndex, sourceLabel, shuffleEnabled)
     }
@@ -294,6 +297,7 @@ class PlaybackManager(
         sourceLabel: String? = album.title,
         shuffleEnabled: Boolean = false,
     ) {
+        recordManualPlaybackStart()
         val startIndex = if (startSongId == null) {
             0
         } else {
@@ -307,6 +311,7 @@ class PlaybackManager(
         if (isManualPausePending) {
             isManualPausePending = false
             isPauseTransitioningToStopped = false
+            recordManualPlaybackStart()
             resumePlayback()
         } else if (player.isPlaying) {
             isPauseTransitioningToStopped = true
@@ -317,6 +322,7 @@ class PlaybackManager(
         } else {
             isManualPausePending = false
             isPauseTransitioningToStopped = false
+            recordManualPlaybackStart()
             resumePlayback()
         }
         updateState()
@@ -408,6 +414,7 @@ class PlaybackManager(
 
     fun playQueueIndex(index: Int) {
         if (index !in _state.value.queue.indices) return
+        recordManualPlaybackStart()
         shouldResumeAfterTransientFocusLoss = false
         player.seekToDefaultPosition(index)
         if (requestAudioFocus()) {
@@ -655,6 +662,10 @@ class PlaybackManager(
     private fun currentSong(): Song? {
         val index = player.currentMediaItemIndex
         return _state.value.queue.getOrNull(index)
+    }
+
+    private fun recordManualPlaybackStart() {
+        _manualPlaybackStartVersion.value = _manualPlaybackStartVersion.value + 1L
     }
 
     private fun effectivePlayerGain(): Float {

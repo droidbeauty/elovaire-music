@@ -6,6 +6,7 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.provider.MediaStore
+import android.util.Base64
 import android.util.Log
 import elovaire.music.app.BuildConfig
 import elovaire.music.app.domain.model.Song
@@ -35,11 +36,16 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.Charset
 import java.text.Normalizer
+import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.ConcurrentHashMap
+import javax.crypto.Mac
+import javax.crypto.spec.SecretKeySpec
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
+import kotlin.math.roundToLong
 
 private const val DEFAULT_LYRIC_SWITCH_GRACE_MS = 350L
 private const val MIN_SONG_DURATION_FOR_REMOTE_OPENING_FIX_MS = 90_000L
@@ -53,6 +59,11 @@ private const val REMOTE_MAX_AUTO_OPENING_SHIFT_MS = 0L
 private const val REMOTE_MIN_SYNCED_TIMELINE_COVERAGE = 0.52f
 private const val REMOTE_MIN_HEALTHY_MEDIAN_GAP_MS = 950L
 private val REMOTE_PLAUSIBLE_FIRST_LINE_RANGE_MS = 8_000L..40_000L
+
+enum class SyncedLyricsTimingProfile {
+    Approximate,
+    ExactIntervals,
+}
 
 data class LyricsLine(
     val text: String,
@@ -69,6 +80,7 @@ data class LyricsPayload(
      * consistently earlier than the actual audio in the local file.
      */
     val displayTimingOffsetMs: Long = 0L,
+    val timingProfile: SyncedLyricsTimingProfile = SyncedLyricsTimingProfile.Approximate,
 ) {
     /**
      * Returns the lyric line that should be highlighted at [positionMs].
@@ -86,32 +98,60 @@ data class LyricsPayload(
         if (!isSynced || lines.isEmpty()) return null
         val correctedPosition = positionMs - timingOffsetMs - displayTimingOffsetMs
         if (correctedPosition < 0L) return null
+        val timedLineIndexes = lines.indices.filter { lines[it].startTimeMs != null }
+        if (timedLineIndexes.isEmpty()) return null
 
         var low = 0
-        var high = lines.lastIndex
-        var result: Int? = null
+        var high = timedLineIndexes.lastIndex
+        var timedResult = -1
         while (low <= high) {
             val mid = (low + high) ushr 1
-            val start = lines[mid].startTimeMs ?: Long.MAX_VALUE
+            val lineIndex = timedLineIndexes[mid]
+            val start = lines[lineIndex].startTimeMs ?: Long.MAX_VALUE
             if (start <= correctedPosition) {
-                result = mid
+                timedResult = mid
                 low = mid + 1
             } else {
                 high = mid - 1
             }
         }
-        val candidateIndex = result ?: return null
+        if (timedResult < 0) return null
+
+        val candidateIndex = timedLineIndexes[timedResult]
         val candidate = lines[candidateIndex]
         val candidateStart = candidate.startTimeMs ?: return null
-        if (correctedPosition + switchGraceMs < candidateStart) return null
-        val candidateEnd = candidate.endTimeMs
-        if (candidateEnd != null && correctedPosition >= candidateEnd) {
-            return lines.indexOfLast { line ->
-                val start = line.startTimeMs ?: Long.MAX_VALUE
-                start <= correctedPosition
-            }.takeIf { it >= 0 }
+        val nextTimedIndex = timedLineIndexes.getOrNull(timedResult + 1)
+        val nextStart = nextTimedIndex?.let { lines[it].startTimeMs }
+
+        return when (timingProfile) {
+            SyncedLyricsTimingProfile.ExactIntervals -> {
+                val candidateEnd = candidate.endTimeMs ?: nextStart
+                if (candidateEnd != null && correctedPosition >= candidateEnd) {
+                    if (nextStart != null && correctedPosition < nextStart) {
+                        null
+                    } else {
+                        nextTimedIndex ?: candidateIndex
+                    }
+                } else {
+                    candidateIndex
+                }
+            }
+
+            SyncedLyricsTimingProfile.Approximate -> {
+                val delayedSwitchBoundary = candidateStart + adaptiveSwitchDelayMs(
+                    currentStartMs = candidateStart,
+                    nextStartMs = nextStart,
+                    fallbackGraceMs = switchGraceMs,
+                )
+                if (candidateIndex == timedLineIndexes.first() && correctedPosition < delayedSwitchBoundary) {
+                    null
+                } else if (candidateIndex != timedLineIndexes.first() && correctedPosition < delayedSwitchBoundary) {
+                    timedLineIndexes.getOrNull(timedResult - 1)
+                } else {
+                    candidateIndex
+                }
+            }
         }
-        return candidateIndex
     }
 
     fun currentLineAt(
@@ -119,6 +159,21 @@ data class LyricsPayload(
         timingOffsetMs: Long = 0L,
         switchGraceMs: Long = DEFAULT_LYRIC_SWITCH_GRACE_MS,
     ): LyricsLine? = currentLineIndexAt(positionMs, timingOffsetMs, switchGraceMs)?.let(lines::get)
+}
+
+private fun adaptiveSwitchDelayMs(
+    currentStartMs: Long,
+    nextStartMs: Long?,
+    fallbackGraceMs: Long,
+): Long {
+    val gapMs = nextStartMs?.minus(currentStartMs)?.coerceAtLeast(0L) ?: Long.MAX_VALUE
+    return when {
+        gapMs <= 650L -> 12L
+        gapMs <= 1_050L -> 24L
+        gapMs <= 1_700L -> 36L
+        gapMs <= 2_600L -> 48L
+        else -> fallbackGraceMs.coerceIn(24L, 60L)
+    }
 }
 
 sealed interface LyricsResult {
@@ -143,9 +198,8 @@ internal enum class LyricsSourceKind {
     EmbeddedPlain,
     SidecarLrc,
     SidecarText,
-    RemoteDirect,
-    RemoteSearch,
-    RemoteFallback,
+    RemoteMusixmatchRichSync,
+    RemoteMusixmatchLyrics,
     Offline,
     Timeout,
     NotFound,
@@ -182,6 +236,7 @@ class LyricsService(
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val cacheLock = Any()
+    private val musixmatchSecretLock = Any()
     private val cache = object : LinkedHashMap<String, CachedLyricsEntry>(MAX_CACHE_ENTRIES, 0.75f, true) {
         override fun removeEldestEntry(
             eldest: MutableMap.MutableEntry<String, CachedLyricsEntry>?,
@@ -191,6 +246,10 @@ class LyricsService(
     }
     private val inFlightRequests = ConcurrentHashMap<String, Deferred<LyricsLookupOutcome>>()
     private val serviceScope = CoroutineScope(SupervisorJob() + ioDispatcher)
+    @Volatile
+    private var musixmatchSecret: String? = null
+    @Volatile
+    private var musixmatchAppJsUrl: String? = null
 
     fun cachedLyrics(
         song: Song,
@@ -406,46 +465,47 @@ class LyricsService(
     }
 
     private suspend fun resolveRemoteLyrics(song: Song): RemoteLyricsMatch? = coroutineScope {
-        val directQueries = buildLyricsQueryVariants(song).take(MAX_REMOTE_QUERY_VARIANTS)
-        val directCandidates = directQueries.map { query ->
-            async(ioDispatcher) {
-                withTimeoutOrNull(LRCLIB_DIRECT_LOOKUP_TIMEOUT_MS) {
-                    fetchLrcLibEntry(
-                        trackName = query.title,
-                        artistName = query.artist,
-                        albumName = query.album,
-                        durationSeconds = durationSeconds(song.durationMs),
-                    )
+        val searchQueries = buildLyricsSearchQueries(song).take(MAX_REMOTE_QUERY_VARIANTS)
+        if (searchQueries.isEmpty()) return@coroutineScope null
+
+        val scoredCandidates = searchQueries
+            .map { query ->
+                async(ioDispatcher) {
+                    withTimeoutOrNull(MUSIXMATCH_SEARCH_LOOKUP_TIMEOUT_MS) {
+                        searchMusixmatchTracks(query)
+                    }.orEmpty()
                 }
             }
-        }.awaitAll().filterNotNull()
+            .awaitAll()
+            .flatten()
+            .distinctBy(::musixmatchCandidateDistinctKey)
+            .filter { it.hasUsableTimingFor(song) }
+            .map { candidate -> candidate to candidate.scoreAgainst(song) }
+            .sortedByDescending { (_, score) -> score }
 
-        val directMatch = directCandidates.bestRemoteMatchFor(
-            song = song,
-            defaultSource = LyricsSourceKind.RemoteDirect,
-        )
-        if (directMatch != null && directMatch.confidence >= PREFERRED_DIRECT_CONFIDENCE) {
-            return@coroutineScope directMatch
-        }
+        val candidates = scoredCandidates
+            .filter { (candidate, score) -> candidate.isAcceptableMatchFor(song, score) }
+            .ifEmpty {
+                scoredCandidates.filter { (_, score) -> score >= MUSIXMATCH_FALLBACK_MATCH_MIN_SCORE }
+            }
+            .take(MAX_MUSIXMATCH_PAYLOAD_CANDIDATES)
 
-        val structuredSearchMatchDeferred = async(ioDispatcher) {
-            searchLrcLib(directQueries).bestRemoteMatchFor(
-                song = song,
-                defaultSource = LyricsSourceKind.RemoteSearch,
+        if (candidates.isEmpty()) return@coroutineScope null
+
+        candidates
+            .map { (candidate, baseScore) ->
+                async(ioDispatcher) {
+                    withTimeoutOrNull(MUSIXMATCH_PAYLOAD_LOOKUP_TIMEOUT_MS) {
+                        fetchMusixmatchPayload(candidate, song, baseScore)
+                    }
+                }
+            }
+            .awaitAll()
+            .filterNotNull()
+            .maxWithOrNull(
+                compareBy<RemoteLyricsMatch> { it.confidence }
+                    .thenBy { if (it.payload.isSynced) 1 else 0 },
             )
-        }
-        val fallbackMatchDeferred = async(ioDispatcher) {
-            fetchLyricsOvhFallback(song, directQueries)
-        }
-
-        listOfNotNull(
-            directMatch,
-            withTimeoutOrNull(REMOTE_SEARCH_PHASE_TIMEOUT_MS) { structuredSearchMatchDeferred.await() },
-            withTimeoutOrNull(REMOTE_FALLBACK_PHASE_TIMEOUT_MS) { fallbackMatchDeferred.await() },
-        ).maxWithOrNull(
-            compareBy<RemoteLyricsMatch> { it.confidence }
-                .thenBy { if (it.payload.isSynced) 1 else 0 },
-        )
     }
 
     private suspend fun resolveLocalLyrics(song: Song): LocalLyricsMatch? = coroutineScope {
@@ -458,125 +518,102 @@ class LyricsService(
         sidecarDeferred.await()
     }
 
-    private suspend fun searchLrcLib(
-        queries: List<LyricsQueryVariant>,
-    ): List<LrcLibCandidate> = coroutineScope {
-        return@coroutineScope queries
-            .flatMap { query ->
-                listOf(
-                    "https://lrclib.net/api/search?artist_name=${query.artist.urlEncode()}&track_name=${query.title.urlEncode()}",
-                    "https://lrclib.net/api/search?q=${"${query.artist} ${query.title}".urlEncode()}",
-                )
+    private fun searchMusixmatchTracks(query: String): List<MusixmatchTrackCandidate> {
+        val response = musixmatchRequest(
+            endpoint = "track.search",
+            queryParameters = linkedMapOf(
+                "q" to query,
+                "f_has_lyrics" to "true",
+                "page_size" to MUSIXMATCH_SEARCH_PAGE_SIZE.toString(),
+                "page" to "1",
+            ),
+            connectTimeoutMs = MUSIXMATCH_SEARCH_CONNECT_TIMEOUT_MS,
+            readTimeoutMs = MUSIXMATCH_SEARCH_READ_TIMEOUT_MS,
+        ) ?: return emptyList()
+
+        val trackList = response
+            .optJSONObject("message")
+            ?.optJSONObject("body")
+            ?.optJSONArray("track_list")
+            ?: return emptyList()
+
+        return buildList {
+            for (index in 0 until trackList.length()) {
+                val track = trackList.optJSONObject(index)?.optJSONObject("track") ?: continue
+                track.toMusixmatchCandidate()?.let(::add)
             }
-            .distinct()
-            .map { url ->
-                async(ioDispatcher) {
-                    withTimeoutOrNull(LRCLIB_SEARCH_LOOKUP_TIMEOUT_MS) {
-                        getJsonArray(
-                            url = url,
-                            connectTimeoutMs = SEARCH_REQUEST_CONNECT_TIMEOUT_MS,
-                            readTimeoutMs = SEARCH_REQUEST_READ_TIMEOUT_MS,
-                        ).toCandidates()
-                    }
-                }
-            }
-            .awaitAll()
-            .filterNotNull()
-            .asSequence()
-            .flatten()
-            .distinctBy(::candidateDistinctKey)
-            .toList()
+        }
     }
 
-    private suspend fun fetchLrcLibEntry(
-        trackName: String,
-        artistName: String,
-        albumName: String?,
-        durationSeconds: Long?,
-    ): LrcLibCandidate? = coroutineScope {
-        val attempts = buildList {
-            add(
-                buildString {
-                    append("track_name=").append(trackName.urlEncode())
-                    append("&artist_name=").append(artistName.urlEncode())
-                    if (!albumName.isNullOrBlank()) {
-                        append("&album_name=").append(albumName.urlEncode())
-                    }
-                    if (durationSeconds != null && durationSeconds > 0L) {
-                        append("&duration=").append(durationSeconds)
-                    }
-                },
-            )
-            add(
-                buildString {
-                    append("track_name=").append(trackName.urlEncode())
-                    append("&artist_name=").append(artistName.urlEncode())
-                    if (durationSeconds != null && durationSeconds > 0L) {
-                        append("&duration=").append(durationSeconds)
-                    }
-                },
-            )
-            add(
-                buildString {
-                    append("track_name=").append(trackName.urlEncode())
-                    append("&artist_name=").append(artistName.urlEncode())
-                    if (!albumName.isNullOrBlank()) {
-                        append("&album_name=").append(albumName.urlEncode())
-                    }
-                },
-            )
-            add(
-                buildString {
-                    append("track_name=").append(trackName.urlEncode())
-                    append("&artist_name=").append(artistName.urlEncode())
-                },
-            )
-        }.distinct()
-
-        return@coroutineScope attempts
-            .map { query ->
-                async(ioDispatcher) {
-                    withTimeoutOrNull(LRCLIB_DIRECT_REQUEST_TIMEOUT_MS) {
-                        getJsonObject(
-                            url = "https://lrclib.net/api/get?$query",
-                            connectTimeoutMs = DIRECT_REQUEST_CONNECT_TIMEOUT_MS,
-                            readTimeoutMs = DIRECT_REQUEST_READ_TIMEOUT_MS,
-                        )?.toCandidate()
-                    }
-                }
-            }
-            .awaitAll()
-            .filterNotNull()
-            .firstOrNull()
-    }
-
-    private suspend fun fetchLyricsOvhFallback(
+    private fun fetchMusixmatchPayload(
+        candidate: MusixmatchTrackCandidate,
         song: Song,
-        queries: List<LyricsQueryVariant>,
-    ): RemoteLyricsMatch? = coroutineScope {
-        return@coroutineScope queries
-            .map { query ->
-                async(ioDispatcher) {
-                    withTimeoutOrNull(FALLBACK_REQUEST_TIMEOUT_MS) {
-                        val response = getJsonObject(
-                            url = "https://api.lyrics.ovh/v1/${query.artist.urlPathEncode()}/${query.title.urlPathEncode()}",
-                            connectTimeoutMs = FALLBACK_REQUEST_CONNECT_TIMEOUT_MS,
-                            readTimeoutMs = FALLBACK_REQUEST_READ_TIMEOUT_MS,
-                        ) ?: return@withTimeoutOrNull null
-                        val lines = parsePlainLyrics(response.optNullableString("lyrics")) ?: return@withTimeoutOrNull null
-                        val confidence = fallbackConfidenceFor(song, query)
-                        if (confidence < MIN_FALLBACK_CONFIDENCE) return@withTimeoutOrNull null
-                        RemoteLyricsMatch(
-                            payload = LyricsPayload(lines = lines, isSynced = false),
-                            source = LyricsSourceKind.RemoteFallback,
-                            confidence = confidence,
-                        )
-                    }
-                }
-            }
-            .awaitAll()
-            .filterNotNull()
-            .maxByOrNull { it.confidence }
+        baseScore: Int,
+    ): RemoteLyricsMatch? {
+        if (candidate.instrumental) return null
+
+        val richSyncPayload = fetchMusixmatchRichSync(candidate, song, baseScore)
+        if (richSyncPayload != null) return richSyncPayload
+
+        val lyricsResponse = musixmatchRequest(
+            endpoint = "track.lyrics.get",
+            queryParameters = linkedMapOf("track_id" to candidate.trackId.toString()),
+            connectTimeoutMs = MUSIXMATCH_LYRICS_CONNECT_TIMEOUT_MS,
+            readTimeoutMs = MUSIXMATCH_LYRICS_READ_TIMEOUT_MS,
+        ) ?: return null
+        val lyrics = lyricsResponse
+            .optJSONObject("message")
+            ?.optJSONObject("body")
+            ?.optJSONObject("lyrics")
+            ?.optNullableString("lyrics_body")
+            ?.let(::stripMusixmatchLyricsFooter)
+        val lines = parsePlainLyrics(lyrics) ?: return null
+        return RemoteLyricsMatch(
+            payload = LyricsPayload(lines = lines, isSynced = false),
+            source = LyricsSourceKind.RemoteMusixmatchLyrics,
+            confidence = (baseScore + MUSIXMATCH_PLAIN_LYRICS_SCORE_BONUS).coerceAtMost(100),
+        )
+    }
+
+    private fun fetchMusixmatchRichSync(
+        candidate: MusixmatchTrackCandidate,
+        song: Song,
+        baseScore: Int,
+    ): RemoteLyricsMatch? {
+        val queryParameters = linkedMapOf<String, String>().apply {
+            candidate.commontrackId?.let { put("commontrack_id", it.toString()) }
+            put("track_id", candidate.trackId.toString())
+            durationSeconds(song.durationMs)?.let { put("f_richsync_length", it.toString()) }
+            put("f_richsync_length_max_deviation", MUSIXMATCH_RICHSYNC_MAX_DEVIATION_SECONDS.toString())
+        }
+        val response = musixmatchRequest(
+            endpoint = "track.richsync.get",
+            queryParameters = queryParameters,
+            connectTimeoutMs = MUSIXMATCH_RICHSYNC_CONNECT_TIMEOUT_MS,
+            readTimeoutMs = MUSIXMATCH_RICHSYNC_READ_TIMEOUT_MS,
+        ) ?: return null
+        val richsyncBody = response
+            .optJSONObject("message")
+            ?.optJSONObject("body")
+            ?.optJSONObject("richsync")
+            ?.optNullableString("richsync_body")
+        val syncedLines = parseMusixmatchRichSync(richsyncBody) ?: return null
+        val payload = LyricsPayload(
+            lines = syncedLines,
+            isSynced = true,
+            displayTimingOffsetMs = estimateMusixmatchDisplayTimingOffsetMs(syncedLines, song),
+            timingProfile = SyncedLyricsTimingProfile.ExactIntervals,
+        )
+        val confidence = (
+            baseScore +
+                MUSIXMATCH_RICHSYNC_SCORE_BONUS +
+                musixmatchRemoteSyncedTimingQualityScore(payload, song)
+            ).coerceAtMost(100)
+        return RemoteLyricsMatch(
+            payload = payload,
+            source = LyricsSourceKind.RemoteMusixmatchRichSync,
+            confidence = confidence,
+        )
     }
 
     private fun readEmbeddedLyrics(song: Song): LocalLyricsMatch? {
@@ -850,22 +887,25 @@ class LyricsService(
         url: String,
         connectTimeoutMs: Int = NETWORK_CONNECT_TIMEOUT_MS,
         readTimeoutMs: Int = NETWORK_READ_TIMEOUT_MS,
+        requestHeaders: Map<String, String> = emptyMap(),
     ): JSONObject? {
-        return getText(url, connectTimeoutMs, readTimeoutMs)?.let(::JSONObject)
+        return getText(url, connectTimeoutMs, readTimeoutMs, requestHeaders)?.let(::JSONObject)
     }
 
     private fun getJsonArray(
         url: String,
         connectTimeoutMs: Int = NETWORK_CONNECT_TIMEOUT_MS,
         readTimeoutMs: Int = NETWORK_READ_TIMEOUT_MS,
+        requestHeaders: Map<String, String> = emptyMap(),
     ): JSONArray? {
-        return getText(url, connectTimeoutMs, readTimeoutMs)?.let(::JSONArray)
+        return getText(url, connectTimeoutMs, readTimeoutMs, requestHeaders)?.let(::JSONArray)
     }
 
     private fun getText(
         url: String,
         connectTimeoutMs: Int = NETWORK_CONNECT_TIMEOUT_MS,
         readTimeoutMs: Int = NETWORK_READ_TIMEOUT_MS,
+        requestHeaders: Map<String, String> = emptyMap(),
     ): String? {
         val connection = (URL(url).openConnection() as? HttpURLConnection) ?: return null
         return runCatching {
@@ -877,12 +917,99 @@ class LyricsService(
                 "Elovaire/${BuildConfig.VERSION_NAME} (Android; Offline Music Player)",
             )
             connection.setRequestProperty("Accept", "application/json")
+            requestHeaders.forEach { (name, value) ->
+                connection.setRequestProperty(name, value)
+            }
             val responseCode = connection.responseCode
             if (responseCode !in 200..299) return@runCatching null
             connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
         }.getOrNull().also {
             connection.disconnect()
         }
+    }
+
+    private fun musixmatchRequest(
+        endpoint: String,
+        queryParameters: LinkedHashMap<String, String>,
+        connectTimeoutMs: Int = NETWORK_CONNECT_TIMEOUT_MS,
+        readTimeoutMs: Int = NETWORK_READ_TIMEOUT_MS,
+    ): JSONObject? {
+        val secret = getMusixmatchSecret() ?: return null
+        val unsignedUrl = buildString {
+            append(MUSIXMATCH_BASE_URL)
+            append(endpoint)
+            append("?app_id=").append(MUSIXMATCH_APP_ID)
+            append("&format=json")
+            queryParameters.forEach { (name, value) ->
+                append('&')
+                append(name)
+                append('=')
+                append(value.urlEncode().replace("%20", "+").replace(" ", "+"))
+            }
+        }
+        val signedUrl = unsignedUrl + musixmatchSignature(unsignedUrl, secret)
+        return getJsonObject(
+            url = signedUrl,
+            connectTimeoutMs = connectTimeoutMs,
+            readTimeoutMs = readTimeoutMs,
+            requestHeaders = mapOf("User-Agent" to MUSIXMATCH_USER_AGENT),
+        )
+    }
+
+    private fun getMusixmatchSecret(): String? {
+        musixmatchSecret?.let { return it }
+        synchronized(musixmatchSecretLock) {
+            musixmatchSecret?.let { return it }
+            val appJsUrl = getMusixmatchAppJsUrl() ?: return null
+            val appJs = getText(
+                url = appJsUrl,
+                connectTimeoutMs = MUSIXMATCH_SECRET_CONNECT_TIMEOUT_MS,
+                readTimeoutMs = MUSIXMATCH_SECRET_READ_TIMEOUT_MS,
+                requestHeaders = mapOf("User-Agent" to MUSIXMATCH_DISCOVERY_USER_AGENT),
+            ) ?: return null
+            val encoded = MUSIXMATCH_SECRET_REGEX.find(appJs)?.groupValues?.getOrNull(1) ?: return null
+            val decoded = runCatching {
+                Base64.decode(encoded.reversed(), Base64.DEFAULT).toString(Charsets.UTF_8)
+            }.getOrNull() ?: return null
+            musixmatchSecret = decoded
+            return decoded
+        }
+    }
+
+    private fun getMusixmatchAppJsUrl(): String? {
+        musixmatchAppJsUrl?.let { return it }
+        synchronized(musixmatchSecretLock) {
+            musixmatchAppJsUrl?.let { return it }
+            val html = getText(
+                url = MUSIXMATCH_SEARCH_PAGE_URL,
+                connectTimeoutMs = MUSIXMATCH_DISCOVERY_CONNECT_TIMEOUT_MS,
+                readTimeoutMs = MUSIXMATCH_DISCOVERY_READ_TIMEOUT_MS,
+                requestHeaders = mapOf(
+                    "User-Agent" to MUSIXMATCH_DISCOVERY_USER_AGENT,
+                    "Cookie" to "mxm_bab=AB",
+                    "Accept" to "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+                ),
+            ) ?: return null
+            val rawUrl = MUSIXMATCH_APP_JS_REGEX.findAll(html).lastOrNull()?.groupValues?.getOrNull(1) ?: return null
+            val resolved = if (rawUrl.startsWith("http")) rawUrl else "$MUSIXMATCH_SITE_URL$rawUrl"
+            musixmatchAppJsUrl = resolved
+            return resolved
+        }
+    }
+
+    private fun musixmatchSignature(
+        unsignedUrl: String,
+        secret: String,
+    ): String {
+        val calendar = Calendar.getInstance(TimeZone.getDefault(), Locale.US)
+        val yyyy = calendar.get(Calendar.YEAR).toString()
+        val mm = (calendar.get(Calendar.MONTH) + 1).toString().padStart(2, '0')
+        val dd = calendar.get(Calendar.DAY_OF_MONTH).toString().padStart(2, '0')
+        val message = (unsignedUrl + yyyy + mm + dd).toByteArray(Charsets.UTF_8)
+        val mac = Mac.getInstance("HmacSHA256")
+        mac.init(SecretKeySpec(secret.toByteArray(Charsets.UTF_8), "HmacSHA256"))
+        val signature = Base64.encodeToString(mac.doFinal(message), Base64.NO_WRAP)
+        return "&signature=${signature.urlEncode()}&signature_protocol=sha256"
     }
 
     private fun buildCacheKey(song: Song): String {
@@ -937,21 +1064,33 @@ class LyricsService(
         const val NETWORK_CONNECT_TIMEOUT_MS = 900
         const val NETWORK_READ_TIMEOUT_MS = 2_400
         const val REMOTE_LOOKUP_TOTAL_TIMEOUT_MS = 5_800L
-        const val LRCLIB_DIRECT_LOOKUP_TIMEOUT_MS = 3_200L
-        const val LRCLIB_SEARCH_LOOKUP_TIMEOUT_MS = 2_400L
-        const val REMOTE_SEARCH_PHASE_TIMEOUT_MS = 2_600L
-        const val REMOTE_FALLBACK_PHASE_TIMEOUT_MS = 1_200L
-        const val LRCLIB_DIRECT_REQUEST_TIMEOUT_MS = 1_600L
-        const val FALLBACK_REQUEST_TIMEOUT_MS = 1_200L
-        const val DIRECT_REQUEST_CONNECT_TIMEOUT_MS = 450
-        const val DIRECT_REQUEST_READ_TIMEOUT_MS = 900
-        const val SEARCH_REQUEST_CONNECT_TIMEOUT_MS = 500
-        const val SEARCH_REQUEST_READ_TIMEOUT_MS = 1_100
-        const val FALLBACK_REQUEST_CONNECT_TIMEOUT_MS = 500
-        const val FALLBACK_REQUEST_READ_TIMEOUT_MS = 900
+        const val MUSIXMATCH_SEARCH_LOOKUP_TIMEOUT_MS = 2_400L
+        const val MUSIXMATCH_PAYLOAD_LOOKUP_TIMEOUT_MS = 1_850L
+        const val MUSIXMATCH_DISCOVERY_CONNECT_TIMEOUT_MS = 700
+        const val MUSIXMATCH_DISCOVERY_READ_TIMEOUT_MS = 1_400
+        const val MUSIXMATCH_SECRET_CONNECT_TIMEOUT_MS = 700
+        const val MUSIXMATCH_SECRET_READ_TIMEOUT_MS = 1_400
+        const val MUSIXMATCH_SEARCH_CONNECT_TIMEOUT_MS = 550
+        const val MUSIXMATCH_SEARCH_READ_TIMEOUT_MS = 1_200
+        const val MUSIXMATCH_RICHSYNC_CONNECT_TIMEOUT_MS = 550
+        const val MUSIXMATCH_RICHSYNC_READ_TIMEOUT_MS = 1_100
+        const val MUSIXMATCH_LYRICS_CONNECT_TIMEOUT_MS = 550
+        const val MUSIXMATCH_LYRICS_READ_TIMEOUT_MS = 1_100
         const val MAX_REMOTE_QUERY_VARIANTS = 8
-        const val MIN_FALLBACK_CONFIDENCE = 23
-        const val PREFERRED_DIRECT_CONFIDENCE = 28
+        const val MAX_MUSIXMATCH_PAYLOAD_CANDIDATES = 4
+        const val MUSIXMATCH_SEARCH_PAGE_SIZE = 10
+        const val MUSIXMATCH_PLAIN_LYRICS_SCORE_BONUS = 3
+        const val MUSIXMATCH_RICHSYNC_SCORE_BONUS = 9
+        const val MUSIXMATCH_RICHSYNC_MAX_DEVIATION_SECONDS = 12
+        const val MUSIXMATCH_SITE_URL = "https://www.musixmatch.com"
+        const val MUSIXMATCH_SEARCH_PAGE_URL = "$MUSIXMATCH_SITE_URL/search"
+        const val MUSIXMATCH_BASE_URL = "$MUSIXMATCH_SITE_URL/ws/1.1/"
+        const val MUSIXMATCH_APP_ID = "web-desktop-app-v1.0"
+        const val MUSIXMATCH_FALLBACK_MATCH_MIN_SCORE = 34
+        const val MUSIXMATCH_USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+        const val MUSIXMATCH_DISCOVERY_USER_AGENT = MUSIXMATCH_USER_AGENT
+        val MUSIXMATCH_APP_JS_REGEX = Regex("src=\"([^\"]*/_next/static/chunks/pages/_app-[^\"]+\\.js)\"")
+        val MUSIXMATCH_SECRET_REGEX = Regex("from\\(\\s*\"(.*?)\"\\s*\\.split")
         const val EMBEDDED_TAG_BUFFER_BYTES = 64 * 1024
         const val MAX_EMBEDDED_TAG_BYTES = 1_500_000
         const val MAX_SIDECAR_BYTES = 256 * 1024
@@ -971,15 +1110,16 @@ internal data class CachedLyricsEntry(
     fun isExpired(nowMillis: Long = System.currentTimeMillis()): Boolean = nowMillis >= expiresAtMillis
 }
 
-internal data class LrcLibCandidate(
-    val id: Long?,
+internal data class MusixmatchTrackCandidate(
+    val trackId: Long,
+    val commontrackId: Long?,
     val trackName: String,
     val artistName: String,
     val albumName: String,
     val durationSeconds: Long?,
-    val plainLyrics: String,
-    val syncedLyrics: String,
     val instrumental: Boolean,
+    val hasRichSync: Boolean,
+    val hasLyrics: Boolean,
 )
 
 internal data class LocalLyricsMatch(
@@ -1169,58 +1309,6 @@ internal fun buildLyricsSearchQueries(song: Song): List<String> {
         .distinct()
 }
 
-internal fun List<LrcLibCandidate>.bestRemoteMatchFor(
-    song: Song,
-    defaultSource: LyricsSourceKind,
-): RemoteLyricsMatch? {
-    return asSequence()
-        .mapNotNull { candidate ->
-            val payload = candidate.toLyricsPayload(song) ?: return@mapNotNull null
-            if (!candidate.hasUsableTimingFor(song)) return@mapNotNull null
-            val score = candidate.scoreAgainst(song)
-            if (!candidate.isAcceptableMatchFor(song, score)) return@mapNotNull null
-            RemoteLyricsMatch(
-                payload = payload,
-                source = defaultSource,
-                confidence = score,
-            )
-        }
-        .maxByOrNull { it.confidence }
-}
-
-internal fun LrcLibCandidate.toLyricsPayload(song: Song? = null): LyricsPayload? {
-    if (instrumental) return null
-
-    val plainLines = parsePlainLyrics(plainLyrics)?.takeIf { it.isNotEmpty() }
-    val syncedLines = parseSyncedLyrics(syncedLyrics)?.takeIf { it.isNotEmpty() }
-
-    if (syncedLines != null) {
-        val sortedLines = syncedLines.sortedBy { it.startTimeMs ?: Long.MAX_VALUE }
-        val syncedPayload = LyricsPayload(
-            lines = sortedLines,
-            isSynced = true,
-            displayTimingOffsetMs = estimateRemoteDisplayTimingOffsetMs(sortedLines, song),
-        )
-
-        // Keep synced lyrics whenever the remote timeline is structurally usable. Timing drift is
-        // corrected at display time through displayTimingOffsetMs; falling back to plain lyrics is
-        // reserved for obviously broken synced files only.
-        if (song == null || syncedPayload.hasHealthyRemoteTimeline(song)) {
-            return syncedPayload
-        }
-    }
-
-    if (plainLines != null) {
-        return LyricsPayload(
-            lines = plainLines,
-            isSynced = false,
-        )
-    }
-
-    return null
-}
-
-
 private fun estimateRemoteDisplayTimingOffsetMs(
     lines: List<LyricsLine>,
     song: Song?,
@@ -1267,6 +1355,30 @@ private fun estimateRemoteDisplayTimingOffsetMs(
     }
 
     return max(openingDelay, max(densityDelay, coverageDelay)).coerceIn(0L, 18_000L)
+}
+
+private fun estimateMusixmatchDisplayTimingOffsetMs(
+    lines: List<LyricsLine>,
+    song: Song?,
+): Long {
+    if (song == null || song.durationMs < 30_000L) return 0L
+    val timedLines = lines.mapNotNull { it.startTimeMs }.sorted()
+    if (timedLines.size < 4) return 0L
+
+    val first = timedLines.first()
+    val second = timedLines.getOrNull(1) ?: first
+    val third = timedLines.getOrNull(2) ?: second
+    val gaps = timedLines
+        .zipWithNext { current, next -> next - current }
+        .filter { it > 0L }
+        .sorted()
+    val medianGap = gaps.getOrNull(gaps.size / 2) ?: Long.MAX_VALUE
+
+    return when {
+        first <= 120L && second <= 1_600L && third <= 4_200L && medianGap < 1_050L -> 220L
+        first <= 220L && second <= 1_900L -> 120L
+        else -> 0L
+    }
 }
 
 private fun adjustRemoteSyncedTiming(
@@ -1327,10 +1439,10 @@ private fun LyricsPayload.hasHealthyRemoteTimeline(song: Song): Boolean {
         !hasTooManyDuplicateTimestamps
 }
 
-private fun LrcLibCandidate.remoteSyncedTimingQualityScore(song: Song): Int {
-    if (syncedLyrics.isBlank()) return 0
-    val parsed = parseSyncedLyrics(syncedLyrics) ?: return 0
-    val payload = LyricsPayload(adjustRemoteSyncedTiming(parsed, song), isSynced = true)
+private fun musixmatchRemoteSyncedTimingQualityScore(
+    payload: LyricsPayload,
+    song: Song,
+): Int {
     val timedLines = payload.lines.mapNotNull { it.startTimeMs }.sorted()
     if (timedLines.size < 4 || song.durationMs < MIN_SONG_DURATION_FOR_REMOTE_OPENING_FIX_MS) return 0
 
@@ -1356,14 +1468,14 @@ private fun LrcLibCandidate.remoteSyncedTimingQualityScore(song: Song): Int {
     }
 }
 
-internal fun LrcLibCandidate.hasUsableTimingFor(song: Song): Boolean {
+internal fun MusixmatchTrackCandidate.hasUsableTimingFor(song: Song): Boolean {
     if (song.durationMs <= 0L || durationSeconds == null || durationSeconds <= 0L) return true
     val songDurationSeconds = song.durationMs / 1000L
     val allowedDelta = max(12L, (songDurationSeconds * 0.08f).toLong())
     return abs(durationSeconds - songDurationSeconds) <= allowedDelta
 }
 
-internal fun LrcLibCandidate.scoreAgainst(song: Song): Int {
+internal fun MusixmatchTrackCandidate.scoreAgainst(song: Song): Int {
     val songTitle = normalizeTrackTitle(song.title)
     val songArtist = normalizeArtistName(song.artist)
     val songPrimaryArtist = normalizeArtistName(extractPrimaryArtist(song.artist))
@@ -1387,7 +1499,8 @@ internal fun LrcLibCandidate.scoreAgainst(song: Song): Int {
     ) {
         score += 8
     }
-    if (syncedLyrics.isNotBlank()) score += 10
+    if (hasRichSync) score += 10
+    if (hasLyrics) score += 4
     score += tokenOverlapBonus(songTitle, candidateTitle, maxBonus = 10)
     score += tokenOverlapBonus(songArtist.ifBlank { songPrimaryArtist }, candidateArtist, maxBonus = 8)
     if (looksLikeAlternateVersion(song.title, trackName)) score -= 8
@@ -1402,11 +1515,10 @@ internal fun LrcLibCandidate.scoreAgainst(song: Song): Int {
             songDurationSeconds > 0L -> score -= 7
         }
     }
-    score += remoteSyncedTimingQualityScore(song)
     return score
 }
 
-internal fun LrcLibCandidate.isAcceptableMatchFor(
+internal fun MusixmatchTrackCandidate.isAcceptableMatchFor(
     song: Song,
     score: Int,
 ): Boolean {
@@ -1432,16 +1544,21 @@ internal fun LrcLibCandidate.isAcceptableMatchFor(
     }
 }
 
-internal fun JSONObject.toCandidate(): LrcLibCandidate {
-    return LrcLibCandidate(
-        id = optLong("id").takeIf { it > 0L },
-        trackName = optString("trackName").ifBlank { optString("name") },
-        artistName = optString("artistName"),
-        albumName = optString("albumName"),
-        durationSeconds = optDouble("duration").takeIf { it > 0.0 }?.toLong(),
-        plainLyrics = optNullableString("plainLyrics"),
-        syncedLyrics = optNullableString("syncedLyrics"),
-        instrumental = optBoolean("instrumental", false),
+internal fun JSONObject.toMusixmatchCandidate(): MusixmatchTrackCandidate? {
+    val trackId = optFlexibleLong("track_id")?.takeIf { it > 0L } ?: return null
+    return MusixmatchTrackCandidate(
+        trackId = trackId,
+        commontrackId = optFlexibleLong("commontrack_id")?.takeIf { it > 0L },
+        trackName = optNullableString("track_name")
+            .ifBlank { optNullableString("track_name_translation") }
+            .ifBlank { optNullableString("name") },
+        artistName = optNullableString("artist_name"),
+        albumName = optNullableString("album_name"),
+        durationSeconds = optFlexibleLong("track_length")
+            ?: optDouble("track_length").takeIf { it > 0.0 }?.toLong(),
+        instrumental = optFlexibleFlag("instrumental"),
+        hasRichSync = optFlexibleFlag("has_richsync"),
+        hasLyrics = optFlexibleFlag("has_lyrics"),
     )
 }
 
@@ -1449,13 +1566,27 @@ internal fun JSONObject.optNullableString(name: String): String {
     return if (isNull(name)) "" else optString(name)
 }
 
-internal fun JSONArray?.toCandidates(): List<LrcLibCandidate> {
-    if (this == null) return emptyList()
-    return buildList {
-        for (index in 0 until length()) {
-            val item = optJSONObject(index) ?: continue
-            add(item.toCandidate())
+private fun JSONObject.optFlexibleLong(name: String): Long? {
+    if (isNull(name)) return null
+    val value = opt(name) ?: return null
+    return when (value) {
+        is Number -> value.toLong()
+        is String -> value.trim().toLongOrNull()
+        else -> null
+    }
+}
+
+private fun JSONObject.optFlexibleFlag(name: String): Boolean {
+    if (isNull(name)) return false
+    val value = opt(name) ?: return false
+    return when (value) {
+        is Boolean -> value
+        is Number -> value.toInt() != 0
+        is String -> {
+            val normalized = value.trim().lowercase(Locale.US)
+            normalized == "1" || normalized == "true" || normalized == "yes"
         }
+        else -> false
     }
 }
 
@@ -1492,23 +1623,64 @@ private fun extractPrimaryArtist(value: String): String {
         ?: value
 }
 
-private fun fallbackConfidenceFor(
-    song: Song,
-    query: LyricsQueryVariant,
-): Int {
-    val exactTitle = normalizeTrackTitle(query.title) == normalizeTrackTitle(song.title)
-    val exactArtist = normalizeArtistName(query.artist) == normalizeArtistName(song.artist)
-    val primaryArtistMatch = normalizeArtistName(query.artist) == normalizeArtistName(extractPrimaryArtist(song.artist))
-    return when {
-        exactTitle && exactArtist -> 30
-        exactTitle && primaryArtistMatch -> 27
-        exactTitle -> 23
-        else -> 0
+private fun musixmatchCandidateDistinctKey(candidate: MusixmatchTrackCandidate): String {
+    candidate.commontrackId?.let { return "common::$it" }
+    return "track::${candidate.trackId}::${normalizeTrackTitle(candidate.trackName)}::${normalizeArtistName(candidate.artistName)}"
+}
+
+internal fun parseMusixmatchRichSync(rawRichSync: String?): List<LyricsLine>? {
+    if (rawRichSync.isNullOrBlank()) return null
+    val richSyncArray = runCatching { JSONArray(rawRichSync) }.getOrNull() ?: return null
+    val lines = buildList {
+        for (index in 0 until richSyncArray.length()) {
+            val item = richSyncArray.optJSONObject(index) ?: continue
+            val startMs = item.optMusixmatchSeconds("ts")?.times(1000.0)?.roundToLong()?.coerceAtLeast(0L) ?: continue
+            val endMs = item.optMusixmatchSeconds("te")?.times(1000.0)?.roundToLong()?.coerceAtLeast(startMs)
+            val text = sanitizeLyricLine(item.musixmatchLineText()) ?: continue
+            add(
+                LyricsLine(
+                    text = text,
+                    startTimeMs = startMs,
+                    endTimeMs = endMs,
+                ),
+            )
+        }
+    }
+    return lines.takeIf { it.isNotEmpty() }?.let(::finalizeSyncedLyrics)
+}
+
+private fun JSONObject.musixmatchLineText(): String {
+    val direct = optString("l")
+        .ifBlank { optString("text") }
+        .ifBlank { optString("t") }
+    if (direct.isNotBlank()) return direct
+
+    val segments = optJSONArray("x") ?: return ""
+    return buildList {
+        for (index in 0 until segments.length()) {
+            val segment = segments.optJSONObject(index) ?: continue
+            val text = segment.optString("txt")
+                .ifBlank { segment.optString("tx") }
+                .ifBlank { segment.optString("text") }
+            if (text.isNotBlank()) add(text)
+        }
+    }.joinToString(" ")
+}
+
+private fun JSONObject.optMusixmatchSeconds(name: String): Double? {
+    return when (val value = opt(name)) {
+        is Number -> value.toDouble()
+        is String -> value.toDoubleOrNull()
+        else -> null
     }
 }
 
-private fun candidateDistinctKey(candidate: LrcLibCandidate): String {
-    candidate.id?.let { return "id::$it" }
+internal fun stripMusixmatchLyricsFooter(value: String?): String? {
+    val lyrics = value?.substringBefore("******* This Lyrics is NOT for Commercial use *******")?.trim()
+    return lyrics?.takeIf { it.isNotBlank() }
+}
+
+private fun candidateDistinctKey(candidate: MusixmatchTrackCandidate): String {
     return listOf(
         normalizeTrackTitle(candidate.trackName),
         normalizeArtistName(candidate.artistName),

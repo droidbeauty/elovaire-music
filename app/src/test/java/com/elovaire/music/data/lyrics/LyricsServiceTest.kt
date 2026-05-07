@@ -161,6 +161,41 @@ class LyricsServiceTest {
     }
 
     @Test
+    fun `exact interval profile follows richsync style boundaries precisely`() {
+        val payload = LyricsPayload(
+            lines = listOf(
+                LyricsLine(text = "Line one", startTimeMs = 1_000L, endTimeMs = 2_200L),
+                LyricsLine(text = "Line two", startTimeMs = 2_250L, endTimeMs = 3_900L),
+                LyricsLine(text = "Line three", startTimeMs = 4_000L, endTimeMs = 5_000L),
+            ),
+            isSynced = true,
+            timingProfile = SyncedLyricsTimingProfile.ExactIntervals,
+        )
+
+        assertNull(payload.currentLineIndexAt(positionMs = 900L))
+        assertEquals(0, payload.currentLineIndexAt(positionMs = 1_050L))
+        assertNull(payload.currentLineIndexAt(positionMs = 2_225L))
+        assertEquals(1, payload.currentLineIndexAt(positionMs = 2_260L))
+        assertEquals(2, payload.currentLineIndexAt(positionMs = 4_020L))
+    }
+
+    @Test
+    fun `approximate synced profile avoids switching too early`() {
+        val payload = LyricsPayload(
+            lines = listOf(
+                LyricsLine(text = "Line one", startTimeMs = 1_000L, endTimeMs = 3_000L),
+                LyricsLine(text = "Line two", startTimeMs = 3_050L, endTimeMs = 5_000L),
+            ),
+            isSynced = true,
+        )
+
+        assertNull(payload.currentLineIndexAt(positionMs = 1_030L))
+        assertEquals(0, payload.currentLineIndexAt(positionMs = 1_070L))
+        assertEquals(0, payload.currentLineIndexAt(positionMs = 3_070L))
+        assertEquals(1, payload.currentLineIndexAt(positionMs = 3_120L))
+    }
+
+    @Test
     fun `parse synced lyrics handles empty instrumental timed line safely`() {
         val parsed = parseSyncedLyrics(
             """
@@ -172,6 +207,18 @@ class LyricsServiceTest {
         assertNotNull(parsed)
         assertEquals(1, parsed!!.size)
         assertEquals("First vocal line", parsed[0].text)
+    }
+
+    @Test
+    fun `strip musixmatch footer removes commercial disclaimer`() {
+        val cleaned = stripMusixmatchLyricsFooter(
+            """
+            This love has taken its toll on me
+            ******* This Lyrics is NOT for Commercial use *******
+            """.trimIndent(),
+        )
+
+        assertEquals("This love has taken its toll on me", cleaned)
     }
 
     @Test

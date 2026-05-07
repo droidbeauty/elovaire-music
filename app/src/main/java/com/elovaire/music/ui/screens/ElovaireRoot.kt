@@ -344,6 +344,38 @@ private data class BackdropSnapshot(
 private val LocalChromeBackdropBitmap = compositionLocalOf<BackdropSnapshot?> { null }
 private val LocalChromeHazeState = compositionLocalOf<HazeState?> { null }
 private val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
+private val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
+private val LocalSharedTopBarController = compositionLocalOf<SharedTopBarController?> { null }
+private val LocalRenderSharedTopBarContent = compositionLocalOf { false }
+
+private sealed interface SharedTopBarSpec {
+    data class Unified(
+        val title: String,
+        val showSettings: Boolean,
+        val onOpenSettings: () -> Unit,
+    ) : SharedTopBarSpec
+
+    data class Back(
+        val title: String,
+        val onBack: () -> Unit,
+        val centeredTitle: Boolean,
+    ) : SharedTopBarSpec
+
+    data class Detail(
+        val title: String,
+        val subtitle: String?,
+        val onBack: () -> Unit,
+    ) : SharedTopBarSpec
+}
+
+private data class SharedTopBarRegistration(
+    val id: Any,
+    val spec: SharedTopBarSpec,
+)
+
+private class SharedTopBarController {
+    var registration by mutableStateOf<SharedTopBarRegistration?>(null)
+}
 
 private enum class AlbumLayoutMode {
     Compact,
@@ -576,6 +608,10 @@ private fun topBarOccupiedHeight(): Dp = statusBarInsetDp() + ElovaireSpacing.to
 private fun detailTopBarOccupiedHeight(): Dp = statusBarInsetDp() + ElovaireSpacing.detailTopBarContentHeight
 
 @Composable
+private fun sharedTopBarOccupiedHeight(): Dp =
+    statusBarInsetDp() + maxOf(ElovaireSpacing.topBarContentHeight, ElovaireSpacing.detailTopBarContentHeight)
+
+@Composable
 private fun bottomNavigationOccupiedHeight(): Dp {
     return navigationBarInsetDp() + ElovaireSpacing.bottomNavigationBodyHeight
 }
@@ -762,6 +798,25 @@ private fun FrostedTopBarBackground(
     )
 }
 
+@Composable
+private fun RegisterSharedTopBar(spec: SharedTopBarSpec) {
+    val controller = LocalSharedTopBarController.current ?: return
+    val registrationId = remember { Any() }
+    SideEffect {
+        controller.registration = SharedTopBarRegistration(
+            id = registrationId,
+            spec = spec,
+        )
+    }
+    DisposableEffect(controller, registrationId) {
+        onDispose {
+            if (controller.registration?.id == registrationId) {
+                controller.registration = null
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalHazeApi::class)
 private fun Modifier.playerFrostedSurface(
     tint: Color,
@@ -820,6 +875,12 @@ fun ElovaireRoot(
     var hasNotificationPermission by remember { mutableStateOf(hasNotificationPermission(context)) }
     var hasRequestedAudioPermission by rememberSaveable { mutableStateOf(false) }
     var hasRequestedNotificationPermission by rememberSaveable { mutableStateOf(false) }
+    var firstLaunchPermissionExperienceActive by rememberSaveable {
+        mutableStateOf(!hasPermission)
+    }
+    var playFirstLaunchHomeReveal by rememberSaveable {
+        mutableStateOf(false)
+    }
     var pendingDeleteSong by remember { mutableStateOf<Song?>(null) }
     val songsById = remember(libraryState.songs) { libraryState.songs.associateBy { it.id } }
     val songsByAlbumId = remember(libraryState.songs) { libraryState.songs.groupBy { it.albumId } }
@@ -911,8 +972,40 @@ fun ElovaireRoot(
         container.setNotificationsEnabled(hasNotificationPermission)
     }
 
+    val showFirstLaunchPermissionOverlay =
+        firstLaunchPermissionExperienceActive &&
+            (
+                !hasPermission ||
+                    libraryState.isLoading ||
+                    (
+                        libraryState.songs.isEmpty() &&
+                            libraryState.albums.isEmpty() &&
+                            libraryState.errorMessage == null &&
+                            !playFirstLaunchHomeReveal
+                        )
+                )
+
+    LaunchedEffect(
+        firstLaunchPermissionExperienceActive,
+        hasPermission,
+        libraryState.isLoading,
+        libraryState.songs.size,
+        libraryState.albums.size,
+        libraryState.errorMessage,
+    ) {
+        if (
+            firstLaunchPermissionExperienceActive &&
+            hasPermission &&
+            !libraryState.isLoading &&
+            (libraryState.songs.isNotEmpty() || libraryState.albums.isNotEmpty() || libraryState.errorMessage != null)
+        ) {
+            playFirstLaunchHomeReveal = true
+        }
+    }
+
     if (!hasPermission) {
-        PermissionGate(
+        FirstLaunchPermissionLoadingScreen(
+            showLoading = true,
             onRequestPermission = { permissionLauncher.launch(audioPermission()) },
         )
         return
@@ -991,6 +1084,7 @@ fun ElovaireRoot(
     val appBackground = MaterialTheme.colorScheme.background
     val darkTheme = appBackground.luminance() < 0.5f
     val chromeHazeState = rememberHazeState()
+    val sharedTopBarController = remember { SharedTopBarController() }
     val playerArtworkGradient = rememberArtworkGradient(playbackState.currentSong?.artUri).value
     val playerAdaptivePalette = remember(
         playbackState.currentSong?.id,
@@ -1020,6 +1114,16 @@ fun ElovaireRoot(
             navController.navigate("$ALBUM_ROUTE/$albumId")
         }
     }
+    val sharedTopBarSpec = sharedTopBarController.registration?.spec
+        ?: if (showTopLevelChrome) {
+            SharedTopBarSpec.Unified(
+                title = topBarTitle(currentRoute),
+                showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
+                onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
+            )
+        } else {
+            null
+        }
     var lastHandledOpenPlayerRequest by rememberSaveable { mutableLongStateOf(0L) }
     LaunchedEffect(openPlayerRequestVersion) {
         if (openPlayerRequestVersion > 0L && openPlayerRequestVersion != lastHandledOpenPlayerRequest) {
@@ -1106,7 +1210,9 @@ fun ElovaireRoot(
             ) { innerPadding ->
             val topBarHeight = topBarOccupiedHeight()
             val detailTopBarHeight = detailTopBarOccupiedHeight()
+            val sharedTopBarHeight = sharedTopBarOccupiedHeight()
             val bottomNavHeight = if (showBottomNavigation) bottomNavigationOccupiedHeight() else 0.dp
+            val showSharedTopBarBackdrop = currentRoute != null && currentRoute != PLAYER_ROUTE
             val topContentPadding = if (showTopLevelChrome) {
                 topBarHeight + ElovaireSpacing.topBarToFirstContentGap
             } else {
@@ -1122,18 +1228,22 @@ fun ElovaireRoot(
                     ElovaireSpacing.scrollTailPadding
 
             Box(modifier = Modifier.fillMaxSize()) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .hazeSource(chromeHazeState),
+                CompositionLocalProvider(
+                    LocalUseSharedTopBarBackdrop provides showSharedTopBarBackdrop,
+                    LocalSharedTopBarController provides sharedTopBarController,
                 ) {
-                NavHost(
-                    navController = navController,
-                    startDestination = HOME_ROUTE,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .blur(navHostBlur),
-                    enterTransition = {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .hazeSource(chromeHazeState),
+                    ) {
+                    NavHost(
+                        navController = navController,
+                        startDestination = HOME_ROUTE,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(navHostBlur),
+                        enterTransition = {
                         if (targetState.destination.route == PLAYER_ROUTE) {
                             EnterTransition.None
                         } else if (targetState.destination.route.isExpandFromTileRoute()) {
@@ -1317,6 +1427,11 @@ fun ElovaireRoot(
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
                             scrollToTopRequestVersion = homeScrollRequestVersion,
+                            playInitialReveal = playFirstLaunchHomeReveal,
+                            onInitialRevealFinished = {
+                                playFirstLaunchHomeReveal = false
+                                firstLaunchPermissionExperienceActive = false
+                            },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
                                 navController.navigate("$ALBUM_ROUTE/${album.id}")
@@ -1622,52 +1737,98 @@ fun ElovaireRoot(
                         )
                     }
                 }
-                if (navHostScrimAlpha > 0f) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(MaterialTheme.colorScheme.background.copy(alpha = navHostScrimAlpha)),
-                    )
-                }
-                }
-                if (showTopLevelChrome) {
-                    UnifiedTopBar(
-                        title = topBarTitle(currentRoute),
-                        showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
-                        onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
+                    if (navHostScrimAlpha > 0f) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(MaterialTheme.colorScheme.background.copy(alpha = navHostScrimAlpha)),
+                        )
+                    }
+                    }
+                    if (showSharedTopBarBackdrop && sharedTopBarSpec != null) {
+                        FrostedTopBarBackground(
+                            darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f,
+                            modifier = Modifier
+                                .align(Alignment.TopCenter)
+                                .fillMaxWidth()
+                                .height(sharedTopBarHeight)
+                                .zIndex(7f),
+                        )
+                    }
+                    if (sharedTopBarSpec != null) {
+                        CompositionLocalProvider(LocalRenderSharedTopBarContent provides true) {
+                            when (sharedTopBarSpec) {
+                                is SharedTopBarSpec.Unified -> UnifiedTopBar(
+                                    title = sharedTopBarSpec.title,
+                                    showSettings = sharedTopBarSpec.showSettings,
+                                    onOpenSettings = sharedTopBarSpec.onOpenSettings,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .fillMaxWidth()
+                                        .zIndex(8f),
+                                )
+                                is SharedTopBarSpec.Back -> PinnedBackTopBar(
+                                    title = sharedTopBarSpec.title,
+                                    onBack = sharedTopBarSpec.onBack,
+                                    centeredTitle = sharedTopBarSpec.centeredTitle,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .fillMaxWidth()
+                                        .zIndex(8f),
+                                )
+                                is SharedTopBarSpec.Detail -> DetailListTopBar(
+                                    title = sharedTopBarSpec.title,
+                                    subtitle = sharedTopBarSpec.subtitle,
+                                    onBack = sharedTopBarSpec.onBack,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .fillMaxWidth()
+                                        .zIndex(8f),
+                                )
+                            }
+                        }
+                    }
+                    AnimatedVisibility(
                         modifier = Modifier
                             .align(Alignment.TopCenter)
-                            .fillMaxWidth()
-                            .zIndex(8f),
-                    )
-                }
-                AnimatedVisibility(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .zIndex(7f)
-                        .padding(
-                            start = 16.dp,
-                            end = 16.dp,
-                            top = topBarHeight + 8.dp,
-                        ),
-                    visible = showTopLevelChrome && appUpdateState.availableRelease != null,
-                    enter = fadeIn(animationSpec = tween(220)) +
-                        slideInVertically(
-                            animationSpec = tween(280, easing = FastOutSlowInEasing),
-                            initialOffsetY = { -(it / 2) },
-                        ),
-                    exit = fadeOut(animationSpec = tween(180)) +
-                        slideOutVertically(
-                            animationSpec = tween(220, easing = FastOutSlowInEasing),
-                            targetOffsetY = { -(it / 3) },
-                        ),
-                ) {
-                    appUpdateState.availableRelease?.let { release ->
-                        UpdateAvailableBanner(
-                            release = release,
-                            uiState = appUpdateState,
-                            onDismiss = container.appUpdateManager::dismissAvailableUpdate,
-                            onUpdate = container.appUpdateManager::startUpdate,
+                            .zIndex(7f)
+                            .padding(
+                                start = 16.dp,
+                                end = 16.dp,
+                                top = topBarHeight + 8.dp,
+                            ),
+                        visible = showTopLevelChrome && appUpdateState.availableRelease != null,
+                        enter = fadeIn(animationSpec = tween(220)) +
+                            slideInVertically(
+                                animationSpec = tween(280, easing = FastOutSlowInEasing),
+                                initialOffsetY = { -(it / 2) },
+                            ),
+                        exit = fadeOut(animationSpec = tween(180)) +
+                            slideOutVertically(
+                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                targetOffsetY = { -(it / 3) },
+                            ),
+                    ) {
+                        appUpdateState.availableRelease?.let { release ->
+                            UpdateAvailableBanner(
+                                release = release,
+                                uiState = appUpdateState,
+                                onDismiss = container.appUpdateManager::dismissAvailableUpdate,
+                                onUpdate = container.appUpdateManager::startUpdate,
+                            )
+                        }
+                    }
+                    AnimatedVisibility(
+                        visible = showFirstLaunchPermissionOverlay,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(9f),
+                        enter = fadeIn(animationSpec = tween(180)),
+                        exit = fadeOut(animationSpec = tween(320, easing = LinearOutSlowInEasing)),
+                    ) {
+                        FirstLaunchPermissionLoadingScreen(
+                            showLoading = true,
+                            onRequestPermission = { permissionLauncher.launch(audioPermission()) },
                         )
                     }
                 }
@@ -1896,9 +2057,21 @@ private fun UnifiedTopBar(
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val useSharedBackdrop = LocalUseSharedTopBarBackdrop.current
+    if (useSharedBackdrop && !LocalRenderSharedTopBarContent.current) {
+        RegisterSharedTopBar(
+            SharedTopBarSpec.Unified(
+                title = title,
+                showSettings = showSettings,
+                onOpenSettings = onOpenSettings,
+            ),
+        )
+        return
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .zIndex(if (useSharedBackdrop) 8f else 0f)
             .background(Color.Transparent),
     ) {
         Box(
@@ -1910,10 +2083,12 @@ private fun UnifiedTopBar(
                     onClick = {},
                 ),
         )
-        FrostedTopBarBackground(
-            darkTheme = darkTheme,
-            modifier = Modifier.matchParentSize(),
-        )
+        if (!useSharedBackdrop) {
+            FrostedTopBarBackground(
+                darkTheme = darkTheme,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1957,9 +2132,21 @@ private fun PinnedBackTopBar(
     centeredTitle: Boolean = false,
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val useSharedBackdrop = LocalUseSharedTopBarBackdrop.current
+    if (useSharedBackdrop && !LocalRenderSharedTopBarContent.current) {
+        RegisterSharedTopBar(
+            SharedTopBarSpec.Back(
+                title = title,
+                onBack = onBack,
+                centeredTitle = centeredTitle,
+            ),
+        )
+        return
+    }
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .zIndex(if (useSharedBackdrop) 8f else 0f)
             .background(Color.Transparent),
     ) {
         Box(
@@ -1971,10 +2158,12 @@ private fun PinnedBackTopBar(
                     onClick = {},
                 ),
         )
-        FrostedTopBarBackground(
-            darkTheme = darkTheme,
-            modifier = Modifier.matchParentSize(),
-        )
+        if (!useSharedBackdrop) {
+            FrostedTopBarBackground(
+                darkTheme = darkTheme,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         if (centeredTitle) {
             Box(
                 modifier = Modifier
@@ -2560,6 +2749,79 @@ private fun PermissionGate(
 }
 
 @Composable
+private fun FirstLaunchPermissionLoadingScreen(
+    showLoading: Boolean,
+    onRequestPermission: () -> Unit,
+) {
+    val spinnerColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText
+    } else {
+        Color.White
+    }
+    val infiniteTransition = rememberInfiniteTransition(label = "first_launch_permission_spinner")
+    val rotationDegrees by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = 1100,
+                easing = androidx.compose.animation.core.LinearEasing,
+            ),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "first_launch_permission_spinner_rotation",
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        UnifiedTopBar(
+            title = "Elovaire",
+            showSettings = false,
+            onOpenSettings = onRequestPermission,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth(),
+        )
+        AnimatedVisibility(
+            visible = showLoading,
+            modifier = Modifier.align(Alignment.Center),
+            enter = fadeIn(animationSpec = tween(180)),
+            exit = fadeOut(animationSpec = tween(320, easing = LinearOutSlowInEasing)),
+        ) {
+            Canvas(
+                modifier = Modifier
+                    .size(46.dp)
+                    .graphicsLayer { rotationZ = rotationDegrees },
+            ) {
+                val stroke = 2.5.dp.toPx()
+                val inset = stroke / 2f + 1.dp.toPx()
+                val arcSize = size.minDimension - inset * 2f
+                drawArc(
+                    color = spinnerColor.copy(alpha = 0.2f),
+                    startAngle = 0f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = Size(arcSize, arcSize),
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                )
+                drawArc(
+                    color = spinnerColor,
+                    startAngle = -80f,
+                    sweepAngle = 88f,
+                    useCenter = false,
+                    topLeft = Offset(inset, inset),
+                    size = Size(arcSize, arcSize),
+                    style = Stroke(width = stroke, cap = StrokeCap.Round),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun HomeScreen(
     lastPlayedAlbum: Album?,
     recentlyAddedAlbums: List<Album>,
@@ -2572,15 +2834,29 @@ private fun HomeScreen(
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
+    playInitialReveal: Boolean,
+    onInitialRevealFinished: () -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onPlayAlbum: (Album) -> Unit,
     onSongSelected: (Song) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
     val listState = rememberLazyListState()
+    var revealModules by rememberSaveable(playInitialReveal) { mutableStateOf(!playInitialReveal) }
     LaunchedEffect(scrollToTopRequestVersion) {
         if (scrollToTopRequestVersion > 0L && listState.firstVisibleItemIndex + listState.firstVisibleItemScrollOffset > 0) {
             listState.animateScrollToItem(0)
+        }
+    }
+    LaunchedEffect(playInitialReveal) {
+        if (playInitialReveal) {
+            revealModules = false
+            delay(70L)
+            revealModules = true
+            delay(520L)
+            onInitialRevealFinished()
+        } else {
+            revealModules = true
         }
     }
     val showInitialLoadingState = isLibraryLoading &&
@@ -2682,63 +2958,73 @@ private fun HomeScreen(
                 }
 
                 HomeScreenState.Content -> {
-                LazyColumn(
-                    state = listState,
-                    overscrollEffect = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .ensureSingleItemRubberBand(listState),
-                    contentPadding = PaddingValues(
-                        start = 20.dp,
-                        top = topPadding + 8.dp,
-                        end = 20.dp,
-                        bottom = bottomPadding + 12.dp,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(20.dp),
+                AnimatedVisibility(
+                    visible = revealModules,
+                    enter = fadeIn(animationSpec = tween(320, easing = LinearOutSlowInEasing)) +
+                        slideInVertically(
+                            animationSpec = tween(420, easing = FastOutSlowInEasing),
+                            initialOffsetY = { -it / 18 },
+                        ),
+                    exit = fadeOut(animationSpec = tween(120)),
+                    label = "home_first_launch_modules_reveal",
                 ) {
-                    lastPlayedAlbum?.let { album ->
-                        item {
-                            LastPlayedAlbumModule(
-                                album = album,
-                                onOpen = { origin -> onAlbumSelected(album, origin) },
-                                onPlay = { onPlayAlbum(album) },
-                            )
+                    LazyColumn(
+                        state = listState,
+                        overscrollEffect = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .ensureSingleItemRubberBand(listState),
+                        contentPadding = PaddingValues(
+                            start = 20.dp,
+                            top = topPadding + 8.dp,
+                            end = 20.dp,
+                            bottom = bottomPadding + 12.dp,
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
+                        lastPlayedAlbum?.let { album ->
+                            item {
+                                LastPlayedAlbumModule(
+                                    album = album,
+                                    onOpen = { origin -> onAlbumSelected(album, origin) },
+                                    onPlay = { onPlayAlbum(album) },
+                                )
+                            }
                         }
-                    }
 
-                    if (recentlyAddedAlbums.isNotEmpty()) {
-                        item {
-                            ModuleCard {
-                                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                                    MutedSectionHeader(
-                                        title = "Recently added",
-                                        iconResId = R.drawable.ic_lucide_gallery_vertical_end,
-                                    )
-                                    recentlyAddedAlbums.take(4).chunked(2).forEach { rowAlbums ->
-                                        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                            rowAlbums.forEach { album ->
-                                                AlbumGridCard(
-                                                    album = album,
-                                                    modifier = Modifier.weight(1f),
-                                                    onOpen = { origin -> onAlbumSelected(album, origin) },
-                                                )
-                                            }
-                                            repeat((2 - rowAlbums.size).coerceAtLeast(0)) {
-                                                SpacerTile(modifier = Modifier.weight(1f))
+                        if (recentlyAddedAlbums.isNotEmpty()) {
+                            item {
+                                ModuleCard {
+                                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                                        MutedSectionHeader(
+                                            title = "Recently added",
+                                            iconResId = R.drawable.ic_lucide_gallery_vertical_end,
+                                        )
+                                        recentlyAddedAlbums.take(4).chunked(2).forEach { rowAlbums ->
+                                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                                rowAlbums.forEach { album ->
+                                                    AlbumGridCard(
+                                                        album = album,
+                                                        modifier = Modifier.weight(1f),
+                                                        onOpen = { origin -> onAlbumSelected(album, origin) },
+                                                    )
+                                                }
+                                                repeat((2 - rowAlbums.size).coerceAtLeast(0)) {
+                                                    SpacerTile(modifier = Modifier.weight(1f))
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
+                        } else if (!isLibraryLoading) {
+                            item {
+                                EmptyStateCard(
+                                    title = "No recent additions yet",
+                                    message = "Add albums to the device Music folder and the newest ones will appear here automatically",
+                                )
+                            }
                         }
-                    } else if (!isLibraryLoading) {
-                        item {
-                            EmptyStateCard(
-                                title = "No recent additions yet",
-                                message = "Add albums to the device Music folder and the newest ones will appear here automatically",
-                            )
-                        }
-                    }
 
                     item {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -2795,12 +3081,14 @@ private fun HomeScreen(
                             )
                         }
                     }
+                    }
                 }
-            }
             }
         }
     }
 }
+}
+
 
 @Composable
 private fun LastPlayedAlbumModule(
@@ -6788,10 +7076,22 @@ private fun DetailListTopBar(
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val useSharedBackdrop = LocalUseSharedTopBarBackdrop.current
+    if (useSharedBackdrop && !LocalRenderSharedTopBarContent.current) {
+        RegisterSharedTopBar(
+            SharedTopBarSpec.Detail(
+                title = title,
+                subtitle = subtitle,
+                onBack = onBack,
+            ),
+        )
+        return
+    }
 
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .zIndex(if (useSharedBackdrop) 8f else 0f)
             .background(Color.Transparent),
     ) {
         Box(
@@ -6803,10 +7103,12 @@ private fun DetailListTopBar(
                     onClick = {},
                 ),
         )
-        FrostedTopBarBackground(
-            darkTheme = darkTheme,
-            modifier = Modifier.matchParentSize(),
-        )
+        if (!useSharedBackdrop) {
+            FrostedTopBarBackground(
+                darkTheme = darkTheme,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -7214,7 +7516,13 @@ private fun NowPlayingScreen(
         modifier = modifier
             .fillMaxSize()
             .clipToBounds()
-            .hazeSource(playerHazeState),
+            .then(
+                if (transitionInFlight) {
+                    Modifier
+                } else {
+                    Modifier.hazeSource(playerHazeState)
+                },
+            ),
     ) {
         val screenWidthPx = with(density) { maxWidth.toPx() }
         val screenHeightPx = with(density) { maxHeight.toPx() }
@@ -7297,32 +7605,48 @@ private fun NowPlayingScreen(
         val backgroundArtworkBitmap = artwork.value
         if (backgroundArtworkBitmap != null) {
             Box(modifier = Modifier.fillMaxSize()) {
-                Image(
-                    bitmap = backgroundArtworkBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = 1.08f
-                            scaleY = 1.08f
-                        }
-                        .blur(116.dp),
-                    alpha = 0.98f,
-                )
-                Image(
-                    bitmap = backgroundArtworkBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .graphicsLayer {
-                            scaleX = 1.03f
-                            scaleY = 1.03f
-                            alpha = 0.34f
-                        }
-                        .blur(48.dp),
-                )
+                if (transitionInFlight) {
+                    Image(
+                        bitmap = backgroundArtworkBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = 1.04f
+                                scaleY = 1.04f
+                            }
+                            .blur(56.dp),
+                        alpha = 0.92f,
+                    )
+                } else {
+                    Image(
+                        bitmap = backgroundArtworkBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = 1.08f
+                                scaleY = 1.08f
+                            }
+                            .blur(116.dp),
+                        alpha = 0.98f,
+                    )
+                    Image(
+                        bitmap = backgroundArtworkBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer {
+                                scaleX = 1.03f
+                                scaleY = 1.03f
+                                alpha = 0.34f
+                            }
+                            .blur(48.dp),
+                    )
+                }
             }
         }
         Box(
@@ -9147,7 +9471,6 @@ private fun LyricsOverlay(
                 if (payload.isSynced) {
                     payload.currentLineIndexAt(
                         positionMs = playbackProgress.displayPositionMs,
-                        switchGraceMs = 90L,
                     ) ?: -1
                 } else {
                     activeLyricLineIndex(
