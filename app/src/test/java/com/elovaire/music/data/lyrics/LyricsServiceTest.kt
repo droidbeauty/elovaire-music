@@ -210,18 +210,6 @@ class LyricsServiceTest {
     }
 
     @Test
-    fun `strip musixmatch footer removes commercial disclaimer`() {
-        val cleaned = stripMusixmatchLyricsFooter(
-            """
-            This love has taken its toll on me
-            ******* This Lyrics is NOT for Commercial use *******
-            """.trimIndent(),
-        )
-
-        assertEquals("This love has taken its toll on me", cleaned)
-    }
-
-    @Test
     fun `normalize for match removes diacritics`() {
         assertEquals("francais turkce portugues", "Français Türkçe Português".normalizeForMatch())
     }
