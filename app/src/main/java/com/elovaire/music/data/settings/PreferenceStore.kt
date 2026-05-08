@@ -29,6 +29,12 @@ class PreferenceStore(context: Context) {
     private val _playbackVolume = MutableStateFlow(loadPlaybackVolume())
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
 
+    private val _albumCollectionGridEnabled = MutableStateFlow(loadAlbumCollectionGridEnabled())
+    val albumCollectionGridEnabled: StateFlow<Boolean> = _albumCollectionGridEnabled.asStateFlow()
+
+    private val _songCollectionGridEnabled = MutableStateFlow(loadSongCollectionGridEnabled())
+    val songCollectionGridEnabled: StateFlow<Boolean> = _songCollectionGridEnabled.asStateFlow()
+
     private val _libraryFolderUri = MutableStateFlow(loadLibraryFolderUri())
     val libraryFolderUri: StateFlow<Uri?> = _libraryFolderUri.asStateFlow()
 
@@ -281,6 +287,20 @@ class PreferenceStore(context: Context) {
         _playbackVolume.value = volume
     }
 
+    fun setAlbumCollectionGridEnabled(enabled: Boolean) {
+        preferences.edit {
+            putBoolean(KEY_ALBUM_COLLECTION_GRID_ENABLED, enabled)
+        }
+        _albumCollectionGridEnabled.value = enabled
+    }
+
+    fun setSongCollectionGridEnabled(enabled: Boolean) {
+        preferences.edit {
+            putBoolean(KEY_SONG_COLLECTION_GRID_ENABLED, enabled)
+        }
+        _songCollectionGridEnabled.value = enabled
+    }
+
     fun setLibraryFolder(
         uri: Uri?,
         path: String,
@@ -353,6 +373,14 @@ class PreferenceStore(context: Context) {
 
     private fun loadPlaybackVolume(): Float {
         return preferences.getFloat(KEY_PLAYBACK_VOLUME, 1f).coerceIn(0f, 1f)
+    }
+
+    private fun loadAlbumCollectionGridEnabled(): Boolean {
+        return preferences.getBoolean(KEY_ALBUM_COLLECTION_GRID_ENABLED, true)
+    }
+
+    private fun loadSongCollectionGridEnabled(): Boolean {
+        return preferences.getBoolean(KEY_SONG_COLLECTION_GRID_ENABLED, false)
     }
 
     private fun loadLibraryFolderUri(): Uri? {
@@ -545,6 +573,8 @@ class PreferenceStore(context: Context) {
         const val KEY_RECENT_SONG_IDS = "recent_song_ids"
         const val KEY_RECENT_ALBUM_IDS = "recent_album_ids"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
+        const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
+        const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"
         const val KEY_LIBRARY_FOLDER_URI = "library_folder_uri"
         const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"

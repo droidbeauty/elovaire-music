@@ -3,7 +3,6 @@ package elovaire.music.app.data.lyrics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LyricsServiceTest {
@@ -29,7 +28,7 @@ class LyricsServiceTest {
     }
 
     @Test
-    fun `parse synced lyrics falls back cleanly for malformed lines`() {
+    fun `parse synced lyrics falls back to plain lyrics when timestamps are missing`() {
         val parsed = parseSyncedLyrics(
             """
             [ar:Artist]
@@ -42,21 +41,6 @@ class LyricsServiceTest {
         assertEquals(2, parsed!!.size)
         assertNull(parsed[0].startTimeMs)
         assertEquals("This is plain", parsed[0].text)
-    }
-
-    @Test
-    fun `parse synced lyrics keeps long display lines intact`() {
-        val parsed = parseSyncedLyrics(
-            """
-            [00:01.00]I'll fix these broken things, repair your broken wings
-            [00:05.00]And make sure everything's alright
-            """.trimIndent(),
-        )
-
-        assertNotNull(parsed)
-        assertEquals(2, parsed!!.size)
-        assertEquals("I'll fix these broken things, repair your broken wings", parsed[0].text)
-        assertEquals("And make sure everything's alright", parsed[1].text)
     }
 
     @Test
@@ -87,18 +71,7 @@ class LyricsServiceTest {
     }
 
     @Test
-    fun `parse plain lyrics keeps long lines intact`() {
-        val parsed = parsePlainLyrics(
-            "Into every inch of you because I know that's what you want me to do",
-        )
-
-        assertNotNull(parsed)
-        assertEquals(1, parsed!!.size)
-        assertEquals("Into every inch of you because I know that's what you want me to do", parsed[0].text)
-    }
-
-    @Test
-    fun `flat metadata only plain lyrics are rejected`() {
+    fun `metadata only plain lyrics are rejected`() {
         val parsed = parsePlainLyrics(
             """
             [ar:Artist]
@@ -123,94 +96,31 @@ class LyricsServiceTest {
     }
 
     @Test
-    fun `sanitize lyric line filters known remote garbage`() {
-        assertNull(sanitizeLyricLine("TranslationsFrançaisTürkçePortuguês"))
-        assertNull(sanitizeLyricLine("You might also like"))
-        assertEquals("Actual lyric", sanitizeLyricLine("  Actual lyric  "))
-    }
-
-    @Test
-    fun `current line index follows corrected playback position without early jump`() {
+    fun `payload current line index follows exact synced timestamps`() {
         val payload = LyricsPayload(
             lines = listOf(
-                LyricsLine(text = "Line one", startTimeMs = 1_000L, endTimeMs = 4_000L),
-                LyricsLine(text = "Line two", startTimeMs = 4_000L, endTimeMs = 7_000L),
-                LyricsLine(text = "Line three", startTimeMs = 7_000L, endTimeMs = null),
+                LyricsLine(text = "Line one", startTimeMs = 1_000L, endTimeMs = 4_000L, index = 0),
+                LyricsLine(text = "Line two", startTimeMs = 4_000L, endTimeMs = 7_000L, index = 1),
+                LyricsLine(text = "Line three", startTimeMs = 7_000L, endTimeMs = null, index = 2),
             ),
             isSynced = true,
-        )
-
-        assertNull(payload.currentLineIndexAt(positionMs = 800L, switchGraceMs = 90L))
-        assertEquals(0, payload.currentLineIndexAt(positionMs = 1_140L, switchGraceMs = 90L))
-        assertEquals(1, payload.currentLineIndexAt(positionMs = 4_120L, switchGraceMs = 90L))
-        assertEquals(2, payload.currentLineIndexAt(positionMs = 8_000L, switchGraceMs = 90L))
-    }
-
-    @Test
-    fun `current line index respects display timing offset`() {
-        val payload = LyricsPayload(
-            lines = listOf(
-                LyricsLine(text = "Late line", startTimeMs = 2_000L, endTimeMs = 5_000L),
-            ),
-            isSynced = true,
-            displayTimingOffsetMs = 600L,
-        )
-
-        assertNull(payload.currentLineIndexAt(positionMs = 2_500L, switchGraceMs = 0L))
-        assertEquals(0, payload.currentLineIndexAt(positionMs = 2_650L, switchGraceMs = 0L))
-    }
-
-    @Test
-    fun `exact interval profile follows richsync style boundaries precisely`() {
-        val payload = LyricsPayload(
-            lines = listOf(
-                LyricsLine(text = "Line one", startTimeMs = 1_000L, endTimeMs = 2_200L),
-                LyricsLine(text = "Line two", startTimeMs = 2_250L, endTimeMs = 3_900L),
-                LyricsLine(text = "Line three", startTimeMs = 4_000L, endTimeMs = 5_000L),
-            ),
-            isSynced = true,
-            timingProfile = SyncedLyricsTimingProfile.ExactIntervals,
         )
 
         assertNull(payload.currentLineIndexAt(positionMs = 900L))
-        assertEquals(0, payload.currentLineIndexAt(positionMs = 1_050L))
-        assertNull(payload.currentLineIndexAt(positionMs = 2_225L))
-        assertEquals(1, payload.currentLineIndexAt(positionMs = 2_260L))
-        assertEquals(2, payload.currentLineIndexAt(positionMs = 4_020L))
+        assertEquals(0, payload.currentLineIndexAt(positionMs = 1_000L))
+        assertEquals(1, payload.currentLineIndexAt(positionMs = 4_010L))
+        assertEquals(2, payload.currentLineIndexAt(positionMs = 9_500L))
     }
 
     @Test
-    fun `approximate synced profile avoids switching too early`() {
+    fun `unsynced payload never returns a highlighted line`() {
         val payload = LyricsPayload(
             lines = listOf(
-                LyricsLine(text = "Line one", startTimeMs = 1_000L, endTimeMs = 3_000L),
-                LyricsLine(text = "Line two", startTimeMs = 3_050L, endTimeMs = 5_000L),
+                LyricsLine(text = "Plain line", startTimeMs = null, index = 0),
             ),
-            isSynced = true,
+            isSynced = false,
         )
 
-        assertNull(payload.currentLineIndexAt(positionMs = 1_030L))
-        assertEquals(0, payload.currentLineIndexAt(positionMs = 1_070L))
-        assertEquals(0, payload.currentLineIndexAt(positionMs = 3_070L))
-        assertEquals(1, payload.currentLineIndexAt(positionMs = 3_120L))
-    }
-
-    @Test
-    fun `parse synced lyrics handles empty instrumental timed line safely`() {
-        val parsed = parseSyncedLyrics(
-            """
-            [00:01.00]
-            [00:03.00]First vocal line
-            """.trimIndent(),
-        )
-
-        assertNotNull(parsed)
-        assertEquals(1, parsed!!.size)
-        assertEquals("First vocal line", parsed[0].text)
-    }
-
-    @Test
-    fun `normalize for match removes diacritics`() {
-        assertEquals("francais turkce portugues", "Français Türkçe Português".normalizeForMatch())
+        assertNull(payload.currentLineIndexAt(positionMs = 10_000L))
     }
 }

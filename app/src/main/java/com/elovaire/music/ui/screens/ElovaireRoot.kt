@@ -166,6 +166,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.asComposeRenderEffect
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
@@ -309,6 +310,48 @@ private enum class DetailRouteTransitionMode {
     Standard,
 }
 
+private object ElovaireNavigationTransitions {
+    fun depthOf(route: String?): Int {
+        return when (route.normalizedNavigationRoute()) {
+            HOME_ROUTE,
+            ALBUMS_ROUTE,
+            PLAYLISTS_ROUTE,
+            SEARCH_ROUTE,
+            PLAYER_ROUTE,
+            null,
+            -> 0
+
+            SETTINGS_ROUTE,
+            EQUALIZER_ROUTE,
+            CHANGELOG_ROUTE,
+            "$LIBRARY_COLLECTION_ROUTE/{kind}",
+            "$GENRE_ROUTE/{genre}",
+            "$ARTIST_ROUTE/{artistName}",
+            -> 1
+
+            "$PLAYLIST_ROUTE/{playlistId}",
+            "$ALBUM_ROUTE/{albumId}",
+            -> 2
+
+            else -> 1
+        }
+    }
+
+    fun usesTileExpand(
+        route: String?,
+        mode: DetailRouteTransitionMode,
+    ): Boolean {
+        return mode == DetailRouteTransitionMode.TileExpand && route.normalizedNavigationRoute().isExpandFromTileRoute()
+    }
+
+    fun isSameLevelTransition(
+        initialRoute: String?,
+        targetRoute: String?,
+    ): Boolean {
+        return depthOf(targetRoute) == depthOf(initialRoute)
+    }
+}
+
 private fun resolveTreePath(uri: Uri): String {
     val treeDocumentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull().orEmpty()
     if (treeDocumentId.isBlank()) return ""
@@ -364,6 +407,7 @@ private val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
 private val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
 private val LocalSharedTopBarController = compositionLocalOf<SharedTopBarController?> { null }
 private val LocalRenderSharedTopBarContent = compositionLocalOf { false }
+private val LocalSharedBackIconPainter = compositionLocalOf<Painter?> { null }
 
 private sealed interface SharedTopBarSpec {
     data class Unified(
@@ -413,6 +457,13 @@ private enum class SongSortMode(
     Title("Song name"),
     Artist("Artist name"),
     Album("Album"),
+}
+
+private enum class SearchSongSortMode(
+    val label: String,
+) {
+    Title("Song name"),
+    Artist("Artist name"),
 }
 
 private enum class AlbumSortMode(
@@ -900,6 +951,8 @@ fun ElovaireRoot(
     val favoriteSongIdSet = remember(favoriteSongIds) { favoriteSongIds.toHashSet() }
     val albumPlayCounts by container.preferenceStore.albumPlayCounts.collectAsStateWithLifecycle()
     val songPlayCounts by container.preferenceStore.songPlayCounts.collectAsStateWithLifecycle()
+    val albumCollectionGridEnabled by container.preferenceStore.albumCollectionGridEnabled.collectAsStateWithLifecycle()
+    val songCollectionGridEnabled by container.preferenceStore.songCollectionGridEnabled.collectAsStateWithLifecycle()
     val openPlayerRequestVersion by container.openPlayerRequestVersion.collectAsStateWithLifecycle()
     val appUpdateState by container.appUpdateManager.uiState.collectAsStateWithLifecycle()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
@@ -1044,7 +1097,7 @@ fun ElovaireRoot(
         return
     }
 
-    val isPlaybackActuallyPlaying = playbackProgress.isPlaying
+    val isPlaybackActuallyPlaying = playbackState.isPlaying && playbackState.currentSong != null
 
     val topLevelDestinations = listOf(
         TopLevelDestination(
@@ -1121,6 +1174,7 @@ fun ElovaireRoot(
     val darkTheme = appBackground.luminance() < 0.5f
     val chromeHazeState = rememberHazeState()
     val sharedTopBarController = remember { SharedTopBarController() }
+    val sharedBackIconPainter = painterResource(id = R.drawable.ic_lucide_chevron_left)
     val playerArtworkGradient = rememberArtworkGradient(playbackState.currentSong?.artUri).value
     val playerAdaptivePalette = remember(
         playbackState.currentSong?.id,
@@ -1234,6 +1288,7 @@ fun ElovaireRoot(
         LocalOverscrollFactory provides overscrollFactory,
         LocalSongMenuActions provides songMenuActions,
         LocalChromeHazeState provides chromeHazeState,
+        LocalSharedBackIconPainter provides sharedBackIconPainter,
     ) {
         Box(
             modifier = Modifier
@@ -1280,11 +1335,15 @@ fun ElovaireRoot(
                             .fillMaxSize()
                             .blur(navHostBlur),
                         enterTransition = {
-                        if (targetState.destination.route == PLAYER_ROUTE) {
+                        val initialRoute = initialState.destination.route
+                        val targetRoute = targetState.destination.route
+                        if (targetRoute == PLAYER_ROUTE) {
                             EnterTransition.None
                         } else if (
-                            targetState.destination.route.isExpandFromTileRoute() &&
-                            detailRouteTransitionMode == DetailRouteTransitionMode.TileExpand
+                            ElovaireNavigationTransitions.usesTileExpand(
+                                route = targetRoute,
+                                mode = detailRouteTransitionMode,
+                            )
                         ) {
                             fadeIn(
                                 animationSpec = ElovaireMotion.fadeMedium(),
@@ -1306,6 +1365,19 @@ fun ElovaireRoot(
                                         ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
                                     },
                                 )
+                        } else if (
+                            ElovaireNavigationTransitions.isSameLevelTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeIn(
+                                animationSpec = ElovaireMotion.fadeMedium(),
+                            ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.996f,
+                                )
                         } else {
                             fadeIn(
                                 animationSpec = ElovaireMotion.fadeMedium(),
@@ -1321,15 +1393,30 @@ fun ElovaireRoot(
                         }
                     },
                     exitTransition = {
-                        if (targetState.destination.route == PLAYER_ROUTE) {
+                        val initialRoute = initialState.destination.route
+                        val targetRoute = targetState.destination.route
+                        if (targetRoute == PLAYER_ROUTE) {
                             ExitTransition.None
                         } else if (
-                            targetState.destination.route.isExpandFromTileRoute() &&
-                            detailRouteTransitionMode == DetailRouteTransitionMode.TileExpand
+                            ElovaireNavigationTransitions.usesTileExpand(
+                                route = targetRoute,
+                                mode = detailRouteTransitionMode,
+                            )
                         ) {
                             fadeOut(
                                 animationSpec = ElovaireMotion.fadeFast(),
                             )
+                        } else if (
+                            ElovaireNavigationTransitions.isSameLevelTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeMedium(),
+                                    targetScale = 0.996f,
+                                )
                         } else {
                             fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
                                 scaleOut(
@@ -1339,15 +1426,32 @@ fun ElovaireRoot(
                         }
                     },
                     popEnterTransition = {
-                        if (initialState.destination.route == PLAYER_ROUTE) {
+                        val initialRoute = initialState.destination.route
+                        val targetRoute = targetState.destination.route
+                        if (initialRoute == PLAYER_ROUTE) {
                             EnterTransition.None
                         } else if (
-                            initialState.destination.route.isExpandFromTileRoute() &&
-                            detailRouteTransitionMode == DetailRouteTransitionMode.TileExpand
+                            ElovaireNavigationTransitions.usesTileExpand(
+                                route = initialRoute,
+                                mode = detailRouteTransitionMode,
+                            )
                         ) {
                             fadeIn(
                                 animationSpec = ElovaireMotion.fadeMedium(),
                             )
+                        } else if (
+                            ElovaireNavigationTransitions.isSameLevelTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeIn(
+                                animationSpec = ElovaireMotion.fadeMedium(),
+                            ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.996f,
+                                )
                         } else {
                             fadeIn(
                                 animationSpec = ElovaireMotion.fadeMedium(),
@@ -1363,11 +1467,15 @@ fun ElovaireRoot(
                         }
                     },
                     popExitTransition = {
-                        if (initialState.destination.route == PLAYER_ROUTE) {
+                        val initialRoute = initialState.destination.route
+                        val targetRoute = targetState.destination.route
+                        if (initialRoute == PLAYER_ROUTE) {
                             ExitTransition.None
                         } else if (
-                            initialState.destination.route.isExpandFromTileRoute() &&
-                            detailRouteTransitionMode == DetailRouteTransitionMode.TileExpand
+                            ElovaireNavigationTransitions.usesTileExpand(
+                                route = initialRoute,
+                                mode = detailRouteTransitionMode,
+                            )
                         ) {
                             fadeOut(
                                 animationSpec = ElovaireMotion.fadeFast(),
@@ -1388,6 +1496,17 @@ fun ElovaireRoot(
                                     targetOffsetY = { fullHeight ->
                                         ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
                                     },
+                                )
+                        } else if (
+                            ElovaireNavigationTransitions.isSameLevelTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeMedium(),
+                                    targetScale = 0.996f,
                                 )
                         } else {
                             fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
@@ -1425,6 +1544,7 @@ fun ElovaireRoot(
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
+                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
                                 navController.navigate("$ALBUM_ROUTE/${album.id}")
                             },
                             onPlayAlbum = { album ->
@@ -1463,6 +1583,7 @@ fun ElovaireRoot(
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
+                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
                                 navController.navigate("$ALBUM_ROUTE/${album.id}")
                             },
                         )
@@ -1619,6 +1740,8 @@ fun ElovaireRoot(
                             libraryState = libraryState,
                             songPlayCounts = songPlayCounts,
                             favoriteSongIds = favoriteSongIdSet,
+                            albumCollectionLayoutMode = if (albumCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
+                            songCollectionLayoutMode = if (songCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
                             currentSongId = playbackState.currentSong?.id,
                             isCurrentSongPlaying = isPlaybackActuallyPlaying,
                             bottomPadding = detailBottomPadding,
@@ -1641,6 +1764,12 @@ fun ElovaireRoot(
                                 openPlayerIfAllowed(null)
                             },
                             onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
+                            onAlbumCollectionLayoutModeChanged = { mode ->
+                                container.preferenceStore.setAlbumCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
+                            },
+                            onSongCollectionLayoutModeChanged = { mode ->
+                                container.preferenceStore.setSongCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
+                            },
                             onGenreSelected = { genre ->
                                 navController.navigate("$GENRE_ROUTE/${Uri.encode(genre)}")
                             },
@@ -1658,8 +1787,12 @@ fun ElovaireRoot(
                         GenreAlbumsScreen(
                             genre = genre,
                             libraryState = libraryState,
+                            layoutMode = if (albumCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
+                            onLayoutModeChanged = { mode ->
+                                container.preferenceStore.setAlbumCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
+                            },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
                                 detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
@@ -2042,6 +2175,7 @@ private fun StandaloneNowPlayingDock(
                 song = song,
                 isPlaying = isPlaying,
                 progress = progress,
+                visible = visible,
                 contentColor = contentColor,
                 secondaryContentColor = secondaryContentColor,
                 onOpenPlayer = onOpenPlayer,
@@ -2248,6 +2382,12 @@ private fun HeaderIconButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val sharedBackPainter = LocalSharedBackIconPainter.current
+    val iconPainter = if (iconResId == R.drawable.ic_lucide_chevron_left && sharedBackPainter != null) {
+        sharedBackPainter
+    } else {
+        painterResource(id = iconResId)
+    }
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.88f else 1f,
         animationSpec = spring(dampingRatio = 0.6f, stiffness = 420f),
@@ -2276,7 +2416,7 @@ private fun HeaderIconButton(
         contentAlignment = Alignment.Center,
     ) {
         Icon(
-            painter = painterResource(id = iconResId),
+            painter = iconPainter,
             contentDescription = contentDescription,
             tint = tint.copy(alpha = if (enabled) 1f else 0.35f),
             modifier = Modifier.size(20.dp),
@@ -2444,6 +2584,7 @@ private fun NowPlayingBar(
     song: Song,
     isPlaying: Boolean,
     progress: Float,
+    visible: Boolean,
     contentColor: Color,
     secondaryContentColor: Color,
     onOpenPlayer: (NowPlayingTransitionSnapshot?) -> Unit,
@@ -2524,25 +2665,32 @@ private fun NowPlayingBar(
                 modifier = Modifier
                     .weight(1f)
                     .graphicsLayer { translationX = animatedDragOffsetX * 0.18f }
-                    .pointerInput(song.id) {
-                        detectHorizontalDragGestures(
-                            onHorizontalDrag = { change, dragAmount ->
-                                change.consume()
-                                dragOffsetX = (dragOffsetX + dragAmount).coerceIn(-160f, 160f)
-                            },
-                            onDragEnd = {
-                                when {
-                                    dragOffsetX <= -swipeThresholdPx -> onSkipNext()
-                                    dragOffsetX >= swipeThresholdPx -> onSkipPrevious()
-                                }
-                                dragOffsetX = 0f
-                            },
-                            onDragCancel = {
-                                dragOffsetX = 0f
-                            },
-                        )
-                    }
+                    .then(
+                        if (visible) {
+                            Modifier.pointerInput(song.id) {
+                                detectHorizontalDragGestures(
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        change.consume()
+                                        dragOffsetX = (dragOffsetX + dragAmount).coerceIn(-160f, 160f)
+                                    },
+                                    onDragEnd = {
+                                        when {
+                                            dragOffsetX <= -swipeThresholdPx -> onSkipNext()
+                                            dragOffsetX >= swipeThresholdPx -> onSkipPrevious()
+                                        }
+                                        dragOffsetX = 0f
+                                    },
+                                    onDragCancel = {
+                                        dragOffsetX = 0f
+                                    },
+                                )
+                            }
+                        } else {
+                            Modifier
+                        }
+                    )
                     .clickable(
+                        enabled = visible,
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
                         onClick = {
@@ -2609,6 +2757,7 @@ private fun NowPlayingBar(
                     .clip(CircleShape)
                     .background(controlTint)
                     .clickable(
+                        enabled = visible,
                         interactionSource = interactionSource,
                         indication = null,
                         onClick = onTogglePlayback,
@@ -3245,13 +3394,14 @@ private fun LastPlayedAlbumModule(
 @Composable
 private fun AlbumCollectionContent(
     albums: List<Album>,
+    layoutMode: AlbumLayoutMode,
     topPadding: Dp,
     bottomPadding: Dp,
     title: String = "All albums",
     subtitle: String = "Alphabetical by album artist, then album title.",
+    onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
-    var layoutMode by rememberSaveable { mutableStateOf(AlbumLayoutMode.Grid) }
     var sortMode by rememberSaveable { mutableStateOf(AlbumSortMode.Artist) }
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -3304,7 +3454,7 @@ private fun AlbumCollectionContent(
                         Spacer(modifier = Modifier.width(11.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutMode = it },
+                            onLayoutModeChanged = onLayoutModeChanged,
                         )
                     }
                 }
@@ -3354,7 +3504,7 @@ private fun AlbumCollectionContent(
                         Spacer(modifier = Modifier.width(12.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutMode = it },
+                            onLayoutModeChanged = onLayoutModeChanged,
                         )
                     }
                 }
@@ -3805,6 +3955,8 @@ private fun LibraryCollectionScreen(
     libraryState: LibraryUiState,
     songPlayCounts: Map<Long, Int>,
     favoriteSongIds: Set<Long>,
+    albumCollectionLayoutMode: AlbumLayoutMode,
+    songCollectionLayoutMode: AlbumLayoutMode,
     currentSongId: Long?,
     isCurrentSongPlaying: Boolean,
     bottomPadding: Dp,
@@ -3812,6 +3964,8 @@ private fun LibraryCollectionScreen(
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
+    onAlbumCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+    onSongCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onGenreSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
 ) {
@@ -3819,10 +3973,12 @@ private fun LibraryCollectionScreen(
         LibraryCollectionKind.Songs -> SongCollectionScreen(
             songs = libraryState.songs,
             favoriteSongIds = favoriteSongIds,
+            layoutMode = songCollectionLayoutMode,
             currentSongId = currentSongId,
             isCurrentSongPlaying = isCurrentSongPlaying,
             bottomPadding = bottomPadding,
             onBack = onBack,
+            onLayoutModeChanged = onSongCollectionLayoutModeChanged,
             onSongSelected = onSongSelected,
             onToggleFavorite = onToggleFavorite,
         )
@@ -3830,10 +3986,12 @@ private fun LibraryCollectionScreen(
         LibraryCollectionKind.Albums -> Box(modifier = Modifier.fillMaxSize()) {
             AlbumCollectionContent(
                 albums = libraryState.albums,
+                layoutMode = albumCollectionLayoutMode,
                 topPadding = detailTopBarOccupiedHeight(),
                 bottomPadding = bottomPadding,
                 title = "Albums",
                 subtitle = "Alphabetical by album artist, then album title",
+                onLayoutModeChanged = onAlbumCollectionLayoutModeChanged,
                 onAlbumSelected = onAlbumSelected,
             )
             DetailListTopBar(
@@ -3864,14 +4022,15 @@ private fun LibraryCollectionScreen(
 private fun SongCollectionScreen(
     songs: List<Song>,
     favoriteSongIds: Set<Long>,
+    layoutMode: AlbumLayoutMode,
     currentSongId: Long?,
     isCurrentSongPlaying: Boolean,
     bottomPadding: Dp,
     onBack: () -> Unit,
+    onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
-    var layoutMode by rememberSaveable { mutableStateOf(AlbumLayoutMode.Compact) }
     var sortMode by rememberSaveable { mutableStateOf(SongSortMode.Title) }
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
@@ -3932,7 +4091,7 @@ private fun SongCollectionScreen(
                         Spacer(modifier = Modifier.width(11.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutMode = it },
+                            onLayoutModeChanged = onLayoutModeChanged,
                         )
                     }
                 }
@@ -3978,7 +4137,7 @@ private fun SongCollectionScreen(
                         Spacer(modifier = Modifier.width(12.dp))
                         LibraryModeToggle(
                             layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutMode = it },
+                            onLayoutModeChanged = onLayoutModeChanged,
                         )
                     }
                 }
@@ -4248,8 +4407,10 @@ private fun GenreCollectionScreen(
 private fun GenreAlbumsScreen(
     genre: String,
     libraryState: LibraryUiState,
+    layoutMode: AlbumLayoutMode,
     bottomPadding: Dp,
     onBack: () -> Unit,
+    onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
     val filteredAlbums = remember(genre, libraryState.albums) {
@@ -4263,10 +4424,12 @@ private fun GenreAlbumsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         AlbumCollectionContent(
             albums = filteredAlbums,
+            layoutMode = layoutMode,
             topPadding = detailTopBarOccupiedHeight(),
             bottomPadding = bottomPadding,
             title = genre.ifBlank { "Unknown Genre" },
             subtitle = "${filteredAlbums.size} albums tagged in this genre",
+            onLayoutModeChanged = onLayoutModeChanged,
             onAlbumSelected = onAlbumSelected,
         )
         DetailListTopBar(
@@ -4727,26 +4890,59 @@ private fun SearchScreen(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var isSearchFieldFocused by rememberSaveable { mutableStateOf(false) }
+    var showAllSongResults by rememberSaveable { mutableStateOf(false) }
+    var searchSongSortMode by rememberSaveable { mutableStateOf(SearchSongSortMode.Title) }
+    var showSearchSongSortOptions by rememberSaveable { mutableStateOf(false) }
     val listState = rememberLazyListState()
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val trimmedQuery = query.trim()
-    val isSearchUiActive = trimmedQuery.isNotBlank() || isSearchFieldFocused
+    val isSearchUiActive = trimmedQuery.isNotBlank() || isSearchFieldFocused || showAllSongResults
+    val resetSearchToMain: () -> Unit = {
+        query = ""
+        isSearchFieldFocused = false
+        showAllSongResults = false
+        showSearchSongSortOptions = false
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
+    }
+    BackHandler(enabled = isSearchUiActive) {
+        resetSearchToMain()
+    }
     LaunchedEffect(trimmedQuery, isSearchFieldFocused) {
         onSearchQueryActiveChanged(isSearchUiActive)
     }
-    val matchingSongs = remember(trimmedQuery, libraryState.songs) {
+    LaunchedEffect(trimmedQuery) {
+        if (trimmedQuery.isBlank()) {
+            showAllSongResults = false
+            showSearchSongSortOptions = false
+        }
+    }
+    val allMatchingSongs = remember(trimmedQuery, libraryState.songs, searchSongSortMode) {
         if (trimmedQuery.isBlank()) {
             emptyList()
         } else {
-            libraryState.songs.filter { song ->
+            val filteredSongs = libraryState.songs.filter { song ->
                 searchMatchesComposite(
                     query = trimmedQuery,
                     fields = listOf(song.title, song.artist, song.album),
                 )
-            }.take(20)
+            }
+            when (searchSongSortMode) {
+                SearchSongSortMode.Title -> filteredSongs.sortedWith(
+                    compareBy<Song> { it.title.lowercase() }
+                        .thenBy { it.artist.lowercase() }
+                        .thenBy { it.album.lowercase() },
+                )
+                SearchSongSortMode.Artist -> filteredSongs.sortedWith(
+                    compareBy<Song> { it.artist.lowercase() }
+                        .thenBy { it.title.lowercase() }
+                        .thenBy { it.album.lowercase() },
+                )
+            }
         }
     }
+    val matchingSongs = remember(allMatchingSongs) { allMatchingSongs.take(20) }
     val matchingAlbums = remember(trimmedQuery, libraryState.albums) {
         if (trimmedQuery.isBlank()) {
             emptyList()
@@ -4810,9 +5006,16 @@ private fun SearchScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item {
+                val searchBarContentColor = MaterialTheme.colorScheme.onSurface
                 OutlinedTextField(
                     value = query,
-                    onValueChange = { query = it },
+                    onValueChange = {
+                        query = it
+                        if (it.trim().isBlank()) {
+                            showAllSongResults = false
+                            showSearchSongSortOptions = false
+                        }
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
                         .onFocusChanged { focusState ->
@@ -4829,6 +5032,41 @@ private fun SearchScreen(
                             modifier = Modifier.size(20.dp),
                         )
                     },
+                    trailingIcon = {
+                        AnimatedVisibility(
+                            visible = isSearchUiActive,
+                            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.92f,
+                                ),
+                            exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeFast(),
+                                    targetScale = 0.92f,
+                                ),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(searchBarContentColor.copy(alpha = 0.1f))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = resetSearchToMain,
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lucide_x),
+                                    contentDescription = "Clear search",
+                                    tint = searchBarContentColor.copy(alpha = 0.86f),
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        }
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent,
@@ -4839,7 +5077,43 @@ private fun SearchScreen(
                 )
             }
 
-            if (trimmedQuery.isBlank()) {
+            if (showAllSongResults && trimmedQuery.isNotBlank()) {
+                item {
+                    SearchSongsResultsHeader(
+                        resultCount = allMatchingSongs.size,
+                        selected = searchSongSortMode,
+                        expanded = showSearchSongSortOptions,
+                        onToggleExpanded = { showSearchSongSortOptions = !showSearchSongSortOptions },
+                        onSelect = { selectedMode ->
+                            searchSongSortMode = selectedMode
+                            showSearchSongSortOptions = false
+                        },
+                    )
+                }
+                item {
+                    Surface(
+                        shape = RoundedCornerShape(ElovaireRadii.card),
+                        color = MaterialTheme.colorScheme.surface,
+                    ) {
+                        Column {
+                            allMatchingSongs.forEachIndexed { index, song ->
+                                PlaylistSongRow(
+                                    song = song,
+                                    isFavorite = song.id in favoriteSongIds,
+                                    isCurrentSong = song.id == playbackState.currentSong?.id,
+                                    isPlaybackActive = playbackState.isPlaying,
+                                    onClick = {
+                                        onRememberArtistSearch(song)
+                                        onSongSelected(song, allMatchingSongs)
+                                    },
+                                    onToggleFavorite = { onToggleFavorite(song.id) },
+                                    showDivider = index != allMatchingSongs.lastIndex,
+                                )
+                            }
+                        }
+                    }
+                }
+            } else if (trimmedQuery.isBlank()) {
                 if (recentSearches.isNotEmpty()) {
                     item {
                         SearchHistorySectionHeader(
@@ -4949,9 +5223,15 @@ private fun SearchScreen(
 
             if (matchingSongs.isNotEmpty()) {
                 item {
-                    SectionTitleRow(
-                        title = "Songs",
-                        subtitle = "${matchingSongs.size} matching song results",
+                    SearchSongsPreviewHeader(
+                        resultCount = allMatchingSongs.size,
+                        showSeeAll = allMatchingSongs.size > matchingSongs.size,
+                        onShowAll = {
+                            focusManager.clearFocus(force = true)
+                            keyboardController?.hide()
+                            isSearchFieldFocused = false
+                            showAllSongResults = true
+                        },
                     )
                 }
                 item {
@@ -4981,52 +5261,6 @@ private fun SearchScreen(
                 }
             }
         }
-        }
-        AnimatedVisibility(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(start = 20.dp, end = 20.dp, bottom = bottomPadding + 10.dp),
-            visible = isSearchUiActive,
-            enter = fadeIn(animationSpec = tween(ElovaireMotion.Standard)) +
-                slideInVertically(
-                    animationSpec = tween(ElovaireMotion.Standard),
-                    initialOffsetY = { it / 2 },
-                ),
-            exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick)) +
-                slideOutVertically(
-                    animationSpec = tween(ElovaireMotion.Quick),
-                    targetOffsetY = { it / 2 },
-                ),
-        ) {
-            Surface(
-                onClick = {
-                    query = ""
-                    isSearchFieldFocused = false
-                    keyboardController?.hide()
-                    focusManager.clearFocus(force = true)
-                },
-                shape = RoundedCornerShape(ElovaireRadii.pill),
-                color = Color.White.copy(alpha = 0.18f),
-                contentColor = Color.White,
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Text(
-                        text = "Back",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = Color.White,
-                    )
-                }
-            }
         }
     }
 }
@@ -5109,8 +5343,8 @@ private fun SearchHistorySectionHeader(
             Surface(
                 onClick = onClearHistory,
                 shape = RoundedCornerShape(ElovaireRadii.pill),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f),
-                contentColor = MaterialTheme.colorScheme.onSurface,
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                contentColor = if (MaterialTheme.colorScheme.primary.luminance() > 0.5f) InkText else Color.White,
             ) {
                 Row(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -5126,6 +5360,123 @@ private fun SearchHistorySectionHeader(
                         text = "Clear history",
                         style = MaterialTheme.typography.labelLarge,
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchSongsPreviewHeader(
+    resultCount: Int,
+    showSeeAll: Boolean,
+    onShowAll: () -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        SectionTitleRow(
+            title = "Songs",
+            subtitle = "$resultCount matching song results",
+        )
+        AnimatedVisibility(visible = showSeeAll) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onShowAll,
+                    ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+                    contentDescription = "Show all song results",
+                    tint = readableMutedIconColor().copy(alpha = 0.82f),
+                    modifier = Modifier
+                        .size(16.dp)
+                        .rotate(180f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchSongsResultsHeader(
+    resultCount: Int,
+    selected: SearchSongSortMode,
+    expanded: Boolean,
+    onToggleExpanded: () -> Unit,
+    onSelect: (SearchSongSortMode) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        SectionTitleRow(
+            title = "Songs",
+            subtitle = "$resultCount matching song results",
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(
+                onClick = onToggleExpanded,
+                shape = RoundedCornerShape(ElovaireRadii.pill),
+                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = selected.label,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                    )
+                }
+            }
+            AnimatedVisibility(visible = expanded) {
+                Surface(
+                    shape = RoundedCornerShape(ElovaireRadii.card),
+                    color = MaterialTheme.colorScheme.surface,
+                ) {
+                    Column {
+                        SearchSongSortMode.entries.forEachIndexed { index, mode ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { onSelect(mode) },
+                                    )
+                                    .padding(horizontal = 14.dp, vertical = 12.dp),
+                            ) {
+                                Text(
+                                    text = mode.label,
+                                    style = MaterialTheme.typography.bodyLarge.copy(
+                                        fontWeight = if (mode == selected) FontWeight.SemiBold else FontWeight.Normal,
+                                    ),
+                                    color = if (mode == selected) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        readableSecondaryTextColor()
+                                    },
+                                )
+                            }
+                            if (index != SearchSongSortMode.entries.lastIndex) {
+                                DividerLine()
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -7433,14 +7784,14 @@ private fun NowPlayingScreen(
     }
     LaunchedEffect(queueStatusText) {
         if (queueStatusText != null) {
-            delay(2000L)
+            delay(1500L)
             queueStatusText = null
         }
     }
     val lyricsUiState by produceState<LyricsUiState>(
         initialValue = when {
             !showLyricsSheet || currentSong == null -> LyricsUiState.Hidden
-            else -> lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.toUiState() ?: LyricsUiState.Loading
+            else -> lyricsService.cachedLyrics(currentSong, includeNotFound = true)?.toUiState() ?: LyricsUiState.Loading
         },
         key1 = showLyricsSheet,
         key2 = currentSong?.id,
@@ -7450,28 +7801,13 @@ private fun NowPlayingScreen(
             return@produceState
         }
 
-        lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.let { cached ->
+        lyricsService.cachedLyrics(currentSong, includeNotFound = true)?.let { cached ->
             value = cached.toUiState()
             return@produceState
         }
 
         value = LyricsUiState.Loading
-        var lastLookup: LyricsResult = LyricsResult.NotFound
-        repeat(3) { attempt ->
-            lastLookup = lyricsService.fetchLyrics(currentSong, allowCachedNotFound = false)
-            if (lastLookup is LyricsResult.Found) {
-                value = lastLookup.toUiState()
-                return@produceState
-            }
-            // A first LRCLIB request can occasionally return no result while another query variant
-            // or just-opened network request succeeds moments later. Keep the overlay loading and
-            // retry briefly instead of flashing a false “no lyrics” state on first open.
-            if (attempt < 2) {
-                delay(if (attempt == 0) 450L else 900L)
-                value = LyricsUiState.Loading
-            }
-        }
-        value = lastLookup.toUiState()
+        value = lyricsService.fetchLyrics(currentSong, allowCachedNotFound = true).toUiState()
     }
     DisposableEffect(currentSong?.id) {
         onDispose {
@@ -7730,7 +8066,7 @@ private fun NowPlayingScreen(
                     0f
                 }
             }
-            val isPlaybackActuallyPlaying = playbackProgress.isPlaying
+            val isPlaybackActuallyPlaying = playbackState.isPlaying && playbackState.currentSong != null
             val spaciousnessEnabled = eqSettings.spaciousness > 0.02f
             val favoriteAlpha by animateFloatAsState(
                 targetValue = if (showQueueSheet) 0f else 1f,
@@ -8216,7 +8552,8 @@ private fun NowPlayingScreen(
                     visible = showQueueSheet,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.992f)
+                        .fillMaxHeight()
+                        .offset(y = (-8).dp)
                         .align(Alignment.BottomCenter),
                     enter = fadeIn(animationSpec = tween(ElovaireMotion.Standard)) +
                         scaleIn(
@@ -8248,7 +8585,11 @@ private fun NowPlayingScreen(
                         onSongSelected = onQueueItemSelected,
                         shuffleEnabled = playbackState.shuffleEnabled,
                         onToggleShuffle = {
-                            queueStatusText = if (!playbackState.shuffleEnabled) "Shuffle | Enabled" else null
+                            queueStatusText = if (playbackState.shuffleEnabled) {
+                                "Shuffle | Disabled"
+                            } else {
+                                "Shuffle | Enabled"
+                            }
                             onToggleShuffle()
                         },
                         spaciousnessEnabled = spaciousnessEnabled,
@@ -8479,7 +8820,7 @@ private fun QueueSheet(
     var showSpaciousnessSlider by remember(spaciousnessEnabled) { mutableStateOf(spaciousnessEnabled) }
     val footerExpanded = showSpaciousnessSlider || statusText != null
     val footerHeight by animateDpAsState(
-        targetValue = if (footerExpanded) 126.dp else 86.dp,
+        targetValue = if (footerExpanded) 90.dp else 60.dp,
         animationSpec = tween(220, easing = FastOutSlowInEasing),
         label = "queue_footer_height",
     )
@@ -8617,7 +8958,7 @@ private fun QueueSheet(
                     label = "queue_status_text",
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 12.dp),
+                        .padding(top = 10.dp),
                 ) { queueStatus ->
                     Box(
                         modifier = Modifier
@@ -8639,7 +8980,7 @@ private fun QueueSheet(
                     visible = showSpaciousnessSlider,
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 14.dp),
+                        .padding(top = 10.dp),
                     enter = fadeIn(animationSpec = tween(180)) + slideInVertically(
                         animationSpec = tween(220, easing = FastOutSlowInEasing),
                         initialOffsetY = { it / 3 },
@@ -8670,7 +9011,8 @@ private fun QueueSheet(
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .height(60.dp)
+                        .padding(horizontal = 14.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -9500,12 +9842,7 @@ private fun LyricsOverlay(
                         positionMs = playbackProgress.displayPositionMs,
                     ) ?: -1
                 } else {
-                    activeLyricLineIndex(
-                        lines = lyricLines,
-                        isSynced = false,
-                        positionMs = playbackProgress.displayPositionMs,
-                        durationMs = playbackProgress.durationMs,
-                    )
+                    -1
                 }
             }
 
@@ -9714,7 +10051,6 @@ private fun LyricsOverlay(
                                                         lines = lyricLines,
                                                         index = index,
                                                         isSynced = state.payload.isSynced,
-                                                        durationMs = playbackProgress.durationMs,
                                                         displayTimingOffsetMs = state.payload.displayTimingOffsetMs,
                                                     )?.let(onSeekTo)
                                                 },
@@ -12462,51 +12798,10 @@ private fun favoriteAlbumsFor(
     }
 }
 
-private fun activeLyricLineIndex(
-    lines: List<LyricsLine>,
-    isSynced: Boolean,
-    positionMs: Long,
-    durationMs: Long,
-): Int {
-    if (lines.isEmpty()) return -1
-
-    if (isSynced) {
-        val timedLines = lines.mapIndexedNotNull { index, line ->
-            line.startTimeMs?.let { startTime -> index to startTime }
-        }
-        if (timedLines.isEmpty()) return -1
-        val firstLineLeadMs = 100L
-        if (positionMs + firstLineLeadMs < timedLines.first().second) return -1
-
-        var activeIndex = timedLines.first().first
-        timedLines.forEachIndexed { timedIndex, (index, startTime) ->
-            val nextStartTime = timedLines.getOrNull(timedIndex + 1)?.second ?: durationMs
-            val gapMs = (nextStartTime - startTime).coerceAtLeast(0L)
-            val adaptiveLeadMs = when {
-                gapMs <= 700L -> 20L
-                gapMs <= 1200L -> 55L
-                gapMs <= 2200L -> 85L
-                else -> 100L
-            }
-            if (positionMs + adaptiveLeadMs >= startTime) {
-                activeIndex = index
-            } else {
-                return@forEachIndexed
-            }
-        }
-        return activeIndex.coerceIn(0, lines.lastIndex)
-    }
-
-    if (durationMs <= 0L) return -1
-    val progress = (positionMs.toFloat() / durationMs.toFloat()).coerceIn(0f, 1f)
-    return (progress * lines.lastIndex).roundToInt().coerceIn(0, lines.lastIndex)
-}
-
 private fun lyricsSeekPositionMs(
     lines: List<LyricsLine>,
     index: Int,
     isSynced: Boolean,
-    durationMs: Long,
     displayTimingOffsetMs: Long = 0L,
 ): Long? {
     if (lines.isEmpty() || index !in lines.indices) return null
@@ -12517,9 +12812,7 @@ private fun lyricsSeekPositionMs(
             ?.coerceAtLeast(0L)
     }
 
-    if (durationMs <= 0L) return null
-    val fraction = if (lines.size == 1) 0f else index.toFloat() / lines.lastIndex.toFloat()
-    return (durationMs * fraction).roundToInt().toLong().coerceAtLeast(0L)
+    return null
 }
 
 private fun fractionToDurationPosition(
@@ -12584,8 +12877,21 @@ private fun detailFallbackTitle(route: String?): String {
     }
 }
 
+private fun String?.normalizedNavigationRoute(): String? {
+    return when {
+        this == null -> null
+        startsWith("$ALBUM_ROUTE/") -> "$ALBUM_ROUTE/{albumId}"
+        startsWith("$PLAYLIST_ROUTE/") -> "$PLAYLIST_ROUTE/{playlistId}"
+        startsWith("$GENRE_ROUTE/") -> "$GENRE_ROUTE/{genre}"
+        startsWith("$ARTIST_ROUTE/") -> "$ARTIST_ROUTE/{artistName}"
+        startsWith("$LIBRARY_COLLECTION_ROUTE/") -> "$LIBRARY_COLLECTION_ROUTE/{kind}"
+        else -> this
+    }
+}
+
 private fun String?.isExpandFromTileRoute(): Boolean {
-    return this == "$ALBUM_ROUTE/{albumId}" || this == "$PLAYLIST_ROUTE/{playlistId}"
+    return this.normalizedNavigationRoute() == "$ALBUM_ROUTE/{albumId}" ||
+        this.normalizedNavigationRoute() == "$PLAYLIST_ROUTE/{playlistId}"
 }
 
 private fun ExpandOrigin.toTransformOrigin(): TransformOrigin {

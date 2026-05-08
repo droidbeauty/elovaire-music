@@ -6,10 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.8">
-        <item>more streamlined flow upon initial app launch after installing</item>
-        <item>layout improvements to EQ interface, card modules in Home an Search</item>
-        <item>improved sound from built-in EQ preset profiles</item>
-        <item>animations built on a new framework, still to be improved further</item>
+    <release version="1.8.1">
+        <item>Improved interactions in Search tab and queue menu in now playing screen</item>
+        <item>Library sections where view mode is switchable now remember view setting separately for songs and albums</item>
+        <item>Quite a few small but important bug fixes</item>
     </release>
 </changelog>
