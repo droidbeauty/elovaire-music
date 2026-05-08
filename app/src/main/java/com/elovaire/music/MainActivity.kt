@@ -5,12 +5,9 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,6 +31,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.app.data.playback.EXTRA_OPEN_PLAYER_FROM_NOTIFICATION
+import elovaire.music.app.ui.motion.ElovaireAnimatedVisibility
+import elovaire.music.app.ui.motion.ElovaireMotion
 import elovaire.music.app.ui.screens.ElovaireRoot
 import elovaire.music.app.ui.theme.ElovaireTheme
 import elovaire.music.app.ui.theme.themeBackgroundForMode
@@ -66,7 +65,7 @@ class MainActivity : ComponentActivity() {
                     themeOverlayAlpha.snapTo(1f)
                     themeOverlayAlpha.animateTo(
                         targetValue = 0f,
-                        animationSpec = tween(durationMillis = 320, easing = FastOutSlowInEasing),
+                        animationSpec = ElovaireMotion.emphasizedEnterSpec(),
                     )
                 }
             }
@@ -91,17 +90,18 @@ class MainActivity : ComponentActivity() {
                                 .background(overlayColor.copy(alpha = themeOverlayAlpha.value)),
                         )
                     }
-                    AnimatedVisibility(
+                    ElovaireAnimatedVisibility(
                         visible = showSplash,
                         enter = androidx.compose.animation.fadeIn(
-                            animationSpec = tween(durationMillis = 180),
+                            animationSpec = ElovaireMotion.fadeMedium(),
                         ),
                         exit = fadeOut(
-                            animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = 420),
                         ) + scaleOut(
                             targetScale = 1.02f,
-                            animationSpec = tween(durationMillis = 420, easing = FastOutSlowInEasing),
+                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = 420),
                         ),
+                        label = "ColdStartSplashVisibility",
                     ) {
                         Box(
                             modifier = Modifier
