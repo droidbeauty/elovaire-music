@@ -385,7 +385,7 @@ class MediaStoreScanner(
         val normalizedFileName = fileName.lowercase()
         return EXPLICIT_MARKERS.any { marker ->
             normalizedTitle.contains(marker) || normalizedFileName.contains(marker)
-        }
+        } || EXPLICIT_ADVISORY_SUFFIX.containsMatchIn(title)
     }
 
     private fun sanitizeDisplayTitle(
@@ -394,8 +394,8 @@ class MediaStoreScanner(
     ): String {
         if (!isExplicit) return title
         return title
-            .replace(Regex("""\s*[\[(]explicit[\])]\s*$""", RegexOption.IGNORE_CASE), "")
-            .replace(Regex("""\s+\?{3,}\s*$"""), "")
+            .replace(EXPLICIT_ADVISORY_SUFFIX, "")
+            .replace(Regex("""\s*[\uFFFD?]{3,}\s*$"""), "")
             .trim()
             .ifBlank { title }
     }
@@ -598,6 +598,10 @@ class MediaStoreScanner(
             "[explicit]",
             " - explicit",
             " explicit version",
+        )
+        val EXPLICIT_ADVISORY_SUFFIX = Regex(
+            pattern = """(?:\s|^)(?:[\[(]\s*explicit\s*[\])]|🅴|[\uFFFD?]{3,})\s*$""",
+            option = RegexOption.IGNORE_CASE,
         )
         val SUPPORTED_AUDIO_EXTENSIONS = setOf(
             "mp3",

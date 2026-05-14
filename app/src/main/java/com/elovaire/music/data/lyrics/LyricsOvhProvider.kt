@@ -87,8 +87,8 @@ internal class LyricsOvhProvider : LyricsProvider {
     private companion object {
         const val TAG = "LyricsOvhProvider"
         const val BASE_URL = "https://api.lyrics.ovh/v1"
-        const val CONNECT_TIMEOUT_MS = 900
-        const val READ_TIMEOUT_MS = 2_200
-        const val MAX_QUERY_VARIANTS = 8
+        const val CONNECT_TIMEOUT_MS = 450
+        const val READ_TIMEOUT_MS = 700
+        const val MAX_QUERY_VARIANTS = 2
     }
 }

@@ -73,6 +73,8 @@ import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.gestures.rememberScrollableState
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.systemGestureExclusion
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -185,7 +187,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -224,6 +229,7 @@ import elovaire.music.app.data.changelog.ChangelogRelease
 import elovaire.music.app.data.changelog.ChangelogRepository
 import elovaire.music.app.data.library.LibraryUiState
 import elovaire.music.app.data.lyrics.LyricsLine
+import elovaire.music.app.data.lyrics.LyricsLookupMode
 import elovaire.music.app.data.lyrics.LyricsPayload
 import elovaire.music.app.data.lyrics.LyricsResult
 import elovaire.music.app.data.lyrics.LyricsService
@@ -270,6 +276,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 private const val HOME_ROUTE = "home"
 private const val ALBUMS_ROUTE = "albums"
@@ -350,6 +357,22 @@ private object ElovaireNavigationTransitions {
         targetRoute: String?,
     ): Boolean {
         return depthOf(targetRoute) == depthOf(initialRoute)
+    }
+
+    fun isLibraryCategoryEnterTransition(
+        initialRoute: String?,
+        targetRoute: String?,
+    ): Boolean {
+        return initialRoute.normalizedNavigationRoute() == ALBUMS_ROUTE &&
+            targetRoute.normalizedNavigationRoute() == "$LIBRARY_COLLECTION_ROUTE/{kind}"
+    }
+
+    fun isLibraryCategoryReturnTransition(
+        initialRoute: String?,
+        targetRoute: String?,
+    ): Boolean {
+        return initialRoute.normalizedNavigationRoute() == "$LIBRARY_COLLECTION_ROUTE/{kind}" &&
+            targetRoute.normalizedNavigationRoute() == ALBUMS_ROUTE
     }
 }
 
@@ -537,6 +560,7 @@ private sealed interface LyricsUiState {
 private fun LyricsResult.toUiState(): LyricsUiState = when (this) {
     is LyricsResult.Found -> LyricsUiState.Ready(payload)
     LyricsResult.NotFound -> LyricsUiState.Empty
+    LyricsResult.Timeout -> LyricsUiState.Empty
 }
 
 private enum class ProgressiveChromeEdge {
@@ -1340,6 +1364,18 @@ fun ElovaireRoot(
                         val targetRoute = targetState.destination.route
                         if (targetRoute == PLAYER_ROUTE) {
                             EnterTransition.None
+                        } else if (targetRoute == CHANGELOG_ROUTE) {
+                            fadeIn(
+                                animationSpec = ElovaireMotion.fadeMedium(),
+                            ) +
+                                slideInHorizontally(
+                                    animationSpec = ElovaireMotion.offsetSoft(),
+                                    initialOffsetX = { -(it / 5) },
+                                ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.994f,
+                                )
                         } else if (
                             ElovaireNavigationTransitions.usesTileExpand(
                                 route = targetRoute,
@@ -1365,6 +1401,23 @@ fun ElovaireRoot(
                                     initialOffsetY = { fullHeight ->
                                         ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
                                     },
+                                )
+                        } else if (
+                            ElovaireNavigationTransitions.isLibraryCategoryEnterTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeIn(
+                                animationSpec = ElovaireMotion.fadeMedium(),
+                            ) +
+                                slideInVertically(
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                    initialOffsetY = { it / 10 },
+                                ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.992f,
                                 )
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
@@ -1408,6 +1461,17 @@ fun ElovaireRoot(
                                 animationSpec = ElovaireMotion.fadeFast(),
                             )
                         } else if (
+                            ElovaireNavigationTransitions.isLibraryCategoryEnterTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeFast(),
+                                    targetScale = 0.996f,
+                                )
+                        } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
                                 targetRoute = targetRoute,
@@ -1441,6 +1505,23 @@ fun ElovaireRoot(
                                 animationSpec = ElovaireMotion.fadeMedium(),
                             )
                         } else if (
+                            ElovaireNavigationTransitions.isLibraryCategoryReturnTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeIn(
+                                animationSpec = ElovaireMotion.fadeMedium(),
+                            ) +
+                                slideInVertically(
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                    initialOffsetY = { -(it / 14) },
+                                ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.996f,
+                                )
+                        } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
                                 targetRoute = targetRoute,
@@ -1472,6 +1553,16 @@ fun ElovaireRoot(
                         val targetRoute = targetState.destination.route
                         if (initialRoute == PLAYER_ROUTE) {
                             ExitTransition.None
+                        } else if (initialRoute == CHANGELOG_ROUTE) {
+                            fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
+                                slideOutHorizontally(
+                                    animationSpec = ElovaireMotion.offsetSoft(),
+                                    targetOffsetX = { -(it / 5) },
+                                ) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeMedium(),
+                                    targetScale = 0.994f,
+                                )
                         } else if (
                             ElovaireNavigationTransitions.usesTileExpand(
                                 route = initialRoute,
@@ -1497,6 +1588,21 @@ fun ElovaireRoot(
                                     targetOffsetY = { fullHeight ->
                                         ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
                                     },
+                                )
+                        } else if (
+                            ElovaireNavigationTransitions.isLibraryCategoryReturnTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                                slideOutVertically(
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                    targetOffsetY = { it / 12 },
+                                ) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeFast(),
+                                    targetScale = 0.992f,
                                 )
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
@@ -1545,7 +1651,7 @@ fun ElovaireRoot(
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
+                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
                                 navController.navigate("$ALBUM_ROUTE/${album.id}")
                             },
                             onPlayAlbum = { album ->
@@ -1584,7 +1690,7 @@ fun ElovaireRoot(
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
+                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
                                 navController.navigate("$ALBUM_ROUTE/${album.id}")
                             },
                         )
@@ -1629,7 +1735,7 @@ fun ElovaireRoot(
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
+                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
                                 navController.navigate("$ALBUM_ROUTE/${album.id}")
                             },
                             onArtistSelected = { artistName ->
@@ -1887,40 +1993,13 @@ fun ElovaireRoot(
                     }
                     if (sharedTopBarSpec != null) {
                         CompositionLocalProvider(LocalRenderSharedTopBarContent provides true) {
-                            val currentSharedTopBarSpec = sharedTopBarSpec
-                            ElovaireAnimatedContent(
-                                targetState = currentSharedTopBarSpec.visualSignature(),
+                            SharedTopBarOverlay(
+                                spec = sharedTopBarSpec,
                                 modifier = Modifier
                                     .align(Alignment.TopCenter)
                                     .fillMaxWidth()
                                     .zIndex(9f),
-                                transitionSpec = {
-                                    ElovaireMotion.sharedTopBarTransform()
-                                },
-                                contentKey = { it },
-                                label = "SharedTopBarContent",
-                            ) {
-                                when (currentSharedTopBarSpec) {
-                                    is SharedTopBarSpec.Unified -> UnifiedTopBar(
-                                        title = currentSharedTopBarSpec.title,
-                                        showSettings = currentSharedTopBarSpec.showSettings,
-                                        onOpenSettings = currentSharedTopBarSpec.onOpenSettings,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    is SharedTopBarSpec.Back -> PinnedBackTopBar(
-                                        title = currentSharedTopBarSpec.title,
-                                        onBack = currentSharedTopBarSpec.onBack,
-                                        centeredTitle = currentSharedTopBarSpec.centeredTitle,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                    is SharedTopBarSpec.Detail -> DetailListTopBar(
-                                        title = currentSharedTopBarSpec.title,
-                                        subtitle = currentSharedTopBarSpec.subtitle,
-                                        onBack = currentSharedTopBarSpec.onBack,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    )
-                                }
-                            }
+                            )
                         }
                     }
                     ElovaireAnimatedVisibility(
@@ -1984,6 +2063,7 @@ fun ElovaireRoot(
                         ) {
                             CompactNowPlayingDockHost(
                                 playbackManager = container.playbackManager,
+                                playbackState = playbackState,
                                 song = currentSong,
                                 visible = showGlobalNowPlaying,
                                 suppressEnterAnimation = reenteringFromPlayer,
@@ -2028,8 +2108,7 @@ fun ElovaireRoot(
                             }
                             browsingOriginRoute = route
                             selectedBottomRoute = route
-                            val poppedToExistingRoot = navController.popBackStack(route, inclusive = false)
-                            if (!poppedToExistingRoot && currentRoute != route) {
+                            if (currentRoute != route) {
                                 navController.navigate(route) {
                                     launchSingleTop = true
                                     restoreState = true
@@ -2049,18 +2128,11 @@ fun ElovaireRoot(
                     modifier = Modifier
                         .fillMaxSize()
                         .clipToBounds()
-                        .pointerInput(Unit) {
-                            awaitPointerEventScope {
-                                while (true) {
-                                    val event = awaitPointerEvent(PointerEventPass.Final)
-                                    event.changes.forEach { change ->
-                                        if (!change.isConsumed) {
-                                            change.consume()
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        )
                         .zIndex(20f),
                 ) {
                     NowPlayingScreen(
@@ -2095,6 +2167,7 @@ fun ElovaireRoot(
 @Composable
 private fun CompactNowPlayingDockHost(
     playbackManager: PlaybackManager,
+    playbackState: PlaybackUiState,
     song: Song,
     visible: Boolean,
     suppressEnterAnimation: Boolean,
@@ -2105,8 +2178,8 @@ private fun CompactNowPlayingDockHost(
     modifier: Modifier = Modifier,
 ) {
     val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
-    val isActuallyPlaying = remember(playbackProgress.currentMediaId, playbackProgress.isPlaying, song.id) {
-        playbackProgress.currentMediaId == song.id && playbackProgress.isPlaying
+    val isActuallyPlaying = remember(playbackState.currentSong?.id, playbackState.isPlaying, song.id) {
+        playbackState.currentSong?.id == song.id && playbackState.isPlaying
     }
     val progress = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs) {
         if (playbackProgress.durationMs > 0L) {
@@ -2378,6 +2451,223 @@ private fun PinnedBackTopBar(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SharedTopBarOverlay(
+    spec: SharedTopBarSpec,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .background(Color.Transparent),
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                ),
+        )
+        when (spec) {
+            is SharedTopBarSpec.Unified -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(start = 20.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(40.dp),
+                        contentAlignment = Alignment.CenterStart,
+                    ) {
+                        ElovaireAnimatedContent(
+                            targetState = spec.title,
+                            transitionSpec = {
+                                ElovaireMotion.sharedTopBarTransform()
+                            },
+                            label = "SharedTopBarUnifiedTitle",
+                        ) { currentTitle ->
+                            Text(
+                                text = currentTitle,
+                                style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                                color = MaterialTheme.colorScheme.onSurface,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    if (spec.showSettings) {
+                        HeaderIconButton(
+                            iconResId = R.drawable.ic_lucide_settings,
+                            contentDescription = "Settings",
+                            showBackground = false,
+                            onClick = spec.onOpenSettings,
+                        )
+                    } else {
+                        SpacerTile(modifier = Modifier.size(40.dp))
+                    }
+                }
+            }
+
+            is SharedTopBarSpec.Back -> {
+                if (spec.centeredTitle) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
+                            .height(40.dp),
+                    ) {
+                        HeaderIconButton(
+                            iconResId = R.drawable.ic_lucide_chevron_left,
+                            contentDescription = "Back",
+                            showBackground = false,
+                            onClick = spec.onBack,
+                            modifier = Modifier.align(Alignment.CenterStart),
+                        )
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(horizontal = 64.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            ElovaireAnimatedContent(
+                                targetState = spec.title,
+                                transitionSpec = {
+                                    ElovaireMotion.sharedTopBarTransform()
+                                },
+                                label = "SharedTopBarBackCenteredTitle",
+                            ) { currentTitle ->
+                                Text(
+                                    text = currentTitle,
+                                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .statusBarsPadding()
+                            .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        HeaderIconButton(
+                            iconResId = R.drawable.ic_lucide_chevron_left,
+                            contentDescription = "Back",
+                            showBackground = false,
+                            onClick = spec.onBack,
+                        )
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(40.dp),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            ElovaireAnimatedContent(
+                                targetState = spec.title,
+                                transitionSpec = {
+                                    ElovaireMotion.sharedTopBarTransform()
+                                },
+                                label = "SharedTopBarBackTitle",
+                            ) { currentTitle ->
+                                Text(
+                                    text = currentTitle,
+                                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            is SharedTopBarSpec.Detail -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    HeaderIconButton(
+                        iconResId = R.drawable.ic_lucide_chevron_left,
+                        contentDescription = "Back",
+                        showBackground = false,
+                        onClick = spec.onBack,
+                    )
+                    if (spec.subtitle.isNullOrBlank()) {
+                        Box(
+                            modifier = Modifier.weight(1f),
+                            contentAlignment = Alignment.CenterStart,
+                        ) {
+                            ElovaireAnimatedContent(
+                                targetState = spec.title,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(180, delayMillis = 40))
+                                        .togetherWith(fadeOut(animationSpec = tween(140)))
+                                },
+                                label = "SharedTopBarDetailTitleOnly",
+                            ) { currentTitle ->
+                                Text(
+                                    text = currentTitle,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp),
+                        ) {
+                            ElovaireAnimatedContent(
+                                targetState = spec.title,
+                                transitionSpec = {
+                                    fadeIn(animationSpec = tween(180, delayMillis = 40))
+                                        .togetherWith(fadeOut(animationSpec = tween(140)))
+                                },
+                                label = "SharedTopBarDetailTitleWithSubtitle",
+                            ) { currentTitle ->
+                                Text(
+                                    text = currentTitle,
+                                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                            Text(
+                                text = spec.subtitle,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -3371,7 +3661,7 @@ private fun LastPlayedAlbumModule(
                 )
                 Text(
                     text = album.artist,
-                    style = MaterialTheme.typography.bodyLarge,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                     color = secondaryContentColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3865,21 +4155,21 @@ private fun LibraryHubScreen(
                         LibraryHubRow(
                             iconResId = R.drawable.ic_lucide_disc_album,
                             title = "Albums",
-                            detail = "${formatCountLabel(totalAlbums, "album")} available offline",
+                            detail = "${formatCountLabel(totalAlbums, "album")} in total",
                             onClick = { onOpenCollection(LibraryCollectionKind.Albums) },
                         )
                         DividerLine()
                         LibraryHubRow(
                             iconResId = R.drawable.ic_lucide_mic_vocal,
                             title = "Artists",
-                            detail = "${formatCountLabel(totalArtists, "artist")} detected",
+                            detail = "${formatCountLabel(totalArtists, "artist")} found",
                             onClick = { onOpenCollection(LibraryCollectionKind.Artists) },
                         )
                         DividerLine()
                         LibraryHubRow(
                             iconResId = R.drawable.ic_lucide_guitar,
                             title = "Genres",
-                            detail = "${formatCountLabel(totalGenres, "genre")} tagged",
+                            detail = "${formatCountLabel(totalGenres, "genre")} found",
                             onClick = { onOpenCollection(LibraryCollectionKind.Genres) },
                         )
                     }
@@ -5375,7 +5665,7 @@ private fun SearchHistorySectionHeader(
             Surface(
                 onClick = onClearHistory,
                 shape = RoundedCornerShape(ElovaireRadii.pill),
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f),
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                 contentColor = if (MaterialTheme.colorScheme.primary.luminance() > 0.5f) InkText else Color.White,
             ) {
                 Row(
@@ -6257,6 +6547,68 @@ private fun RecentSongRow(
     }
 }
 
+private const val EXPLICIT_INLINE_CONTENT_ID = "explicit_badge"
+
+@Composable
+private fun ExplicitTitleText(
+    title: String,
+    isExplicit: Boolean,
+    style: TextStyle,
+    color: Color,
+    modifier: Modifier = Modifier,
+    maxLines: Int = 1,
+    overflow: TextOverflow = TextOverflow.Ellipsis,
+) {
+    val badgeFontSize = remember(style.fontSize) {
+        if (style.fontSize == androidx.compose.ui.unit.TextUnit.Unspecified) 10.sp else (style.fontSize.value * 0.68f).sp
+    }
+    val titleText = remember(title, isExplicit) {
+        buildAnnotatedString {
+            append(title)
+            if (isExplicit) {
+                append(" ")
+                appendInlineContent(EXPLICIT_INLINE_CONTENT_ID, "🅴")
+            }
+        }
+    }
+    val inlineContent =
+        if (!isExplicit) {
+            emptyMap()
+        } else {
+            mapOf(
+                EXPLICIT_INLINE_CONTENT_ID to InlineTextContent(
+                    placeholder = Placeholder(
+                        width = badgeFontSize * 1.05f,
+                        height = badgeFontSize * 1.2f,
+                        placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
+                    ),
+                ) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = "🅴",
+                            fontSize = badgeFontSize,
+                            fontWeight = FontWeight.Medium,
+                            color = color,
+                            maxLines = 1,
+                        )
+                    }
+                },
+            )
+        }
+    Text(
+        text = titleText,
+        inlineContent = inlineContent,
+        style = style,
+        color = color,
+        maxLines = maxLines,
+        overflow = overflow,
+        modifier = modifier,
+    )
+}
+
 @Composable
 private fun SearchSongRow(
     song: Song,
@@ -6281,23 +6633,15 @@ private fun SearchSongRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = song.title,
+                    ExplicitTitleText(
+                        title = song.title,
+                        isExplicit = song.isExplicit,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    if (song.isExplicit) {
-                        Text(
-                            text = "E",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = elovaireScaledSp(8.8f),
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        )
-                    }
                 }
                 Text(
                     text = song.artist,
@@ -6365,23 +6709,15 @@ private fun HomeRecentSongRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = song.title,
+                    ExplicitTitleText(
+                        title = song.title,
+                        isExplicit = song.isExplicit,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    if (song.isExplicit) {
-                        Text(
-                            text = "E",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = elovaireScaledSp(8.8f),
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        )
-                    }
                 }
                 Text(
                     text = song.artist,
@@ -7121,23 +7457,15 @@ private fun AlbumSongRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = song.title,
+                    ExplicitTitleText(
+                        title = song.title,
+                        isExplicit = song.isExplicit,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    if (song.isExplicit) {
-                        Text(
-                            text = "E",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = elovaireScaledSp(8.8f),
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        )
-                    }
                 }
                 Text(
                     text = song.artist,
@@ -7373,23 +7701,15 @@ private fun PlaylistSongRow(
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = song.title,
+                    ExplicitTitleText(
+                        title = song.title,
+                        isExplicit = song.isExplicit,
                         style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier.fillMaxWidth(),
                     )
-                    if (song.isExplicit) {
-                        Text(
-                            text = "E",
-                            style = MaterialTheme.typography.labelLarge.copy(
-                                fontSize = elovaireScaledSp(8.8f),
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        )
-                    }
                 }
                 Text(
                     text = song.artist,
@@ -7839,37 +8159,28 @@ private fun NowPlayingScreen(
         }
 
         value = LyricsUiState.Loading
-        val retryDelaysMs = longArrayOf(0L, 320L, 620L)
-        var resolvedState: LyricsUiState = LyricsUiState.Loading
-        retryDelaysMs.forEachIndexed { index, retryDelay ->
-            if (retryDelay > 0L) {
-                delay(retryDelay)
-            }
-            val fetchedState = lyricsService.fetchLyrics(
-                currentSong,
+        val fetchedResult = withTimeoutOrNull(5_200L) {
+            lyricsService.fetchLyrics(
+                song = currentSong,
                 allowCachedNotFound = false,
-            ).toUiState()
-            when {
-                fetchedState is LyricsUiState.Ready -> {
-                    resolvedState = fetchedState
-                    return@forEachIndexed
-                }
-                lyricsService.isLookupInFlight(currentSong) -> {
-                    resolvedState = LyricsUiState.Loading
-                }
-                fetchedState != LyricsUiState.Empty -> {
-                    resolvedState = fetchedState
-                    return@forEachIndexed
-                }
-                index == retryDelaysMs.lastIndex -> {
-                    resolvedState = LyricsUiState.Empty
-                }
-                else -> {
-                    resolvedState = LyricsUiState.Loading
+                lookupMode = LyricsLookupMode.Full,
+            )
+        } ?: LyricsResult.Timeout
+
+        value = when (fetchedResult) {
+            is LyricsResult.Found -> LyricsUiState.Ready(fetchedResult.payload)
+            LyricsResult.Timeout -> {
+                lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.toUiState()
+                    ?: if (lyricsService.isLookupInFlight(currentSong)) LyricsUiState.Loading else LyricsUiState.Empty
+            }
+            LyricsResult.NotFound -> {
+                if (lyricsService.isLookupInFlight(currentSong)) {
+                    LyricsUiState.Loading
+                } else {
+                    LyricsUiState.Empty
                 }
             }
         }
-        value = resolvedState
     }
     DisposableEffect(currentSong?.id) {
         onDispose {
@@ -8129,11 +8440,11 @@ private fun NowPlayingScreen(
                 }
             }
             val isPlaybackActuallyPlaying = remember(
-                renderedPlaybackProgress.currentMediaId,
-                renderedPlaybackProgress.isPlaying,
+                playbackState.currentSong?.id,
+                playbackState.isPlaying,
                 currentSong.id,
             ) {
-                renderedPlaybackProgress.currentMediaId == currentSong.id && renderedPlaybackProgress.isPlaying
+                playbackState.currentSong?.id == currentSong.id && playbackState.isPlaying
             }
             val spaciousnessEnabled = eqSettings.spaciousness > 0.02f
             val favoriteAlpha by animateFloatAsState(
@@ -8151,50 +8462,50 @@ private fun NowPlayingScreen(
                 animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
                 label = "queue_artwork_corner_radius",
             )
+            fun Modifier.nowPlayingDismissGesture(): Modifier = pointerInput(currentSong.id) {
+                var dragDistance = 0f
+                val dismissDistance = with(density) { 320.dp.toPx() }
+                detectVerticalDragGestures(
+                    onVerticalDrag = { change, dragAmount ->
+                        change.consume()
+                        if (dismissAnimationRunning) return@detectVerticalDragGestures
+                        dragDistance = (dragDistance + dragAmount).coerceAtLeast(0f)
+                        transitionState = PlayerOverlayTransitionState.Dragging
+                        interactiveTransitionProgress =
+                            (1f - (dragDistance / dismissDistance)).coerceIn(0f, 1f)
+                    },
+                    onDragEnd = {
+                        val progress = interactiveTransitionProgress ?: 1f
+                        dragDistance = 0f
+                        if (progress < 0.6f) {
+                            dismissNowPlaying(null)
+                        } else {
+                            scope.launch {
+                                settlePlayerTransition(
+                                    targetValue = 1f,
+                                    animationSpec = expandSettleAnimationSpec,
+                                    targetState = PlayerOverlayTransitionState.Expanded,
+                                )
+                            }
+                        }
+                    },
+                    onDragCancel = {
+                        if (dismissAnimationRunning) return@detectVerticalDragGestures
+                        dragDistance = 0f
+                        scope.launch {
+                            settlePlayerTransition(
+                                targetValue = 1f,
+                                animationSpec = expandSettleAnimationSpec,
+                                targetState = PlayerOverlayTransitionState.Expanded,
+                            )
+                        }
+                    },
+                )
+            }
 
             Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .pointerInput(currentSong.id) {
-                        var dragDistance = 0f
-                        val dismissDistance = with(density) { 320.dp.toPx() }
-                        detectVerticalDragGestures(
-                            onVerticalDrag = { change, dragAmount ->
-                                change.consume()
-                                if (dismissAnimationRunning) return@detectVerticalDragGestures
-                                dragDistance = (dragDistance + dragAmount).coerceAtLeast(0f)
-                                transitionState = PlayerOverlayTransitionState.Dragging
-                                interactiveTransitionProgress =
-                                    (1f - (dragDistance / dismissDistance)).coerceIn(0f, 1f)
-                            },
-                            onDragEnd = {
-                                val progress = interactiveTransitionProgress ?: 1f
-                                dragDistance = 0f
-                                if (progress < 0.6f) {
-                                    dismissNowPlaying(null)
-                                } else {
-                                    scope.launch {
-                                        settlePlayerTransition(
-                                            targetValue = 1f,
-                                            animationSpec = expandSettleAnimationSpec,
-                                            targetState = PlayerOverlayTransitionState.Expanded,
-                                        )
-                                    }
-                                }
-                            },
-                            onDragCancel = {
-                                if (dismissAnimationRunning) return@detectVerticalDragGestures
-                                dragDistance = 0f
-                                scope.launch {
-                                    settlePlayerTransition(
-                                        targetValue = 1f,
-                                        animationSpec = expandSettleAnimationSpec,
-                                        targetState = PlayerOverlayTransitionState.Expanded,
-                                    )
-                                }
-                            },
-                        )
-                    },
+                    .fillMaxWidth(),
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
                     Box(
@@ -8233,7 +8544,11 @@ private fun NowPlayingScreen(
                             )
                         }
                     }
-                    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    BoxWithConstraints(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .nowPlayingDismissGesture(),
+                    ) {
                         val expandedArtworkWidth = maxWidth
                         val compactArtworkWidth = maxWidth * 0.38f
                         val animatedArtworkWidth by animateDpAsState(
@@ -8285,14 +8600,15 @@ private fun NowPlayingScreen(
                                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        Text(
-                                            text = currentSong.title,
+                                        ExplicitTitleText(
+                                            title = currentSong.title,
+                                            isExplicit = currentSong.isExplicit,
                                             style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_TITLE_TEXT_SIZE_SP)),
                                             color = contentColor,
                                             maxLines = 1,
                                             overflow = TextOverflow.Clip,
                                             modifier = Modifier
-                                                .weight(1f)
+                                                .fillMaxWidth()
                                                 .basicMarquee(
                                                     iterations = Int.MAX_VALUE,
                                                     animationMode = MarqueeAnimationMode.Immediately,
@@ -8301,16 +8617,6 @@ private fun NowPlayingScreen(
                                                     velocity = 24.dp,
                                                 ),
                                         )
-                                        if (currentSong.isExplicit) {
-                                            Text(
-                                                text = "E",
-                                                style = MaterialTheme.typography.labelLarge.copy(
-                                                    fontSize = elovaireScaledSp(6f),
-                                                    fontWeight = FontWeight.SemiBold,
-                                                ),
-                                                color = contentColor.copy(alpha = 0.7f),
-                                            )
-                                        }
                                     }
                                     Text(
                                         text = currentSong.artist,
@@ -8396,14 +8702,15 @@ private fun NowPlayingScreen(
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                 ) {
-                                    Text(
-                                        text = animatedSong.title,
+                                    ExplicitTitleText(
+                                        title = animatedSong.title,
+                                        isExplicit = animatedSong.isExplicit,
                                         style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_TITLE_TEXT_SIZE_SP)),
                                         color = contentColor,
                                         maxLines = 1,
                                         overflow = TextOverflow.Clip,
                                         modifier = Modifier
-                                            .weight(1f)
+                                            .fillMaxWidth()
                                             .basicMarquee(
                                                 iterations = Int.MAX_VALUE,
                                                 animationMode = MarqueeAnimationMode.Immediately,
@@ -8412,16 +8719,6 @@ private fun NowPlayingScreen(
                                                 velocity = 28.dp,
                                             ),
                                     )
-                                    if (animatedSong.isExplicit) {
-                                        Text(
-                                            text = "E",
-                                            style = MaterialTheme.typography.labelLarge.copy(
-                                                fontSize = elovaireScaledSp(6f),
-                                                fontWeight = FontWeight.SemiBold,
-                                            ),
-                                            color = contentColor.copy(alpha = 0.7f),
-                                        )
-                                    }
                                 }
                                 Text(
                                     text = animatedSong.artist,
@@ -9636,11 +9933,9 @@ private fun SongOverflowMenuButton(
     tint: Color,
 ) {
     val actions = LocalSongMenuActions.current
-    val hostView = LocalView.current
     var expanded by remember(song.id) { mutableStateOf(false) }
+    var shouldRenderMenu by remember(song.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(song.id) { mutableStateOf(false) }
-    var backdropBitmap by remember(song.id) { mutableStateOf<BackdropSnapshot?>(null) }
-    var menuBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val buttonScale by animateFloatAsState(
@@ -9651,6 +9946,14 @@ private fun SongOverflowMenuButton(
         ),
         label = "song_overflow_scale",
     )
+    LaunchedEffect(expanded) {
+        if (expanded) {
+            shouldRenderMenu = true
+        } else if (shouldRenderMenu) {
+            delay(180L)
+            shouldRenderMenu = false
+        }
+    }
 
     Box {
         Box(
@@ -9661,7 +9964,6 @@ private fun SongOverflowMenuButton(
                     interactionSource = interactionSource,
                     indication = null,
                     onClick = {
-                        backdropBitmap = runCatching { hostView.rootView.drawToDownsampledBitmap() }.getOrNull()
                         expanded = true
                     },
                 ),
@@ -9675,60 +9977,70 @@ private fun SongOverflowMenuButton(
             )
         }
 
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = {
-                expanded = false
-                menuBounds = null
-                backdropBitmap = null
-            },
-            offset = DpOffset(x = 0.dp, y = (-10).dp),
-            containerColor = Color.Transparent,
-            shadowElevation = 0.dp,
-            tonalElevation = 0.dp,
-        ) {
-            FrostedContextMenuSurface(
-                modifier = Modifier
-                    .width(208.dp)
-                    .onGloballyPositioned { menuBounds = it.boundsInWindow() },
-                backdropBitmap = backdropBitmap,
-                menuBounds = menuBounds,
+        if (shouldRenderMenu) {
+            DropdownMenu(
+                expanded = true,
+                onDismissRequest = { expanded = false },
+                offset = DpOffset(x = 0.dp, y = (-10).dp),
+                containerColor = Color.Transparent,
+                shadowElevation = 0.dp,
+                tonalElevation = 0.dp,
             ) {
-                SongContextMenuItem(
-                    iconResId = R.drawable.ic_lucide_list_music,
-                    text = "Add to playlist",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    onClick = {
-                        expanded = false
-                        menuBounds = null
-                        backdropBitmap = null
-                        showPlaylistDialog = true
-                    },
-                )
-                DividerLine()
-                SongContextMenuItem(
-                    iconResId = R.drawable.ic_lucide_plus,
-                    text = "Add to queue",
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    onClick = {
-                        expanded = false
-                        menuBounds = null
-                        backdropBitmap = null
-                        actions.onAddToQueue(song)
-                    },
-                )
-                SongContextMenuItem(
-                    iconResId = R.drawable.ic_lucide_trash_2,
-                    text = "Delete from library",
-                    tint = DestructiveRed,
-                    containerColor = DestructiveRed.copy(alpha = 0.2f),
-                    onClick = {
-                        expanded = false
-                        menuBounds = null
-                        backdropBitmap = null
-                        actions.onDeleteFromLibrary(song)
-                    },
-                )
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = expanded,
+                    enter = fadeIn(animationSpec = tween(170, easing = LinearOutSlowInEasing)) +
+                        scaleIn(
+                            initialScale = 0.94f,
+                            transformOrigin = TransformOrigin(1f, 0f),
+                            animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        ) +
+                        slideInVertically(
+                            initialOffsetY = { -it / 6 },
+                            animationSpec = tween(220, easing = FastOutSlowInEasing),
+                        ),
+                    exit = fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing)) +
+                        scaleOut(
+                            targetScale = 0.98f,
+                            transformOrigin = TransformOrigin(1f, 0f),
+                            animationSpec = tween(130, easing = FastOutLinearInEasing),
+                        ),
+                    label = "SongOverflowMenuVisibility",
+                ) {
+                    FrostedContextMenuSurface(
+                        modifier = Modifier.width(208.dp),
+                    ) {
+                        SongContextMenuItem(
+                            iconResId = R.drawable.ic_lucide_list_music,
+                            text = "Add to playlist",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            onClick = {
+                                expanded = false
+                                showPlaylistDialog = true
+                            },
+                        )
+                        DividerLine()
+                        SongContextMenuItem(
+                            iconResId = R.drawable.ic_lucide_plus,
+                            text = "Add to queue",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            onClick = {
+                                expanded = false
+                                actions.onAddToQueue(song)
+                            },
+                        )
+                        SongContextMenuItem(
+                            iconResId = R.drawable.ic_lucide_trash_2,
+                            text = "Delete from library",
+                            tint = DestructiveRed,
+                            containerColor = DestructiveRed.copy(alpha = 0.2f),
+                            bottomPadding = 10.dp,
+                            onClick = {
+                                expanded = false
+                                actions.onDeleteFromLibrary(song)
+                            },
+                        )
+                    }
+                }
             }
         }
     }
@@ -9748,8 +10060,6 @@ private fun SongOverflowMenuButton(
 @Composable
 private fun FrostedContextMenuSurface(
     modifier: Modifier = Modifier,
-    backdropBitmap: BackdropSnapshot?,
-    menuBounds: androidx.compose.ui.geometry.Rect?,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val shape = RoundedCornerShape(ElovaireRadii.card)
@@ -9771,12 +10081,13 @@ private fun SongContextMenuItem(
     text: String,
     tint: Color,
     containerColor: Color = Color.Transparent,
+    bottomPadding: Dp = 6.dp,
     onClick: () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 10.dp, vertical = 6.dp)
+            .padding(start = 10.dp, top = 6.dp, end = 10.dp, bottom = bottomPadding)
             .clip(RoundedCornerShape(ElovaireRadii.card * 0.72f))
             .background(containerColor)
             .clickable(onClick = onClick)
@@ -9902,37 +10213,33 @@ private fun LyricsOverlay(
     val listState = rememberLazyListState()
     var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
     var autoScrollResumeJob by remember(song?.id) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    val activeLyricLineIndex = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs, lyricLines, lyricsUiState) {
-        when (lyricsUiState) {
-            is LyricsUiState.Ready -> {
-                val payload = lyricsUiState.payload
-                if (payload.isSynced) {
-                    payload.currentLineIndexAt(
-                        positionMs = playbackProgress.displayPositionMs,
-                    ) ?: -1
-                } else {
-                    -1
-                }
-            }
-
-            else -> -1
+    val readyLyricsPayload = (lyricsUiState as? LyricsUiState.Ready)?.payload
+    val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
+    val activeLyricLineIndex by remember(readyLyricsPayload, playbackProgress.positionMs) {
+        derivedStateOf {
+            readyLyricsPayload
+                ?.takeIf { it.isSynced }
+                ?.currentLineIndexAt(
+                    positionMs = playbackProgress.positionMs,
+                    timingOffsetMs = 0L,
+                    switchGraceMs = 220L,
+                )
+                ?: -1
         }
     }
 
-    LaunchedEffect(activeLyricLineIndex, lyricLines.size, autoScrollHeld) {
-        if (!autoScrollHeld && lyricLines.isNotEmpty() && activeLyricLineIndex >= 0) {
-            listState.animateScrollToItem((activeLyricLineIndex - 3).coerceAtLeast(0))
+    LaunchedEffect(activeLyricLineIndex, readyLyricsPayload?.isSynced, autoScrollHeld) {
+        if (!autoScrollHeld && readyLyricsPayload?.isSynced == true && activeLyricLineIndex >= 0) {
+            listState.animateScrollToItem(
+                index = activeLyricLineIndex,
+                scrollOffset = -autoScrollCenterOffsetPx,
+            )
         }
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {},
-            )
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
@@ -10091,24 +10398,29 @@ private fun LyricsOverlay(
                                 verticalArrangement = Arrangement.spacedBy(14.dp),
                             ) {
                                 itemsIndexed(lyricLines) { index, line ->
-                                    val isActive = index == activeLyricLineIndex
+                                    val isActive = state.payload.isSynced && index == activeLyricLineIndex
                                     val lineFontSize by animateFloatAsState(
-                                        targetValue = if (isActive) {
-                                            MaterialTheme.typography.headlineMedium.fontSize.value + 1f
-                                        } else {
-                                            MaterialTheme.typography.headlineMedium.fontSize.value - 4f
-                                        },
+                                        targetValue = if (isActive) 22f else 20f,
                                         animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
                                         label = "lyrics_line_font_$index",
+                                    )
+                                    val lineColor by animateColorAsState(
+                                        targetValue = when {
+                                            state.payload.isSynced && isActive -> contentColor.copy(alpha = 1f)
+                                            state.payload.isSynced -> contentColor.copy(alpha = 0.42f)
+                                            else -> contentColor.copy(alpha = 0.92f)
+                                        },
+                                        animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                                        label = "lyrics_line_color_$index",
                                     )
                                     Text(
                                         text = line.text,
                                         style = MaterialTheme.typography.headlineMedium.copy(
                                             fontSize = lineFontSize.sp,
-                                            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium,
-                                            lineHeight = 37.sp,
+                                            fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                                            lineHeight = if (isActive) 28.sp else 26.sp,
                                         ),
-                                        color = if (isActive) contentColor.copy(alpha = 1f) else contentColor.copy(alpha = 0.5f),
+                                        color = lineColor,
                                         textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -10134,12 +10446,7 @@ private fun LyricsOverlay(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .fillMaxWidth()
-                        .height(bottomBlurSurfaceHeight)
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {},
-                        ),
+                        .height(bottomBlurSurfaceHeight),
                 ) {
                     Box(
                         modifier = Modifier
@@ -10890,7 +11197,7 @@ private fun EqualizerScreen(
                             onModeSelected = onSpaciousnessModeChanged,
                         )
                         EqMacroSliderRow(
-                            title = "Spaciousness",
+                            title = "Effect strength",
                             value = settings.spaciousness.coerceIn(0f, 1f),
                             valueText = "${(settings.spaciousness.coerceIn(0f, 1f) * 100f).roundToInt()}%",
                             onValueChange = onSpaciousnessChanged,
@@ -12405,24 +12712,24 @@ private fun EqDbScale(
 
 @Composable
 private fun EqBandFrequencyLabels(
+    contentWidth: Dp,
     modifier: Modifier = Modifier,
 ) {
     val labels = remember {
         EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.map(::formatEqFrequencyLabel)
     }
-    val fractions = remember { eqBandFractions() }
-    BoxWithConstraints(modifier = modifier) {
-        val density = LocalDensity.current
-        val widthPx = with(density) { maxWidth.toPx() }
-        val labelWidth = 46.dp
+    val bandFractions = remember { eqBandFractions() }
+    BoxWithConstraints(
+        modifier = modifier.width(contentWidth),
+    ) {
+        val slotWidth = contentWidth / EqualizerDspModel.BAND_COUNT
         labels.forEachIndexed { index, label ->
-            val xOffset = with(density) {
-                ((widthPx * fractions.getOrElse(index) { 0f }).toDp() - (labelWidth / 2f))
-            }
+            val fraction = bandFractions.getOrElse(index) { 0f }
+            val xOffset = (maxWidth - slotWidth) * fraction
             Box(
                 modifier = Modifier
                     .offset(x = xOffset)
-                    .width(labelWidth),
+                    .width(slotWidth),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -12509,8 +12816,8 @@ private fun EqHorizontalScrollbar(
                     .clipToBounds(),
             ) {
                 EqBandFrequencyLabels(
+                    contentWidth = contentWidth,
                     modifier = Modifier
-                        .width(contentWidth)
                         .offset { IntOffset(-scrollState.value, 0) },
                 )
             }

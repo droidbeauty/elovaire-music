@@ -32,5 +32,6 @@ class LyricsService(
     suspend fun fetchLyrics(
         song: Song,
         allowCachedNotFound: Boolean = true,
-    ): LyricsResult = repository.fetchLyrics(song, allowCachedNotFound)
+        lookupMode: LyricsLookupMode = LyricsLookupMode.Full,
+    ): LyricsResult = repository.fetchLyrics(song, allowCachedNotFound, lookupMode)
 }

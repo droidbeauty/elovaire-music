@@ -4,6 +4,11 @@ enum class SyncedLyricsTimingProfile {
     ExactIntervals,
 }
 
+enum class LyricsLookupMode {
+    FastPresenceCheck,
+    Full,
+}
+
 data class LyricsIdentity(
     val title: String,
     val artist: String,
@@ -51,6 +56,7 @@ data class LyricsPayload(
     val lines: List<LyricsLine>,
     val isSynced: Boolean,
     val displayTimingOffsetMs: Long = 0L,
+    val timingScale: Float = 1f,
     val timingProfile: SyncedLyricsTimingProfile = SyncedLyricsTimingProfile.ExactIntervals,
     val providerName: String? = null,
     val confidence: Int = 0,
@@ -58,15 +64,15 @@ data class LyricsPayload(
     fun currentLineIndexAt(
         positionMs: Long,
         timingOffsetMs: Long = 0L,
-        switchGraceMs: Long = 300L,
+        switchGraceMs: Long = 220L,
     ): Int? {
-        if (!isSynced) return null
-        val correctedPositionMs = (
-            positionMs -
-                displayTimingOffsetMs -
-                timingOffsetMs -
-                switchGraceMs
-            ).coerceAtLeast(0L)
+        if (!isSynced || lines.isEmpty()) return null
+        val correctedPositionMs = correctedLyricPositionMs(
+            positionMs = positionMs,
+            timingOffsetMs = timingOffsetMs,
+            switchGraceMs = switchGraceMs,
+        )
+        if (correctedPositionMs < 0L) return null
         val firstTimestampMs = lines.firstNotNullOfOrNull { it.startTimeMs } ?: return null
         if (correctedPositionMs < firstTimestampMs) return null
         return resolveActiveLyricLineIndex(
@@ -79,13 +85,24 @@ data class LyricsPayload(
     fun currentLineAt(
         positionMs: Long,
         timingOffsetMs: Long = 0L,
-        switchGraceMs: Long = 300L,
+        switchGraceMs: Long = 220L,
     ): LyricsLine? = currentLineIndexAt(positionMs, timingOffsetMs, switchGraceMs)?.let(lines::get)
+
+    private fun correctedLyricPositionMs(
+        positionMs: Long,
+        timingOffsetMs: Long,
+        switchGraceMs: Long,
+    ): Long {
+        val delayedPositionMs = positionMs - displayTimingOffsetMs - timingOffsetMs - switchGraceMs
+        if (timingScale == 1f) return delayedPositionMs
+        return (delayedPositionMs / timingScale).toLong()
+    }
 }
 
 sealed interface LyricsResult {
     data class Found(val payload: LyricsPayload) : LyricsResult
     data object NotFound : LyricsResult
+    data object Timeout : LyricsResult
 }
 
 internal enum class LyricsLookupState {

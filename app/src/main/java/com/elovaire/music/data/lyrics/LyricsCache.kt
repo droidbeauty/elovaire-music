@@ -32,7 +32,7 @@ internal class LyricsCache(
         }
         when {
             entry == null -> null
-            !includeNotFound && entry.result == LyricsResult.NotFound -> null
+            !includeNotFound && (entry.result == LyricsResult.NotFound || entry.result == LyricsResult.Timeout) -> null
             else -> entry.result
         }
     }
@@ -76,6 +76,7 @@ internal class LyricsCache(
                         LyricsResult.Found(payloadJson.toLyricsPayload())
                     }
                     RESULT_NOT_FOUND -> LyricsResult.NotFound
+                    RESULT_TIMEOUT -> LyricsResult.Timeout
                     else -> return@repeat
                 }
                 cacheEntries[key] = LyricsCacheEntry(
@@ -110,6 +111,9 @@ internal class LyricsCache(
                                         LyricsResult.NotFound -> {
                                             put("result", RESULT_NOT_FOUND)
                                         }
+                                        LyricsResult.Timeout -> {
+                                            put("result", RESULT_TIMEOUT)
+                                        }
                                     }
                                 },
                             )
@@ -132,6 +136,7 @@ internal class LyricsCache(
         return JSONObject().apply {
             put("isSynced", isSynced)
             put("displayTimingOffsetMs", displayTimingOffsetMs)
+            put("timingScale", timingScale.toDouble())
             put("timingProfile", timingProfile.name)
             put("providerName", providerName.orEmpty())
             put("confidence", confidence)
@@ -172,6 +177,7 @@ internal class LyricsCache(
             lines = lines,
             isSynced = optBoolean("isSynced"),
             displayTimingOffsetMs = optLong("displayTimingOffsetMs", 0L),
+            timingScale = optDouble("timingScale", 1.0).toFloat().takeIf { it.isFinite() && it > 0f } ?: 1f,
             timingProfile = runCatching {
                 SyncedLyricsTimingProfile.valueOf(optString("timingProfile", SyncedLyricsTimingProfile.ExactIntervals.name))
             }.getOrDefault(SyncedLyricsTimingProfile.ExactIntervals),
@@ -186,5 +192,6 @@ internal class LyricsCache(
         const val MAX_ENTRIES = 320
         const val RESULT_FOUND = "found"
         const val RESULT_NOT_FOUND = "not_found"
+        const val RESULT_TIMEOUT = "timeout"
     }
 }

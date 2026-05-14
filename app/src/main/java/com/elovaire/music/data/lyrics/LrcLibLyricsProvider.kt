@@ -2,6 +2,9 @@ package elovaire.music.app.data.lyrics
 
 import android.util.Log
 import elovaire.music.app.BuildConfig
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -16,20 +19,41 @@ internal class LrcLibLyricsProvider : LyricsProvider {
         val variants = query.variants.take(MAX_QUERY_VARIANTS)
         if (variants.isEmpty()) return emptyList()
 
-        val exactMatches = variants
-            .mapNotNull { variant -> fetchExactCandidate(variant, query.identity) }
+        val exactMatches = coroutineScope {
+            variants
+                .map { variant ->
+                    async { fetchExactCandidate(variant, query.identity) }
+                }
+                .awaitAll()
+        }
+            .mapNotNull { it }
             .distinctBy(LyricsCandidate::providerId)
 
         if (exactMatches.isNotEmpty()) {
             return exactMatches
         }
 
-        return variants
-            .flatMap(::searchCandidates)
-            .ifEmpty {
-                variants.flatMap(::searchCandidatesByFreeText)
-            }
-            .distinctBy(LyricsCandidate::providerId)
+        val searchMatches = coroutineScope {
+            variants
+                .map { variant ->
+                    async { searchCandidates(variant) }
+                }
+                .awaitAll()
+                .flatten()
+        }.distinctBy(LyricsCandidate::providerId)
+        if (searchMatches.isNotEmpty()) {
+            return searchMatches
+        }
+
+        return coroutineScope {
+            variants
+                .take(MAX_FREE_TEXT_QUERY_VARIANTS)
+                .map { variant ->
+                    async { searchCandidatesByFreeText(variant) }
+                }
+                .awaitAll()
+                .flatten()
+        }.distinctBy(LyricsCandidate::providerId)
     }
 
     override suspend fun getLyrics(
@@ -42,15 +66,19 @@ internal class LrcLibLyricsProvider : LyricsProvider {
             ?.takeIf { lines -> lines.any { it.startTimeMs != null } }
         val plainLines = parsePlainLyrics(candidate.plainLyrics)
         val score = candidate.scoreAgainst(identity)
+        val timingCorrection = syncedLines?.let { lines ->
+            estimateRemoteTimingCorrection(
+                lines = lines,
+                durationMs = candidate.durationMs ?: identity.durationMs,
+            )
+        } ?: TimingCorrection.None
 
         val payload = when {
             !syncedLines.isNullOrEmpty() -> LyricsPayload(
                 lines = syncedLines,
                 isSynced = true,
-                displayTimingOffsetMs = estimateRemoteDisplayTimingOffsetMs(
-                    lines = syncedLines,
-                    durationMs = candidate.durationMs ?: identity.durationMs,
-                ),
+                displayTimingOffsetMs = timingCorrection.displayTimingOffsetMs,
+                timingScale = timingCorrection.timingScale,
                 providerName = providerName,
                 confidence = score,
             )
@@ -124,31 +152,51 @@ internal class LrcLibLyricsProvider : LyricsProvider {
         }
     }
 
-    private fun estimateRemoteDisplayTimingOffsetMs(
+    private fun estimateRemoteTimingCorrection(
         lines: List<LyricsLine>,
         durationMs: Long,
-    ): Long {
-        val timedLines = lines.mapNotNull { line -> line.startTimeMs?.let { it to line.text } }
-        if (timedLines.size < 4) return 0L
-        val firstTimestampMs = timedLines.first().first
-        if (firstTimestampMs !in 0L..2_000L) return 0L
-        val linesWithinIntroWindow = timedLines.count { (timeMs, text) ->
-            timeMs in 0L..18_000L && text.isNotBlank()
+    ): TimingCorrection {
+        val timedLines = lines.mapNotNull(LyricsLine::startTimeMs).sorted()
+        if (timedLines.size < 4) return TimingCorrection.None
+
+        val firstTimestampMs = timedLines.first()
+        val fourthTimestampMs = timedLines.getOrNull(3)
+        val sixthTimestampMs = timedLines.getOrNull(5)
+        val lastTimestampMs = timedLines.last()
+        val linesInFirst15Seconds = timedLines.count { it <= 15_000L }
+
+        var displayTimingOffsetMs = 0L
+        var timingScale = 1f
+
+        if (durationMs >= 90_000L && firstTimestampMs <= 1_500L) {
+            displayTimingOffsetMs += when {
+                sixthTimestampMs != null && sixthTimestampMs <= 18_000L -> 6_500L
+                fourthTimestampMs != null && fourthTimestampMs <= 12_000L -> 4_500L
+                linesInFirst15Seconds >= 6 -> 3_000L
+                linesInFirst15Seconds >= 4 -> 1_800L
+                else -> 0L
+            }
         }
-        if (linesWithinIntroWindow < 4) return 0L
-        val earlyGapAverageMs = timedLines
-            .zipWithNext()
-            .take(4)
-            .map { (current, next) -> (next.first - current.first).coerceAtLeast(0L) }
-            .average()
-        val durationFactor = when {
-            durationMs >= 7 * 60 * 1000L -> 0.7
-            durationMs >= 4 * 60 * 1000L -> 0.85
-            else -> 1.0
+
+        if (durationMs >= 90_000L && lastTimestampMs > 30_000L) {
+            val expectedLyricEndMs = (durationMs - 8_000L).coerceAtLeast(1L)
+            val ratio = expectedLyricEndMs.toFloat() / lastTimestampMs.toFloat()
+            timingScale = ratio.coerceIn(0.92f, 1.08f)
         }
-        return ((firstTimestampMs + earlyGapAverageMs * 1.15) * durationFactor)
-            .toLong()
-            .coerceIn(0L, 12_000L)
+
+        return TimingCorrection(
+            displayTimingOffsetMs = displayTimingOffsetMs.coerceIn(0L, 12_000L),
+            timingScale = timingScale,
+        )
+    }
+
+    private data class TimingCorrection(
+        val displayTimingOffsetMs: Long = 0L,
+        val timingScale: Float = 1f,
+    ) {
+        companion object {
+            val None = TimingCorrection()
+        }
     }
 
     private fun getJsonObject(url: String): JSONObject? = getText(url)?.let(::JSONObject)
@@ -253,9 +301,10 @@ internal class LrcLibLyricsProvider : LyricsProvider {
 
     private companion object {
         const val TAG = "LyricsProvider"
-        const val CONNECT_TIMEOUT_MS = 900
-        const val READ_TIMEOUT_MS = 2600
-        const val MAX_QUERY_VARIANTS = 8
+        const val CONNECT_TIMEOUT_MS = 450
+        const val READ_TIMEOUT_MS = 700
+        const val MAX_QUERY_VARIANTS = 5
+        const val MAX_FREE_TEXT_QUERY_VARIANTS = 2
         const val LRCLIB_BASE_URL = "https://lrclib.net/api/"
         const val LRCLIB_GET_URL = "${LRCLIB_BASE_URL}get"
         const val LRCLIB_SEARCH_URL = "${LRCLIB_BASE_URL}search"

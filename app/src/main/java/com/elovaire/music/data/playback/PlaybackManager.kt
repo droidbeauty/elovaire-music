@@ -145,6 +145,7 @@ class PlaybackManager(
     private var hasUsbOutputRoute = false
     private val playbackProgressController = PlaybackProgressController()
     private var progressUpdateJob: Job? = null
+    private var pauseFadeJob: Job? = null
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(
             mediaItem: MediaItem?,
@@ -309,6 +310,7 @@ class PlaybackManager(
     fun togglePlayback() {
         shouldResumeAfterTransientFocusLoss = false
         if (isManualPausePending) {
+            cancelPauseFade()
             isManualPausePending = false
             isPauseTransitioningToStopped = false
             recordManualPlaybackStart()
@@ -316,10 +318,9 @@ class PlaybackManager(
         } else if (player.isPlaying) {
             isPauseTransitioningToStopped = true
             isManualPausePending = true
-            player.pause()
-            player.volume = effectivePlayerGain()
-            abandonAudioFocus()
+            beginManualPauseFadeOut()
         } else {
+            cancelPauseFade()
             isManualPausePending = false
             isPauseTransitioningToStopped = false
             recordManualPlaybackStart()
@@ -391,6 +392,7 @@ class PlaybackManager(
     }
 
     fun skipNext() {
+        cancelPauseFade()
         shouldResumeAfterTransientFocusLoss = false
         if (player.hasNextMediaItem()) {
             player.seekToNextMediaItem()
@@ -401,6 +403,7 @@ class PlaybackManager(
     }
 
     fun skipPrevious() {
+        cancelPauseFade()
         shouldResumeAfterTransientFocusLoss = false
         if (player.currentPosition > PREVIOUS_SEEK_THRESHOLD_MS) {
             player.seekTo(0)
@@ -414,6 +417,7 @@ class PlaybackManager(
 
     fun playQueueIndex(index: Int) {
         if (index !in _state.value.queue.indices) return
+        cancelPauseFade()
         recordManualPlaybackStart()
         shouldResumeAfterTransientFocusLoss = false
         player.seekToDefaultPosition(index)
@@ -442,6 +446,7 @@ class PlaybackManager(
     }
 
     fun release() {
+        pauseFadeJob?.cancel()
         progressUpdateJob?.cancel()
         usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
@@ -459,6 +464,7 @@ class PlaybackManager(
         shuffleEnabled: Boolean,
     ) {
         if (songs.isEmpty()) return
+        cancelPauseFade()
         shouldResumeAfterTransientFocusLoss = false
 
         val mediaItems = songs.map { song ->
@@ -482,6 +488,7 @@ class PlaybackManager(
     }
 
     private fun stopAndClearQueue() {
+        cancelPauseFade(resetVolume = false)
         isStoppingQueue = true
         shouldResumeAfterTransientFocusLoss = false
         player.pause()
@@ -569,12 +576,45 @@ class PlaybackManager(
     }
 
     private fun resumePlayback() {
+        cancelPauseFade()
         isManualPausePending = false
         if (!requestAudioFocus()) return
         isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
         player.volume = effectivePlayerGain()
         player.play()
+    }
+
+    private fun beginManualPauseFadeOut() {
+        pauseFadeJob?.cancel()
+        pauseFadeJob = scope.launch {
+            val startVolume = player.volume.coerceIn(0f, 1f)
+            if (startVolume > 0.001f) {
+                repeat(PAUSE_FADE_STEP_COUNT) { step ->
+                    if (!isActive) return@launch
+                    val progress = (step + 1).toFloat() / PAUSE_FADE_STEP_COUNT.toFloat()
+                    player.volume = lerp(
+                        start = startVolume,
+                        stop = 0f,
+                        fraction = progress,
+                    )
+                    delay(PAUSE_FADE_STEP_DURATION_MS)
+                }
+            }
+            player.pause()
+            player.volume = effectivePlayerGain()
+            abandonAudioFocus()
+            pauseFadeJob = null
+            updateState()
+        }
+    }
+
+    private fun cancelPauseFade(resetVolume: Boolean = true) {
+        pauseFadeJob?.cancel()
+        pauseFadeJob = null
+        if (resetVolume) {
+            player.volume = effectivePlayerGain()
+        }
     }
 
     private fun requestAudioFocus(): Boolean {
@@ -600,6 +640,7 @@ class PlaybackManager(
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                cancelPauseFade(resetVolume = false)
                 shouldResumeAfterTransientFocusLoss = player.isPlaying || player.playWhenReady
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
@@ -609,6 +650,7 @@ class PlaybackManager(
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                cancelPauseFade(resetVolume = false)
                 shouldResumeAfterTransientFocusLoss = player.isPlaying || player.playWhenReady
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
@@ -618,6 +660,7 @@ class PlaybackManager(
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
+                cancelPauseFade(resetVolume = false)
                 shouldResumeAfterTransientFocusLoss = false
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
@@ -675,6 +718,12 @@ class PlaybackManager(
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
         return baseGain.coerceIn(0f, 1f)
     }
+
+    private fun lerp(
+        start: Float,
+        stop: Float,
+        fraction: Float,
+    ): Float = start + (stop - start) * fraction.coerceIn(0f, 1f)
 
     private fun applyFineGrainedVolume(targetVolume: Float) {
         if (usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
@@ -807,6 +856,9 @@ class PlaybackManager(
     }
 
     private companion object {
+        const val PAUSE_FADE_DURATION_MS = 1_000L
+        const val PAUSE_FADE_STEP_COUNT = 20
+        const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val MAX_HISTORY_ITEMS = 12
     }
