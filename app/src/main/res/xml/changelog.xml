@@ -6,11 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.8.2">
-        <item>General improvements to lyrics matching feature</item>
-        <item>Performance focused optimizations</item>
-        <item>Layout tweaks in the EQ interface</item>
-        <item>Fixing some issues within now playing screen</item>
-        <item>Many other bug fixes</item>
+    <release version="1.8.3">
+        <item>Bug fixes in lyrics UI</item>
+        <item>A few other bug fixes</item>
     </release>
 </changelog>

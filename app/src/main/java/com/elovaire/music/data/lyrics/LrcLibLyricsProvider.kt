@@ -181,7 +181,9 @@ internal class LrcLibLyricsProvider : LyricsProvider {
         if (durationMs >= 90_000L && lastTimestampMs > 30_000L) {
             val expectedLyricEndMs = (durationMs - 8_000L).coerceAtLeast(1L)
             val ratio = expectedLyricEndMs.toFloat() / lastTimestampMs.toFloat()
-            timingScale = ratio.coerceIn(0.92f, 1.08f)
+            if (kotlin.math.abs(ratio - 1f) >= 0.03f) {
+                timingScale = ratio.coerceIn(0.95f, 1.05f)
+            }
         }
 
         return TimingCorrection(

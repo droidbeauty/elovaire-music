@@ -8159,7 +8159,7 @@ private fun NowPlayingScreen(
         }
 
         value = LyricsUiState.Loading
-        val fetchedResult = withTimeoutOrNull(5_200L) {
+        val fetchedResult = withTimeoutOrNull(4_200L) {
             lyricsService.fetchLyrics(
                 song = currentSong,
                 allowCachedNotFound = false,
@@ -10222,7 +10222,7 @@ private fun LyricsOverlay(
                 ?.currentLineIndexAt(
                     positionMs = playbackProgress.positionMs,
                     timingOffsetMs = 0L,
-                    switchGraceMs = 220L,
+                    switchGraceMs = 180L,
                 )
                 ?: -1
         }
@@ -10240,6 +10240,11 @@ private fun LyricsOverlay(
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+            )
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
@@ -10407,8 +10412,8 @@ private fun LyricsOverlay(
                                     val lineColor by animateColorAsState(
                                         targetValue = when {
                                             state.payload.isSynced && isActive -> contentColor.copy(alpha = 1f)
-                                            state.payload.isSynced -> contentColor.copy(alpha = 0.42f)
-                                            else -> contentColor.copy(alpha = 0.92f)
+                                            state.payload.isSynced -> contentColor.copy(alpha = 0.7f)
+                                            else -> contentColor.copy(alpha = 0.7f)
                                         },
                                         animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
                                         label = "lyrics_line_color_$index",

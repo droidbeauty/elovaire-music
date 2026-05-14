@@ -64,7 +64,7 @@ data class LyricsPayload(
     fun currentLineIndexAt(
         positionMs: Long,
         timingOffsetMs: Long = 0L,
-        switchGraceMs: Long = 220L,
+        switchGraceMs: Long = 180L,
     ): Int? {
         if (!isSynced || lines.isEmpty()) return null
         val correctedPositionMs = correctedLyricPositionMs(
@@ -85,7 +85,7 @@ data class LyricsPayload(
     fun currentLineAt(
         positionMs: Long,
         timingOffsetMs: Long = 0L,
-        switchGraceMs: Long = 220L,
+        switchGraceMs: Long = 180L,
     ): LyricsLine? = currentLineIndexAt(positionMs, timingOffsetMs, switchGraceMs)?.let(lines::get)
 
     private fun correctedLyricPositionMs(
