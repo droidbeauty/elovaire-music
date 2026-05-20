@@ -25,6 +25,7 @@ internal class LyricsRepository(
     private val applicationContext = appContext.applicationContext
     private val cache = LyricsCache(applicationContext)
     private val localLyricsResolver = LocalLyricsResolver(applicationContext)
+    private val geniusMetadataProvider = GeniusMetadataProvider()
     private val lrclibProvider = LrcLibLyricsProvider()
     private val lyricsOvhProvider = LyricsOvhProvider()
     private val serviceScope = CoroutineScope(SupervisorJob() + ioDispatcher)
@@ -215,7 +216,23 @@ internal class LyricsRepository(
         identity: LyricsIdentity,
         lookupMode: LyricsLookupMode,
     ): ProviderLyricsMatch? = coroutineScope {
-        val fastVariants = buildLyricsQueryVariants(identity)
+        val baseVariants = buildLyricsQueryVariants(identity)
+        val canonicalVariant = withContext(ioDispatcher) {
+            withTimeoutOrNull(GENIUS_LOOKUP_TIMEOUT_MS) {
+                geniusMetadataProvider.bestCanonicalVariant(identity, baseVariants)
+            }
+        }
+        if (canonicalVariant != null) {
+            logDebug(
+                "genius canonical variant selected for ${identity.normalizedLookupKey}: " +
+                    "${canonicalVariant.artist} - ${canonicalVariant.title}",
+            )
+        }
+        val fastVariants = buildList {
+            canonicalVariant?.let(::add)
+            addAll(baseVariants)
+        }
+            .distinct()
             .take(lookupMode.maxRemoteQueryVariants())
         if (fastVariants.isEmpty()) return@coroutineScope null
         logDebug(
@@ -352,6 +369,7 @@ internal class LyricsRepository(
         const val LOCAL_LOOKUP_TIMEOUT_MS = 250L
         const val FAST_NOT_FOUND_BUDGET_MS = 2_000L
         const val FULL_REMOTE_LOOKUP_BUDGET_MS = 3_800L
+        const val GENIUS_LOOKUP_TIMEOUT_MS = 420L
         const val MAX_FAST_REMOTE_QUERY_VARIANTS = 5
         const val POSITIVE_CACHE_TTL_MS = 30L * 24L * 60L * 60L * 1000L
         const val CACHE_TTL_NOT_FOUND_MS = 30_000L

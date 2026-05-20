@@ -58,11 +58,11 @@ internal object SpaciousnessProcessorModel {
         if (amount <= 0f || mode == SpaciousnessMode.Off) return 0f
         val compensationDb = when (mode) {
             SpaciousnessMode.Off -> 0f
-            SpaciousnessMode.StereoWidth -> 0.28f + (amount * 0.52f)
-            SpaciousnessMode.CrossfeedDepth -> 0.08f + (amount * 0.2f)
-            SpaciousnessMode.EarlyReflectionRoom -> 0.16f + (amount * 0.34f)
-            SpaciousnessMode.HaasSpace -> 0.2f + (amount * 0.42f)
-            SpaciousnessMode.HarmonicAir -> 0.12f + (amount * 0.24f)
+            SpaciousnessMode.StereoWidth -> 0.34f + (amount * 0.62f)
+            SpaciousnessMode.CrossfeedDepth -> 0.12f + (amount * 0.26f)
+            SpaciousnessMode.EarlyReflectionRoom -> 0.18f + (amount * 0.42f)
+            SpaciousnessMode.HaasSpace -> 0.24f + (amount * 0.5f)
+            SpaciousnessMode.HarmonicAir -> 0.16f + (amount * 0.3f)
         }
         return -compensationDb.coerceAtMost(1.35f)
     }
@@ -98,6 +98,31 @@ internal class SpaciousnessProcessor {
     private val airHighPassR = OnePoleHighPassState()
     private val airWetLowPassL = OnePoleLowPassState()
     private val airWetLowPassR = OnePoleLowPassState()
+    // Short all-pass decorrelators keep width cues airy without punching a hole in the center image.
+    private val widthDecorrelator = CascadedAllPassState(
+        firstCoefficient = 0.57f,
+        secondCoefficient = 0.33f,
+    )
+    private val reflectionDecorrelatorL = CascadedAllPassState(
+        firstCoefficient = 0.51f,
+        secondCoefficient = 0.29f,
+    )
+    private val reflectionDecorrelatorR = CascadedAllPassState(
+        firstCoefficient = -0.47f,
+        secondCoefficient = 0.31f,
+    )
+    private val haasDecorrelator = CascadedAllPassState(
+        firstCoefficient = 0.49f,
+        secondCoefficient = -0.27f,
+    )
+    private val airDecorrelatorL = CascadedAllPassState(
+        firstCoefficient = 0.43f,
+        secondCoefficient = 0.25f,
+    )
+    private val airDecorrelatorR = CascadedAllPassState(
+        firstCoefficient = -0.41f,
+        secondCoefficient = 0.23f,
+    )
 
     fun setConfig(config: SpaciousnessConfig) {
         val sanitized = config.sanitized()
@@ -149,6 +174,12 @@ internal class SpaciousnessProcessor {
         airHighPassR.reset()
         airWetLowPassL.reset()
         airWetLowPassR.reset()
+        widthDecorrelator.reset()
+        reflectionDecorrelatorL.reset()
+        reflectionDecorrelatorR.reset()
+        haasDecorrelator.reset()
+        airDecorrelatorL.reset()
+        airDecorrelatorR.reset()
         peakIn = 0f
         peakOut = 0f
         resetEvents += 1
@@ -229,18 +260,22 @@ internal class SpaciousnessProcessor {
         val mid = (left + right) * 0.5f
         val side = (left - right) * 0.5f
         val lowSide = if (activeConfig.preserveBassMono) {
-            sideLowPass.process(side, sampleRateHz, 140f)
+            sideLowPass.process(side, sampleRateHz, 150f)
         } else {
             0f
         }
         val highSide = side - lowSide
-        val sideGain = 1f + (amount * 1.05f)
+        val decorrelatedHighSide = widthDecorrelator.process(highSide)
+        val sideGain = 1f + (amount * 0.78f)
+        val decorrelatedGain = 0.02f + (amount * 0.11f)
         val widenedSide = if (activeConfig.preserveBassMono) {
-            lowSide * (1f + (amount * 0.02f)) + highSide * sideGain
+            lowSide * (1f + (amount * 0.015f)) +
+                highSide * sideGain +
+                decorrelatedHighSide * decorrelatedGain
         } else {
-            side * sideGain
+            side * sideGain + (decorrelatedHighSide * decorrelatedGain)
         }
-        val centerGain = 1f - (amount * 0.01f)
+        val centerGain = 1f - (amount * 0.018f)
         return StereoPair(
             left = (mid * centerGain) + widenedSide,
             right = (mid * centerGain) - widenedSide,
@@ -252,14 +287,14 @@ internal class SpaciousnessProcessor {
         right: Float,
         amount: Float,
     ): StereoPair {
-        val crossDelay = delaySamples(0.14f + (0.3f * amount))
-        val lowPassedRight = crossfeedLowPassL.process(readDelay(rightDelay, crossDelay), sampleRateHz, 920f)
-        val lowPassedLeft = crossfeedLowPassR.process(readDelay(leftDelay, crossDelay), sampleRateHz, 920f)
+        val crossDelayMs = 0.18f + (0.42f * amount)
+        val lowPassedRight = crossfeedLowPassL.process(readDelayInterpolated(rightDelay, crossDelayMs), sampleRateHz, 1_050f)
+        val lowPassedLeft = crossfeedLowPassR.process(readDelayInterpolated(leftDelay, crossDelayMs), sampleRateHz, 1_050f)
         val mid = (left + right) * 0.5f
         val side = (left - right) * 0.5f
-        val sideBlend = 1f - (amount * 0.16f)
-        val crossGain = 0.018f + (amount * 0.075f)
-        val presenceLift = 1f + (amount * 0.015f)
+        val sideBlend = 1f + (amount * 0.12f)
+        val crossGain = 0.022f + (amount * 0.055f)
+        val presenceLift = 1f + (amount * 0.02f)
         return StereoPair(
             left = (mid * presenceLift) + (side * sideBlend) + (lowPassedRight * crossGain),
             right = (mid * presenceLift) - (side * sideBlend) + (lowPassedLeft * crossGain),
@@ -271,25 +306,27 @@ internal class SpaciousnessProcessor {
         right: Float,
         amount: Float,
     ): StereoPair {
-        val tap1 = delaySamples(2.6f + (0.8f * amount))
-        val tap2 = delaySamples(5.3f + (1.2f * amount))
-        val tap3 = delaySamples(8.4f + (1.4f * amount))
-        val reflectionLeft = reflectionLowPassL.process(
-            (readDelay(leftDelay, tap1) * 0.54f) +
-                (readDelay(rightDelay, tap2) * 0.33f) +
-                (readDelay(leftDelay, tap3) * 0.18f),
+        val tap1Ms = 2.2f + (0.8f * amount)
+        val tap2Ms = 4.9f + (1.3f * amount)
+        val tap3Ms = 7.6f + (1.8f * amount)
+        val rawReflectionLeft = reflectionLowPassL.process(
+            (readDelayInterpolated(leftDelay, tap1Ms) * 0.46f) +
+                (readDelayInterpolated(rightDelay, tap2Ms + 0.4f) * 0.31f) +
+                (readDelayInterpolated(leftDelay, tap3Ms + 0.8f) * 0.16f),
             sampleRateHz,
-            4_800f,
+            5_600f,
         )
-        val reflectionRight = reflectionLowPassR.process(
-            (readDelay(rightDelay, tap1 + 1) * 0.54f) +
-                (readDelay(leftDelay, tap2 + 2) * 0.33f) +
-                (readDelay(rightDelay, tap3 + 1) * 0.18f),
+        val rawReflectionRight = reflectionLowPassR.process(
+            (readDelayInterpolated(rightDelay, tap1Ms + 0.25f) * 0.46f) +
+                (readDelayInterpolated(leftDelay, tap2Ms + 0.7f) * 0.31f) +
+                (readDelayInterpolated(rightDelay, tap3Ms + 1.1f) * 0.16f),
             sampleRateHz,
-            4_800f,
+            5_600f,
         )
-        val wetGain = 0.038f + (amount * 0.1f)
-        val dryGain = 1f - (amount * 0.01f)
+        val reflectionLeft = reflectionDecorrelatorL.process(rawReflectionLeft)
+        val reflectionRight = reflectionDecorrelatorR.process(rawReflectionRight)
+        val wetGain = 0.028f + (amount * 0.078f)
+        val dryGain = 1f - (amount * 0.012f)
         return StereoPair(
             left = (left * dryGain) + (reflectionLeft * wetGain),
             right = (right * dryGain) + (reflectionRight * wetGain),
@@ -301,15 +338,15 @@ internal class SpaciousnessProcessor {
         right: Float,
         amount: Float,
     ): StereoPair {
-        val delayLeft = delaySamples(6.2f + (2.6f * amount))
-        val delayRight = delaySamples(8.1f + (3.1f * amount))
+        val delayLeftMs = 4.8f + (2.1f * amount)
+        val delayRightMs = 6.1f + (2.5f * amount)
         val mid = (left + right) * 0.5f
         val side = (left - right) * 0.5f
-        val delayedLeftHigh = haasHighPassL.process(readDelay(leftDelay, delayLeft), sampleRateHz, 520f)
-        val delayedRightHigh = haasHighPassR.process(readDelay(rightDelay, delayRight), sampleRateHz, 520f)
-        val delayedSide = (delayedLeftHigh - delayedRightHigh) * 0.5f
-        val wetGain = 0.06f + (amount * 0.16f)
-        val sideGain = 1f + (amount * 0.16f)
+        val delayedLeftHigh = haasHighPassL.process(readDelayInterpolated(leftDelay, delayLeftMs), sampleRateHz, 650f)
+        val delayedRightHigh = haasHighPassR.process(readDelayInterpolated(rightDelay, delayRightMs), sampleRateHz, 650f)
+        val delayedSide = haasDecorrelator.process((delayedLeftHigh - delayedRightHigh) * 0.5f)
+        val wetGain = 0.045f + (amount * 0.12f)
+        val sideGain = 1f + (amount * 0.12f)
         return StereoPair(
             left = mid + (side * sideGain) + (delayedSide * wetGain),
             right = mid - (side * sideGain) - (delayedSide * wetGain),
@@ -323,24 +360,45 @@ internal class SpaciousnessProcessor {
     ): StereoPair {
         val mid = (left + right) * 0.5f
         val side = (left - right) * 0.5f
-        val highLeft = airHighPassL.process(left, sampleRateHz, 2_600f)
-        val highRight = airHighPassR.process(right, sampleRateHz, 2_600f)
+        val highLeft = airHighPassL.process(left, sampleRateHz, 3_200f)
+        val highRight = airHighPassR.process(right, sampleRateHz, 3_200f)
         val sideAir = (highLeft - highRight) * 0.5f
-        val delayLeft = delaySamples(2.6f + (1.0f * amount))
-        val delayRight = delaySamples(3.4f + (1.2f * amount))
-        val wetLeft = airWetLowPassL.process(readDelay(leftDelay, delayLeft), sampleRateHz, 10_500f)
-        val wetRight = airWetLowPassR.process(readDelay(rightDelay, delayRight), sampleRateHz, 10_500f)
+        val delayLeftMs = 2.1f + (0.9f * amount)
+        val delayRightMs = 2.8f + (1.1f * amount)
+        val wetLeft = airWetLowPassL.process(readDelayInterpolated(leftDelay, delayLeftMs), sampleRateHz, 11_500f)
+        val wetRight = airWetLowPassR.process(readDelayInterpolated(rightDelay, delayRightMs), sampleRateHz, 11_500f)
         val decorrelatedSide = (wetLeft - wetRight) * 0.5f
-        val sideGain = 0.08f + (amount * 0.16f)
-        val decorrelatedGain = 0.04f + (amount * 0.09f)
+        val shapedLeft = airDecorrelatorL.process(wetLeft)
+        val shapedRight = airDecorrelatorR.process(wetRight)
+        val decorrelatedAir = (shapedLeft - shapedRight) * 0.5f
+        val sideGain = 0.06f + (amount * 0.14f)
+        val decorrelatedGain = 0.035f + (amount * 0.075f)
         return StereoPair(
-            left = mid + side + (sideAir * sideGain) + (decorrelatedSide * decorrelatedGain),
-            right = mid - side - (sideAir * sideGain) - (decorrelatedSide * decorrelatedGain),
+            left = mid + side + (sideAir * sideGain) + ((decorrelatedSide + decorrelatedAir) * decorrelatedGain),
+            right = mid - side - (sideAir * sideGain) - ((decorrelatedSide + decorrelatedAir) * decorrelatedGain),
         )
     }
 
     private fun delaySamples(delayMs: Float): Int {
         return ((sampleRateHz / 1_000f) * delayMs).toInt().coerceIn(1, (leftDelay.size - 1).coerceAtLeast(1))
+    }
+
+    private fun readDelayInterpolated(
+        buffer: FloatArray,
+        delayMs: Float,
+    ): Float {
+        if (buffer.isEmpty()) return 0f
+        val delaySamples = ((sampleRateHz / 1_000f) * delayMs).coerceIn(
+            1f,
+            (buffer.size - 1).coerceAtLeast(1).toFloat(),
+        )
+        val integerDelay = delaySamples.toInt()
+        val fractionalDelay = delaySamples - integerDelay
+        val newerIndex = (delayWriteIndex - integerDelay).floorMod(buffer.size)
+        val olderIndex = (newerIndex - 1).floorMod(buffer.size)
+        val newerSample = buffer[newerIndex]
+        val olderSample = buffer[olderIndex]
+        return newerSample + ((olderSample - newerSample) * fractionalDelay)
     }
 
     private fun readDelay(
@@ -435,6 +493,43 @@ private class OnePoleHighPassState {
     ): Float {
         val alpha = highPassAlpha(sampleRateHz, cutoffHz)
         val output = alpha * (previousOutput + input - previousInput)
+        previousInput = input
+        previousOutput = output
+        return output
+    }
+
+    fun reset() {
+        previousInput = 0f
+        previousOutput = 0f
+    }
+}
+
+private class CascadedAllPassState(
+    private val firstCoefficient: Float,
+    private val secondCoefficient: Float,
+) {
+    private val firstStage = FirstOrderAllPassState(firstCoefficient)
+    private val secondStage = FirstOrderAllPassState(secondCoefficient)
+
+    fun process(input: Float): Float {
+        return secondStage.process(firstStage.process(input))
+    }
+
+    fun reset() {
+        firstStage.reset()
+        secondStage.reset()
+    }
+}
+
+private class FirstOrderAllPassState(
+    private val coefficient: Float,
+) {
+    private var previousInput = 0f
+    private var previousOutput = 0f
+
+    fun process(input: Float): Float {
+        val safeCoefficient = coefficient.coerceIn(-0.82f, 0.82f)
+        val output = (-safeCoefficient * input) + previousInput + (safeCoefficient * previousOutput)
         previousInput = input
         previousOutput = output
         return output

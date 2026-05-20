@@ -1,5 +1,17 @@
 import java.io.File
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+
+val localProperties = Properties().apply {
+    val localPropertiesFile = rootProject.file("local.properties")
+    if (localPropertiesFile.exists()) {
+        localPropertiesFile.inputStream().use(::load)
+    }
+}
+
+val geniusAccessToken = providers.gradleProperty("GENIUS_ACCESS_TOKEN").orNull
+    ?: System.getenv("GENIUS_ACCESS_TOKEN")
+    ?: localProperties.getProperty("GENIUS_ACCESS_TOKEN")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -17,6 +29,11 @@ android {
         targetSdk = 37
         versionCode = AppBuildConfig.versionCode
         versionName = AppBuildConfig.versionName
+        buildConfigField(
+            "String",
+            "GENIUS_ACCESS_TOKEN",
+            "\"${geniusAccessToken.orEmpty().replace("\"", "\\\"")}\"",
+        )
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

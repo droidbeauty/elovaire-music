@@ -89,7 +89,7 @@ class PlaybackNotificationController(
                 lastManualPlaybackStartVersion = version
                 notificationDismissedWhilePaused = false
                 val currentState = playbackManager.state.value
-                if (notificationsEnabled && currentState.currentSong != null) {
+                if (notificationsEnabled && shouldShowNotification(currentState)) {
                     notificationManager.setPlayer(playbackManager.playerInstance)
                 }
             }
@@ -105,6 +105,10 @@ class PlaybackNotificationController(
                     }
                     state.isPlaying -> {
                         pauseHideJob?.cancel()
+                        if (notificationDismissedWhilePaused) {
+                            notificationManager.setPlayer(null)
+                            return@collectLatest
+                        }
                         notificationManager.setPlayer(playbackManager.playerInstance)
                     }
                     else -> {
@@ -140,11 +144,17 @@ class PlaybackNotificationController(
             return
         }
         val currentState = playbackManager.state.value
-        if (currentState.currentSong != null && (currentState.isPlaying || !notificationDismissedWhilePaused)) {
+        if (shouldShowNotification(currentState)) {
             notificationManager.setPlayer(playbackManager.playerInstance)
         } else {
             notificationManager.setPlayer(null)
         }
+    }
+
+    private fun shouldShowNotification(currentState: PlaybackUiState): Boolean {
+        if (currentState.currentSong == null) return false
+        if (notificationDismissedWhilePaused) return false
+        return currentState.isPlaying || currentState.currentSong != null
     }
 
     private inner class NotificationDescriptionAdapter : PlayerNotificationManager.MediaDescriptionAdapter {
