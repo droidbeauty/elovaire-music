@@ -561,7 +561,7 @@ class PreferenceStore(context: Context) {
     }
 
     private companion object {
-        const val BAND_COUNT = 24
+        const val BAND_COUNT = 18
         const val MAX_SEARCH_HISTORY = 6
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_TEXT_SIZE_PRESET = "text_size_preset"

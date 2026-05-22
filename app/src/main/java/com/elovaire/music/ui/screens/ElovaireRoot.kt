@@ -291,6 +291,7 @@ private const val PLAYER_ROUTE = "player"
 private const val EQUALIZER_ROUTE = "equalizer"
 private const val SETTINGS_ROUTE = "settings"
 private const val CHANGELOG_ROUTE = "changelog"
+private const val ABOUT_ROUTE = "about"
 private const val ALBUM_ROUTE = "album"
 private const val LIBRARY_COLLECTION_ROUTE = "library_collection"
 private const val GENRE_ROUTE = "genre"
@@ -336,6 +337,7 @@ private object ElovaireNavigationTransitions {
             SETTINGS_ROUTE,
             EQUALIZER_ROUTE,
             CHANGELOG_ROUTE,
+            ABOUT_ROUTE,
             "$LIBRARY_COLLECTION_ROUTE/{kind}",
             "$GENRE_ROUTE/{genre}",
             "$ARTIST_ROUTE/{artistName}",
@@ -377,6 +379,14 @@ private object ElovaireNavigationTransitions {
     ): Boolean {
         return initialRoute.normalizedNavigationRoute() == "$LIBRARY_COLLECTION_ROUTE/{kind}" &&
             targetRoute.normalizedNavigationRoute() == ALBUMS_ROUTE
+    }
+
+    fun isUtilityScreenRoute(route: String?): Boolean {
+        return route.normalizedNavigationRoute() in setOf(
+            SETTINGS_ROUTE,
+            EQUALIZER_ROUTE,
+            ABOUT_ROUTE,
+        )
     }
 }
 
@@ -436,13 +446,13 @@ private val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
 private val LocalSharedTopBarController = compositionLocalOf<SharedTopBarController?> { null }
 private val LocalRenderSharedTopBarContent = compositionLocalOf { false }
 private val LocalSharedBackIconPainter = compositionLocalOf<Painter?> { null }
-private val LocalSharedSettingsIconPainter = compositionLocalOf<Painter?> { null }
+private val LocalSharedTopMenuIconPainter = compositionLocalOf<Painter?> { null }
 
 private sealed interface SharedTopBarSpec {
     data class Unified(
         val title: String,
         val showSettings: Boolean,
-        val onOpenSettings: () -> Unit,
+        val onOpenMenu: () -> Unit,
     ) : SharedTopBarSpec
 
     data class Back(
@@ -1216,7 +1226,9 @@ fun ElovaireRoot(
     val chromeHazeState = rememberHazeState()
     val sharedTopBarController = remember { SharedTopBarController() }
     val sharedBackIconPainter = painterResource(id = R.drawable.ic_lucide_chevron_left)
-    val sharedSettingsIconPainter = painterResource(id = R.drawable.ic_lucide_settings)
+    val sharedTopMenuIconPainter = painterResource(id = R.drawable.ic_lucide_menu)
+    var showTopBarMenu by rememberSaveable { mutableStateOf(false) }
+    var showChangelogSheet by rememberSaveable { mutableStateOf(false) }
     val playerArtworkGradient = rememberArtworkGradient(playbackState.currentSong?.artUri).value
     val playerAdaptivePalette = remember(
         playbackState.currentSong?.id,
@@ -1246,12 +1258,36 @@ fun ElovaireRoot(
             navController.navigate("$ALBUM_ROUTE/$albumId")
         }
     }
+    val openSettingsFromMenu = remember(navController) {
+        {
+            showTopBarMenu = false
+            navController.navigate(SETTINGS_ROUTE)
+        }
+    }
+    val openEqualizerFromMenu = remember(navController) {
+        {
+            showTopBarMenu = false
+            navController.navigate(EQUALIZER_ROUTE)
+        }
+    }
+    val openChangelogSheetFromMenu = remember {
+        {
+            showTopBarMenu = false
+            showChangelogSheet = true
+        }
+    }
+    val openAboutFromMenu = remember(navController) {
+        {
+            showTopBarMenu = false
+            navController.navigate(ABOUT_ROUTE)
+        }
+    }
     val sharedTopBarSpec = sharedTopBarController.registration?.spec
         ?: if (showTopLevelChrome) {
             SharedTopBarSpec.Unified(
                 title = topBarTitle(currentRoute),
                 showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
-                onOpenSettings = { navController.navigate(SETTINGS_ROUTE) },
+                onOpenMenu = { showTopBarMenu = true },
             )
         } else {
             null
@@ -1267,6 +1303,9 @@ fun ElovaireRoot(
         if (!isPlayerOverlayVisible) {
             nowPlayingTransitionSnapshot = null
         }
+    }
+    LaunchedEffect(currentRoute) {
+        showTopBarMenu = false
     }
     SideEffect {
         val window = (rootView.context as? Activity)?.window ?: return@SideEffect
@@ -1331,7 +1370,7 @@ fun ElovaireRoot(
         LocalSongMenuActions provides songMenuActions,
         LocalChromeHazeState provides chromeHazeState,
         LocalSharedBackIconPainter provides sharedBackIconPainter,
-        LocalSharedSettingsIconPainter provides sharedSettingsIconPainter,
+        LocalSharedTopMenuIconPainter provides sharedTopMenuIconPainter,
     ) {
         Box(
             modifier = Modifier
@@ -1432,6 +1471,18 @@ fun ElovaireRoot(
                                 slideInVertically(
                                     animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
                                     initialOffsetY = { it / 10 },
+                                ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.992f,
+                                )
+                        } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(targetRoute)) {
+                            fadeIn(
+                                animationSpec = ElovaireMotion.fadeMedium(),
+                            ) +
+                                slideInHorizontally(
+                                    animationSpec = ElovaireMotion.offsetSoft(),
+                                    initialOffsetX = { it / 6 },
                                 ) +
                                 scaleIn(
                                     animationSpec = ElovaireMotion.scaleSoft(),
@@ -1539,6 +1590,18 @@ fun ElovaireRoot(
                                     animationSpec = ElovaireMotion.scaleSoft(),
                                     initialScale = 0.996f,
                                 )
+                        } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(targetRoute)) {
+                            fadeIn(
+                                animationSpec = ElovaireMotion.fadeMedium(),
+                            ) +
+                                slideInHorizontally(
+                                    animationSpec = ElovaireMotion.offsetSoft(),
+                                    initialOffsetX = { -(it / 14) },
+                                ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.992f,
+                                )
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
@@ -1620,6 +1683,16 @@ fun ElovaireRoot(
                                 ) +
                                 scaleOut(
                                     animationSpec = ElovaireMotion.fadeFast(),
+                                    targetScale = 0.992f,
+                                )
+                        } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(initialRoute)) {
+                            fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
+                                slideOutHorizontally(
+                                    animationSpec = ElovaireMotion.offsetSoft(),
+                                    targetOffsetX = { it / 3 },
+                                ) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeMedium(),
                                     targetScale = 0.992f,
                                 )
                         } else if (
@@ -1990,6 +2063,13 @@ fun ElovaireRoot(
                             onBack = navController::navigateUp,
                         )
                     }
+
+                    composable(ABOUT_ROUTE) {
+                        AboutScreen(
+                            onBack = navController::navigateUp,
+                            bottomPadding = detailBottomPadding,
+                        )
+                    }
                 }
                     if (navHostScrimAlpha > 0f) {
                         Box(
@@ -2019,6 +2099,37 @@ fun ElovaireRoot(
                                     .zIndex(9f),
                             )
                         }
+                    }
+                    ElovaireAnimatedVisibility(
+                        visible = showTopBarMenu,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(10f),
+                        enter = fadeIn(animationSpec = ElovaireMotion.fadeFast()),
+                        exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                        label = "TopBarContextMenuOverlay",
+                    ) {
+                        TopBarContextMenuOverlay(
+                            onDismiss = { showTopBarMenu = false },
+                            onOpenSettings = openSettingsFromMenu,
+                            onOpenEqualizer = openEqualizerFromMenu,
+                            onOpenChangelog = openChangelogSheetFromMenu,
+                            onOpenAbout = openAboutFromMenu,
+                        )
+                    }
+                    ElovaireAnimatedVisibility(
+                        visible = showChangelogSheet,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .zIndex(11f),
+                        enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
+                        exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                        label = "ChangelogSheetOverlay",
+                    ) {
+                        ChangelogBottomSheetOverlay(
+                            releases = changelogReleases,
+                            onDismiss = { showChangelogSheet = false },
+                        )
                     }
                     ElovaireAnimatedVisibility(
                         modifier = Modifier
@@ -2308,7 +2419,7 @@ private fun StandaloneNowPlayingDock(
 private fun UnifiedTopBar(
     title: String,
     showSettings: Boolean,
-    onOpenSettings: () -> Unit,
+    onOpenMenu: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -2318,7 +2429,7 @@ private fun UnifiedTopBar(
             SharedTopBarSpec.Unified(
                 title = title,
                 showSettings = showSettings,
-                onOpenSettings = onOpenSettings,
+                onOpenMenu = onOpenMenu,
             ),
         )
         return
@@ -2368,10 +2479,10 @@ private fun UnifiedTopBar(
             }
             if (showSettings) {
                 HeaderIconButton(
-                    iconResId = R.drawable.ic_lucide_settings,
-                    contentDescription = "Settings",
+                    iconResId = R.drawable.ic_lucide_menu,
+                    contentDescription = "Menu",
                     showBackground = false,
-                    onClick = onOpenSettings,
+                    onClick = onOpenMenu,
                     modifier = Modifier.zIndex(1f),
                 )
             } else {
@@ -2539,10 +2650,10 @@ private fun SharedTopBarOverlay(
                     }
                     if (spec.showSettings) {
                         HeaderIconButton(
-                            iconResId = R.drawable.ic_lucide_settings,
-                            contentDescription = "Settings",
+                            iconResId = R.drawable.ic_lucide_menu,
+                            contentDescription = "Menu",
                             showBackground = false,
-                            onClick = spec.onOpenSettings,
+                            onClick = spec.onOpenMenu,
                         )
                     } else {
                         SpacerTile(modifier = Modifier.size(40.dp))
@@ -2717,10 +2828,10 @@ private fun HeaderIconButton(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val sharedBackPainter = LocalSharedBackIconPainter.current
-    val sharedSettingsPainter = LocalSharedSettingsIconPainter.current
+    val sharedTopMenuPainter = LocalSharedTopMenuIconPainter.current
     val iconPainter = when {
         iconResId == R.drawable.ic_lucide_chevron_left && sharedBackPainter != null -> sharedBackPainter
-        iconResId == R.drawable.ic_lucide_settings && sharedSettingsPainter != null -> sharedSettingsPainter
+        iconResId == R.drawable.ic_lucide_menu && sharedTopMenuPainter != null -> sharedTopMenuPainter
         else -> painterResource(id = iconResId)
     }
     val scale by animateFloatAsState(
@@ -3281,7 +3392,7 @@ private fun FirstLaunchPermissionLoadingScreen(
         UnifiedTopBar(
             title = "Elovaire",
             showSettings = false,
-            onOpenSettings = onRequestPermission,
+            onOpenMenu = onRequestPermission,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth(),
@@ -10108,6 +10219,83 @@ private fun FrostedContextMenuSurface(
 }
 
 @Composable
+private fun TopBarContextMenuOverlay(
+    onDismiss: () -> Unit,
+    onOpenSettings: () -> Unit,
+    onOpenEqualizer: () -> Unit,
+    onOpenChangelog: () -> Unit,
+    onOpenAbout: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onDismiss,
+            ),
+    ) {
+        androidx.compose.animation.AnimatedVisibility(
+            visible = true,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .statusBarsPadding()
+                .padding(top = 42.dp, end = 14.dp),
+            enter = fadeIn(animationSpec = tween(170, easing = LinearOutSlowInEasing)) +
+                scaleIn(
+                    initialScale = 0.94f,
+                    transformOrigin = TransformOrigin(1f, 0f),
+                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                ) +
+                slideInVertically(
+                    initialOffsetY = { -it / 6 },
+                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                ),
+            exit = fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing)) +
+                scaleOut(
+                    targetScale = 0.98f,
+                    transformOrigin = TransformOrigin(1f, 0f),
+                    animationSpec = tween(130, easing = FastOutLinearInEasing),
+                ),
+            label = "TopBarContextMenuVisibility",
+        ) {
+            FrostedContextMenuSurface(
+                modifier = Modifier.width(212.dp),
+            ) {
+                SongContextMenuItem(
+                    iconResId = R.drawable.ic_lucide_settings,
+                    text = "Settings",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    onClick = onOpenSettings,
+                )
+                DividerLine()
+                SongContextMenuItem(
+                    iconResId = R.drawable.ic_lucide_audio_waveform,
+                    text = "Equalizer",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    onClick = onOpenEqualizer,
+                )
+                DividerLine()
+                SongContextMenuItem(
+                    iconResId = R.drawable.ic_lucide_list,
+                    text = "Changelog",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    onClick = onOpenChangelog,
+                )
+                DividerLine()
+                SongContextMenuItem(
+                    iconResId = R.drawable.ic_lucide_info,
+                    text = "About",
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    bottomPadding = 10.dp,
+                    onClick = onOpenAbout,
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun SongContextMenuItem(
     @DrawableRes iconResId: Int,
     text: String,
@@ -11433,7 +11621,7 @@ private fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         SectionTitleRow(
                             title = "Sound shaping",
@@ -11441,7 +11629,7 @@ private fun SettingsScreen(
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
                         ) {
                             DigitalSoundKnob(
                                 title = "Bass boost",
@@ -11643,42 +11831,169 @@ private fun ChangelogScreen(
 
             item {
                 Box(modifier = Modifier.padding(horizontal = 18.dp)) {
-                    ModuleCard {
-                        val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(0.dp),
+                    ModuleCard { ChangelogReleaseContent(release = release) }
+                }
+            }
+        }
+        PinnedBackTopBar(
+            title = "Changelog",
+            onBack = onBack,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+    }
+}
+
+@Composable
+private fun ChangelogBottomSheetOverlay(
+    releases: List<ChangelogRelease>,
+    onDismiss: () -> Unit,
+) {
+    val listState = rememberLazyListState()
+    val release = remember(releases) {
+        releases.firstOrNull { it.version == BuildConfig.VERSION_NAME } ?: releases.firstOrNull()
+    }
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+            ),
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
+                ),
+        )
+        androidx.compose.animation.AnimatedVisibility(
+            visible = true,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                scaleIn(
+                    animationSpec = tween(
+                        durationMillis = ElovaireMotion.Spacious,
+                        easing = FastOutSlowInEasing,
+                    ),
+                    initialScale = 0.94f,
+                    transformOrigin = TransformOrigin(0.5f, 1f),
+                ) +
+                slideInVertically(
+                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Spacious),
+                    initialOffsetY = { it / 2 },
+                ),
+            exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                scaleOut(
+                    animationSpec = tween(
+                        durationMillis = ElovaireMotion.Quick,
+                        easing = FastOutLinearInEasing,
+                    ),
+                    targetScale = 0.985f,
+                    transformOrigin = TransformOrigin(0.5f, 1f),
+                ) +
+                slideOutVertically(
+                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                    targetOffsetY = { it / 3 },
+                ),
+            label = "ChangelogBottomSheetCard",
+        ) {
+            DynamicBackdropSurface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.5f),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                overlayAlpha = 0.7f,
+                borderColor = null,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(top = 18.dp),
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 16.dp, bottom = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            if (changes.isEmpty()) {
+                            Text(
+                                text = "What’s new?",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(ElovaireRadii.pill),
+                                color = readableCardSurfaceColor().copy(alpha = 0.72f),
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ) {
                                 Text(
-                                    text = "No changelog entries yet",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = readableSecondaryTextColor(),
+                                    text = BuildConfig.VERSION_NAME,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                 )
-                            } else {
-                                changes.forEachIndexed { index, change ->
-                                    Column(
-                                        modifier = Modifier.fillMaxWidth(0.9f),
-                                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                                    ) {
-                                        Text(
-                                            text = change,
-                                            style = MaterialTheme.typography.bodyLarge,
-                                            color = MaterialTheme.colorScheme.onSurface,
-                                        )
-                                        if (index != changes.lastIndex) {
-                                            Box(
-                                                modifier = Modifier
-                                                    .fillMaxWidth()
-                                                    .height(1.dp)
-                                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
-                                            )
-                                        }
-                                    }
-                                    if (index != changes.lastIndex) {
-                                        Spacer(modifier = Modifier.height(14.dp))
-                                    }
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onDismiss,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_x),
+                                contentDescription = "Close changelog",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = navigationBarInsetDp() + 18.dp),
+                        contentAlignment = Alignment.TopCenter,
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight()
+                                .clip(RoundedCornerShape(ElovaireRadii.card))
+                                .background(readableCardSurfaceColor()),
+                        ) {
+                            LazyColumn(
+                                state = listState,
+                                overscrollEffect = null,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .ensureSingleItemRubberBand(listState),
+                                contentPadding = PaddingValues(
+                                    top = 18.dp,
+                                    bottom = 18.dp,
+                                ),
+                            ) {
+                                item {
+                                    ChangelogReleaseContent(
+                                        release = release,
+                                        contentWidthFraction = 0.9f,
+                                    )
                                 }
                             }
                         }
@@ -11686,8 +12001,115 @@ private fun ChangelogScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChangelogReleaseContent(
+    release: ChangelogRelease?,
+    contentWidthFraction: Float = 0.9f,
+) {
+    val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+    ) {
+        if (changes.isEmpty()) {
+            Text(
+                text = "No changelog entries yet",
+                style = MaterialTheme.typography.bodyLarge,
+                color = readableSecondaryTextColor(),
+            )
+        } else {
+            changes.forEachIndexed { index, change ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(contentWidthFraction),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Text(
+                        text = change,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    if (index != changes.lastIndex) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+                        )
+                    }
+                }
+                if (index != changes.lastIndex) {
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutScreen(
+    onBack: () -> Unit,
+    bottomPadding: Dp,
+) {
+    val listState = rememberLazyListState()
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                end = 18.dp,
+                top = detailTopBarOccupiedHeight() + ElovaireSpacing.topBarToFirstContentGap,
+                bottom = bottomPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+        ) {
+            item {
+                ModuleCard {
+                    Column(
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        horizontalAlignment = Alignment.Start,
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "Elovaire",
+                                style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(30f)),
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(ElovaireRadii.pill),
+                                color = readableCardSurfaceColor().copy(alpha = 0.72f),
+                            ) {
+                                Text(
+                                    text = BuildConfig.VERSION_NAME,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                )
+                            }
+                        }
+                        Text(
+                            text = "Offline audio player focused on artwork, smooth motion, and high-quality local playback.",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = readableSecondaryTextColor(),
+                        )
+                    }
+                }
+            }
+        }
         PinnedBackTopBar(
-            title = "Changelog",
+            title = "About",
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -12203,12 +12625,12 @@ private fun DigitalSoundKnob(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(108.dp)
+                .height(138.dp)
                 .horizontalGestureSafe()
                 .pointerInput(title) {
                     detectTapGestures { offset ->
@@ -12242,12 +12664,12 @@ private fun DigitalSoundKnob(
                 modifier = Modifier
                     .fillMaxSize(),
             ) {
-                val strokeWidth = 4.dp.toPx()
-                val horizontalInset = 14.dp.toPx()
-                val topInset = 6.dp.toPx()
+                val strokeWidth = 5.dp.toPx()
+                val horizontalInset = 10.dp.toPx()
+                val topInset = 10.dp.toPx()
                 val radius = min(
                     ((size.width - (horizontalInset * 2f)) / 2f).coerceAtLeast(1f),
-                    ((size.height - topInset - 12.dp.toPx()) * 0.48f).coerceAtLeast(1f),
+                    ((size.height - topInset - 22.dp.toPx()) * 0.44f).coerceAtLeast(1f),
                 )
                 val center = Offset(size.width / 2f, topInset + radius)
                 val startAngle = 180f
@@ -12278,9 +12700,9 @@ private fun DigitalSoundKnob(
                     )
                 }
 
-                val tickOuterRadius = (radius - 14.dp.toPx()).coerceAtLeast(1f)
-                val tickInnerRadius = (tickOuterRadius - 10.dp.toPx()).coerceAtLeast(1f)
-                val tickCount = 32
+                val tickOuterRadius = (radius - 18.dp.toPx()).coerceAtLeast(1f)
+                val tickInnerRadius = (tickOuterRadius - 12.dp.toPx()).coerceAtLeast(1f)
+                val tickCount = 34
                 repeat(tickCount) { tickIndex ->
                     val fraction = tickIndex / (tickCount - 1).toFloat()
                     val angleDegrees = 180f + (180f * fraction)
@@ -12297,20 +12719,20 @@ private fun DigitalSoundKnob(
                         color = tickColor,
                         start = start,
                         end = end,
-                        strokeWidth = 1.8.dp.toPx(),
+                        strokeWidth = 1.6.dp.toPx(),
                         cap = StrokeCap.Square,
                     )
                 }
             }
 
             Column(
-                modifier = Modifier.padding(top = 30.dp),
+                modifier = Modifier.padding(top = 40.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
                     text = "${(animatedValue * 100f).roundToInt()}",
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(24f)),
+                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                 )
                 Box(
@@ -12846,18 +13268,13 @@ private fun EqBandFrequencyLabels(
     val labels = remember {
         EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.map(::formatEqFrequencyLabel)
     }
-    val bandFractions = remember { eqBandFractions() }
-    BoxWithConstraints(
+    Row(
         modifier = modifier.width(contentWidth),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        val slotWidth = contentWidth / EqualizerDspModel.BAND_COUNT
-        labels.forEachIndexed { index, label ->
-            val fraction = bandFractions.getOrElse(index) { 0f }
-            val xOffset = (maxWidth - slotWidth) * fraction
+        labels.forEach { label ->
             Box(
-                modifier = Modifier
-                    .offset(x = xOffset)
-                    .width(slotWidth),
+                modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
@@ -12940,14 +13357,24 @@ private fun EqHorizontalScrollbar(
                     .align(Alignment.TopStart)
                     .fillMaxWidth()
                     .height(18.dp)
-                    .padding(start = leadingInset)
                     .clipToBounds(),
             ) {
-                EqBandFrequencyLabels(
-                    contentWidth = contentWidth,
-                    modifier = Modifier
-                        .offset { IntOffset(-scrollState.value, 0) },
-                )
+                Row(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Spacer(modifier = Modifier.width(leadingInset))
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clipToBounds(),
+                    ) {
+                        EqBandFrequencyLabels(
+                            contentWidth = contentWidth,
+                            modifier = Modifier.offset { IntOffset(-scrollState.value, 0) },
+                        )
+                    }
+                }
             }
             Box(
                 modifier = Modifier
@@ -13157,11 +13584,11 @@ private fun eqPreset(
         when (EqualizerDspModel.bandDefinition(index).frequencyHz) {
             in 0f..30f -> bass
             in 30.0001f..60f -> subBass
-            in 60.0001f..140f -> lowBass
-            in 140.0001f..500f -> lowMid
-            in 500.0001f..1_250f -> presence
-            in 1_250.0001f..3_150f -> upperMid
-            in 3_150.0001f..7_500f -> brilliance
+            in 60.0001f..350f -> lowBass
+            in 350.0001f..750f -> lowMid
+            in 750.0001f..1_500f -> presence
+            in 1_500.0001f..3_000f -> upperMid
+            in 3_000.0001f..8_000f -> brilliance
             else -> air
         }.coerceIn(-1f, 1f)
     }

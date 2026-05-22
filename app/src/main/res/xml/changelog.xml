@@ -7,6 +7,7 @@
       3. Add newer releases above older ones.
     -->
     <release version="1.8.3">
+        <item>Settings button in the top replaced with new context menu</item>
         <item>Bug fixes in lyrics UI</item>
         <item>A few other bug fixes</item>
     </release>

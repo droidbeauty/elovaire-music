@@ -86,33 +86,33 @@ internal data class EqBandDefinition(
 )
 
 internal object EqualizerDspModel {
-    val BAND_DEFINITIONS: List<EqBandDefinition> = listOf(
-        EqBandDefinition(20f, 2.45f),
-        EqBandDefinition(30f, 2.45f),
-        EqBandDefinition(45f, 2.96f),
-        EqBandDefinition(60f, 3.46f),
-        EqBandDefinition(80f, 3.97f),
-        EqBandDefinition(100f, 3.46f),
-        EqBandDefinition(140f, 2.86f),
-        EqBandDefinition(200f, 2.89f),
-        EqBandDefinition(280f, 3.13f),
-        EqBandDefinition(380f, 3.46f),
-        EqBandDefinition(500f, 3.73f),
-        EqBandDefinition(650f, 4.30f),
-        EqBandDefinition(800f, 4.62f),
-        EqBandDefinition(1_000f, 4.47f),
-        EqBandDefinition(1_250f, 4.22f),
-        EqBandDefinition(1_600f, 4.27f),
-        EqBandDefinition(2_000f, 4.47f),
-        EqBandDefinition(2_500f, 4.38f),
-        EqBandDefinition(3_150f, 4.24f),
-        EqBandDefinition(4_000f, 3.51f),
-        EqBandDefinition(5_500f, 3.18f),
-        EqBandDefinition(7_500f, 3.06f),
-        EqBandDefinition(10_500f, 3.03f),
-        EqBandDefinition(14_500f, 3.08f),
+    private val BAND_FREQUENCIES_HZ = listOf(
+        30f,
+        60f,
+        120f,
+        250f,
+        350f,
+        500f,
+        750f,
+        1_000f,
+        1_500f,
+        2_000f,
+        3_000f,
+        4_000f,
+        5_000f,
+        6_000f,
+        8_000f,
+        10_000f,
+        12_000f,
+        16_000f,
     )
-    const val BAND_COUNT = 24
+    val BAND_DEFINITIONS: List<EqBandDefinition> = BAND_FREQUENCIES_HZ.mapIndexed { index, frequencyHz ->
+        EqBandDefinition(
+            frequencyHz = frequencyHz,
+            q = deriveBandQ(index, BAND_FREQUENCIES_HZ),
+        )
+    }
+    const val BAND_COUNT = 18
     val BAND_CENTER_FREQUENCIES_HZ: FloatArray = BAND_DEFINITIONS.map { it.frequencyHz }.toFloatArray()
     private const val FLAT_EPSILON = 0.0005f
 
@@ -207,6 +207,27 @@ internal object EqualizerDspModel {
         val safeTimeSeconds = smoothingTimeMs.coerceAtLeast(20) / 1_000.0
         val stride = strideFrames.coerceAtLeast(1).toDouble()
         return (1.0 - exp(-stride / (safeSampleRate * safeTimeSeconds))).toFloat().coerceIn(0.01f, 1f)
+    }
+
+    private fun deriveBandQ(
+        index: Int,
+        frequenciesHz: List<Float>,
+    ): Float {
+        val center = frequenciesHz[index].toDouble()
+        val lowerBoundary = if (index == 0) {
+            val nextRatio = frequenciesHz[index + 1] / frequenciesHz[index]
+            center / sqrt(nextRatio.toDouble())
+        } else {
+            sqrt((frequenciesHz[index - 1] * frequenciesHz[index]).toDouble())
+        }
+        val upperBoundary = if (index == frequenciesHz.lastIndex) {
+            val previousRatio = frequenciesHz[index] / frequenciesHz[index - 1]
+            center * sqrt(previousRatio.toDouble())
+        } else {
+            sqrt((frequenciesHz[index] * frequenciesHz[index + 1]).toDouble())
+        }
+        val bandwidth = (upperBoundary - lowerBoundary).coerceAtLeast(center * 0.16)
+        return (center / bandwidth).toFloat().coerceIn(0.9f, 4.2f)
     }
 
     private fun estimatePeakResponseDb(
