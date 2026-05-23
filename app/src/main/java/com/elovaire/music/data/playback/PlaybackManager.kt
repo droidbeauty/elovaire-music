@@ -436,12 +436,7 @@ class PlaybackManager(
             playSong(song = song, collection = listOf(song), sourceLabel = song.album)
             return
         }
-        player.addMediaItem(
-            MediaItem.Builder()
-                .setMediaId(song.id.toString())
-                .setUri(song.uri)
-                .build(),
-        )
+        player.addMediaItem(song.toPlaybackMediaItem())
         _state.value = _state.value.copy(queue = existingQueue + song)
         updateState()
     }
@@ -466,25 +461,31 @@ class PlaybackManager(
     ) {
         if (songs.isEmpty()) return
         cancelPauseFade()
+        isManualPausePending = false
+        isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
 
         val mediaItems = songs.map { song ->
-            MediaItem.Builder()
-                .setMediaId(song.id.toString())
-                .setUri(song.uri)
-                .build()
+            song.toPlaybackMediaItem()
         }
 
         player.setMediaItems(mediaItems, startIndex, 0L)
         player.shuffleModeEnabled = shuffleEnabled
         player.prepare()
-        if (requestAudioFocus()) {
+        val shouldAutoPlay = requestAudioFocus()
+        if (shouldAutoPlay) {
             player.volume = effectivePlayerGain()
             player.playWhenReady = true
+            player.play()
         } else {
             player.playWhenReady = false
         }
-        _state.value = _state.value.copy(queue = songs, sourceLabel = sourceLabel)
+        _state.value = _state.value.copy(
+            queue = songs,
+            currentIndex = startIndex.coerceIn(songs.indices),
+            sourceLabel = sourceLabel,
+            transportShowsPause = shouldAutoPlay,
+        )
         updateState()
     }
 
@@ -514,7 +515,7 @@ class PlaybackManager(
 
     private fun updateState() {
         val existingState = _state.value
-        val currentIndex = player.currentMediaItemIndex.takeIf { it >= 0 } ?: -1
+        val currentIndex = resolveCurrentQueueIndex(existingState)
         val currentSong = existingState.queue.getOrNull(currentIndex)
         if (currentIndex >= 0) {
             lastKnownQueueIndex = currentIndex
@@ -687,10 +688,7 @@ class PlaybackManager(
         isRecoveringPlayback = true
         scope.launch {
             val mediaItems = snapshot.queue.map { song ->
-                MediaItem.Builder()
-                    .setMediaId(song.id.toString())
-                    .setUri(song.uri)
-                    .build()
+                song.toPlaybackMediaItem()
             }
             player.setMediaItems(mediaItems, recoverIndex, recoverPosition)
             player.shuffleModeEnabled = snapshot.shuffleEnabled
@@ -765,6 +763,12 @@ class PlaybackManager(
     }
 
     private fun syncFromObservedSystemVolume() {
+        if (pauseFadeJob?.isActive == true) {
+            ignoreObservedSystemVolumeStep = null
+            userVolume = currentEffectiveVolumeFraction()
+            updateState()
+            return
+        }
         if (usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
             ignoreObservedSystemVolumeStep = null
             player.volume = if (isPauseTransitioningToStopped && !player.isPlaying) 0f else 1f
@@ -864,18 +868,57 @@ class PlaybackManager(
         return buildList {
             add(id)
             existing.asSequence()
-                .filter { it != id }
+            .filter { it != id }
                 .take(MAX_HISTORY_ITEMS - 1)
                 .forEach(::add)
         }
     }
 
+    private fun resolveCurrentQueueIndex(existingState: PlaybackUiState): Int {
+        val playerIndex = player.currentMediaItemIndex.takeIf { it >= 0 }
+        if (playerIndex != null) return playerIndex
+
+        val playerMediaId = player.currentMediaItem?.mediaId?.toLongOrNull()
+        if (playerMediaId != null) {
+            val matchedQueueIndex = existingState.queue.indexOfFirst { it.id == playerMediaId }
+            if (matchedQueueIndex >= 0) return matchedQueueIndex
+        }
+
+        val fallbackIndex = existingState.currentIndex
+        return fallbackIndex.takeIf { it in existingState.queue.indices } ?: -1
+    }
+
     private companion object {
-        const val PAUSE_FADE_DURATION_MS = 1_000L
+        const val PAUSE_FADE_DURATION_MS = 600L
         const val PAUSE_FADE_STEP_COUNT = 20
         const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val MAX_HISTORY_ITEMS = 12
+    }
+}
+
+private fun Song.toPlaybackMediaItem(): MediaItem {
+    return MediaItem.Builder()
+        .setMediaId(id.toString())
+        .setUri(uri)
+        .setMimeType(inferPlaybackMimeType())
+        .build()
+}
+
+private fun Song.inferPlaybackMimeType(): String? {
+    val extension = fileName.substringAfterLast('.', "").lowercase()
+    val normalizedFormat = audioFormat.uppercase()
+    return when {
+        normalizedFormat == "ALAC" -> "audio/mp4"
+        normalizedFormat == "AIFF" || extension in setOf("aif", "aiff", "aifc") -> "audio/aiff"
+        extension in setOf("m4a", "mp4") -> "audio/mp4"
+        extension == "aac" || normalizedFormat == "AAC" -> "audio/aac"
+        extension == "flac" || normalizedFormat == "FLAC" -> "audio/flac"
+        extension == "wav" || normalizedFormat == "WAV" -> "audio/wav"
+        extension == "mp3" || normalizedFormat == "MP3" -> "audio/mpeg"
+        extension == "ogg" || normalizedFormat == "OGG" -> "audio/ogg"
+        extension == "opus" || normalizedFormat == "OPUS" -> "audio/opus"
+        else -> null
     }
 }
 

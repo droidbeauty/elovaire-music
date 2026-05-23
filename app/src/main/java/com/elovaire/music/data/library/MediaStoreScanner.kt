@@ -34,10 +34,15 @@ class MediaStoreScanner(
         songs.forEach { song ->
             val hasMeaningfulGenre = song.genre.isNotBlank() && song.genre != "Unknown Genre"
             val cachedMetadata = SongMetadata(
+                title = song.title,
+                artist = song.artist,
+                album = song.album,
                 releaseYear = song.releaseYear,
                 genre = song.genre.takeIf { hasMeaningfulGenre },
                 format = song.audioFormat,
                 quality = song.audioQuality,
+                trackNumber = song.trackNumber.takeIf { it > 0 },
+                discNumber = song.discNumber.takeIf { it > 0 },
             )
             metadataCache[song.id] = CachedSongMetadata(
                 fileName = song.fileName,
@@ -96,10 +101,7 @@ class MediaStoreScanner(
                 val id = cursor.getLong(idIndex)
                 val albumId = cursor.getLong(albumIdIndex)
                 val songUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
-                val rawTitle = cursor.getString(titleIndex).orUnknown("Untitled Track")
                 val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
-                val isExplicit = detectExplicit(rawTitle, fileName)
-                val title = sanitizeDisplayTitle(rawTitle, isExplicit)
                 val fileSizeBytes = sizeIndex.takeIf { it >= 0 }?.let(cursor::getLong)?.takeIf { it > 0L }
                 val durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L)
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
@@ -125,12 +127,25 @@ class MediaStoreScanner(
                         )
                     } else {
                         SongMetadata(
+                            title = null,
+                            artist = null,
+                            album = null,
                             releaseYear = mediaStoreYear,
                             genre = null,
                             format = fileName.substringAfterLast('.', "").uppercase().ifBlank { "AUDIO" },
                             quality = null,
+                            trackNumber = null,
+                            discNumber = null,
                         )
                     }
+                val rawTitle = songMetadata.title
+                    ?: cursor.getString(titleIndex).orUnknown("Untitled Track")
+                val rawArtist = songMetadata.artist
+                    ?: cursor.getString(artistIndex).orUnknown("Unknown Artist")
+                val rawAlbum = songMetadata.album
+                    ?: cursor.getString(albumIndex).orUnknown("Unknown Album")
+                val isExplicit = detectExplicit(rawTitle, fileName)
+                val title = sanitizeDisplayTitle(rawTitle, isExplicit)
                 refreshedMetadataCache[id] = CachedSongMetadata(
                     fileName = fileName,
                     dateAddedSeconds = dateAddedSeconds,
@@ -142,8 +157,8 @@ class MediaStoreScanner(
                     id = id,
                     title = title,
                     isExplicit = isExplicit,
-                    artist = cursor.getString(artistIndex).orUnknown("Unknown Artist"),
-                    album = cursor.getString(albumIndex).orUnknown("Unknown Album"),
+                    artist = rawArtist,
+                    album = rawAlbum,
                     releaseYear = songMetadata.releaseYear,
                     genre = songMetadata.genre.orUnknown("Unknown Genre"),
                     audioFormat = songMetadata.format,
@@ -151,8 +166,8 @@ class MediaStoreScanner(
                     fileName = fileName,
                     albumId = albumId,
                     durationMs = durationMs,
-                    trackNumber = normalizeTrackNumber(rawTrack),
-                    discNumber = normalizeDiscNumber(rawTrack),
+                    trackNumber = songMetadata.trackNumber ?: normalizeTrackNumber(rawTrack),
+                    discNumber = songMetadata.discNumber ?: normalizeDiscNumber(rawTrack),
                     dateAddedSeconds = dateAddedSeconds,
                     uri = songUri,
                     artUri = albumArtworkUri(albumId),
@@ -409,11 +424,13 @@ class MediaStoreScanner(
         durationMs: Long,
     ): SongMetadata {
         val extractorMetadata = readExtractorMetadata(songUri)
+        val retrieverMetadata = readRetrieverMetadata(songUri)
         val resolvedFormat = resolveAudioFormat(
             fileName = fileName,
             mimeType = extractorMetadata.mimeType,
+            retrieverMimeType = retrieverMetadata.mimeType,
+            bitDepth = retrieverMetadata.bitDepth,
         )
-        val retrieverMetadata = readRetrieverMetadata(songUri)
         val year = retrieverMetadata.year ?: mediaStoreYear
         val sampleRate = retrieverMetadata.sampleRate ?: extractorMetadata.sampleRate
         val bitDepth = retrieverMetadata.bitDepth
@@ -426,6 +443,9 @@ class MediaStoreScanner(
             )
         val genre = retrieverMetadata.genre ?: queryGenre(songId)
         return SongMetadata(
+            title = retrieverMetadata.title,
+            artist = retrieverMetadata.artist,
+            album = retrieverMetadata.album,
             releaseYear = year,
             genre = genre,
             format = resolvedFormat,
@@ -435,6 +455,8 @@ class MediaStoreScanner(
                 sampleRate = sampleRate,
                 bitrate = bitrate,
             ),
+            trackNumber = retrieverMetadata.trackNumber,
+            discNumber = retrieverMetadata.discNumber,
         )
     }
 
@@ -444,6 +466,15 @@ class MediaStoreScanner(
             try {
                 retriever.setDataSource(context, songUri)
                 RetrieverMetadata(
+                    title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() },
+                    artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() },
+                    album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() },
                     year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
                         ?.take(4)
                         ?.toIntOrNull()
@@ -452,11 +483,17 @@ class MediaStoreScanner(
                     sampleRate = extractRetrieverSampleRate(retriever),
                     bitDepth = extractRetrieverBitDepth(retriever),
                     bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull(),
+                    mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() },
                     genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
                         ?.substringBefore(';')
                         ?.substringBefore('/')
                         ?.trim()
                         ?.takeIf { it.isNotBlank() },
+                    trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
+                        ?.let(::parseTrackNumberTag),
+                    discNumber = extractRetrieverDiscNumber(retriever),
                 )
             } finally {
                 runCatching { retriever.release() }
@@ -518,6 +555,26 @@ class MediaStoreScanner(
         return YEAR_REGEX.find(value)?.value?.toIntOrNull()
     }
 
+    private fun parseTrackNumberTag(value: String): Int? {
+        return value
+            .substringBefore('/')
+            .trim()
+            .toIntOrNull()
+            ?.takeIf { it > 0 }
+    }
+
+    private fun extractRetrieverDiscNumber(retriever: MediaMetadataRetriever): Int? {
+        return runCatching {
+            val keyField = MediaMetadataRetriever::class.java.getField("METADATA_KEY_DISC_NUMBER")
+            val key = keyField.getInt(null)
+            retriever.extractMetadata(key)
+                ?.substringBefore('/')
+                ?.trim()
+                ?.toIntOrNull()
+                ?.takeIf { it > 0 }
+        }.getOrNull()
+    }
+
     private fun formatAudioQuality(
         format: String,
         bitDepth: Int?,
@@ -542,6 +599,8 @@ class MediaStoreScanner(
     private fun resolveAudioFormat(
         fileName: String,
         mimeType: String? = null,
+        retrieverMimeType: String? = null,
+        bitDepth: Int? = null,
     ): String {
         val extension = fileName.substringAfterLast('.', "").uppercase().ifBlank { "AUDIO" }
         return when {
@@ -550,10 +609,14 @@ class MediaStoreScanner(
             mimeType.equals("audio/ogg", ignoreCase = true) -> "OGG"
             mimeType.equals("audio/opus", ignoreCase = true) -> "OPUS"
             mimeType.equals("audio/alac", ignoreCase = true) -> "ALAC"
+            mimeType.equals("audio/aiff", ignoreCase = true) || mimeType.equals("audio/x-aiff", ignoreCase = true) -> "AIFF"
             mimeType.equals("audio/aac", ignoreCase = true) -> "AAC"
             mimeType.equals("audio/mp4a-latm", ignoreCase = true) && extension == "M4A" -> "AAC"
+            retrieverMimeType.equals("audio/alac", ignoreCase = true) -> "ALAC"
+            retrieverMimeType.equals("audio/aiff", ignoreCase = true) || retrieverMimeType.equals("audio/x-aiff", ignoreCase = true) -> "AIFF"
+            retrieverMimeType in setOf("audio/mp4", "audio/m4a", "audio/x-m4a") && bitDepth != null && bitDepth >= 16 -> "ALAC"
             mimeType.equals("audio/wav", ignoreCase = true) || mimeType.equals("audio/x-wav", ignoreCase = true) -> "WAV"
-            mimeType.equals("audio/aiff", ignoreCase = true) || mimeType.equals("audio/x-aiff", ignoreCase = true) -> "AIFF"
+            extension in setOf("AIFF", "AIF", "AIFC") -> "AIFF"
             extension == "DSF" -> "DSD"
             extension == "DFF" -> "DSD"
             else -> extension
@@ -609,6 +672,9 @@ class MediaStoreScanner(
             "aac",
             "flac",
             "wav",
+            "aif",
+            "aiff",
+            "aifc",
             "alac",
             "ogg",
             "opus",
@@ -666,10 +732,15 @@ private data class CachedSongMetadata(
 )
 
 private data class SongMetadata(
+    val title: String?,
+    val artist: String?,
+    val album: String?,
     val releaseYear: Int?,
     val genre: String?,
     val format: String,
     val quality: String?,
+    val trackNumber: Int?,
+    val discNumber: Int?,
 )
 
 private data class ExtractorMetadata(
@@ -679,11 +750,17 @@ private data class ExtractorMetadata(
 )
 
 private data class RetrieverMetadata(
+    val title: String? = null,
+    val artist: String? = null,
+    val album: String? = null,
     val year: Int? = null,
     val sampleRate: Int? = null,
     val bitDepth: Int? = null,
     val bitrate: Int? = null,
+    val mimeType: String? = null,
     val genre: String? = null,
+    val trackNumber: Int? = null,
+    val discNumber: Int? = null,
 )
 
 internal fun Song.qualityNeedsEnrichment(): Boolean {

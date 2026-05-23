@@ -35,6 +35,12 @@ class PreferenceStore(context: Context) {
     private val _songCollectionGridEnabled = MutableStateFlow(loadSongCollectionGridEnabled())
     val songCollectionGridEnabled: StateFlow<Boolean> = _songCollectionGridEnabled.asStateFlow()
 
+    private val _albumCollectionSortMode = MutableStateFlow(loadAlbumCollectionSortMode())
+    val albumCollectionSortMode: StateFlow<String> = _albumCollectionSortMode.asStateFlow()
+
+    private val _songCollectionSortMode = MutableStateFlow(loadSongCollectionSortMode())
+    val songCollectionSortMode: StateFlow<String> = _songCollectionSortMode.asStateFlow()
+
     private val _libraryFolderUri = MutableStateFlow(loadLibraryFolderUri())
     val libraryFolderUri: StateFlow<Uri?> = _libraryFolderUri.asStateFlow()
 
@@ -301,6 +307,22 @@ class PreferenceStore(context: Context) {
         _songCollectionGridEnabled.value = enabled
     }
 
+    fun setAlbumCollectionSortMode(sortMode: String) {
+        val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_SORT_MODE }
+        preferences.edit {
+            putString(KEY_ALBUM_COLLECTION_SORT_MODE, normalizedSortMode)
+        }
+        _albumCollectionSortMode.value = normalizedSortMode
+    }
+
+    fun setSongCollectionSortMode(sortMode: String) {
+        val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_SONG_COLLECTION_SORT_MODE }
+        preferences.edit {
+            putString(KEY_SONG_COLLECTION_SORT_MODE, normalizedSortMode)
+        }
+        _songCollectionSortMode.value = normalizedSortMode
+    }
+
     fun setLibraryFolder(
         uri: Uri?,
         path: String,
@@ -381,6 +403,20 @@ class PreferenceStore(context: Context) {
 
     private fun loadSongCollectionGridEnabled(): Boolean {
         return preferences.getBoolean(KEY_SONG_COLLECTION_GRID_ENABLED, false)
+    }
+
+    private fun loadAlbumCollectionSortMode(): String {
+        return preferences.getString(
+            KEY_ALBUM_COLLECTION_SORT_MODE,
+            DEFAULT_ALBUM_COLLECTION_SORT_MODE,
+        )?.trim().takeUnless { it.isNullOrBlank() } ?: DEFAULT_ALBUM_COLLECTION_SORT_MODE
+    }
+
+    private fun loadSongCollectionSortMode(): String {
+        return preferences.getString(
+            KEY_SONG_COLLECTION_SORT_MODE,
+            DEFAULT_SONG_COLLECTION_SORT_MODE,
+        )?.trim().takeUnless { it.isNullOrBlank() } ?: DEFAULT_SONG_COLLECTION_SORT_MODE
     }
 
     private fun loadLibraryFolderUri(): Uri? {
@@ -575,6 +611,8 @@ class PreferenceStore(context: Context) {
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
         const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"
+        const val KEY_ALBUM_COLLECTION_SORT_MODE = "album_collection_sort_mode"
+        const val KEY_SONG_COLLECTION_SORT_MODE = "song_collection_sort_mode"
         const val KEY_LIBRARY_FOLDER_URI = "library_folder_uri"
         const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
@@ -585,6 +623,8 @@ class PreferenceStore(context: Context) {
         const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"
         const val KEY_MONO_ENABLED = "mono_playback_enabled"
         const val MAX_RECENT_PLAYBACK_IDS = 24
+        const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
+        const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"
     }

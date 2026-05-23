@@ -6,13 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.8.4">
-        <item>New spaciousness sound profile added - Philharmony</item>
-        <item>Tweaks to the EQ interface</item>
-        <item>UI tweaks to the changelog pop-up and top bar context menu</item>
-        <item>Added option to manually check for app updates</item>
-        <item>Added option to manually rescan music library</item>
-        <item>Bug fixes in lyrics UI</item>
-        <item>A few other bug fixes</item>
+    <release version="1.8.5">
+        <item>Added support for Apple Lossless codec</item>
+        <item>General bug fixes</item>
     </release>
 </changelog>

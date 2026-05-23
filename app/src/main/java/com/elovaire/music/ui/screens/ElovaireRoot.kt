@@ -509,6 +509,16 @@ private enum class AlbumSortMode(
     Album("Album name"),
 }
 
+private fun String.toAlbumSortMode(): AlbumSortMode {
+    return AlbumSortMode.entries.firstOrNull { it.name.equals(this, ignoreCase = true) }
+        ?: AlbumSortMode.Artist
+}
+
+private fun String.toSongSortMode(): SongSortMode {
+    return SongSortMode.entries.firstOrNull { it.name.equals(this, ignoreCase = true) }
+        ?: SongSortMode.Title
+}
+
 private enum class LibraryCollectionKind {
     Songs,
     Albums,
@@ -1001,6 +1011,8 @@ fun ElovaireRoot(
     val songPlayCounts by container.preferenceStore.songPlayCounts.collectAsStateWithLifecycle()
     val albumCollectionGridEnabled by container.preferenceStore.albumCollectionGridEnabled.collectAsStateWithLifecycle()
     val songCollectionGridEnabled by container.preferenceStore.songCollectionGridEnabled.collectAsStateWithLifecycle()
+    val albumCollectionSortModeName by container.preferenceStore.albumCollectionSortMode.collectAsStateWithLifecycle()
+    val songCollectionSortModeName by container.preferenceStore.songCollectionSortMode.collectAsStateWithLifecycle()
     val openPlayerRequestVersion by container.openPlayerRequestVersion.collectAsStateWithLifecycle()
     val appUpdateState by container.appUpdateManager.uiState.collectAsStateWithLifecycle()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
@@ -1937,6 +1949,8 @@ fun ElovaireRoot(
                             favoriteSongIds = favoriteSongIdSet,
                             albumCollectionLayoutMode = if (albumCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
                             songCollectionLayoutMode = if (songCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
+                            albumSortMode = albumCollectionSortModeName.toAlbumSortMode(),
+                            songSortMode = songCollectionSortModeName.toSongSortMode(),
                             currentSongId = playbackState.currentSong?.id,
                             isCurrentSongPlaying = isPlaybackActuallyPlaying,
                             bottomPadding = detailBottomPadding,
@@ -1965,6 +1979,12 @@ fun ElovaireRoot(
                             onSongCollectionLayoutModeChanged = { mode ->
                                 container.preferenceStore.setSongCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
                             },
+                            onAlbumSortModeChanged = { mode ->
+                                container.preferenceStore.setAlbumCollectionSortMode(mode.name)
+                            },
+                            onSongSortModeChanged = { mode ->
+                                container.preferenceStore.setSongCollectionSortMode(mode.name)
+                            },
                             onGenreSelected = { genre ->
                                 navController.navigate("$GENRE_ROUTE/${Uri.encode(genre)}")
                             },
@@ -1983,10 +2003,14 @@ fun ElovaireRoot(
                             genre = genre,
                             libraryState = libraryState,
                             layoutMode = if (albumCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
+                            sortMode = albumCollectionSortModeName.toAlbumSortMode(),
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onLayoutModeChanged = { mode ->
                                 container.preferenceStore.setAlbumCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
+                            },
+                            onSortModeChanged = { mode ->
+                                container.preferenceStore.setAlbumCollectionSortMode(mode.name)
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
@@ -3849,14 +3873,15 @@ private fun LastPlayedAlbumModule(
 private fun AlbumCollectionContent(
     albums: List<Album>,
     layoutMode: AlbumLayoutMode,
+    sortMode: AlbumSortMode,
     topPadding: Dp,
     bottomPadding: Dp,
     title: String = "All albums",
     subtitle: String = "Alphabetical by album artist, then album title.",
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+    onSortModeChanged: (AlbumSortMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
-    var sortMode by rememberSaveable { mutableStateOf(AlbumSortMode.Artist) }
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     val listState = rememberElovaireLazyListState(title, "album_collection_list")
     val gridState = rememberElovaireLazyGridState(title, "album_collection_grid")
@@ -3901,7 +3926,7 @@ private fun AlbumCollectionContent(
                             expanded = showSortOptions,
                             onToggleExpanded = { showSortOptions = !showSortOptions },
                             onSelect = { selectedMode ->
-                                sortMode = selectedMode
+                                onSortModeChanged(selectedMode)
                                 showSortOptions = false
                             },
                         )
@@ -3951,7 +3976,7 @@ private fun AlbumCollectionContent(
                             expanded = showSortOptions,
                             onToggleExpanded = { showSortOptions = !showSortOptions },
                             onSelect = { selectedMode ->
-                                sortMode = selectedMode
+                                onSortModeChanged(selectedMode)
                                 showSortOptions = false
                             },
                         )
@@ -4411,6 +4436,8 @@ private fun LibraryCollectionScreen(
     favoriteSongIds: Set<Long>,
     albumCollectionLayoutMode: AlbumLayoutMode,
     songCollectionLayoutMode: AlbumLayoutMode,
+    albumSortMode: AlbumSortMode,
+    songSortMode: SongSortMode,
     currentSongId: Long?,
     isCurrentSongPlaying: Boolean,
     bottomPadding: Dp,
@@ -4420,6 +4447,8 @@ private fun LibraryCollectionScreen(
     onToggleFavorite: (Long) -> Unit,
     onAlbumCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onSongCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+    onAlbumSortModeChanged: (AlbumSortMode) -> Unit,
+    onSongSortModeChanged: (SongSortMode) -> Unit,
     onGenreSelected: (String) -> Unit,
     onArtistSelected: (String) -> Unit,
 ) {
@@ -4428,11 +4457,13 @@ private fun LibraryCollectionScreen(
             songs = libraryState.songs,
             favoriteSongIds = favoriteSongIds,
             layoutMode = songCollectionLayoutMode,
+            sortMode = songSortMode,
             currentSongId = currentSongId,
             isCurrentSongPlaying = isCurrentSongPlaying,
             bottomPadding = bottomPadding,
             onBack = onBack,
             onLayoutModeChanged = onSongCollectionLayoutModeChanged,
+            onSortModeChanged = onSongSortModeChanged,
             onSongSelected = onSongSelected,
             onToggleFavorite = onToggleFavorite,
         )
@@ -4441,11 +4472,13 @@ private fun LibraryCollectionScreen(
             AlbumCollectionContent(
                 albums = libraryState.albums,
                 layoutMode = albumCollectionLayoutMode,
+                sortMode = albumSortMode,
                 topPadding = detailTopBarOccupiedHeight(),
                 bottomPadding = bottomPadding,
                 title = "Albums",
                 subtitle = "Alphabetical by album artist, then album title",
                 onLayoutModeChanged = onAlbumCollectionLayoutModeChanged,
+                onSortModeChanged = onAlbumSortModeChanged,
                 onAlbumSelected = onAlbumSelected,
             )
             DetailListTopBar(
@@ -4477,15 +4510,16 @@ private fun SongCollectionScreen(
     songs: List<Song>,
     favoriteSongIds: Set<Long>,
     layoutMode: AlbumLayoutMode,
+    sortMode: SongSortMode,
     currentSongId: Long?,
     isCurrentSongPlaying: Boolean,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+    onSortModeChanged: (SongSortMode) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
-    var sortMode by rememberSaveable { mutableStateOf(SongSortMode.Title) }
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     val listState = rememberElovaireLazyListState("song_collection_list")
     val gridState = rememberElovaireLazyGridState("song_collection_grid")
@@ -4538,7 +4572,7 @@ private fun SongCollectionScreen(
                             expanded = showSortOptions,
                             onToggleExpanded = { showSortOptions = !showSortOptions },
                             onSelect = { selectedMode ->
-                                sortMode = selectedMode
+                                onSortModeChanged(selectedMode)
                                 showSortOptions = false
                             },
                         )
@@ -4584,7 +4618,7 @@ private fun SongCollectionScreen(
                             expanded = showSortOptions,
                             onToggleExpanded = { showSortOptions = !showSortOptions },
                             onSelect = { selectedMode ->
-                                sortMode = selectedMode
+                                onSortModeChanged(selectedMode)
                                 showSortOptions = false
                             },
                         )
@@ -4862,9 +4896,11 @@ private fun GenreAlbumsScreen(
     genre: String,
     libraryState: LibraryUiState,
     layoutMode: AlbumLayoutMode,
+    sortMode: AlbumSortMode,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+    onSortModeChanged: (AlbumSortMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
     val filteredAlbums = remember(genre, libraryState.albums) {
@@ -4879,11 +4915,13 @@ private fun GenreAlbumsScreen(
         AlbumCollectionContent(
             albums = filteredAlbums,
             layoutMode = layoutMode,
+            sortMode = sortMode,
             topPadding = detailTopBarOccupiedHeight(),
             bottomPadding = bottomPadding,
             title = genre.ifBlank { "Unknown Genre" },
             subtitle = "${filteredAlbums.size} albums tagged in this genre",
             onLayoutModeChanged = onLayoutModeChanged,
+            onSortModeChanged = onSortModeChanged,
             onAlbumSelected = onAlbumSelected,
         )
         DetailListTopBar(
@@ -10334,7 +10372,7 @@ private fun SongContextMenuItem(
             )
             Text(
                 text = text,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 color = tint,
             )
         }
