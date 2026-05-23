@@ -72,7 +72,7 @@ Unlike streaming-first players, Elovaire focuses on music stored directly on you
 - Full now playing screen with queue, lyrics overlay, volume control, and playback modes
 - Compact now playing bar for quick playback control
 - Light and dark theme built-in
-- 24-band EQ built-in with dedicated screen in the UI to adjust settings
+- 18-band EQ built-in with dedicated screen in the UI to adjust settings
 - Spaciousness effect with 5 presets that change the feel of sound profile to a more extensive soundstage
 - Auto pause feature so playback doesn't disrupt other apps that might play other media
 - Notification playback controls and media-session integration
