@@ -1,6 +1,7 @@
 package elovaire.music.app.data.playback
 
 import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.exp
 import kotlin.math.ln
@@ -13,13 +14,16 @@ import kotlin.math.sqrt
 internal data class BassBoostConfig(
     val enabled: Boolean = true,
     val amountNormalized: Float = 0f,
-    val maxBoostDb: Float = 7.5f,
-    val shelfFrequencyHz: Float = 96f,
-    val shelfSlope: Float = 0.85f,
-    val mudTrimCenterHz: Float = 220f,
-    val mudTrimOctaves: Float = 1.05f,
-    val maxMudTrimDb: Float = 1.4f,
-    val pregainRatio: Float = 0.56f,
+    val maxBoostDb: Float = 6.8f,
+    val shelfFrequencyHz: Float = 78f,
+    val shelfSlope: Float = 0.74f,
+    val subAccentCenterHz: Float = 52f,
+    val subAccentQ: Float = 0.92f,
+    val maxSubAccentDb: Float = 2.2f,
+    val lowMidTrimCenterHz: Float = 235f,
+    val lowMidTrimQ: Float = 0.84f,
+    val maxLowMidTrimDb: Float = 0.75f,
+    val pregainRatio: Float = 0.38f,
     val limiterEnabled: Boolean = false,
     val smoothingTimeMs: Int = 140,
 ) {
@@ -29,9 +33,12 @@ internal data class BassBoostConfig(
             maxBoostDb = maxBoostDb.coerceIn(0f, 9f),
             shelfFrequencyHz = shelfFrequencyHz.coerceIn(40f, 180f),
             shelfSlope = shelfSlope.coerceIn(0.35f, 1.2f),
-            mudTrimCenterHz = mudTrimCenterHz.coerceIn(140f, 320f),
-            mudTrimOctaves = mudTrimOctaves.coerceIn(0.4f, 2.5f),
-            maxMudTrimDb = maxMudTrimDb.coerceIn(0f, 3f),
+            subAccentCenterHz = subAccentCenterHz.coerceIn(30f, 90f),
+            subAccentQ = subAccentQ.coerceIn(0.45f, 1.8f),
+            maxSubAccentDb = maxSubAccentDb.coerceIn(0f, 4f),
+            lowMidTrimCenterHz = lowMidTrimCenterHz.coerceIn(160f, 320f),
+            lowMidTrimQ = lowMidTrimQ.coerceIn(0.45f, 1.6f),
+            maxLowMidTrimDb = maxLowMidTrimDb.coerceIn(0f, 2f),
             pregainRatio = pregainRatio.coerceIn(0.2f, 0.8f),
             smoothingTimeMs = smoothingTimeMs.coerceIn(24, 320),
         )
@@ -42,7 +49,8 @@ internal data class BassBoostResponse(
     val boostDb: Float,
     val pregainDb: Float,
     val shelfDb: Float,
-    val mudTrimDb: Float,
+    val subAccentDb: Float,
+    val lowMidTrimDb: Float,
     val totalDb: Float,
 )
 
@@ -66,6 +74,28 @@ internal object BassBoostProcessorModel {
         return -(boostDb.coerceAtLeast(0f) * safeConfig.pregainRatio)
     }
 
+    fun subAccentDbForBoost(
+        boostDb: Float,
+        amountNormalized: Float,
+        config: BassBoostConfig = BassBoostConfig(),
+    ): Float {
+        val safeConfig = config.sanitized()
+        if (!safeConfig.enabled || amountNormalized <= 0f || boostDb <= 0f) return 0f
+        val shapedAmount = amountNormalized.coerceIn(0f, 1f).toDouble().pow(1.15).toFloat()
+        return (boostDb * 0.26f * shapedAmount).coerceIn(0f, safeConfig.maxSubAccentDb)
+    }
+
+    fun lowMidTrimDbForBoost(
+        boostDb: Float,
+        amountNormalized: Float,
+        config: BassBoostConfig = BassBoostConfig(),
+    ): Float {
+        val safeConfig = config.sanitized()
+        if (!safeConfig.enabled || amountNormalized <= 0f || boostDb <= 0f) return 0f
+        val shapedAmount = amountNormalized.coerceIn(0f, 1f).toDouble().pow(1.1).toFloat()
+        return -((boostDb * 0.11f * shapedAmount).coerceIn(0f, safeConfig.maxLowMidTrimDb))
+    }
+
     fun responseAt(
         frequencyHz: Float,
         sampleRateHz: Int,
@@ -77,7 +107,8 @@ internal object BassBoostProcessorModel {
                 boostDb = 0f,
                 pregainDb = 0f,
                 shelfDb = 0f,
-                mudTrimDb = 0f,
+                subAccentDb = 0f,
+                lowMidTrimDb = 0f,
                 totalDb = 0f,
             )
         }
@@ -86,6 +117,8 @@ internal object BassBoostProcessorModel {
         val safeSampleRateHz = sampleRateHz.coerceAtLeast(8_000)
         val boostDb = normalizedAmountToBoostDb(safeConfig.amountNormalized, safeConfig)
         val pregainDb = pregainDbForBoost(boostDb, safeConfig)
+        val subAccentDb = subAccentDbForBoost(boostDb, safeConfig.amountNormalized, safeConfig)
+        val lowMidTrimDb = lowMidTrimDbForBoost(boostDb, safeConfig.amountNormalized, safeConfig)
         val shelf = LowShelfBiquad.design(
             sampleRateHz = safeSampleRateHz.toFloat(),
             cornerFrequencyHz = safeConfig.shelfFrequencyHz,
@@ -93,19 +126,25 @@ internal object BassBoostProcessorModel {
             slope = safeConfig.shelfSlope,
         )
         val shelfDb = shelf.magnitudeResponseDb(safeFrequencyHz, safeSampleRateHz.toFloat())
-        val mudTrimDb = mudTrimDb(
+        val subAccentResponseDb = bellResponseDb(
             frequencyHz = safeFrequencyHz,
-            amountNormalized = safeConfig.amountNormalized,
-            centerFrequencyHz = safeConfig.mudTrimCenterHz,
-            widthInOctaves = safeConfig.mudTrimOctaves,
-            maxTrimDb = safeConfig.maxMudTrimDb,
+            centerFrequencyHz = safeConfig.subAccentCenterHz,
+            q = safeConfig.subAccentQ,
+            gainDb = subAccentDb,
         )
-        val totalDb = shelfDb + mudTrimDb + pregainDb
+        val lowMidTrimResponseDb = bellResponseDb(
+            frequencyHz = safeFrequencyHz,
+            centerFrequencyHz = safeConfig.lowMidTrimCenterHz,
+            q = safeConfig.lowMidTrimQ,
+            gainDb = lowMidTrimDb,
+        )
+        val totalDb = shelfDb + subAccentResponseDb + lowMidTrimResponseDb + pregainDb
         return BassBoostResponse(
             boostDb = boostDb,
             pregainDb = pregainDb,
             shelfDb = shelfDb,
-            mudTrimDb = mudTrimDb,
+            subAccentDb = subAccentResponseDb,
+            lowMidTrimDb = lowMidTrimResponseDb,
             totalDb = totalDb,
         )
     }
@@ -128,19 +167,17 @@ internal object BassBoostProcessorModel {
         }
     }
 
-    private fun mudTrimDb(
+    private fun bellResponseDb(
         frequencyHz: Float,
-        amountNormalized: Float,
         centerFrequencyHz: Float,
-        widthInOctaves: Float,
-        maxTrimDb: Float,
+        q: Float,
+        gainDb: Float,
     ): Float {
-        if (amountNormalized <= 0f) return 0f
+        if (abs(gainDb) <= 0.0001f) return 0f
         val logDistance = log2(frequencyHz / centerFrequencyHz.coerceAtLeast(1f))
-        val sigma = (widthInOctaves.coerceAtLeast(0.1f) / 2f).toDouble()
+        val sigma = (1f / q.coerceAtLeast(0.35f)).coerceIn(0.2f, 1.8f).toDouble()
         val gaussian = exp(-0.5 * ((logDistance / sigma).pow(2.0))).toFloat()
-        val trimAmount = amountNormalized.toDouble().pow(1.25).toFloat()
-        return -(gaussian * maxTrimDb * trimAmount)
+        return gaussian * gainDb
     }
 
     private fun log2(value: Float): Float {

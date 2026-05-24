@@ -177,6 +177,8 @@ internal object EqualizerDspModel {
     fun automaticHeadroomDb(
         bandGainsDb: FloatArray,
         bassBoostDb: Float,
+        bassAccentDb: Float,
+        bassTrimDb: Float,
         bassPregainDb: Float,
         trebleBoostDb: Float,
         spaciousnessAmount: Float,
@@ -187,6 +189,8 @@ internal object EqualizerDspModel {
         val peakResponseDb = estimatePeakResponseDb(
             bandGainsDb = bandGainsDb,
             bassBoostDb = bassBoostDb,
+            bassAccentDb = bassAccentDb,
+            bassTrimDb = bassTrimDb,
             trebleBoostDb = trebleBoostDb,
             spaciousnessAmount = spaciousnessAmount,
             sampleRateHz = sampleRateHz,
@@ -233,6 +237,8 @@ internal object EqualizerDspModel {
     private fun estimatePeakResponseDb(
         bandGainsDb: FloatArray,
         bassBoostDb: Float,
+        bassAccentDb: Float,
+        bassTrimDb: Float,
         trebleBoostDb: Float,
         spaciousnessAmount: Float,
         sampleRateHz: Int,
@@ -258,6 +264,18 @@ internal object EqualizerDspModel {
             cornerFrequencyHz = config.bassConfig.shelfFrequencyHz,
             slope = config.bassConfig.shelfSlope,
             gainDb = bassBoostDb,
+        )
+        val bassAccentCoefficient = BiquadCoefficients.peaking(
+            sampleRateHz = safeSampleRate.toFloat(),
+            centerFrequencyHz = config.bassConfig.subAccentCenterHz,
+            q = config.bassConfig.subAccentQ,
+            gainDb = bassAccentDb,
+        )
+        val bassTrimCoefficient = BiquadCoefficients.peaking(
+            sampleRateHz = safeSampleRate.toFloat(),
+            centerFrequencyHz = config.bassConfig.lowMidTrimCenterHz,
+            q = config.bassConfig.lowMidTrimQ,
+            gainDb = bassTrimDb,
         )
         val trebleCoefficient = BiquadCoefficients.highShelf(
             sampleRateHz = safeSampleRate.toFloat(),
@@ -292,6 +310,8 @@ internal object EqualizerDspModel {
             var totalDb = 0f
             bandCoefficients.forEach { totalDb += it.magnitudeResponseDb(frequencyHz, safeSampleRate.toFloat()) }
             totalDb += bassCoefficient.magnitudeResponseDb(frequencyHz, safeSampleRate.toFloat())
+            totalDb += bassAccentCoefficient.magnitudeResponseDb(frequencyHz, safeSampleRate.toFloat())
+            totalDb += bassTrimCoefficient.magnitudeResponseDb(frequencyHz, safeSampleRate.toFloat())
             totalDb += trebleCoefficient.magnitudeResponseDb(frequencyHz, safeSampleRate.toFloat())
             totalDb += spaciousMid.magnitudeResponseDb(frequencyHz, safeSampleRate.toFloat())
             totalDb += spaciousPresence.magnitudeResponseDb(frequencyHz, safeSampleRate.toFloat())
@@ -317,6 +337,10 @@ internal class EqualizerAudioProcessor(
     private var targetWetMix = 0f
     private var currentBassBoostDb = 0f
     private var targetBassBoostDb = 0f
+    private var currentBassAccentDb = 0f
+    private var targetBassAccentDb = 0f
+    private var currentBassTrimDb = 0f
+    private var targetBassTrimDb = 0f
     private var currentBassPregainDb = 0f
     private var targetBassPregainDb = 0f
     private var currentTrebleDb = 0f
@@ -328,6 +352,8 @@ internal class EqualizerAudioProcessor(
     private var activeBandFrequenciesHz = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.copyOf()
     private var bandFilters: Array<Array<BiquadFilterState>> = emptyArray()
     private var bassFilters: Array<BiquadFilterState> = emptyArray()
+    private var bassAccentFilters: Array<BiquadFilterState> = emptyArray()
+    private var bassTrimFilters: Array<BiquadFilterState> = emptyArray()
     private var trebleFilters: Array<BiquadFilterState> = emptyArray()
     private val spaciousnessProcessor = SpaciousnessProcessor()
     private var smoothingAlpha = 1f
@@ -337,8 +363,10 @@ internal class EqualizerAudioProcessor(
     private var limiterEvents = 0L
     private var scratchDryFrame = FloatArray(2)
     private var scratchWetFrame = FloatArray(2)
+    private var lastMonoEnabled = false
 
     fun updateSettings(settings: EqSettings) {
+        val monoToggled = settings.monoEnabled != currentSettings.monoEnabled
         currentSettings = settings.copy(
             bands = List(EqualizerDspModel.BAND_COUNT) { index ->
                 settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
@@ -349,6 +377,10 @@ internal class EqualizerAudioProcessor(
             spaciousnessMode = settings.spaciousnessMode,
             monoEnabled = settings.monoEnabled,
         )
+        if (monoToggled && configInitialized) {
+            resetFilterMemory()
+            lastMonoEnabled = settings.monoEnabled
+        }
         targetsDirty = true
     }
 
@@ -400,9 +432,14 @@ internal class EqualizerAudioProcessor(
                 }
                 if (currentSettings.monoEnabled && channelCount >= 2) {
                     monoInputSample /= channelCount.toFloat()
+                    val monoWet = processChannelSample(channelIndex = 0, sample = monoInputSample)
+                    val monoOutput = transparentSafetyLimit(monoWet)
                     for (channelIndex in 0 until channelCount) {
                         scratchDryFrame[channelIndex] = monoInputSample
+                        scratchWetFrame[channelIndex] = monoWet
+                        writeSample(outputBuffer, encoding, monoOutput)
                     }
+                    return@repeat
                 }
                 for (channelIndex in 0 until channelCount) {
                     scratchWetFrame[channelIndex] = processChannelSample(channelIndex, scratchDryFrame[channelIndex])
@@ -451,6 +488,8 @@ internal class EqualizerAudioProcessor(
             Array(EqualizerDspModel.BAND_COUNT) { BiquadFilterState() }
         }
         bassFilters = Array(channelCount) { BiquadFilterState() }
+        bassAccentFilters = Array(channelCount) { BiquadFilterState() }
+        bassTrimFilters = Array(channelCount) { BiquadFilterState() }
         trebleFilters = Array(channelCount) { BiquadFilterState() }
         scratchDryFrame = FloatArray(channelCount)
         scratchWetFrame = FloatArray(channelCount)
@@ -465,6 +504,10 @@ internal class EqualizerAudioProcessor(
         targetWetMix = 0f
         currentBassBoostDb = 0f
         targetBassBoostDb = 0f
+        currentBassAccentDb = 0f
+        targetBassAccentDb = 0f
+        currentBassTrimDb = 0f
+        targetBassTrimDb = 0f
         currentBassPregainDb = 0f
         targetBassPregainDb = 0f
         currentTrebleDb = 0f
@@ -474,8 +517,15 @@ internal class EqualizerAudioProcessor(
         limiterPeakReduction = 0f
         currentBandGainsDb.fill(0f)
         targetBandGainsDb.fill(0f)
+        lastMonoEnabled = currentSettings.monoEnabled
+        resetFilterMemory()
+    }
+
+    private fun resetFilterMemory() {
         bandFilters.forEach { channelFilters -> channelFilters.forEach(BiquadFilterState::reset) }
         bassFilters.forEach(BiquadFilterState::reset)
+        bassAccentFilters.forEach(BiquadFilterState::reset)
+        bassTrimFilters.forEach(BiquadFilterState::reset)
         trebleFilters.forEach(BiquadFilterState::reset)
         spaciousnessProcessor.reset()
     }
@@ -500,6 +550,8 @@ internal class EqualizerAudioProcessor(
             amountNormalized = bassAmount,
         ).sanitized()
         targetBassBoostDb = BassBoostProcessorModel.normalizedAmountToBoostDb(bassAmount, bassConfig)
+        targetBassAccentDb = BassBoostProcessorModel.subAccentDbForBoost(targetBassBoostDb, bassAmount, bassConfig)
+        targetBassTrimDb = BassBoostProcessorModel.lowMidTrimDbForBoost(targetBassBoostDb, bassAmount, bassConfig)
         targetBassPregainDb = BassBoostProcessorModel.pregainDbForBoost(targetBassBoostDb, bassConfig)
         targetTrebleDb = settingsSnapshot.treble.coerceIn(-1f, 1f) * safeConfig.trebleMaxBoostDb
         val spaciousnessAmount = settingsSnapshot.spaciousness.coerceAtLeast(0f).coerceIn(0f, 1f)
@@ -515,6 +567,8 @@ internal class EqualizerAudioProcessor(
         targetAutoHeadroomDb = EqualizerDspModel.automaticHeadroomDb(
             bandGainsDb = targetBandGainsDb,
             bassBoostDb = targetBassBoostDb,
+            bassAccentDb = targetBassAccentDb,
+            bassTrimDb = targetBassTrimDb,
             bassPregainDb = targetBassPregainDb,
             trebleBoostDb = targetTrebleDb,
             spaciousnessAmount = spaciousnessAmount,
@@ -527,6 +581,8 @@ internal class EqualizerAudioProcessor(
     private fun stepTowardsTargets() {
         currentWetMix = smooth(currentWetMix, targetWetMix, smoothingAlpha)
         currentBassBoostDb = smooth(currentBassBoostDb, targetBassBoostDb, smoothingAlpha)
+        currentBassAccentDb = smooth(currentBassAccentDb, targetBassAccentDb, smoothingAlpha)
+        currentBassTrimDb = smooth(currentBassTrimDb, targetBassTrimDb, smoothingAlpha)
         currentBassPregainDb = smooth(currentBassPregainDb, targetBassPregainDb, smoothingAlpha)
         currentTrebleDb = smooth(currentTrebleDb, targetTrebleDb, smoothingAlpha)
         currentAutoHeadroomDb = smooth(currentAutoHeadroomDb, targetAutoHeadroomDb, smoothingAlpha)
@@ -561,6 +617,30 @@ internal class EqualizerAudioProcessor(
                     gainDb = currentBassBoostDb,
                 ),
             )
+            bassAccentFilters[channelIndex].setCoefficients(
+                if (abs(currentBassAccentDb) > 0.01f) {
+                    BiquadCoefficients.peaking(
+                        sampleRateHz = sampleRateHz.toFloat(),
+                        centerFrequencyHz = safeConfig.bassConfig.subAccentCenterHz,
+                        q = safeConfig.bassConfig.subAccentQ,
+                        gainDb = currentBassAccentDb,
+                    )
+                } else {
+                    BiquadCoefficients.identity()
+                },
+            )
+            bassTrimFilters[channelIndex].setCoefficients(
+                if (abs(currentBassTrimDb) > 0.01f) {
+                    BiquadCoefficients.peaking(
+                        sampleRateHz = sampleRateHz.toFloat(),
+                        centerFrequencyHz = safeConfig.bassConfig.lowMidTrimCenterHz,
+                        q = safeConfig.bassConfig.lowMidTrimQ,
+                        gainDb = currentBassTrimDb,
+                    )
+                } else {
+                    BiquadCoefficients.identity()
+                },
+            )
             trebleFilters[channelIndex].setCoefficients(
                 BiquadCoefficients.highShelf(
                     sampleRateHz = sampleRateHz.toFloat(),
@@ -579,6 +659,8 @@ internal class EqualizerAudioProcessor(
         var processed = sample * dbToLinear(manualPreampDb + currentBassPregainDb + currentAutoHeadroomDb)
         bandFilters[channelIndex].forEach { filter -> processed = filter.process(processed) }
         processed = bassFilters[channelIndex].process(processed)
+        processed = bassAccentFilters[channelIndex].process(processed)
+        processed = bassTrimFilters[channelIndex].process(processed)
         processed = trebleFilters[channelIndex].process(processed)
         return processed
     }
@@ -673,6 +755,8 @@ internal class EqualizerAudioProcessor(
             computedHeadroomDb = currentAutoHeadroomDb,
             activeFilterCount = currentBandGainsDb.count { abs(it) > 0.01f } +
                 if (abs(currentBassBoostDb) > 0.01f) 1 else 0 +
+                if (abs(currentBassAccentDb) > 0.01f) 1 else 0 +
+                if (abs(currentBassTrimDb) > 0.01f) 1 else 0 +
                 if (abs(currentTrebleDb) > 0.01f) 1 else 0 +
                 if (!spaciousnessProcessor.isBypassed()) 1 else 0,
             limiterPeakReduction = limiterPeakReduction,

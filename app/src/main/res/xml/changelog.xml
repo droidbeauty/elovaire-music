@@ -6,8 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.8.5">
-        <item>Added support for Apple Lossless codec</item>
+    <release version="1.9">
+        <item>Layout improvements in settings UI</item>
+        <item>Improved implementations of bass boost effect and mono playback</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

@@ -11694,7 +11694,7 @@ private fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                            horizontalArrangement = Arrangement.spacedBy(30.dp),
                         ) {
                             DigitalSoundKnob(
                                 title = "Bass boost",
@@ -12080,7 +12080,7 @@ private fun ChangelogBottomSheetOverlay(
                                 item {
                                     ChangelogReleaseContent(
                                         release = release,
-                                        contentWidthFraction = 0.9f,
+                                        contentHorizontalPadding = 20.dp,
                                     )
                                 }
                             }
@@ -12095,11 +12095,13 @@ private fun ChangelogBottomSheetOverlay(
 @Composable
 private fun ChangelogReleaseContent(
     release: ChangelogRelease?,
-    contentWidthFraction: Float = 0.9f,
+    contentHorizontalPadding: Dp = 20.dp,
 ) {
     val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = contentHorizontalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
@@ -12112,7 +12114,7 @@ private fun ChangelogReleaseContent(
         } else {
             changes.forEachIndexed { index, change ->
                 Column(
-                    modifier = Modifier.fillMaxWidth(contentWidthFraction),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Text(
@@ -12520,7 +12522,7 @@ private fun SettingToggleRow(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }
@@ -12556,7 +12558,7 @@ private fun SettingActionRow(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.bodyLarge,
+                style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }
@@ -12757,17 +12759,17 @@ private fun DigitalSoundKnob(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         BoxWithConstraints(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(132.dp)
+                .height(134.dp)
                 .horizontalGestureSafe()
                 .pointerInput(title) {
                     detectTapGestures { offset ->
                         val widthPx = size.width.toFloat().coerceAtLeast(1f)
-                        val horizontalInsetPx = widthPx * 0.05f
+                        val horizontalInsetPx = widthPx * 0.035f
                         val activeWidthPx = (widthPx - (horizontalInsetPx * 2f)).coerceAtLeast(1f)
                         dragValue = ((offset.x - horizontalInsetPx) / activeWidthPx).coerceIn(0f, 1f)
                         onValueChange(dragValue)
@@ -12777,7 +12779,7 @@ private fun DigitalSoundKnob(
                     detectHorizontalDragGestures(
                         onDragStart = { offset ->
                             val widthPx = size.width.toFloat().coerceAtLeast(1f)
-                            val horizontalInsetPx = widthPx * 0.05f
+                            val horizontalInsetPx = widthPx * 0.035f
                             val activeWidthPx = (widthPx - (horizontalInsetPx * 2f)).coerceAtLeast(1f)
                             dragValue = ((offset.x - horizontalInsetPx) / activeWidthPx).coerceIn(0f, 1f)
                             onValueChange(dragValue)
@@ -12785,7 +12787,7 @@ private fun DigitalSoundKnob(
                         onHorizontalDrag = { change, dragAmount ->
                             change.consume()
                             val widthPx = size.width.toFloat().coerceAtLeast(1f)
-                            dragValue = (dragValue + ((dragAmount / widthPx) * 0.9f)).coerceIn(0f, 1f)
+                            dragValue = (dragValue + ((dragAmount / widthPx) * 0.99f)).coerceIn(0f, 1f)
                             onValueChange(dragValue)
                         },
                     )
@@ -12796,12 +12798,12 @@ private fun DigitalSoundKnob(
                 modifier = Modifier
                     .fillMaxSize(),
             ) {
-                val strokeWidth = 5.dp.toPx()
-                val horizontalInset = 10.dp.toPx()
-                val topInset = 14.dp.toPx()
+                val strokeWidth = 5.5.dp.toPx()
+                val horizontalInset = 8.dp.toPx()
+                val topInset = 12.dp.toPx()
                 val radius = min(
                     ((size.width - (horizontalInset * 2f)) / 2f).coerceAtLeast(1f),
-                    ((size.height - topInset - 14.dp.toPx()) * 0.48f).coerceAtLeast(1f),
+                    ((size.height - topInset - 8.dp.toPx()) * 0.54f).coerceAtLeast(1f),
                 )
                 val center = Offset(size.width / 2f, topInset + radius)
                 val startAngle = 180f
@@ -12832,9 +12834,9 @@ private fun DigitalSoundKnob(
                     )
                 }
 
-                val tickOuterRadius = (radius - 9.dp.toPx()).coerceAtLeast(1f)
-                val tickInnerRadius = (tickOuterRadius - 8.dp.toPx()).coerceAtLeast(1f)
-                val tickCount = 34
+                val tickOuterRadius = (radius - 8.dp.toPx()).coerceAtLeast(1f)
+                val tickInnerRadius = (tickOuterRadius - 12.dp.toPx()).coerceAtLeast(1f)
+                val tickCount = 30
                 repeat(tickCount) { tickIndex ->
                     val fraction = tickIndex / (tickCount - 1).toFloat()
                     val angleDegrees = 180f + (180f * fraction)
@@ -12851,14 +12853,14 @@ private fun DigitalSoundKnob(
                         color = tickColor,
                         start = start,
                         end = end,
-                        strokeWidth = 1.6.dp.toPx(),
+                        strokeWidth = 1.2.dp.toPx(),
                         cap = StrokeCap.Square,
                     )
                 }
             }
 
             Column(
-                modifier = Modifier.padding(top = 38.dp),
+                modifier = Modifier.padding(top = 34.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
