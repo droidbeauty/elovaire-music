@@ -1,5 +1,10 @@
 package elovaire.music.app.ui.motion
 
+import android.content.Context
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -24,11 +29,20 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToLong
 
 object ElovaireMotion {
     const val Quick = 120
@@ -209,7 +223,102 @@ object ElovaireMotion {
                 animationSpec = offsetSoft(durationMillis = ScreenFade),
                 initialOffsetY = { -it / 5 },
             )) togetherWith fadeOut(animationSpec = fadeFast())
+
+    fun fullScreenForwardEnter(
+        initialOffsetX: (fullWidth: Int) -> Int = { it / 7 },
+    ): EnterTransition = fadeIn(animationSpec = fadeMedium()) +
+        slideInHorizontally(
+            animationSpec = offsetSoft(durationMillis = ScreenSlide),
+            initialOffsetX = initialOffsetX,
+        ) +
+        scaleIn(
+            animationSpec = scaleSoft(),
+            initialScale = 0.992f,
+        )
+
+    fun fullScreenForwardExit(
+        targetOffsetX: (fullWidth: Int) -> Int = { -(it / 14) },
+    ): ExitTransition = fadeOut(animationSpec = fadeFast()) +
+        slideOutHorizontally(
+            animationSpec = offsetSoft(durationMillis = Fast),
+            targetOffsetX = targetOffsetX,
+        ) +
+        scaleOut(
+            animationSpec = fadeFast(),
+            targetScale = 0.996f,
+        )
+
+    fun fullScreenBackEnter(
+        initialOffsetX: (fullWidth: Int) -> Int = { -(it / 14) },
+    ): EnterTransition = fadeIn(animationSpec = fadeMedium()) +
+        slideInHorizontally(
+            animationSpec = offsetSoft(durationMillis = ScreenSlide),
+            initialOffsetX = initialOffsetX,
+        ) +
+        scaleIn(
+            animationSpec = scaleSoft(),
+            initialScale = 0.996f,
+        )
+
+    fun fullScreenBackExit(
+        targetOffsetX: (fullWidth: Int) -> Int = { it / 4 },
+    ): ExitTransition = fadeOut(animationSpec = fadeMedium()) +
+        slideOutHorizontally(
+            animationSpec = offsetSoft(durationMillis = ScreenSlide),
+            targetOffsetX = targetOffsetX,
+        ) +
+        scaleOut(
+            animationSpec = fadeMedium(),
+            targetScale = 0.992f,
+        )
+
+    fun scaleDurationMillis(
+        durationMillis: Long,
+        durationScale: Float,
+    ): Long = when {
+        durationMillis <= 0L -> 0L
+        durationScale <= 0f -> 0L
+        else -> (durationMillis * durationScale).roundToLong().coerceAtLeast(1L)
+    }
+
+    fun scaleDurationMillis(
+        durationMillis: Int,
+        durationScale: Float,
+    ): Long = scaleDurationMillis(durationMillis.toLong(), durationScale)
 }
+
+@Composable
+fun rememberSystemAnimationScale(): Float {
+    val context = LocalContext.current
+    var durationScale by remember(context) {
+        mutableFloatStateOf(readSystemAnimationScale(context))
+    }
+    DisposableEffect(context) {
+        val resolver = context.contentResolver
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                durationScale = readSystemAnimationScale(context)
+            }
+        }
+        resolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
+            false,
+            observer,
+        )
+        onDispose {
+            resolver.unregisterContentObserver(observer)
+        }
+    }
+    return durationScale
+}
+
+private fun readSystemAnimationScale(context: Context): Float = runCatching {
+    Settings.Global.getFloat(
+        context.contentResolver,
+        Settings.Global.ANIMATOR_DURATION_SCALE,
+        1f,
+    )
+}.getOrDefault(1f).takeIf { it.isFinite() && it >= 0f } ?: 1f
 
 @Composable
 fun ElovaireAnimatedVisibility(

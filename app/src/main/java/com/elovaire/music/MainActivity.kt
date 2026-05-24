@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.app.data.playback.EXTRA_OPEN_PLAYER_FROM_NOTIFICATION
 import elovaire.music.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.app.ui.motion.ElovaireMotion
+import elovaire.music.app.ui.motion.rememberSystemAnimationScale
 import elovaire.music.app.ui.screens.ElovaireRoot
 import elovaire.music.app.ui.theme.ElovaireTheme
 import elovaire.music.app.ui.theme.themeBackgroundForMode
@@ -55,6 +56,7 @@ class MainActivity : ComponentActivity() {
             var overlayColor by remember {
                 mutableStateOf(themeBackgroundForMode(themeMode.value, systemDark))
             }
+            val motionDurationScale = rememberSystemAnimationScale()
             val themeOverlayAlpha = remember { Animatable(0f) }
             var showSplash by remember { mutableStateOf(shouldShowColdStartSplash) }
 
@@ -72,7 +74,7 @@ class MainActivity : ComponentActivity() {
 
             LaunchedEffect(showSplash) {
                 if (showSplash) {
-                    delay(1_500L)
+                    delay(ElovaireMotion.scaleDurationMillis(1_500L, motionDurationScale))
                     showSplash = false
                 }
             }

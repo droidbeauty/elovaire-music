@@ -257,6 +257,7 @@ import elovaire.music.app.ui.components.rememberArtworkGradient
 import elovaire.music.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.app.ui.motion.ElovaireMotion
+import elovaire.music.app.ui.motion.rememberSystemAnimationScale
 import elovaire.music.app.ui.theme.ElovaireRadii
 import elovaire.music.app.ui.theme.ElovaireSpacing
 import elovaire.music.app.ui.theme.DestructiveRed
@@ -1474,29 +1475,9 @@ fun ElovaireRoot(
                                 targetRoute = targetRoute,
                             )
                         ) {
-                            fadeIn(
-                                animationSpec = ElovaireMotion.fadeMedium(),
-                            ) +
-                                slideInVertically(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                    initialOffsetY = { it / 10 },
-                                ) +
-                                scaleIn(
-                                    animationSpec = ElovaireMotion.scaleSoft(),
-                                    initialScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenForwardEnter()
                         } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(targetRoute)) {
-                            fadeIn(
-                                animationSpec = ElovaireMotion.fadeMedium(),
-                            ) +
-                                slideInHorizontally(
-                                    animationSpec = ElovaireMotion.offsetSoft(),
-                                    initialOffsetX = { it / 6 },
-                                ) +
-                                scaleIn(
-                                    animationSpec = ElovaireMotion.scaleSoft(),
-                                    initialScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenForwardEnter()
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
@@ -1511,17 +1492,7 @@ fun ElovaireRoot(
                                     initialScale = 0.996f,
                                 )
                         } else {
-                            fadeIn(
-                                animationSpec = ElovaireMotion.fadeMedium(),
-                            ) +
-                                slideInHorizontally(
-                                    animationSpec = ElovaireMotion.offsetSoft(),
-                                    initialOffsetX = { it / 6 },
-                                ) +
-                                scaleIn(
-                                    animationSpec = ElovaireMotion.scaleSoft(),
-                                    initialScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenForwardEnter()
                         }
                     },
                     exitTransition = {
@@ -1544,11 +1515,7 @@ fun ElovaireRoot(
                                 targetRoute = targetRoute,
                             )
                         ) {
-                            fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
-                                scaleOut(
-                                    animationSpec = ElovaireMotion.fadeFast(),
-                                    targetScale = 0.996f,
-                                )
+                            ElovaireMotion.fullScreenForwardExit()
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
@@ -1561,11 +1528,7 @@ fun ElovaireRoot(
                                     targetScale = 0.996f,
                                 )
                         } else {
-                            fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
-                                scaleOut(
-                                    animationSpec = ElovaireMotion.fadeMedium(),
-                                    targetScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenForwardExit()
                         }
                     },
                     popEnterTransition = {
@@ -1588,29 +1551,9 @@ fun ElovaireRoot(
                                 targetRoute = targetRoute,
                             )
                         ) {
-                            fadeIn(
-                                animationSpec = ElovaireMotion.fadeMedium(),
-                            ) +
-                                slideInVertically(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                    initialOffsetY = { -(it / 14) },
-                                ) +
-                                scaleIn(
-                                    animationSpec = ElovaireMotion.scaleSoft(),
-                                    initialScale = 0.996f,
-                                )
+                            ElovaireMotion.fullScreenBackEnter()
                         } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(targetRoute)) {
-                            fadeIn(
-                                animationSpec = ElovaireMotion.fadeMedium(),
-                            ) +
-                                slideInHorizontally(
-                                    animationSpec = ElovaireMotion.offsetSoft(),
-                                    initialOffsetX = { -(it / 14) },
-                                ) +
-                                scaleIn(
-                                    animationSpec = ElovaireMotion.scaleSoft(),
-                                    initialScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenBackEnter()
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
@@ -1625,17 +1568,7 @@ fun ElovaireRoot(
                                     initialScale = 0.996f,
                                 )
                         } else {
-                            fadeIn(
-                                animationSpec = ElovaireMotion.fadeMedium(),
-                            ) +
-                                slideInHorizontally(
-                                    animationSpec = ElovaireMotion.offsetSoft(),
-                                    initialOffsetX = { -(it / 14) },
-                                ) +
-                                scaleIn(
-                                    animationSpec = ElovaireMotion.scaleSoft(),
-                                    initialScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenBackEnter()
                         }
                     },
                     popExitTransition = {
@@ -1685,25 +1618,9 @@ fun ElovaireRoot(
                                 targetRoute = targetRoute,
                             )
                         ) {
-                            fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
-                                slideOutVertically(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                    targetOffsetY = { it / 12 },
-                                ) +
-                                scaleOut(
-                                    animationSpec = ElovaireMotion.fadeFast(),
-                                    targetScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenBackExit()
                         } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(initialRoute)) {
-                            fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
-                                slideOutHorizontally(
-                                    animationSpec = ElovaireMotion.offsetSoft(),
-                                    targetOffsetX = { it / 3 },
-                                ) +
-                                scaleOut(
-                                    animationSpec = ElovaireMotion.fadeMedium(),
-                                    targetScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenBackExit()
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
@@ -1716,15 +1633,7 @@ fun ElovaireRoot(
                                     targetScale = 0.996f,
                                 )
                         } else {
-                            fadeOut(animationSpec = ElovaireMotion.fadeMedium()) +
-                                slideOutHorizontally(
-                                    animationSpec = ElovaireMotion.offsetSoft(),
-                                    targetOffsetX = { it / 3 },
-                                ) +
-                                scaleOut(
-                                    animationSpec = ElovaireMotion.fadeMedium(),
-                                    targetScale = 0.992f,
-                                )
+                            ElovaireMotion.fullScreenBackExit()
                         }
                     },
                 ) {
@@ -3487,6 +3396,7 @@ private fun HomeScreen(
     onToggleFavorite: (Long) -> Unit,
 ) {
     val listState = rememberElovaireLazyListState("home_screen")
+    val motionDurationScale = rememberSystemAnimationScale()
     var revealModules by rememberSaveable(playInitialReveal) { mutableStateOf(!playInitialReveal) }
     LaunchedEffect(scrollToTopRequestVersion) {
         if (scrollToTopRequestVersion > 0L && listState.firstVisibleItemIndex + listState.firstVisibleItemScrollOffset > 0) {
@@ -3496,9 +3406,9 @@ private fun HomeScreen(
     LaunchedEffect(playInitialReveal) {
         if (playInitialReveal) {
             revealModules = false
-            delay(70L)
+            delay(ElovaireMotion.scaleDurationMillis(70L, motionDurationScale))
             revealModules = true
-            delay(520L)
+            delay(ElovaireMotion.scaleDurationMillis(520L, motionDurationScale))
             onInitialRevealFinished()
         } else {
             revealModules = true
@@ -9818,12 +9728,13 @@ private fun FavoriteSongButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val motionDurationScale = rememberSystemAnimationScale()
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
         if (previousFavoriteState != isFavorite) {
             shouldBounce = true
-            delay(180L)
+            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
             shouldBounce = false
             previousFavoriteState = isFavorite
         }
@@ -10018,12 +9929,13 @@ private fun InlineFavoriteSongButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
+    val motionDurationScale = rememberSystemAnimationScale()
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
         if (previousFavoriteState != isFavorite) {
             shouldBounce = true
-            delay(180L)
+            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
             shouldBounce = false
             previousFavoriteState = isFavorite
         }
@@ -10116,6 +10028,7 @@ private fun SongOverflowMenuButton(
     var expanded by remember(song.id) { mutableStateOf(false) }
     var shouldRenderMenu by remember(song.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(song.id) { mutableStateOf(false) }
+    val motionDurationScale = rememberSystemAnimationScale()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val buttonScale by animateFloatAsState(
@@ -10130,7 +10043,7 @@ private fun SongOverflowMenuButton(
         if (expanded) {
             shouldRenderMenu = true
         } else if (shouldRenderMenu) {
-            delay(180L)
+            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
             shouldRenderMenu = false
         }
     }
@@ -10879,6 +10792,7 @@ private fun PlayerSecondaryActionButton(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     var transientHighlight by remember { mutableStateOf(false) }
+    val motionDurationScale = rememberSystemAnimationScale()
     val backgroundAlpha by animateFloatAsState(
         targetValue = if (showBackground || transientHighlight) 0.2f else 0f,
         animationSpec = tween(ElovaireMotion.Standard),
@@ -10935,7 +10849,7 @@ private fun PlayerSecondaryActionButton(
     }
     LaunchedEffect(transientHighlight) {
         if (transientHighlight) {
-            delay(220L)
+            delay(ElovaireMotion.scaleDurationMillis(220L, motionDurationScale))
             transientHighlight = false
         }
     }
