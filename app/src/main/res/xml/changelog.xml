@@ -6,9 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.9.1">
-        <item>Layout improvements in Library/Songs and Library/Artists UI</item>
-        <item>Improved playlists UI and new flow for creating playlists</item>
+    <release version="1.9.2">
+        <item>Added bit-perfect playback for Android 13 devices or newer</item>
+        <item>All new About screen added available from top bar context menu</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

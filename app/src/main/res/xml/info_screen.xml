@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<about-screen>
+    <!--
+      SECTION
+      - title: visible section header shown above the entries in this block.
+      - description: optional supporting copy shown under the section header.
+    -->
+    <section
+        title="Creator"
+        description="Edit this section to introduce the main creator, studio, brand, or product.">
+        <!--
+          ENTRY
+          - title: main title for the block.
+          - description: longer supporting copy shown under the title.
+        -->
+        <entry
+            title="Droid Beauty"
+            description="Beautifully designed widgets and themes for Android to make your homescreen stunning. I'm also the creator of this music player app you're using right now">
+            <!--
+              LINK
+              - label: visible button text.
+              - url: destination opened when the pill is tapped.
+              Icon is chosen automatically from the domain:
+              instagram -> Instagram icon
+              x.com / twitter.com -> X icon
+              github.com -> GitHub icon
+              ko-fi.com / kofi.com -> Ko-fi icon
+              anything else -> globe icon
+            -->
+            <link
+                label="Instagram"
+                url="https://instagram.com/droidbeauty" />
+            <link
+                label="Twitter"
+                url="https://x.com/droidbeauty" />
+            <link
+                label="Play Store"
+                url="https://play.google.com/store/apps/dev?id=7791472155222642322" />
+            <link
+                label="Ko-fi"
+                url="https://ko-fi.com/droidbeauty" />
+        </entry>
+    </section>
+
+    <section
+        title="Project"
+        description="Use this block for a product summary, mission statement, release notes source, or other high-level information">
+        <entry
+            title="Elovaire"
+            description="Your music, refined into an elegant listening experience. Latest release always available on GitHub. Thank you for using this app and I hope you have a great experience!">
+            <link
+                label="Elovaire on GitHub"
+                url="https://github.com/droidbeauty/elovaire-music" />
+        </entry>
+    </section>
+
+    <section
+        title="Credits"
+        description="Add libraries, inspirations, collaborators, or resources here. Duplicate entry blocks as needed.">
+        <entry
+            title="Resources"
+            description="Elovaire is built with modern open-source Android components that shape experience of the app. Thanks to everyone creating resources such as Media3 playback, Jetpack Compose framework or Lucide icons">
+            <link
+                label="Android Developer"
+                url="https://developer.android.com" />
+            <link
+                label="Lucide icons"
+                url="https://lucide.dev/" />
+        </entry>
+    </section>
+</about-screen>

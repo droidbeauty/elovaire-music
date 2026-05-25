@@ -65,13 +65,16 @@ data class PlaybackUiState(
 class PlaybackManager(
     context: Context,
     scope: CoroutineScope,
-    audioProcessors: Array<AudioProcessor> = emptyArray(),
+    audioProcessorsProvider: () -> Array<AudioProcessor> = { emptyArray() },
+    hasSignalAlteringEffects: () -> Boolean = { false },
     initialRecentSongIds: List<Long> = emptyList(),
     initialRecentAlbumIds: List<Long> = emptyList(),
     onRecentPlaybackChanged: (songIds: List<Long>, albumIds: List<Long>) -> Unit = { _, _ -> },
 ) {
     private val scope = scope
     private val appContext = context.applicationContext
+    private val audioProcessorsProvider = audioProcessorsProvider
+    private val hasSignalAlteringEffects = hasSignalAlteringEffects
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private val usbManager = context.getSystemService(UsbManager::class.java)
@@ -91,25 +94,16 @@ class PlaybackManager(
         audioManager = audioManager,
         usbManager = usbManager,
     )
+    private val bitPerfectUsbManager = BitPerfectUsbManager(
+        context = appContext,
+        audioManager = audioManager,
+        playbackAudioAttributes = platformPlaybackAudioAttributes,
+    )
     private val extractorsFactory = DefaultExtractorsFactory()
         .setConstantBitrateSeekingEnabled(true)
-    private val player = ExoPlayer.Builder(context)
-        .setRenderersFactory(
-            ElovaireRenderersFactory(context, audioProcessors)
-                .setEnableAudioFloatOutput(false)
-                .setEnableDecoderFallback(true)
-                .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
-        )
-        .setMediaSourceFactory(
-            DefaultMediaSourceFactory(context, extractorsFactory),
-        )
-        .setAudioAttributes(playbackAudioAttributes, false)
-        .setWakeMode(C.WAKE_MODE_LOCAL)
-        .setHandleAudioBecomingNoisy(true)
-        .build()
-        .apply {
-            repeatMode = Player.REPEAT_MODE_OFF
-        }
+    private var isDirectPlaybackActive = false
+    private var isSwitchingAudioPath = false
+    private var player = createPlayer(enableSignalProcessing = true)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
             platformPlaybackAudioAttributes,
@@ -122,6 +116,9 @@ class PlaybackManager(
             if (addedDevices.hasUsbOutputDeviceChange()) {
                 hasUsbOutputRoute = currentUsbOutputDescriptor() != null
                 usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
+                bitPerfectUsbManager.refreshConnectedDevices()
+                applyPreferredAudioDevice()
+                maybeRebuildPlayerForAudioPath()
             }
             syncFromObservedSystemVolume()
         }
@@ -130,6 +127,9 @@ class PlaybackManager(
             if (removedDevices.hasUsbOutputDeviceChange()) {
                 hasUsbOutputRoute = currentUsbOutputDescriptor() != null
                 usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
+                bitPerfectUsbManager.refreshConnectedDevices()
+                applyPreferredAudioDevice()
+                maybeRebuildPlayerForAudioPath()
             }
             syncFromObservedSystemVolume()
         }
@@ -147,11 +147,15 @@ class PlaybackManager(
     private val playbackProgressController = PlaybackProgressController()
     private var progressUpdateJob: Job? = null
     private var pauseFadeJob: Job? = null
+    private val _playerInstanceVersion = MutableStateFlow(0L)
+    val playerInstanceVersion: StateFlow<Long> = _playerInstanceVersion.asStateFlow()
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(
             mediaItem: MediaItem?,
             reason: Int,
         ) {
+            bitPerfectUsbManager.clearForStop()
+            maybeRebuildPlayerForAudioPath()
             updateState()
         }
 
@@ -187,6 +191,26 @@ class PlaybackManager(
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
+            updateState()
+        }
+    }
+    private val playerAnalyticsListener = object : AnalyticsListener {
+        override fun onAudioTrackInitialized(
+            eventTime: AnalyticsListener.EventTime,
+            audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
+        ) {
+            bitPerfectUsbManager.updateCurrentAudioTrackConfig(audioTrackConfig)
+            applyPreferredAudioDevice()
+            maybeRebuildPlayerForAudioPath()
+            player.volume = effectivePlayerGain()
+            syncFromObservedSystemVolume()
+        }
+
+        override fun onAudioSinkError(
+            eventTime: AnalyticsListener.EventTime,
+            audioSinkError: Exception,
+        ) {
+            player.volume = effectivePlayerGain()
             updateState()
         }
     }
@@ -237,6 +261,8 @@ class PlaybackManager(
 
     init {
         hasUsbOutputRoute = currentUsbOutputDescriptor() != null
+        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
+        bitPerfectUsbManager.refreshConnectedDevices()
         appContext.contentResolver.registerContentObserver(
             Settings.System.CONTENT_URI,
             true,
@@ -244,28 +270,10 @@ class PlaybackManager(
             )
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
         usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
+        applyPreferredAudioDevice()
+        attachPlayerObservers(player)
         syncFromObservedSystemVolume()
         player.volume = effectivePlayerGain()
-        player.addAnalyticsListener(
-            object : AnalyticsListener {
-                override fun onAudioTrackInitialized(
-                    eventTime: AnalyticsListener.EventTime,
-                    audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
-                ) {
-                    player.volume = effectivePlayerGain()
-                    syncFromObservedSystemVolume()
-                }
-
-                override fun onAudioSinkError(
-                    eventTime: AnalyticsListener.EventTime,
-                    audioSinkError: Exception,
-                ) {
-                    player.volume = effectivePlayerGain()
-                    updateState()
-                }
-            },
-        )
-        player.addListener(playerListener)
 
         progressUpdateJob = scope.launch {
             while (isActive) {
@@ -282,6 +290,15 @@ class PlaybackManager(
         }
     }
 
+    fun reevaluateAudioOutputPath() {
+        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
+        bitPerfectUsbManager.refreshConnectedDevices()
+        applyPreferredAudioDevice()
+        maybeRebuildPlayerForAudioPath()
+        player.volume = targetPlayerOutputGain()
+        updateState()
+    }
+
     fun playSong(
         song: Song,
         collection: List<Song>,
@@ -291,6 +308,41 @@ class PlaybackManager(
         recordManualPlaybackStart()
         val startIndex = collection.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         setQueue(collection, startIndex, sourceLabel, shuffleEnabled)
+    }
+
+    private fun createPlayer(enableSignalProcessing: Boolean): ExoPlayer {
+        val configuredPlayer = ExoPlayer.Builder(appContext)
+            .setRenderersFactory(
+                ElovaireRenderersFactory(
+                    appContext,
+                    if (enableSignalProcessing) audioProcessorsProvider() else emptyArray(),
+                )
+                    .setEnableAudioFloatOutput(false)
+                    .setEnableDecoderFallback(true)
+                    .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
+            )
+            .setMediaSourceFactory(
+                DefaultMediaSourceFactory(appContext, extractorsFactory),
+            )
+            .setAudioAttributes(playbackAudioAttributes, false)
+            .setWakeMode(C.WAKE_MODE_LOCAL)
+            .setHandleAudioBecomingNoisy(true)
+            .build()
+            .apply {
+                repeatMode = Player.REPEAT_MODE_OFF
+            }
+        bitPerfectUsbManager.preferredOutputDevice()?.let(configuredPlayer::setPreferredAudioDevice)
+        return configuredPlayer
+    }
+
+    private fun attachPlayerObservers(target: ExoPlayer) {
+        target.addAnalyticsListener(playerAnalyticsListener)
+        target.addListener(playerListener)
+    }
+
+    private fun detachPlayerObservers(target: ExoPlayer) {
+        target.removeAnalyticsListener(playerAnalyticsListener)
+        target.removeListener(playerListener)
     }
 
     fun playAlbum(
@@ -445,12 +497,63 @@ class PlaybackManager(
         pauseFadeJob?.cancel()
         progressUpdateJob?.cancel()
         usbDacHardwareVolumeManager.release()
+        bitPerfectUsbManager.release()
         abandonAudioFocus()
         appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
         audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
-        player.removeListener(playerListener)
+        detachPlayerObservers(player)
         mediaSession.release()
         player.release()
+    }
+
+    private fun applyPreferredAudioDevice() {
+        player.setPreferredAudioDevice(bitPerfectUsbManager.preferredOutputDevice())
+    }
+
+    private fun maybeRebuildPlayerForAudioPath() {
+        if (isSwitchingAudioPath) return
+        val shouldUseDirectPlayback = bitPerfectUsbManager.status.value.shouldUseDirectPlayback
+        if (shouldUseDirectPlayback == isDirectPlaybackActive) {
+            player.volume = targetPlayerOutputGain()
+            return
+        }
+        switchPlayerAudioPath(useDirectPlayback = shouldUseDirectPlayback)
+    }
+
+    private fun switchPlayerAudioPath(useDirectPlayback: Boolean) {
+        isSwitchingAudioPath = true
+        try {
+            val previousPlayer = player
+            val playbackSnapshot = PlaybackSnapshot.from(previousPlayer)
+            val queueSnapshot = _state.value.queue
+            detachPlayerObservers(previousPlayer)
+
+            val replacementPlayer = createPlayer(enableSignalProcessing = !useDirectPlayback)
+            attachPlayerObservers(replacementPlayer)
+            replacementPlayer.repeatMode = previousPlayer.repeatMode
+            replacementPlayer.shuffleModeEnabled = previousPlayer.shuffleModeEnabled
+            if (queueSnapshot.isNotEmpty()) {
+                replacementPlayer.setMediaItems(
+                    queueSnapshot.map(Song::toPlaybackMediaItem),
+                    playbackSnapshot.currentIndex.coerceIn(0, queueSnapshot.lastIndex),
+                    playbackSnapshot.positionMs,
+                )
+                replacementPlayer.prepare()
+                replacementPlayer.playWhenReady = playbackSnapshot.playWhenReady
+                if (playbackSnapshot.playWhenReady) {
+                    replacementPlayer.play()
+                }
+            }
+            player = replacementPlayer
+            isDirectPlaybackActive = useDirectPlayback
+            mediaSession.setPlayer(replacementPlayer)
+            applyPreferredAudioDevice()
+            replacementPlayer.volume = targetPlayerOutputGain()
+            _playerInstanceVersion.value += 1L
+            previousPlayer.release()
+        } finally {
+            isSwitchingAudioPath = false
+        }
     }
 
     private fun setQueue(
@@ -464,6 +567,8 @@ class PlaybackManager(
         isManualPausePending = false
         isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
+        bitPerfectUsbManager.clearForStop()
+        maybeRebuildPlayerForAudioPath()
 
         val mediaItems = songs.map { song ->
             song.toPlaybackMediaItem()
@@ -493,6 +598,7 @@ class PlaybackManager(
         cancelPauseFade(resetVolume = false)
         isStoppingQueue = true
         shouldResumeAfterTransientFocusLoss = false
+        bitPerfectUsbManager.clearForStop()
         player.pause()
         player.playWhenReady = false
         player.seekTo(0L)
@@ -584,6 +690,9 @@ class PlaybackManager(
     private fun resumePlayback() {
         cancelPauseFade()
         isManualPausePending = false
+        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
+        bitPerfectUsbManager.refreshConnectedDevices()
+        maybeRebuildPlayerForAudioPath()
         if (!requestAudioFocus()) return
         isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
@@ -592,6 +701,12 @@ class PlaybackManager(
     }
 
     private fun beginManualPauseFadeOut() {
+        if (isDirectPlaybackActive) {
+            player.pause()
+            abandonAudioFocus()
+            updateState()
+            return
+        }
         pauseFadeJob?.cancel()
         pauseFadeJob = scope.launch {
             val startVolume = player.volume.coerceIn(0f, 1f)
@@ -685,6 +800,8 @@ class PlaybackManager(
             ?: snapshot.currentIndex.takeIf { it in snapshot.queue.indices }
             ?: 0
         val recoverPosition = lastKnownPositionMs.coerceAtLeast(0L)
+        bitPerfectUsbManager.clearForStop()
+        maybeRebuildPlayerForAudioPath()
         isRecoveringPlayback = true
         scope.launch {
             val mediaItems = snapshot.queue.map { song ->
@@ -714,7 +831,7 @@ class PlaybackManager(
     }
 
     private fun effectivePlayerGain(): Float {
-        if (usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
+        if (isDirectPlaybackActive || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
             return 1f
         }
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
@@ -731,6 +848,21 @@ class PlaybackManager(
         if (usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
             userVolume = targetVolume
             player.volume = 1f
+            return
+        }
+        if (isDirectPlaybackActive) {
+            val manager = audioManager
+            if (manager == null) {
+                userVolume = targetVolume
+                volumeFineGain = if (targetVolume <= 0f) 0f else 1f
+                return
+            }
+            val maxStep = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            val targetSystemStep = (targetVolume * maxStep.toFloat()).roundToInt().coerceIn(0, maxStep)
+            ignoreObservedSystemVolumeStep = targetSystemStep
+            manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0)
+            volumeFineGain = if (targetSystemStep <= 0) 0f else 1f
+            userVolume = currentSystemVolumeFraction().quantizedVolume()
             return
         }
         if (usesFixedVolumeOutput()) {
@@ -769,7 +901,7 @@ class PlaybackManager(
             updateState()
             return
         }
-        if (usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
+        if (isDirectPlaybackActive || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
             ignoreObservedSystemVolumeStep = null
             player.volume = if (isPauseTransitioningToStopped && !player.isPlaying) 0f else 1f
             userVolume = currentEffectiveVolumeFraction()
@@ -808,6 +940,9 @@ class PlaybackManager(
     private fun currentEffectiveVolumeFraction(): Float {
         if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
             return usbDacHardwareVolumeManager.currentHardwareVolume() ?: userVolume
+        }
+        if (isDirectPlaybackActive) {
+            return currentSystemVolumeFraction().quantizedVolume()
         }
         if (shouldBypassSystemStreamVolume()) return userVolume
         val currentSystemFraction = currentSystemVolumeFraction()
@@ -929,6 +1064,22 @@ private fun Float.quantizedVolume(): Float {
 private fun Array<out AudioDeviceInfo>.hasUsbOutputDeviceChange(): Boolean {
     return any { device ->
         device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES
+    }
+}
+
+private data class PlaybackSnapshot(
+    val currentIndex: Int,
+    val positionMs: Long,
+    val playWhenReady: Boolean,
+) {
+    companion object {
+        fun from(player: Player): PlaybackSnapshot {
+            return PlaybackSnapshot(
+                currentIndex = player.currentMediaItemIndex.coerceAtLeast(0),
+                positionMs = player.currentPosition.coerceAtLeast(0L),
+                playWhenReady = player.playWhenReady,
+            )
+        }
     }
 }
 

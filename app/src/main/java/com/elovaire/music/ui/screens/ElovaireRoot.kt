@@ -12,6 +12,7 @@ import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.util.Xml
 import androidx.annotation.DrawableRes
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -82,6 +83,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
@@ -261,10 +263,12 @@ import elovaire.music.app.ui.motion.ElovaireMotion
 import elovaire.music.app.ui.motion.rememberSystemAnimationScale
 import elovaire.music.app.ui.theme.ElovaireRadii
 import elovaire.music.app.ui.theme.ElovaireSpacing
+import elovaire.music.app.ui.theme.AboutCardButtonAccent
 import elovaire.music.app.ui.theme.DestructiveRed
 import elovaire.music.app.ui.theme.elovaireScaledSp
 import elovaire.music.app.ui.theme.rememberElovaireOverscrollFactory
 import elovaire.music.app.ui.theme.InkText
+import elovaire.music.app.ui.theme.RoseAccent
 import elovaire.music.app.ui.theme.ToggleEnabledGreen
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -275,6 +279,7 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.roundToInt
 import kotlin.math.pow
+import org.xmlpull.v1.XmlPullParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -407,6 +412,79 @@ private fun resolveTreePath(uri: Uri): String {
         .replace("//", "/")
 }
 
+private fun Context.loadAboutScreenModel(): AboutScreenModel {
+    val parser = resources.getXml(R.xml.info_screen)
+    val sections = mutableListOf<AboutSection>()
+    var currentSectionTitle = ""
+    var currentSectionDescription: String? = null
+    var currentEntries = mutableListOf<AboutEntry>()
+    var currentEntryTitle: String? = null
+    var currentEntryDescription: String? = null
+    var currentLinks = mutableListOf<AboutLink>()
+
+    fun closeEntry() {
+        val entryTitle = currentEntryTitle
+        if (!entryTitle.isNullOrBlank()) {
+            currentEntries += AboutEntry(
+                title = entryTitle,
+                description = currentEntryDescription?.takeIf { it.isNotBlank() },
+                links = currentLinks.toList(),
+            )
+        }
+        currentEntryTitle = null
+        currentEntryDescription = null
+        currentLinks = mutableListOf()
+    }
+
+    fun closeSection() {
+        closeEntry()
+        if (currentSectionTitle.isNotBlank()) {
+            sections += AboutSection(
+                title = currentSectionTitle,
+                description = currentSectionDescription?.takeIf { it.isNotBlank() },
+                entries = currentEntries.toList(),
+            )
+        }
+        currentSectionTitle = ""
+        currentSectionDescription = null
+        currentEntries = mutableListOf()
+    }
+
+    while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+        when (parser.eventType) {
+            XmlPullParser.START_TAG -> when (parser.name) {
+                "section" -> {
+                    closeSection()
+                    currentSectionTitle = parser.getAttributeValue(null, "title").orEmpty()
+                    currentSectionDescription = parser.getAttributeValue(null, "description")
+                }
+
+                "entry" -> {
+                    closeEntry()
+                    currentEntryTitle = parser.getAttributeValue(null, "title")
+                    currentEntryDescription = parser.getAttributeValue(null, "description")
+                }
+
+                "link" -> {
+                    val label = parser.getAttributeValue(null, "label").orEmpty()
+                    val url = parser.getAttributeValue(null, "url").orEmpty()
+                    if (label.isNotBlank() && url.isNotBlank()) {
+                        currentLinks += AboutLink(label = label, url = url)
+                    }
+                }
+            }
+
+            XmlPullParser.END_TAG -> when (parser.name) {
+                "entry" -> closeEntry()
+                "section" -> closeSection()
+            }
+        }
+        parser.next()
+    }
+    closeSection()
+    return AboutScreenModel(sections = sections)
+}
+
 private fun defaultLibraryPickerUri(preferredUri: Uri? = null): Uri? {
     if (preferredUri != null) return preferredUri
     return runCatching {
@@ -481,6 +559,27 @@ private fun SharedTopBarSpec.visualSignature(): String {
 private data class SharedTopBarRegistration(
     val id: Any,
     val spec: SharedTopBarSpec,
+)
+
+private data class AboutScreenModel(
+    val sections: List<AboutSection>,
+)
+
+private data class AboutSection(
+    val title: String,
+    val description: String?,
+    val entries: List<AboutEntry>,
+)
+
+private data class AboutEntry(
+    val title: String,
+    val description: String?,
+    val links: List<AboutLink>,
+)
+
+private data class AboutLink(
+    val label: String,
+    val url: String,
 )
 
 private class SharedTopBarController {
@@ -2834,7 +2933,14 @@ private fun HeaderIconButton(
     }
     val scale by animateFloatAsState(
         targetValue = if (pressed && enabled) 0.88f else 1f,
-        animationSpec = spring(dampingRatio = 0.6f, stiffness = 420f),
+        animationSpec = if (pressed && enabled) {
+            ElovaireMotion.pressDownSpec()
+        } else {
+            ElovaireMotion.releaseSpringSpec(
+                dampingRatio = 0.72f,
+                stiffness = 420f,
+            )
+        },
         label = "${contentDescription}_header_scale",
     )
     Box(
@@ -10455,7 +10561,6 @@ private fun LyricsOverlay(
     val listState = rememberLazyListState()
     var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
     var autoScrollResumeJob by remember(song?.id) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
-    var selectedLyricLineIndex by remember(song?.id) { mutableStateOf<Int?>(null) }
     var userLyricsScrollActive by remember(song?.id) { mutableStateOf(false) }
     val readyLyricsPayload = (lyricsUiState as? LyricsUiState.Ready)?.payload
     val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
@@ -10466,29 +10571,9 @@ private fun LyricsOverlay(
                 ?.currentLineIndexAt(
                     positionMs = playbackProgress.displayPositionMs,
                     timingOffsetMs = 0L,
-                    switchGraceMs = 180L,
+                    switchGraceMs = 0L,
                 )
                 ?: -1
-        }
-    }
-    val highlightedLyricLineIndex = remember(
-        readyLyricsPayload?.isSynced,
-        selectedLyricLineIndex,
-        activeLyricLineIndex,
-    ) {
-        when {
-            readyLyricsPayload?.isSynced == true -> selectedLyricLineIndex ?: activeLyricLineIndex
-            else -> selectedLyricLineIndex ?: -1
-        }
-    }
-
-    LaunchedEffect(song?.id, readyLyricsPayload?.lines) {
-        selectedLyricLineIndex = null
-    }
-
-    LaunchedEffect(activeLyricLineIndex, readyLyricsPayload?.isSynced) {
-        if (readyLyricsPayload?.isSynced == true && activeLyricLineIndex >= 0) {
-            selectedLyricLineIndex = activeLyricLineIndex
         }
     }
 
@@ -10706,8 +10791,11 @@ private fun LyricsOverlay(
                                     ),
                                     verticalArrangement = Arrangement.spacedBy(14.dp),
                                 ) {
-                                    itemsIndexed(lyricLines) { index, line ->
-                                        val isActive = index == highlightedLyricLineIndex
+                                    itemsIndexed(
+                                        items = lyricLines,
+                                        key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
+                                    ) { index, line ->
+                                        val isActive = state.payload.isSynced && index == activeLyricLineIndex
                                         val lineFontSize by animateFloatAsState(
                                             targetValue = if (isActive) 24f else 22f,
                                             animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
@@ -10732,26 +10820,31 @@ private fun LyricsOverlay(
                                             textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                                             modifier = Modifier
                                                 .fillMaxWidth()
-                                                .clickable(
-                                                    interactionSource = remember { MutableInteractionSource() },
-                                                    indication = null,
-                                                    onClick = {
-                                                        selectedLyricLineIndex = index
-                                                        autoScrollHeld = false
-                                                        autoScrollResumeJob?.cancel()
-                                                        scope.launch {
-                                                            listState.animateLyricJumpToItem(
-                                                                index = index,
-                                                                scrollOffset = -autoScrollCenterOffsetPx,
-                                                            )
-                                                        }
+                                                .pointerInput(
+                                                    song?.id,
+                                                    lyricLines.size,
+                                                    state.payload.isSynced,
+                                                    activeLyricLineIndex,
+                                                ) {
+                                                    detectTapGestures {
                                                         lyricsSeekPositionMs(
                                                             lines = lyricLines,
                                                             index = index,
                                                             isSynced = state.payload.isSynced,
-                                                        )?.let(onSeekTo)
-                                                    },
-                                                ),
+                                                        )?.let { seekPositionMs ->
+                                                            autoScrollHeld = false
+                                                            userLyricsScrollActive = false
+                                                            autoScrollResumeJob?.cancel()
+                                                            scope.launch {
+                                                                listState.animateLyricJumpToItem(
+                                                                    index = index,
+                                                                    scrollOffset = -autoScrollCenterOffsetPx,
+                                                                )
+                                                            }
+                                                            onSeekTo(seekPositionMs)
+                                                        }
+                                                    }
+                                                },
                                         )
                                     }
                                 }
@@ -12119,6 +12212,8 @@ private fun AboutScreen(
     onBack: () -> Unit,
     bottomPadding: Dp,
 ) {
+    val context = LocalContext.current
+    val aboutModel = remember(context) { context.loadAboutScreenModel() }
     val listState = rememberLazyListState()
     Box(
         modifier = Modifier
@@ -12139,38 +12234,11 @@ private fun AboutScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            item {
-                ModuleCard {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        horizontalAlignment = Alignment.Start,
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                text = "Elovaire",
-                                style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(30f)),
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(ElovaireRadii.pill),
-                                color = readableCardSurfaceColor().copy(alpha = 0.72f),
-                            ) {
-                                Text(
-                                    text = BuildConfig.VERSION_NAME,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                                )
-                            }
-                        }
-                        Text(
-                            text = "Offline audio player focused on artwork, smooth motion, and high-quality local playback.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = readableSecondaryTextColor(),
-                        )
-                    }
-                }
+            itemsIndexed(aboutModel.sections, key = { index, section -> "${section.title}_$index" }) { index, section ->
+                AboutSectionCard(
+                    section = section,
+                    renderOnBackground = index == 0,
+                )
             }
         }
         PinnedBackTopBar(
@@ -12178,6 +12246,173 @@ private fun AboutScreen(
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
+    }
+}
+
+@Composable
+private fun AboutSectionCard(
+    section: AboutSection,
+    renderOnBackground: Boolean = false,
+) {
+    val content: @Composable () -> Unit = {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(18.dp),
+            horizontalAlignment = Alignment.Start,
+        ) {
+            section.entries.forEachIndexed { index, entry ->
+                AboutEntryBlock(
+                    entry = entry,
+                    horizontalScrollableLinks = renderOnBackground,
+                    useCardAccentButtons = !renderOnBackground,
+                    useRoseAccentButtons = renderOnBackground,
+                )
+                if (index != section.entries.lastIndex) {
+                    DividerLine()
+                }
+            }
+        }
+    }
+    if (renderOnBackground) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 2.dp),
+        ) {
+            content()
+        }
+    } else {
+        ModuleCard {
+            content()
+        }
+    }
+}
+
+@Composable
+private fun AboutEntryBlock(
+    entry: AboutEntry,
+    horizontalScrollableLinks: Boolean = false,
+    useCardAccentButtons: Boolean = false,
+    useRoseAccentButtons: Boolean = false,
+) {
+    val context = LocalContext.current
+    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        Text(
+            text = entry.title,
+            style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(22f)),
+            color = MaterialTheme.colorScheme.onSurface,
+        )
+        entry.description?.takeIf { it.isNotBlank() }?.let { description ->
+            Text(
+                text = description,
+                style = MaterialTheme.typography.bodyLarge,
+                color = readableSecondaryTextColor(),
+            )
+        }
+        if (entry.links.isNotEmpty()) {
+            if (horizontalScrollableLinks) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    entry.links.forEach { link ->
+                        AboutLinkPill(
+                            link = link,
+                            useCardAccent = useCardAccentButtons,
+                            useRoseAccent = useRoseAccentButtons,
+                            onClick = {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(link.url)).apply {
+                                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        },
+                                    )
+                                }
+                            },
+                        )
+                    }
+                }
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    entry.links.forEach { link ->
+                        Box(modifier = Modifier.weight(1f)) {
+                            AboutLinkPill(
+                                link = link,
+                                useCardAccent = useCardAccentButtons,
+                                useRoseAccent = useRoseAccentButtons,
+                                onClick = {
+                                    runCatching {
+                                        context.startActivity(
+                                            Intent(Intent.ACTION_VIEW, Uri.parse(link.url)).apply {
+                                                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                            },
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun AboutLinkPill(
+    link: AboutLink,
+    useCardAccent: Boolean = false,
+    useRoseAccent: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val containerColor = when {
+        useRoseAccent -> RoseAccent
+        useCardAccent -> AboutCardButtonAccent
+        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f)
+    }
+    val contentColor = if (containerColor.luminance() > 0.42f) InkText else Color.White
+    Surface(
+        modifier = Modifier,
+        onClick = onClick,
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = containerColor,
+        contentColor = contentColor,
+    ) {
+        Row(
+            modifier = Modifier
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = aboutIconForUrl(link.url)),
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = link.label,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Clip,
+            )
+        }
+    }
+}
+
+@DrawableRes
+private fun aboutIconForUrl(url: String): Int {
+    val normalizedUrl = url.lowercase()
+    return when {
+        "instagram.com" in normalizedUrl -> R.drawable.ic_about_instagram
+        "twitter.com" in normalizedUrl || "x.com" in normalizedUrl -> R.drawable.ic_about_twitter
+        "github.com" in normalizedUrl -> R.drawable.ic_about_github
+        "ko-fi.com" in normalizedUrl || "kofi.com" in normalizedUrl -> R.drawable.ic_about_coffee
+        else -> R.drawable.ic_about_globe
     }
 }
 

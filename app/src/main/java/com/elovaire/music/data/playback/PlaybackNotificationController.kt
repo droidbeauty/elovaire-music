@@ -95,6 +95,15 @@ class PlaybackNotificationController(
             }
         }
         scope.launch {
+            playbackManager.playerInstanceVersion.collect {
+                if (!notificationsEnabled) return@collect
+                val currentState = playbackManager.state.value
+                if (shouldShowNotification(currentState)) {
+                    notificationManager.setPlayer(playbackManager.playerInstance)
+                }
+            }
+        }
+        scope.launch {
             playbackManager.state.collectLatest { state ->
                 if (!notificationsEnabled) return@collectLatest
                 when {

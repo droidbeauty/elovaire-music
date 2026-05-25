@@ -225,26 +225,26 @@ object ElovaireMotion {
             )) togetherWith fadeOut(animationSpec = fadeFast())
 
     fun fullScreenForwardEnter(
-        initialOffsetX: (fullWidth: Int) -> Int = { it / 7 },
+        initialOffsetX: (fullWidth: Int) -> Int = { it / 4 },
     ): EnterTransition = fadeIn(animationSpec = fadeMedium()) +
         slideInHorizontally(
             animationSpec = offsetSoft(durationMillis = ScreenSlide),
             initialOffsetX = initialOffsetX,
         ) +
         scaleIn(
-            animationSpec = scaleSoft(),
+            animationSpec = fadeMedium(),
             initialScale = 0.992f,
         )
 
     fun fullScreenForwardExit(
         targetOffsetX: (fullWidth: Int) -> Int = { -(it / 14) },
-    ): ExitTransition = fadeOut(animationSpec = fadeFast()) +
+    ): ExitTransition = fadeOut(animationSpec = fadeMedium()) +
         slideOutHorizontally(
-            animationSpec = offsetSoft(durationMillis = Fast),
+            animationSpec = offsetSoft(durationMillis = ScreenSlide),
             targetOffsetX = targetOffsetX,
         ) +
         scaleOut(
-            animationSpec = fadeFast(),
+            animationSpec = fadeMedium(),
             targetScale = 0.996f,
         )
 

@@ -35,7 +35,8 @@ class AppContainer(
     val playbackManager = PlaybackManager(
         context = applicationContext,
         scope = appScope,
-        audioProcessors = playbackEffectsController.audioProcessors(),
+        audioProcessorsProvider = playbackEffectsController::audioProcessors,
+        hasSignalAlteringEffects = playbackEffectsController::hasSignalAlteringEffects,
         initialRecentSongIds = preferenceStore.recentSongIds.value,
         initialRecentAlbumIds = preferenceStore.recentAlbumIds.value,
         onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
@@ -61,7 +62,10 @@ class AppContainer(
                 .collect(playbackEffectsController::updateAudioSessionId)
         }
         appScope.launch {
-            preferenceStore.eqSettings.collect(playbackEffectsController::updateSettings)
+            preferenceStore.eqSettings.collect { settings ->
+                playbackEffectsController.updateSettings(settings)
+                playbackManager.reevaluateAudioOutputPath()
+            }
         }
         appScope.launch {
             playbackManager.state

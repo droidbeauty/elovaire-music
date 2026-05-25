@@ -2,9 +2,11 @@ package elovaire.music.app.data.playback
 
 import androidx.media3.common.audio.AudioProcessor
 import elovaire.music.app.domain.model.EqSettings
+import elovaire.music.app.domain.model.SpaciousnessMode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlin.math.abs
 
 class PlaybackEffectsController(
     @Suppress("unused")
@@ -39,5 +41,20 @@ class PlaybackEffectsController(
         equalizerProcessor.updateSettings(currentSettings)
     }
 
+    fun hasSignalAlteringEffects(): Boolean {
+        return currentSettings.monoEnabled ||
+            currentSettings.bands.any { abs(it) > EFFECT_BYPASS_EPSILON } ||
+            abs(currentSettings.bass) > EFFECT_BYPASS_EPSILON ||
+            abs(currentSettings.treble) > EFFECT_BYPASS_EPSILON ||
+            (
+                currentSettings.spaciousnessMode != SpaciousnessMode.Off &&
+                    abs(currentSettings.spaciousness) > EFFECT_BYPASS_EPSILON
+                )
+    }
+
     fun release() = Unit
+
+    private companion object {
+        const val EFFECT_BYPASS_EPSILON = 0.0001f
+    }
 }
