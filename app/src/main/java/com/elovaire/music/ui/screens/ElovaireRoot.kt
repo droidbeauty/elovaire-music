@@ -163,6 +163,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -215,6 +216,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
+import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -392,6 +394,32 @@ private object ElovaireNavigationTransitions {
             ABOUT_ROUTE,
         )
     }
+
+    fun isTopLevelRouteTransition(
+        initialRoute: String?,
+        targetRoute: String?,
+    ): Boolean {
+        return topLevelRouteIndex(initialRoute) >= 0 && topLevelRouteIndex(targetRoute) >= 0
+    }
+
+    fun isForwardTopLevelRouteTransition(
+        initialRoute: String?,
+        targetRoute: String?,
+    ): Boolean {
+        val initialIndex = topLevelRouteIndex(initialRoute)
+        val targetIndex = topLevelRouteIndex(targetRoute)
+        return initialIndex >= 0 && targetIndex >= 0 && targetIndex > initialIndex
+    }
+
+    private fun topLevelRouteIndex(route: String?): Int {
+        return when (route.normalizedNavigationRoute()) {
+            HOME_ROUTE -> 0
+            ALBUMS_ROUTE -> 1
+            PLAYLISTS_ROUTE -> 2
+            SEARCH_ROUTE -> 3
+            else -> -1
+        }
+    }
 }
 
 private fun resolveTreePath(uri: Uri): String {
@@ -538,7 +566,7 @@ private sealed interface SharedTopBarSpec {
     data class Back(
         val title: String,
         val onBack: () -> Unit,
-        val centeredTitle: Boolean,
+        val centeredTitle: Boolean = false,
     ) : SharedTopBarSpec
 
     data class Detail(
@@ -604,6 +632,12 @@ private enum class SearchSongSortMode(
 ) {
     Title("Song name"),
     Artist("Artist name"),
+}
+
+private enum class SearchContentMode {
+    Discover,
+    Results,
+    AllSongs,
 }
 
 private enum class AlbumSortMode(
@@ -1594,6 +1628,22 @@ fun ElovaireRoot(
                         } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(targetRoute)) {
                             ElovaireMotion.fullScreenForwardEnter()
                         } else if (
+                            ElovaireNavigationTransitions.isTopLevelRouteTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            if (
+                                ElovaireNavigationTransitions.isForwardTopLevelRouteTransition(
+                                    initialRoute = initialRoute,
+                                    targetRoute = targetRoute,
+                                )
+                            ) {
+                                ElovaireMotion.fullScreenForwardEnter()
+                            } else {
+                                ElovaireMotion.fullScreenBackEnter()
+                            }
+                        } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
                                 targetRoute = targetRoute,
@@ -1632,6 +1682,22 @@ fun ElovaireRoot(
                         ) {
                             ElovaireMotion.fullScreenForwardExit()
                         } else if (
+                            ElovaireNavigationTransitions.isTopLevelRouteTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            if (
+                                ElovaireNavigationTransitions.isForwardTopLevelRouteTransition(
+                                    initialRoute = initialRoute,
+                                    targetRoute = targetRoute,
+                                )
+                            ) {
+                                ElovaireMotion.fullScreenForwardExit()
+                            } else {
+                                ElovaireMotion.fullScreenBackExit()
+                            }
+                        } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
                                 targetRoute = targetRoute,
@@ -1669,6 +1735,22 @@ fun ElovaireRoot(
                             ElovaireMotion.fullScreenBackEnter()
                         } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(targetRoute)) {
                             ElovaireMotion.fullScreenBackEnter()
+                        } else if (
+                            ElovaireNavigationTransitions.isTopLevelRouteTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            if (
+                                ElovaireNavigationTransitions.isForwardTopLevelRouteTransition(
+                                    initialRoute = initialRoute,
+                                    targetRoute = targetRoute,
+                                )
+                            ) {
+                                ElovaireMotion.fullScreenForwardEnter()
+                            } else {
+                                ElovaireMotion.fullScreenBackEnter()
+                            }
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
@@ -1736,6 +1818,22 @@ fun ElovaireRoot(
                             ElovaireMotion.fullScreenBackExit()
                         } else if (ElovaireNavigationTransitions.isUtilityScreenRoute(initialRoute)) {
                             ElovaireMotion.fullScreenBackExit()
+                        } else if (
+                            ElovaireNavigationTransitions.isTopLevelRouteTransition(
+                                initialRoute = initialRoute,
+                                targetRoute = targetRoute,
+                            )
+                        ) {
+                            if (
+                                ElovaireNavigationTransitions.isForwardTopLevelRouteTransition(
+                                    initialRoute = initialRoute,
+                                    targetRoute = targetRoute,
+                                )
+                            ) {
+                                ElovaireMotion.fullScreenForwardExit()
+                            } else {
+                                ElovaireMotion.fullScreenBackExit()
+                            }
                         } else if (
                             ElovaireNavigationTransitions.isSameLevelTransition(
                                 initialRoute = initialRoute,
@@ -2308,7 +2406,7 @@ fun ElovaireRoot(
                                     navController.navigate(route) {
                                         launchSingleTop = true
                                         restoreState = true
-                                        popUpTo(HOME_ROUTE) {
+                                        popUpTo(navController.graph.findStartDestination().id) {
                                             saveState = true
                                         }
                                     }
@@ -2317,7 +2415,7 @@ fun ElovaireRoot(
                                 navController.navigate(route) {
                                     launchSingleTop = true
                                     restoreState = true
-                                    popUpTo(HOME_ROUTE) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
                                         saveState = true
                                     }
                                 }
@@ -5010,7 +5108,7 @@ private fun ArtistDetailScreen(
                                 subtitle = "${artistAlbums.size} available releases",
                                 compact = true,
                             )
-                            AlbumPosterGrid(
+                            ArtistAlbumGallery(
                                 albums = artistAlbums,
                                 onAlbumSelected = onAlbumSelected,
                             )
@@ -5037,6 +5135,45 @@ private fun buildArtistScreenSubtitle(
     albumCount: Int,
 ): String {
     return "${formatCountLabel(albumCount, "album")} • ${formatCountLabel(songCount, "song")}"
+}
+
+@Composable
+private fun ArtistAlbumGallery(
+    albums: List<Album>,
+    onAlbumSelected: (Album, ExpandOrigin) -> Unit,
+) {
+    val scrollState = rememberScrollState()
+    val itemWidth = 158.dp
+    val itemGap = 14.dp
+    val contentWidth = remember(albums.size) {
+        if (albums.isEmpty()) {
+            0.dp
+        } else {
+            (itemWidth * albums.size) + (itemGap * (albums.size - 1).coerceAtLeast(0))
+        }
+    }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalGestureSafe()
+                .horizontalScroll(scrollState),
+            horizontalArrangement = Arrangement.spacedBy(itemGap),
+        ) {
+            albums.forEach { album ->
+                AlbumGridCard(
+                    album = album,
+                    modifier = Modifier.width(itemWidth),
+                    onOpen = { origin -> onAlbumSelected(album, origin) },
+                )
+            }
+        }
+        EqHorizontalScrollbar(
+            scrollState = scrollState,
+            contentWidth = contentWidth,
+            modifier = Modifier.height(26.dp),
+        )
+    }
 }
 
 @Composable
@@ -5452,6 +5589,13 @@ private fun SearchScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val trimmedQuery = query.trim()
     val isSearchUiActive = trimmedQuery.isNotBlank() || isSearchFieldFocused || showAllSongResults
+    val collapseAllSongResults: () -> Unit = {
+        showAllSongResults = false
+        showSearchSongSortOptions = false
+        isSearchFieldFocused = false
+        keyboardController?.hide()
+        focusManager.clearFocus(force = true)
+    }
     val resetSearchToMain: () -> Unit = {
         query = ""
         isSearchFieldFocused = false
@@ -5460,10 +5604,23 @@ private fun SearchScreen(
         keyboardController?.hide()
         focusManager.clearFocus(force = true)
     }
-    BackHandler(enabled = isSearchUiActive) {
-        resetSearchToMain()
+    if (showAllSongResults && trimmedQuery.isNotBlank()) {
+        RegisterSharedTopBar(
+            SharedTopBarSpec.Back(
+                title = "Search",
+                onBack = collapseAllSongResults,
+                centeredTitle = false,
+            ),
+        )
     }
-    LaunchedEffect(trimmedQuery, isSearchFieldFocused) {
+    BackHandler(enabled = isSearchUiActive) {
+        when {
+            showSearchSongSortOptions -> showSearchSongSortOptions = false
+            showAllSongResults && trimmedQuery.isNotBlank() -> collapseAllSongResults()
+            else -> resetSearchToMain()
+        }
+    }
+    LaunchedEffect(isSearchUiActive) {
         onSearchQueryActiveChanged(isSearchUiActive)
     }
     LaunchedEffect(trimmedQuery) {
@@ -5471,6 +5628,11 @@ private fun SearchScreen(
             showAllSongResults = false
             showSearchSongSortOptions = false
         }
+    }
+    val contentMode = when {
+        showAllSongResults && trimmedQuery.isNotBlank() -> SearchContentMode.AllSongs
+        trimmedQuery.isBlank() -> SearchContentMode.Discover
+        else -> SearchContentMode.Results
     }
     val allMatchingSongs = remember(trimmedQuery, libraryState.songs, searchSongSortMode) {
         if (trimmedQuery.isBlank()) {
@@ -5577,7 +5739,7 @@ private fun SearchScreen(
                         },
                     shape = RoundedCornerShape(ElovaireRadii.input),
                     singleLine = true,
-                    placeholder = { Text("Artists, albums, playlists, and more") },
+                    placeholder = { Text("Artists, albums & more") },
                     leadingIcon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_search),
@@ -5627,194 +5789,235 @@ private fun SearchScreen(
                         focusedContainerColor = MaterialTheme.colorScheme.surface,
                         unfocusedContainerColor = MaterialTheme.colorScheme.surface,
                         cursorColor = MaterialTheme.colorScheme.onSurface,
+                        focusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
+                        unfocusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
                     ),
                 )
             }
+            item {
+                ElovaireAnimatedContent(
+                    targetState = contentMode,
+                    modifier = Modifier.fillMaxWidth(),
+                    transitionSpec = {
+                        when {
+                            targetState == SearchContentMode.Discover -> {
+                                (fadeIn(
+                                    animationSpec = ElovaireMotion.contentFadeInSpec(delayMillis = 60),
+                                ) + slideInVertically(
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Medium),
+                                    initialOffsetY = { it / 14 },
+                                )) togetherWith (fadeOut(
+                                    animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                ) + slideOutVertically(
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
+                                    targetOffsetY = { -it / 18 },
+                                ))
+                            }
 
-            if (showAllSongResults && trimmedQuery.isNotBlank()) {
-                item {
-                    SearchSongsResultsHeader(
-                        resultCount = allMatchingSongs.size,
-                        selected = searchSongSortMode,
-                        expanded = showSearchSongSortOptions,
-                        onToggleExpanded = { showSearchSongSortOptions = !showSearchSongSortOptions },
-                        onSelect = { selectedMode ->
-                            searchSongSortMode = selectedMode
-                            showSearchSongSortOptions = false
-                        },
-                    )
-                }
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(ElovaireRadii.card),
-                        color = MaterialTheme.colorScheme.surface,
+                            initialState == SearchContentMode.Results && targetState == SearchContentMode.AllSongs -> {
+                                ElovaireMotion.fullScreenForwardEnter(
+                                    initialOffsetX = { it / 10 },
+                                ) togetherWith ElovaireMotion.fullScreenForwardExit(
+                                    targetOffsetX = { -(it / 18) },
+                                )
+                            }
+
+                            initialState == SearchContentMode.AllSongs && targetState == SearchContentMode.Results -> {
+                                ElovaireMotion.fullScreenBackEnter(
+                                    initialOffsetX = { -(it / 18) },
+                                ) togetherWith ElovaireMotion.fullScreenBackExit(
+                                    targetOffsetX = { it / 10 },
+                                )
+                            }
+
+                            initialState == SearchContentMode.Discover -> {
+                                (fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                                    slideInVertically(
+                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        initialOffsetY = { it / 16 },
+                                    )) togetherWith fadeOut(
+                                    animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                )
+                            }
+
+                            else -> ElovaireMotion.softContentTransform()
+                        }
+                    },
+                    label = "SearchScreenContent",
+                ) { mode ->
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
                     ) {
-                        Column {
-                            allMatchingSongs.forEachIndexed { index, song ->
-                                PlaylistSongRow(
-                                    song = song,
-                                    isFavorite = song.id in favoriteSongIds,
-                                    isCurrentSong = song.id == playbackState.currentSong?.id,
-                                    isPlaybackActive = playbackState.isPlaying,
-                                    onClick = {
-                                        onRememberArtistSearch(song)
-                                        onSongSelected(song, allMatchingSongs)
+                        when (mode) {
+                            SearchContentMode.AllSongs -> {
+                                SearchSongsResultsHeader(
+                                    resultCount = allMatchingSongs.size,
+                                    selected = searchSongSortMode,
+                                    expanded = showSearchSongSortOptions,
+                                    onToggleExpanded = {
+                                        showSearchSongSortOptions = !showSearchSongSortOptions
                                     },
-                                    onToggleFavorite = { onToggleFavorite(song.id) },
-                                    showDivider = index != allMatchingSongs.lastIndex,
+                                    onSelect = { selectedMode ->
+                                        searchSongSortMode = selectedMode
+                                        showSearchSongSortOptions = false
+                                    },
                                 )
-                            }
-                        }
-                    }
-                }
-            } else if (trimmedQuery.isBlank()) {
-                if (recentSearches.isNotEmpty()) {
-                    item {
-                        SearchHistorySectionHeader(
-                            showClearAction = true,
-                            onClearHistory = onClearSearchHistory,
-                        )
-                    }
-                    item {
-                        SearchHistoryListCard(
-                            entries = recentSearches.take(6),
-                            onAlbumSelected = { albumId ->
-                                libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                    onAlbumSelected(album, ExpandOrigin())
+                                Surface(
+                                    shape = RoundedCornerShape(ElovaireRadii.card),
+                                    color = MaterialTheme.colorScheme.surface,
+                                ) {
+                                    Column {
+                                        allMatchingSongs.forEachIndexed { index, song ->
+                                            PlaylistSongRow(
+                                                song = song,
+                                                isFavorite = song.id in favoriteSongIds,
+                                                isCurrentSong = song.id == playbackState.currentSong?.id,
+                                                isPlaybackActive = playbackState.isPlaying,
+                                                onClick = {
+                                                    onRememberArtistSearch(song)
+                                                    onSongSelected(song, allMatchingSongs)
+                                                },
+                                                onToggleFavorite = { onToggleFavorite(song.id) },
+                                                showDivider = index != allMatchingSongs.lastIndex,
+                                            )
+                                        }
+                                    }
                                 }
-                            },
-                            onArtistSelected = onArtistSelected,
-                        )
-                    }
-                } else {
-                    item {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 14.dp, bottom = 10.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Text(
-                                    text = "Nothing searched yet",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                )
-                                Text(
-                                    text = "More results will show here as you search for songs and albums",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.fillMaxWidth(0.74f),
-                                )
+                            }
+
+                            SearchContentMode.Discover -> {
+                                if (recentSearches.isNotEmpty()) {
+                                    SearchHistorySectionHeader(
+                                        showClearAction = true,
+                                        onClearHistory = onClearSearchHistory,
+                                    )
+                                    SearchHistoryListCard(
+                                        entries = recentSearches.take(6),
+                                        onAlbumSelected = { albumId ->
+                                            libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
+                                                onAlbumSelected(album, ExpandOrigin())
+                                            }
+                                        },
+                                        onArtistSelected = onArtistSelected,
+                                    )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(top = 14.dp, bottom = 10.dp),
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Column(
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Text(
+                                                text = "Nothing searched yet",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = MaterialTheme.colorScheme.onSurface,
+                                            )
+                                            Text(
+                                                text = "More results will show here as you search for songs and albums",
+                                                style = secondaryBodyTextStyle(),
+                                                color = readableSecondaryTextColor(),
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth(0.74f),
+                                            )
+                                        }
+                                    }
+                                }
+                                if (suggestedAlbums.isNotEmpty()) {
+                                    FavoriteAlbumsModule(
+                                        albums = suggestedAlbums,
+                                        title = "Suggested albums",
+                                        subtitle = "You should probably revisit these",
+                                        iconResId = R.drawable.ic_lucide_eye,
+                                        onAlbumSelected = { album, origin ->
+                                            onAlbumSelected(album, origin)
+                                        },
+                                    )
+                                }
+                            }
+
+                            SearchContentMode.Results -> {
+                                if (matchingArtists.isNotEmpty()) {
+                                    SectionTitleRow(
+                                        title = "Artists",
+                                        subtitle = "${matchingArtists.size} matching artists",
+                                    )
+                                    SearchHistoryListCard(
+                                        entries = matchingArtists,
+                                        onAlbumSelected = { albumId ->
+                                            libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
+                                                onAlbumSelected(album, ExpandOrigin())
+                                            }
+                                        },
+                                        onArtistSelected = onArtistSelected,
+                                    )
+                                }
+
+                                if (matchingAlbums.isNotEmpty()) {
+                                    SectionTitleRow(
+                                        title = "Albums",
+                                        subtitle = "${matchingAlbums.size} matching album results",
+                                    )
+                                    LazyRow(
+                                        overscrollEffect = null,
+                                        modifier = Modifier.horizontalGestureSafe(),
+                                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                    ) {
+                                        items(matchingAlbums, key = { it.id }) { album ->
+                                            AlbumGridCard(
+                                                album = album,
+                                                modifier = Modifier.width(168.dp),
+                                                onOpen = { origin ->
+                                                    onRememberAlbumSearch(album)
+                                                    onAlbumSelected(album, origin)
+                                                },
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (matchingSongs.isNotEmpty()) {
+                                    SearchSongsPreviewHeader(
+                                        resultCount = allMatchingSongs.size,
+                                        showSeeAll = allMatchingSongs.size > matchingSongs.size,
+                                        onShowAll = {
+                                            focusManager.clearFocus(force = true)
+                                            keyboardController?.hide()
+                                            isSearchFieldFocused = false
+                                            showAllSongResults = true
+                                        },
+                                    )
+                                    Column {
+                                        matchingSongs.forEachIndexed { index, song ->
+                                            HomeRecentSongRow(
+                                                song = song,
+                                                isFavorite = song.id in favoriteSongIds,
+                                                onClick = {
+                                                    onRememberArtistSearch(song)
+                                                    onSongSelected(song, matchingSongs)
+                                                },
+                                                onToggleFavorite = { onToggleFavorite(song.id) },
+                                                showDivider = index != matchingSongs.lastIndex,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                if (matchingAlbums.isEmpty() && matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
+                                    EmptyStateCard(
+                                        title = "No results",
+                                        message = "Nothing in the current offline library matches \"$trimmedQuery\" yet",
+                                    )
+                                }
                             }
                         }
                     }
                 }
-                if (suggestedAlbums.isNotEmpty()) {
-                    item {
-                        FavoriteAlbumsModule(
-                            albums = suggestedAlbums,
-                            title = "Suggested albums",
-                            subtitle = "You should probably revisit these",
-                            iconResId = R.drawable.ic_lucide_eye,
-                            onAlbumSelected = { album, origin ->
-                                onAlbumSelected(album, origin)
-                            },
-                        )
-                    }
-                }
-            } else {
-            if (matchingArtists.isNotEmpty()) {
-                item {
-                    SectionTitleRow(
-                        title = "Artists",
-                        subtitle = "${matchingArtists.size} matching artists",
-                    )
-                }
-                item {
-                    SearchHistoryListCard(
-                        entries = matchingArtists,
-                        onAlbumSelected = { albumId ->
-                            libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                onAlbumSelected(album, ExpandOrigin())
-                            }
-                        },
-                        onArtistSelected = onArtistSelected,
-                    )
-                }
             }
-
-            if (matchingAlbums.isNotEmpty()) {
-                item {
-                    SectionTitleRow(
-                        title = "Albums",
-                        subtitle = "${matchingAlbums.size} matching album results",
-                    )
-                }
-                item {
-                    LazyRow(
-                        overscrollEffect = null,
-                        modifier = Modifier.horizontalGestureSafe(),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        items(matchingAlbums, key = { it.id }) { album ->
-                            AlbumGridCard(
-                                album = album,
-                                modifier = Modifier.width(168.dp),
-                                onOpen = { origin ->
-                                    onRememberAlbumSearch(album)
-                                    onAlbumSelected(album, origin)
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (matchingSongs.isNotEmpty()) {
-                item {
-                    SearchSongsPreviewHeader(
-                        resultCount = allMatchingSongs.size,
-                        showSeeAll = allMatchingSongs.size > matchingSongs.size,
-                        onShowAll = {
-                            focusManager.clearFocus(force = true)
-                            keyboardController?.hide()
-                            isSearchFieldFocused = false
-                            showAllSongResults = true
-                        },
-                    )
-                }
-                item {
-                    Column {
-                        matchingSongs.forEachIndexed { index, song ->
-                            HomeRecentSongRow(
-                                song = song,
-                                isFavorite = song.id in favoriteSongIds,
-                                onClick = {
-                                    onRememberArtistSearch(song)
-                                    onSongSelected(song, matchingSongs)
-                                },
-                                onToggleFavorite = { onToggleFavorite(song.id) },
-                                showDivider = index != matchingSongs.lastIndex,
-                            )
-                        }
-                    }
-                }
-            }
-
-            if (matchingAlbums.isEmpty() && matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
-                item {
-                    EmptyStateCard(
-                        title = "No results",
-                        message = "Nothing in the current offline library matches \"$trimmedQuery\" yet",
-                    )
-                }
-            }
-        }
         }
     }
 }
@@ -6220,6 +6423,13 @@ private fun readableSecondaryTextColor(): Color {
 }
 
 @Composable
+private fun secondaryBodyTextStyle(): TextStyle {
+    return MaterialTheme.typography.bodyLarge.copy(
+        lineHeight = elovaireScaledSp(19.2f),
+    )
+}
+
+@Composable
 private fun readableMutedIconColor(): Color {
     return if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText.copy(alpha = 0.78f)
@@ -6282,7 +6492,11 @@ private fun SectionTitleRow(
         if (!subtitle.isNullOrBlank()) {
             Text(
                 text = subtitle,
-                style = if (compact) MaterialTheme.typography.labelLarge else MaterialTheme.typography.bodyLarge,
+                style = if (compact) {
+                    MaterialTheme.typography.labelLarge
+                } else {
+                    secondaryBodyTextStyle()
+                },
                 color = readableSecondaryTextColor(),
             )
         }
@@ -7351,7 +7565,7 @@ private fun AlbumScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        val listState = rememberLazyListState()
+        val listState = rememberElovaireLazyListState(album.id, "album_detail")
         LazyColumn(
             state = listState,
             overscrollEffect = null,
@@ -7785,7 +7999,7 @@ private fun PlaylistDetailScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        val listState = rememberLazyListState()
+        val listState = rememberElovaireLazyListState(playlist.id, "playlist_detail")
         LazyColumn(
             state = listState,
             overscrollEffect = null,
@@ -9439,7 +9653,7 @@ private fun QueueSheet(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberElovaireLazyListState("equalizer_screen")
     var showSpaciousnessSlider by remember(spaciousnessEnabled) { mutableStateOf(spaciousnessEnabled) }
     val footerExpanded = showSpaciousnessSlider || statusText != null
     val footerHeight by animateDpAsState(
@@ -10465,7 +10679,7 @@ private fun AddToPlaylistPickerDialog(
     onDismiss: () -> Unit,
     onPlaylistSelected: (Long) -> Unit,
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberElovaireLazyListState("settings_screen")
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Add to playlist") },
@@ -11534,7 +11748,7 @@ private fun EqualizerScreen(
     onApplyPreset: (EqSettings) -> Unit,
     onReset: () -> Unit,
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberElovaireLazyListState("changelog_screen")
     val graphScrollState = rememberScrollState()
     Box(
         modifier = Modifier
@@ -11564,7 +11778,7 @@ private fun EqualizerScreen(
                     } else {
                         EQ_GRAPH_MIN_WIDTH
                     }
-                    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Column {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(EQ_DB_SCALE_GAP),
@@ -11573,7 +11787,7 @@ private fun EqualizerScreen(
                             EqDbScale(
                                 modifier = Modifier
                                     .width(EQ_DB_SCALE_WIDTH)
-                                    .height(248.dp),
+                                    .height(260.dp),
                             )
                             Column(
                                 modifier = Modifier
@@ -11586,17 +11800,26 @@ private fun EqualizerScreen(
                                     onBandChanged = onBandChanged,
                                     modifier = Modifier
                                         .width(graphContentWidth)
-                                        .height(248.dp),
+                                        .height(260.dp),
                                 )
                                 EqBandFrequencyLabels(
                                     contentWidth = graphContentWidth,
                                 )
                             }
                         }
+                        Spacer(modifier = Modifier.height(12.dp))
                         EqHorizontalScrollbar(
                             scrollState = graphScrollState,
                             contentWidth = graphContentWidth,
                         )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        EqMiniResponseGraph(
+                            settings = settings,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(60.dp),
+                        )
+                        Spacer(modifier = Modifier.height(20.dp))
                         EqPresetMenu(
                             currentSettings = settings,
                             onApplyPreset = onApplyPreset,
@@ -11608,7 +11831,10 @@ private fun EqualizerScreen(
             item {
                 ModuleCard {
                     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        SettingsCategoryText(title = "Tone shaping")
+                        SettingsCategoryText(
+                            title = "Tone shaping",
+                            iconResId = R.drawable.ic_lucide_sliders_horizontal,
+                        )
                         EqMacroSliderRow(
                             title = "Bass",
                             value = settings.bass.coerceIn(0f, 1f),
@@ -11629,7 +11855,10 @@ private fun EqualizerScreen(
             item {
                 ModuleCard {
                     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        SettingsCategoryText(title = "Spaciousness")
+                        SettingsCategoryText(
+                            title = "Spaciousness",
+                            iconResId = R.drawable.ic_lucide_wind,
+                        )
                         SpaciousnessModeMenu(
                             currentMode = settings.spaciousnessMode,
                             spaciousnessAmount = settings.spaciousness,
@@ -12214,7 +12443,7 @@ private fun AboutScreen(
 ) {
     val context = LocalContext.current
     val aboutModel = remember(context) { context.loadAboutScreenModel() }
-    val listState = rememberLazyListState()
+    val listState = rememberElovaireLazyListState("about_screen")
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -12304,7 +12533,7 @@ private fun AboutEntryBlock(
         entry.description?.takeIf { it.isNotBlank() }?.let { description ->
             Text(
                 text = description,
-                style = MaterialTheme.typography.bodyLarge,
+                style = secondaryBodyTextStyle(),
                 color = readableSecondaryTextColor(),
             )
         }
@@ -12370,7 +12599,7 @@ private fun AboutLinkPill(
     onClick: () -> Unit,
 ) {
     val containerColor = when {
-        useRoseAccent -> RoseAccent
+        useRoseAccent -> RoseAccent.copy(alpha = 0.72f)
         useCardAccent -> AboutCardButtonAccent
         else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f)
     }
@@ -13455,7 +13684,7 @@ private fun EqResponseGraph(
         normalizeEqBandValues(animatedBandValues, graphPointCount)
     }
     val bandFractions = remember { eqBandFractions() }
-    val lineColor = Color(0xFF39E38E)
+    val accentColor = Color(0xFF39E38E)
     val guideColor = MaterialTheme.colorScheme.onSurface
     Box(
         modifier = modifier
@@ -13519,25 +13748,111 @@ private fun EqResponseGraph(
                 )
             }
 
-            val points = bandValues.mapIndexed { index, band ->
+            bandValues.forEachIndexed { index, band ->
                 val x = size.width * bandFractions.getOrElse(index) { 0f }
+                val y = topPadding + (graphHeight * (1f - EqualizerDspModel.bandGraphFraction(band, eqGraphConfig)))
+                val trackWidth = 9.dp.toPx()
+                val activeWidth = 6.dp.toPx()
+                val thumbWidth = 14.dp.toPx()
+                val thumbHeight = 30.dp.toPx()
+                val activeTop = min(y, midY)
+                val activeHeight = max(2.dp.toPx(), kotlin.math.abs(y - midY))
+                drawRoundRect(
+                    color = accentColor.copy(alpha = 0.08f),
+                    topLeft = Offset(x - trackWidth * 1.45f, topPadding - 8.dp.toPx()),
+                    size = Size(trackWidth * 2.9f, graphHeight + 16.dp.toPx()),
+                    cornerRadius = CornerRadius(trackWidth * 2.9f, trackWidth * 2.9f),
+                )
+                drawRoundRect(
+                    color = guideColor.copy(alpha = 0.05f),
+                    topLeft = Offset(x - trackWidth / 2f, topPadding),
+                    size = Size(trackWidth, graphHeight),
+                    cornerRadius = CornerRadius(trackWidth, trackWidth),
+                )
+                drawLine(
+                    color = accentColor.copy(alpha = 0.18f),
+                    start = Offset(x, midY),
+                    end = Offset(x, y),
+                    strokeWidth = activeWidth * 2.6f,
+                    cap = StrokeCap.Round,
+                )
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(x - activeWidth / 2f, activeTop),
+                    size = Size(activeWidth, activeHeight),
+                    cornerRadius = CornerRadius(activeWidth, activeWidth),
+                )
+                drawRoundRect(
+                    color = accentColor.copy(alpha = 0.16f),
+                    topLeft = Offset(x - thumbWidth * 0.8f, y - thumbHeight / 2f),
+                    size = Size(thumbWidth * 1.6f, thumbHeight),
+                    cornerRadius = CornerRadius(thumbWidth, thumbWidth),
+                )
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(x - thumbWidth / 2f, y - thumbHeight / 2f),
+                    size = Size(thumbWidth, thumbHeight),
+                    cornerRadius = CornerRadius(thumbWidth, thumbWidth),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EqMiniResponseGraph(
+    settings: EqSettings,
+    modifier: Modifier = Modifier,
+) {
+    val eqGraphConfig = remember { EqualizerDspConfig() }
+    val graphPointCount = EqualizerDspModel.BAND_COUNT
+    val animatedBandValues = List(graphPointCount) { index ->
+        val target = settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
+        val animated by animateFloatAsState(
+            targetValue = target,
+            animationSpec = tween(260, easing = FastOutSlowInEasing),
+            label = "eq_mini_band_$index",
+        )
+        animated
+    }
+    val bandValues = remember(animatedBandValues) {
+        normalizeEqBandValues(animatedBandValues, graphPointCount)
+    }
+    val bandFractions = remember { eqBandFractions() }
+    val accentColor = Color(0xFF39E38E)
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(ElovaireRadii.module))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)),
+    ) {
+        Canvas(modifier = Modifier.matchParentSize()) {
+            val horizontalPadding = 14.dp.toPx()
+            val topPadding = size.height * 0.18f
+            val bottomPadding = size.height * 0.2f
+            val graphHeight = size.height - topPadding - bottomPadding
+            val graphWidth = size.width - horizontalPadding * 2f
+            val zeroDbFraction = ((0f - eqGraphConfig.minBandGainDb) / (eqGraphConfig.maxBandGainDb - eqGraphConfig.minBandGainDb))
+                .coerceIn(0f, 1f)
+            val midY = topPadding + (graphHeight * (1f - zeroDbFraction))
+            val points = bandValues.mapIndexed { index, band ->
+                val x = horizontalPadding + graphWidth * bandFractions.getOrElse(index) { 0f }
                 val y = topPadding + (graphHeight * (1f - EqualizerDspModel.bandGraphFraction(band, eqGraphConfig)))
                 Offset(x, y)
             }
-
+            if (points.isEmpty()) return@Canvas
             val strokePath = smoothPathFromPoints(points)
             val fillPath = androidx.compose.ui.graphics.Path().apply {
                 addPath(strokePath)
-                lineTo(points.lastOrNull()?.x ?: 0f, midY)
-                lineTo(points.firstOrNull()?.x ?: 0f, midY)
+                lineTo(points.last().x, midY)
+                lineTo(points.first().x, midY)
                 close()
             }
             drawPath(
                 path = fillPath,
                 brush = Brush.verticalGradient(
                     colors = listOf(
-                        lineColor.copy(alpha = 0.2f),
-                        lineColor.copy(alpha = 0.08f),
+                        accentColor.copy(alpha = 0.18f),
+                        accentColor.copy(alpha = 0.07f),
                         Color.Transparent,
                     ),
                     startY = 0f,
@@ -13546,17 +13861,13 @@ private fun EqResponseGraph(
             )
             drawPath(
                 path = strokePath,
-                brush = Brush.horizontalGradient(
-                    colors = listOf(
-                        lineColor,
-                        lineColor,
-                        lineColor,
-                    ),
-                ),
-                style = Stroke(
-                    width = 3.dp.toPx(),
-                    cap = StrokeCap.Round,
-                ),
+                color = accentColor.copy(alpha = 0.2f),
+                style = Stroke(width = 8.dp.toPx(), cap = StrokeCap.Round),
+            )
+            drawPath(
+                path = strokePath,
+                color = accentColor,
+                style = Stroke(width = 2.4.dp.toPx(), cap = StrokeCap.Round),
             )
         }
     }
@@ -13719,12 +14030,28 @@ private fun EqHorizontalScrollbar(
 }
 
 @Composable
-private fun SettingsCategoryText(title: String) {
-    Text(
-        text = title,
-        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-    )
+private fun SettingsCategoryText(
+    title: String,
+    @DrawableRes iconResId: Int? = null,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (iconResId != null) {
+            Icon(
+                painter = painterResource(id = iconResId),
+                contentDescription = null,
+                tint = readableMutedIconColor(),
+                modifier = Modifier.size(15.dp),
+            )
+        }
+        Text(
+            text = title,
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+        )
+    }
 }
 
 @Composable

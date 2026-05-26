@@ -32,24 +32,28 @@ class EqualizerAudioProcessorTest {
     fun nyquistUnsafeBandsAreDisabledAtLowerSampleRates() {
         val bands = EqualizerDspModel.activeBandFrequencies(sampleRateHz = 8_000)
         assertEquals(-1f, bands.last(), 0f)
-        assertEquals(3_150f, bands[18], 0f)
-        assertEquals(-1f, bands[19], 0f)
+        assertEquals(3_000f, bands[10], 0f)
+        assertEquals(-1f, bands[11], 0f)
     }
 
     @Test
     fun automaticHeadroomGrowsWithPositiveBoosts() {
         val lighter = EqualizerDspModel.automaticHeadroomDb(
             bandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT) { 0f },
-            bassBoostDb = 2f,
-            bassPregainDb = -1f,
+            bassShelfDb = 2f,
+            bassAccentDb = 0.8f,
+            bassTrimDb = -0.3f,
+            bassPregainDb = 0f,
             trebleBoostDb = 1f,
             spaciousnessAmount = 0.2f,
             sampleRateHz = 48_000,
         )
         val heavier = EqualizerDspModel.automaticHeadroomDb(
             bandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT) { if (it in 0..6) 6f else 0f },
-            bassBoostDb = 6f,
-            bassPregainDb = -3f,
+            bassShelfDb = 6f,
+            bassAccentDb = 1.8f,
+            bassTrimDb = -0.8f,
+            bassPregainDb = 0f,
             trebleBoostDb = 3f,
             spaciousnessAmount = 1f,
             sampleRateHz = 48_000,
@@ -111,7 +115,7 @@ class EqualizerAudioProcessorTest {
         val settings = EqSettings(
             bands = List(EqualizerDspModel.BAND_COUNT) { index ->
                 when (index) {
-                    4, 5, 6 -> 0.45f
+                    0, 1, 2 -> 0.45f
                     else -> 0f
                 }
             },
@@ -148,7 +152,7 @@ class EqualizerAudioProcessorTest {
             bands = List(EqualizerDspModel.BAND_COUNT) { index ->
                 when {
                     index in 2..6 -> 0.35f
-                    index in 18..23 -> 0.26f
+                    index in 12..17 -> 0.26f
                     index in 10..14 -> -0.15f
                     else -> 0f
                 }
