@@ -3,7 +3,7 @@
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/1.png"
-    alt="Elovaire - music player focused around offline library. Elegant, effortless, functional"
+    alt="Elovaire - elegant Android music player for local libraries"
     width="100%"
   />
 </p>
@@ -27,30 +27,32 @@
 </p>
 
 <p align="center">
-  <b>Your music, refined into an elegant listening experience</b>
+  <b>Your music, refined into an elegant local listening experience</b>
 </p>
 
 <p align="center">
-  Elovaire is an Android music player built for local libraries. Clean interface designed for browsing even large collections of songs, your favorite albums are at a glance. Just press play and enjoy
+  Elovaire is a native Android music player for offline music libraries, built around clean browsing, expressive artwork, smooth playback, and thoughtful audio controls.
 </p>
 
 ---
 
 ## About
 
-Elovaire is a music player designed for people who still passionate about their local music library
+Elovaire is designed for people who still care about music stored directly on their device.
 
-It gives your albums, artists, playlists, lyrics, queue, and now-playing screen the kind of visual attention they deserve — without turning the experience into something noisy or overcomplicated. The app is designed to feel refined, responsive, and personal, whether you are quickly starting a song or settling into longer listening session
+The app gives albums, artists, playlists, lyrics, queue controls, and the now-playing screen a polished visual space without making the player feel noisy or overcomplicated. It is made to feel calm, responsive, and personal whether you are quickly starting a track or settling into a longer listening session.
 
-Unlike streaming-first players, Elovaire focuses on music stored directly on your device. It is offline-first, tag-aware, and built around Android’s local media system. A clean interface keeps playback controls organized and intuitive with your entire music collection displayed beautifully
+Unlike streaming-first players, Elovaire focuses on local files and Android's media library. It is offline-first, tag-aware, and built to keep playback controls, artwork, search, and library navigation organized around your own collection.
 
 ## Highlights
 
-- Offline-first playback for music stored directly on your Android device
-- Artwork-led UI surfaces with sleek, consistent visual style
-- Organized access to music library via album, artist, playlist, and now-playing views
+- Offline-first playback for music stored on your Android device
 - Local library scanning through Android `MediaStore`
-- Smooth animations designed around default Android motion framework
+- Artwork-led home, library, playlist, search, and now-playing screens
+- Dynamic glass-style top and bottom chrome using Haze
+- Smooth Jetpack Compose navigation and UI transitions
+- Media-session notification controls for background playback
+- GitHub release based update checking inside the app
 
 ---
 
@@ -69,42 +71,66 @@ Unlike streaming-first players, Elovaire focuses on music stored directly on you
 
 ## Features
 
-- Full now playing screen with queue, lyrics overlay, volume control, and playback modes
-- Compact now playing bar for quick playback control
-- Light and dark theme built-in
-- 18-band EQ built-in with dedicated screen in the UI to adjust settings
-- Spaciousness effect with 5 presets that change the feel of sound profile to a more extensive soundstage
-- Auto pause feature so playback doesn't disrupt other apps that might play other media
-- Notification playback controls and media-session integration
-- OTA update flow built into the app based on automatic GitHub releases check
+- Full now-playing screen with queue, lyrics overlay, volume control, repeat, shuffle, and playback actions
+- Compact now-playing bar for quick access while browsing
+- Library views for songs, albums, artists, genres, and playlists
+- Search with recent history and expandable song results
+- Timed and plain lyrics support with local embedded lyrics, sidecar lyric files, and online lookup fallbacks
+- 18-band equalizer with presets, bass and treble controls, and visual EQ editing
+- Spaciousness presets for wider stereo presentation
+- True mono playback toggle that downmixes stereo into centered dual-mono output
+- Light, dark, and system theme modes
+- Common local audio formats supported through Android Media3 and platform decoders, including MP3, AAC/M4A, ALAC, FLAC, WAV, AIFF, Ogg, and Opus where supported by the device
 
 ---
 
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/4.png"
-    alt="Smooth listening experience for your entire offline library. Elovaire supports all major losless and lossy audio codecs"
+    alt="Smooth listening experience for an offline music library"
     width="100%"
   />
 </p>
 
 ---
 
-## Built with
+## Built With
 
-Elovaire is built as a native Android project using:
+Elovaire is a native Android project built with:
 
 - Kotlin
 - Jetpack Compose
+- Compose Navigation
 - Android Media3 / ExoPlayer
 - Android `MediaStore`
 - Android Storage Access Framework
-- Haze for frosted and blur-style UI layers
+- Haze for frosted glass and backdrop blur surfaces
 - Gradle Kotlin DSL
+
+## Building
+
+Clone the repository and open it in Android Studio:
+
+```bash
+git clone https://github.com/droidbeauty/elovaire-music.git
+cd elovaire-music
+```
+
+Build a debug APK from the command line:
+
+```bash
+./gradlew assembleDebug
+```
+
+The generated APK will be available under:
+
+```text
+app/build/outputs/apk/debug/
+```
 
 ## Support
 
-Elovaire is a personal project made in genuine pursuit of a great looking alternative to music streaming apps. Support is completely optional, but always appreciated
+Elovaire is a personal project made in pursuit of a beautiful, focused alternative to streaming-first music apps. Support is optional, but always appreciated.
 
 <p align="center">
   <a href="https://ko-fi.com/droidbeauty">
@@ -114,11 +140,3 @@ Elovaire is a personal project made in genuine pursuit of a great looking altern
     />
   </a>
 </p>
-
-## Forking and building
-
-You can fork the project on GitHub, clone your fork locally, and open it in Android Studio
-
-```bash
-git clone https://github.com/YOUR_USERNAME/elovaire-music.git
-cd elovaire-music
