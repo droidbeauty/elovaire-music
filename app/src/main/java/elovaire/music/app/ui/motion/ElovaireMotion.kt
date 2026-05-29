@@ -255,57 +255,71 @@ object ElovaireMotion {
         ))
 
     fun fullScreenForwardEnter(
-        initialOffsetX: (fullWidth: Int) -> Int = { it / 4 },
-    ): EnterTransition = fadeIn(animationSpec = fadeMedium()) +
+        initialOffsetX: (fullWidth: Int) -> Int = { it / 7 },
+    ): EnterTransition = fadeIn(
+        animationSpec = fadeSlow(),
+        initialAlpha = 0.74f,
+    ) +
         slideInHorizontally(
-            animationSpec = offsetSoft(durationMillis = ScreenSlide),
+            animationSpec = offsetSoft(durationMillis = ScreenExpand),
             initialOffsetX = initialOffsetX,
-        ) +
-        scaleIn(
-            animationSpec = fadeMedium(),
-            initialScale = 0.992f,
         )
 
     fun fullScreenForwardExit(
-        targetOffsetX: (fullWidth: Int) -> Int = { -(it / 14) },
-    ): ExitTransition = fadeOut(animationSpec = fadeMedium()) +
+        targetOffsetX: (fullWidth: Int) -> Int = { -(it / 20) },
+    ): ExitTransition = fadeOut(
+        animationSpec = fadeFast(),
+        targetAlpha = 0.92f,
+    ) +
         slideOutHorizontally(
-            animationSpec = offsetSoft(durationMillis = ScreenSlide),
+            animationSpec = offsetSoft(durationMillis = ScreenFade),
             targetOffsetX = targetOffsetX,
-        ) +
-        scaleOut(
-            animationSpec = fadeMedium(),
-            targetScale = 0.996f,
         )
 
     fun fullScreenBackEnter(
-        initialOffsetX: (fullWidth: Int) -> Int = { -(it / 14) },
+        initialOffsetX: (fullWidth: Int) -> Int = { -(it / 20) },
     ): EnterTransition = fadeIn(
-        animationSpec = fadeMedium(),
-        initialAlpha = 0.94f,
+        animationSpec = fadeSlow(),
+        initialAlpha = 0.82f,
     ) +
         slideInHorizontally(
-            animationSpec = offsetSoft(durationMillis = ScreenSlide),
+            animationSpec = offsetSoft(durationMillis = ScreenExpand),
             initialOffsetX = initialOffsetX,
-        ) +
-        scaleIn(
-            animationSpec = fadeMedium(),
-            initialScale = 0.998f,
         )
 
     fun fullScreenBackExit(
-        targetOffsetX: (fullWidth: Int) -> Int = { it / 4 },
+        targetOffsetX: (fullWidth: Int) -> Int = { it / 7 },
     ): ExitTransition = fadeOut(
-        animationSpec = fadeMedium(),
-        targetAlpha = 0.96f,
+        animationSpec = fadeFast(),
+        targetAlpha = 0.88f,
     ) +
         slideOutHorizontally(
-            animationSpec = offsetSoft(durationMillis = ScreenSlide),
+            animationSpec = offsetSoft(durationMillis = ScreenExpand),
             targetOffsetX = targetOffsetX,
-        ) +
-        scaleOut(
-            animationSpec = fadeMedium(),
-            targetScale = 0.994f,
+        )
+
+    fun topLevelEnter(
+        forward: Boolean = true,
+        initialOffsetX: (fullWidth: Int) -> Int = { if (forward) it / 20 else -(it / 20) },
+    ): EnterTransition = fadeIn(
+        animationSpec = fadeMedium(),
+        initialAlpha = 0.76f,
+    ) +
+        slideInHorizontally(
+            animationSpec = offsetSoft(durationMillis = Standard),
+            initialOffsetX = initialOffsetX,
+        )
+
+    fun topLevelExit(
+        forward: Boolean = true,
+        targetOffsetX: (fullWidth: Int) -> Int = { if (forward) -(it / 24) else it / 24 },
+    ): ExitTransition = fadeOut(
+        animationSpec = fadeFast(),
+        targetAlpha = 0.92f,
+    ) +
+        slideOutHorizontally(
+            animationSpec = offsetSoft(durationMillis = Fast),
+            targetOffsetX = targetOffsetX,
         )
 
     fun scaleDurationMillis(

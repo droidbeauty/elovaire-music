@@ -7,9 +7,9 @@
       3. Add newer releases above older ones.
     -->
     <release version="1.9.3">
-        <item>Some tweaks to queue menu in now playing screen</item>
+        <item>Added new long-press interactions for albums in Library-Albums UI</item>
         <item>Improved interactions and animations in Search screen</item>
         <item>Improved micro animations</item>
-        <item>UI tweaks for equalizer screen</item>
+        <item>Subtle UI tweaks for settings and equalizer</item>
     </release>
 </changelog>
