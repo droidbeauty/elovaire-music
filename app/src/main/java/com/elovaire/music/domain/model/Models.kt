@@ -83,6 +83,8 @@ data class EqSettings(
     val spaciousness: Float = 0f,
     val spaciousnessMode: SpaciousnessMode = SpaciousnessMode.StereoWidth,
     val monoEnabled: Boolean = false,
+    val reverbDurationMs: Int = 0,
+    val reverbProfile: ReverbProfile = ReverbProfile.Dry,
 )
 
 enum class SpaciousnessMode {
@@ -93,4 +95,9 @@ enum class SpaciousnessMode {
     Philharmony,
     HaasSpace,
     HarmonicAir,
+}
+
+enum class ReverbProfile {
+    Dry,
+    Wet,
 }

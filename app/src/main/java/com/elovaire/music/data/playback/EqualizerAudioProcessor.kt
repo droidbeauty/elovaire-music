@@ -188,7 +188,8 @@ internal object EqualizerDspModel {
         return settings.bands.none { abs(it) > FLAT_EPSILON } &&
             abs(settings.treble) <= FLAT_EPSILON &&
             settings.bass.coerceAtLeast(0f) <= FLAT_EPSILON &&
-            settings.spaciousness.coerceAtLeast(0f) <= FLAT_EPSILON
+            settings.spaciousness.coerceAtLeast(0f) <= FLAT_EPSILON &&
+            settings.reverbDurationMs <= 0
     }
 
     fun automaticHeadroomDb(
@@ -200,6 +201,7 @@ internal object EqualizerDspModel {
         trebleBoostDb: Float,
         spaciousnessAmount: Float,
         sampleRateHz: Int,
+        reverbHeadroomDb: Float = 0f,
         config: EqualizerDspConfig = EqualizerDspConfig(),
     ): Float {
         val safeConfig = config.sanitized()
@@ -214,9 +216,13 @@ internal object EqualizerDspModel {
             config = safeConfig,
         )
         val combinedPositiveBoostDb = (peakResponseDb + bassPregainDb).coerceAtLeast(0f)
-        if (combinedPositiveBoostDb <= 0f) return 0f
-        return -((combinedPositiveBoostDb * safeConfig.headroomBlend) + safeConfig.headroomSafetyMarginDb)
-            .coerceIn(0f, abs(safeConfig.minPreampDb))
+        val responseHeadroomDb = if (combinedPositiveBoostDb <= 0f) {
+            0f
+        } else {
+            -((combinedPositiveBoostDb * safeConfig.headroomBlend) + safeConfig.headroomSafetyMarginDb)
+                .coerceIn(0f, abs(safeConfig.minPreampDb))
+        }
+        return min(responseHeadroomDb, reverbHeadroomDb)
     }
 
     fun smoothingAlpha(
@@ -406,6 +412,7 @@ internal class EqualizerAudioProcessor(
     private var bassTrimFilters: Array<BiquadFilterState> = emptyArray()
     private var trebleFilters: Array<BiquadFilterState> = emptyArray()
     private val spaciousnessProcessor = SpaciousnessProcessor()
+    private val reverbProcessor = ReverbProcessor()
     private var smoothingAlpha = 1f
     private var configInitialized = false
     private var targetsDirty = true
@@ -428,6 +435,8 @@ internal class EqualizerAudioProcessor(
             spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
             spaciousnessMode = settings.spaciousnessMode,
             monoEnabled = settings.monoEnabled,
+            reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
+            reverbProfile = settings.reverbProfile,
         )
         if (monoToggled && configInitialized) {
             resetFilterMemory()
@@ -482,10 +491,12 @@ internal class EqualizerAudioProcessor(
                 if (currentSettings.monoEnabled && channelCount >= 2) {
                     val monoInputSample = MonoDownmixProcessor.downmixFrame(scratchDryFrame, channelCount)
                     val monoWet = processChannelSample(channelIndex = 0, sample = monoInputSample)
-                    val monoOutput = transparentSafetyLimit(monoWet)
+                    scratchWetFrame[0] = monoWet
+                    reverbProcessor.processFrame(scratchWetFrame, 1)
+                    val monoOutput = transparentSafetyLimit(scratchWetFrame[0])
                     for (channelIndex in 0 until channelCount) {
                         scratchDryFrame[channelIndex] = monoInputSample
-                        scratchWetFrame[channelIndex] = monoWet
+                        scratchWetFrame[channelIndex] = scratchWetFrame[0]
                         writeSample(outputBuffer, encoding, monoOutput)
                     }
                     return@repeat
@@ -496,6 +507,7 @@ internal class EqualizerAudioProcessor(
                 if (!currentSettings.monoEnabled) {
                     spaciousnessProcessor.processFrame(scratchWetFrame, channelCount)
                 }
+                reverbProcessor.processFrame(scratchWetFrame, channelCount)
                 for (channelIndex in 0 until channelCount) {
                     val mixed = if (currentSettings.monoEnabled) {
                         scratchWetFrame[channelIndex]
@@ -545,6 +557,7 @@ internal class EqualizerAudioProcessor(
         scratchDryFrame = FloatArray(channelCount)
         scratchWetFrame = FloatArray(channelCount)
         spaciousnessProcessor.configure(sampleRateHz = sampleRateHz, channelCount = channelCount)
+        reverbProcessor.configure(sampleRateHz = sampleRateHz, channelCount = channelCount)
         resetRuntimeStates()
         targetsDirty = true
         configInitialized = true
@@ -585,6 +598,7 @@ internal class EqualizerAudioProcessor(
         bassTrimFilters.forEach(BiquadFilterState::reset)
         trebleFilters.forEach(BiquadFilterState::reset)
         spaciousnessProcessor.reset()
+        reverbProcessor.reset()
     }
 
     private fun updateTargets() {
@@ -630,6 +644,19 @@ internal class EqualizerAudioProcessor(
                 smoothingTimeMs = safeConfig.smoothingTimeMs,
             ),
         )
+        val reverbDurationMs = normalizeReverbDurationMs(settingsSnapshot.reverbDurationMs)
+        reverbProcessor.setConfig(
+            ReverbConfig(
+                enabled = reverbDurationMs > 0,
+                profile = settingsSnapshot.reverbProfile,
+                decayMs = reverbDurationMs,
+                smoothingTimeMs = safeConfig.smoothingTimeMs,
+            ),
+        )
+        val reverbHeadroomDb = ReverbProcessorModel.automaticHeadroomDb(
+            profile = settingsSnapshot.reverbProfile,
+            decayMs = reverbDurationMs,
+        )
         targetAutoHeadroomDb = EqualizerDspModel.automaticHeadroomDb(
             bandGainsDb = targetBandGainsDb,
             bassShelfDb = targetBassShelfDb,
@@ -639,6 +666,7 @@ internal class EqualizerAudioProcessor(
             trebleBoostDb = targetTrebleDb,
             spaciousnessAmount = spaciousnessAmount,
             sampleRateHz = sampleRateHz,
+            reverbHeadroomDb = reverbHeadroomDb,
             config = safeConfig,
         ).coerceAtMost(bassCurve.automaticHeadroomDb)
         targetsDirty = false
@@ -877,6 +905,7 @@ internal class EqualizerAudioProcessor(
                 if (abs(currentBassAccentDb) > 0.01f) 1 else 0 +
                 if (abs(currentBassTrimDb) > 0.01f) 1 else 0 +
                 if (abs(currentTrebleDb) > 0.01f) 1 else 0 +
+                if (currentSettings.reverbDurationMs > 0) 1 else 0 +
                 if (!spaciousnessProcessor.isBypassed()) 1 else 0,
             bassShelfGainDb = currentBassShelfDb,
             bassPunchGainDb = currentBassAccentDb,

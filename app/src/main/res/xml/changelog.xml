@@ -6,10 +6,11 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.9.3">
-        <item>Added new long-press interactions for albums in Library-Albums UI</item>
-        <item>Improved interactions and animations in Search screen</item>
-        <item>Improved micro animations</item>
-        <item>Subtle UI tweaks for settings and equalizer</item>
+    <release version="1.9.4">
+        <item>New feature in EQ - adjustable reverb effect</item>
+        <item>New playlists layout</item>
+        <item>Improved interactions for playlist creation and editing</item>
+        <item>UI tweaks for settings and equalizer</item>
+        <item>Bug fixes</item>
     </release>
 </changelog>

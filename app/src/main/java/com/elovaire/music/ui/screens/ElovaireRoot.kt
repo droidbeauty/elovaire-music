@@ -254,6 +254,7 @@ import elovaire.music.app.data.update.AppUpdateUiState
 import elovaire.music.app.domain.model.Album
 import elovaire.music.app.domain.model.EqSettings
 import elovaire.music.app.domain.model.Playlist
+import elovaire.music.app.domain.model.ReverbProfile
 import elovaire.music.app.domain.model.SearchHistoryEntry
 import elovaire.music.app.domain.model.SearchHistoryKind
 import elovaire.music.app.domain.model.Song
@@ -2326,6 +2327,8 @@ fun ElovaireRoot(
                             onTextSizePresetSelected = container.preferenceStore::setTextSizePreset,
                             onBassChanged = container.preferenceStore::updateBass,
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
+                            onReverbDurationChanged = container.preferenceStore::updateReverbDurationMs,
+                            onReverbProfileChanged = container.preferenceStore::updateReverbProfile,
                             onMonoPlaybackChanged = container.preferenceStore::updateMonoPlaybackEnabled,
                             onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
                             onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
@@ -12628,6 +12631,8 @@ private fun SettingsScreen(
     onTextSizePresetSelected: (TextSizePreset) -> Unit,
     onBassChanged: (Float) -> Unit,
     onSpaciousnessChanged: (Float) -> Unit,
+    onReverbDurationChanged: (Int) -> Unit,
+    onReverbProfileChanged: (ReverbProfile) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenChangelog: () -> Unit,
@@ -12714,7 +12719,7 @@ private fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         Row(
                             modifier = Modifier
@@ -12737,10 +12742,55 @@ private fun SettingsScreen(
                                 onValueChange = onSpaciousnessChanged,
                             )
                         }
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = "Reverb",
+                                    style = MaterialTheme.typography.titleLarge.copy(
+                                        fontSize = elovaireScaledSp(16f),
+                                    ),
+                                )
+                                Text(
+                                    text = if (eqSettings.reverbDurationMs <= 0) "Off" else "${eqSettings.reverbDurationMs} ms",
+                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
+                                )
+                            }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalGestureSafe()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                ReverbProfile.entries.forEach { profile ->
+                                    EqPresetPill(
+                                        label = profile.displayLabel(),
+                                        selected = eqSettings.reverbProfile == profile,
+                                        useSubtleIdleBackground = true,
+                                        onClick = { onReverbProfileChanged(profile) },
+                                    )
+                                }
+                            }
+                            ReverbStepSlider(
+                                valueMs = eqSettings.reverbDurationMs,
+                                onValueChange = onReverbDurationChanged,
+                            )
+                        }
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(start = 2.dp, end = 2.dp, bottom = 10.dp),
+                                .padding(horizontal = 2.dp),
                             horizontalArrangement = Arrangement.Center,
                         ) {
                             val interactionSource = remember { MutableInteractionSource() }
@@ -12965,7 +13015,12 @@ private fun ChangelogScreen(
 
             item {
                 Box(modifier = Modifier.padding(horizontal = 18.dp)) {
-                    ModuleCard { ChangelogReleaseContent(release = release) }
+                    ModuleCard {
+                        ChangelogReleaseContent(
+                            release = release,
+                            contentHorizontalPadding = 2.dp,
+                        )
+                    }
                 }
             }
         }
@@ -13823,6 +13878,156 @@ private fun TextSizeStepper(
     }
 }
 
+private fun ReverbProfile.displayLabel(): String {
+    return when (this) {
+        ReverbProfile.Dry -> "Dry"
+        ReverbProfile.Wet -> "Wet"
+    }
+}
+
+@Composable
+private fun ReverbStepSlider(
+    valueMs: Int,
+    onValueChange: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val steps = remember { (0..300 step 50).toList() }
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val selectedValue = ((valueMs.coerceIn(0, 300) / 50) * 50)
+    val selectedIndex = steps.indexOf(selectedValue).coerceAtLeast(0)
+    val maxIndex = (steps.size - 1).coerceAtLeast(1)
+    val knobSize = 20.dp
+    val dotColor = MaterialTheme.colorScheme.onSurface
+    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText
+    } else {
+        Color.White
+    }
+    val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText.copy(alpha = 0.18f)
+    } else {
+        Color.White.copy(alpha = 0.2f)
+    }
+    var isDragging by remember { mutableStateOf(false) }
+    var dragCenterPx by remember { mutableFloatStateOf(0f) }
+
+    BoxWithConstraints(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(36.dp)
+            .horizontalGestureSafe(),
+    ) {
+        val density = LocalDensity.current
+        val maxWidthPx = with(density) { maxWidth.toPx() }
+        val stepFraction = selectedIndex.toFloat() / maxIndex.toFloat()
+        val knobSizePx = with(density) { knobSize.toPx() }
+        val selectedCenterPx = maxWidthPx * stepFraction
+        val stepCenters = remember(maxWidthPx, maxIndex) {
+            steps.indices.map { index ->
+                if (maxIndex == 0) {
+                    maxWidthPx / 2f
+                } else {
+                    maxWidthPx * (index.toFloat() / maxIndex.toFloat())
+                }
+            }
+        }
+        LaunchedEffect(selectedCenterPx, maxWidthPx) {
+            if (!isDragging) {
+                dragCenterPx = selectedCenterPx
+            }
+        }
+        val knobOffset by animateDpAsState(
+            targetValue = with(density) {
+                ((if (isDragging) dragCenterPx else selectedCenterPx) - (knobSizePx / 2f)).toDp()
+            },
+            animationSpec = if (isDragging) {
+                tween(durationMillis = 60)
+            } else {
+                spring(
+                    dampingRatio = 0.82f,
+                    stiffness = 480f,
+                )
+            },
+            label = "reverb_step_knob_offset",
+        )
+        val updateFromPosition: (Float) -> Unit = { xPosition ->
+            val clampedX = xPosition.coerceIn(0f, maxWidthPx)
+            dragCenterPx = clampedX
+            val targetIndex = stepCenters
+                .withIndex()
+                .minByOrNull { (_, center) -> kotlin.math.abs(center - clampedX) }
+                ?.index
+                ?: selectedIndex
+            val targetValue = steps[targetIndex]
+            if (targetValue != selectedValue) {
+                currentOnValueChange(targetValue)
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(maxWidthPx) {
+                    detectTapGestures { offset ->
+                        if (maxWidthPx > 0f) {
+                            updateFromPosition(offset.x)
+                        }
+                    }
+                }
+                .pointerInput(maxWidthPx, steps.size) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset ->
+                            isDragging = true
+                            if (maxWidthPx > 0f) {
+                                updateFromPosition(offset.x)
+                            }
+                        },
+                        onHorizontalDrag = { change, _ ->
+                            if (maxWidthPx > 0f) {
+                                change.consume()
+                                updateFromPosition(change.position.x)
+                            }
+                        },
+                        onDragEnd = { isDragging = false },
+                        onDragCancel = { isDragging = false },
+                    )
+                },
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.Center)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .background(lineColor),
+            )
+
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val selectedDotRadius = 3.5.dp.toPx()
+                val defaultDotRadius = 2.5.dp.toPx()
+                val centerY = size.height / 2f
+                steps.forEachIndexed { index, _ ->
+                    val fraction = if (maxIndex == 0) 0f else index.toFloat() / maxIndex.toFloat()
+                    drawCircle(
+                        color = dotColor,
+                        radius = if (index == selectedIndex) selectedDotRadius else defaultDotRadius,
+                        center = Offset(size.width * fraction, centerY),
+                    )
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
+                    .size(knobSize)
+                    .clip(CircleShape)
+                    .background(knobColor)
+                    .align(Alignment.CenterStart),
+            )
+        }
+    }
+}
+
 @Composable
 private fun SettingToggleRow(
     title: String,
@@ -14396,7 +14601,12 @@ private fun EqMacroSliderRow(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = elovaireScaledSp(16f),
+                ),
+            )
             Text(
                 text = valueText,
                 style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),

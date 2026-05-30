@@ -64,7 +64,6 @@ class AppContainer(
         appScope.launch {
             preferenceStore.eqSettings.collect { settings ->
                 playbackEffectsController.updateSettings(settings)
-                playbackManager.reevaluateAudioOutputPath()
             }
         }
         appScope.launch {

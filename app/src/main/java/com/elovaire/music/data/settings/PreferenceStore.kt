@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.core.content.edit
 import elovaire.music.app.domain.model.EqSettings
 import elovaire.music.app.domain.model.Playlist
+import elovaire.music.app.domain.model.ReverbProfile
 import elovaire.music.app.domain.model.SearchHistoryEntry
 import elovaire.music.app.domain.model.SearchHistoryKind
 import elovaire.music.app.domain.model.SpaciousnessMode
@@ -261,6 +262,18 @@ class PreferenceStore(context: Context) {
         persistEqSettings(nextSettings)
     }
 
+    fun updateReverbDurationMs(valueMs: Int) {
+        persistEqSettings(
+            _eqSettings.value.copy(
+                reverbDurationMs = normalizeReverbDurationMs(valueMs),
+            ),
+        )
+    }
+
+    fun updateReverbProfile(profile: ReverbProfile) {
+        persistEqSettings(_eqSettings.value.copy(reverbProfile = profile))
+    }
+
     fun updateMonoPlaybackEnabled(enabled: Boolean) {
         persistEqSettings(_eqSettings.value.copy(monoEnabled = enabled))
     }
@@ -277,6 +290,8 @@ class PreferenceStore(context: Context) {
                 spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
                 spaciousnessMode = settings.spaciousnessMode,
                 monoEnabled = settings.monoEnabled,
+                reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
+                reverbProfile = settings.reverbProfile,
             ),
         )
     }
@@ -352,15 +367,20 @@ class PreferenceStore(context: Context) {
     }
 
     private fun persistEqSettings(settings: EqSettings) {
+        val normalizedSettings = settings.copy(
+            reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
+        )
         preferences.edit {
-            putString(KEY_BANDS, settings.bands.joinToString(","))
-            putFloat(KEY_BASS, settings.bass)
-            putFloat(KEY_TREBLE, settings.treble)
-            putFloat(KEY_SPACIOUSNESS, settings.spaciousness)
-            putString(KEY_SPACIOUSNESS_MODE, settings.spaciousnessMode.name)
-            putBoolean(KEY_MONO_ENABLED, settings.monoEnabled)
+            putString(KEY_BANDS, normalizedSettings.bands.joinToString(","))
+            putFloat(KEY_BASS, normalizedSettings.bass)
+            putFloat(KEY_TREBLE, normalizedSettings.treble)
+            putFloat(KEY_SPACIOUSNESS, normalizedSettings.spaciousness)
+            putString(KEY_SPACIOUSNESS_MODE, normalizedSettings.spaciousnessMode.name)
+            putBoolean(KEY_MONO_ENABLED, normalizedSettings.monoEnabled)
+            putInt(KEY_REVERB_DURATION_MS, normalizedSettings.reverbDurationMs)
+            putString(KEY_REVERB_PROFILE, normalizedSettings.reverbProfile.name)
         }
-        _eqSettings.value = settings
+        _eqSettings.value = normalizedSettings
     }
 
     private fun loadThemeMode(): ThemeMode {
@@ -384,7 +404,15 @@ class PreferenceStore(context: Context) {
                 ?.let { saved -> SpaciousnessMode.entries.firstOrNull { it.name == saved } }
                 ?: SpaciousnessMode.StereoWidth,
             monoEnabled = preferences.getBoolean(KEY_MONO_ENABLED, false),
+            reverbDurationMs = normalizeReverbDurationMs(preferences.getInt(KEY_REVERB_DURATION_MS, 0)),
+            reverbProfile = preferences.getString(KEY_REVERB_PROFILE, ReverbProfile.Dry.name)
+                ?.let { saved -> ReverbProfile.entries.firstOrNull { it.name == saved } }
+                ?: ReverbProfile.Dry,
         )
+    }
+
+    private fun normalizeReverbDurationMs(valueMs: Int): Int {
+        return (valueMs.coerceIn(0, MAX_REVERB_DURATION_MS) / REVERB_STEP_MS) * REVERB_STEP_MS
     }
 
     private fun loadTextSizePreset(): TextSizePreset {
@@ -622,9 +650,13 @@ class PreferenceStore(context: Context) {
         const val KEY_SPACIOUSNESS = "eq_spaciousness"
         const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"
         const val KEY_MONO_ENABLED = "mono_playback_enabled"
+        const val KEY_REVERB_DURATION_MS = "eq_reverb_duration_ms"
+        const val KEY_REVERB_PROFILE = "eq_reverb_profile"
         const val MAX_RECENT_PLAYBACK_IDS = 24
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
+        const val REVERB_STEP_MS = 50
+        const val MAX_REVERB_DURATION_MS = 300
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"
     }

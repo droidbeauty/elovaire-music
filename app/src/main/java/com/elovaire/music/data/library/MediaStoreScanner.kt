@@ -311,11 +311,7 @@ class MediaStoreScanner(
     }
 
     private fun audioCollectionUri(): Uri {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
-        } else {
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
-        }
+        return MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
     }
 
     private fun buildScanRoots(): List<File> {

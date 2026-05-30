@@ -37,6 +37,8 @@ class PlaybackEffectsController(
             spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
             spaciousnessMode = settings.spaciousnessMode,
             monoEnabled = settings.monoEnabled,
+            reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
+            reverbProfile = settings.reverbProfile,
         )
         equalizerProcessor.updateSettings(currentSettings)
     }
@@ -46,6 +48,7 @@ class PlaybackEffectsController(
             currentSettings.bands.any { abs(it) > EFFECT_BYPASS_EPSILON } ||
             abs(currentSettings.bass) > EFFECT_BYPASS_EPSILON ||
             abs(currentSettings.treble) > EFFECT_BYPASS_EPSILON ||
+            currentSettings.reverbDurationMs > 0 ||
             (
                 currentSettings.spaciousnessMode != SpaciousnessMode.Off &&
                     abs(currentSettings.spaciousness) > EFFECT_BYPASS_EPSILON
