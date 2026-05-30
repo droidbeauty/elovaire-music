@@ -40,9 +40,9 @@
 
 Elovaire is designed for people who still care about music stored directly on their device.
 
-The app gives albums, artists, playlists, lyrics, queue controls, and the now-playing screen a polished visual space without making the player feel noisy or overcomplicated. It is made to feel calm, responsive, and personal whether you are quickly starting a track or settling into a longer listening session.
+The app gives albums, artists, playlists, lyrics, queue controls, and the now-playing screen a polished visual space without making the player feel noisy or overcomplicated. It is made to feel calm, responsive and personal whether you are quickly starting a track or settling into a longer listening session.
 
-Unlike streaming-first players, Elovaire focuses on local files and Android's media library. It is offline-first, tag-aware, and built to keep playback controls, artwork, search, and library navigation organized around your own collection.
+Unlike streaming platforms, Elovaire focuses on local files stored on device. It's offline-first, tag-aware and puts highlight on your favorite albums or songs. Streamlined interface keeps library navigation and search organized around your own collection.
 
 ## Highlights
 
@@ -57,12 +57,10 @@ Unlike streaming-first players, Elovaire focuses on local files and Android's me
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/2.png"
-    alt="Elovaire library preview"
     width="49%"
   />
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/3.png"
-    alt="Elovaire player preview"
     width="49%"
   />
 </p>
@@ -85,7 +83,6 @@ Unlike streaming-first players, Elovaire focuses on local files and Android's me
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/4.png"
-    alt="Refined listening experience for your offline music library"
     width="100%"
   />
 </p>
@@ -93,7 +90,6 @@ Unlike streaming-first players, Elovaire focuses on local files and Android's me
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/5.png"
-    alt="Customizable listening. Simple yet highly refined"
     width="100%"
   />
 </p>
@@ -118,7 +114,6 @@ Elovaire is a native Android project built with:
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/6.png"
-    alt="Your favorite music presented the way it deserves to be"
     width="100%"
   />
 </p>
