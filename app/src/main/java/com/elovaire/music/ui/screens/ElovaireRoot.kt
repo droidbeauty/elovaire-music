@@ -1502,6 +1502,7 @@ fun ElovaireRoot(
     }
     LaunchedEffect(currentBackStackEntry, browsingOriginRoute, currentConcreteRoute) {
         val concreteRoute = currentBackStackEntry?.elovaireConcreteRoute() ?: return@LaunchedEffect
+        val normalizedConcreteRoute = concreteRoute.normalizedNavigationRoute()
         val ownerRoute = when (concreteRoute.normalizedNavigationRoute()) {
             HOME_ROUTE -> HOME_ROUTE
             SEARCH_ROUTE -> SEARCH_ROUTE
@@ -1530,6 +1531,9 @@ fun ElovaireRoot(
             routeOwnerOverrides[concreteRoute] = ownerRoute
         }
         if (concreteRoute in setOf(PLAYER_ROUTE, SETTINGS_ROUTE, EQUALIZER_ROUTE, CHANGELOG_ROUTE, ABOUT_ROUTE)) {
+            return@LaunchedEffect
+        }
+        if (normalizedConcreteRoute in setOf("$ALBUM_ROUTE/{albumId}", "$PLAYLIST_ROUTE/{playlistId}")) {
             return@LaunchedEffect
         }
         when (ownerRoute) {
@@ -1645,7 +1649,7 @@ fun ElovaireRoot(
             SharedTopBarSpec.Unified(
                 title = topBarTitle(currentRoute),
                 showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
-                supplementalActionIconResId = if (showPlaylistCreateAction) R.drawable.ic_lucide_square_plus else null,
+                supplementalActionIconResId = if (showPlaylistCreateAction) R.drawable.ic_lucide_plus else null,
                 supplementalActionContentDescription = if (showPlaylistCreateAction) "Create playlist" else null,
                 onSupplementalAction = if (showPlaylistCreateAction) {
                     { showPlaylistCreateDialog = true }
@@ -2606,6 +2610,7 @@ fun ElovaireRoot(
                                             }
                                         }
                                     }
+                                    resetTopLevelTabState(route)
                                 } else {
                                     resetTopLevelTabState(route)
                                 }
@@ -4814,7 +4819,7 @@ private fun PlaylistsScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(top = topPadding + selectionTopInset, bottom = bottomPadding),
+            .padding(bottom = bottomPadding),
     ) {
         if (playlists.isEmpty()) {
             EmptyPlaylistState(
@@ -4833,7 +4838,7 @@ private fun PlaylistsScreen(
                     .ensureSingleItemRubberBand(gridState),
                 contentPadding = PaddingValues(
                     start = 20.dp,
-                    top = 12.dp,
+                    top = topPadding + selectionTopInset + 12.dp,
                     end = 20.dp,
                     bottom = 16.dp,
                 ),
@@ -4890,7 +4895,7 @@ private fun PlaylistsScreen(
                 ),
                 trailingAction = TopBarMenuAction(
                     iconResId = R.drawable.ic_lucide_trash_2,
-                    label = "Delete",
+                    label = "Remove from list",
                     tint = DestructiveRed,
                     onClick = {
                         onDeletePlaylists(selectedPlaylistIds)
@@ -5883,7 +5888,7 @@ private fun PlaylistArtworkPreview(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(start = 12.dp, top = 18.dp, end = 12.dp, bottom = 8.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.card))
+                    .clip(RoundedCornerShape(ElovaireRadii.artwork))
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
@@ -5898,7 +5903,7 @@ private fun PlaylistArtworkPreview(
         }
         Surface(
             modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(ElovaireRadii.card),
+            shape = RoundedCornerShape(ElovaireRadii.artwork),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
         ) {
             when {
@@ -8911,9 +8916,11 @@ private fun PlaylistDetailScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         val listState = rememberElovaireLazyListState(playlist.id, "playlist_detail")
+        val scope = rememberCoroutineScope()
         LazyColumn(
             state = listState,
             overscrollEffect = null,
+            userScrollEnabled = !editMode,
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding()
@@ -9024,6 +9031,16 @@ private fun PlaylistDetailScreen(
                     GroupedListRowContainer(
                         index = index,
                         lastIndex = playlistSongs.lastIndex,
+                        modifier = if (editMode) {
+                            Modifier.animateItem(
+                                placementSpec = spring(
+                                    dampingRatio = 0.72f,
+                                    stiffness = 320f,
+                                ),
+                            )
+                        } else {
+                            Modifier
+                        },
                     ) {
                         PlaylistSongRow(
                             song = song,
@@ -9046,6 +9063,23 @@ private fun PlaylistDetailScreen(
                                             editableSongIds = editableSongIds.toMutableList().apply {
                                                 add(targetIndex, removeAt(fromIndex))
                                             }.toList()
+                                            val visibleItems = listState.layoutInfo.visibleItemsInfo
+                                            val firstVisibleIndex = visibleItems.firstOrNull()?.index ?: 0
+                                            val lastVisibleIndex = visibleItems.lastOrNull()?.index ?: targetIndex
+                                            when {
+                                                delta < 0 && targetIndex <= firstVisibleIndex + 1 -> {
+                                                    scope.launch {
+                                                        listState.animateScrollToItem((targetIndex - 1).coerceAtLeast(0))
+                                                    }
+                                                }
+                                                delta > 0 && targetIndex >= lastVisibleIndex - 1 -> {
+                                                    scope.launch {
+                                                        listState.animateScrollToItem(
+                                                            (targetIndex + 1).coerceAtMost(editableSongIds.lastIndex),
+                                                        )
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -9310,7 +9344,8 @@ private fun AddSongsToPlaylistOverlay(
     onAddSongs: (List<Long>) -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(PlaylistPickerTab.Songs) }
-    var selectedSongIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
+    var selectedSongIds by rememberSaveable { mutableStateOf(listOf<Long>()) }
+    val selectedSongIdSet = remember(selectedSongIds) { selectedSongIds.toSet() }
     val listState = rememberElovaireLazyListState("playlist_add_songs_overlay")
     val candidateSongs = remember(availableSongs, existingSongIds) {
         availableSongs.filterNot { it.id in existingSongIds }
@@ -9386,16 +9421,16 @@ private fun AddSongsToPlaylistOverlay(
             when (selectedTab) {
                 PlaylistPickerTab.Albums -> {
                     items(albums, key = { it.id }) { album ->
-                        val allSelected = album.songs.all { it.id in selectedSongIds }
+                        val allSelected = album.songs.all { it.id in selectedSongIdSet }
                         CompactAlbumRow(
                             album = album,
                             selectionMode = true,
                             selected = allSelected,
                             onOpen = {
                                 selectedSongIds = if (allSelected) {
-                                    selectedSongIds - album.songs.map { it.id }.toSet()
+                                    selectedSongIds.filterNot { it in album.songs.map(Song::id).toSet() }
                                 } else {
-                                    selectedSongIds + album.songs.map { it.id }
+                                    selectedSongIds + album.songs.map(Song::id).filterNot(selectedSongIdSet::contains)
                                 }
                             },
                         )
@@ -9404,7 +9439,7 @@ private fun AddSongsToPlaylistOverlay(
 
                 PlaylistPickerTab.Artists -> {
                     items(artists, key = { it.first.name }) { (artist, songs) ->
-                        val allSelected = songs.all { it.id in selectedSongIds }
+                        val allSelected = songs.all { it.id in selectedSongIdSet }
                         SelectableCollectionRow(
                             title = artist.name,
                             subtitle = "${formatCountLabel(artist.songCount, "song")} • ${formatCountLabel(artist.albumCount, "album")}",
@@ -9412,9 +9447,9 @@ private fun AddSongsToPlaylistOverlay(
                             selected = allSelected,
                             onClick = {
                                 selectedSongIds = if (allSelected) {
-                                    selectedSongIds - songs.map { it.id }.toSet()
+                                    selectedSongIds.filterNot { it in songs.map(Song::id).toSet() }
                                 } else {
-                                    selectedSongIds + songs.map { it.id }
+                                    selectedSongIds + songs.map(Song::id).filterNot(selectedSongIdSet::contains)
                                 }
                             },
                         )
@@ -9423,13 +9458,13 @@ private fun AddSongsToPlaylistOverlay(
 
                 PlaylistPickerTab.Songs -> {
                     items(candidateSongs, key = { it.id }) { song ->
-                        val selected = song.id in selectedSongIds
+                        val selected = song.id in selectedSongIdSet
                         SelectableSongRow(
                             song = song,
                             selected = selected,
                             onClick = {
                                 selectedSongIds = if (selected) {
-                                    selectedSongIds - song.id
+                                    selectedSongIds.filterNot { it == song.id }
                                 } else {
                                     selectedSongIds + song.id
                                 }
@@ -9453,7 +9488,7 @@ private fun AddSongsToPlaylistOverlay(
                     contentDescription = "Confirm added songs",
                     onClick = {
                         if (selectedSongIds.isNotEmpty()) {
-                            onAddSongs(selectedSongIds.toList())
+                            onAddSongs(selectedSongIds)
                         } else {
                             onDismiss()
                         }
@@ -9594,6 +9629,7 @@ private fun DividerLine() {
 private fun GroupedListRowContainer(
     index: Int,
     lastIndex: Int,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     val shape = when {
@@ -9613,6 +9649,7 @@ private fun GroupedListRowContainer(
         else -> RoundedCornerShape(0.dp)
     }
     Surface(
+        modifier = modifier,
         shape = shape,
         color = MaterialTheme.colorScheme.surface,
     ) {
@@ -9991,10 +10028,14 @@ private fun NowPlayingScreen(
 
         lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.let { cached ->
             value = cached.toUiState()
-            return@produceState
+            if (cached is LyricsResult.Found && cached.payload.isSynced) {
+                return@produceState
+            }
         }
 
-        value = LyricsUiState.Loading
+        if (value !is LyricsUiState.Ready) {
+            value = LyricsUiState.Loading
+        }
         val fetchedResult = withTimeoutOrNull(4_200L) {
             lyricsService.fetchLyrics(
                 song = currentSong,
@@ -13268,14 +13309,15 @@ private fun EqualizerScreen(
                             ) {
                                 EqPresetPill(
                                     label = "Reset",
-                                    selected = settings.reverbDurationMs <= 0,
+                                    selected = false,
+                                    emphasized = true,
                                     useSubtleIdleBackground = true,
                                     onClick = onResetReverb,
                                 )
                                 ReverbProfile.entries.forEach { profile ->
                                     EqPresetPill(
                                         label = profile.displayLabel(),
-                                        selected = settings.reverbProfile == profile,
+                                        selected = settings.reverbDurationMs > 0 && settings.reverbProfile == profile,
                                         useSubtleIdleBackground = true,
                                         onClick = { onReverbProfileChanged(profile) },
                                     )

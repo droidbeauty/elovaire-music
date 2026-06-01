@@ -43,10 +43,10 @@ internal object ReverbProcessorModel {
         val amount = normalizedAmount(decayMs)
         if (amount <= FLAT_EPSILON) return 0f
         val compensationDb = when (profile) {
-            ReverbProfile.Dry -> 0.14f + (amount * 0.52f)
-            ReverbProfile.Wet -> 0.24f + (amount * 0.88f)
+            ReverbProfile.Dry -> 0.32f + (amount * 1.02f)
+            ReverbProfile.Wet -> 0.58f + (amount * 1.78f)
         }
-        return -compensationDb.coerceAtMost(1.35f)
+        return -compensationDb.coerceAtMost(2.45f)
     }
 
     fun wetMix(
@@ -56,9 +56,9 @@ internal object ReverbProcessorModel {
         val amount = normalizedAmount(decayMs)
         if (amount <= FLAT_EPSILON) return 0f
         return when (profile) {
-            ReverbProfile.Dry -> 0.08f + (amount * 0.14f)
-            ReverbProfile.Wet -> 0.14f + (amount * 0.24f)
-        }.coerceIn(0f, 0.42f)
+            ReverbProfile.Dry -> 0.14f + (amount * 0.28f)
+            ReverbProfile.Wet -> 0.24f + (amount * 0.44f)
+        }.coerceIn(0f, 0.68f)
     }
 
     fun feedback(
@@ -67,9 +67,9 @@ internal object ReverbProcessorModel {
     ): Float {
         val amount = normalizedAmount(decayMs)
         return when (profile) {
-            ReverbProfile.Dry -> 0.22f + (amount * 0.2f)
-            ReverbProfile.Wet -> 0.28f + (amount * 0.28f)
-        }.coerceIn(0.14f, 0.62f)
+            ReverbProfile.Dry -> 0.34f + (amount * 0.26f)
+            ReverbProfile.Wet -> 0.46f + (amount * 0.34f)
+        }.coerceIn(0.2f, 0.82f)
     }
 
     fun crossMix(
@@ -78,9 +78,9 @@ internal object ReverbProcessorModel {
     ): Float {
         val amount = normalizedAmount(decayMs)
         return when (profile) {
-            ReverbProfile.Dry -> 0.04f + (amount * 0.07f)
-            ReverbProfile.Wet -> 0.08f + (amount * 0.12f)
-        }.coerceIn(0f, 0.24f)
+            ReverbProfile.Dry -> 0.06f + (amount * 0.12f)
+            ReverbProfile.Wet -> 0.14f + (amount * 0.22f)
+        }.coerceIn(0f, 0.38f)
     }
 
     fun dampingFrequencyHz(
@@ -89,18 +89,18 @@ internal object ReverbProcessorModel {
     ): Float {
         val amount = normalizedAmount(decayMs)
         return when (profile) {
-            ReverbProfile.Dry -> 6_800f - (amount * 1_100f)
-            ReverbProfile.Wet -> 5_800f - (amount * 1_500f)
-        }.coerceIn(3_500f, 8_500f)
+            ReverbProfile.Dry -> 6_200f - (amount * 1_350f)
+            ReverbProfile.Wet -> 4_900f - (amount * 1_950f)
+        }.coerceIn(2_800f, 8_200f)
     }
 
     fun tapDurationsMs(decayMs: Int): ReverbTapDurations {
         val safeDecay = normalizeReverbDurationMs(decayMs).coerceAtLeast(REVERB_STEP_MS)
         return ReverbTapDurations(
-            primaryMs = (14f + (safeDecay * 0.24f)).toInt().coerceAtLeast(10),
-            secondaryMs = (29f + (safeDecay * 0.43f)).toInt().coerceAtLeast(18),
-            diffuseMs = (46f + (safeDecay * 0.62f)).toInt().coerceAtLeast(28),
-            crossMs = (22f + (safeDecay * 0.36f)).toInt().coerceAtLeast(16),
+            primaryMs = (18f + (safeDecay * 0.32f)).toInt().coerceAtLeast(12),
+            secondaryMs = (37f + (safeDecay * 0.56f)).toInt().coerceAtLeast(24),
+            diffuseMs = (62f + (safeDecay * 0.82f)).toInt().coerceAtLeast(36),
+            crossMs = (29f + (safeDecay * 0.44f)).toInt().coerceAtLeast(20),
         )
     }
 }
