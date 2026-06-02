@@ -63,6 +63,10 @@ internal fun buildLyricsQueryVariants(identity: LyricsIdentity): List<LyricsQuer
                 add(LyricsQueryVariant(primaryArtist, simplifiedTitle, originalAlbum))
                 add(LyricsQueryVariant(primaryArtist, simplifiedTitle, null))
             }
+            if (normalizedArtist.isNotBlank()) {
+                add(LyricsQueryVariant(normalizedArtist, simplifiedTitle, normalizedAlbum))
+                add(LyricsQueryVariant(normalizedArtist, simplifiedTitle, null))
+            }
         }
     }.distinct()
 }

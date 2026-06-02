@@ -29,7 +29,7 @@ internal class LrcLibLyricsProvider : LyricsProvider {
             .mapNotNull { it }
             .distinctBy(LyricsCandidate::providerId)
 
-        if (exactMatches.isNotEmpty()) {
+        if (exactMatches.containsSyncedLyrics()) {
             return exactMatches
         }
 
@@ -41,11 +41,13 @@ internal class LrcLibLyricsProvider : LyricsProvider {
                 .awaitAll()
                 .flatten()
         }.distinctBy(LyricsCandidate::providerId)
-        if (searchMatches.isNotEmpty()) {
-            return searchMatches
+        val mergedSearchMatches = (exactMatches + searchMatches)
+            .distinctBy(LyricsCandidate::providerId)
+        if (mergedSearchMatches.containsSyncedLyrics()) {
+            return mergedSearchMatches
         }
 
-        return coroutineScope {
+        val freeTextMatches = coroutineScope {
             variants
                 .take(MAX_FREE_TEXT_QUERY_VARIANTS)
                 .map { variant ->
@@ -54,6 +56,9 @@ internal class LrcLibLyricsProvider : LyricsProvider {
                 .awaitAll()
                 .flatten()
         }.distinctBy(LyricsCandidate::providerId)
+
+        return (mergedSearchMatches + freeTextMatches)
+            .distinctBy(LyricsCandidate::providerId)
     }
 
     override suspend fun getLyrics(
@@ -301,12 +306,16 @@ internal class LrcLibLyricsProvider : LyricsProvider {
         }
     }
 
+    private fun List<LyricsCandidate>.containsSyncedLyrics(): Boolean {
+        return any { it.syncedLyrics.isNotBlank() }
+    }
+
     private companion object {
         const val TAG = "LyricsProvider"
         const val CONNECT_TIMEOUT_MS = 450
         const val READ_TIMEOUT_MS = 700
-        const val MAX_QUERY_VARIANTS = 5
-        const val MAX_FREE_TEXT_QUERY_VARIANTS = 2
+        const val MAX_QUERY_VARIANTS = 7
+        const val MAX_FREE_TEXT_QUERY_VARIANTS = 4
         const val LRCLIB_BASE_URL = "https://lrclib.net/api/"
         const val LRCLIB_GET_URL = "${LRCLIB_BASE_URL}get"
         const val LRCLIB_SEARCH_URL = "${LRCLIB_BASE_URL}search"

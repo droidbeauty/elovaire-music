@@ -25,6 +25,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
@@ -148,6 +149,7 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -357,7 +359,9 @@ private data class TopLevelDestination(
 
 private data class SongMenuActions(
     val playlists: List<Playlist> = emptyList(),
+    val songsById: Map<Long, Song> = emptyMap(),
     val onAddToPlaylist: (playlistId: Long, song: Song) -> Unit = { _, _ -> },
+    val onCreatePlaylist: (String) -> Long = { -1L },
     val onAddToQueue: (Song) -> Unit = {},
     val onDeleteFromLibrary: (Song) -> Unit = {},
 )
@@ -1806,12 +1810,14 @@ fun ElovaireRoot(
             }
         }
     }
-    val songMenuActions = remember(playlists, deleteSongsFromDevice) {
+    val songMenuActions = remember(playlists, songsById, deleteSongsFromDevice) {
         SongMenuActions(
             playlists = playlists.filterNot { it.isSystem },
+            songsById = songsById,
             onAddToPlaylist = { playlistId, song ->
                 container.preferenceStore.addSongsToPlaylist(playlistId, listOf(song.id))
             },
+            onCreatePlaylist = container.preferenceStore::createPlaylist,
             onAddToQueue = { song ->
                 container.playbackManager.enqueueSong(song)
             },
@@ -2281,7 +2287,8 @@ fun ElovaireRoot(
                             onAddSongsToPlaylist = { playlistId, songIds ->
                                 container.preferenceStore.addSongsToPlaylist(playlistId, songIds)
                             },
-                            onCreatePlaylistWithSongs = createPlaylistAndAddSongs,
+                            onCreatePlaylist = container.preferenceStore::createPlaylist,
+                            playlistSongsById = songsById,
                             onDeleteSongsFromDevice = deleteSongsFromDevice,
                             onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
                             onSetAlbumFavorite = { songIds, favorite ->
@@ -2335,9 +2342,8 @@ fun ElovaireRoot(
                                     album.songs.map(Song::id),
                                 )
                             },
-                            onCreatePlaylistWithAlbum = { name, album ->
-                                createPlaylistAndAddSongs(name, album.songs.map(Song::id))
-                            },
+                            onCreatePlaylist = container.preferenceStore::createPlaylist,
+                            playlistSongsById = songsById,
                             onDeleteAlbumFromDevice = deleteAlbumFromDevice,
                             onAlbumCollectionLayoutModeChanged = { mode ->
                                 container.preferenceStore.setAlbumCollectionLayoutMode(mode.name)
@@ -2387,9 +2393,8 @@ fun ElovaireRoot(
                             onAddAlbumToPlaylist = { playlistId, album ->
                                 container.preferenceStore.addSongsToPlaylist(playlistId, album.songs.map(Song::id))
                             },
-                            onCreatePlaylistWithAlbum = { name, album ->
-                                createPlaylistAndAddSongs(name, album.songs.map(Song::id))
-                            },
+                            onCreatePlaylist = container.preferenceStore::createPlaylist,
+                            playlistSongsById = songsById,
                             onDeleteAlbumFromDevice = deleteAlbumFromDevice,
                         )
                     }
@@ -2721,9 +2726,7 @@ fun ElovaireRoot(
                         onAddCurrentSongToPlaylist = { playlistId, song ->
                             container.preferenceStore.addSongsToPlaylist(playlistId, listOf(song.id))
                         },
-                        onCreatePlaylistWithCurrentSong = { name, song ->
-                            createPlaylistAndAddSongs(name, listOf(song.id))
-                        },
+                        onCreatePlaylist = container.preferenceStore::createPlaylist,
                         onQueueItemSelected = container.playbackManager::playQueueIndex,
                         eqSettings = eqSettings,
                         onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
@@ -4379,7 +4382,8 @@ private fun AlbumCollectionContent(
     onSortModeChanged: (AlbumSortMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onAddAlbumToPlaylist: (Long, Album) -> Unit,
-    onCreatePlaylistWithAlbum: (String, Album) -> Long,
+    onCreatePlaylist: (String) -> Long,
+    playlistSongsById: Map<Long, Song>,
     onDeleteAlbumFromDevice: (Album) -> Unit,
 ) {
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
@@ -4585,6 +4589,7 @@ private fun AlbumCollectionContent(
                 else -> "${selectedAlbums.size} selected albums • ${formatCountLabel(selectedAlbumSongs.size, "song")}"
             },
             playlists = playlists.filterNot { it.isSystem },
+            playlistSongsById = playlistSongsById,
             onDismiss = { showPlaylistPicker = false },
             onPlaylistSelected = { playlistId ->
                 selectedAlbums.forEach { album ->
@@ -4593,22 +4598,7 @@ private fun AlbumCollectionContent(
                 showPlaylistPicker = false
                 selectedAlbumIds = emptySet()
             },
-            onCreatePlaylist = { name ->
-                onCreatePlaylistWithAlbum(
-                    name,
-                    Album(
-                        id = -1L,
-                        title = "",
-                        artist = "",
-                        artUri = null,
-                        songCount = selectedAlbumSongs.size,
-                        durationMs = selectedAlbumSongs.sumOf { it.durationMs },
-                        songs = selectedAlbumSongs,
-                    ),
-                )
-                showPlaylistPicker = false
-                selectedAlbumIds = emptySet()
-            },
+            onCreatePlaylist = onCreatePlaylist,
         )
     }
 }
@@ -4732,13 +4722,13 @@ private fun AlbumCollectionActionButton(
 ) {
     Box(
         modifier = modifier
+            .fillMaxHeight()
             .clip(RoundedCornerShape(ElovaireRadii.pill))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
-            )
-            .padding(vertical = 8.dp),
+            ),
         contentAlignment = Alignment.Center,
     ) {
         Row(
@@ -4964,7 +4954,7 @@ private fun PlaylistsScreen(
                 ),
                 trailingAction = TopBarMenuAction(
                     iconResId = R.drawable.ic_lucide_trash_2,
-                    label = "Remove from list",
+                    label = "Remove",
                     tint = DestructiveRed,
                     onClick = {
                         onDeletePlaylists(selectedPlaylistIds)
@@ -5164,7 +5154,8 @@ private fun LibraryCollectionScreen(
     onSongSelected: (Song, List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onAddAlbumToPlaylist: (Long, Album) -> Unit,
-    onCreatePlaylistWithAlbum: (String, Album) -> Long,
+    onCreatePlaylist: (String) -> Long,
+    playlistSongsById: Map<Long, Song>,
     onDeleteAlbumFromDevice: (Album) -> Unit,
     onAlbumCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onSongCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
@@ -5201,7 +5192,8 @@ private fun LibraryCollectionScreen(
                 onSortModeChanged = onAlbumSortModeChanged,
                 onAlbumSelected = onAlbumSelected,
                 onAddAlbumToPlaylist = onAddAlbumToPlaylist,
-                onCreatePlaylistWithAlbum = onCreatePlaylistWithAlbum,
+                onCreatePlaylist = onCreatePlaylist,
+                playlistSongsById = playlistSongsById,
                 onDeleteAlbumFromDevice = onDeleteAlbumFromDevice,
             )
             DetailListTopBar(
@@ -5556,7 +5548,8 @@ private fun GenreAlbumsScreen(
     onSortModeChanged: (AlbumSortMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onAddAlbumToPlaylist: (Long, Album) -> Unit,
-    onCreatePlaylistWithAlbum: (String, Album) -> Long,
+    onCreatePlaylist: (String) -> Long,
+    playlistSongsById: Map<Long, Song>,
     onDeleteAlbumFromDevice: (Album) -> Unit,
 ) {
     val filteredAlbums = remember(genre, libraryState.albums) {
@@ -5581,7 +5574,8 @@ private fun GenreAlbumsScreen(
             onSortModeChanged = onSortModeChanged,
             onAlbumSelected = onAlbumSelected,
             onAddAlbumToPlaylist = onAddAlbumToPlaylist,
-            onCreatePlaylistWithAlbum = onCreatePlaylistWithAlbum,
+            onCreatePlaylist = onCreatePlaylist,
+            playlistSongsById = playlistSongsById,
             onDeleteAlbumFromDevice = onDeleteAlbumFromDevice,
         )
         DetailListTopBar(
@@ -5990,7 +5984,7 @@ private fun PlaylistArtworkPreview(
                                                 .weight(1f)
                                                 .fillMaxHeight(),
                                             cornerRadius = 0.dp,
-                                            requestedSizePx = 160,
+                                            requestedSizePx = 512,
                                         )
                                     } else {
                                         Spacer(
@@ -6036,12 +6030,13 @@ private fun PlaylistArtworkPreview(
 @Composable
 private fun PlaylistNameDialog(
     title: String = "New playlist",
-    confirmLabel: String = "Create",
+    confirmLabel: String = "Save",
     initialName: String = "",
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
     var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
+    val canConfirm = name.isNotBlank()
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
@@ -6063,7 +6058,7 @@ private fun PlaylistNameDialog(
                         onClick = {},
                     ),
                 shape = RoundedCornerShape(ElovaireRadii.card),
-                overlayAlpha = 0.72f,
+                overlayAlpha = 0.6f,
                 borderColor = blurSurfaceBorderColor(),
             ) {
                 Column(
@@ -6075,23 +6070,10 @@ private fun PlaylistNameDialog(
                         style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(24f)),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
-                    OutlinedTextField(
+                    PlaylistNameInputField(
                         value = name,
                         onValueChange = { name = it },
-                        singleLine = true,
-                        shape = RoundedCornerShape(ElovaireRadii.input),
-                        placeholder = { Text("Playlist name") },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.42f),
-                            unfocusedContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.32f),
-                            focusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f),
-                            unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.22f),
-                            focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
-                            cursorColor = MaterialTheme.colorScheme.onSurface,
-                            focusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.44f),
-                            unfocusedPlaceholderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.44f),
-                        ),
+                        modifier = Modifier.fillMaxWidth(),
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -6099,22 +6081,25 @@ private fun PlaylistNameDialog(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TextButton(onClick = onDismiss) {
-                            Text("Cancel")
+                            Text(
+                                text = "Cancel",
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
                         }
                         Spacer(modifier = Modifier.width(4.dp))
                         Surface(
-                            onClick = { onConfirm(name) },
-                            enabled = name.isNotBlank(),
+                            onClick = { onConfirm(name.trim()) },
+                            enabled = canConfirm,
                             shape = RoundedCornerShape(ElovaireRadii.pill),
-                            color = if (name.isNotBlank()) {
+                            color = if (canConfirm) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
                             } else {
-                                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
                             },
-                            contentColor = if (name.isNotBlank()) {
+                            contentColor = if (canConfirm) {
                                 MaterialTheme.colorScheme.onPrimary
                             } else {
-                                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.34f)
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.52f)
                             },
                         ) {
                             Text(
@@ -6131,20 +6116,104 @@ private fun PlaylistNameDialog(
 }
 
 @Composable
+private fun PlaylistNameInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = "Playlist name",
+) {
+    val contentColor = MaterialTheme.colorScheme.onSurface
+    val leadingIconAlpha by animateFloatAsState(
+        targetValue = 0.5f,
+        animationSpec = ElovaireMotion.standardTween(durationMillis = 180),
+        label = "playlist_name_icon_alpha",
+    )
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        modifier = modifier,
+        singleLine = true,
+        shape = RoundedCornerShape(ElovaireRadii.input),
+        placeholder = {
+            Text(
+                text = placeholder,
+                color = contentColor.copy(alpha = 0.44f),
+            )
+        },
+        leadingIcon = {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_pencil_line),
+                contentDescription = null,
+                tint = contentColor.copy(alpha = leadingIconAlpha),
+                modifier = Modifier.size(16.dp),
+            )
+        },
+        trailingIcon = {
+            AnimatedVisibility(
+                visible = value.isNotEmpty(),
+                enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                    scaleIn(
+                        animationSpec = ElovaireMotion.scaleSoft(),
+                        initialScale = 0.92f,
+                    ),
+                exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                    scaleOut(
+                        animationSpec = ElovaireMotion.fadeFast(),
+                        targetScale = 0.92f,
+                    ),
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(28.dp)
+                        .clip(CircleShape)
+                        .background(contentColor.copy(alpha = 0.1f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = { onValueChange("") },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_x),
+                        contentDescription = "Clear playlist name",
+                        tint = contentColor.copy(alpha = 0.86f),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+            }
+        },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = Color.Transparent,
+            unfocusedBorderColor = Color.Transparent,
+            focusedContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.38f),
+            unfocusedContainerColor = MaterialTheme.colorScheme.background.copy(alpha = 0.3f),
+            focusedTextColor = contentColor,
+            unfocusedTextColor = contentColor,
+            cursorColor = contentColor,
+            focusedPlaceholderColor = contentColor.copy(alpha = 0.44f),
+            unfocusedPlaceholderColor = contentColor.copy(alpha = 0.44f),
+        ),
+    )
+}
+
+@Composable
 private fun AddAlbumToPlaylistDialog(
     album: Album,
     playlists: List<Playlist>,
+    playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
     onPlaylistSelected: (Long, Album) -> Unit,
-    onCreatePlaylist: (String, Album) -> Unit,
+    onCreatePlaylist: (String) -> Long,
 ) {
     PlaylistSelectionDialog(
         title = "Add to playlist",
         subtitle = album.title,
         playlists = playlists,
+        playlistSongsById = playlistSongsById,
         onDismiss = onDismiss,
         onPlaylistSelected = { playlistId -> onPlaylistSelected(playlistId, album) },
-        onCreatePlaylist = { name -> onCreatePlaylist(name, album) },
+        onCreatePlaylist = onCreatePlaylist,
     )
 }
 
@@ -6153,17 +6222,30 @@ private fun PlaylistSelectionDialog(
     title: String,
     subtitle: String,
     playlists: List<Playlist>,
+    playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
     onPlaylistSelected: (Long) -> Unit,
-    onCreatePlaylist: ((String) -> Unit)?,
-    onCreatePlaylistClick: (() -> Unit)? = null,
+    onCreatePlaylist: ((String) -> Long)?,
 ) {
-    var showNewPlaylistDialog by rememberSaveable(title, subtitle) { mutableStateOf(false) }
     val listState = rememberElovaireLazyListState(title, subtitle, "playlist_picker")
+    val createdPlaylists = remember(title, subtitle) { mutableStateListOf<Playlist>() }
+    var draftPlaylistName by rememberSaveable(title, subtitle) { mutableStateOf("") }
+    var showInlineCreator by rememberSaveable(title, subtitle) { mutableStateOf(false) }
+    var selectedPlaylistId by rememberSaveable(title, subtitle) { mutableStateOf<Long?>(null) }
     val visibleRows = 4
-    val rowHeight = 62.dp
-    val rowSpacing = 10.dp
+    val rowHeight = 82.dp
+    val rowSpacing = 12.dp
     val listHeight = (rowHeight * visibleRows) + (rowSpacing * (visibleRows - 1))
+    val displayedPlaylists = run {
+        val existingIds = playlists.mapTo(mutableSetOf<Long>()) { it.id }
+        playlists + createdPlaylists.filter { existingIds.add(it.id) }
+    }
+
+    LaunchedEffect(showInlineCreator, displayedPlaylists.size) {
+        if (showInlineCreator) {
+            listState.animateScrollToItem(displayedPlaylists.size)
+        }
+    }
 
     Dialog(onDismissRequest = onDismiss) {
         Box(
@@ -6186,11 +6268,13 @@ private fun PlaylistSelectionDialog(
                         onClick = {},
                     ),
                 shape = RoundedCornerShape(ElovaireRadii.card),
-                overlayAlpha = 0.72f,
+                overlayAlpha = 0.6f,
                 borderColor = blurSurfaceBorderColor(),
             ) {
                 Column(
-                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp, vertical = 20.dp)
+                        .animateContentSize(animationSpec = ElovaireMotion.sizeSoft()),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
@@ -6205,115 +6289,301 @@ private fun PlaylistSelectionDialog(
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (playlists.isEmpty()) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(listHeight),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = "Create a playlist to start saving selections",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = readableSecondaryTextColor(),
-                                textAlign = TextAlign.Center,
-                            )
-                        }
-                    } else {
-                        LazyColumn(
-                            state = listState,
-                            overscrollEffect = null,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(listHeight)
-                                .ensureSingleItemRubberBand(listState),
-                            verticalArrangement = Arrangement.spacedBy(rowSpacing),
-                        ) {
-                            items(playlists, key = { it.id }) { playlist ->
-                                Surface(
-                                    onClick = { onPlaylistSelected(playlist.id) },
-                                    shape = RoundedCornerShape(ElovaireRadii.tile),
-                                    color = readableCardSurfaceColor(),
-                                    modifier = Modifier.height(rowHeight),
-                                ) {
-                                    Row(
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .padding(horizontal = 14.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_lucide_list_music),
-                                            contentDescription = null,
-                                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.86f),
-                                            modifier = Modifier.size(17.dp),
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(listHeight),
+                    ) {
+                        if (displayedPlaylists.isEmpty() && !showInlineCreator) {
+                            Box(
+                                modifier = Modifier.fillMaxSize(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "Create a playlist to start saving selections",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = readableSecondaryTextColor(),
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                        } else {
+                            LazyColumn(
+                                state = listState,
+                                overscrollEffect = null,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .ensureSingleItemRubberBand(listState),
+                                verticalArrangement = Arrangement.spacedBy(rowSpacing),
+                            ) {
+                                items(displayedPlaylists, key = { it.id }) { playlist ->
+                                    val previewSongs = playlist.songIds.mapNotNull(playlistSongsById::get)
+                                    PlaylistPickerRow(
+                                        playlist = playlist,
+                                        previewSongs = previewSongs,
+                                        selected = playlist.id == selectedPlaylistId,
+                                        modifier = Modifier.animateItem(
+                                            placementSpec = spring(
+                                                dampingRatio = 0.76f,
+                                                stiffness = 360f,
+                                            ),
+                                        ),
+                                        onClick = {
+                                            selectedPlaylistId = if (selectedPlaylistId == playlist.id) {
+                                                null
+                                            } else {
+                                                playlist.id
+                                            }
+                                        },
+                                    )
+                                }
+                                if (showInlineCreator && onCreatePlaylist != null) {
+                                    item(key = "inline_playlist_creator") {
+                                        InlinePlaylistCreatorRow(
+                                            name = draftPlaylistName,
+                                            onNameChange = { draftPlaylistName = it },
+                                            modifier = Modifier.animateItem(
+                                                placementSpec = spring(
+                                                    dampingRatio = 0.76f,
+                                                    stiffness = 360f,
+                                                ),
+                                            ),
+                                            onSave = {
+                                                val trimmedName = draftPlaylistName.trim()
+                                                if (trimmedName.isBlank()) return@InlinePlaylistCreatorRow
+                                                val createdId = onCreatePlaylist(trimmedName)
+                                                if (createdId > 0L) {
+                                                    createdPlaylists += Playlist(id = createdId, name = trimmedName)
+                                                    selectedPlaylistId = createdId
+                                                    draftPlaylistName = ""
+                                                    showInlineCreator = false
+                                                }
+                                            },
                                         )
-                                        Column(modifier = Modifier.weight(1f)) {
-                                            Text(
-                                                text = playlist.name,
-                                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
-                                            Text(
-                                                text = formatCountLabel(playlist.songIds.size, "song"),
-                                                style = MaterialTheme.typography.labelLarge,
-                                                color = readableSecondaryTextColor(),
-                                            )
-                                        }
                                     }
                                 }
                             }
                         }
                     }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "Cancel",
+                    if (onCreatePlaylist != null) {
+                        Surface(
                             modifier = Modifier
-                                .clickable(onClick = onDismiss)
-                                .padding(vertical = 10.dp),
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                        )
-                        if (onCreatePlaylist != null || onCreatePlaylistClick != null) {
-                            Surface(
-                                onClick = {
-                                    if (onCreatePlaylistClick != null) {
-                                        onCreatePlaylistClick()
-                                    } else {
-                                        showNewPlaylistDialog = true
-                                    }
-                                },
-                                shape = RoundedCornerShape(ElovaireRadii.pill),
-                                color = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
+                                .fillMaxWidth(0.9f)
+                                .height(40.dp)
+                                .align(Alignment.CenterHorizontally),
+                            onClick = {
+                                showInlineCreator = true
+                                selectedPlaylistId = null
+                            },
+                            shape = RoundedCornerShape(ElovaireRadii.pill),
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
+                            contentColor = MaterialTheme.colorScheme.primary,
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxSize(),
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically,
                             ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lucide_plus),
+                                    contentDescription = null,
+                                    modifier = Modifier.size(14.dp),
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Text(
                                     text = "New playlist",
-                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                                 )
                             }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = onDismiss) {
+                            Text(
+                                text = "Cancel",
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Surface(
+                            onClick = {
+                                selectedPlaylistId?.let(onPlaylistSelected)
+                            },
+                            enabled = selectedPlaylistId != null,
+                            shape = RoundedCornerShape(ElovaireRadii.pill),
+                            color = if (selectedPlaylistId != null) {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
+                            } else {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                            },
+                            contentColor = if (selectedPlaylistId != null) {
+                                MaterialTheme.colorScheme.onPrimary
+                            } else {
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.52f)
+                            },
+                        ) {
+                            Text(
+                                text = "Add",
+                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            )
                         }
                     }
                 }
             }
         }
     }
+}
 
-    if (showNewPlaylistDialog && onCreatePlaylist != null) {
-        PlaylistNameDialog(
-            onDismiss = { showNewPlaylistDialog = false },
-            onConfirm = { name ->
-                onCreatePlaylist(name)
-                showNewPlaylistDialog = false
-            },
-        )
+@Composable
+private fun PlaylistPickerRow(
+    playlist: Playlist,
+    previewSongs: List<Song>,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val highlightColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
+        } else {
+            Color.Transparent
+        },
+        animationSpec = ElovaireMotion.colorFadeSpec(),
+        label = "playlist_picker_row_highlight",
+    )
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(ElovaireRadii.tile))
+            .background(highlightColor)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 4.dp, vertical = 4.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlaylistArtworkPreview(
+                songs = previewSongs,
+                title = playlist.name,
+                modifier = Modifier.size(62.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(5.dp),
+            ) {
+                Text(
+                    text = playlist.name,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (playlist.songIds.isEmpty()) {
+                    Text(
+                        text = "No songs in this playlist yet",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = readableSecondaryTextColor().copy(alpha = 0.7f),
+                    )
+                } else {
+                    val durationMs = remember(previewSongs) { previewSongs.sumOf { it.durationMs } }
+                    Text(
+                        text = buildAnnotatedString {
+                            withStyle(
+                                SpanStyle(
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                ),
+                            ) {
+                                append(formatCountLabel(playlist.songIds.size, "track"))
+                            }
+                            append("  •  ")
+                            withStyle(
+                                SpanStyle(
+                                    color = readableSecondaryTextColor().copy(alpha = 0.7f),
+                                ),
+                            ) {
+                                append(formatPlaylistDuration(durationMs))
+                            }
+                        },
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+            }
+            PlaylistSelectionIndicator(
+                selected = selected,
+                modifier = Modifier.padding(end = 6.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun InlinePlaylistCreatorRow(
+    name: String,
+    onNameChange: (String) -> Unit,
+    onSave: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val canSave = name.isNotBlank()
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(ElovaireRadii.tile))
+            .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.08f))
+            .padding(10.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                PlaylistArtworkPreview(
+                    songs = emptyList(),
+                    title = "New playlist",
+                    modifier = Modifier.size(62.dp),
+                )
+                PlaylistNameInputField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    onClick = onSave,
+                    enabled = canSave,
+                    shape = RoundedCornerShape(ElovaireRadii.pill),
+                    color = if (canSave) {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)
+                    },
+                    contentColor = if (canSave) {
+                        MaterialTheme.colorScheme.onPrimary
+                    } else {
+                        MaterialTheme.colorScheme.primary.copy(alpha = 0.52f)
+                    },
+                ) {
+                    Text(
+                        text = "Save",
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -8266,12 +8536,13 @@ private fun AlbumScreen(
     bottomPadding: Dp,
     collapsedTopBarTitle: String,
     playlists: List<Playlist>,
+    playlistSongsById: Map<Long, Song>,
     onBack: () -> Unit,
     onPlayAlbum: (Album) -> Unit,
     onShuffleAlbum: (Album) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onAddSongsToPlaylist: (Long, List<Long>) -> Unit,
-    onCreatePlaylistWithSongs: (String, List<Long>) -> Long,
+    onCreatePlaylist: (String) -> Long,
     onDeleteSongsFromDevice: (List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
@@ -8680,17 +8951,14 @@ private fun AlbumScreen(
             title = "Add to playlist",
             subtitle = "${formatCountLabel(selectedSongs.size, "song")} selected",
             playlists = playlists.filterNot { it.isSystem },
+            playlistSongsById = playlistSongsById,
             onDismiss = { showPlaylistPicker = false },
             onPlaylistSelected = { playlistId ->
                 onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id))
                 selectedSongIds = emptySet()
                 showPlaylistPicker = false
             },
-            onCreatePlaylist = { name ->
-                onCreatePlaylistWithSongs(name, selectedSongs.map(Song::id))
-                selectedSongIds = emptySet()
-                showPlaylistPicker = false
-            },
+            onCreatePlaylist = onCreatePlaylist,
         )
     }
 }
@@ -8766,9 +9034,15 @@ private fun PlaybackActiveArtworkOverlay(
     title: String,
     modifier: Modifier = Modifier,
 ) {
+    val artworkShape = RoundedCornerShape(ElovaireRadii.artworkSmall)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(ElovaireRadii.artworkSmall)),
+            .graphicsLayer {
+                compositingStrategy = CompositingStrategy.Offscreen
+                shape = artworkShape
+                clip = true
+            }
+            .clip(artworkShape),
         contentAlignment = Alignment.Center,
     ) {
         ArtworkImage(
@@ -8782,11 +9056,11 @@ private fun PlaybackActiveArtworkOverlay(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(Color.Black.copy(alpha = 0.14f)),
+                .background(Color.Black.copy(alpha = 0.08f)),
         )
         AnimatedAudioLinesIcon(
-            tint = Color.White.copy(alpha = 0.7f),
-            modifier = Modifier.size(18.dp),
+            tint = Color.White.copy(alpha = 0.78f),
+            modifier = Modifier.size(19.dp),
         )
     }
 }
@@ -9003,7 +9277,7 @@ private fun PlaylistDetailScreen(
         LazyColumn(
             state = listState,
             overscrollEffect = null,
-            userScrollEnabled = !editMode,
+            userScrollEnabled = true,
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding()
@@ -9136,6 +9410,15 @@ private fun PlaylistDetailScreen(
                                     onSongSelected(song, playlistSongs)
                                 }
                             },
+                            onLongPress = {
+                                if (!playlist.isSystem && playlistSongs.isNotEmpty()) {
+                                    if (!editMode) {
+                                        editableSongIds = playlist.songIds
+                                        editMode = true
+                                        showEditModeMenu = true
+                                    }
+                                }
+                            },
                             onToggleFavorite = { onToggleFavorite(song.id) },
                             onMoveBy = { delta ->
                                 if (editMode && delta != 0) {
@@ -9152,18 +9435,25 @@ private fun PlaylistDetailScreen(
                                             when {
                                                 delta < 0 && targetIndex <= firstVisibleIndex + 1 -> {
                                                     scope.launch {
-                                                        listState.animateScrollToItem((targetIndex - 1).coerceAtLeast(0))
+                                                        listState.scrollToItem((targetIndex - 1).coerceAtLeast(0))
                                                     }
                                                 }
                                                 delta > 0 && targetIndex >= lastVisibleIndex - 1 -> {
                                                     scope.launch {
-                                                        listState.animateScrollToItem(
+                                                        listState.scrollToItem(
                                                             (targetIndex + 1).coerceAtMost(editableSongIds.lastIndex),
                                                         )
                                                     }
                                                 }
                                             }
                                         }
+                                    }
+                                }
+                            },
+                            onReorderDrag = { dragAmount ->
+                                if (editMode && editableSongIds.size > 1) {
+                                    scope.launch {
+                                        listState.scrollBy(dragAmount * 1.2f)
                                     }
                                 }
                             },
@@ -9257,19 +9547,52 @@ private fun PlaylistSongRow(
     isPlaybackActive: Boolean = false,
     editMode: Boolean = false,
     onClick: () -> Unit,
+    onLongPress: () -> Unit = {},
     onToggleFavorite: () -> Unit,
     onMoveBy: (Int) -> Unit = {},
+    onReorderDrag: (Float) -> Unit = {},
     showOverflowMenu: Boolean = false,
     showDivider: Boolean,
 ) {
     val density = LocalDensity.current
-    val reorderStepPx = remember(density) { with(density) { 28.dp.toPx() } }
+    val reorderStepPx = remember(density) { with(density) { 18.dp.toPx() } }
     var reorderDragAccumulator by remember(song.id, editMode) { mutableFloatStateOf(0f) }
+    var handleDragActive by remember(song.id, editMode) { mutableStateOf(false) }
+    val handleTint by animateColorAsState(
+        targetValue = if (handleDragActive) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.94f)
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+        },
+        animationSpec = ElovaireMotion.colorFadeSpec(),
+        label = "playlist_reorder_handle_tint",
+    )
+    val handleScale by animateFloatAsState(
+        targetValue = if (handleDragActive) 1.1f else 1f,
+        animationSpec = ElovaireMotion.releaseSpringSpec(),
+        label = "playlist_reorder_handle_scale",
+    )
+    val dragHighlight by animateColorAsState(
+        targetValue = if (handleDragActive) {
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+        } else {
+            Color.Transparent
+        },
+        animationSpec = ElovaireMotion.colorFadeSpec(),
+        label = "playlist_reorder_drag_highlight",
+    )
     Column {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .clip(RoundedCornerShape(ElovaireRadii.tile))
+                .background(dragHighlight)
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onClick,
+                    onLongClick = onLongPress,
+                )
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -9290,15 +9613,21 @@ private fun PlaylistSongRow(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(22.dp)
+                        .size(26.dp)
+                        .graphicsLayer {
+                            scaleX = handleScale
+                            scaleY = handleScale
+                        }
                         .pointerInput(song.id, editMode) {
                             detectVerticalDragGestures(
                                 onDragStart = {
                                     reorderDragAccumulator = 0f
+                                    handleDragActive = true
                                 },
                                 onVerticalDrag = { change, dragAmount ->
                                     change.consume()
                                     reorderDragAccumulator += dragAmount
+                                    onReorderDrag(dragAmount)
                                     while (reorderDragAccumulator <= -reorderStepPx) {
                                         onMoveBy(-1)
                                         reorderDragAccumulator += reorderStepPx
@@ -9310,9 +9639,11 @@ private fun PlaylistSongRow(
                                 },
                                 onDragEnd = {
                                     reorderDragAccumulator = 0f
+                                    handleDragActive = false
                                 },
                                 onDragCancel = {
                                     reorderDragAccumulator = 0f
+                                    handleDragActive = false
                                 },
                             )
                         },
@@ -9321,7 +9652,7 @@ private fun PlaylistSongRow(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_lucide_chevrons_up_down),
                         contentDescription = "Reorder song",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                        tint = handleTint,
                         modifier = Modifier.size(18.dp),
                     )
                 }
@@ -9970,7 +10301,7 @@ private fun NowPlayingScreen(
     onToggleShuffle: () -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onAddCurrentSongToPlaylist: (Long, Song) -> Unit,
-    onCreatePlaylistWithCurrentSong: (String, Song) -> Long,
+    onCreatePlaylist: (String) -> Long,
     onQueueItemSelected: (Int) -> Unit,
     eqSettings: EqSettings,
     onSpaciousnessChanged: (Float) -> Unit,
@@ -10079,7 +10410,6 @@ private fun NowPlayingScreen(
     var showLyricsSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
-    var showCreatePlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
     LaunchedEffect(currentSong?.id, playbackState.currentIndex, playbackState.queue.size) {
         val queue = playbackState.queue
@@ -11046,27 +11376,13 @@ private fun NowPlayingScreen(
         if (showAddToPlaylistDialog) {
             AddToPlaylistPickerDialog(
                 playlists = playlists,
+                playlistSongsById = enrichedSongsById,
                 onDismiss = { showAddToPlaylistDialog = false },
                 onPlaylistSelected = { playlistId ->
                     currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it) }
                     showAddToPlaylistDialog = false
                 },
-                onCreateNewPlaylist = {
-                    showAddToPlaylistDialog = false
-                    showCreatePlaylistDialog = true
-                },
-            )
-        }
-        if (showCreatePlaylistDialog) {
-            PlaylistNameDialog(
-                title = "New playlist",
-                confirmLabel = "Create",
-                initialName = "",
-                onDismiss = { showCreatePlaylistDialog = false },
-                onConfirm = { name ->
-                    currentSong?.let { onCreatePlaylistWithCurrentSong(name, it) }
-                    showCreatePlaylistDialog = false
-                },
+                onCreatePlaylist = onCreatePlaylist,
             )
         }
     }
@@ -12062,11 +12378,13 @@ private fun SongOverflowMenuButton(
     if (showPlaylistDialog) {
         AddToPlaylistPickerDialog(
             playlists = actions.playlists,
+            playlistSongsById = actions.songsById,
             onDismiss = { showPlaylistDialog = false },
             onPlaylistSelected = { playlistId ->
                 actions.onAddToPlaylist(playlistId, song)
                 showPlaylistDialog = false
             },
+            onCreatePlaylist = actions.onCreatePlaylist,
         )
     }
 }
@@ -12216,18 +12534,19 @@ private fun SongContextMenuItem(
 @Composable
 private fun AddToPlaylistPickerDialog(
     playlists: List<Playlist>,
+    playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
     onPlaylistSelected: (Long) -> Unit,
-    onCreateNewPlaylist: (() -> Unit)? = null,
+    onCreatePlaylist: ((String) -> Long)? = null,
 ) {
     PlaylistSelectionDialog(
         title = "Add to playlist",
         subtitle = "Choose a playlist",
         playlists = playlists,
+        playlistSongsById = playlistSongsById,
         onDismiss = onDismiss,
         onPlaylistSelected = onPlaylistSelected,
-        onCreatePlaylist = null,
-        onCreatePlaylistClick = onCreateNewPlaylist,
+        onCreatePlaylist = onCreatePlaylist,
     )
 }
 
