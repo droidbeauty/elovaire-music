@@ -910,6 +910,16 @@ private fun navigationBarInsetDp(): Dp {
 }
 
 @Composable
+private fun buttonNavigationScrollBoost(): Dp {
+    val navigationInset = navigationBarInsetDp()
+    return if (navigationInset >= 28.dp) {
+        (navigationInset - 16.dp).coerceAtLeast(0.dp)
+    } else {
+        0.dp
+    }
+}
+
+@Composable
 private fun screenContainerSizePx(): androidx.compose.ui.unit.IntSize {
     return LocalWindowInfo.current.containerSize
 }
@@ -1599,22 +1609,6 @@ fun ElovaireRoot(
     val activeBottomRoute = routeOwnerOverrides[currentConcreteRoute]
         ?: topLevelOwnerRoute(currentRoute, browsingOriginRoute)
         ?: selectedBottomRoute
-    val topLevelRestoreRouteFor = remember(
-        lastHomeTabRoute,
-        lastLibraryTabRoute,
-        lastPlaylistsTabRoute,
-        lastSearchTabRoute,
-    ) {
-        { route: String ->
-            when (route) {
-                HOME_ROUTE -> lastHomeTabRoute
-                ALBUMS_ROUTE -> lastLibraryTabRoute
-                PLAYLISTS_ROUTE -> lastPlaylistsTabRoute
-                SEARCH_ROUTE -> lastSearchTabRoute
-                else -> route
-            }
-        }
-    }
     val resetTopLevelTabState: (String) -> Unit = { route ->
         clearTopLevelScrollPositionMemory(route)
         when (route) {
@@ -2669,10 +2663,9 @@ fun ElovaireRoot(
                         destinations = topLevelDestinations,
                         onNavigate = { route ->
                             val currentTopLevelRoute = activeBottomRoute
-                            val targetRestoreRoute = topLevelRestoreRouteFor(route)
                             browsingOriginRoute = route
                             selectedBottomRoute = route
-                            routeOwnerOverrides[targetRestoreRoute] = route
+                            routeOwnerOverrides[route] = route
                             if (route == currentTopLevelRoute) {
                                 if (currentRoute != route) {
                                     val poppedToTabRoot = navController.popBackStack(route, inclusive = false)
@@ -2690,7 +2683,7 @@ fun ElovaireRoot(
                                     resetTopLevelTabState(route)
                                 }
                             } else {
-                                navController.navigate(targetRestoreRoute) {
+                                navController.navigate(route) {
                                     launchSingleTop = true
                                     restoreState = true
                                     popUpTo(navController.graph.findStartDestination().id) {
@@ -4536,35 +4529,38 @@ private fun AlbumCollectionContent(
                     }
 
                     itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            CompactAlbumRow(
-                                album = album,
-                                selectionMode = selectionModeActive,
-                                selected = album.id in selectedAlbumIds,
-                                isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
-                                showFavoriteButton = true,
-                                onOpen = { origin ->
-                                    if (selectionModeActive) {
-                                        selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
-                                    } else {
-                                        onAlbumSelected(album, origin)
-                                    }
-                                },
-                                onToggleFavorite = {
-                                    onSetAlbumFavorite(
-                                        album.songs.map(Song::id),
-                                        album.songs.any { it.id !in favoriteSongIds },
-                                    )
-                                },
-                                onLongPress = {
-                                    showSortOptions = false
-                                    selectedAlbumIds = selectedAlbumIds + album.id
-                                },
-                            )
-                            if (index != sortedAlbums.lastIndex) {
-                                DividerLine()
+                        CompactAlbumRow(
+                            album = album,
+                            selectionMode = selectionModeActive,
+                            selected = album.id in selectedAlbumIds,
+                            isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
+                            showFavoriteButton = true,
+                            onOpen = { origin ->
+                                if (selectionModeActive) {
+                                    selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                } else {
+                                    onAlbumSelected(album, origin)
+                                }
+                            },
+                            onToggleFavorite = {
+                                onSetAlbumFavorite(
+                                    album.songs.map(Song::id),
+                                    album.songs.any { it.id !in favoriteSongIds },
+                                )
+                            },
+                            onLongPress = {
+                                showSortOptions = false
+                                selectedAlbumIds = selectedAlbumIds + album.id
+                            },
+                        )
+                        if (index != sortedAlbums.lastIndex) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                DividerLine(
+                                    modifier = Modifier.fillMaxWidth(0.9f),
+                                )
                             }
                         }
                     }
@@ -4683,6 +4679,7 @@ private data class TopBarMenuAction(
     @DrawableRes val iconResId: Int,
     val label: String,
     val tint: Color,
+    val enabled: Boolean = true,
     val onClick: () -> Unit,
 )
 
@@ -4699,16 +4696,22 @@ private fun TopBarDualActionMenu(
             .fillMaxWidth()
             .height(topBarHeight + 50.dp),
     ) {
-        FrostedTopBarBackground(
-            darkTheme = darkTheme,
-            modifier = Modifier.matchParentSize(),
-        )
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(50.dp),
+        ) {
+            FrostedTopBarBackground(
+                darkTheme = darkTheme,
+                modifier = Modifier.matchParentSize(),
+            )
+        }
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(50.dp)
-                .padding(horizontal = 14.dp),
+                .height(50.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -4716,6 +4719,7 @@ private fun TopBarDualActionMenu(
                 iconResId = leadingAction.iconResId,
                 label = leadingAction.label,
                 tint = leadingAction.tint,
+                enabled = leadingAction.enabled,
                 modifier = Modifier.weight(1f),
                 onClick = leadingAction.onClick,
             )
@@ -4730,6 +4734,7 @@ private fun TopBarDualActionMenu(
                 iconResId = trailingAction.iconResId,
                 label = trailingAction.label,
                 tint = trailingAction.tint,
+                enabled = trailingAction.enabled,
                 modifier = Modifier.weight(1f),
                 onClick = trailingAction.onClick,
             )
@@ -4742,6 +4747,7 @@ private fun AlbumCollectionActionButton(
     @DrawableRes iconResId: Int,
     label: String,
     tint: Color,
+    enabled: Boolean = true,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -4750,6 +4756,7 @@ private fun AlbumCollectionActionButton(
             .fillMaxHeight()
             .clip(RoundedCornerShape(ElovaireRadii.pill))
             .clickable(
+                enabled = enabled,
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = onClick,
@@ -4763,13 +4770,13 @@ private fun AlbumCollectionActionButton(
             Icon(
                 painter = painterResource(id = iconResId),
                 contentDescription = null,
-                tint = tint,
+                tint = tint.copy(alpha = if (enabled) 1f else 0.5f),
                 modifier = Modifier.size(16.dp),
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = tint,
+                color = tint.copy(alpha = if (enabled) 1f else 0.5f),
                 textAlign = TextAlign.Center,
             )
         }
@@ -8420,9 +8427,9 @@ private fun CompactAlbumRow(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
+                .fillMaxWidth()
                 .align(Alignment.Center)
-                .padding(vertical = 10.dp),
+                .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -9433,7 +9440,7 @@ private fun PlaylistDetailScreen(
                             textAlign = TextAlign.Center,
                         )
                         Text(
-                            text = "Start building this playlist by adding songs from your offline library",
+                            text = "Start by adding some tracks with the \"+\" button",
                             style = MaterialTheme.typography.bodyLarge,
                             color = readableSecondaryTextColor(),
                             textAlign = TextAlign.Center,
@@ -9588,18 +9595,14 @@ private fun PlaylistDetailScreen(
                 ),
                 trailingAction = TopBarMenuAction(
                     iconResId = R.drawable.ic_lucide_trash_2,
-                    label = if (songIdsMarkedForRemoval.isNotEmpty()) "Remove" else "Delete",
+                    label = "Remove",
                     tint = DestructiveRed,
+                    enabled = songIdsMarkedForRemoval.isNotEmpty(),
                     onClick = {
                         if (songIdsMarkedForRemoval.isNotEmpty()) {
                             editableSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
                             songIdsMarkedForRemoval = emptySet()
                             activelyDraggedSongId = null
-                        } else {
-                            onDeletePlaylist(playlist.id)
-                            showEditModeMenu = false
-                            editMode = false
-                            onBack()
                         }
                     },
                 ),
@@ -10009,7 +10012,7 @@ private fun AddSongsToPlaylistOverlay(
         handleBack()
     }
     val overlayTopPadding = detailTopBarOccupiedHeight()
-    val overlayBottomPadding = navigationBarInsetDp() + 124.dp
+    val overlayBottomPadding = 124.dp + buttonNavigationScrollBoost()
 
     Box(
         modifier = Modifier
@@ -10335,13 +10338,13 @@ private fun SelectableSongRow(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(modifier = Modifier.size(44.dp)) {
                 ArtworkImage(
                     uri = song.artUri,
-                    title = song.title,
+                    title = song.album,
                     modifier = Modifier.matchParentSize(),
                     cornerRadius = ElovaireRadii.artworkSmall,
                 )
@@ -10355,15 +10358,21 @@ private fun SelectableSongRow(
                 }
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                ExplicitTitleText(
-                    title = song.title,
-                    isExplicit = song.isExplicit,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                )
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ExplicitTitleText(
+                        title = song.title,
+                        isExplicit = song.isExplicit,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 Text(
                     text = song.artist,
                     style = MaterialTheme.typography.labelLarge,
@@ -10372,19 +10381,22 @@ private fun SelectableSongRow(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Text(
-                text = formatDuration(song.durationMs),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
-                modifier = Modifier.width(40.dp),
-                textAlign = TextAlign.End,
-            )
-            if (selectionIndicatorOnRight) {
-                Box(
-                    modifier = Modifier.padding(end = 10.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    SelectionIndicatorIcon(selected = selected)
+            Row(
+                modifier = Modifier.width(if (selectionIndicatorOnRight) 72.dp else 40.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = formatDuration(song.durationMs),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                    modifier = Modifier.width(40.dp),
+                    textAlign = TextAlign.End,
+                )
+                if (selectionIndicatorOnRight) {
+                    Box(contentAlignment = Alignment.Center) {
+                        SelectionIndicatorIcon(selected = selected)
+                    }
                 }
             }
         }
@@ -10393,9 +10405,11 @@ private fun SelectableSongRow(
 }
 
 @Composable
-private fun DividerLine() {
+private fun DividerLine(
+    modifier: Modifier = Modifier,
+) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 14.dp)
             .height(1.dp)
@@ -13950,7 +13964,7 @@ private fun EqualizerScreen(
     onApplyPreset: (EqSettings) -> Unit,
     onReset: () -> Unit,
 ) {
-    val listState = rememberElovaireLazyListState("changelog_screen")
+    val listState = rememberElovaireLazyListState("equalizer_screen")
     val graphScrollState = rememberScrollState()
     Box(
         modifier = Modifier
@@ -13968,7 +13982,7 @@ private fun EqualizerScreen(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
                 end = 18.dp,
-                bottom = navigationBarInsetDp() + 96.dp,
+                bottom = 96.dp + buttonNavigationScrollBoost(),
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -14028,14 +14042,17 @@ private fun EqualizerScreen(
             }
             item {
                 ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(20.dp),
+                    ) {
                         SettingsCategoryText(
                             title = "Tone shaping",
                             iconResId = R.drawable.ic_lucide_audio_waveform,
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(30.dp),
+                            horizontalArrangement = Arrangement.spacedBy(20.dp),
                         ) {
                             EqToneKnob(
                                 title = "Bass",
@@ -14169,7 +14186,7 @@ private fun SettingsScreen(
     onScanLibrary: () -> Unit,
     onCheckForUpdates: () -> Unit,
 ) {
-    val listState = rememberLazyListState()
+    val listState = rememberElovaireLazyListState("settings_screen")
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -14185,7 +14202,7 @@ private fun SettingsScreen(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
                 end = 18.dp,
-                bottom = bottomPadding,
+                bottom = bottomPadding + buttonNavigationScrollBoost(),
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
@@ -14426,6 +14443,11 @@ private fun SettingsScreen(
                 }
             }
         }
+        FastScrollbar(
+            state = listState,
+            topInset = topBarOccupiedHeight() + 16.dp,
+            bottomInset = navigationBarInsetDp() + 48.dp,
+        )
         PinnedBackTopBar(
             title = "Settings",
             onBack = onBack,
@@ -16013,8 +16035,6 @@ private fun EqToneKnob(
         animationSpec = tween(ElovaireMotion.Standard),
         label = "${title}_eq_tone_knob",
     )
-    val surfaceColor = readableCardSurfaceColor()
-    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
     val tickIdleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
     val glowColor = accentColor.copy(alpha = 0.28f)
     val knobFaceColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
@@ -16035,11 +16055,11 @@ private fun EqToneKnob(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         Box(
             modifier = Modifier
-                .size(104.dp)
+                .size(110.dp)
                 .horizontalGestureSafe()
                 .pointerInput(title, safeRange.start, safeRange.endInclusive) {
                     detectTapGestures { offset ->
@@ -16122,16 +16142,6 @@ private fun EqToneKnob(
                         cap = StrokeCap.Square,
                     )
                 }
-
-                drawArc(
-                    color = trackColor,
-                    startAngle = startAngle,
-                    sweepAngle = sweepAngle,
-                    useCenter = false,
-                    topLeft = arcTopLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
-                )
                 if (activeSweep > 0f) {
                     drawArc(
                         color = glowColor,
@@ -16177,29 +16187,24 @@ private fun EqToneKnob(
                     center = pointerCenter,
                 )
             }
-
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = valueText,
-                    style = MaterialTheme.typography.titleLarge.copy(
-                        fontSize = elovaireScaledSp(18f),
-                        fontWeight = FontWeight.SemiBold,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.96f),
-                )
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.bodyMedium.copy(
-                        fontSize = elovaireScaledSp(16f),
-                        fontWeight = FontWeight.Medium,
-                    ),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.76f),
-                )
-            }
+            Text(
+                text = valueText,
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontSize = elovaireScaledSp(16f),
+                    fontWeight = FontWeight.SemiBold,
+                ),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.96f),
+            )
         }
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontSize = elovaireScaledSp(10f),
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 1.sp,
+            ),
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+        )
     }
 }
 
