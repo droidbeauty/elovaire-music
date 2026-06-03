@@ -79,6 +79,7 @@ data class SearchHistoryEntry(
 data class EqSettings(
     val bands: List<Float> = List(18) { 0f },
     val bass: Float = 0f,
+    val midrange: Float = 0f,
     val treble: Float = 0f,
     val spaciousness: Float = 0f,
     val spaciousnessMode: SpaciousnessMode = SpaciousnessMode.StereoWidth,

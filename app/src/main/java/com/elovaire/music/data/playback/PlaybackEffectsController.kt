@@ -33,6 +33,7 @@ class PlaybackEffectsController(
                 settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
             },
             bass = settings.bass.coerceIn(-1f, 1f),
+            midrange = settings.midrange.coerceIn(-1f, 1f),
             treble = settings.treble.coerceIn(-1f, 1f),
             spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
             spaciousnessMode = settings.spaciousnessMode,
@@ -47,6 +48,7 @@ class PlaybackEffectsController(
         return currentSettings.monoEnabled ||
             currentSettings.bands.any { abs(it) > EFFECT_BYPASS_EPSILON } ||
             abs(currentSettings.bass) > EFFECT_BYPASS_EPSILON ||
+            abs(currentSettings.midrange) > EFFECT_BYPASS_EPSILON ||
             abs(currentSettings.treble) > EFFECT_BYPASS_EPSILON ||
             currentSettings.reverbDurationMs > 0 ||
             (

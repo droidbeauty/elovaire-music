@@ -235,6 +235,10 @@ class PreferenceStore(context: Context) {
         persistEqSettings(_eqSettings.value.copy(bass = value.coerceIn(-1f, 1f)))
     }
 
+    fun updateMidrange(value: Float) {
+        persistEqSettings(_eqSettings.value.copy(midrange = value.coerceIn(-1f, 1f)))
+    }
+
     fun updateTreble(value: Float) {
         persistEqSettings(_eqSettings.value.copy(treble = value.coerceIn(-1f, 1f)))
     }
@@ -297,6 +301,7 @@ class PreferenceStore(context: Context) {
             settings.copy(
                 bands = normalizedBands,
                 bass = settings.bass.coerceIn(-1f, 1f),
+                midrange = settings.midrange.coerceIn(-1f, 1f),
                 treble = settings.treble.coerceIn(-1f, 1f),
                 spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
                 spaciousnessMode = settings.spaciousnessMode,
@@ -385,6 +390,7 @@ class PreferenceStore(context: Context) {
         preferences.edit {
             putString(KEY_BANDS, normalizedSettings.bands.joinToString(","))
             putFloat(KEY_BASS, normalizedSettings.bass)
+            putFloat(KEY_MIDRANGE, normalizedSettings.midrange)
             putFloat(KEY_TREBLE, normalizedSettings.treble)
             putFloat(KEY_SPACIOUSNESS, normalizedSettings.spaciousness)
             putString(KEY_SPACIOUSNESS_MODE, normalizedSettings.spaciousnessMode.name)
@@ -410,6 +416,7 @@ class PreferenceStore(context: Context) {
         return EqSettings(
             bands = bands,
             bass = preferences.getFloat(KEY_BASS, 0f),
+            midrange = preferences.getFloat(KEY_MIDRANGE, 0f),
             treble = preferences.getFloat(KEY_TREBLE, 0f),
             spaciousness = preferences.getFloat(KEY_SPACIOUSNESS, 0f),
             spaciousnessMode = preferences.getString(KEY_SPACIOUSNESS_MODE, SpaciousnessMode.StereoWidth.name)
@@ -667,6 +674,7 @@ class PreferenceStore(context: Context) {
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
         const val KEY_BANDS = "eq_bands"
         const val KEY_BASS = "eq_bass"
+        const val KEY_MIDRANGE = "eq_midrange"
         const val KEY_TREBLE = "eq_treble"
         const val KEY_SPACIOUSNESS = "eq_spaciousness"
         const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"

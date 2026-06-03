@@ -33,7 +33,7 @@ internal object ReverbProcessorModel {
     fun normalizedAmount(decayMs: Int): Float {
         val safeDecayMs = normalizeReverbDurationMs(decayMs)
         if (safeDecayMs <= 0) return 0f
-        return (safeDecayMs / MAX_REVERB_DURATION_MS.toFloat()).toDouble().pow(1.08).toFloat().coerceIn(0f, 1f)
+        return (safeDecayMs / MAX_REVERB_DURATION_MS.toFloat()).toDouble().pow(0.96).toFloat().coerceIn(0f, 1f)
     }
 
     fun automaticHeadroomDb(
@@ -43,10 +43,10 @@ internal object ReverbProcessorModel {
         val amount = normalizedAmount(decayMs)
         if (amount <= FLAT_EPSILON) return 0f
         val compensationDb = when (profile) {
-            ReverbProfile.Dry -> 0.32f + (amount * 1.02f)
-            ReverbProfile.Wet -> 0.58f + (amount * 1.78f)
+            ReverbProfile.Dry -> 0.42f + (amount * 1.38f)
+            ReverbProfile.Wet -> 0.82f + (amount * 2.42f)
         }
-        return -compensationDb.coerceAtMost(2.45f)
+        return -compensationDb.coerceAtMost(3.45f)
     }
 
     fun wetMix(
@@ -56,9 +56,9 @@ internal object ReverbProcessorModel {
         val amount = normalizedAmount(decayMs)
         if (amount <= FLAT_EPSILON) return 0f
         return when (profile) {
-            ReverbProfile.Dry -> 0.14f + (amount * 0.28f)
-            ReverbProfile.Wet -> 0.24f + (amount * 0.44f)
-        }.coerceIn(0f, 0.68f)
+            ReverbProfile.Dry -> 0.12f + (amount * 0.28f)
+            ReverbProfile.Wet -> 0.20f + (amount * 0.42f)
+        }.coerceIn(0f, 0.64f)
     }
 
     fun feedback(
@@ -67,9 +67,9 @@ internal object ReverbProcessorModel {
     ): Float {
         val amount = normalizedAmount(decayMs)
         return when (profile) {
-            ReverbProfile.Dry -> 0.34f + (amount * 0.26f)
-            ReverbProfile.Wet -> 0.46f + (amount * 0.34f)
-        }.coerceIn(0.2f, 0.82f)
+            ReverbProfile.Dry -> 0.32f + (amount * 0.30f)
+            ReverbProfile.Wet -> 0.44f + (amount * 0.32f)
+        }.coerceIn(0.2f, 0.79f)
     }
 
     fun crossMix(
@@ -78,9 +78,9 @@ internal object ReverbProcessorModel {
     ): Float {
         val amount = normalizedAmount(decayMs)
         return when (profile) {
-            ReverbProfile.Dry -> 0.06f + (amount * 0.12f)
-            ReverbProfile.Wet -> 0.14f + (amount * 0.22f)
-        }.coerceIn(0f, 0.38f)
+            ReverbProfile.Dry -> 0.08f + (amount * 0.16f)
+            ReverbProfile.Wet -> 0.16f + (amount * 0.24f)
+        }.coerceIn(0f, 0.36f)
     }
 
     fun dampingFrequencyHz(
@@ -89,18 +89,18 @@ internal object ReverbProcessorModel {
     ): Float {
         val amount = normalizedAmount(decayMs)
         return when (profile) {
-            ReverbProfile.Dry -> 6_200f - (amount * 1_350f)
-            ReverbProfile.Wet -> 4_900f - (amount * 1_950f)
-        }.coerceIn(2_800f, 8_200f)
+            ReverbProfile.Dry -> 6_400f - (amount * 1_550f)
+            ReverbProfile.Wet -> 5_200f - (amount * 2_250f)
+        }.coerceIn(2_600f, 8_400f)
     }
 
     fun tapDurationsMs(decayMs: Int): ReverbTapDurations {
         val safeDecay = normalizeReverbDurationMs(decayMs).coerceAtLeast(REVERB_STEP_MS)
         return ReverbTapDurations(
-            primaryMs = (18f + (safeDecay * 0.32f)).toInt().coerceAtLeast(12),
-            secondaryMs = (37f + (safeDecay * 0.56f)).toInt().coerceAtLeast(24),
-            diffuseMs = (62f + (safeDecay * 0.82f)).toInt().coerceAtLeast(36),
-            crossMs = (29f + (safeDecay * 0.44f)).toInt().coerceAtLeast(20),
+            primaryMs = (24f + (safeDecay * 0.18f)).toInt().coerceAtLeast(16),
+            secondaryMs = (42f + (safeDecay * 0.37f)).toInt().coerceAtLeast(28),
+            diffuseMs = (78f + (safeDecay * 0.66f)).toInt().coerceAtLeast(48),
+            crossMs = (32f + (safeDecay * 0.24f)).toInt().coerceAtLeast(22),
         )
     }
 }
@@ -185,12 +185,12 @@ internal class ReverbProcessor {
             val primary = readDelay(monoDelay, taps.primaryMs)
             val secondary = readDelay(monoDelay, taps.secondaryMs)
             val diffuse = readDelay(monoDelay, taps.diffuseMs)
-            val wet = monoDamping.process(
-                (primary * 0.46f) + (secondary * 0.34f) + (diffuse * 0.2f),
+            val wet = shapeWetSignal(monoDamping.process(
+                (primary * 0.34f) + (secondary * 0.28f) + (diffuse * 0.22f),
                 sampleRateHz,
                 currentDampingFrequencyHz,
-            )
-            monoDelay[writeIndex] = sanitize(dry + (wet * currentFeedback))
+            ))
+            monoDelay[writeIndex] = sanitize(dry + (wet * currentFeedback * 0.72f))
             frame[0] = sanitize(dry + (wet * currentWetMix))
             advanceWriteIndex()
             return
@@ -207,25 +207,25 @@ internal class ReverbProcessor {
         val leftCross = readDelay(rightDelay, taps.crossMs)
         val rightCross = readDelay(leftDelay, taps.crossMs)
 
-        val wetLeft = leftDamping.process(
-            (leftPrimary * 0.4f) +
-                (leftSecondary * 0.28f) +
-                (leftDiffuse * 0.18f) +
-                (leftCross * (0.14f + currentCrossMix)),
+        val wetLeft = shapeWetSignal(leftDamping.process(
+            (leftPrimary * 0.34f) +
+                (leftSecondary * 0.24f) +
+                (leftDiffuse * 0.20f) +
+                (leftCross * (0.06f + (currentCrossMix * 0.72f))),
             sampleRateHz,
             currentDampingFrequencyHz,
-        )
-        val wetRight = rightDamping.process(
-            (rightPrimary * 0.4f) +
-                (rightSecondary * 0.28f) +
-                (rightDiffuse * 0.18f) +
-                (rightCross * (0.14f + currentCrossMix)),
+        ))
+        val wetRight = shapeWetSignal(rightDamping.process(
+            (rightPrimary * 0.34f) +
+                (rightSecondary * 0.24f) +
+                (rightDiffuse * 0.20f) +
+                (rightCross * (0.06f + (currentCrossMix * 0.72f))),
             sampleRateHz,
             currentDampingFrequencyHz,
-        )
+        ))
 
-        leftDelay[writeIndex] = sanitize(dryLeft + (wetLeft * currentFeedback) + (wetRight * currentCrossMix))
-        rightDelay[writeIndex] = sanitize(dryRight + (wetRight * currentFeedback) + (wetLeft * currentCrossMix))
+        leftDelay[writeIndex] = sanitize(dryLeft + (wetLeft * currentFeedback * 0.76f) + (wetRight * currentCrossMix * 0.62f))
+        rightDelay[writeIndex] = sanitize(dryRight + (wetRight * currentFeedback * 0.76f) + (wetLeft * currentCrossMix * 0.62f))
         frame[0] = sanitize(dryLeft + (wetLeft * currentWetMix))
         frame[1] = sanitize(dryRight + (wetRight * currentWetMix))
         advanceWriteIndex()
@@ -264,6 +264,11 @@ internal class ReverbProcessor {
         }
     }
 
+    private fun shapeWetSignal(value: Float): Float {
+        val safeValue = if (value.isFinite()) value else 0f
+        return sanitize(safeValue / (1f + (abs(safeValue) * 0.85f)))
+    }
+
     private fun smooth(
         current: Float,
         target: Float,
@@ -289,7 +294,7 @@ internal data class ReverbTapDurations(
 )
 
 internal fun normalizeReverbDurationMs(valueMs: Int): Int {
-    return (valueMs.coerceIn(0, 300) / 50) * 50
+    return ((valueMs.coerceIn(0, MAX_REVERB_DURATION_MS) + (REVERB_STEP_MS / 2)) / REVERB_STEP_MS) * REVERB_STEP_MS
 }
 
 private fun smoothingAlpha(

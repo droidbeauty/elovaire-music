@@ -2344,6 +2344,9 @@ fun ElovaireRoot(
                             },
                             onCreatePlaylist = container.preferenceStore::createPlaylist,
                             playlistSongsById = songsById,
+                            onSetAlbumFavorite = { songIds, favorite ->
+                                container.preferenceStore.setFavoriteSongs(songIds, favorite)
+                            },
                             onDeleteAlbumFromDevice = deleteAlbumFromDevice,
                             onAlbumCollectionLayoutModeChanged = { mode ->
                                 container.preferenceStore.setAlbumCollectionLayoutMode(mode.name)
@@ -2395,6 +2398,10 @@ fun ElovaireRoot(
                             },
                             onCreatePlaylist = container.preferenceStore::createPlaylist,
                             playlistSongsById = songsById,
+                            favoriteSongIds = favoriteSongIdSet,
+                            onSetAlbumFavorite = { songIds, favorite ->
+                                container.preferenceStore.setFavoriteSongs(songIds, favorite)
+                            },
                             onDeleteAlbumFromDevice = deleteAlbumFromDevice,
                         )
                     }
@@ -2432,6 +2439,7 @@ fun ElovaireRoot(
                             onBack = navController::navigateUp,
                             onBandChanged = container.preferenceStore::updateBand,
                             onBassChanged = container.preferenceStore::updateBass,
+                            onMidrangeChanged = container.preferenceStore::updateMidrange,
                             onTrebleChanged = container.preferenceStore::updateTreble,
                             onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
                             onSpaciousnessModeChanged = container.preferenceStore::updateSpaciousnessMode,
@@ -4384,6 +4392,8 @@ private fun AlbumCollectionContent(
     onAddAlbumToPlaylist: (Long, Album) -> Unit,
     onCreatePlaylist: (String) -> Long,
     playlistSongsById: Map<Long, Song>,
+    favoriteSongIds: Set<Long>,
+    onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
     onDeleteAlbumFromDevice: (Album) -> Unit,
 ) {
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
@@ -4500,7 +4510,7 @@ private fun AlbumCollectionContent(
                         end = 20.dp,
                         bottom = bottomPadding + 12.dp,
                     ),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
                 ) {
                     item {
                         Row(
@@ -4525,23 +4535,38 @@ private fun AlbumCollectionContent(
                         }
                     }
 
-                    items(sortedAlbums, key = { it.id }) { album ->
-                        CompactAlbumRow(
-                            album = album,
-                            selectionMode = selectionModeActive,
-                            selected = album.id in selectedAlbumIds,
-                            onOpen = { origin ->
-                                if (selectionModeActive) {
-                                    selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
-                                } else {
-                                    onAlbumSelected(album, origin)
-                                }
-                            },
-                            onLongPress = {
-                                showSortOptions = false
-                                selectedAlbumIds = selectedAlbumIds + album.id
-                            },
-                        )
+                    itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            CompactAlbumRow(
+                                album = album,
+                                selectionMode = selectionModeActive,
+                                selected = album.id in selectedAlbumIds,
+                                isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
+                                showFavoriteButton = true,
+                                onOpen = { origin ->
+                                    if (selectionModeActive) {
+                                        selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                    } else {
+                                        onAlbumSelected(album, origin)
+                                    }
+                                },
+                                onToggleFavorite = {
+                                    onSetAlbumFavorite(
+                                        album.songs.map(Song::id),
+                                        album.songs.any { it.id !in favoriteSongIds },
+                                    )
+                                },
+                                onLongPress = {
+                                    showSortOptions = false
+                                    selectedAlbumIds = selectedAlbumIds + album.id
+                                },
+                            )
+                            if (index != sortedAlbums.lastIndex) {
+                                DividerLine()
+                            }
+                        }
                     }
                 }
                 FastScrollbar(
@@ -5156,6 +5181,7 @@ private fun LibraryCollectionScreen(
     onAddAlbumToPlaylist: (Long, Album) -> Unit,
     onCreatePlaylist: (String) -> Long,
     playlistSongsById: Map<Long, Song>,
+    onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
     onDeleteAlbumFromDevice: (Album) -> Unit,
     onAlbumCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onSongCollectionLayoutModeChanged: (AlbumLayoutMode) -> Unit,
@@ -5194,6 +5220,8 @@ private fun LibraryCollectionScreen(
                 onAddAlbumToPlaylist = onAddAlbumToPlaylist,
                 onCreatePlaylist = onCreatePlaylist,
                 playlistSongsById = playlistSongsById,
+                favoriteSongIds = favoriteSongIds,
+                onSetAlbumFavorite = onSetAlbumFavorite,
                 onDeleteAlbumFromDevice = onDeleteAlbumFromDevice,
             )
             DetailListTopBar(
@@ -5550,6 +5578,8 @@ private fun GenreAlbumsScreen(
     onAddAlbumToPlaylist: (Long, Album) -> Unit,
     onCreatePlaylist: (String) -> Long,
     playlistSongsById: Map<Long, Song>,
+    favoriteSongIds: Set<Long>,
+    onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
     onDeleteAlbumFromDevice: (Album) -> Unit,
 ) {
     val filteredAlbums = remember(genre, libraryState.albums) {
@@ -5576,6 +5606,8 @@ private fun GenreAlbumsScreen(
             onAddAlbumToPlaylist = onAddAlbumToPlaylist,
             onCreatePlaylist = onCreatePlaylist,
             playlistSongsById = playlistSongsById,
+            favoriteSongIds = favoriteSongIds,
+            onSetAlbumFavorite = onSetAlbumFavorite,
             onDeleteAlbumFromDevice = onDeleteAlbumFromDevice,
         )
         DetailListTopBar(
@@ -7517,7 +7549,11 @@ private fun SectionTitleRow(
     Column(verticalArrangement = Arrangement.spacedBy(if (compact) 4.dp else 6.dp)) {
         Text(
             text = title,
-            style = if (compact) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
+            style = if (compact) {
+                MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(16f))
+            } else {
+                MaterialTheme.typography.headlineMedium
+            },
         )
         if (!subtitle.isNullOrBlank()) {
             Text(
@@ -8360,7 +8396,10 @@ private fun CompactAlbumRow(
     album: Album,
     selectionMode: Boolean = false,
     selected: Boolean = false,
+    isFavorite: Boolean = false,
+    showFavoriteButton: Boolean = false,
     onOpen: (ExpandOrigin) -> Unit,
+    onToggleFavorite: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
 ) {
     val screenSizePx = screenContainerSizePx()
@@ -8368,15 +8407,9 @@ private fun CompactAlbumRow(
     val screenHeightPx = screenSizePx.height.toFloat()
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
-    Surface(
-        shape = RoundedCornerShape(ElovaireRadii.tile),
-        color = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-            MaterialTheme.colorScheme.background
-        } else {
-            readableCardSurfaceColor()
-        },
-        shadowElevation = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 6.dp else 1.dp,
+    Box(
         modifier = Modifier
+            .fillMaxWidth()
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -8387,8 +8420,9 @@ private fun CompactAlbumRow(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .fillMaxWidth(0.9f)
+                .align(Alignment.Center)
+                .padding(vertical = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -8401,14 +8435,6 @@ private fun CompactAlbumRow(
                     modifier = Modifier.matchParentSize(),
                     cornerRadius = ElovaireRadii.artworkSmall,
                 )
-                if (selectionMode) {
-                    SelectionIndicatorIcon(
-                        selected = selected,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(4.dp),
-                    )
-                }
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(
@@ -8444,6 +8470,28 @@ private fun CompactAlbumRow(
                     },
                     style = MaterialTheme.typography.labelLarge,
                 )
+            }
+            if (selectionMode) {
+                Box(
+                    modifier = Modifier.padding(end = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SelectionIndicatorIcon(selected = selected)
+                }
+            } else if (showFavoriteButton && onToggleFavorite != null) {
+                AnimatedVisibility(
+                    visible = !selectionMode,
+                    enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
+                    exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                ) {
+                    Box(modifier = Modifier.padding(end = 10.dp)) {
+                        InlineFavoriteSongButton(
+                            isFavorite = isFavorite,
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            onClick = onToggleFavorite,
+                        )
+                    }
+                }
             }
         }
     }
@@ -9208,11 +9256,15 @@ private fun PlaylistDetailScreen(
     var editMode by rememberSaveable(playlist.id) { mutableStateOf(false) }
     var showAddSongsPicker by rememberSaveable(playlist.id) { mutableStateOf(false) }
     var editableSongIds by rememberSaveable(playlist.id) { mutableStateOf(playlist.songIds) }
+    var songIdsMarkedForRemoval by rememberSaveable(playlist.id) { mutableStateOf(setOf<Long>()) }
+    var activelyDraggedSongId by rememberSaveable(playlist.id) { mutableStateOf<Long?>(null) }
     var showEditModeMenu by rememberSaveable(playlist.id) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(playlist.id) { mutableStateOf(false) }
     LaunchedEffect(playlist.id, playlist.songIds, editMode) {
         if (!editMode) {
             editableSongIds = playlist.songIds
+            songIdsMarkedForRemoval = emptySet()
+            activelyDraggedSongId = null
         }
     }
     val displayedSongIds = if (editMode) editableSongIds else playlist.songIds
@@ -9231,7 +9283,7 @@ private fun PlaylistDetailScreen(
             if (editMode && !playlist.isSystem) {
                 add(
                     TopBarActionSpec(
-                        iconResId = R.drawable.ic_lucide_square_plus,
+                        iconResId = R.drawable.ic_lucide_plus,
                         contentDescription = "Add songs",
                         onClick = { showAddSongsPicker = true },
                     ),
@@ -9244,11 +9296,16 @@ private fun PlaylistDetailScreen(
                         contentDescription = if (editMode) "Save playlist changes" else "Edit playlist",
                         onClick = {
                             if (editMode) {
-                                onUpdateSongOrder(editableSongIds)
+                                val updatedSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
+                                onUpdateSongOrder(updatedSongIds)
+                                editableSongIds = updatedSongIds
+                                songIdsMarkedForRemoval = emptySet()
+                                activelyDraggedSongId = null
                                 editMode = false
                                 showEditModeMenu = false
                             } else {
                                 editableSongIds = playlist.songIds
+                                songIdsMarkedForRemoval = emptySet()
                                 editMode = true
                                 showEditModeMenu = true
                             }
@@ -9262,7 +9319,11 @@ private fun PlaylistDetailScreen(
         if (showAddSongsPicker) {
             showAddSongsPicker = false
         } else if (editMode) {
-            onUpdateSongOrder(editableSongIds)
+            val updatedSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
+            onUpdateSongOrder(updatedSongIds)
+            editableSongIds = updatedSongIds
+            songIdsMarkedForRemoval = emptySet()
+            activelyDraggedSongId = null
             editMode = false
             showEditModeMenu = false
         }
@@ -9391,8 +9452,8 @@ private fun PlaylistDetailScreen(
                         modifier = if (editMode) {
                             Modifier.animateItem(
                                 placementSpec = spring(
-                                    dampingRatio = 0.72f,
-                                    stiffness = 320f,
+                                    dampingRatio = 0.52f,
+                                    stiffness = 190f,
                                 ),
                             )
                         } else {
@@ -9410,13 +9471,30 @@ private fun PlaylistDetailScreen(
                                     onSongSelected(song, playlistSongs)
                                 }
                             },
+                            markedForRemoval = song.id in songIdsMarkedForRemoval,
                             onLongPress = {
                                 if (!playlist.isSystem && playlistSongs.isNotEmpty()) {
                                     if (!editMode) {
                                         editableSongIds = playlist.songIds
+                                        songIdsMarkedForRemoval = emptySet()
                                         editMode = true
                                         showEditModeMenu = true
                                     }
+                                }
+                            },
+                            onToggleMarkedForRemoval = {
+                                songIdsMarkedForRemoval = if (song.id in songIdsMarkedForRemoval) {
+                                    songIdsMarkedForRemoval - song.id
+                                } else {
+                                    songIdsMarkedForRemoval + song.id
+                                }
+                            },
+                            isDragged = activelyDraggedSongId == song.id,
+                            onDragActiveChanged = { isActive ->
+                                activelyDraggedSongId = when {
+                                    isActive -> song.id
+                                    activelyDraggedSongId == song.id -> null
+                                    else -> activelyDraggedSongId
                                 }
                             },
                             onToggleFavorite = { onToggleFavorite(song.id) },
@@ -9429,31 +9507,36 @@ private fun PlaylistDetailScreen(
                                             editableSongIds = editableSongIds.toMutableList().apply {
                                                 add(targetIndex, removeAt(fromIndex))
                                             }.toList()
-                                            val visibleItems = listState.layoutInfo.visibleItemsInfo
-                                            val firstVisibleIndex = visibleItems.firstOrNull()?.index ?: 0
-                                            val lastVisibleIndex = visibleItems.lastOrNull()?.index ?: targetIndex
-                                            when {
-                                                delta < 0 && targetIndex <= firstVisibleIndex + 1 -> {
-                                                    scope.launch {
-                                                        listState.scrollToItem((targetIndex - 1).coerceAtLeast(0))
-                                                    }
-                                                }
-                                                delta > 0 && targetIndex >= lastVisibleIndex - 1 -> {
-                                                    scope.launch {
-                                                        listState.scrollToItem(
-                                                            (targetIndex + 1).coerceAtMost(editableSongIds.lastIndex),
-                                                        )
-                                                    }
-                                                }
-                                            }
                                         }
                                     }
                                 }
                             },
                             onReorderDrag = { dragAmount ->
                                 if (editMode && editableSongIds.size > 1) {
-                                    scope.launch {
-                                        listState.scrollBy(dragAmount * 1.2f)
+                                    val visibleSongItems = listState.layoutInfo.visibleItemsInfo
+                                        .filter { it.contentType == "playlist_song_row" }
+                                    val currentAbsoluteIndex = index + 2
+                                    val firstVisibleSongIndex = visibleSongItems.firstOrNull()?.index ?: currentAbsoluteIndex
+                                    val lastVisibleSongIndex = visibleSongItems.lastOrNull()?.index ?: currentAbsoluteIndex
+                                    val canScrollUp =
+                                        listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+                                    val canScrollDown =
+                                        visibleSongItems.lastOrNull()?.index != listState.layoutInfo.totalItemsCount - 1
+                                    when {
+                                        dragAmount < 0f &&
+                                            currentAbsoluteIndex <= firstVisibleSongIndex &&
+                                            canScrollUp -> {
+                                            scope.launch {
+                                                listState.scrollBy((dragAmount * 0.72f).coerceAtLeast(-22f))
+                                            }
+                                        }
+                                        dragAmount > 0f &&
+                                            currentAbsoluteIndex >= lastVisibleSongIndex &&
+                                            canScrollDown -> {
+                                            scope.launch {
+                                                listState.scrollBy((dragAmount * 0.72f).coerceAtMost(22f))
+                                            }
+                                        }
                                     }
                                 }
                             },
@@ -9472,7 +9555,11 @@ private fun PlaylistDetailScreen(
                 if (showAddSongsPicker) {
                     showAddSongsPicker = false
                 } else if (editMode) {
-                    onUpdateSongOrder(editableSongIds)
+                    val updatedSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
+                    onUpdateSongOrder(updatedSongIds)
+                    editableSongIds = updatedSongIds
+                    songIdsMarkedForRemoval = emptySet()
+                    activelyDraggedSongId = null
                     editMode = false
                     showEditModeMenu = false
                 } else {
@@ -9501,13 +9588,19 @@ private fun PlaylistDetailScreen(
                 ),
                 trailingAction = TopBarMenuAction(
                     iconResId = R.drawable.ic_lucide_trash_2,
-                    label = "Delete",
+                    label = if (songIdsMarkedForRemoval.isNotEmpty()) "Remove" else "Delete",
                     tint = DestructiveRed,
                     onClick = {
-                        onDeletePlaylist(playlist.id)
-                        showEditModeMenu = false
-                        editMode = false
-                        onBack()
+                        if (songIdsMarkedForRemoval.isNotEmpty()) {
+                            editableSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
+                            songIdsMarkedForRemoval = emptySet()
+                            activelyDraggedSongId = null
+                        } else {
+                            onDeletePlaylist(playlist.id)
+                            showEditModeMenu = false
+                            editMode = false
+                            onBack()
+                        }
                     },
                 ),
             )
@@ -9547,7 +9640,11 @@ private fun PlaylistSongRow(
     isPlaybackActive: Boolean = false,
     editMode: Boolean = false,
     onClick: () -> Unit,
+    markedForRemoval: Boolean = false,
     onLongPress: () -> Unit = {},
+    onToggleMarkedForRemoval: () -> Unit = {},
+    isDragged: Boolean = false,
+    onDragActiveChanged: (Boolean) -> Unit = {},
     onToggleFavorite: () -> Unit,
     onMoveBy: (Int) -> Unit = {},
     onReorderDrag: (Float) -> Unit = {},
@@ -9558,6 +9655,7 @@ private fun PlaylistSongRow(
     val reorderStepPx = remember(density) { with(density) { 18.dp.toPx() } }
     var reorderDragAccumulator by remember(song.id, editMode) { mutableFloatStateOf(0f) }
     var handleDragActive by remember(song.id, editMode) { mutableStateOf(false) }
+    val visualDragOffsetY = reorderDragAccumulator.coerceIn(-20f, 20f)
     val handleTint by animateColorAsState(
         targetValue = if (handleDragActive) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.94f)
@@ -9572,9 +9670,29 @@ private fun PlaylistSongRow(
         animationSpec = ElovaireMotion.releaseSpringSpec(),
         label = "playlist_reorder_handle_scale",
     )
+    val rowScale by animateFloatAsState(
+        targetValue = if (isDragged) 1.018f else 1f,
+        animationSpec = if (isDragged) {
+            spring(
+                dampingRatio = 0.5f,
+                stiffness = 210f,
+            )
+        } else {
+            ElovaireMotion.releaseSpringSpec()
+        },
+        label = "playlist_drag_row_scale",
+    )
+    val rowTranslationY by animateFloatAsState(
+        targetValue = if (isDragged) visualDragOffsetY else 0f,
+        animationSpec = spring(
+            dampingRatio = 0.42f,
+            stiffness = 250f,
+        ),
+        label = "playlist_drag_row_translation",
+    )
     val dragHighlight by animateColorAsState(
         targetValue = if (handleDragActive) {
-            MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
+            MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
         } else {
             Color.Transparent
         },
@@ -9587,6 +9705,11 @@ private fun PlaylistSongRow(
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(ElovaireRadii.tile))
                 .background(dragHighlight)
+                .graphicsLayer {
+                    scaleX = rowScale
+                    scaleY = rowScale
+                    translationY = rowTranslationY
+                }
                 .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -9623,6 +9746,7 @@ private fun PlaylistSongRow(
                                 onDragStart = {
                                     reorderDragAccumulator = 0f
                                     handleDragActive = true
+                                    onDragActiveChanged(true)
                                 },
                                 onVerticalDrag = { change, dragAmount ->
                                     change.consume()
@@ -9640,10 +9764,12 @@ private fun PlaylistSongRow(
                                 onDragEnd = {
                                     reorderDragAccumulator = 0f
                                     handleDragActive = false
+                                    onDragActiveChanged(false)
                                 },
                                 onDragCancel = {
                                     reorderDragAccumulator = 0f
                                     handleDragActive = false
+                                    onDragActiveChanged(false)
                                 },
                             )
                         },
@@ -9707,7 +9833,7 @@ private fun PlaylistSongRow(
                 )
             }
             Row(
-                modifier = Modifier.width(if (showOverflowMenu) 96.dp else 64.dp),
+                modifier = Modifier.width(if (editMode) 36.dp else if (showOverflowMenu) 96.dp else 64.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -9742,6 +9868,33 @@ private fun PlaylistSongRow(
                         }
                     }
                 }
+                ElovaireAnimatedVisibility(
+                    visible = editMode,
+                    enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                        scaleIn(
+                            initialScale = 0.92f,
+                            animationSpec = ElovaireMotion.scaleSoft(),
+                        ),
+                    exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                        scaleOut(
+                            targetScale = 0.92f,
+                            animationSpec = ElovaireMotion.fadeFast(),
+                        ),
+                    label = "playlist_song_remove_toggle",
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onToggleMarkedForRemoval,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        SelectionIndicatorIcon(selected = markedForRemoval)
+                    }
+                }
             }
         }
         if (showDivider) {
@@ -9758,12 +9911,23 @@ private fun AddSongsToPlaylistOverlay(
     onAddSongs: (List<Long>) -> Unit,
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(PlaylistPickerTab.Songs) }
+    var query by rememberSaveable { mutableStateOf("") }
     var selectedSongIds by rememberSaveable { mutableStateOf(listOf<Long>()) }
+    var selectedAlbumId by rememberSaveable { mutableStateOf<Long?>(null) }
+    var selectedArtistName by rememberSaveable { mutableStateOf<String?>(null) }
+    var listResetVersion by rememberSaveable { mutableLongStateOf(0L) }
     val selectedSongIdSet = remember(selectedSongIds) { selectedSongIds.toSet() }
-    val listState = rememberElovaireLazyListState("playlist_add_songs_overlay")
+    val listState = rememberElovaireLazyListState(
+        "playlist_add_songs_overlay",
+        selectedTab.name,
+        selectedAlbumId ?: -1L,
+        selectedArtistName.orEmpty(),
+        listResetVersion,
+    )
     val candidateSongs = remember(availableSongs, existingSongIds) {
         availableSongs.filterNot { it.id in existingSongIds }
     }
+    val trimmedQuery = query.trim()
     val albums = remember(candidateSongs) {
         candidateSongs.groupBy { it.albumId }
             .values
@@ -9794,6 +9958,58 @@ private fun AddSongsToPlaylistOverlay(
             }
             .sortedBy { it.first.name.lowercase() }
     }
+    val filteredAlbums = remember(albums, trimmedQuery) {
+        albums.filter { album ->
+            searchMatchesComposite(trimmedQuery, listOf(album.title, album.artist))
+        }
+    }
+    val filteredArtists = remember(artists, trimmedQuery) {
+        artists.filter { (artist, songs) ->
+            searchMatchesComposite(trimmedQuery, buildList {
+                add(artist.name)
+                songs.firstOrNull()?.album?.let(::add)
+            })
+        }
+    }
+    val filteredSongs = remember(candidateSongs, trimmedQuery) {
+        candidateSongs.filter { song ->
+            searchMatchesComposite(trimmedQuery, listOf(song.title, song.artist, song.album))
+        }
+    }
+    val selectedAlbum = remember(selectedAlbumId, albums) {
+        albums.firstOrNull { it.id == selectedAlbumId }
+    }
+    val selectedArtistSongs = remember(selectedArtistName, artists) {
+        artists.firstOrNull { it.first.name == selectedArtistName }?.second.orEmpty()
+    }
+    val filteredAlbumSongs = remember(selectedAlbum, trimmedQuery) {
+        selectedAlbum?.songs?.filter { song ->
+            searchMatchesComposite(trimmedQuery, listOf(song.title, song.artist, song.album))
+        }.orEmpty()
+    }
+    val filteredArtistSongs = remember(selectedArtistSongs, trimmedQuery) {
+        selectedArtistSongs.filter { song ->
+            searchMatchesComposite(trimmedQuery, listOf(song.title, song.artist, song.album))
+        }
+    }
+    val handleBack: () -> Unit = {
+        when {
+            selectedAlbumId != null -> {
+                selectedAlbumId = null
+                listResetVersion += 1L
+            }
+            selectedArtistName != null -> {
+                selectedArtistName = null
+                listResetVersion += 1L
+            }
+            else -> onDismiss()
+        }
+    }
+    BackHandler(enabled = selectedAlbumId != null || selectedArtistName != null) {
+        handleBack()
+    }
+    val overlayTopPadding = detailTopBarOccupiedHeight()
+    val overlayBottomPadding = navigationBarInsetDp() + 124.dp
 
     Box(
         modifier = Modifier
@@ -9809,73 +10025,191 @@ private fun AddSongsToPlaylistOverlay(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 20.dp,
-                top = detailTopBarOccupiedHeight() + 12.dp,
+                top = overlayTopPadding,
                 end = 20.dp,
-                bottom = navigationBarInsetDp() + 24.dp,
+                bottom = overlayBottomPadding,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
-                Row(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        .height(50.dp),
                 ) {
-                    PlaylistPickerTab.entries.forEach { tab ->
-                        EqPresetPill(
-                            label = tab.label,
-                            selected = selectedTab == tab,
-                            useSubtleIdleBackground = true,
-                            onClick = { selectedTab = tab },
-                        )
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceEvenly,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        PlaylistPickerTab.entries.forEach { tab ->
+                            val selected = selectedTab == tab
+                            Text(
+                                text = tab.label,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        if (selected) {
+                                            selectedAlbumId = null
+                                            selectedArtistName = null
+                                            listResetVersion += 1L
+                                        } else {
+                                            selectedTab = tab
+                                            selectedAlbumId = null
+                                            selectedArtistName = null
+                                            listResetVersion += 1L
+                                        }
+                                    }
+                                    .padding(vertical = 14.dp),
+                                textAlign = TextAlign.Center,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f)
+                                },
+                            )
+                        }
                     }
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .fillMaxWidth()
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
+                    )
                 }
             }
-            when (selectedTab) {
-                PlaylistPickerTab.Albums -> {
-                    items(albums, key = { it.id }) { album ->
-                        val allSelected = album.songs.all { it.id in selectedSongIdSet }
-                        CompactAlbumRow(
-                            album = album,
-                            selectionMode = true,
-                            selected = allSelected,
-                            onOpen = {
-                                selectedSongIds = if (allSelected) {
-                                    selectedSongIds.filterNot { it in album.songs.map(Song::id).toSet() }
-                                } else {
-                                    selectedSongIds + album.songs.map(Song::id).filterNot(selectedSongIdSet::contains)
-                                }
-                            },
+            item {
+                val searchBarContentColor = MaterialTheme.colorScheme.onSurface
+                OutlinedTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(ElovaireRadii.input),
+                    singleLine = true,
+                    placeholder = { Text("Search library") },
+                    leadingIcon = {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_search),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(20.dp),
                         )
-                    }
-                }
-
-                PlaylistPickerTab.Artists -> {
-                    items(artists, key = { it.first.name }) { (artist, songs) ->
-                        val allSelected = songs.all { it.id in selectedSongIdSet }
-                        SelectableCollectionRow(
-                            title = artist.name,
-                            subtitle = "${formatCountLabel(artist.songCount, "song")} • ${formatCountLabel(artist.albumCount, "album")}",
-                            artUri = artist.artUri,
-                            selected = allSelected,
-                            onClick = {
-                                selectedSongIds = if (allSelected) {
-                                    selectedSongIds.filterNot { it in songs.map(Song::id).toSet() }
-                                } else {
-                                    selectedSongIds + songs.map(Song::id).filterNot(selectedSongIdSet::contains)
-                                }
-                            },
-                        )
-                    }
-                }
-
-                PlaylistPickerTab.Songs -> {
-                    items(candidateSongs, key = { it.id }) { song ->
+                    },
+                    trailingIcon = {
+                        AnimatedVisibility(
+                            visible = trimmedQuery.isNotBlank(),
+                            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.scaleSoft(),
+                                    initialScale = 0.92f,
+                                ),
+                            exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                                scaleOut(
+                                    animationSpec = ElovaireMotion.fadeFast(),
+                                    targetScale = 0.92f,
+                                ),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(searchBarContentColor.copy(alpha = 0.1f))
+                                    .clickable(
+                                        interactionSource = remember { MutableInteractionSource() },
+                                        indication = null,
+                                        onClick = { query = "" },
+                                    ),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lucide_x),
+                                    contentDescription = "Clear search",
+                                    tint = searchBarContentColor.copy(alpha = 0.86f),
+                                    modifier = Modifier.size(14.dp),
+                                )
+                            }
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = Color.Transparent,
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedContainerColor = MaterialTheme.colorScheme.surface,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                        cursorColor = MaterialTheme.colorScheme.onSurface,
+                        focusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
+                        unfocusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
+                    ),
+                )
+            }
+            when {
+                selectedTab == PlaylistPickerTab.Albums && selectedAlbum != null -> {
+                    items(filteredAlbumSongs, key = { it.id }) { song ->
                         val selected = song.id in selectedSongIdSet
                         SelectableSongRow(
                             song = song,
                             selected = selected,
+                            selectionIndicatorOnRight = true,
+                            onClick = {
+                                selectedSongIds = if (selected) {
+                                    selectedSongIds.filterNot { it == song.id }
+                                } else {
+                                    selectedSongIds + song.id
+                                }
+                            },
+                        )
+                    }
+                }
+                selectedTab == PlaylistPickerTab.Artists && selectedArtistName != null -> {
+                    items(filteredArtistSongs, key = { it.id }) { song ->
+                        val selected = song.id in selectedSongIdSet
+                        SelectableSongRow(
+                            song = song,
+                            selected = selected,
+                            selectionIndicatorOnRight = true,
+                            onClick = {
+                                selectedSongIds = if (selected) {
+                                    selectedSongIds.filterNot { it == song.id }
+                                } else {
+                                    selectedSongIds + song.id
+                                }
+                            },
+                        )
+                    }
+                }
+                selectedTab == PlaylistPickerTab.Albums -> {
+                    items(filteredAlbums, key = { it.id }) { album ->
+                        CompactAlbumRow(
+                            album = album,
+                            onOpen = { selectedAlbumId = album.id },
+                        )
+                    }
+                }
+
+                selectedTab == PlaylistPickerTab.Artists -> {
+                    items(filteredArtists, key = { it.first.name }) { (artist, _) ->
+                        Surface(
+                            shape = RoundedCornerShape(ElovaireRadii.tile),
+                            color = readableCardSurfaceColor(),
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { selectedArtistName = artist.name },
+                        ) {
+                            ArtistRow(
+                                artist = artist,
+                                onClick = { selectedArtistName = artist.name },
+                            )
+                        }
+                    }
+                }
+
+                selectedTab == PlaylistPickerTab.Songs -> {
+                    items(filteredSongs, key = { it.id }) { song ->
+                        val selected = song.id in selectedSongIdSet
+                        SelectableSongRow(
+                            song = song,
+                            selected = selected,
+                            selectionIndicatorOnRight = true,
                             onClick = {
                                 selectedSongIds = if (selected) {
                                     selectedSongIds.filterNot { it == song.id }
@@ -9890,12 +10224,20 @@ private fun AddSongsToPlaylistOverlay(
         }
 
         DetailListTopBar(
-            title = "Add songs",
+            title = when {
+                selectedAlbum != null -> selectedAlbum.title
+                selectedArtistName != null -> selectedArtistName.orEmpty()
+                else -> "Add songs"
+            },
             subtitle = when (selectedSongIds.size) {
-                0 -> null
+                0 -> when {
+                    selectedAlbum != null -> selectedAlbum.artist
+                    selectedArtistName != null -> "Choose songs"
+                    else -> null
+                }
                 else -> formatCountLabel(selectedSongIds.size, "song")
             },
-            onBack = onDismiss,
+            onBack = handleBack,
             actions = listOf(
                 TopBarActionSpec(
                     iconResId = R.drawable.ic_lucide_check,
@@ -9910,6 +10252,11 @@ private fun AddSongsToPlaylistOverlay(
                 ),
             ),
             modifier = Modifier.align(Alignment.TopCenter),
+        )
+        FastScrollbar(
+            state = listState,
+            topInset = overlayTopPadding + 8.dp,
+            bottomInset = overlayBottomPadding - 6.dp,
         )
     }
 }
@@ -9972,18 +10319,22 @@ private fun SelectableCollectionRow(
 private fun SelectableSongRow(
     song: Song,
     selected: Boolean,
+    selectionIndicatorOnRight: Boolean = false,
     onClick: () -> Unit,
 ) {
-    Surface(
-        shape = RoundedCornerShape(ElovaireRadii.tile),
-        color = readableCardSurfaceColor(),
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -9994,12 +10345,14 @@ private fun SelectableSongRow(
                     modifier = Modifier.matchParentSize(),
                     cornerRadius = ElovaireRadii.artworkSmall,
                 )
-                SelectionIndicatorIcon(
-                    selected = selected,
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(2.dp),
-                )
+                if (!selectionIndicatorOnRight) {
+                    SelectionIndicatorIcon(
+                        selected = selected,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(2.dp),
+                    )
+                }
             }
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 ExplicitTitleText(
@@ -10023,8 +10376,19 @@ private fun SelectableSongRow(
                 text = formatDuration(song.durationMs),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
+                modifier = Modifier.width(40.dp),
+                textAlign = TextAlign.End,
             )
+            if (selectionIndicatorOnRight) {
+                Box(
+                    modifier = Modifier.padding(end = 10.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    SelectionIndicatorIcon(selected = selected)
+                }
+            }
         }
+        DividerLine()
     }
 }
 
@@ -13576,6 +13940,7 @@ private fun EqualizerScreen(
     onBack: () -> Unit,
     onBandChanged: (Int, Float) -> Unit,
     onBassChanged: (Float) -> Unit,
+    onMidrangeChanged: (Float) -> Unit,
     onTrebleChanged: (Float) -> Unit,
     onSpaciousnessChanged: (Float) -> Unit,
     onSpaciousnessModeChanged: (SpaciousnessMode) -> Unit,
@@ -13668,20 +14033,35 @@ private fun EqualizerScreen(
                             title = "Tone shaping",
                             iconResId = R.drawable.ic_lucide_audio_waveform,
                         )
-                        EqMacroSliderRow(
-                            title = "Bass",
-                            value = settings.bass.coerceIn(0f, 1f),
-                            valueText = "${(settings.bass.coerceIn(0f, 1f) * 100f).roundToInt()}%",
-                            onValueChange = onBassChanged,
-                            valueRange = 0f..1f,
-                        )
-                        EqMacroSliderRow(
-                            title = "Treble",
-                            value = settings.treble.coerceIn(-1f, 1f),
-                            valueText = "${(settings.treble.coerceIn(-1f, 1f) * 100f).roundToInt()}%",
-                            onValueChange = onTrebleChanged,
-                            valueRange = -1f..1f,
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(30.dp),
+                        ) {
+                            EqToneKnob(
+                                title = "Bass",
+                                value = settings.bass.coerceIn(0f, 1f),
+                                valueRange = 0f..1f,
+                                accentColor = Color(0xFF2FE08D),
+                                modifier = Modifier.weight(1f),
+                                onValueChange = onBassChanged,
+                            )
+                            EqToneKnob(
+                                title = "Midrange",
+                                value = settings.midrange.coerceIn(-1f, 1f),
+                                valueRange = -1f..1f,
+                                accentColor = Color(0xFF39C2FF),
+                                modifier = Modifier.weight(1f),
+                                onValueChange = onMidrangeChanged,
+                            )
+                            EqToneKnob(
+                                title = "Treble",
+                                value = settings.treble.coerceIn(-1f, 1f),
+                                valueRange = -1f..1f,
+                                accentColor = Color(0xFFFFB056),
+                                modifier = Modifier.weight(1f),
+                                onValueChange = onTrebleChanged,
+                            )
+                        }
                     }
                 }
             }
@@ -13869,7 +14249,7 @@ private fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
                         Row(
                             modifier = Modifier
@@ -13892,6 +14272,7 @@ private fun SettingsScreen(
                                 onValueChange = onSpaciousnessChanged,
                             )
                         }
+                        Spacer(modifier = Modifier.height(20.dp))
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -13932,6 +14313,7 @@ private fun SettingsScreen(
                                 }
                             }
                         }
+                        Spacer(modifier = Modifier.height(20.dp))
                         SettingToggleRow(
                             title = "Enable mono",
                             subtitle = "Switches stereo playback to mono",
@@ -15603,6 +15985,221 @@ private fun circularKnobValueForOffset(
         relative <= sweepAngleDegrees -> (relative / sweepAngleDegrees).coerceIn(0f, 1f)
         relative < (sweepAngleDegrees + ((360f - sweepAngleDegrees) / 2f)) -> 1f
         else -> 0f
+    }
+}
+
+@Composable
+private fun EqToneKnob(
+    title: String,
+    value: Float,
+    valueRange: ClosedFloatingPointRange<Float>,
+    accentColor: Color,
+    modifier: Modifier = Modifier,
+    onValueChange: (Float) -> Unit,
+) {
+    val safeRange = remember(valueRange) {
+        if (valueRange.endInclusive > valueRange.start) valueRange else 0f..1f
+    }
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val clampedValue = value.coerceIn(safeRange.start, safeRange.endInclusive)
+    val targetFraction = ((clampedValue - safeRange.start) / (safeRange.endInclusive - safeRange.start))
+        .coerceIn(0f, 1f)
+    var dragFraction by remember { mutableFloatStateOf(targetFraction) }
+    LaunchedEffect(targetFraction) {
+        dragFraction = targetFraction
+    }
+    val animatedFraction by animateFloatAsState(
+        targetValue = dragFraction,
+        animationSpec = tween(ElovaireMotion.Standard),
+        label = "${title}_eq_tone_knob",
+    )
+    val surfaceColor = readableCardSurfaceColor()
+    val trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)
+    val tickIdleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
+    val glowColor = accentColor.copy(alpha = 0.28f)
+    val knobFaceColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText.copy(alpha = 0.92f)
+    } else {
+        Color(0xFF1A1A1C)
+    }
+    val knobEdgeColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    val valueText = remember(clampedValue, safeRange) {
+        val percent = if (safeRange.start < 0f) {
+            (clampedValue * 100f).roundToInt()
+        } else {
+            ((clampedValue.coerceAtLeast(0f)) * 100f).roundToInt()
+        }
+        if (safeRange.start < 0f && percent > 0) "+$percent" else percent.toString()
+    }
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(104.dp)
+                .horizontalGestureSafe()
+                .pointerInput(title, safeRange.start, safeRange.endInclusive) {
+                    detectTapGestures { offset ->
+                        val fraction = circularKnobValueForOffset(
+                            offset = offset,
+                            size = Size(size.width.toFloat(), size.height.toFloat()),
+                            startAngleDegrees = 140f,
+                            sweepAngleDegrees = 260f,
+                        )
+                        dragFraction = fraction
+                        currentOnValueChange(
+                            safeRange.start + ((safeRange.endInclusive - safeRange.start) * fraction),
+                        )
+                    }
+                }
+                .pointerInput(title, safeRange.start, safeRange.endInclusive) {
+                    detectDragGestures(
+                        onDragStart = { offset ->
+                            val fraction = circularKnobValueForOffset(
+                                offset = offset,
+                                size = Size(size.width.toFloat(), size.height.toFloat()),
+                                startAngleDegrees = 140f,
+                                sweepAngleDegrees = 260f,
+                            )
+                            dragFraction = fraction
+                            currentOnValueChange(
+                                safeRange.start + ((safeRange.endInclusive - safeRange.start) * fraction),
+                            )
+                        },
+                        onDrag = { change, _ ->
+                            change.consume()
+                            val fraction = circularKnobValueForOffset(
+                                offset = change.position,
+                                size = Size(size.width.toFloat(), size.height.toFloat()),
+                                startAngleDegrees = 140f,
+                                sweepAngleDegrees = 260f,
+                            )
+                            dragFraction = fraction
+                            currentOnValueChange(
+                                safeRange.start + ((safeRange.endInclusive - safeRange.start) * fraction),
+                            )
+                        },
+                    )
+                },
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val strokeWidth = 6.dp.toPx()
+                val glowWidth = 12.dp.toPx()
+                val outerPadding = 9.dp.toPx()
+                val radius = ((size.minDimension - outerPadding * 2f) / 2f).coerceAtLeast(1f)
+                val center = Offset(size.width / 2f, size.height / 2f)
+                val arcTopLeft = Offset(center.x - radius, center.y - radius)
+                val arcSize = Size(radius * 2f, radius * 2f)
+                val startAngle = 140f
+                val sweepAngle = 260f
+                val activeSweep = sweepAngle * animatedFraction
+                val tickCount = 34
+                val tickOuterRadius = radius + 5.dp.toPx()
+                val tickInnerRadius = tickOuterRadius - 6.dp.toPx()
+                val activeTickCount = (animatedFraction * (tickCount - 1)).roundToInt()
+
+                repeat(tickCount) { tickIndex ->
+                    val fraction = tickIndex / (tickCount - 1).toFloat()
+                    val angleDegrees = startAngle + (sweepAngle * fraction)
+                    val angleRadians = Math.toRadians(angleDegrees.toDouble())
+                    val start = Offset(
+                        x = center.x + (cos(angleRadians) * tickInnerRadius).toFloat(),
+                        y = center.y + (sin(angleRadians) * tickInnerRadius).toFloat(),
+                    )
+                    val end = Offset(
+                        x = center.x + (cos(angleRadians) * tickOuterRadius).toFloat(),
+                        y = center.y + (sin(angleRadians) * tickOuterRadius).toFloat(),
+                    )
+                    drawLine(
+                        color = if (tickIndex <= activeTickCount) accentColor else tickIdleColor,
+                        start = start,
+                        end = end,
+                        strokeWidth = 1.2.dp.toPx(),
+                        cap = StrokeCap.Square,
+                    )
+                }
+
+                drawArc(
+                    color = trackColor,
+                    startAngle = startAngle,
+                    sweepAngle = sweepAngle,
+                    useCenter = false,
+                    topLeft = arcTopLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                )
+                if (activeSweep > 0f) {
+                    drawArc(
+                        color = glowColor,
+                        startAngle = startAngle,
+                        sweepAngle = activeSweep,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = glowWidth, cap = StrokeCap.Round),
+                    )
+                    drawArc(
+                        color = accentColor,
+                        startAngle = startAngle,
+                        sweepAngle = activeSweep,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
+                    )
+                }
+
+                drawCircle(
+                    color = knobFaceColor,
+                    radius = radius * 0.64f,
+                    center = center,
+                )
+                drawCircle(
+                    color = knobEdgeColor,
+                    radius = radius * 0.66f,
+                    center = center,
+                    style = Stroke(width = 1.dp.toPx()),
+                )
+
+                val pointerAngle = Math.toRadians((startAngle + activeSweep).toDouble())
+                val pointerRadius = radius * 0.56f
+                val pointerCenter = Offset(
+                    x = center.x + (cos(pointerAngle) * pointerRadius).toFloat(),
+                    y = center.y + (sin(pointerAngle) * pointerRadius).toFloat(),
+                )
+                drawCircle(
+                    color = accentColor,
+                    radius = 3.dp.toPx(),
+                    center = pointerCenter,
+                )
+            }
+
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = valueText,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = elovaireScaledSp(18f),
+                        fontWeight = FontWeight.SemiBold,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.96f),
+                )
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.bodyMedium.copy(
+                        fontSize = elovaireScaledSp(16f),
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.76f),
+                )
+            }
+        }
     }
 }
 

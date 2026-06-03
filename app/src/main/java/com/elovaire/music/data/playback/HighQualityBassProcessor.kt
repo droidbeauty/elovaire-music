@@ -15,17 +15,17 @@ internal data class HighQualityBassConfig(
     val enabled: Boolean = true,
     val amountNormalized: Float = 0f,
     val highPassFrequencyHz: Float = 24f,
-    val shelfFrequencyHz: Float = 86f,
-    val shelfSlope: Float = 0.78f,
-    val maxShelfBoostDb: Float = 8f,
-    val punchCenterHz: Float = 62f,
-    val punchQ: Float = 0.85f,
-    val maxPunchDb: Float = 2.1f,
-    val mudTrimCenterHz: Float = 230f,
-    val mudTrimQ: Float = 0.85f,
-    val maxMudTrimDb: Float = 1.1f,
-    val dynamicControlThreshold: Float = 0.22f,
-    val maxDynamicReductionDb: Float = 2.2f,
+    val shelfFrequencyHz: Float = 82f,
+    val shelfSlope: Float = 0.74f,
+    val maxShelfBoostDb: Float = 8.6f,
+    val punchCenterHz: Float = 64f,
+    val punchQ: Float = 0.82f,
+    val maxPunchDb: Float = 2.35f,
+    val mudTrimCenterHz: Float = 255f,
+    val mudTrimQ: Float = 0.78f,
+    val maxMudTrimDb: Float = 0.48f,
+    val dynamicControlThreshold: Float = 0.26f,
+    val maxDynamicReductionDb: Float = 1.65f,
     val smoothingTimeMs: Int = 90,
 ) {
     fun sanitized(): HighQualityBassConfig {
@@ -92,9 +92,9 @@ internal object HighQualityBassProcessorModel {
             )
         }
 
-        val shelfCurve = amount.toDouble().pow(1.45).toFloat()
-        val punchCurve = amount.toDouble().pow(2.05).toFloat()
-        val mudCurve = amount.toDouble().pow(1.35).toFloat()
+        val shelfCurve = amount.toDouble().pow(1.22).toFloat()
+        val punchCurve = amount.toDouble().pow(1.72).toFloat()
+        val mudCurve = amount.toDouble().pow(1.9).toFloat()
         val shelfDb = safeConfig.maxShelfBoostDb * shelfCurve
         val punchDb = safeConfig.maxPunchDb * punchCurve
         val mudTrimDb = -(safeConfig.maxMudTrimDb * mudCurve)
