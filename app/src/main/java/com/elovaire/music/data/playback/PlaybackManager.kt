@@ -10,7 +10,6 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -24,9 +23,7 @@ import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MediaParserExtractorAdapter
 import androidx.media3.exoplayer.source.MediaSource
-import androidx.media3.exoplayer.source.ProgressiveMediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaSession
 import elovaire.music.droidbeauty.app.MainActivity
@@ -284,13 +281,12 @@ class PlaybackManager(
 
         progressUpdateJob = scope.launch {
             while (isActive) {
-                syncFromObservedSystemVolume()
                 publishProgressSnapshot()
                 delay(
                     when {
-                        player.isPlaying -> 220L
-                        player.currentMediaItemIndex >= 0 -> 320L
-                        else -> 500L
+                        player.isPlaying -> 250L
+                        player.currentMediaItemIndex >= 0 -> 500L
+                        else -> 1_000L
                     },
                 )
             }
@@ -1039,19 +1035,7 @@ class PlaybackManager(
     }
 
     private fun buildMediaSourceFactory(): MediaSource.Factory {
-        val bundledFactory = DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
-        val platformFactory = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val parserFactory = MediaParserExtractorAdapter.Factory().apply {
-                setConstantBitrateSeekingEnabled(true)
-            }
-            ProgressiveMediaSource.Factory(dataSourceFactory, parserFactory)
-        } else {
-            null
-        }
-        return HybridLocalPlaybackMediaSourceFactory(
-            bundledFactory = bundledFactory,
-            platformFactory = platformFactory,
-        )
+        return DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
     }
 }
 
@@ -1067,8 +1051,6 @@ private fun Song.inferPlaybackMimeType(): String? {
     val extension = fileName.substringAfterLast('.', "").lowercase()
     val normalizedFormat = audioFormat.uppercase()
     return when {
-        normalizedFormat == "ALAC" || extension == "alac" -> "audio/alac"
-        extension in setOf("aif", "aiff", "aifc") || normalizedFormat == "AIFF" -> "audio/aiff"
         extension in setOf("m4a", "mp4") -> "audio/mp4"
         extension == "aac" || normalizedFormat == "AAC" -> "audio/aac"
         extension == "flac" || normalizedFormat == "FLAC" -> "audio/flac"
@@ -1077,40 +1059,6 @@ private fun Song.inferPlaybackMimeType(): String? {
         extension == "ogg" || normalizedFormat == "OGG" -> "audio/ogg"
         extension == "opus" || normalizedFormat == "OPUS" -> "audio/opus"
         else -> null
-    }
-}
-
-private class HybridLocalPlaybackMediaSourceFactory(
-    private val bundledFactory: MediaSource.Factory,
-    private val platformFactory: MediaSource.Factory?,
-) : MediaSource.Factory {
-    override fun setDrmSessionManagerProvider(drmSessionManagerProvider: androidx.media3.exoplayer.drm.DrmSessionManagerProvider): MediaSource.Factory {
-        bundledFactory.setDrmSessionManagerProvider(drmSessionManagerProvider)
-        platformFactory?.setDrmSessionManagerProvider(drmSessionManagerProvider)
-        return this
-    }
-
-    override fun setLoadErrorHandlingPolicy(loadErrorHandlingPolicy: androidx.media3.exoplayer.upstream.LoadErrorHandlingPolicy): MediaSource.Factory {
-        bundledFactory.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
-        platformFactory?.setLoadErrorHandlingPolicy(loadErrorHandlingPolicy)
-        return this
-    }
-
-    override fun getSupportedTypes(): IntArray {
-        val platformTypes = platformFactory?.supportedTypes ?: intArrayOf()
-        return (bundledFactory.supportedTypes.asIterable() + platformTypes.asIterable()).distinct().toIntArray()
-    }
-
-    override fun createMediaSource(mediaItem: MediaItem): MediaSource {
-        val extension = mediaItem.localConfiguration?.uri?.lastPathSegment
-            ?.substringAfterLast('.', "")
-            ?.lowercase()
-        val usePlatformFactory = platformFactory != null && extension in setOf("aif", "aiff", "aifc", "alac")
-        return if (usePlatformFactory) {
-            platformFactory.createMediaSource(mediaItem)
-        } else {
-            bundledFactory.createMediaSource(mediaItem)
-        }
     }
 }
 

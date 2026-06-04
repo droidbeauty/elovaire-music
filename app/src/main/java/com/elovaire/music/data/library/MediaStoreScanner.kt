@@ -14,8 +14,6 @@ import androidx.media3.extractor.metadata.id3.Id3Decoder
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
-import java.io.BufferedInputStream
-import java.io.EOFException
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
@@ -496,109 +494,10 @@ class MediaStoreScanner(
                         ?.let(::parseTrackNumberTag),
                     discNumber = extractRetrieverDiscNumber(retriever),
                 )
-                if (fileName.hasAiffContainerExtension()) {
-                    readAiffMetadata(songUri).mergeWith(platformMetadata)
-                } else {
-                    platformMetadata
-                }
+                platformMetadata
             } finally {
                 runCatching { retriever.release() }
             }
-        }.getOrDefault(RetrieverMetadata())
-    }
-
-    private fun readAiffMetadata(songUri: Uri): RetrieverMetadata {
-        return runCatching {
-            context.contentResolver.openInputStream(songUri)?.use { rawInput ->
-                val input = BufferedInputStream(rawInput)
-                if (input.readFourCc() != "FORM") {
-                    return@use RetrieverMetadata()
-                }
-                input.skipChunkBytes(4L)
-                val formType = input.readFourCc()
-                if (formType != "AIFF" && formType != "AIFC") {
-                    return@use RetrieverMetadata()
-                }
-
-                var title: String? = null
-                var artist: String? = null
-                var album: String? = null
-                var year: Int? = null
-                var sampleRate: Int? = null
-                var bitDepth: Int? = null
-                var genre: String? = null
-                var trackNumber: Int? = null
-                var discNumber: Int? = null
-                var mimeType: String? = if (formType == "AIFF") "audio/aiff" else null
-
-                while (true) {
-                    val chunkId = input.readFourCcOrNull() ?: break
-                    val chunkSize = input.readUnsignedInt32()
-                    when (chunkId) {
-                        "COMM" -> {
-                            val channels = input.readUnsignedInt16()
-                            input.skipChunkBytes(4L)
-                            bitDepth = input.readUnsignedInt16()
-                            sampleRate = input.readExtended80AsInt()
-                            val remaining = chunkSize - 18L
-                            if (formType == "AIFC" && remaining >= 4L) {
-                                val compressionType = input.readFourCc()
-                                mimeType = if (compressionType.equals("alac", ignoreCase = true)) {
-                                    "audio/alac"
-                                } else {
-                                    "audio/aiff"
-                                }
-                                input.skipChunkBytes(remaining - 4L)
-                            } else if (remaining > 0L) {
-                                input.skipChunkBytes(remaining)
-                            }
-                            if (channels <= 0) {
-                                sampleRate = null
-                                bitDepth = null
-                            }
-                        }
-
-                        "NAME" -> title = input.readChunkText(chunkSize)
-                        "AUTH" -> artist = input.readChunkText(chunkSize)
-                        "(c) " -> album = album ?: input.readChunkText(chunkSize)
-                        "ANNO" -> {
-                            val comment = input.readChunkText(chunkSize)
-                            if (album.isNullOrBlank()) album = comment
-                        }
-
-                        "ID3 " -> {
-                            val id3Metadata = input.readBytesExact(chunkSize.toInt())
-                            val parsed = parseId3Metadata(id3Metadata)
-                            title = title ?: parsed.title
-                            artist = artist ?: parsed.artist
-                            album = album ?: parsed.album
-                            year = year ?: parsed.year
-                            genre = genre ?: parsed.genre
-                            trackNumber = trackNumber ?: parsed.trackNumber
-                            discNumber = discNumber ?: parsed.discNumber
-                            mimeType = parsed.mimeType ?: mimeType
-                        }
-
-                        else -> input.skipChunkBytes(chunkSize)
-                    }
-                    if ((chunkSize and 1L) == 1L) {
-                        input.skipChunkBytes(1L)
-                    }
-                }
-
-                RetrieverMetadata(
-                    title = title,
-                    artist = artist,
-                    album = album,
-                    year = year,
-                    sampleRate = sampleRate,
-                    bitDepth = bitDepth,
-                    mimeType = mimeType,
-                    genre = genre,
-                    trackNumber = trackNumber,
-                    discNumber = discNumber,
-                )
-            } ?: RetrieverMetadata()
         }.getOrDefault(RetrieverMetadata())
     }
 
@@ -762,15 +661,9 @@ class MediaStoreScanner(
             mimeType.equals("audio/flac", ignoreCase = true) -> "FLAC"
             mimeType.equals("audio/ogg", ignoreCase = true) -> "OGG"
             mimeType.equals("audio/opus", ignoreCase = true) -> "OPUS"
-            mimeType.equals("audio/alac", ignoreCase = true) -> "ALAC"
-            retrieverMimeType.equals("audio/alac", ignoreCase = true) -> "ALAC"
-            mimeType.equals("audio/aiff", ignoreCase = true) || mimeType.equals("audio/x-aiff", ignoreCase = true) -> "AIFF"
             mimeType.equals("audio/aac", ignoreCase = true) -> "AAC"
             mimeType.equals("audio/mp4a-latm", ignoreCase = true) && extension == "M4A" -> "AAC"
-            retrieverMimeType.equals("audio/aiff", ignoreCase = true) || retrieverMimeType.equals("audio/x-aiff", ignoreCase = true) -> "AIFF"
-            retrieverMimeType in setOf("audio/mp4", "audio/m4a", "audio/x-m4a") && bitDepth != null && bitDepth >= 16 -> "ALAC"
             mimeType.equals("audio/wav", ignoreCase = true) || mimeType.equals("audio/x-wav", ignoreCase = true) -> "WAV"
-            extension in setOf("AIFF", "AIF", "AIFC") -> "AIFF"
             extension == "DSF" -> "DSD"
             extension == "DFF" -> "DSD"
             else -> extension
@@ -794,7 +687,7 @@ class MediaStoreScanner(
         resolvedFormat: String,
     ): Int? {
         if (fileSizeBytes == null || fileSizeBytes <= 0L || durationMs <= 0L) return null
-        if (resolvedFormat.uppercase() in setOf("WAV", "AIFF", "FLAC", "ALAC", "APE", "DSD")) return null
+        if (resolvedFormat.uppercase() in setOf("WAV", "FLAC", "APE", "DSD")) return null
         val seconds = durationMs / 1000.0
         if (seconds <= 0.0) return null
         return ((fileSizeBytes * 8.0) / seconds).toInt().takeIf { it > 0 }
@@ -826,10 +719,6 @@ class MediaStoreScanner(
             "aac",
             "flac",
             "wav",
-            "aif",
-            "aiff",
-            "aifc",
-            "alac",
             "ogg",
             "opus",
             "wma",
@@ -861,97 +750,6 @@ class MediaStoreScanner(
         return if (containsKey(key)) getInteger(key) else null
     }
 
-    private fun String.hasAiffContainerExtension(): Boolean {
-        return substringAfterLast('.', "").lowercase(Locale.ROOT) in setOf("aif", "aiff", "aifc")
-    }
-
-    private fun BufferedInputStream.readFourCc(): String {
-        val bytes = readBytesExact(4)
-        return String(bytes, Charsets.US_ASCII)
-    }
-
-    private fun BufferedInputStream.readFourCcOrNull(): String? {
-        return runCatching { readFourCc() }.getOrNull()
-    }
-
-    private fun BufferedInputStream.readUnsignedInt16(): Int {
-        val hi = read()
-        val lo = read()
-        if (hi < 0 || lo < 0) throw EOFException("Unexpected end of AIFF metadata")
-        return (hi shl 8) or lo
-    }
-
-    private fun BufferedInputStream.readUnsignedInt32(): Long {
-        val b1 = read()
-        val b2 = read()
-        val b3 = read()
-        val b4 = read()
-        if (b1 < 0 || b2 < 0 || b3 < 0 || b4 < 0) throw EOFException("Unexpected end of AIFF metadata")
-        return ((b1.toLong() and 0xffL) shl 24) or
-            ((b2.toLong() and 0xffL) shl 16) or
-            ((b3.toLong() and 0xffL) shl 8) or
-            (b4.toLong() and 0xffL)
-    }
-
-    private fun BufferedInputStream.readBytesExact(byteCount: Int): ByteArray {
-        val data = ByteArray(byteCount)
-        var offset = 0
-        while (offset < byteCount) {
-            val readCount = read(data, offset, byteCount - offset)
-            if (readCount < 0) throw EOFException("Unexpected end of AIFF metadata")
-            offset += readCount
-        }
-        return data
-    }
-
-    private fun BufferedInputStream.skipChunkBytes(byteCount: Long) {
-        var remaining = byteCount
-        while (remaining > 0L) {
-            val skipped = skip(remaining).takeIf { it > 0L } ?: if (read() >= 0) 1L else throw EOFException("Unexpected end of AIFF metadata")
-            remaining -= skipped
-        }
-    }
-
-    private fun BufferedInputStream.readChunkText(byteCount: Long): String? {
-        if (byteCount <= 0L || byteCount > Int.MAX_VALUE.toLong()) {
-            skipChunkBytes(byteCount)
-            return null
-        }
-        val bytes = readBytesExact(byteCount.toInt())
-        val text = bytes.toString(Charsets.UTF_8)
-            .replace('\u0000', ' ')
-            .trim()
-            .ifBlank {
-                bytes.toString(Charsets.ISO_8859_1).replace('\u0000', ' ').trim()
-            }
-        return text.takeIf { it.isNotBlank() }
-    }
-
-    private fun BufferedInputStream.readExtended80AsInt(): Int? {
-        val bytes = readBytesExact(10)
-        val exponentRaw = ((bytes[0].toInt() and 0x7F) shl 8) or (bytes[1].toInt() and 0xFF)
-        val sign = if ((bytes[0].toInt() and 0x80) != 0) -1 else 1
-        val hiMantissa = (
-            ((bytes[2].toLong() and 0xFF) shl 24) or
-                ((bytes[3].toLong() and 0xFF) shl 16) or
-                ((bytes[4].toLong() and 0xFF) shl 8) or
-                (bytes[5].toLong() and 0xFF)
-            )
-        val loMantissa = (
-            ((bytes[6].toLong() and 0xFF) shl 24) or
-                ((bytes[7].toLong() and 0xFF) shl 16) or
-                ((bytes[8].toLong() and 0xFF) shl 8) or
-                (bytes[9].toLong() and 0xFF)
-            )
-        if (exponentRaw == 0 && hiMantissa == 0L && loMantissa == 0L) return null
-        if (exponentRaw == 0x7FFF) return null
-        val exponent = exponentRaw - 16383
-        val value = sign.toDouble() * (
-            hiMantissa * 2.0.pow((exponent - 31).toDouble()) +
-                loMantissa * 2.0.pow((exponent - 63).toDouble())
-            )
-        return value.takeIf { it.isFinite() && it > 0.0 }?.toInt()
-    }
 }
 
 internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
@@ -1028,5 +826,5 @@ private fun isLosslessFormat(format: String): Boolean {
 }
 
 private val LOSSY_AUDIO_FORMATS = setOf("MP3", "AAC", "OGG", "OPUS", "WMA", "AMR", "3GP", "MP4", "M4A")
-private val LOSSLESS_AUDIO_FORMATS = setOf("FLAC", "ALAC", "WAV", "AIFF", "APE")
+private val LOSSLESS_AUDIO_FORMATS = setOf("FLAC", "WAV", "APE")
 private val LOSSLESS_QUALITY_REGEX = Regex("""\d{1,2}/\d{1,3}(?:\.\d)?kHz""")
