@@ -142,6 +142,7 @@ class PlaybackManager(
     private var isPauseTransitioningToStopped = false
     private var isManualPausePending = false
     private var shouldResumeAfterTransientFocusLoss = false
+    private var pausedForAudioFocusLoss = false
     private var isStoppingQueue = false
     private var isRecoveringPlayback = false
     private var lastKnownQueueIndex = -1
@@ -179,7 +180,7 @@ class PlaybackManager(
                 _state.value.queue.isNotEmpty() &&
                 !isRecoveringPlayback
             ) {
-                recoverUnexpectedIdleState(shouldAutoPlay = _state.value.isPlaying || player.playWhenReady)
+                recoverUnexpectedIdleState(shouldAutoPlay = shouldAutoResumeAfterUnexpectedIdle())
             } else {
                 updateState()
             }
@@ -187,7 +188,7 @@ class PlaybackManager(
 
         override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
             if (_state.value.queue.isNotEmpty() && !isStoppingQueue && !isRecoveringPlayback) {
-                recoverUnexpectedIdleState(shouldAutoPlay = _state.value.isPlaying || player.playWhenReady)
+                recoverUnexpectedIdleState(shouldAutoPlay = shouldAutoResumeAfterUnexpectedIdle())
             } else {
                 updateState()
             }
@@ -364,6 +365,7 @@ class PlaybackManager(
 
     fun togglePlayback() {
         shouldResumeAfterTransientFocusLoss = false
+        pausedForAudioFocusLoss = false
         if (isManualPausePending) {
             cancelPauseFade()
             isManualPausePending = false
@@ -449,6 +451,7 @@ class PlaybackManager(
     fun skipNext() {
         cancelPauseFade()
         shouldResumeAfterTransientFocusLoss = false
+        pausedForAudioFocusLoss = false
         if (player.hasNextMediaItem()) {
             player.seekToNextMediaItem()
         } else {
@@ -460,6 +463,7 @@ class PlaybackManager(
     fun skipPrevious() {
         cancelPauseFade()
         shouldResumeAfterTransientFocusLoss = false
+        pausedForAudioFocusLoss = false
         if (player.currentPosition > PREVIOUS_SEEK_THRESHOLD_MS) {
             player.seekTo(0)
         } else if (player.hasPreviousMediaItem()) {
@@ -475,6 +479,7 @@ class PlaybackManager(
         cancelPauseFade()
         recordManualPlaybackStart()
         shouldResumeAfterTransientFocusLoss = false
+        pausedForAudioFocusLoss = false
         player.seekToDefaultPosition(index)
         if (requestAudioFocus()) {
             player.volume = effectivePlayerGain()
@@ -568,6 +573,7 @@ class PlaybackManager(
         isManualPausePending = false
         isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
+        pausedForAudioFocusLoss = false
         bitPerfectUsbManager.clearForStop()
         maybeRebuildPlayerForAudioPath()
 
@@ -599,6 +605,7 @@ class PlaybackManager(
         cancelPauseFade(resetVolume = false)
         isStoppingQueue = true
         shouldResumeAfterTransientFocusLoss = false
+        pausedForAudioFocusLoss = false
         bitPerfectUsbManager.clearForStop()
         player.pause()
         player.playWhenReady = false
@@ -691,6 +698,7 @@ class PlaybackManager(
     private fun resumePlayback() {
         cancelPauseFade()
         isManualPausePending = false
+        pausedForAudioFocusLoss = false
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
         bitPerfectUsbManager.refreshConnectedDevices()
         maybeRebuildPlayerForAudioPath()
@@ -755,14 +763,25 @@ class PlaybackManager(
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
-                if (shouldResumeAfterTransientFocusLoss && _state.value.queue.isNotEmpty()) {
+                val shouldResume = pausedForAudioFocusLoss &&
+                    shouldResumeAfterTransientFocusLoss &&
+                    _state.value.queue.isNotEmpty() &&
+                    !isManualPausePending
+                if (shouldResume) {
                     resumePlayback()
+                } else {
+                    pausedForAudioFocusLoss = false
+                    player.volume = effectivePlayerGain()
+                    updateState()
                 }
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
                 cancelPauseFade(resetVolume = false)
-                shouldResumeAfterTransientFocusLoss = player.isPlaying || player.playWhenReady
+                shouldResumeAfterTransientFocusLoss =
+                    (player.isPlaying || player.playWhenReady || _state.value.transportShowsPause) &&
+                        _state.value.queue.isNotEmpty()
+                pausedForAudioFocusLoss = shouldResumeAfterTransientFocusLoss
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
                 player.pause()
@@ -772,7 +791,10 @@ class PlaybackManager(
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
                 cancelPauseFade(resetVolume = false)
-                shouldResumeAfterTransientFocusLoss = player.isPlaying || player.playWhenReady
+                shouldResumeAfterTransientFocusLoss =
+                    (player.isPlaying || player.playWhenReady || _state.value.transportShowsPause) &&
+                        _state.value.queue.isNotEmpty()
+                pausedForAudioFocusLoss = shouldResumeAfterTransientFocusLoss
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
                 player.pause()
@@ -783,6 +805,7 @@ class PlaybackManager(
             AudioManager.AUDIOFOCUS_LOSS -> {
                 cancelPauseFade(resetVolume = false)
                 shouldResumeAfterTransientFocusLoss = false
+                pausedForAudioFocusLoss = false
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
                 player.pause()
@@ -825,6 +848,13 @@ class PlaybackManager(
     private fun currentSong(): Song? {
         val index = player.currentMediaItemIndex
         return _state.value.queue.getOrNull(index)
+    }
+
+    private fun shouldAutoResumeAfterUnexpectedIdle(): Boolean {
+        val snapshot = _state.value
+        return snapshot.queue.isNotEmpty() &&
+            !isManualPausePending &&
+            (snapshot.transportShowsPause || snapshot.isPlaying || player.playWhenReady || shouldResumeAfterTransientFocusLoss)
     }
 
     private fun recordManualPlaybackStart() {

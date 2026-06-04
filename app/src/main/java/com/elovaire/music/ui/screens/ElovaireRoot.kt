@@ -14820,6 +14820,7 @@ private fun LanguagePickerRow(
     val languages = remember {
         AppLanguage.entries.sortedBy { it.englishName }
     }
+    val menuListState = rememberLazyListState()
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.CenterVertically,
@@ -14877,7 +14878,6 @@ private fun LanguagePickerRow(
                     )
                 }
             }
-            val menuScrollState = rememberScrollState()
             DropdownMenu(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
@@ -14896,12 +14896,15 @@ private fun LanguagePickerRow(
                         overlayAlpha = 0.6f,
                         borderColor = blurSurfaceBorderColor(),
                     ) {
-                        Column(
+                        LazyColumn(
+                            state = menuListState,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .verticalScroll(menuScrollState),
                         ) {
-                            languages.forEach { language ->
+                            items(
+                                items = languages,
+                                key = { it.name },
+                            ) { language ->
                                 DropdownMenuItem(
                                     text = {
                                         Text(
@@ -14934,7 +14937,7 @@ private fun LanguagePickerRow(
                         }
                     }
                     FastScrollbar(
-                        state = menuScrollState,
+                        state = menuListState,
                         topInset = 8.dp,
                         bottomInset = 8.dp,
                     )
