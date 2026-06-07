@@ -3602,6 +3602,11 @@ private fun NowPlayingBar(
         animationSpec = ElovaireMotion.colorFadeSpec(),
         label = "MiniPlayerTextSecondary",
     )
+    val compactControlBackground by animateColorAsState(
+        targetValue = resolvedPrimaryTextColor.copy(alpha = 0.2f),
+        animationSpec = ElovaireMotion.colorFadeSpec(),
+        label = "MiniPlayerControlBackground",
+    )
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val buttonScale by animateFloatAsState(
@@ -3739,7 +3744,7 @@ private fun NowPlayingBar(
                     .size(42.dp)
                     .scale(buttonScale)
                     .clip(CircleShape)
-                    .background(controlTint)
+                    .background(compactControlBackground)
                     .clickable(
                         enabled = visible,
                         interactionSource = interactionSource,
@@ -3751,25 +3756,27 @@ private fun NowPlayingBar(
                 Canvas(
                     modifier = Modifier.matchParentSize(),
                 ) {
-                    val strokeWidth = size.minDimension * 0.08f
-                    val arcInset = strokeWidth / 2f + 1.5f
+                    val strokeWidth = size.minDimension * 0.1f
+                    val arcInset = strokeWidth / 2f + 2.2f
+                    val arcStart = -52f
+                    val arcSweep = 284f
                     drawArc(
                         color = controlIconTint.copy(alpha = 0.18f),
-                        startAngle = -90f,
-                        sweepAngle = 360f,
+                        startAngle = arcStart,
+                        sweepAngle = arcSweep,
                         useCenter = false,
                         topLeft = Offset(arcInset, arcInset),
                         size = Size(size.width - (arcInset * 2f), size.height - (arcInset * 2f)),
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Butt),
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
                     )
                     drawArc(
                         color = controlIconTint,
-                        startAngle = -90f,
-                        sweepAngle = 360f * progress.coerceIn(0f, 1f),
+                        startAngle = arcStart,
+                        sweepAngle = arcSweep * progress.coerceIn(0f, 1f),
                         useCenter = false,
                         topLeft = Offset(arcInset, arcInset),
                         size = Size(size.width - (arcInset * 2f), size.height - (arcInset * 2f)),
-                        style = Stroke(width = strokeWidth, cap = StrokeCap.Butt),
+                        style = Stroke(width = strokeWidth, cap = StrokeCap.Round),
                     )
                 }
                 AnimatedContent(
@@ -11619,7 +11626,7 @@ private fun NowPlayingScreen(
                     .align(Alignment.CenterHorizontally)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 252.dp
+                val queueSheetTopExtension = 392.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
