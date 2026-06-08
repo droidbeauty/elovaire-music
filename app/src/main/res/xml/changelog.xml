@@ -8,8 +8,10 @@
     -->
     <release version="1.9.7">
         <item>New queue menu design</item>
+        <item>Minor visual tweaks to the now playing compact bar</item>
         <item>Added translations in previously missing places of the UI</item>
-        <item>Tweaks to language switcher</item>
-        <item>Bug fixes</item>
+        <item>Added Japanese language to the app</item>
+        <item>Redesigned language switcher</item>
+        <item>Quite a few bug fixes</item>
     </release>
 </changelog>

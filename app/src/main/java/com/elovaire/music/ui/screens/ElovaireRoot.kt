@@ -4157,7 +4157,7 @@ private fun HomeScreen(
                                 ModuleCard {
                                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                         MutedSectionHeader(
-                                            title = "Recently added",
+                                            title = miscPhrase(LocalAppLanguage.current, MiscPhrase.RecentlyAdded),
                                             iconResId = R.drawable.ic_lucide_gallery_vertical_end,
                                         )
                                         recentlyAddedAlbums.take(4).chunked(2).forEach { rowAlbums ->
@@ -4622,7 +4622,7 @@ private fun AlbumCollectionContent(
             title = uiPhrase(language, UiPhrase.AddToPlaylist),
             subtitle = when (selectedAlbums.size) {
                 1 -> selectedAlbums.first().title
-                else -> "${selectedAlbums.size} selected albums • ${formatCountLabel(selectedAlbumSongs.size, "song")}"
+                else -> "${localizedCountLabel(selectedAlbums.size, "album", language)} ${miscPhrase(language, MiscPhrase.Selected)} • ${localizedCountLabel(selectedAlbumSongs.size, "song", language)}"
             },
             playlists = playlists.filterNot { it.isSystem },
             playlistSongsById = playlistSongsById,
@@ -5078,28 +5078,28 @@ private fun LibraryHubScreen(
                         LibraryHubRow(
                             iconResId = R.drawable.ic_lucide_music,
                             title = common.songs,
-                            detail = "${formatCountLabel(totalSongs, "song")} ${common.inYourLibrary}",
+                            detail = "${localizedCountLabel(totalSongs, "song", language)} ${common.inYourLibrary}",
                             onClick = { onOpenCollection(LibraryCollectionKind.Songs) },
                         )
                         DividerLine()
                         LibraryHubRow(
                             iconResId = R.drawable.ic_lucide_disc_album,
                             title = common.albums,
-                            detail = "${formatCountLabel(totalAlbums, "album")} ${common.inTotal}",
+                            detail = localizedCountLabel(totalAlbums, "album", language),
                             onClick = { onOpenCollection(LibraryCollectionKind.Albums) },
                         )
                         DividerLine()
                         LibraryHubRow(
                             iconResId = R.drawable.ic_lucide_mic_vocal,
                             title = common.artists,
-                            detail = "${formatCountLabel(totalArtists, "artist")} ${common.found}",
+                            detail = localizedCountLabel(totalArtists, "artist", language),
                             onClick = { onOpenCollection(LibraryCollectionKind.Artists) },
                         )
                         DividerLine()
                         LibraryHubRow(
                             iconResId = R.drawable.ic_lucide_guitar,
                             title = common.genres,
-                            detail = "${formatCountLabel(totalGenres, "genre")} ${common.found}",
+                            detail = localizedCountLabel(totalGenres, "genre", language),
                             onClick = { onOpenCollection(LibraryCollectionKind.Genres) },
                         )
                     }
@@ -5111,7 +5111,7 @@ private fun LibraryHubScreen(
                     ModuleCard {
                         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                             MutedSectionHeader(
-                                title = "Recently added",
+                                title = miscPhrase(LocalAppLanguage.current, MiscPhrase.RecentlyAdded),
                                 iconResId = R.drawable.ic_lucide_gallery_vertical_end,
                             )
                             recentlyAddedAlbums.chunked(2).take(4).forEach { rowAlbums ->
@@ -5253,7 +5253,7 @@ private fun LibraryCollectionScreen(
             )
             DetailListTopBar(
                 title = common.albums,
-                subtitle = formatCountLabel(libraryState.albums.size, "album"),
+                subtitle = localizedCountLabel(libraryState.albums.size, "album", language),
                 onBack = onBack,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
@@ -5366,7 +5366,7 @@ private fun SongCollectionScreen(
 
         DetailListTopBar(
             title = common.songs,
-            subtitle = formatCountLabel(sortedSongs.size, "song"),
+            subtitle = localizedCountLabel(sortedSongs.size, "song", language),
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -5530,7 +5530,7 @@ private fun ArtistCollectionScreen(
 
         DetailListTopBar(
             title = common.artists,
-            subtitle = formatCountLabel(artists.size, "artist"),
+            subtitle = localizedCountLabel(artists.size, "artist", language),
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -5594,7 +5594,7 @@ private fun GenreCollectionScreen(
 
         DetailListTopBar(
             title = common.genres,
-            subtitle = formatCountLabel(genres.size, "genre"),
+            subtitle = localizedCountLabel(genres.size, "genre", language),
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -5637,7 +5637,7 @@ private fun GenreAlbumsScreen(
             topPadding = detailTopBarOccupiedHeight(),
             bottomPadding = bottomPadding,
             title = genre.ifBlank { "Unknown Genre" },
-            subtitle = formatCountLabel(filteredAlbums.size, "album"),
+            subtitle = localizedCountLabel(filteredAlbums.size, "album", LocalAppLanguage.current),
             onLayoutModeChanged = onLayoutModeChanged,
             onSortModeChanged = onSortModeChanged,
             onAlbumSelected = onAlbumSelected,
@@ -5650,7 +5650,7 @@ private fun GenreAlbumsScreen(
         )
         DetailListTopBar(
             title = genre.ifBlank { "Unknown Genre" },
-            subtitle = formatCountLabel(filteredAlbums.size, "album"),
+            subtitle = localizedCountLabel(filteredAlbums.size, "album", LocalAppLanguage.current),
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -5756,6 +5756,7 @@ private fun ArtistDetailScreen(
             subtitle = buildArtistScreenSubtitle(
                 songCount = artistSongs.size,
                 albumCount = artistAlbums.size,
+                language = LocalAppLanguage.current,
             ),
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
@@ -5766,8 +5767,9 @@ private fun ArtistDetailScreen(
 private fun buildArtistScreenSubtitle(
     songCount: Int,
     albumCount: Int,
+    language: AppLanguage,
 ): String {
-    return "${formatCountLabel(albumCount, "album")} • ${formatCountLabel(songCount, "song")}"
+    return "${localizedCountLabel(albumCount, "album", language)} • ${localizedCountLabel(songCount, "song", language)}"
 }
 
 @Composable
@@ -6707,6 +6709,7 @@ private fun SearchScreen(
     onToggleFavorite: (Long) -> Unit,
     onClearSearchHistory: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("search_screen")
     LaunchedEffect(scrollToTopRequestVersion) {
         if (scrollToTopRequestVersion > 0L) {
@@ -6809,7 +6812,7 @@ private fun SearchScreen(
                         key = "artist:${firstSong.artist.lowercase()}",
                         kind = SearchHistoryKind.Artist,
                         title = firstSong.artist,
-                        subtitle = formatCountLabel(artistSongs.size, "song"),
+                        subtitle = localizedCountLabel(artistSongs.size, "song", language),
                         artUri = firstSong.artUri,
                         query = firstSong.artist,
                     )
@@ -7920,6 +7923,7 @@ private fun ArtistGridCard(
     artist: ArtistEntry,
     onClick: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     Column(
         modifier = Modifier.clickable(onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -7939,7 +7943,7 @@ private fun ArtistGridCard(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = "${formatCountLabel(artist.albumCount, "album")}  •  ${formatCountLabel(artist.songCount, "song")}",
+            text = "${localizedCountLabel(artist.albumCount, "album", language)}  •  ${localizedCountLabel(artist.songCount, "song", language)}",
             style = MaterialTheme.typography.labelLarge,
             color = readableSecondaryTextColor(),
             maxLines = 1,
@@ -7953,6 +7957,7 @@ private fun ArtistRow(
     artist: ArtistEntry,
     onClick: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -7978,7 +7983,7 @@ private fun ArtistRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${formatCountLabel(artist.albumCount, "album")}  •  ${formatCountLabel(artist.songCount, "song")}",
+                text = "${localizedCountLabel(artist.albumCount, "album", language)}  •  ${localizedCountLabel(artist.songCount, "song", language)}",
                 style = MaterialTheme.typography.labelLarge,
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
@@ -7993,6 +7998,7 @@ private fun GenreRow(
     genre: GenreEntry,
     onClick: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -8030,7 +8036,7 @@ private fun GenreRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = formatCountLabel(genre.albumCount, "album"),
+                text = localizedCountLabel(genre.albumCount, "album", language),
                 style = MaterialTheme.typography.labelLarge,
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
@@ -9050,7 +9056,7 @@ private fun AlbumScreen(
         val language = LocalAppLanguage.current
         PlaylistSelectionDialog(
             title = uiPhrase(language, UiPhrase.AddToPlaylist),
-            subtitle = "${formatCountLabel(selectedSongs.size, "song")} selected",
+            subtitle = "${localizedCountLabel(selectedSongs.size, "song", language)} ${miscPhrase(language, MiscPhrase.Selected)}",
             playlists = playlists.filterNot { it.isSystem },
             playlistSongsById = playlistSongsById,
             onDismiss = { showPlaylistPicker = false },
@@ -9490,13 +9496,13 @@ private fun PlaylistDetailScreen(
                         verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Text(
-                            text = "No songs yet",
+                            text = miscPhrase(LocalAppLanguage.current, MiscPhrase.NoSongsYet),
                             style = MaterialTheme.typography.titleLarge,
                             color = MaterialTheme.colorScheme.onSurface,
                             textAlign = TextAlign.Center,
                         )
                         Text(
-                            text = "Start by adding some tracks with the \"+\" button",
+                            text = miscPhrase(LocalAppLanguage.current, MiscPhrase.AddSongsViaEdit),
                             style = MaterialTheme.typography.bodyLarge,
                             color = readableSecondaryTextColor(),
                             textAlign = TextAlign.Center,
@@ -9613,7 +9619,7 @@ private fun PlaylistDetailScreen(
 
         DetailListTopBar(
             title = playlist.name,
-            subtitle = formatCountLabel(playlistSongs.size, "song"),
+            subtitle = localizedCountLabel(playlistSongs.size, "song", LocalAppLanguage.current),
             onBack = {
                 if (showAddSongsPicker) {
                     showAddSongsPicker = false
@@ -10119,7 +10125,7 @@ private fun AddSongsToPlaylistOverlay(
                         .align(Alignment.Center)
                         .fillMaxWidth()
                         .fillMaxHeight(),
-                    horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.spacedBy(40.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PlaylistPickerTab.entries.forEach { tab ->
@@ -10362,15 +10368,15 @@ private fun AddSongsToPlaylistOverlay(
             title = when {
                 selectedAlbum != null -> selectedAlbum.title
                 selectedArtistName != null -> selectedArtistName.orEmpty()
-                else -> "Add songs"
+                else -> miscPhrase(LocalAppLanguage.current, MiscPhrase.AddSongs)
             },
             subtitle = when (selectedSongIds.size) {
                 0 -> when {
                     selectedAlbum != null -> selectedAlbum.artist
-                    selectedArtistName != null -> "Choose songs"
+                    selectedArtistName != null -> miscPhrase(LocalAppLanguage.current, MiscPhrase.ChooseSongs)
                     else -> null
                 }
-                else -> formatCountLabel(selectedSongIds.size, "song")
+                else -> localizedCountLabel(selectedSongIds.size, "song", LocalAppLanguage.current)
             },
             onBack = stableHandleBack,
             actions = topBarActions,
@@ -14352,6 +14358,492 @@ private fun formatCountLabel(
     }
 }
 
+private fun localizedCountLabel(
+    count: Int,
+    noun: String,
+    language: AppLanguage,
+): String {
+    val (singular, plural) = when (language) {
+        AppLanguage.Albanian -> when (noun) {
+            "song" -> "këngë" to "këngë"
+            "track" -> "këngë" to "këngë"
+            "album" -> "album" to "albume"
+            "artist" -> "artist" to "artistë"
+            "genre" -> "zhanër" to "zhanre"
+            else -> noun to "${noun}e"
+        }
+        AppLanguage.ChineseSimplified -> noun to noun
+        AppLanguage.Croatian -> when (noun) {
+            "song" -> "pjesma" to "pjesme"
+            "track" -> "pjesma" to "pjesme"
+            "album" -> "album" to "albuma"
+            "artist" -> "izvođač" to "izvođača"
+            "genre" -> "žanr" to "žanra"
+            else -> noun to "${noun}a"
+        }
+        AppLanguage.Czech -> when (noun) {
+            "song" -> "skladba" to "skladby"
+            "track" -> "skladba" to "skladby"
+            "album" -> "album" to "alba"
+            "artist" -> "umělec" to "umělci"
+            "genre" -> "žánr" to "žánry"
+            else -> noun to "${noun}y"
+        }
+        AppLanguage.Danish -> when (noun) {
+            "song" -> "sang" to "sange"
+            "track" -> "nummer" to "numre"
+            "album" -> "album" to "albummer"
+            "artist" -> "kunstner" to "kunstnere"
+            "genre" -> "genre" to "genrer"
+            else -> noun to "${noun}er"
+        }
+        AppLanguage.Dutch -> when (noun) {
+            "song" -> "nummer" to "nummers"
+            "track" -> "track" to "tracks"
+            "album" -> "album" to "albums"
+            "artist" -> "artiest" to "artiesten"
+            "genre" -> "genre" to "genres"
+            else -> noun to "${noun}s"
+        }
+        AppLanguage.Estonian -> when (noun) {
+            "song" -> "lugu" to "lugu"
+            "track" -> "lugu" to "lugu"
+            "album" -> "album" to "albumit"
+            "artist" -> "artist" to "artisti"
+            "genre" -> "žanr" to "žanri"
+            else -> noun to noun
+        }
+        AppLanguage.French -> when (noun) {
+            "song" -> "morceau" to "morceaux"
+            "track" -> "piste" to "pistes"
+            "album" -> "album" to "albums"
+            "artist" -> "artiste" to "artistes"
+            "genre" -> "genre" to "genres"
+            else -> noun to "${noun}s"
+        }
+        AppLanguage.German -> when (noun) {
+            "song" -> "Titel" to "Titel"
+            "track" -> "Track" to "Tracks"
+            "album" -> "Album" to "Alben"
+            "artist" -> "Künstler" to "Künstler"
+            "genre" -> "Genre" to "Genres"
+            else -> noun to "${noun}e"
+        }
+        AppLanguage.Greek -> when (noun) {
+            "song" -> "τραγούδι" to "τραγούδια"
+            "track" -> "κομμάτι" to "κομμάτια"
+            "album" -> "άλμπουμ" to "άλμπουμ"
+            "artist" -> "καλλιτέχνης" to "καλλιτέχνες"
+            "genre" -> "είδος" to "είδη"
+            else -> noun to noun
+        }
+        AppLanguage.Hindi -> when (noun) {
+            "song" -> "गाना" to "गाने"
+            "track" -> "ट्रैक" to "ट्रैक"
+            "album" -> "एल्बम" to "एल्बम"
+            "artist" -> "कलाकार" to "कलाकार"
+            "genre" -> "शैली" to "शैलियाँ"
+            else -> noun to noun
+        }
+        AppLanguage.Hungarian -> when (noun) {
+            "song" -> "dal" to "dal"
+            "track" -> "szám" to "szám"
+            "album" -> "album" to "album"
+            "artist" -> "előadó" to "előadó"
+            "genre" -> "műfaj" to "műfaj"
+            else -> noun to noun
+        }
+        AppLanguage.Italian -> when (noun) {
+            "song" -> "brano" to "brani"
+            "track" -> "traccia" to "tracce"
+            "album" -> "album" to "album"
+            "artist" -> "artista" to "artisti"
+            "genre" -> "genere" to "generi"
+            else -> noun to "${noun}i"
+        }
+        AppLanguage.Japanese -> noun to noun
+        AppLanguage.Latin -> when (noun) {
+            "song" -> "cantus" to "cantus"
+            "track" -> "cantus" to "cantus"
+            "album" -> "album" to "albuma"
+            "artist" -> "artifex" to "artifices"
+            "genre" -> "genus" to "genera"
+            else -> noun to noun
+        }
+        AppLanguage.Latvian -> when (noun) {
+            "song" -> "dziesma" to "dziesmas"
+            "track" -> "ieraksts" to "ieraksti"
+            "album" -> "albums" to "albumi"
+            "artist" -> "mākslinieks" to "mākslinieki"
+            "genre" -> "žanrs" to "žanri"
+            else -> noun to "${noun}i"
+        }
+        AppLanguage.Lithuanian -> when (noun) {
+            "song" -> "daina" to "dainos"
+            "track" -> "takelis" to "takeliai"
+            "album" -> "albumas" to "albumai"
+            "artist" -> "atlikėjas" to "atlikėjai"
+            "genre" -> "žanras" to "žanrai"
+            else -> noun to "${noun}ai"
+        }
+        AppLanguage.Macedonian -> when (noun) {
+            "song" -> "песна" to "песни"
+            "track" -> "нумера" to "нумери"
+            "album" -> "албум" to "албуми"
+            "artist" -> "артист" to "артисти"
+            "genre" -> "жанр" to "жанрови"
+            else -> noun to noun
+        }
+        AppLanguage.Norwegian -> when (noun) {
+            "song" -> "sang" to "sanger"
+            "track" -> "spor" to "spor"
+            "album" -> "album" to "album"
+            "artist" -> "artist" to "artister"
+            "genre" -> "sjanger" to "sjangre"
+            else -> noun to noun
+        }
+        AppLanguage.Polish -> when (noun) {
+            "song" -> "utwór" to "utwory"
+            "track" -> "utwór" to "utwory"
+            "album" -> "album" to "albumy"
+            "artist" -> "artysta" to "artyści"
+            "genre" -> "gatunek" to "gatunki"
+            else -> noun to "${noun}y"
+        }
+        AppLanguage.Portuguese -> when (noun) {
+            "song" -> "música" to "músicas"
+            "track" -> "faixa" to "faixas"
+            "album" -> "álbum" to "álbuns"
+            "artist" -> "artista" to "artistas"
+            "genre" -> "género" to "géneros"
+            else -> noun to "${noun}s"
+        }
+        AppLanguage.Russian -> when (noun) {
+            "song" -> "песня" to "песни"
+            "track" -> "трек" to "треки"
+            "album" -> "альбом" to "альбомы"
+            "artist" -> "исполнитель" to "исполнители"
+            "genre" -> "жанр" to "жанры"
+            else -> noun to noun
+        }
+        AppLanguage.Serbian -> when (noun) {
+            "song" -> "песма" to "песме"
+            "track" -> "нумера" to "нумере"
+            "album" -> "албум" to "албуми"
+            "artist" -> "извођач" to "извођачи"
+            "genre" -> "жанр" to "жанрови"
+            else -> noun to noun
+        }
+        AppLanguage.Spanish -> when (noun) {
+            "song" -> "canción" to "canciones"
+            "track" -> "pista" to "pistas"
+            "album" -> "álbum" to "álbumes"
+            "artist" -> "artista" to "artistas"
+            "genre" -> "género" to "géneros"
+            else -> noun to "${noun}s"
+        }
+        AppLanguage.Swedish -> when (noun) {
+            "song" -> "låt" to "låtar"
+            "track" -> "spår" to "spår"
+            "album" -> "album" to "album"
+            "artist" -> "artist" to "artister"
+            "genre" -> "genre" to "genrer"
+            else -> noun to noun
+        }
+        AppLanguage.Thai -> when (noun) {
+            "song" -> "เพลง" to "เพลง"
+            "track" -> "แทร็ก" to "แทร็ก"
+            "album" -> "อัลบั้ม" to "อัลบั้ม"
+            "artist" -> "ศิลปิน" to "ศิลปิน"
+            "genre" -> "แนวเพลง" to "แนวเพลง"
+            else -> noun to noun
+        }
+        AppLanguage.Ukrainian -> when (noun) {
+            "song" -> "пісня" to "пісні"
+            "track" -> "трек" to "треки"
+            "album" -> "альбом" to "альбоми"
+            "artist" -> "виконавець" to "виконавці"
+            "genre" -> "жанр" to "жанри"
+            else -> noun to noun
+        }
+        AppLanguage.English -> when (noun) {
+            "song" -> "song" to "songs"
+            "track" -> "track" to "tracks"
+            "album" -> "album" to "albums"
+            "artist" -> "artist" to "artists"
+            "genre" -> "genre" to "genres"
+            else -> noun to "${noun}s"
+        }
+    }
+    val label = if (count == 1) singular else plural
+    return "$count $label"
+}
+
+private enum class MiscPhrase {
+    RecentlyAdded,
+    WhatsNew,
+    NoSongsYet,
+    AddSongsViaEdit,
+    Selected,
+    ChooseSongs,
+    AddSongs,
+}
+
+private fun miscPhrase(language: AppLanguage, phrase: MiscPhrase): String = when (language) {
+    AppLanguage.Polish -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Ostatnio dodane"
+        MiscPhrase.WhatsNew -> "Co nowego?"
+        MiscPhrase.NoSongsYet -> "Nie ma jeszcze utworów"
+        MiscPhrase.AddSongsViaEdit -> "Dodaj tu utwory, stukając przycisk edycji"
+        MiscPhrase.Selected -> "wybrane"
+        MiscPhrase.ChooseSongs -> "Wybierz utwory"
+        MiscPhrase.AddSongs -> "Dodaj utwory"
+    }
+    AppLanguage.Albanian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Shtuar së fundi"
+        MiscPhrase.WhatsNew -> "Çfarë ka të re?"
+        MiscPhrase.NoSongsYet -> "Nuk ka ende këngë"
+        MiscPhrase.AddSongsViaEdit -> "Shto këngë këtu duke prekur butonin e modifikimit"
+        MiscPhrase.Selected -> "zgjedhur"
+        MiscPhrase.ChooseSongs -> "Zgjidh këngë"
+        MiscPhrase.AddSongs -> "Shto këngë"
+    }
+    AppLanguage.ChineseSimplified -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "最近添加"
+        MiscPhrase.WhatsNew -> "有什么新内容？"
+        MiscPhrase.NoSongsYet -> "还没有歌曲"
+        MiscPhrase.AddSongsViaEdit -> "点击编辑按钮在此添加歌曲"
+        MiscPhrase.Selected -> "已选择"
+        MiscPhrase.ChooseSongs -> "选择歌曲"
+        MiscPhrase.AddSongs -> "添加歌曲"
+    }
+    AppLanguage.Croatian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nedavno dodano"
+        MiscPhrase.WhatsNew -> "Što je novo?"
+        MiscPhrase.NoSongsYet -> "Još nema pjesama"
+        MiscPhrase.AddSongsViaEdit -> "Dodajte pjesme ovdje dodirom na gumb za uređivanje"
+        MiscPhrase.Selected -> "odabrano"
+        MiscPhrase.ChooseSongs -> "Odaberi pjesme"
+        MiscPhrase.AddSongs -> "Dodaj pjesme"
+    }
+    AppLanguage.Czech -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nedávno přidané"
+        MiscPhrase.WhatsNew -> "Co je nového?"
+        MiscPhrase.NoSongsYet -> "Zatím žádné skladby"
+        MiscPhrase.AddSongsViaEdit -> "Přidejte sem skladby klepnutím na tlačítko úprav"
+        MiscPhrase.Selected -> "vybráno"
+        MiscPhrase.ChooseSongs -> "Vyberte skladby"
+        MiscPhrase.AddSongs -> "Přidat skladby"
+    }
+    AppLanguage.Danish -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nyligt tilføjet"
+        MiscPhrase.WhatsNew -> "Hvad er nyt?"
+        MiscPhrase.NoSongsYet -> "Ingen sange endnu"
+        MiscPhrase.AddSongsViaEdit -> "Tilføj sange her ved at trykke på redigeringsknappen"
+        MiscPhrase.Selected -> "valgt"
+        MiscPhrase.ChooseSongs -> "Vælg sange"
+        MiscPhrase.AddSongs -> "Tilføj sange"
+    }
+    AppLanguage.Dutch -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Recent toegevoegd"
+        MiscPhrase.WhatsNew -> "Wat is er nieuw?"
+        MiscPhrase.NoSongsYet -> "Nog geen nummers"
+        MiscPhrase.AddSongsViaEdit -> "Voeg hier nummers toe door op de bewerkknop te tikken"
+        MiscPhrase.Selected -> "geselecteerd"
+        MiscPhrase.ChooseSongs -> "Kies nummers"
+        MiscPhrase.AddSongs -> "Nummers toevoegen"
+    }
+    AppLanguage.Estonian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Hiljuti lisatud"
+        MiscPhrase.WhatsNew -> "Mis on uut?"
+        MiscPhrase.NoSongsYet -> "Laule pole veel"
+        MiscPhrase.AddSongsViaEdit -> "Lisa siia lugusid, puudutades muutmisnuppu"
+        MiscPhrase.Selected -> "valitud"
+        MiscPhrase.ChooseSongs -> "Vali lood"
+        MiscPhrase.AddSongs -> "Lisa lugusid"
+    }
+    AppLanguage.French -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Ajoutés récemment"
+        MiscPhrase.WhatsNew -> "Quoi de neuf ?"
+        MiscPhrase.NoSongsYet -> "Aucun morceau pour le moment"
+        MiscPhrase.AddSongsViaEdit -> "Ajoutez des morceaux ici en touchant le bouton modifier"
+        MiscPhrase.Selected -> "sélectionnés"
+        MiscPhrase.ChooseSongs -> "Choisir des morceaux"
+        MiscPhrase.AddSongs -> "Ajouter des morceaux"
+    }
+    AppLanguage.German -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Kürzlich hinzugefügt"
+        MiscPhrase.WhatsNew -> "Was ist neu?"
+        MiscPhrase.NoSongsYet -> "Noch keine Titel"
+        MiscPhrase.AddSongsViaEdit -> "Füge hier Titel hinzu, indem du auf die Bearbeiten-Schaltfläche tippst"
+        MiscPhrase.Selected -> "ausgewählt"
+        MiscPhrase.ChooseSongs -> "Titel auswählen"
+        MiscPhrase.AddSongs -> "Titel hinzufügen"
+    }
+    AppLanguage.Greek -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Προστέθηκαν πρόσφατα"
+        MiscPhrase.WhatsNew -> "Τι νέο υπάρχει;"
+        MiscPhrase.NoSongsYet -> "Δεν υπάρχουν ακόμη τραγούδια"
+        MiscPhrase.AddSongsViaEdit -> "Προσθέστε τραγούδια εδώ πατώντας το κουμπί επεξεργασίας"
+        MiscPhrase.Selected -> "επιλεγμένα"
+        MiscPhrase.ChooseSongs -> "Επιλέξτε τραγούδια"
+        MiscPhrase.AddSongs -> "Προσθήκη τραγουδιών"
+    }
+    AppLanguage.Hindi -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "हाल ही में जोड़े गए"
+        MiscPhrase.WhatsNew -> "नया क्या है?"
+        MiscPhrase.NoSongsYet -> "अभी तक कोई गाने नहीं"
+        MiscPhrase.AddSongsViaEdit -> "एडिट बटन दबाकर यहाँ गाने जोड़ें"
+        MiscPhrase.Selected -> "चुने गए"
+        MiscPhrase.ChooseSongs -> "गाने चुनें"
+        MiscPhrase.AddSongs -> "गाने जोड़ें"
+    }
+    AppLanguage.Hungarian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nemrég hozzáadva"
+        MiscPhrase.WhatsNew -> "Mi az újdonság?"
+        MiscPhrase.NoSongsYet -> "Még nincsenek dalok"
+        MiscPhrase.AddSongsViaEdit -> "Adj hozzá dalokat itt a szerkesztés gomb megérintésével"
+        MiscPhrase.Selected -> "kiválasztva"
+        MiscPhrase.ChooseSongs -> "Válassz dalokat"
+        MiscPhrase.AddSongs -> "Dalok hozzáadása"
+    }
+    AppLanguage.Italian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Aggiunti di recente"
+        MiscPhrase.WhatsNew -> "Cosa c'è di nuovo?"
+        MiscPhrase.NoSongsYet -> "Nessun brano ancora"
+        MiscPhrase.AddSongsViaEdit -> "Aggiungi qui i brani toccando il pulsante modifica"
+        MiscPhrase.Selected -> "selezionati"
+        MiscPhrase.ChooseSongs -> "Scegli brani"
+        MiscPhrase.AddSongs -> "Aggiungi brani"
+    }
+    AppLanguage.Japanese -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "最近追加"
+        MiscPhrase.WhatsNew -> "新着情報"
+        MiscPhrase.NoSongsYet -> "まだ曲がありません"
+        MiscPhrase.AddSongsViaEdit -> "編集ボタンをタップしてここに曲を追加します"
+        MiscPhrase.Selected -> "選択済み"
+        MiscPhrase.ChooseSongs -> "曲を選択"
+        MiscPhrase.AddSongs -> "曲を追加"
+    }
+    AppLanguage.Latin -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nuper addita"
+        MiscPhrase.WhatsNew -> "Quid novi?"
+        MiscPhrase.NoSongsYet -> "Nulli cantus adhuc"
+        MiscPhrase.AddSongsViaEdit -> "Cantus hic adde tangendo bullam emendandi"
+        MiscPhrase.Selected -> "selecta"
+        MiscPhrase.ChooseSongs -> "Elige cantus"
+        MiscPhrase.AddSongs -> "Adde cantus"
+    }
+    AppLanguage.Latvian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nesen pievienots"
+        MiscPhrase.WhatsNew -> "Kas jauns?"
+        MiscPhrase.NoSongsYet -> "Vēl nav dziesmu"
+        MiscPhrase.AddSongsViaEdit -> "Pievieno dziesmas šeit, pieskaroties rediģēšanas pogai"
+        MiscPhrase.Selected -> "atlasīts"
+        MiscPhrase.ChooseSongs -> "Izvēlies dziesmas"
+        MiscPhrase.AddSongs -> "Pievienot dziesmas"
+    }
+    AppLanguage.Lithuanian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Neseniai pridėta"
+        MiscPhrase.WhatsNew -> "Kas naujo?"
+        MiscPhrase.NoSongsYet -> "Dar nėra dainų"
+        MiscPhrase.AddSongsViaEdit -> "Pridėkite dainas čia paliesdami redagavimo mygtuką"
+        MiscPhrase.Selected -> "pasirinkta"
+        MiscPhrase.ChooseSongs -> "Pasirinkite dainas"
+        MiscPhrase.AddSongs -> "Pridėti dainas"
+    }
+    AppLanguage.Macedonian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Неодамна додадено"
+        MiscPhrase.WhatsNew -> "Што има ново?"
+        MiscPhrase.NoSongsYet -> "Сè уште нема песни"
+        MiscPhrase.AddSongsViaEdit -> "Додај песни тука со допирање на копчето за уредување"
+        MiscPhrase.Selected -> "избрано"
+        MiscPhrase.ChooseSongs -> "Избери песни"
+        MiscPhrase.AddSongs -> "Додај песни"
+    }
+    AppLanguage.Norwegian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nylig lagt til"
+        MiscPhrase.WhatsNew -> "Hva er nytt?"
+        MiscPhrase.NoSongsYet -> "Ingen sanger ennå"
+        MiscPhrase.AddSongsViaEdit -> "Legg til sanger her ved å trykke på redigeringsknappen"
+        MiscPhrase.Selected -> "valgt"
+        MiscPhrase.ChooseSongs -> "Velg sanger"
+        MiscPhrase.AddSongs -> "Legg til sanger"
+    }
+    AppLanguage.Portuguese -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Adicionados recentemente"
+        MiscPhrase.WhatsNew -> "O que há de novo?"
+        MiscPhrase.NoSongsYet -> "Ainda não há músicas"
+        MiscPhrase.AddSongsViaEdit -> "Adicione músicas aqui tocando no botão editar"
+        MiscPhrase.Selected -> "selecionados"
+        MiscPhrase.ChooseSongs -> "Escolher músicas"
+        MiscPhrase.AddSongs -> "Adicionar músicas"
+    }
+    AppLanguage.Russian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Недавно добавлено"
+        MiscPhrase.WhatsNew -> "Что нового?"
+        MiscPhrase.NoSongsYet -> "Песен пока нет"
+        MiscPhrase.AddSongsViaEdit -> "Добавьте песни сюда, нажав кнопку редактирования"
+        MiscPhrase.Selected -> "выбрано"
+        MiscPhrase.ChooseSongs -> "Выберите песни"
+        MiscPhrase.AddSongs -> "Добавить песни"
+    }
+    AppLanguage.Serbian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Недавно додато"
+        MiscPhrase.WhatsNew -> "Шта је ново?"
+        MiscPhrase.NoSongsYet -> "Још нема песама"
+        MiscPhrase.AddSongsViaEdit -> "Додај песме овде додиром на дугме за уређивање"
+        MiscPhrase.Selected -> "изабрано"
+        MiscPhrase.ChooseSongs -> "Изабери песме"
+        MiscPhrase.AddSongs -> "Додај песме"
+    }
+    AppLanguage.Spanish -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Añadidos recientemente"
+        MiscPhrase.WhatsNew -> "¿Qué hay de nuevo?"
+        MiscPhrase.NoSongsYet -> "Aún no hay canciones"
+        MiscPhrase.AddSongsViaEdit -> "Añade canciones aquí tocando el botón de editar"
+        MiscPhrase.Selected -> "seleccionados"
+        MiscPhrase.ChooseSongs -> "Elegir canciones"
+        MiscPhrase.AddSongs -> "Añadir canciones"
+    }
+    AppLanguage.Swedish -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nyligen tillagt"
+        MiscPhrase.WhatsNew -> "Vad är nytt?"
+        MiscPhrase.NoSongsYet -> "Inga låtar ännu"
+        MiscPhrase.AddSongsViaEdit -> "Lägg till låtar här genom att trycka på redigeringsknappen"
+        MiscPhrase.Selected -> "valda"
+        MiscPhrase.ChooseSongs -> "Välj låtar"
+        MiscPhrase.AddSongs -> "Lägg till låtar"
+    }
+    AppLanguage.Thai -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "เพิ่มล่าสุด"
+        MiscPhrase.WhatsNew -> "มีอะไรใหม่?"
+        MiscPhrase.NoSongsYet -> "ยังไม่มีเพลง"
+        MiscPhrase.AddSongsViaEdit -> "เพิ่มเพลงที่นี่ด้วยการแตะปุ่มแก้ไข"
+        MiscPhrase.Selected -> "ที่เลือก"
+        MiscPhrase.ChooseSongs -> "เลือกเพลง"
+        MiscPhrase.AddSongs -> "เพิ่มเพลง"
+    }
+    AppLanguage.Ukrainian -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Нещодавно додано"
+        MiscPhrase.WhatsNew -> "Що нового?"
+        MiscPhrase.NoSongsYet -> "Пісень ще немає"
+        MiscPhrase.AddSongsViaEdit -> "Додайте сюди пісні, натиснувши кнопку редагування"
+        MiscPhrase.Selected -> "вибрано"
+        MiscPhrase.ChooseSongs -> "Оберіть пісні"
+        MiscPhrase.AddSongs -> "Додати пісні"
+    }
+    AppLanguage.English -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Recently added"
+        MiscPhrase.WhatsNew -> "What’s new?"
+        MiscPhrase.NoSongsYet -> "No songs yet"
+        MiscPhrase.AddSongsViaEdit -> "Add songs here by tapping on edit button"
+        MiscPhrase.Selected -> "selected"
+        MiscPhrase.ChooseSongs -> "Choose songs"
+        MiscPhrase.AddSongs -> "Add songs"
+    }
+}
+
 private data class CommonUiCopy(
     val home: String,
     val library: String,
@@ -15386,7 +15878,7 @@ private fun ChangelogScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "What’s new?",
+                        text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
                         style = MaterialTheme.typography.headlineMedium,
                     )
                     Surface(
@@ -15511,7 +16003,7 @@ private fun ChangelogBottomSheetOverlay(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = "What’s new?",
+                                text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )

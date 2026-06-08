@@ -30,7 +30,7 @@ val InkText = Color(0xFF0D0D0D)
 val InkTextSecondary = Color(0xC20D0D0D)
 
 // Global accent color for highlighted buttons, active states, and key actions.
-val RoseAccent = Color(0xFF115FD5)
+val RoseAccent = Color(0xFF1162DB)
 
 // Secondary accent reserved for About screen card-section buttons.
 val AboutCardButtonAccent = Color(0xFF1D9BD7)

@@ -53,13 +53,25 @@ internal fun LyricsCandidate.isAcceptableMatchFor(
         identity.normalizedArtist.ifBlank { primaryArtist },
         candidateArtist,
     ) >= 0.72f
+    val strongTitleOverlap = tokenOverlapRatio(identity.normalizedTitle, candidateTitle) >= 0.84f
+    val strongArtistOverlap = tokenOverlapRatio(
+        identity.normalizedArtist.ifBlank { primaryArtist },
+        candidateArtist,
+    ) >= 0.84f
     val albumOverlap = candidateAlbum.isNotBlank() &&
         identity.normalizedAlbum.isNotBlank() &&
         tokenOverlapRatio(identity.normalizedAlbum, candidateAlbum) >= 0.72f
-    val durationMismatchTooLarge = durationMs?.let { abs(it - identity.durationMs) > 20_000L } == true
+    val hasSyncedLyrics = syncedLyrics.isNotBlank()
+    val durationMismatchLimitMs = if (hasSyncedLyrics) 30_000L else 20_000L
+    val durationMismatchTooLarge = durationMs?.let { abs(it - identity.durationMs) > durationMismatchLimitMs } == true
 
     return when {
         durationMismatchTooLarge -> false
+        hasSyncedLyrics && exactTitle && exactArtist -> score >= 38
+        hasSyncedLyrics && exactTitle && artistOverlap -> score >= 44
+        hasSyncedLyrics && exactArtist && titleOverlap -> score >= 46
+        hasSyncedLyrics && strongTitleOverlap && strongArtistOverlap -> score >= 50
+        hasSyncedLyrics && titleOverlap && artistOverlap && albumOverlap -> score >= 52
         exactTitle && exactArtist -> score >= 42
         exactTitle && artistOverlap -> score >= 50
         exactArtist && titleOverlap -> score >= 52
