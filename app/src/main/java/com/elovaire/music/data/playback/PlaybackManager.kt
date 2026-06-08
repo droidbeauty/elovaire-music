@@ -284,9 +284,9 @@ class PlaybackManager(
                 publishProgressSnapshot()
                 delay(
                     when {
-                        player.isPlaying -> 250L
-                        player.currentMediaItemIndex >= 0 -> 500L
-                        else -> 1_000L
+                        player.isPlaying -> PLAYING_PROGRESS_UPDATE_INTERVAL_MS
+                        player.currentMediaItemIndex >= 0 -> PAUSED_PROGRESS_UPDATE_INTERVAL_MS
+                        else -> IDLE_PROGRESS_UPDATE_INTERVAL_MS
                     },
                 )
             }
@@ -1094,6 +1094,9 @@ class PlaybackManager(
         const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val MAX_HISTORY_ITEMS = 12
+        const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
+        const val PAUSED_PROGRESS_UPDATE_INTERVAL_MS = 1_000L
+        const val IDLE_PROGRESS_UPDATE_INTERVAL_MS = 5_000L
     }
 
     private fun buildMediaSourceFactory(): MediaSource.Factory {

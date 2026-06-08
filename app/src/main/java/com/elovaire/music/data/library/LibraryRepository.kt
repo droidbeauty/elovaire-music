@@ -47,6 +47,7 @@ class LibraryRepository(
     private var didBootstrapLibrary = false
     val state: StateFlow<LibraryUiState> = _state.asStateFlow()
     private var musicDirectoryObserver: RecursiveMusicDirectoryObserver? = null
+    private var mediaObserverRegistered = false
 
     private val mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
@@ -61,19 +62,12 @@ class LibraryRepository(
         }
     }
 
-    init {
-        contentResolver.registerContentObserver(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            true,
-            mediaObserver,
-        )
-    }
-
     fun onPermissionChanged(granted: Boolean) {
         _state.update { current ->
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
         }
         if (granted) {
+            ensureMediaObserverRegistered()
             ensureMusicDirectoryObserver()
             bootstrapLibrary()
         } else {
@@ -87,7 +81,26 @@ class LibraryRepository(
             didBootstrapLibrary = false
             musicDirectoryObserver?.stopWatching()
             musicDirectoryObserver = null
+            unregisterMediaObserver()
         }
+    }
+
+    private fun ensureMediaObserverRegistered() {
+        if (mediaObserverRegistered) return
+        contentResolver.registerContentObserver(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            true,
+            mediaObserver,
+        )
+        mediaObserverRegistered = true
+    }
+
+    private fun unregisterMediaObserver() {
+        if (!mediaObserverRegistered) return
+        runCatching {
+            contentResolver.unregisterContentObserver(mediaObserver)
+        }
+        mediaObserverRegistered = false
     }
 
     private fun bootstrapLibrary() {

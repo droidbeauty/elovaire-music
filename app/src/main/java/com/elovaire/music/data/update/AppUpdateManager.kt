@@ -48,10 +48,10 @@ class AppUpdateManager(
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
     private var downloadJob: Job? = null
+    private var startupMaintenanceScheduled = false
 
     init {
-        clearDownloadedInstallers()
-        checkForUpdates()
+        scheduleStartupMaintenance()
     }
 
     fun checkForUpdates(force: Boolean = false) {
@@ -156,6 +156,18 @@ class AppUpdateManager(
                     file.delete()
                 }
             }
+        }
+    }
+
+    private fun scheduleStartupMaintenance() {
+        if (startupMaintenanceScheduled) return
+        startupMaintenanceScheduled = true
+        scope.launch(Dispatchers.IO) {
+            clearDownloadedInstallers()
+        }
+        scope.launch {
+            kotlinx.coroutines.delay(STARTUP_UPDATE_CHECK_DELAY_MS)
+            checkForUpdates()
         }
     }
 
@@ -351,6 +363,7 @@ class AppUpdateManager(
         const val LATEST_RELEASE_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases/latest"
         const val RELEASES_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases"
         const val AUTOMATIC_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1_000L
+        const val STARTUP_UPDATE_CHECK_DELAY_MS = 4_500L
         const val NETWORK_TIMEOUT_MS = 12_000
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")

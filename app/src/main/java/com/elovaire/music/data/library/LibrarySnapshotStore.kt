@@ -23,12 +23,16 @@ internal class LibrarySnapshotStore(
     appContext: Context,
 ) {
     private val snapshotFile = appContext.filesDir.resolve(SNAPSHOT_FILE_NAME)
+    @Volatile
+    private var lastSerializedSnapshot: String? = null
 
     fun load(): CachedLibrarySnapshot? {
         if (!snapshotFile.exists()) return null
 
         return runCatching {
-            val root = JSONObject(snapshotFile.readText())
+            val serialized = snapshotFile.readText()
+            lastSerializedSnapshot = serialized
+            val root = JSONObject(serialized)
             if (root.optInt("version", 0) != SNAPSHOT_VERSION) return null
 
             val signature = LibrarySignature(
@@ -113,8 +117,7 @@ internal class LibrarySnapshotStore(
                     },
                 )
             }.toString()
-            val currentSnapshot = snapshotFile.takeIf { it.exists() }?.readText()
-            if (currentSnapshot == serializedSnapshot) return
+            if (lastSerializedSnapshot == serializedSnapshot) return
 
             val tempFile = snapshotFile.resolveSibling("${snapshotFile.name}.tmp")
             tempFile.writeText(serializedSnapshot)
@@ -122,6 +125,7 @@ internal class LibrarySnapshotStore(
                 snapshotFile.writeText(serializedSnapshot)
                 tempFile.delete()
             }
+            lastSerializedSnapshot = serializedSnapshot
         }
     }
 

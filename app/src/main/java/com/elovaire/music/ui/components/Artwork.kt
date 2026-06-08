@@ -146,15 +146,16 @@ fun rememberArtworkBitmap(
     size: Int,
 ): State<ImageBitmap?> {
     val context = LocalContext.current
-    val cacheKey = rememberCacheKey(uri, size)
-    return produceState<ImageBitmap?>(initialValue = ArtworkMemoryCache.image(cacheKey), uri, size) {
+    val normalizedSize = normalizeArtworkRequestSize(size)
+    val cacheKey = rememberCacheKey(uri, normalizedSize)
+    return produceState<ImageBitmap?>(initialValue = ArtworkMemoryCache.image(cacheKey), uri, normalizedSize) {
         val cached = ArtworkMemoryCache.image(cacheKey)
         if (cached != null) {
             value = cached
             return@produceState
         }
         value = withContext(Dispatchers.IO) {
-            loadBitmap(context, uri, size)?.asImageBitmap()?.also { bitmap ->
+            loadBitmap(context, uri, normalizedSize)?.asImageBitmap()?.also { bitmap ->
                 ArtworkMemoryCache.putImage(cacheKey, bitmap)
             }
         }
@@ -166,7 +167,7 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
     val context = LocalContext.current
     val fallbackColor = MaterialTheme.colorScheme.primary
     val foundation = MaterialTheme.colorScheme.background
-    val cacheKey = rememberCacheKey(uri, 512)
+    val cacheKey = rememberGradientCacheKey(uri)
     return produceState(
         initialValue = ArtworkMemoryCache.gradient(cacheKey) ?: defaultArtworkGradient(fallbackColor, foundation),
         key1 = uri,
@@ -190,6 +191,23 @@ private fun rememberCacheKey(
     size: Int,
 ): String {
     return "${uri?.toString().orEmpty()}#$size"
+}
+
+private fun rememberGradientCacheKey(uri: Uri?): String {
+    return "${uri?.toString().orEmpty()}#gradient"
+}
+
+private fun normalizeArtworkRequestSize(size: Int): Int {
+    val requested = size.coerceAtLeast(1)
+    return when {
+        requested <= 96 -> 96
+        requested <= 160 -> 160
+        requested <= 256 -> 256
+        requested <= 384 -> 384
+        requested <= 512 -> 512
+        requested <= 768 -> 768
+        else -> 1024
+    }
 }
 
 private fun loadBitmap(
