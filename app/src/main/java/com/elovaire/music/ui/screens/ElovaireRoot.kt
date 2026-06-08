@@ -3758,8 +3758,8 @@ private fun NowPlayingBar(
                 ) {
                     val strokeWidth = size.minDimension * 0.1f
                     val arcInset = strokeWidth / 2f + 2.2f
-                    val arcStart = -52f
-                    val arcSweep = 284f
+                    val arcStart = -90f
+                    val arcSweep = 360f
                     drawArc(
                         color = controlIconTint.copy(alpha = 0.18f),
                         startAngle = arcStart,
@@ -6296,7 +6296,7 @@ private fun AddAlbumToPlaylistDialog(
 @Composable
 private fun PlaylistSelectionDialog(
     title: String,
-    subtitle: String,
+    subtitle: String?,
     playlists: List<Playlist>,
     playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
@@ -6370,13 +6370,15 @@ private fun PlaylistSelectionDialog(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                        color = readableSecondaryTextColor(),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            text = subtitle,
+                            style = secondaryBodyTextStyle().copy(fontWeight = FontWeight.Medium),
+                            color = readableSecondaryTextColor(),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -6463,8 +6465,8 @@ private fun PlaylistSelectionDialog(
                                 selectedPlaylistId = null
                             },
                             shape = RoundedCornerShape(ElovaireRadii.pill),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.2f),
-                            contentColor = MaterialTheme.colorScheme.primary,
+                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
+                            contentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f),
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxSize(),
@@ -6572,6 +6574,7 @@ private fun PlaylistPickerRow(
                 Text(
                     text = playlist.name,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -6595,17 +6598,17 @@ private fun PlaylistPickerRow(
                             append("  •  ")
                             withStyle(
                                 SpanStyle(
-                                    color = readableSecondaryTextColor().copy(alpha = 0.7f),
+                                    color = readableSecondaryTextColor().copy(alpha = 0.82f),
                                 ),
                             ) {
                                 append(formatPlaylistDuration(durationMs))
                             }
                         },
-                        style = MaterialTheme.typography.labelLarge,
+                        style = secondaryBodyTextStyle().copy(fontSize = MaterialTheme.typography.labelLarge.fontSize),
                     )
                 }
             }
-            PlaylistSelectionIndicator(
+            SelectionIndicatorIcon(
                 selected = selected,
                 modifier = Modifier.padding(end = 6.dp),
             )
@@ -7652,7 +7655,7 @@ private fun MutedSectionHeader(
 private fun FavoriteAlbumsModule(
     albums: List<Album>,
     title: String = "Your favorite albums",
-    subtitle: String = "Check out your most frequently played stuff",
+    subtitle: String = "Music you come back to frequently",
     iconResId: Int = R.drawable.ic_lucide_star,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
@@ -10116,7 +10119,7 @@ private fun AddSongsToPlaylistOverlay(
                         .align(Alignment.Center)
                         .fillMaxWidth()
                         .fillMaxHeight(),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    horizontalArrangement = Arrangement.spacedBy(20.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PlaylistPickerTab.entries.forEach { tab ->
@@ -13320,7 +13323,7 @@ private fun AddToPlaylistPickerDialog(
     val language = LocalAppLanguage.current
     PlaylistSelectionDialog(
         title = uiPhrase(language, UiPhrase.AddToPlaylist),
-        subtitle = uiPhrase(language, UiPhrase.NewPlaylist),
+        subtitle = null,
         playlists = playlists,
         playlistSongsById = playlistSongsById,
         onDismiss = onDismiss,
@@ -14383,6 +14386,7 @@ private fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language) 
     AppLanguage.Hindi -> CommonUiCopy("होम", "लाइब्रेरी", "प्लेलिस्ट", "खोजें", "स्वागत है", "गाने", "एल्बम", "कलाकार", "शैलियाँ", "लाइट", "डार्क", "सिस्टम", "आपकी लाइब्रेरी में", "कुल", "मिले", "आपका संगीत, एक सुरुचिपूर्ण अनुभव में निखरा हुआ")
     AppLanguage.Hungarian -> CommonUiCopy("Kezdőlap", "Könyvtár", "Lejátszási listák", "Keresés", "Üdvözöljük", "Dalok", "Albumok", "Előadók", "Műfajok", "Világos", "Sötét", "Rendszer", "a könyvtáradban", "összesen", "találat", "A zenéd, kifinomítva elegáns élménnyé")
     AppLanguage.Italian -> CommonUiCopy("Home", "Libreria", "Playlist", "Cerca", "Benvenuto", "Brani", "Album", "Artisti", "Generi", "Chiaro", "Scuro", "Sistema", "nella tua libreria", "in totale", "trovati", "La tua musica, rifinita in un'esperienza elegante")
+    AppLanguage.Japanese -> CommonUiCopy("ホーム", "ライブラリ", "プレイリスト", "検索", "ようこそ", "曲", "アルバム", "アーティスト", "ジャンル", "ライト", "ダーク", "システム", "ライブラリ内", "合計", "見つかりました", "あなたの音楽を、洗練された体験へ")
     AppLanguage.Latin -> CommonUiCopy("Domus", "Bibliotheca", "Indices", "Quaere", "Salve", "Cantus", "Albumina", "Artifices", "Genera", "Clarus", "Obscurus", "Systema", "in bibliotheca tua", "omnino", "inventa", "Musica tua, in experientiam elegantem expolita")
     AppLanguage.Latvian -> CommonUiCopy("Sākums", "Bibliotēka", "Atskaņošanas saraksti", "Meklēt", "Laipni lūdzam", "Dziesmas", "Albumi", "Mākslinieki", "Žanri", "Gaišs", "Tumšs", "Sistēma", "tavā bibliotēkā", "kopā", "atrasts", "Tava mūzika, izsmalcināta elegantā pieredzē")
     AppLanguage.Lithuanian -> CommonUiCopy("Pradžia", "Biblioteka", "Grojaraščiai", "Paieška", "Sveiki", "Dainos", "Albumai", "Atlikėjai", "Žanrai", "Šviesi", "Tamsi", "Sistema", "jūsų bibliotekoje", "iš viso", "rasta", "Tavo muzika, ištobulinta į elegantišką patirtį")
@@ -14668,6 +14672,7 @@ private fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (la
     AppLanguage.Ukrainian -> SettingsLanguageCopy("Налаштування", "Вигляд", "Тема", "Розмір тексту", "Мова", "Зараз використовується: ${language.nativeName}", "Звук", "Підсилення басів", "Просторовість", "Еквалайзер", "Увімкнути моно", "Перемикає стереовідтворення на моно", "Інші налаштування", "Сканувати бібліотеку", "Оновлює індекс для нових медіа", "Сканувати", "Перевірити оновлення", "Перевіряє, чи доступна нова версія", "Перевірити", "Зміни", "Створено з любов’ю до музики та гарного дизайну")
     AppLanguage.Latvian -> SettingsLanguageCopy("Iestatījumi", "Izskats", "Tēma", "Teksta izmērs", "Valoda", "Pašlaik lietota: ${language.nativeName}", "Skaņa", "Basa pastiprinājums", "Telpiskums", "Ekvalaizers", "Ieslēgt mono", "Pārslēdz stereo atskaņošanu uz mono", "Citi iestatījumi", "Skenēt bibliotēku", "Atjauno indeksu jauniem multivides failiem", "Skenēt", "Meklēt atjauninājumus", "Pārbauda, vai pieejama jauna versija", "Pārbaudīt", "Izmaiņas", "Radīts ar aizrautību pret mūziku un lielisku dizainu")
     AppLanguage.Italian -> SettingsLanguageCopy("Impostazioni", "Aspetto", "Tema", "Dimensione testo", "Lingua", "Attualmente in uso: ${language.nativeName}", "Suono", "Potenziamento bassi", "Spazialità", "Equalizzatore", "Attiva mono", "Passa la riproduzione stereo a mono", "Altre impostazioni", "Scansiona libreria", "Aggiorna l’indice per nuovi media", "Scansiona", "Cerca aggiornamenti", "Controlla se è disponibile una nuova versione", "Controlla", "Novità", "Progettato con passione per la musica e il buon design")
+    AppLanguage.Japanese -> SettingsLanguageCopy("設定", "外観", "テーマ", "文字サイズ", "言語", "現在使用中: ${language.nativeName}", "サウンド", "低音ブースト", "空間感", "イコライザー", "モノラルを有効化", "ステレオ再生をモノラルに切り替えます", "その他の設定", "ライブラリをスキャン", "新しいメディアを探すためにインデックスを更新します", "スキャン", "アップデートを確認", "新しいバージョンが利用可能か確認します", "確認", "更新履歴", "音楽への情熱と優れたデザインで作られています")
     AppLanguage.Albanian -> SettingsLanguageCopy("Cilësimet", "Pamja", "Tema", "Madhësia e tekstit", "Gjuha", "Aktualisht në përdorim: ${language.nativeName}", "Tingulli", "Përforcim basi", "Hapësirë", "Ekualizuesi", "Aktivizo mono", "E kalon riprodhimin stereo në mono", "Cilësime të tjera", "Skano bibliotekën", "Rifreskon indeksimin për media të reja", "Skano", "Kontrollo për përditësime", "Kontrollon nëse ka version të ri", "Kontrollo", "Ndryshimet", "Dizajnuar me pasion për muzikën dhe dizajnin e mirë")
     AppLanguage.Hindi -> SettingsLanguageCopy("सेटिंग्स", "दिखावट", "थीम", "टेक्स्ट आकार", "भाषा", "वर्तमान में उपयोग: ${language.nativeName}", "ध्वनि", "बास बूस्ट", "स्पेशियसनेस", "इक्वलाइज़र", "मोनो चालू करें", "स्टीरियो प्लेबैक को मोनो में बदलता है", "अन्य सेटिंग्स", "लाइब्रेरी स्कैन करें", "नई मीडिया के लिए इंडेक्स ताज़ा करें", "स्कैन", "अपडेट जांचें", "नया संस्करण उपलब्ध है या नहीं जांचें", "जांचें", "बदलाव", "संगीत और अच्छे डिज़ाइन के प्रति जुनून से बनाया गया")
     AppLanguage.Hungarian -> SettingsLanguageCopy("Beállítások", "Megjelenés", "Téma", "Szövegméret", "Nyelv", "Jelenleg használt: ${language.nativeName}", "Hang", "Basszuskiemelés", "Térhatás", "Hangszínszabályzó", "Monó engedélyezése", "A sztereó lejátszást monóra váltja", "Egyéb beállítások", "Könyvtár beolvasása", "Frissíti az indexelést új médiához", "Beolvasás", "Frissítések keresése", "Ellenőrzi, hogy elérhető-e új verzió", "Ellenőrzés", "Változások", "Szenvedéllyel tervezve zenéhez és jó designhoz")
@@ -14742,6 +14747,7 @@ private val uiPhraseTranslations = mapOf(
     AppLanguage.Hindi to mapOf(UiPhrase.About to "परिचय", UiPhrase.AddToPlaylist to "प्लेलिस्ट में जोड़ें", UiPhrase.AddToQueue to "कतार में जोड़ें", UiPhrase.DeleteFromLibrary to "लाइब्रेरी से हटाएं", UiPhrase.Delete to "हटाएं", UiPhrase.Rename to "नाम बदलें", UiPhrase.RemoveFromList to "सूची से हटाएं", UiPhrase.NewPlaylist to "नई प्लेलिस्ट", UiPhrase.Cancel to "रद्द करें", UiPhrase.Create to "बनाएं", UiPhrase.Reset to "रीसेट", UiPhrase.Dry to "ड्राई", UiPhrase.Wet to "वेट", UiPhrase.Off to "बंद", UiPhrase.Reverb to "रीवर्ब", UiPhrase.ToneShaping to "टोन शेपिंग", UiPhrase.Bass to "बास", UiPhrase.Midrange to "मिडरेंज", UiPhrase.Treble to "ट्रेबल", UiPhrase.EffectStrength to "प्रभाव शक्ति"),
     AppLanguage.Hungarian to mapOf(UiPhrase.About to "Névjegy", UiPhrase.AddToPlaylist to "Hozzáadás lejátszási listához", UiPhrase.AddToQueue to "Hozzáadás a sorhoz", UiPhrase.DeleteFromLibrary to "Törlés a könyvtárból", UiPhrase.Delete to "Törlés", UiPhrase.Rename to "Átnevezés", UiPhrase.RemoveFromList to "Eltávolítás a listából", UiPhrase.NewPlaylist to "Új lejátszási lista", UiPhrase.Cancel to "Mégse", UiPhrase.Create to "Létrehozás", UiPhrase.Reset to "Visszaállítás", UiPhrase.Dry to "Száraz", UiPhrase.Wet to "Nedves", UiPhrase.Off to "Ki", UiPhrase.Reverb to "Visszhang", UiPhrase.ToneShaping to "Hangformálás", UiPhrase.Bass to "Basszus", UiPhrase.Midrange to "Közép", UiPhrase.Treble to "Magas", UiPhrase.EffectStrength to "Effekt erőssége"),
     AppLanguage.Italian to mapOf(UiPhrase.About to "Informazioni", UiPhrase.AddToPlaylist to "Aggiungi alla playlist", UiPhrase.AddToQueue to "Aggiungi alla coda", UiPhrase.DeleteFromLibrary to "Elimina dalla libreria", UiPhrase.Delete to "Elimina", UiPhrase.Rename to "Rinomina", UiPhrase.RemoveFromList to "Rimuovi dalla lista", UiPhrase.NewPlaylist to "Nuova playlist", UiPhrase.Cancel to "Annulla", UiPhrase.Create to "Crea", UiPhrase.Reset to "Ripristina", UiPhrase.Dry to "Dry", UiPhrase.Wet to "Wet", UiPhrase.Off to "Disattivato", UiPhrase.Reverb to "Riverbero", UiPhrase.ToneShaping to "Modellazione tono", UiPhrase.Bass to "Bassi", UiPhrase.Midrange to "Medi", UiPhrase.Treble to "Alti", UiPhrase.EffectStrength to "Intensità effetto"),
+    AppLanguage.Japanese to mapOf(UiPhrase.About to "情報", UiPhrase.AddToPlaylist to "プレイリストに追加", UiPhrase.AddToQueue to "キューに追加", UiPhrase.DeleteFromLibrary to "ライブラリから削除", UiPhrase.Delete to "削除", UiPhrase.Rename to "名前を変更", UiPhrase.RemoveFromList to "リストから削除", UiPhrase.NewPlaylist to "新しいプレイリスト", UiPhrase.Cancel to "キャンセル", UiPhrase.Create to "作成", UiPhrase.Reset to "リセット", UiPhrase.Dry to "ドライ", UiPhrase.Wet to "ウェット", UiPhrase.Off to "オフ", UiPhrase.Reverb to "リバーブ", UiPhrase.ToneShaping to "音色調整", UiPhrase.Bass to "低音", UiPhrase.Midrange to "中域", UiPhrase.Treble to "高音", UiPhrase.EffectStrength to "エフェクト強度"),
     AppLanguage.Latin to mapOf(UiPhrase.About to "De app", UiPhrase.AddToPlaylist to "Ad indicem adde", UiPhrase.AddToQueue to "Ad ordinem adde", UiPhrase.DeleteFromLibrary to "E bibliotheca dele", UiPhrase.Delete to "Dele", UiPhrase.Rename to "Renomina", UiPhrase.RemoveFromList to "E indice remove", UiPhrase.NewPlaylist to "Novus index", UiPhrase.Cancel to "Rescinde", UiPhrase.Create to "Crea", UiPhrase.Reset to "Restitue", UiPhrase.Dry to "Siccus", UiPhrase.Wet to "Humidus", UiPhrase.Off to "Exstinctum", UiPhrase.Reverb to "Reverberatio", UiPhrase.ToneShaping to "Formatio toni", UiPhrase.Bass to "Bassus", UiPhrase.Midrange to "Media", UiPhrase.Treble to "Acuti", UiPhrase.EffectStrength to "Vis effectus"),
     AppLanguage.Latvian to mapOf(UiPhrase.About to "Par", UiPhrase.AddToPlaylist to "Pievienot atskaņošanas sarakstam", UiPhrase.AddToQueue to "Pievienot rindai", UiPhrase.DeleteFromLibrary to "Dzēst no bibliotēkas", UiPhrase.Delete to "Dzēst", UiPhrase.Rename to "Pārdēvēt", UiPhrase.RemoveFromList to "Noņemt no saraksta", UiPhrase.NewPlaylist to "Jauns saraksts", UiPhrase.Cancel to "Atcelt", UiPhrase.Create to "Izveidot", UiPhrase.Reset to "Atiestatīt", UiPhrase.Dry to "Sauss", UiPhrase.Wet to "Mitrs", UiPhrase.Off to "Izslēgts", UiPhrase.Reverb to "Atbalss", UiPhrase.ToneShaping to "Toņa veidošana", UiPhrase.Bass to "Bass", UiPhrase.Midrange to "Vidējās", UiPhrase.Treble to "Augšas", UiPhrase.EffectStrength to "Efekta stiprums"),
     AppLanguage.Lithuanian to mapOf(UiPhrase.About to "Apie", UiPhrase.AddToPlaylist to "Pridėti į grojaraštį", UiPhrase.AddToQueue to "Pridėti į eilę", UiPhrase.DeleteFromLibrary to "Ištrinti iš bibliotekos", UiPhrase.Delete to "Ištrinti", UiPhrase.Rename to "Pervadinti", UiPhrase.RemoveFromList to "Pašalinti iš sąrašo", UiPhrase.NewPlaylist to "Naujas grojaraštis", UiPhrase.Cancel to "Atšaukti", UiPhrase.Create to "Sukurti", UiPhrase.Reset to "Atstatyti", UiPhrase.Dry to "Sausas", UiPhrase.Wet to "Šlapias", UiPhrase.Off to "Išjungta", UiPhrase.Reverb to "Aidas", UiPhrase.ToneShaping to "Tono formavimas", UiPhrase.Bass to "Bosai", UiPhrase.Midrange to "Viduriai", UiPhrase.Treble to "Aukšti", UiPhrase.EffectStrength to "Efekto stiprumas"),
@@ -15221,7 +15227,7 @@ private fun LanguageSelectionDialog(
                             state = listState,
                             topInset = 0.dp,
                             bottomInset = 0.dp,
-                            modifier = Modifier.padding(end = 3.dp),
+                            modifier = Modifier.padding(end = 2.dp),
                         )
                     }
                     Row(

@@ -79,6 +79,7 @@ enum class AppLanguage(
     Hindi("Hindi", "हिन्दी"),
     Hungarian("Hungarian", "Magyar"),
     Italian("Italian", "Italiano"),
+    Japanese("Japanese", "日本語"),
     Latin("Latin", "Latina"),
     Latvian("Latvian", "Latviešu"),
     Lithuanian("Lithuanian", "Lietuvių"),

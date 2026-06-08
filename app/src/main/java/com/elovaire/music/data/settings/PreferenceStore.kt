@@ -489,6 +489,7 @@ class PreferenceStore(context: Context) {
             "hi" -> AppLanguage.Hindi
             "hu" -> AppLanguage.Hungarian
             "it" -> AppLanguage.Italian
+            "ja" -> AppLanguage.Japanese
             "la" -> AppLanguage.Latin
             "lv" -> AppLanguage.Latvian
             "lt" -> AppLanguage.Lithuanian

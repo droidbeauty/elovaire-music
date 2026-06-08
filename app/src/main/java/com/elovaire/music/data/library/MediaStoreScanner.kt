@@ -75,6 +75,7 @@ class MediaStoreScanner(
         val selection = buildSelection()
         val orderBy = buildOrderBy()
         val allowedRoots = buildAllowedLibraryRoots()
+        val allowedRelativeRoots = buildAllowedRelativeLibraryRoots()
 
         context.contentResolver.query(
             audioCollectionUri(),
@@ -97,11 +98,13 @@ class MediaStoreScanner(
             val sizeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
             val yearIndex = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             val dataIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+            val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
 
             var scannedSongs = 0
             while (cursor.moveToNext()) {
                 val filePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString)
-                if (!shouldIncludeFilePath(filePath, allowedRoots)) {
+                val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
+                if (!shouldIncludeFilePath(filePath, relativePath, allowedRoots, allowedRelativeRoots)) {
                     continue
                 }
                 val id = cursor.getLong(idIndex)
@@ -206,12 +209,14 @@ class MediaStoreScanner(
         var newestDateAddedSeconds = 0L
         var idChecksum = 0L
         val allowedRoots = buildAllowedLibraryRoots()
+        val allowedRelativeRoots = buildAllowedRelativeLibraryRoots()
         context.contentResolver.query(
             audioCollectionUri(),
             arrayOf(
                 MediaStore.Audio.Media._ID,
                 MediaStore.Audio.Media.DATE_ADDED,
                 MediaStore.Audio.Media.DATA,
+                MediaStore.MediaColumns.RELATIVE_PATH,
             ),
             buildSelection(),
             null,
@@ -220,9 +225,11 @@ class MediaStoreScanner(
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             val dataIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
+            val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
             while (cursor.moveToNext()) {
                 val filePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString)
-                if (!shouldIncludeFilePath(filePath, allowedRoots)) {
+                val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
+                if (!shouldIncludeFilePath(filePath, relativePath, allowedRoots, allowedRelativeRoots)) {
                     continue
                 }
                 val id = cursor.getLong(idIndex)
@@ -308,11 +315,15 @@ class MediaStoreScanner(
             MediaStore.Audio.Media.YEAR,
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.Audio.Media.DATA,
+            MediaStore.MediaColumns.RELATIVE_PATH,
         )
     }
 
     private fun buildSelection(): String {
-        return "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val isMusicSelection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
+        val audioMimeSelection = "${MediaStore.Audio.Media.MIME_TYPE} LIKE 'audio/%'"
+        val positiveDurationSelection = "${MediaStore.Audio.Media.DURATION} > 0"
+        return "(($isMusicSelection) OR ($audioMimeSelection)) AND ($positiveDurationSelection)"
     }
 
     private fun audioCollectionUri(): Uri {
@@ -334,6 +345,16 @@ class MediaStoreScanner(
         return buildScanRoots()
             .map(File::getAbsolutePath)
             .map(::normalizePath)
+            .distinct()
+    }
+
+    private fun buildAllowedRelativeLibraryRoots(): List<String> {
+        return buildScanRoots()
+            .mapNotNull { root ->
+                sharedStorageRelativePath(root.absolutePath)
+                    ?.let(::normalizeRelativePath)
+                    ?.takeIf { it.isNotBlank() }
+            }
             .distinct()
     }
 
@@ -380,17 +401,44 @@ class MediaStoreScanner(
 
     private fun shouldIncludeFilePath(
         filePath: String?,
+        relativePath: String?,
         allowedRoots: List<String>,
+        allowedRelativeRoots: List<String>,
     ): Boolean {
-        if (allowedRoots.isEmpty()) return true
-        val normalizedFilePath = filePath?.let(::normalizePath) ?: return true
-        return allowedRoots.any { allowedRoot ->
-            normalizedFilePath == allowedRoot || normalizedFilePath.startsWith("$allowedRoot/")
+        if (allowedRoots.isEmpty() && allowedRelativeRoots.isEmpty()) return true
+        val normalizedFilePath = filePath?.let(::normalizePath)
+        if (normalizedFilePath != null && allowedRoots.any { allowedRoot ->
+                normalizedFilePath == allowedRoot || normalizedFilePath.startsWith("$allowedRoot/")
+            }
+        ) {
+            return true
         }
+        val normalizedRelativePath = relativePath
+            ?.let(::normalizeRelativePath)
+            ?.takeIf { it.isNotBlank() }
+        if (normalizedRelativePath != null && allowedRelativeRoots.any { allowedRoot ->
+                normalizedRelativePath == allowedRoot || normalizedRelativePath.startsWith("$allowedRoot/")
+            }
+        ) {
+            return true
+        }
+        return normalizedFilePath == null && normalizedRelativePath == null
     }
 
     private fun normalizePath(path: String): String {
         return path.trim().trimEnd('/').replace("//", "/")
+    }
+
+    private fun normalizeRelativePath(path: String): String {
+        return path.trim().trim('/').replace("//", "/")
+    }
+
+    private fun sharedStorageRelativePath(path: String): String? {
+        val normalizedPath = normalizePath(path)
+        return STORAGE_ROOT_REGEX
+            .replace("$normalizedPath/", "")
+            .trim('/')
+            .ifBlank { null }
     }
 
     private fun detectExplicit(
@@ -716,6 +764,7 @@ class MediaStoreScanner(
             pattern = """(?:\s|^)(?:[\[(]\s*explicit\s*[\])]|🅴|[\uFFFD?]{3,})\s*$""",
             option = RegexOption.IGNORE_CASE,
         )
+        val STORAGE_ROOT_REGEX = Regex("""^/storage/[^/]+(?:/[^/]+)?/""")
         val SUPPORTED_AUDIO_EXTENSIONS = setOf(
             "mp3",
             "m4a",
