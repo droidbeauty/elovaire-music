@@ -2542,8 +2542,30 @@ fun ElovaireRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(11f),
-                        enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-                        exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                        enter = fadeIn(
+                            animationSpec = ElovaireMotion.fadeMedium(),
+                            initialAlpha = 0.72f,
+                        ) +
+                            slideInVertically(
+                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.ScreenExpand),
+                                initialOffsetY = { it / 5 },
+                            ) +
+                            expandVertically(
+                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.ScreenExpand),
+                                expandFrom = Alignment.Bottom,
+                            ),
+                        exit = fadeOut(
+                            animationSpec = ElovaireMotion.fadeFast(),
+                            targetAlpha = 0.88f,
+                        ) +
+                            slideOutVertically(
+                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
+                                targetOffsetY = { it / 7 },
+                            ) +
+                            androidx.compose.animation.shrinkVertically(
+                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
+                                shrinkTowards = Alignment.Bottom,
+                            ),
                         label = "ChangelogSheetOverlay",
                     ) {
                         ChangelogBottomSheetOverlay(
@@ -15945,131 +15967,98 @@ private fun ChangelogBottomSheetOverlay(
                     onClick = onDismiss,
                 ),
         )
-        androidx.compose.animation.AnimatedVisibility(
-            visible = true,
+        DynamicBackdropSurface(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .fillMaxWidth(),
-            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
-                scaleIn(
-                    animationSpec = tween(
-                        durationMillis = ElovaireMotion.Spacious,
-                        easing = FastOutSlowInEasing,
-                    ),
-                    initialScale = 0.94f,
-                    transformOrigin = TransformOrigin(0.5f, 1f),
-                ) +
-                slideInVertically(
-                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Spacious),
-                    initialOffsetY = { it / 2 },
-                ),
-            exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
-                scaleOut(
-                    animationSpec = tween(
-                        durationMillis = ElovaireMotion.Quick,
-                        easing = FastOutLinearInEasing,
-                    ),
-                    targetScale = 0.985f,
-                    transformOrigin = TransformOrigin(0.5f, 1f),
-                ) +
-                slideOutVertically(
-                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                    targetOffsetY = { it / 3 },
-                ),
-            label = "ChangelogBottomSheetCard",
+                .fillMaxWidth()
+                .fillMaxHeight(0.5f),
+            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+            overlayAlpha = 0.6f,
+            borderColor = null,
         ) {
-            DynamicBackdropSurface(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.5f),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-                overlayAlpha = 0.6f,
-                borderColor = null,
+                    .fillMaxSize()
+                    .padding(top = 18.dp),
             ) {
-                Column(
+                Row(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(top = 18.dp),
+                        .fillMaxWidth()
+                        .padding(start = 20.dp, end = 16.dp, bottom = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(start = 20.dp, end = 16.dp, bottom = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
+                        Text(
+                            text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                        Surface(
+                            shape = RoundedCornerShape(ElovaireRadii.pill),
+                            color = MaterialTheme.colorScheme.background,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
                         ) {
                             Text(
-                                text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
-                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Surface(
-                                shape = RoundedCornerShape(ElovaireRadii.pill),
-                                color = MaterialTheme.colorScheme.background,
-                                contentColor = MaterialTheme.colorScheme.onSurface,
-                            ) {
-                                Text(
-                                    text = BuildConfig.VERSION_NAME,
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                                )
-                            }
-                        }
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = onDismiss,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_x),
-                                contentDescription = "Close changelog",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                                modifier = Modifier.size(16.dp),
+                                text = BuildConfig.VERSION_NAME,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                             )
                         }
                     }
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f)
-                            .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = navigationBarInsetDp() + 18.dp),
-                        contentAlignment = Alignment.TopCenter,
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onDismiss,
+                            ),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Box(
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_x),
+                            contentDescription = "Close changelog",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                            modifier = Modifier.size(16.dp),
+                        )
+                    }
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = navigationBarInsetDp() + 18.dp),
+                    contentAlignment = Alignment.TopCenter,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(ElovaireRadii.card))
+                            .background(MaterialTheme.colorScheme.background),
+                    ) {
+                        LazyColumn(
+                            state = listState,
+                            overscrollEffect = null,
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight()
-                                .clip(RoundedCornerShape(ElovaireRadii.card))
-                                .background(MaterialTheme.colorScheme.background),
+                                .fillMaxSize()
+                                .ensureSingleItemRubberBand(listState),
+                            contentPadding = PaddingValues(
+                                top = 18.dp,
+                                bottom = 18.dp,
+                            ),
                         ) {
-                            LazyColumn(
-                                state = listState,
-                                overscrollEffect = null,
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .ensureSingleItemRubberBand(listState),
-                                contentPadding = PaddingValues(
-                                    top = 18.dp,
-                                    bottom = 18.dp,
-                                ),
-                            ) {
-                                item {
-                                    ChangelogReleaseContent(
-                                        release = release,
-                                        contentHorizontalPadding = 20.dp,
-                                    )
-                                }
+                            item {
+                                ChangelogReleaseContent(
+                                    release = release,
+                                    contentHorizontalPadding = 20.dp,
+                                )
                             }
                         }
                     }

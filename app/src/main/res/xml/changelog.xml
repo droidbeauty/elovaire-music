@@ -6,12 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.9.7">
+    <release version="1.9.8">
         <item>New queue menu design</item>
-        <item>Minor visual tweaks to the now playing compact bar</item>
-        <item>Added translations in previously missing places of the UI</item>
-        <item>Added Japanese language to the app</item>
-        <item>Redesigned language switcher</item>
-        <item>Quite a few bug fixes</item>
+        <item>Improved animation smoothness</item>
     </release>
 </changelog>
