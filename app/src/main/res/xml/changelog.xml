@@ -6,10 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="1.9.9">
-        <item>Tweaks to the queue menu in now playing screen</item>
-        <item>Improvements to accuracy of lyrics matching</item>
+    <release version="2.0">
+        <item>Tweaks to on-device music scanning method</item>
         <item>Improved animation smoothness</item>
-        <item>General performance optimizations</item>
+        <item>General code clean-up</item>
     </release>
 </changelog>

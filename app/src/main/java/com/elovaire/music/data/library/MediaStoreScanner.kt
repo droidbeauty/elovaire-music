@@ -74,7 +74,6 @@ class MediaStoreScanner(
         val projection = buildProjection()
         val selection = buildSelection()
         val orderBy = buildOrderBy()
-        val allowedRoots = buildAllowedLibraryRoots()
         val allowedRelativeRoots = buildAllowedRelativeLibraryRoots()
 
         context.contentResolver.query(
@@ -97,14 +96,12 @@ class MediaStoreScanner(
             val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             val sizeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
             val yearIndex = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
-            val dataIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
 
             var scannedSongs = 0
             while (cursor.moveToNext()) {
-                val filePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString)
                 val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
-                if (!shouldIncludeFilePath(filePath, relativePath, allowedRoots, allowedRelativeRoots)) {
+                if (!shouldIncludeRelativePath(relativePath, allowedRelativeRoots)) {
                     continue
                 }
                 val id = cursor.getLong(idIndex)
@@ -208,14 +205,12 @@ class MediaStoreScanner(
         var songCount = 0
         var newestDateAddedSeconds = 0L
         var idChecksum = 0L
-        val allowedRoots = buildAllowedLibraryRoots()
         val allowedRelativeRoots = buildAllowedRelativeLibraryRoots()
         context.contentResolver.query(
             audioCollectionUri(),
             arrayOf(
                 MediaStore.Audio.Media._ID,
                 MediaStore.Audio.Media.DATE_ADDED,
-                MediaStore.Audio.Media.DATA,
                 MediaStore.MediaColumns.RELATIVE_PATH,
             ),
             buildSelection(),
@@ -224,12 +219,10 @@ class MediaStoreScanner(
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
-            val dataIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATA)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
             while (cursor.moveToNext()) {
-                val filePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString)
                 val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
-                if (!shouldIncludeFilePath(filePath, relativePath, allowedRoots, allowedRelativeRoots)) {
+                if (!shouldIncludeRelativePath(relativePath, allowedRelativeRoots)) {
                     continue
                 }
                 val id = cursor.getLong(idIndex)
@@ -314,7 +307,6 @@ class MediaStoreScanner(
             MediaStore.Audio.Media.SIZE,
             MediaStore.Audio.Media.YEAR,
             MediaStore.Audio.Media.DATE_ADDED,
-            MediaStore.Audio.Media.DATA,
             MediaStore.MediaColumns.RELATIVE_PATH,
         )
     }
@@ -339,13 +331,6 @@ class MediaStoreScanner(
             ?.takeIf { it.exists() && it.isDirectory }
             ?.let(roots::add)
         return roots.toList()
-    }
-
-    private fun buildAllowedLibraryRoots(): List<String> {
-        return buildScanRoots()
-            .map(File::getAbsolutePath)
-            .map(::normalizePath)
-            .distinct()
     }
 
     private fun buildAllowedRelativeLibraryRoots(): List<String> {
@@ -399,20 +384,11 @@ class MediaStoreScanner(
         return parsedDiscNumber.coerceAtLeast(1)
     }
 
-    private fun shouldIncludeFilePath(
-        filePath: String?,
+    private fun shouldIncludeRelativePath(
         relativePath: String?,
-        allowedRoots: List<String>,
         allowedRelativeRoots: List<String>,
     ): Boolean {
-        if (allowedRoots.isEmpty() && allowedRelativeRoots.isEmpty()) return true
-        val normalizedFilePath = filePath?.let(::normalizePath)
-        if (normalizedFilePath != null && allowedRoots.any { allowedRoot ->
-                normalizedFilePath == allowedRoot || normalizedFilePath.startsWith("$allowedRoot/")
-            }
-        ) {
-            return true
-        }
+        if (allowedRelativeRoots.isEmpty()) return true
         val normalizedRelativePath = relativePath
             ?.let(::normalizeRelativePath)
             ?.takeIf { it.isNotBlank() }
@@ -422,11 +398,7 @@ class MediaStoreScanner(
         ) {
             return true
         }
-        return normalizedFilePath == null && normalizedRelativePath == null
-    }
-
-    private fun normalizePath(path: String): String {
-        return path.trim().trimEnd('/').replace("//", "/")
+        return normalizedRelativePath == null
     }
 
     private fun normalizeRelativePath(path: String): String {
@@ -434,7 +406,7 @@ class MediaStoreScanner(
     }
 
     private fun sharedStorageRelativePath(path: String): String? {
-        val normalizedPath = normalizePath(path)
+        val normalizedPath = path.trim().trimEnd('/').replace("//", "/")
         return STORAGE_ROOT_REGEX
             .replace("$normalizedPath/", "")
             .trim('/')

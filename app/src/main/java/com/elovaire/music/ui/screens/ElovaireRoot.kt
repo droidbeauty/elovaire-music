@@ -671,11 +671,9 @@ private enum class SongSortMode(
     Album("Album"),
 }
 
-private enum class SearchSongSortMode(
-    val label: String,
-) {
-    Title("Song name"),
-    Artist("Artist name"),
+private enum class SearchSongSortMode {
+    Title,
+    Artist,
 }
 
 private enum class SearchContentMode {
@@ -15171,7 +15169,7 @@ private fun EqualizerScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             item {
-                BoxWithConstraints {
+                Box {
                     val graphContentWidth = EQ_GRAPH_EDGE_PADDING * 2 +
                         EQ_BAND_SPACING * (EqualizerDspModel.BAND_COUNT - 1).coerceAtLeast(0).toFloat()
                     Column {
