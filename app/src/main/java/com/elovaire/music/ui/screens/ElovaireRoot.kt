@@ -621,7 +621,7 @@ private sealed interface SharedTopBarSpec {
 
 private fun SharedTopBarSpec.visualSignature(): String {
     return when (this) {
-        is SharedTopBarSpec.Unified -> "unified|$title|$showSettings|${supplementalActionIconResId ?: 0}|${supplementalActionContentDescription.orEmpty()}"
+        is SharedTopBarSpec.Unified -> "unified|$showSettings|${supplementalActionIconResId ?: 0}|${supplementalActionContentDescription.orEmpty()}"
         is SharedTopBarSpec.Back -> "back|$title|$centeredTitle"
         is SharedTopBarSpec.Detail -> "detail|$title|${subtitle.orEmpty()}|${actions.joinToString { "${it.iconResId}:${it.contentDescription}" }}"
     }
@@ -1265,12 +1265,12 @@ private fun RegisterSharedTopBar(spec: SharedTopBarSpec) {
     val registrationId = remember { Any() }
     val specSignature = remember(spec) {
         when (spec) {
-            is SharedTopBarSpec.Unified -> "unified|${spec.title}|${spec.showSettings}|${spec.supplementalActionIconResId ?: 0}|${spec.supplementalActionContentDescription.orEmpty()}"
+            is SharedTopBarSpec.Unified -> "unified|${spec.showSettings}|${spec.supplementalActionIconResId ?: 0}|${spec.supplementalActionContentDescription.orEmpty()}"
             is SharedTopBarSpec.Back -> "back|${spec.title}|${spec.centeredTitle}"
             is SharedTopBarSpec.Detail -> "detail|${spec.title}|${spec.subtitle.orEmpty()}|${spec.actions.joinToString { "${it.iconResId}:${it.contentDescription}" }}"
         }
     }
-    LaunchedEffect(controller, registrationId, specSignature) {
+    LaunchedEffect(controller, registrationId, specSignature, spec) {
         controller.registration = SharedTopBarRegistration(
             id = registrationId,
             spec = spec,
@@ -2105,6 +2105,7 @@ fun ElovaireRoot(
                                         sourceLabel = song.album,
                                     )
                                 }
+                                openPlayerIfAllowed(null)
                             },
                             onToggleFavorite = { songId ->
                                 container.preferenceStore.toggleFavoriteSong(songId)
@@ -6758,7 +6759,7 @@ private fun SearchScreen(
     if (showAllSongResults && trimmedQuery.isNotBlank()) {
         RegisterSharedTopBar(
             SharedTopBarSpec.Back(
-                title = "Search",
+                title = commonUiCopy(language).search,
                 onBack = collapseAllSongResults,
                 centeredTitle = false,
             ),
@@ -6890,7 +6891,7 @@ private fun SearchScreen(
                         },
                     shape = RoundedCornerShape(ElovaireRadii.input),
                     singleLine = true,
-                    placeholder = { Text("Artists, albums & more") },
+                    placeholder = { Text(searchCopy(language).placeholder) },
                     leadingIcon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_search),
@@ -6927,7 +6928,7 @@ private fun SearchScreen(
                             ) {
                                 Icon(
                                     painter = painterResource(id = R.drawable.ic_lucide_x),
-                                    contentDescription = "Clear search",
+                                    contentDescription = searchCopy(language).clearSearch,
                                     tint = searchBarContentColor.copy(alpha = 0.86f),
                                     modifier = Modifier.size(14.dp),
                                 )
@@ -7060,12 +7061,12 @@ private fun SearchScreen(
                                             verticalArrangement = Arrangement.spacedBy(8.dp),
                                         ) {
                                             Text(
-                                                text = "Nothing searched yet",
+                                                text = searchCopy(language).nothingSearchedTitle,
                                                 style = MaterialTheme.typography.titleLarge,
                                                 color = MaterialTheme.colorScheme.onSurface,
                                             )
                                             Text(
-                                                text = "More results will show here as you search for songs and albums",
+                                                text = searchCopy(language).nothingSearchedMessage,
                                                 style = secondaryBodyTextStyle(),
                                                 color = readableSecondaryTextColor(),
                                                 textAlign = TextAlign.Center,
@@ -7077,8 +7078,8 @@ private fun SearchScreen(
                                 if (suggestedAlbums.isNotEmpty()) {
                                     FavoriteAlbumsModule(
                                         albums = suggestedAlbums,
-                                        title = "Suggested albums",
-                                        subtitle = "You should probably revisit these",
+                                        title = searchCopy(language).suggestedAlbumsTitle,
+                                        subtitle = searchCopy(language).suggestedAlbumsSubtitle,
                                         iconResId = R.drawable.ic_lucide_eye,
                                         onAlbumSelected = { album, origin ->
                                             onAlbumSelected(album, origin)
@@ -7090,8 +7091,8 @@ private fun SearchScreen(
                             SearchContentMode.Results -> {
                                 if (matchingArtists.isNotEmpty()) {
                                     SectionTitleRow(
-                                        title = "Artists",
-                                        subtitle = "${matchingArtists.size} matching artists",
+                                        title = commonUiCopy(language).artists,
+                                        subtitle = searchCopy(language).matchingArtists(matchingArtists.size),
                                     )
                                     SearchHistoryListCard(
                                         entries = matchingArtists,
@@ -7106,8 +7107,8 @@ private fun SearchScreen(
 
                                 if (matchingAlbums.isNotEmpty()) {
                                     SectionTitleRow(
-                                        title = "Albums",
-                                        subtitle = "${matchingAlbums.size} matching album results",
+                                        title = commonUiCopy(language).albums,
+                                        subtitle = searchCopy(language).matchingAlbums(matchingAlbums.size),
                                     )
                                     LazyRow(
                                         overscrollEffect = null,
@@ -7156,8 +7157,8 @@ private fun SearchScreen(
 
                                 if (matchingAlbums.isEmpty() && matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
                                     EmptyStateCard(
-                                        title = "No results",
-                                        message = "Nothing in the current offline library matches \"$trimmedQuery\" yet",
+                                        title = searchCopy(language).noResultsTitle,
+                                        message = searchCopy(language).noResultsMessage(trimmedQuery),
                                     )
                                 }
                             }
@@ -7233,13 +7234,15 @@ private fun SearchHistorySectionHeader(
     showClearAction: Boolean,
     onClearHistory: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = searchCopy(language)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Recently searched",
+            text = copy.recentlySearched,
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -7261,7 +7264,7 @@ private fun SearchHistorySectionHeader(
                         modifier = Modifier.size(15.dp),
                     )
                     Text(
-                        text = "Clear history",
+                        text = copy.clearHistory,
                         style = MaterialTheme.typography.labelLarge,
                     )
                 }
@@ -7276,14 +7279,16 @@ private fun SearchSongsPreviewHeader(
     showSeeAll: Boolean,
     onShowAll: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = searchCopy(language)
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         SectionTitleRow(
-            title = "Songs",
-            subtitle = "$resultCount matching song results",
+            title = commonUiCopy(language).songs,
+            subtitle = copy.matchingSongs(resultCount),
         )
         AnimatedVisibility(visible = showSeeAll) {
             Box(
@@ -7319,10 +7324,12 @@ private fun SearchSongsResultsHeader(
     onToggleExpanded: () -> Unit,
     onSelect: (SearchSongSortMode) -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = searchCopy(language)
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         SectionTitleRow(
-            title = "Songs",
-            subtitle = "$resultCount matching song results",
+            title = commonUiCopy(language).songs,
+            subtitle = copy.matchingSongs(resultCount),
         )
         Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
@@ -7342,7 +7349,7 @@ private fun SearchSongsResultsHeader(
                         modifier = Modifier.size(14.dp),
                     )
                     Text(
-                        text = selected.label,
+                        text = searchSortModeLabel(selected, language),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     )
                 }
@@ -7365,7 +7372,7 @@ private fun SearchSongsResultsHeader(
                                     .padding(horizontal = 14.dp, vertical = 12.dp),
                             ) {
                                 Text(
-                                    text = mode.label,
+                                    text = searchSortModeLabel(mode, language),
                                     style = MaterialTheme.typography.bodyLarge.copy(
                                         fontWeight = if (mode == selected) FontWeight.SemiBold else FontWeight.Normal,
                                     ),
@@ -11024,13 +11031,13 @@ private fun NowPlayingScreen(
     }
     val expandSettleAnimationSpec = remember {
         tween<Float>(
-            durationMillis = 420,
-            easing = FastOutSlowInEasing,
+            durationMillis = 460,
+            easing = LinearOutSlowInEasing,
         )
     }
     val collapseSettleAnimationSpec = remember {
         tween<Float>(
-            durationMillis = 340,
+            durationMillis = 360,
             easing = FastOutSlowInEasing,
         )
     }
@@ -11074,12 +11081,13 @@ private fun NowPlayingScreen(
     )
     val currentSong = liveCurrentSong
     val displaySong = liveDisplaySong
-    val playingFromText = remember(playbackState.sourceLabel, currentSong?.album) {
-        playbackState.sourceLabel
+    val language = LocalAppLanguage.current
+    val playingFromText = remember(language, playbackState.sourceLabel, currentSong?.album) {
+        val source = playbackState.sourceLabel
             ?.takeIf { it.isNotBlank() }
-            ?.let { "Playing from $it" }
-            ?: currentSong?.album?.takeIf { it.isNotBlank() }?.let { "Playing from $it" }
-            ?: "Playing from all songs"
+            ?: currentSong?.album?.takeIf { it.isNotBlank() }
+            ?: localizedAllSongsSource(language)
+        "${playingFromPrefix(language)} $source"
     }
     var showLyricsSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
@@ -11774,7 +11782,7 @@ private fun NowPlayingScreen(
                                     ) {
                                         Text(
                                             text = formatPlaybackPosition(displayedPositionMs),
-                                            style = MaterialTheme.typography.labelLarge,
+                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                                             color = secondaryContentColor,
                                         )
                                     }
@@ -11789,7 +11797,7 @@ private fun NowPlayingScreen(
                                     ) {
                                         Text(
                                             text = formatDuration(renderedPlaybackProgress.durationMs),
-                                            style = MaterialTheme.typography.labelLarge,
+                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                                             color = secondaryContentColor,
                                         )
                                     }
@@ -12209,6 +12217,7 @@ private fun QueueSheet(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("equalizer_screen")
     var showSpaciousnessSlider by remember(spaciousnessEnabled) { mutableStateOf(spaciousnessEnabled) }
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
@@ -12260,7 +12269,7 @@ private fun QueueSheet(
                             modifier = Modifier.size(18.dp),
                         )
                         Text(
-                            text = "Queue",
+                            text = queueTitle(language),
                             style = MaterialTheme.typography.titleLarge.copy(
                                 fontSize = elovaireScaledSp(18f),
                                 fontWeight = FontWeight.Medium,
@@ -12274,7 +12283,7 @@ private fun QueueSheet(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = formatCountLabel(queue.size, "track"),
+                            text = localizedCountLabel(queue.size, "track", language),
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
                             color = secondaryTint.copy(alpha = 0.7f),
                         )
@@ -13961,7 +13970,7 @@ private fun PlaybackProgressBar(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(contentColor.copy(alpha = 0.2f))
+                    .background(contentColor.copy(alpha = 0.1f))
                     .align(Alignment.CenterStart),
             )
 
@@ -14039,7 +14048,7 @@ private fun VolumeControlBar(
                         .fillMaxWidth()
                         .height(6.dp)
                         .clip(RoundedCornerShape(ElovaireRadii.pill))
-                        .background(contentColor.copy(alpha = 0.2f))
+                        .background(contentColor.copy(alpha = 0.1f))
                         .align(Alignment.CenterStart),
                 )
 
@@ -14434,6 +14443,73 @@ private fun List<Song>.playbackSourceLabel(fallbackAlbum: String): String {
         distinctAlbums.size == 1 -> distinctAlbums.first()
         else -> "all songs"
     }.ifBlank { fallbackAlbum }
+}
+
+private fun playingFromPrefix(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Odtwarzanie z"
+    AppLanguage.ChineseSimplified -> "播放来源"
+    AppLanguage.Czech -> "Přehrávání z"
+    AppLanguage.Lithuanian -> "Groja iš"
+    AppLanguage.Danish -> "Afspiller fra"
+    AppLanguage.French -> "Lecture depuis"
+    AppLanguage.German -> "Wiedergabe aus"
+    AppLanguage.Dutch -> "Afspelen vanuit"
+    AppLanguage.Norwegian -> "Spiller fra"
+    AppLanguage.Swedish -> "Spelar från"
+    AppLanguage.Spanish -> "Reproduciendo desde"
+    AppLanguage.Portuguese -> "A reproduzir de"
+    AppLanguage.Estonian -> "Esitamine allikast"
+    AppLanguage.Greek -> "Αναπαραγωγή από"
+    AppLanguage.Croatian -> "Reprodukcija iz"
+    AppLanguage.Russian -> "Воспроизведение из"
+    AppLanguage.Ukrainian -> "Відтворення з"
+    AppLanguage.Latvian -> "Atskaņo no"
+    AppLanguage.Italian -> "Riproduzione da"
+    AppLanguage.Albanian -> "Duke luajtur nga"
+    AppLanguage.Hindi -> "चल रहा है"
+    AppLanguage.Hungarian -> "Lejátszás innen:"
+    AppLanguage.Japanese -> "再生元"
+    AppLanguage.Latin -> "Canitur ex"
+    AppLanguage.Macedonian -> "Се репродуцира од"
+    AppLanguage.Serbian -> "Репродукује се из"
+    AppLanguage.Thai -> "กำลังเล่นจาก"
+    AppLanguage.English -> "Playing from"
+}
+
+private fun localizedAllSongsSource(language: AppLanguage): String = when (language) {
+    AppLanguage.English -> "all songs"
+    else -> commonUiCopy(language).songs.lowercase()
+}
+
+private fun queueTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Kolejka"
+    AppLanguage.ChineseSimplified -> "队列"
+    AppLanguage.Czech -> "Fronta"
+    AppLanguage.Lithuanian -> "Eilė"
+    AppLanguage.Danish -> "Kø"
+    AppLanguage.French -> "File"
+    AppLanguage.German -> "Warteschlange"
+    AppLanguage.Dutch -> "Wachtrij"
+    AppLanguage.Norwegian -> "Kø"
+    AppLanguage.Swedish -> "Kö"
+    AppLanguage.Spanish -> "Cola"
+    AppLanguage.Portuguese -> "Fila"
+    AppLanguage.Estonian -> "Järjekord"
+    AppLanguage.Greek -> "Ουρά"
+    AppLanguage.Croatian -> "Red"
+    AppLanguage.Russian -> "Очередь"
+    AppLanguage.Ukrainian -> "Черга"
+    AppLanguage.Latvian -> "Rinda"
+    AppLanguage.Italian -> "Coda"
+    AppLanguage.Albanian -> "Radha"
+    AppLanguage.Hindi -> "कतार"
+    AppLanguage.Hungarian -> "Sor"
+    AppLanguage.Japanese -> "キュー"
+    AppLanguage.Latin -> "Ordo"
+    AppLanguage.Macedonian -> "Редица"
+    AppLanguage.Serbian -> "Ред"
+    AppLanguage.Thai -> "คิว"
+    AppLanguage.English -> "Queue"
 }
 
 private fun formatCountLabel(
@@ -14981,6 +15057,77 @@ private fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language) 
     AppLanguage.Thai -> CommonUiCopy("หน้าแรก", "คลังเพลง", "เพลย์ลิสต์", "ค้นหา", "ยินดีต้อนรับ", "เพลง", "อัลบั้ม", "ศิลปิน", "แนวเพลง", "สว่าง", "มืด", "ระบบ", "ในคลังของคุณ", "ทั้งหมด", "พบ", "เพลงของคุณ ถูกขัดเกลาให้เป็นประสบการณ์อันสง่างาม")
     AppLanguage.Ukrainian -> CommonUiCopy("Головна", "Бібліотека", "Плейлисти", "Пошук", "Ласкаво просимо", "Пісні", "Альбоми", "Виконавці", "Жанри", "Світла", "Темна", "Система", "у вашій бібліотеці", "усього", "знайдено", "Ваша музика, відточена до елегантного досвіду")
     AppLanguage.English -> CommonUiCopy("Home", "Library", "Playlists", "Search", "Welcome", "Songs", "Albums", "Artists", "Genres", "Light", "Dark", "System", "in your library", "in total", "found", "Your music, refined into an elegant experience")
+}
+
+private data class SearchUiCopy(
+    val placeholder: String,
+    val clearSearch: String,
+    val nothingSearchedTitle: String,
+    val nothingSearchedMessage: String,
+    val suggestedAlbumsTitle: String,
+    val suggestedAlbumsSubtitle: String,
+    val recentlySearched: String,
+    val clearHistory: String,
+    val noResultsTitle: String,
+    val noResultsPrefix: String,
+    val noResultsSuffix: String,
+    val matchingArtistsSuffix: String,
+    val matchingAlbumsSuffix: String,
+    val matchingSongsSuffix: String,
+) {
+    fun noResultsMessage(query: String): String = "$noResultsPrefix \"$query\" $noResultsSuffix"
+    fun matchingArtists(count: Int): String = "$count $matchingArtistsSuffix"
+    fun matchingAlbums(count: Int): String = "$count $matchingAlbumsSuffix"
+    fun matchingSongs(count: Int): String = "$count $matchingSongsSuffix"
+}
+
+private fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
+    AppLanguage.Polish -> SearchUiCopy("Artyści, albumy i więcej", "Wyczyść wyszukiwanie", "Jeszcze nic nie wyszukano", "Więcej wyników pojawi się podczas wyszukiwania utworów i albumów", "Sugerowane albumy", "Warto do nich wrócić", "Ostatnio wyszukiwane", "Wyczyść historię", "Brak wyników", "Nic w obecnej bibliotece offline nie pasuje do", "jeszcze", "pasujących artystów", "pasujących albumów", "pasujących utworów")
+    AppLanguage.ChineseSimplified -> SearchUiCopy("艺人、专辑等", "清除搜索", "还没有搜索", "搜索歌曲和专辑时会显示更多结果", "推荐专辑", "你可能会想再听听", "最近搜索", "清除历史", "没有结果", "当前离线媒体库中没有匹配", "", "个匹配艺人", "个匹配专辑", "个匹配歌曲")
+    AppLanguage.Czech -> SearchUiCopy("Umělci, alba a další", "Vymazat hledání", "Zatím nic nehledáno", "Další výsledky se zobrazí při hledání skladeb a alb", "Navržená alba", "Možná se k nim chcete vrátit", "Nedávno hledané", "Vymazat historii", "Žádné výsledky", "V aktuální offline knihovně se nic neshoduje s", "zatím", "odpovídajících umělců", "odpovídajících alb", "odpovídajících skladeb")
+    AppLanguage.French -> SearchUiCopy("Artistes, albums et plus", "Effacer la recherche", "Aucune recherche pour l’instant", "Plus de résultats apparaîtront pendant la recherche de morceaux et d’albums", "Albums suggérés", "Vous devriez peut-être les réécouter", "Recherches récentes", "Effacer l’historique", "Aucun résultat", "Rien dans la bibliothèque hors ligne actuelle ne correspond à", "pour l’instant", "artistes correspondants", "albums correspondants", "morceaux correspondants")
+    AppLanguage.German -> SearchUiCopy("Künstler, Alben und mehr", "Suche löschen", "Noch nichts gesucht", "Weitere Ergebnisse erscheinen, wenn du nach Songs und Alben suchst", "Vorgeschlagene Alben", "Diese solltest du vielleicht wieder hören", "Zuletzt gesucht", "Verlauf löschen", "Keine Ergebnisse", "In der aktuellen Offline-Bibliothek passt nichts zu", "bisher", "passende Künstler", "passende Alben", "passende Songs")
+    AppLanguage.Italian -> SearchUiCopy("Artisti, album e altro", "Cancella ricerca", "Nessuna ricerca ancora", "Altri risultati appariranno mentre cerchi brani e album", "Album suggeriti", "Potresti volerli riascoltare", "Ricerche recenti", "Cancella cronologia", "Nessun risultato", "Nella libreria offline attuale non corrisponde nulla a", "ancora", "artisti corrispondenti", "album corrispondenti", "brani corrispondenti")
+    AppLanguage.Japanese -> SearchUiCopy("アーティスト、アルバムなど", "検索をクリア", "まだ検索していません", "曲やアルバムを検索すると、さらに結果が表示されます", "おすすめアルバム", "また聴きたくなるかもしれません", "最近の検索", "履歴を消去", "結果なし", "現在のオフラインライブラリに一致するものはありません:", "", "件の一致するアーティスト", "件の一致するアルバム", "件の一致する曲")
+    AppLanguage.Spanish -> SearchUiCopy("Artistas, álbumes y más", "Borrar búsqueda", "Aún no has buscado nada", "Aparecerán más resultados al buscar canciones y álbumes", "Álbumes sugeridos", "Quizá quieras volver a escucharlos", "Búsquedas recientes", "Borrar historial", "Sin resultados", "Nada en la biblioteca sin conexión actual coincide con", "todavía", "artistas coincidentes", "álbumes coincidentes", "canciones coincidentes")
+    AppLanguage.Portuguese -> SearchUiCopy("Artistas, álbuns e mais", "Limpar pesquisa", "Ainda nada pesquisado", "Mais resultados aparecerão ao pesquisar músicas e álbuns", "Álbuns sugeridos", "Talvez queira revisitá-los", "Pesquisas recentes", "Limpar histórico", "Sem resultados", "Nada na biblioteca offline atual corresponde a", "ainda", "artistas correspondentes", "álbuns correspondentes", "músicas correspondentes")
+    AppLanguage.Russian -> SearchUiCopy("Исполнители, альбомы и другое", "Очистить поиск", "Пока ничего не искали", "Больше результатов появится при поиске песен и альбомов", "Предложенные альбомы", "Возможно, стоит вернуться к ним", "Недавние поиски", "Очистить историю", "Нет результатов", "В текущей офлайн-библиотеке ничего не найдено для", "пока", "подходящих исполнителей", "подходящих альбомов", "подходящих песен")
+    AppLanguage.Ukrainian -> SearchUiCopy("Виконавці, альбоми тощо", "Очистити пошук", "Поки нічого не шукали", "Більше результатів з’явиться під час пошуку пісень і альбомів", "Запропоновані альбоми", "Можливо, варто повернутися до них", "Нещодавні пошуки", "Очистити історію", "Немає результатів", "У поточній офлайн-бібліотеці нічого не збігається з", "поки", "відповідних виконавців", "відповідних альбомів", "відповідних пісень")
+    else -> SearchUiCopy("Artists, albums & more", "Clear search", "Nothing searched yet", "More results will show here as you search for songs and albums", "Suggested albums", "You should probably revisit these", "Recently searched", "Clear history", "No results", "Nothing in the current offline library matches", "yet", "matching artists", "matching album results", "matching song results")
+}
+
+private fun searchSortModeLabel(
+    mode: SearchSongSortMode,
+    language: AppLanguage,
+): String = when (mode) {
+    SearchSongSortMode.Title -> when (language) {
+        AppLanguage.Polish -> "Nazwa utworu"
+        AppLanguage.ChineseSimplified -> "歌曲名"
+        AppLanguage.Czech -> "Název skladby"
+        AppLanguage.French -> "Nom du morceau"
+        AppLanguage.German -> "Songname"
+        AppLanguage.Italian -> "Nome brano"
+        AppLanguage.Japanese -> "曲名"
+        AppLanguage.Spanish -> "Nombre de canción"
+        AppLanguage.Portuguese -> "Nome da música"
+        AppLanguage.Russian -> "Название песни"
+        AppLanguage.Ukrainian -> "Назва пісні"
+        else -> "Song name"
+    }
+    SearchSongSortMode.Artist -> when (language) {
+        AppLanguage.Polish -> "Nazwa artysty"
+        AppLanguage.ChineseSimplified -> "艺人名"
+        AppLanguage.Czech -> "Jméno umělce"
+        AppLanguage.French -> "Nom de l’artiste"
+        AppLanguage.German -> "Künstlername"
+        AppLanguage.Italian -> "Nome artista"
+        AppLanguage.Japanese -> "アーティスト名"
+        AppLanguage.Spanish -> "Nombre de artista"
+        AppLanguage.Portuguese -> "Nome do artista"
+        AppLanguage.Russian -> "Имя исполнителя"
+        AppLanguage.Ukrainian -> "Ім’я виконавця"
+        else -> "Artist name"
+    }
 }
 
 @Composable
@@ -16352,18 +16499,19 @@ private fun AboutEntryTextStack(
     entry: AboutEntry,
     modifier: Modifier = Modifier,
 ) {
+    val language = LocalAppLanguage.current
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Text(
-            text = entry.title,
+            text = localizedAboutTitle(entry.title, language),
             style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(22f)),
             color = MaterialTheme.colorScheme.onSurface,
         )
         entry.description?.takeIf { it.isNotBlank() }?.let { description ->
             Text(
-                text = description,
+                text = localizedAboutDescription(entry.title, description, language),
                 style = secondaryBodyTextStyle(),
                 color = readableSecondaryTextColor(),
             )
@@ -16482,6 +16630,7 @@ private fun AboutLinkPill(
     useRoseAccent: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     val containerColor = when {
         useRoseAccent -> RoseAccent.copy(alpha = 0.72f)
         useCardAccent -> AboutCardButtonAccent
@@ -16508,7 +16657,7 @@ private fun AboutLinkPill(
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = link.label,
+                text = localizedAboutLinkLabel(link.label, language),
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Clip,
@@ -16527,6 +16676,102 @@ private fun aboutIconForUrl(url: String): Int {
         "ko-fi.com" in normalizedUrl || "kofi.com" in normalizedUrl -> R.drawable.ic_about_coffee
         else -> R.drawable.ic_about_globe
     }
+}
+
+private fun localizedAboutTitle(
+    title: String,
+    language: AppLanguage,
+): String = when (title) {
+    "Droid Beauty" -> title
+    "Elovaire" -> title
+    "Resources" -> when (language) {
+        AppLanguage.Polish -> "Zasoby"
+        AppLanguage.ChineseSimplified -> "资源"
+        AppLanguage.Czech -> "Zdroje"
+        AppLanguage.French -> "Ressources"
+        AppLanguage.German -> "Ressourcen"
+        AppLanguage.Italian -> "Risorse"
+        AppLanguage.Japanese -> "リソース"
+        AppLanguage.Portuguese -> "Recursos"
+        AppLanguage.Russian -> "Ресурсы"
+        AppLanguage.Spanish -> "Recursos"
+        AppLanguage.Ukrainian -> "Ресурси"
+        else -> title
+    }
+    else -> title
+}
+
+private fun localizedAboutDescription(
+    title: String,
+    description: String,
+    language: AppLanguage,
+): String = when (title) {
+    "Droid Beauty" -> when (language) {
+        AppLanguage.Polish -> "Minimalnie zaprojektowane aplikacje i doświadczenia dla piękniejszego Androida"
+        AppLanguage.ChineseSimplified -> "以极简设计打造更美好的 Android 应用与体验"
+        AppLanguage.Czech -> "Minimalisticky navržené aplikace a zážitky pro krásnější Android"
+        AppLanguage.French -> "Des applications et expériences au design minimal pour embellir Android"
+        AppLanguage.German -> "Minimal gestaltete Apps und Erlebnisse für ein schöneres Android"
+        AppLanguage.Italian -> "App ed esperienze dal design minimale per rendere Android più bello"
+        AppLanguage.Japanese -> "Android をより美しくする、ミニマルに設計されたアプリと体験"
+        AppLanguage.Portuguese -> "Apps e experiências de design minimal para tornar o Android mais bonito"
+        AppLanguage.Russian -> "Минималистичные приложения и впечатления для более красивого Android"
+        AppLanguage.Spanish -> "Apps y experiencias de diseño minimalista para hacer Android más bello"
+        AppLanguage.Ukrainian -> "Мінімалістично створені застосунки й враження для красивішого Android"
+        else -> description
+    }
+    "Elovaire" -> when (language) {
+        AppLanguage.Polish -> "Elegancki odtwarzacz offline stworzony z myślą o Twojej lokalnej muzyce"
+        AppLanguage.ChineseSimplified -> "为你的本地音乐打造的优雅离线播放器"
+        AppLanguage.Czech -> "Elegantní offline přehrávač vytvořený pro vaši místní hudbu"
+        AppLanguage.French -> "Un lecteur hors ligne élégant conçu pour votre musique locale"
+        AppLanguage.German -> "Ein eleganter Offline-Player für deine lokale Musik"
+        AppLanguage.Italian -> "Un player offline elegante creato per la tua musica locale"
+        AppLanguage.Japanese -> "ローカル音楽のために作られた、エレガントなオフラインプレーヤー"
+        AppLanguage.Portuguese -> "Um reprodutor offline elegante feito para a sua música local"
+        AppLanguage.Russian -> "Элегантный офлайн-плеер для вашей локальной музыки"
+        AppLanguage.Spanish -> "Un reproductor sin conexión elegante hecho para tu música local"
+        AppLanguage.Ukrainian -> "Елегантний офлайн-програвач для вашої локальної музики"
+        else -> description
+    }
+    "Resources" -> when (language) {
+        AppLanguage.Polish -> "Projekty, narzędzia i biblioteki, które pomagają tworzyć Elovaire"
+        AppLanguage.ChineseSimplified -> "帮助打造 Elovaire 的项目、工具和库"
+        AppLanguage.Czech -> "Projekty, nástroje a knihovny, které pomáhají tvořit Elovaire"
+        AppLanguage.French -> "Projets, outils et bibliothèques qui aident à créer Elovaire"
+        AppLanguage.German -> "Projekte, Werkzeuge und Bibliotheken, die Elovaire ermöglichen"
+        AppLanguage.Italian -> "Progetti, strumenti e librerie che aiutano a creare Elovaire"
+        AppLanguage.Japanese -> "Elovaire の制作を支えるプロジェクト、ツール、ライブラリ"
+        AppLanguage.Portuguese -> "Projetos, ferramentas e bibliotecas que ajudam a criar o Elovaire"
+        AppLanguage.Russian -> "Проекты, инструменты и библиотеки, которые помогают создавать Elovaire"
+        AppLanguage.Spanish -> "Proyectos, herramientas y bibliotecas que ayudan a crear Elovaire"
+        AppLanguage.Ukrainian -> "Проєкти, інструменти та бібліотеки, що допомагають створювати Elovaire"
+        else -> description
+    }
+    else -> description
+}
+
+private fun localizedAboutLinkLabel(
+    label: String,
+    language: AppLanguage,
+): String = when (label.lowercase()) {
+    "website", "play store" -> when (language) {
+        AppLanguage.Polish -> if (label.equals("Play Store", true)) "Sklep Play" else "Strona"
+        AppLanguage.ChineseSimplified -> if (label.equals("Play Store", true)) "Play 商店" else "网站"
+        AppLanguage.Czech -> if (label.equals("Play Store", true)) "Obchod Play" else "Web"
+        AppLanguage.French -> if (label.equals("Play Store", true)) "Play Store" else "Site web"
+        AppLanguage.German -> if (label.equals("Play Store", true)) "Play Store" else "Website"
+        AppLanguage.Italian -> if (label.equals("Play Store", true)) "Play Store" else "Sito web"
+        AppLanguage.Japanese -> if (label.equals("Play Store", true)) "Play ストア" else "ウェブサイト"
+        AppLanguage.Portuguese -> if (label.equals("Play Store", true)) "Play Store" else "Site"
+        AppLanguage.Russian -> if (label.equals("Play Store", true)) "Play Маркет" else "Сайт"
+        AppLanguage.Spanish -> if (label.equals("Play Store", true)) "Play Store" else "Sitio web"
+        AppLanguage.Ukrainian -> if (label.equals("Play Store", true)) "Play Маркет" else "Сайт"
+        else -> label
+    }
+    "twitter" -> if (language == AppLanguage.Japanese) "X" else label
+    "instagram", "github", "ko-fi" -> label
+    else -> label
 }
 
 @Composable
