@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.os.Build
+import android.util.LruCache
 import android.util.Size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
@@ -338,12 +339,15 @@ private fun defaultArtworkGradient(
 }
 
 private object ArtworkMemoryCache {
-    private const val MAX_IMAGES = 96
+    private const val MAX_IMAGE_CACHE_BYTES = 24 * 1024 * 1024
     private const val MAX_GRADIENTS = 160
 
-    private val images = object : LinkedHashMap<String, ImageBitmap>(MAX_IMAGES, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, ImageBitmap>?): Boolean {
-            return size > MAX_IMAGES
+    private val images = object : LruCache<String, ImageBitmap>(MAX_IMAGE_CACHE_BYTES) {
+        override fun sizeOf(
+            key: String,
+            value: ImageBitmap,
+        ): Int {
+            return (value.width * value.height * 4).coerceAtLeast(1)
         }
     }
     private val gradients = object : LinkedHashMap<String, List<Color>>(MAX_GRADIENTS, 0.75f, true) {
@@ -353,14 +357,14 @@ private object ArtworkMemoryCache {
     }
 
     @Synchronized
-    fun image(key: String): ImageBitmap? = images[key]
+    fun image(key: String): ImageBitmap? = images.get(key)
 
     @Synchronized
     fun putImage(
         key: String,
         image: ImageBitmap,
     ) {
-        images[key] = image
+        images.put(key, image)
     }
 
     @Synchronized

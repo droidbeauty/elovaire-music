@@ -41,11 +41,7 @@ class AppContainer(
         initialRecentAlbumIds = preferenceStore.recentAlbumIds.value,
         onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
     )
-    private val playbackNotificationController = PlaybackNotificationController(
-        context = applicationContext,
-        playbackManager = playbackManager,
-        scope = appScope,
-    )
+    private var playbackNotificationController: PlaybackNotificationController? = null
     val libraryRepository = LibraryRepository(
         appContext = applicationContext,
         scanner = MediaStoreScanner(applicationContext),
@@ -76,10 +72,21 @@ class AppContainer(
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
-        playbackNotificationController.setNotificationsEnabled(enabled)
+        if (!enabled && playbackNotificationController == null) return
+        notificationController().setNotificationsEnabled(enabled)
     }
 
     fun requestOpenPlayer() {
         openPlayerRequestVersion.value += 1L
+    }
+
+    private fun notificationController(): PlaybackNotificationController {
+        return playbackNotificationController ?: PlaybackNotificationController(
+            context = applicationContext,
+            playbackManager = playbackManager,
+            scope = appScope,
+        ).also { controller ->
+            playbackNotificationController = controller
+        }
     }
 }

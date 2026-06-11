@@ -106,6 +106,8 @@ internal class PlaybackProgressController {
         return snapshot()
     }
 
+    fun needsActivePolling(): Boolean = pendingSeekPositionMs != null
+
     private fun clearScrubState() {
         isUserScrubbing = false
         scrubPreviewPositionMs = null

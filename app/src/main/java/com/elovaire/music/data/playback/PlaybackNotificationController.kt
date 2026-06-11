@@ -317,7 +317,20 @@ class PlaybackNotificationController(
     )
 
     private object NotificationArtworkCache {
-        private val cache = object : LruCache<String, Bitmap>(12) {}
+        private const val MAX_CACHE_BYTES = NOTIFICATION_ARTWORK_SIZE_PX * NOTIFICATION_ARTWORK_SIZE_PX * 2 * 12
+
+        private val cache = object : LruCache<String, Bitmap>(MAX_CACHE_BYTES) {
+            override fun sizeOf(
+                key: String,
+                value: Bitmap,
+            ): Int {
+                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                    value.allocationByteCount
+                } else {
+                    value.byteCount
+                }
+            }
+        }
 
         operator fun get(key: String): Bitmap? = cache.get(key)
 

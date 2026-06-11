@@ -279,18 +279,7 @@ class PlaybackManager(
         syncFromObservedSystemVolume()
         player.volume = effectivePlayerGain()
 
-        progressUpdateJob = scope.launch {
-            while (isActive) {
-                publishProgressSnapshot()
-                delay(
-                    when {
-                        player.isPlaying -> PLAYING_PROGRESS_UPDATE_INTERVAL_MS
-                        player.currentMediaItemIndex >= 0 -> PAUSED_PROGRESS_UPDATE_INTERVAL_MS
-                        else -> IDLE_PROGRESS_UPDATE_INTERVAL_MS
-                    },
-                )
-            }
-        }
+        syncProgressUpdateLoop()
     }
 
     fun reevaluateAudioOutputPath() {
@@ -395,6 +384,7 @@ class PlaybackManager(
 
     fun beginScrub() {
         _progressState.value = playbackProgressController.beginScrub()
+        syncProgressUpdateLoop()
     }
 
     fun updateScrubPosition(positionMs: Long) {
@@ -405,10 +395,12 @@ class PlaybackManager(
         val result = playbackProgressController.finishScrub(positionMs)
         _progressState.value = result.state
         result.seekPositionMs?.let(player::seekTo)
+        syncProgressUpdateLoop()
     }
 
     fun cancelScrub() {
         _progressState.value = playbackProgressController.cancelScrub()
+        syncProgressUpdateLoop()
     }
 
     fun setVolume(volume: Float) {
@@ -658,6 +650,7 @@ class PlaybackManager(
             audioSessionId = 0,
         )
         _progressState.value = playbackProgressController.clear()
+        syncProgressUpdateLoop()
         isStoppingQueue = false
     }
 
@@ -727,6 +720,7 @@ class PlaybackManager(
         if (updatedProgress != _progressState.value) {
             _progressState.value = updatedProgress
         }
+        syncProgressUpdateLoop()
     }
 
     private fun resumePlayback() {
@@ -882,6 +876,31 @@ class PlaybackManager(
     private fun currentSong(): Song? {
         val index = player.currentMediaItemIndex
         return _state.value.queue.getOrNull(index)
+    }
+
+    private fun syncProgressUpdateLoop() {
+        val shouldPoll = player.isPlaying || playbackProgressController.needsActivePolling()
+        if (!shouldPoll) {
+            progressUpdateJob?.cancel()
+            progressUpdateJob = null
+            return
+        }
+        if (progressUpdateJob?.isActive == true) return
+        progressUpdateJob = scope.launch {
+            try {
+                while (isActive) {
+                    publishProgressSnapshot()
+                    if (!player.isPlaying && !playbackProgressController.needsActivePolling()) {
+                        break
+                    }
+                    delay(PLAYING_PROGRESS_UPDATE_INTERVAL_MS)
+                }
+            } finally {
+                if (progressUpdateJob === this) {
+                    progressUpdateJob = null
+                }
+            }
+        }
     }
 
     private fun shouldAutoResumeAfterUnexpectedIdle(): Boolean {
@@ -1095,8 +1114,6 @@ class PlaybackManager(
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val MAX_HISTORY_ITEMS = 12
         const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
-        const val PAUSED_PROGRESS_UPDATE_INTERVAL_MS = 1_000L
-        const val IDLE_PROGRESS_UPDATE_INTERVAL_MS = 5_000L
     }
 
     private fun buildMediaSourceFactory(): MediaSource.Factory {
