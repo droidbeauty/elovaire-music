@@ -6,7 +6,6 @@ import android.app.RecoverableSecurityException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Shader
 import android.net.Uri
@@ -159,7 +158,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -273,6 +271,7 @@ import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.SyncElovaireMotionScale
 import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -409,7 +408,6 @@ internal fun Context.loadAboutScreenModel(): AboutScreenModel {
 
 private val LocalSongMenuActions = compositionLocalOf { SongMenuActions() }
 
-private val LocalChromeBackdropBitmap = compositionLocalOf<BackdropSnapshot?> { null }
 private val LocalChromeHazeState = compositionLocalOf<HazeState?> { null }
 private val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
 private val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
@@ -489,52 +487,6 @@ private class SharedTopBarController {
 }
 
 @Composable
-private fun rememberChromeBackdropSnapshot(
-    enabled: Boolean = true,
-    refreshKey: Any? = Unit,
-) : BackdropSnapshot? {
-    val hostView = LocalView.current
-    var bitmap by remember(refreshKey) { mutableStateOf<BackdropSnapshot?>(null) }
-
-    DisposableEffect(refreshKey) {
-        onDispose {
-            bitmap = null
-        }
-    }
-
-    LaunchedEffect(enabled, refreshKey) {
-        if (!enabled) {
-            bitmap = null
-            return@LaunchedEffect
-        }
-        withFrameNanos { }
-        bitmap = runCatching { hostView.rootView.drawToDownsampledBitmap() }.getOrNull()
-    }
-
-    return bitmap
-}
-
-private fun android.view.View.drawToDownsampledBitmap(
-    downsampleFactor: Int = 4,
-): BackdropSnapshot? {
-    val sourceWidth = width.takeIf { it > 0 } ?: return null
-    val sourceHeight = height.takeIf { it > 0 } ?: return null
-    val targetWidth = (sourceWidth / downsampleFactor).coerceAtLeast(1)
-    val targetHeight = (sourceHeight / downsampleFactor).coerceAtLeast(1)
-    val bitmap = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
-    val canvas = android.graphics.Canvas(bitmap)
-    val scaleX = targetWidth.toFloat() / sourceWidth.toFloat()
-    val scaleY = targetHeight.toFloat() / sourceHeight.toFloat()
-    canvas.scale(scaleX, scaleY)
-    draw(canvas)
-    return BackdropSnapshot(
-        bitmap = bitmap,
-        sourceWidth = sourceWidth,
-        sourceHeight = sourceHeight,
-    )
-}
-
-@Composable
 private fun statusBarInsetDp(): Dp {
     val density = LocalDensity.current
     return with(density) { WindowInsets.statusBars.getTop(this).toDp() }
@@ -574,47 +526,6 @@ private fun sharedTopBarOccupiedHeight(): Dp =
 @Composable
 private fun bottomNavigationOccupiedHeight(): Dp {
     return navigationBarInsetDp() + ElovaireSpacing.bottomNavigationBodyHeight
-}
-
-@Composable
-private fun SnapshotBackdropBlurLayer(
-    backdropBitmap: BackdropSnapshot?,
-    bounds: androidx.compose.ui.geometry.Rect?,
-    blurRadius: Dp,
-    modifier: Modifier = Modifier,
-) {
-    if (backdropBitmap == null || bounds == null) return
-    val density = LocalDensity.current
-    val blurRadiusPx = with(density) { blurRadius.toPx() }
-    Image(
-        bitmap = backdropBitmap.bitmap.asImageBitmap(),
-        contentDescription = null,
-        contentScale = ContentScale.FillBounds,
-        modifier = modifier
-            .width(with(density) { backdropBitmap.sourceWidth.toDp() })
-            .height(with(density) { backdropBitmap.sourceHeight.toDp() })
-            .graphicsLayer {
-                translationX = -bounds.left
-                translationY = -bounds.top
-                alpha = 0.995f
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    renderEffect = android.graphics.RenderEffect
-                        .createBlurEffect(
-                            blurRadiusPx,
-                            blurRadiusPx,
-                            Shader.TileMode.CLAMP,
-                        )
-                        .asComposeRenderEffect()
-                }
-            }
-            .then(
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Modifier
-                } else {
-                    Modifier.blur(blurRadius)
-                },
-            ),
-    )
 }
 
 @Composable
@@ -957,6 +868,7 @@ fun ElovaireRoot(
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    SyncElovaireMotionScale()
     val libraryState by container.libraryRepository.state.collectAsStateWithLifecycle()
     val playbackState by container.playbackManager.state.collectAsStateWithLifecycle()
     val eqSettings by container.preferenceStore.eqSettings.collectAsStateWithLifecycle()
@@ -1530,13 +1442,10 @@ fun ElovaireRoot(
                                 route = targetRoute,
                                 fallbackTopLevelRoute = selectedBottomRoute,
                             )
-                            val topLevelRouteOrder = listOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE, SEARCH_ROUTE)
-                            val isTopLevelTransition =
-                                initialOwnerRoute in topLevelRouteOrder &&
-                                    targetOwnerRoute in topLevelRouteOrder &&
-                                    initialOwnerRoute != targetOwnerRoute
-                            val isForwardTopLevelTransition =
-                                topLevelRouteOrder.indexOf(targetOwnerRoute) > topLevelRouteOrder.indexOf(initialOwnerRoute)
+                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
+                                initialRoute = initialOwnerRoute,
+                                targetRoute = targetOwnerRoute,
+                            )
                             if (targetRoute == PLAYER_ROUTE) {
                                 EnterTransition.None
                             } else if (
@@ -1565,8 +1474,8 @@ fun ElovaireRoot(
                                             ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
                                         },
                                     )
-                            } else if (isTopLevelTransition) {
-                                ElovaireMotion.topLevelEnter(forward = isForwardTopLevelTransition)
+                            } else if (topLevelTransition.isTopLevelTransition) {
+                                ElovaireMotion.topLevelEnter(forward = topLevelTransition.isForward)
                             } else {
                                 ElovaireMotion.fullScreenForwardEnter()
                             }
@@ -1581,13 +1490,10 @@ fun ElovaireRoot(
                                 route = targetRoute,
                                 fallbackTopLevelRoute = selectedBottomRoute,
                             )
-                            val topLevelRouteOrder = listOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE, SEARCH_ROUTE)
-                            val isTopLevelTransition =
-                                initialOwnerRoute in topLevelRouteOrder &&
-                                    targetOwnerRoute in topLevelRouteOrder &&
-                                    initialOwnerRoute != targetOwnerRoute
-                            val isForwardTopLevelTransition =
-                                topLevelRouteOrder.indexOf(targetOwnerRoute) > topLevelRouteOrder.indexOf(initialOwnerRoute)
+                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
+                                initialRoute = initialOwnerRoute,
+                                targetRoute = targetOwnerRoute,
+                            )
                             if (targetRoute == PLAYER_ROUTE) {
                                 ExitTransition.None
                             } else if (
@@ -1599,8 +1505,8 @@ fun ElovaireRoot(
                                 fadeOut(
                                     animationSpec = ElovaireMotion.fadeFast(),
                                 )
-                            } else if (isTopLevelTransition) {
-                                ElovaireMotion.topLevelExit(forward = isForwardTopLevelTransition)
+                            } else if (topLevelTransition.isTopLevelTransition) {
+                                ElovaireMotion.topLevelExit(forward = topLevelTransition.isForward)
                             } else {
                                 ElovaireMotion.fullScreenForwardExit()
                             }
@@ -1616,13 +1522,10 @@ fun ElovaireRoot(
                                 route = targetRoute,
                                 fallbackTopLevelRoute = selectedBottomRoute,
                             )
-                            val topLevelRouteOrder = listOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE, SEARCH_ROUTE)
-                            val isTopLevelTransition =
-                                initialOwnerRoute in topLevelRouteOrder &&
-                                    targetOwnerRoute in topLevelRouteOrder &&
-                                    initialOwnerRoute != targetOwnerRoute
-                            val isForwardTopLevelTransition =
-                                topLevelRouteOrder.indexOf(targetOwnerRoute) > topLevelRouteOrder.indexOf(initialOwnerRoute)
+                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
+                                initialRoute = initialOwnerRoute,
+                                targetRoute = targetOwnerRoute,
+                            )
                             if (initialRoute == PLAYER_ROUTE) {
                                 EnterTransition.None
                             } else if (
@@ -1634,8 +1537,8 @@ fun ElovaireRoot(
                                 fadeIn(
                                     animationSpec = ElovaireMotion.fadeMedium(),
                                 )
-                            } else if (isTopLevelTransition) {
-                                ElovaireMotion.topLevelEnter(forward = isForwardTopLevelTransition)
+                            } else if (topLevelTransition.isTopLevelTransition) {
+                                ElovaireMotion.topLevelEnter(forward = topLevelTransition.isForward)
                             } else {
                                 ElovaireMotion.fullScreenBackEnter()
                             }
@@ -1651,13 +1554,10 @@ fun ElovaireRoot(
                                 route = targetRoute,
                                 fallbackTopLevelRoute = selectedBottomRoute,
                             )
-                            val topLevelRouteOrder = listOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE, SEARCH_ROUTE)
-                            val isTopLevelTransition =
-                                initialOwnerRoute in topLevelRouteOrder &&
-                                    targetOwnerRoute in topLevelRouteOrder &&
-                                    initialOwnerRoute != targetOwnerRoute
-                            val isForwardTopLevelTransition =
-                                topLevelRouteOrder.indexOf(targetOwnerRoute) > topLevelRouteOrder.indexOf(initialOwnerRoute)
+                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
+                                initialRoute = initialOwnerRoute,
+                                targetRoute = targetOwnerRoute,
+                            )
                             if (initialRoute == PLAYER_ROUTE) {
                                 ExitTransition.None
                             } else if (
@@ -1686,8 +1586,8 @@ fun ElovaireRoot(
                                             ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
                                         },
                                     )
-                            } else if (isTopLevelTransition) {
-                                ElovaireMotion.topLevelExit(forward = isForwardTopLevelTransition)
+                            } else if (topLevelTransition.isTopLevelTransition) {
+                                ElovaireMotion.topLevelExit(forward = topLevelTransition.isForward)
                             } else {
                                 ElovaireMotion.fullScreenBackExit()
                             }
@@ -2160,8 +2060,8 @@ fun ElovaireRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(10f),
-                        enter = fadeIn(animationSpec = ElovaireMotion.fadeFast()),
-                        exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+                        enter = ElovaireMotion.overlayFadeEnter(initialAlpha = 0.86f),
+                        exit = ElovaireMotion.overlayFadeExit(),
                         label = "TopBarContextMenuOverlay",
                     ) {
                         TopBarContextMenuOverlay(
@@ -2177,30 +2077,8 @@ fun ElovaireRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(11f),
-                        enter = fadeIn(
-                            animationSpec = ElovaireMotion.fadeMedium(),
-                            initialAlpha = 0.72f,
-                        ) +
-                            slideInVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.ScreenExpand),
-                                initialOffsetY = { it / 5 },
-                            ) +
-                            expandVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.ScreenExpand),
-                                expandFrom = Alignment.Bottom,
-                            ),
-                        exit = fadeOut(
-                            animationSpec = ElovaireMotion.fadeFast(),
-                            targetAlpha = 0.88f,
-                        ) +
-                            slideOutVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
-                                targetOffsetY = { it / 7 },
-                            ) +
-                            androidx.compose.animation.shrinkVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
-                                shrinkTowards = Alignment.Bottom,
-                            ),
+                        enter = ElovaireMotion.bottomSheetEnter(),
+                        exit = ElovaireMotion.bottomSheetExit(),
                         label = "ChangelogSheetOverlay",
                     ) {
                         ChangelogBottomSheetOverlay(
@@ -2230,16 +2108,8 @@ fun ElovaireRoot(
                             ),
                         visible = (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
                             appUpdateState.availableRelease != null,
-                        enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
-                            slideInVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Spacious),
-                                initialOffsetY = { -(it / 2) },
-                            ),
-                        exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
-                            slideOutVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                targetOffsetY = { -(it / 3) },
-                            ),
+                        enter = ElovaireMotion.bannerEnter(),
+                        exit = ElovaireMotion.bannerExit(),
                         label = "UpdateBannerVisibility",
                     ) {
                         appUpdateState.availableRelease?.let { release ->
@@ -2256,8 +2126,8 @@ fun ElovaireRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(9f),
-                        enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-                        exit = fadeOut(animationSpec = ElovaireMotion.fadeSlow()),
+                        enter = ElovaireMotion.overlayFadeEnter(initialAlpha = 0.82f),
+                        exit = ElovaireMotion.overlayFadeExit(targetAlpha = 0.96f),
                         label = "FirstLaunchPermissionOverlayVisibility",
                     ) {
                         FirstLaunchPermissionLoadingScreen(
@@ -2303,17 +2173,9 @@ fun ElovaireRoot(
                     enter = if (reenteringFromPlayer) {
                         EnterTransition.None
                     } else {
-                        fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
-                            slideInVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                initialOffsetY = { it / 2 },
-                            )
+                        ElovaireMotion.bottomBarEnter()
                     },
-                    exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()) +
-                        slideOutVertically(
-                            animationSpec = ElovaireMotion.fadeFast(),
-                            targetOffsetY = { it / 2 },
-                        ),
+                    exit = ElovaireMotion.bottomBarExit(),
                     label = "BottomNavigationVisibility",
                 ) {
                     BottomNavigationBar(
@@ -2469,24 +2331,8 @@ private fun StandaloneNowPlayingDock(
     ElovaireAnimatedVisibility(
         visible = visible,
         modifier = modifier,
-        enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
-            expandVertically(
-                expandFrom = Alignment.Bottom,
-                animationSpec = ElovaireMotion.standardTween(durationMillis = 260),
-            ) +
-            slideInVertically(
-                initialOffsetY = { it / 3 },
-                animationSpec = ElovaireMotion.offsetSoft(durationMillis = 260),
-            ),
-        exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
-            androidx.compose.animation.shrinkVertically(
-                shrinkTowards = Alignment.Bottom,
-                animationSpec = ElovaireMotion.standardTween(durationMillis = 220),
-            ) +
-            slideOutVertically(
-                targetOffsetY = { it / 4 },
-                animationSpec = ElovaireMotion.offsetSoft(durationMillis = 220),
-            ),
+        enter = ElovaireMotion.compactBarEnter(),
+        exit = ElovaireMotion.compactBarExit(),
         label = "CompactNowPlayingDockVisibility",
     ) {
         Box(
@@ -2935,10 +2781,7 @@ private fun SharedTopBarOverlay(
                             ) {
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
-                                    transitionSpec = {
-                                        fadeIn(animationSpec = tween(180, delayMillis = 40))
-                                            .togetherWith(fadeOut(animationSpec = tween(140)))
-                                    },
+                                    transitionSpec = { ElovaireMotion.titleSwapTransform() },
                                     label = "SharedTopBarDetailTitleOnly",
                                 ) { currentTitle ->
                                     Text(
@@ -2957,10 +2800,7 @@ private fun SharedTopBarOverlay(
                             ) {
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
-                                    transitionSpec = {
-                                        fadeIn(animationSpec = tween(180, delayMillis = 40))
-                                            .togetherWith(fadeOut(animationSpec = tween(140)))
-                                    },
+                                    transitionSpec = { ElovaireMotion.titleSwapTransform() },
                                     label = "SharedTopBarDetailTitleWithSubtitle",
                                 ) { currentTitle ->
                                     Text(
@@ -3572,19 +3412,21 @@ private fun FirstLaunchPermissionLoadingScreen(
     } else {
         Color.White
     }
+    val motionDurationScale = rememberSystemAnimationScale()
     val infiniteTransition = rememberInfiniteTransition(label = "first_launch_permission_spinner")
-    val rotationDegrees by infiniteTransition.animateFloat(
+    val animatedRotationDegrees by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = 1100,
+                durationMillis = ElovaireMotion.scaleDurationMillis(1100, motionDurationScale).toInt(),
                 easing = androidx.compose.animation.core.LinearEasing,
             ),
             repeatMode = RepeatMode.Restart,
         ),
         label = "first_launch_permission_spinner_rotation",
     )
+    val rotationDegrees = if (motionDurationScale <= 0f) 0f else animatedRotationDegrees
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -4250,8 +4092,8 @@ private fun AlbumCollectionContent(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .zIndex(3f),
-            enter = fadeIn(animationSpec = tween(160)) + expandVertically(animationSpec = tween(220)),
-            exit = fadeOut(animationSpec = tween(120)) + androidx.compose.animation.shrinkVertically(animationSpec = tween(180)),
+            enter = ElovaireMotion.verticalRevealEnter(),
+            exit = ElovaireMotion.verticalRevealExit(),
         ) {
             TopBarSelectionMenu(
                 topBarHeight = topPadding,
@@ -4638,8 +4480,8 @@ private fun PlaylistsScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .zIndex(3f),
-            enter = fadeIn(animationSpec = tween(160)) + expandVertically(animationSpec = tween(220)),
-            exit = fadeOut(animationSpec = tween(120)) + androidx.compose.animation.shrinkVertically(animationSpec = tween(180)),
+            enter = ElovaireMotion.verticalRevealEnter(),
+            exit = ElovaireMotion.verticalRevealExit(),
         ) {
             TopBarDualActionMenu(
                 topBarHeight = topPadding,
@@ -8701,8 +8543,8 @@ private fun AlbumScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .zIndex(3f),
-            enter = fadeIn(animationSpec = tween(160)) + expandVertically(animationSpec = tween(220)),
-            exit = fadeOut(animationSpec = tween(120)) + androidx.compose.animation.shrinkVertically(animationSpec = tween(180)),
+            enter = ElovaireMotion.verticalRevealEnter(),
+            exit = ElovaireMotion.verticalRevealExit(),
         ) {
             TopBarSelectionMenu(
                 topBarHeight = detailTopPadding,
@@ -8763,15 +8605,21 @@ private fun AnimatedAudioLinesIcon(
     tint: Color,
     modifier: Modifier = Modifier,
 ) {
-    val phase by rememberInfiniteTransition(label = "audio_lines_phase").animateFloat(
+    val motionDurationScale = rememberSystemAnimationScale()
+    val infiniteTransition = rememberInfiniteTransition(label = "audio_lines_phase")
+    val animatedPhase by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1180, easing = LinearEasing),
+            animation = tween(
+                durationMillis = ElovaireMotion.scaleDurationMillis(1180, motionDurationScale).toInt(),
+                easing = LinearEasing,
+            ),
             repeatMode = RepeatMode.Restart,
         ),
         label = "audio_lines_value",
     )
+    val phase = if (motionDurationScale <= 0f) 0.35f else animatedPhase
     val baseHeights = floatArrayOf(0.26f, 0.54f, 0.84f, 0.42f, 0.68f, 0.3f)
     val phaseOffsets = floatArrayOf(0f, 0.17f, 0.31f, 0.48f, 0.67f, 0.83f)
     Canvas(modifier = modifier) {
@@ -8892,9 +8740,7 @@ private fun AlbumSongRow(
                 } else {
                     AnimatedContent(
                         targetState = isCurrentSong && isPlaybackActive,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(180)) togetherWith fadeOut(animationSpec = tween(140))
-                        },
+                        transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
                         label = "album_row_track_indicator",
                     ) { showSignal ->
                         if (showSignal) {
@@ -9324,8 +9170,8 @@ private fun PlaylistDetailScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .zIndex(3f),
-            enter = fadeIn(animationSpec = tween(160)) + expandVertically(animationSpec = tween(220)),
-            exit = fadeOut(animationSpec = tween(120)) + androidx.compose.animation.shrinkVertically(animationSpec = tween(180)),
+            enter = ElovaireMotion.verticalRevealEnter(),
+            exit = ElovaireMotion.verticalRevealExit(),
         ) {
             TopBarDualActionMenu(
                 topBarHeight = detailTopPadding,
@@ -10457,10 +10303,7 @@ private fun DetailListTopBar(
                 ) {
                     AnimatedContent(
                         targetState = title,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(180, delayMillis = 40))
-                                .togetherWith(fadeOut(animationSpec = tween(140)))
-                        },
+                        transitionSpec = { ElovaireMotion.titleSwapTransform() },
                         label = "detailTopBarTitleOnly",
                     ) { currentTitle ->
                         Text(
@@ -10481,10 +10324,7 @@ private fun DetailListTopBar(
                 ) {
                     AnimatedContent(
                         targetState = title,
-                        transitionSpec = {
-                            fadeIn(animationSpec = tween(180, delayMillis = 40))
-                                .togetherWith(fadeOut(animationSpec = tween(140)))
-                        },
+                        transitionSpec = { ElovaireMotion.titleSwapTransform() },
                         label = "detailTopBarTitleWithSubtitle",
                     ) { currentTitle ->
                         Text(
@@ -11170,10 +11010,7 @@ private fun NowPlayingScreen(
                         if (!useSharedArtworkOverlay) {
                             AnimatedContent(
                                 targetState = currentSong.id,
-                                transitionSpec = {
-                                    fadeIn(animationSpec = tween(220)) togetherWith
-                                        fadeOut(animationSpec = tween(180))
-                                },
+                                transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
                                 label = "player_artwork_content",
                             ) { songId ->
                                 val animatedSong = playbackState.queue.firstOrNull { it.id == songId } ?: currentSong
@@ -11193,12 +11030,12 @@ private fun NowPlayingScreen(
                             modifier = Modifier
                                 .align(Alignment.CenterStart)
                                 .padding(start = compactContentStart, end = 2.dp),
-                            enter = fadeIn(animationSpec = tween(200, easing = LinearOutSlowInEasing)) +
+                            enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
                                 slideInVertically(
-                                    animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
                                     initialOffsetY = { it / 5 },
                                 ),
-                            exit = fadeOut(animationSpec = tween(120)),
+                            exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()),
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
@@ -11295,10 +11132,7 @@ private fun NowPlayingScreen(
                     ) {
                         AnimatedContent(
                             targetState = currentSong.id,
-                            transitionSpec = {
-                                fadeIn(animationSpec = tween(220)) togetherWith
-                                    fadeOut(animationSpec = tween(180))
-                            },
+                            transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
                             label = "player_metadata_content",
                             modifier = Modifier.weight(1f),
                         ) { songId ->
@@ -11560,25 +11394,36 @@ private fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter),
-                    enter = fadeIn(animationSpec = tween(ElovaireMotion.Standard)) +
+                    enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
                         scaleIn(
                             initialScale = 0.94f,
                             transformOrigin = TransformOrigin(1f, 1f),
-                            animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                            animationSpec = ElovaireMotion.standardTween(
+                                durationMillis = ElovaireMotion.Standard,
+                                easing = FastOutSlowInEasing,
+                            ),
                         ) +
                         slideInHorizontally(
                             initialOffsetX = { it / 14 },
-                            animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                            animationSpec = ElovaireMotion.standardTween(
+                                durationMillis = ElovaireMotion.Standard,
+                                easing = FastOutSlowInEasing,
+                            ),
                         ) +
                         slideInVertically(
                             initialOffsetY = { it / 14 },
-                            animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                            animationSpec = ElovaireMotion.standardTween(
+                                durationMillis = ElovaireMotion.Standard,
+                                easing = FastOutSlowInEasing,
+                            ),
                         ),
-                    exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick)) +
+                    exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()) +
                         scaleOut(
                             targetScale = 0.98f,
                             transformOrigin = TransformOrigin(1f, 1f),
-                            animationSpec = tween(ElovaireMotion.Quick),
+                            animationSpec = ElovaireMotion.standardTween(
+                                durationMillis = ElovaireMotion.Quick,
+                            ),
                         ),
                 ) {
                     QueueSheet(
@@ -11675,23 +11520,23 @@ private fun NowPlayingScreen(
         AnimatedVisibility(
             modifier = Modifier.fillMaxSize(),
             visible = showLyricsSheet,
-            enter = fadeIn(animationSpec = tween(ElovaireMotion.Standard, easing = LinearOutSlowInEasing)) +
+            enter = fadeIn(animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Standard, easing = LinearOutSlowInEasing)) +
                 slideInVertically(
-                    animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Standard, easing = FastOutSlowInEasing),
                     initialOffsetY = { it / 12 },
                 ) +
                 scaleIn(
-                    animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Standard, easing = FastOutSlowInEasing),
                     initialScale = 0.985f,
                     transformOrigin = TransformOrigin(0.5f, 1f),
                 ),
-            exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick, easing = FastOutLinearInEasing)) +
+            exit = fadeOut(animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Quick, easing = FastOutLinearInEasing)) +
                 slideOutVertically(
-                    animationSpec = tween(ElovaireMotion.Quick, easing = FastOutSlowInEasing),
+                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Quick, easing = FastOutSlowInEasing),
                     targetOffsetY = { it / 18 },
                 ) +
                 scaleOut(
-                    animationSpec = tween(ElovaireMotion.Quick, easing = FastOutLinearInEasing),
+                    animationSpec = ElovaireMotion.standardTween(durationMillis = ElovaireMotion.Quick, easing = FastOutLinearInEasing),
                     targetScale = 0.992f,
                     transformOrigin = TransformOrigin(0.5f, 1f),
                 ),
@@ -11981,12 +11826,12 @@ private fun QueueSheet(
                 AnimatedContent(
                     targetState = statusText,
                     transitionSpec = {
-                        fadeIn(animationSpec = tween(180, easing = LinearOutSlowInEasing)) +
+                        fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
                             slideInVertically(
-                                animationSpec = tween(220, easing = FastOutSlowInEasing),
+                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
                                 initialOffsetY = { it / 5 },
                             ) togetherWith
-                            fadeOut(animationSpec = tween(140))
+                            fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
                     },
                     label = "queue_status_text",
                     modifier = Modifier
@@ -12014,12 +11859,15 @@ private fun QueueSheet(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
                         .padding(top = 10.dp),
-                    enter = fadeIn(animationSpec = tween(180)) + slideInVertically(
-                        animationSpec = tween(220, easing = FastOutSlowInEasing),
+                    enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) + slideInVertically(
+                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
                         initialOffsetY = { it / 3 },
                     ),
-                    exit = fadeOut(animationSpec = tween(140)) + slideOutVertically(
-                        animationSpec = tween(180, easing = FastOutLinearInEasing),
+                    exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()) + slideOutVertically(
+                        animationSpec = ElovaireMotion.standardTween(
+                            durationMillis = ElovaireMotion.Fast,
+                            easing = FastOutLinearInEasing,
+                        ),
                         targetOffsetY = { it / 4 },
                     ),
                 ) {
@@ -12294,22 +12142,8 @@ private fun QueueSongOverflowMenuButton(
             ) {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = expanded,
-                    enter = fadeIn(animationSpec = tween(170, easing = LinearOutSlowInEasing)) +
-                        scaleIn(
-                            initialScale = 0.94f,
-                            transformOrigin = TransformOrigin(1f, 0f),
-                            animationSpec = tween(220, easing = FastOutSlowInEasing),
-                        ) +
-                        slideInVertically(
-                            initialOffsetY = { -it / 6 },
-                            animationSpec = tween(220, easing = FastOutSlowInEasing),
-                        ),
-                    exit = fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing)) +
-                        scaleOut(
-                            targetScale = 0.98f,
-                            transformOrigin = TransformOrigin(1f, 0f),
-                            animationSpec = tween(130, easing = FastOutLinearInEasing),
-                        ),
+                    enter = ElovaireMotion.contextMenuEnter(),
+                    exit = ElovaireMotion.contextMenuExit(),
                     label = "QueueSongOverflowMenuVisibility",
                 ) {
                     QueueContextMenuSurface(
@@ -12834,22 +12668,8 @@ private fun SongOverflowMenuButton(
             ) {
                 androidx.compose.animation.AnimatedVisibility(
                     visible = expanded,
-                    enter = fadeIn(animationSpec = tween(170, easing = LinearOutSlowInEasing)) +
-                        scaleIn(
-                            initialScale = 0.94f,
-                            transformOrigin = TransformOrigin(1f, 0f),
-                            animationSpec = tween(220, easing = FastOutSlowInEasing),
-                        ) +
-                        slideInVertically(
-                            initialOffsetY = { -it / 6 },
-                            animationSpec = tween(220, easing = FastOutSlowInEasing),
-                        ),
-                    exit = fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing)) +
-                        scaleOut(
-                            targetScale = 0.98f,
-                            transformOrigin = TransformOrigin(1f, 0f),
-                            animationSpec = tween(130, easing = FastOutLinearInEasing),
-                        ),
+                    enter = ElovaireMotion.contextMenuEnter(),
+                    exit = ElovaireMotion.contextMenuExit(),
                     label = "SongOverflowMenuVisibility",
                 ) {
                     FrostedContextMenuSurface(
@@ -12948,22 +12768,8 @@ private fun TopBarContextMenuOverlay(
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
                 .padding(top = 6.dp, end = 10.dp),
-            enter = fadeIn(animationSpec = tween(170, easing = LinearOutSlowInEasing)) +
-                scaleIn(
-                    initialScale = 0.94f,
-                    transformOrigin = TransformOrigin(1f, 0f),
-                    animationSpec = tween(220, easing = FastOutSlowInEasing),
-                ) +
-                slideInVertically(
-                    initialOffsetY = { -it / 6 },
-                    animationSpec = tween(220, easing = FastOutSlowInEasing),
-                ),
-            exit = fadeOut(animationSpec = tween(130, easing = FastOutLinearInEasing)) +
-                scaleOut(
-                    targetScale = 0.98f,
-                    transformOrigin = TransformOrigin(1f, 0f),
-                    animationSpec = tween(130, easing = FastOutLinearInEasing),
-                ),
+            enter = ElovaireMotion.contextMenuEnter(),
+            exit = ElovaireMotion.contextMenuExit(),
             label = "TopBarContextMenuVisibility",
         ) {
             FrostedContextMenuSurface(
@@ -13896,9 +13702,15 @@ private fun BoxScope.FastScrollbarTrack(
     } else {
         InkText.copy(alpha = 0.72f)
     }
+    val motionDurationScale = rememberSystemAnimationScale()
     val animatedScrollFraction by animateFloatAsState(
         targetValue = if (isDragging) dragFraction.coerceIn(0f, 1f) else scrollFraction.coerceIn(0f, 1f),
-        animationSpec = if (isDragging) tween(50) else tween(90),
+        animationSpec = tween(
+            durationMillis = ElovaireMotion.scaleDurationMillis(
+                durationMillis = if (isDragging) 50 else 90,
+                durationScale = motionDurationScale,
+            ).toInt(),
+        ),
         label = "fast_scrollbar_fraction",
     )
     BoxWithConstraints(

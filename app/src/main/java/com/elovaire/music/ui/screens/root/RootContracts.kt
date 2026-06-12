@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import android.content.Intent
-import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.annotation.DrawableRes
@@ -81,6 +80,11 @@ internal data class TopLevelDestination(
     val contentDescription: String,
 )
 
+internal data class TopLevelRouteTransitionResolution(
+    val isTopLevelTransition: Boolean,
+    val isForward: Boolean,
+)
+
 internal enum class DetailRouteTransitionMode {
     TileExpand,
     Standard,
@@ -137,6 +141,18 @@ internal object ElovaireNavigationTransitions {
         return initialIndex >= 0 && targetIndex >= 0 && targetIndex > initialIndex
     }
 
+    fun resolveTopLevelRouteTransition(
+        initialRoute: String?,
+        targetRoute: String?,
+    ): TopLevelRouteTransitionResolution {
+        val initialIndex = topLevelRouteIndex(initialRoute)
+        val targetIndex = topLevelRouteIndex(targetRoute)
+        return TopLevelRouteTransitionResolution(
+            isTopLevelTransition = initialIndex >= 0 && targetIndex >= 0 && initialIndex != targetIndex,
+            isForward = initialIndex >= 0 && targetIndex >= 0 && targetIndex > initialIndex,
+        )
+    }
+
     private fun topLevelRouteIndex(route: String?): Int {
         return when (route.normalizedNavigationRoute()) {
             HOME_ROUTE -> 0
@@ -189,12 +205,6 @@ internal fun createLibraryFolderPickerIntent(initialUri: Uri?): Intent {
         }
     }
 }
-
-internal data class BackdropSnapshot(
-    val bitmap: Bitmap,
-    val sourceWidth: Int,
-    val sourceHeight: Int,
-)
 
 internal enum class AlbumLayoutMode {
     Compact,

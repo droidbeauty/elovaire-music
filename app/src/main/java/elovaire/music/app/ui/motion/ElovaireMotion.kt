@@ -38,32 +38,102 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
 object ElovaireMotion {
-    const val Quick = 120
-    const val Fast = 160
-    const val Standard = 200
-    const val Medium = 240
-    const val Spacious = 280
-    const val Screen = 260
-    const val ScreenFade = 180
-    const val ScreenSlide = 240
-    const val ScreenExpand = 320
-    const val PlayerScreen = 360
-    const val PlayerFade = 180
-    const val Controls = 140
-    const val ChromeResize = 180
+    private const val QuickBase = 120
+    private const val FastBase = 160
+    private const val StandardBase = 200
+    private const val MediumBase = 240
+    private const val SpaciousBase = 280
+    private const val ScreenBase = 260
+    private const val ScreenFadeBase = 180
+    private const val ScreenSlideBase = 240
+    private const val ScreenExpandBase = 320
+    private const val PlayerScreenBase = 360
+    private const val PlayerFadeBase = 180
+    private const val ControlsBase = 140
+    private const val ChromeResizeBase = 180
+    private const val MicroBase = 110
+    private const val ComponentBase = 180
+    private const val EmphasizedBase = 320
+
+    val Quick: Int get() = scaledDurationMillis(QuickBase)
+    val Fast: Int get() = scaledDurationMillis(FastBase)
+    val Standard: Int get() = scaledDurationMillis(StandardBase)
+    val Medium: Int get() = scaledDurationMillis(MediumBase)
+    val Spacious: Int get() = scaledDurationMillis(SpaciousBase)
+    val Screen: Int get() = scaledDurationMillis(ScreenBase)
+    val ScreenFade: Int get() = scaledDurationMillis(ScreenFadeBase)
+    val ScreenSlide: Int get() = scaledDurationMillis(ScreenSlideBase)
+    val ScreenExpand: Int get() = scaledDurationMillis(ScreenExpandBase)
+    val PlayerScreen: Int get() = scaledDurationMillis(PlayerScreenBase)
+    val PlayerFade: Int get() = scaledDurationMillis(PlayerFadeBase)
+    val Controls: Int get() = scaledDurationMillis(ControlsBase)
+    val ChromeResize: Int get() = scaledDurationMillis(ChromeResizeBase)
+    val Micro: Int get() = scaledDurationMillis(MicroBase)
+    val Component: Int get() = scaledDurationMillis(ComponentBase)
+    val Emphasized: Int get() = scaledDurationMillis(EmphasizedBase)
 
     val SoftOut: Easing = FastOutSlowInEasing
     val FadeIn: Easing = LinearOutSlowInEasing
     val FadeOut: Easing = FastOutLinearInEasing
     val EmphasizedDecelerate: Easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
     val EmphasizedAccelerate: Easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
+    val GentleDecelerate: Easing = CubicBezierEasing(0.16f, 0.88f, 0.22f, 1f)
+    val GentleAccelerate: Easing = CubicBezierEasing(0.4f, 0f, 0.82f, 0.18f)
+
+    private var systemDurationScale by mutableFloatStateOf(1f)
+
+    fun updateSystemDurationScale(scale: Float) {
+        systemDurationScale = scale.takeIf { it.isFinite() && it >= 0f } ?: 1f
+    }
+
+    private fun scaledDurationMillis(durationMillis: Int): Int = when {
+        durationMillis <= 0 -> 0
+        systemDurationScale <= 0f -> 0
+        else -> (durationMillis * systemDurationScale).roundToInt().coerceAtLeast(1)
+    }
+
+    private fun scaledDelayMillis(delayMillis: Int): Int = when {
+        delayMillis <= 0 -> 0
+        systemDurationScale <= 0f -> 0
+        else -> (delayMillis * systemDurationScale).roundToInt().coerceAtLeast(1)
+    }
+
+    private fun scaledSpringStiffness(stiffness: Float): Float {
+        if (systemDurationScale <= 0f) return 4_000f
+        val normalizedScale = systemDurationScale.coerceIn(0.5f, 2.5f)
+        return (stiffness / normalizedScale).coerceIn(240f, 3_000f)
+    }
+
+    private fun <T> scaledTween(
+        durationMillis: Int,
+        delayMillis: Int = 0,
+        easing: Easing = SoftOut,
+    ): FiniteAnimationSpec<T> = tween(
+        durationMillis = scaledDurationMillis(durationMillis),
+        delayMillis = scaledDelayMillis(delayMillis),
+        easing = easing,
+    )
+
+    private fun <T> scaledSpring(
+        dampingRatio: Float = Spring.DampingRatioNoBouncy,
+        stiffness: Float,
+    ): FiniteAnimationSpec<T> = if (systemDurationScale <= 0f) {
+        tween(durationMillis = 0)
+    } else {
+        spring(
+            dampingRatio = dampingRatio,
+            stiffness = scaledSpringStiffness(stiffness),
+        )
+    }
 
     fun <T> fadeFast(): FiniteAnimationSpec<T> = tween(
         durationMillis = Quick,
@@ -72,40 +142,40 @@ object ElovaireMotion {
 
     fun <T> fadeMedium(delayMillis: Int = 0): FiniteAnimationSpec<T> = tween(
         durationMillis = ScreenFade,
-        delayMillis = delayMillis,
+        delayMillis = scaledDelayMillis(delayMillis),
         easing = FadeIn,
     )
 
     fun <T> fadeSlow(delayMillis: Int = 0): FiniteAnimationSpec<T> = tween(
         durationMillis = Spacious,
-        delayMillis = delayMillis,
+        delayMillis = scaledDelayMillis(delayMillis),
         easing = FadeIn,
     )
 
-    fun <T> scaleSoft(): FiniteAnimationSpec<T> = tween(
-        durationMillis = Standard,
+    fun <T> scaleSoft(): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = StandardBase,
         easing = SoftOut,
     )
 
     fun <T> offsetSoft(
-        durationMillis: Int = ScreenSlide,
+        durationMillis: Int = ScreenSlideBase,
         delayMillis: Int = 0,
-    ): FiniteAnimationSpec<T> = tween(
+    ): FiniteAnimationSpec<T> = scaledTween(
         durationMillis = durationMillis,
         delayMillis = delayMillis,
         easing = SoftOut,
     )
 
-    fun <T> sizeSoft(): FiniteAnimationSpec<T> = tween(
-        durationMillis = ChromeResize,
+    fun <T> sizeSoft(): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = ChromeResizeBase,
         easing = SoftOut,
     )
 
     fun <T> standardTween(
-        durationMillis: Int = Standard,
+        durationMillis: Int = StandardBase,
         delayMillis: Int = 0,
         easing: Easing = SoftOut,
-    ): FiniteAnimationSpec<T> = tween(
+    ): FiniteAnimationSpec<T> = scaledTween(
         durationMillis = durationMillis,
         delayMillis = delayMillis,
         easing = easing,
@@ -114,28 +184,28 @@ object ElovaireMotion {
     fun <T> standardSpring(
         dampingRatio: Float = Spring.DampingRatioNoBouncy,
         stiffness: Float = 520f,
-    ): FiniteAnimationSpec<T> = spring(
+    ): FiniteAnimationSpec<T> = scaledSpring(
         dampingRatio = dampingRatio,
         stiffness = stiffness,
     )
 
-    fun <T> colorFadeSpec(): FiniteAnimationSpec<T> = tween(
-        durationMillis = Controls,
+    fun <T> colorFadeSpec(): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = ControlsBase,
         easing = SoftOut,
     )
 
-    fun <T> contentFadeInSpec(delayMillis: Int = 0): FiniteAnimationSpec<T> = tween(
-        durationMillis = Standard,
+    fun <T> contentFadeInSpec(delayMillis: Int = 0): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = StandardBase,
         delayMillis = delayMillis,
         easing = FadeIn,
     )
 
-    fun <T> contentFadeOutSpec(): FiniteAnimationSpec<T> = tween(
-        durationMillis = Quick,
+    fun <T> contentFadeOutSpec(): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = QuickBase,
         easing = FadeOut,
     )
 
-    fun <T> pressDownSpec(): FiniteAnimationSpec<T> = tween(
+    fun <T> pressDownSpec(): FiniteAnimationSpec<T> = scaledTween(
         durationMillis = 90,
         easing = SoftOut,
     )
@@ -143,41 +213,191 @@ object ElovaireMotion {
     fun <T> releaseSpringSpec(
         dampingRatio: Float = 0.82f,
         stiffness: Float = 560f,
-    ): FiniteAnimationSpec<T> = spring(
+    ): FiniteAnimationSpec<T> = scaledSpring(
         dampingRatio = dampingRatio,
         stiffness = stiffness,
     )
 
-    fun <T> bounceSpringSpec(): FiniteAnimationSpec<T> = spring(
+    fun <T> bounceSpringSpec(): FiniteAnimationSpec<T> = scaledSpring(
         dampingRatio = 0.68f,
         stiffness = 420f,
     )
 
-    fun <T> overscrollSpringSpec(): FiniteAnimationSpec<T> = spring(
+    fun <T> overscrollSpringSpec(): FiniteAnimationSpec<T> = scaledSpring(
         dampingRatio = 0.9f,
         stiffness = 680f,
     )
 
-    fun <T> iconSwapInSpec(delayMillis: Int = 0): FiniteAnimationSpec<T> = tween(
-        durationMillis = ScreenFade,
+    fun <T> iconSwapInSpec(delayMillis: Int = 0): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = ScreenFadeBase,
         delayMillis = delayMillis,
         easing = FadeIn,
     )
 
-    fun <T> iconSwapOutSpec(): FiniteAnimationSpec<T> = tween(
+    fun <T> iconSwapOutSpec(): FiniteAnimationSpec<T> = scaledTween(
         durationMillis = 110,
         easing = FadeOut,
     )
 
-    fun <T> emphasizedEnterSpec(): FiniteAnimationSpec<T> = tween(
-        durationMillis = ScreenExpand,
+    fun <T> emphasizedEnterSpec(): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = ScreenExpandBase,
         easing = EmphasizedDecelerate,
     )
 
-    fun <T> emphasizedExitSpec(): FiniteAnimationSpec<T> = tween(
-        durationMillis = ScreenFade,
+    fun <T> emphasizedExitSpec(): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = ScreenFadeBase,
         easing = EmphasizedAccelerate,
     )
+
+    fun <T> titleSwapInSpec(delayMillis: Int = 32): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = ComponentBase,
+        delayMillis = delayMillis,
+        easing = FadeIn,
+    )
+
+    fun <T> titleSwapOutSpec(): FiniteAnimationSpec<T> = scaledTween(
+        durationMillis = FastBase,
+        easing = FadeOut,
+    )
+
+    fun titleSwapTransform(): ContentTransform =
+        fadeIn(animationSpec = titleSwapInSpec()) togetherWith
+            fadeOut(animationSpec = titleSwapOutSpec())
+
+    fun quickContentSwapTransform(): ContentTransform =
+        fadeIn(animationSpec = scaledTween(durationMillis = ComponentBase, easing = FadeIn)) togetherWith
+            fadeOut(animationSpec = scaledTween(durationMillis = FastBase, easing = FadeOut))
+
+    fun verticalRevealEnter(): EnterTransition = fadeIn(
+        animationSpec = scaledTween(durationMillis = FastBase, easing = FadeIn),
+    ) + androidx.compose.animation.expandVertically(
+        animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleDecelerate),
+    )
+
+    fun verticalRevealExit(): ExitTransition = fadeOut(
+        animationSpec = scaledTween(durationMillis = QuickBase, easing = FadeOut),
+    ) + androidx.compose.animation.shrinkVertically(
+        animationSpec = scaledTween(durationMillis = ComponentBase, easing = GentleAccelerate),
+    )
+
+    fun contextMenuEnter(
+        verticalOffsetDivisor: Int = 6,
+        transformOrigin: androidx.compose.ui.graphics.TransformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
+    ): EnterTransition = fadeIn(
+        animationSpec = scaledTween(durationMillis = ComponentBase, easing = FadeIn),
+        initialAlpha = 0.72f,
+    ) +
+        scaleIn(
+            initialScale = 0.96f,
+            transformOrigin = transformOrigin,
+            animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleDecelerate),
+        ) +
+        slideInVertically(
+            initialOffsetY = { -it / verticalOffsetDivisor },
+            animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleDecelerate),
+        )
+
+    fun contextMenuExit(
+        transformOrigin: androidx.compose.ui.graphics.TransformOrigin = androidx.compose.ui.graphics.TransformOrigin(1f, 0f),
+    ): ExitTransition = fadeOut(
+        animationSpec = scaledTween(durationMillis = FastBase, easing = FadeOut),
+        targetAlpha = 0.92f,
+    ) +
+        scaleOut(
+            targetScale = 0.985f,
+            transformOrigin = transformOrigin,
+            animationSpec = scaledTween(durationMillis = FastBase, easing = GentleAccelerate),
+        )
+
+    fun overlayFadeEnter(initialAlpha: Float = 0.78f): EnterTransition = fadeIn(
+        animationSpec = scaledTween(durationMillis = StandardBase, easing = FadeIn),
+        initialAlpha = initialAlpha,
+    )
+
+    fun overlayFadeExit(targetAlpha: Float = 0.92f): ExitTransition = fadeOut(
+        animationSpec = scaledTween(durationMillis = FastBase, easing = FadeOut),
+        targetAlpha = targetAlpha,
+    )
+
+    fun bottomSheetEnter(
+        initialOffsetY: (Int) -> Int = { it / 5 },
+    ): EnterTransition = overlayFadeEnter(initialAlpha = 0.74f) +
+        slideInVertically(
+            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = GentleDecelerate),
+            initialOffsetY = initialOffsetY,
+        ) +
+        androidx.compose.animation.expandVertically(
+            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = GentleDecelerate),
+            expandFrom = Alignment.Bottom,
+        )
+
+    fun bottomSheetExit(
+        targetOffsetY: (Int) -> Int = { it / 8 },
+    ): ExitTransition = overlayFadeExit(targetAlpha = 0.9f) +
+        slideOutVertically(
+            animationSpec = scaledTween(durationMillis = FastBase, easing = GentleAccelerate),
+            targetOffsetY = targetOffsetY,
+        ) +
+        androidx.compose.animation.shrinkVertically(
+            animationSpec = scaledTween(durationMillis = FastBase, easing = GentleAccelerate),
+            shrinkTowards = Alignment.Bottom,
+        )
+
+    fun bannerEnter(
+        initialOffsetY: (Int) -> Int = { -(it / 2) },
+    ): EnterTransition = overlayFadeEnter(initialAlpha = 0.82f) +
+        slideInVertically(
+            animationSpec = scaledTween(durationMillis = ScreenBase, easing = GentleDecelerate),
+            initialOffsetY = initialOffsetY,
+        )
+
+    fun bannerExit(
+        targetOffsetY: (Int) -> Int = { -(it / 3) },
+    ): ExitTransition = overlayFadeExit(targetAlpha = 0.94f) +
+        slideOutVertically(
+            animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleAccelerate),
+            targetOffsetY = targetOffsetY,
+        )
+
+    fun compactBarEnter(
+        initialOffsetY: (Int) -> Int = { it / 3 },
+    ): EnterTransition = overlayFadeEnter(initialAlpha = 0.8f) +
+        androidx.compose.animation.expandVertically(
+            expandFrom = Alignment.Bottom,
+            animationSpec = scaledTween(durationMillis = ScreenBase, easing = GentleDecelerate),
+        ) +
+        slideInVertically(
+            initialOffsetY = initialOffsetY,
+            animationSpec = scaledTween(durationMillis = ScreenBase, easing = GentleDecelerate),
+        )
+
+    fun compactBarExit(
+        targetOffsetY: (Int) -> Int = { it / 4 },
+    ): ExitTransition = overlayFadeExit(targetAlpha = 0.92f) +
+        androidx.compose.animation.shrinkVertically(
+            shrinkTowards = Alignment.Bottom,
+            animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleAccelerate),
+        ) +
+        slideOutVertically(
+            targetOffsetY = targetOffsetY,
+            animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleAccelerate),
+        )
+
+    fun bottomBarEnter(
+        initialOffsetY: (Int) -> Int = { it / 2 },
+    ): EnterTransition = overlayFadeEnter(initialAlpha = 0.82f) +
+        slideInVertically(
+            animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleDecelerate),
+            initialOffsetY = initialOffsetY,
+        )
+
+    fun bottomBarExit(
+        targetOffsetY: (Int) -> Int = { it / 2 },
+    ): ExitTransition = overlayFadeExit(targetAlpha = 0.94f) +
+        slideOutVertically(
+            animationSpec = scaledTween(durationMillis = QuickBase, easing = GentleAccelerate),
+            targetOffsetY = targetOffsetY,
+        )
 
     fun standardEnter(
         delayMillis: Int = 0,
@@ -257,16 +477,16 @@ object ElovaireMotion {
     fun fullScreenForwardEnter(
         initialOffsetX: (fullWidth: Int) -> Int = { it / 6 },
     ): EnterTransition = fadeIn(
-        animationSpec = tween(
-            durationMillis = 230,
-            easing = LinearOutSlowInEasing,
+        animationSpec = scaledTween(
+            durationMillis = Standard,
+            easing = FadeIn,
         ),
         initialAlpha = 0.82f,
     ) +
         slideInHorizontally(
-            animationSpec = tween(
-                durationMillis = 280,
-                easing = EmphasizedDecelerate,
+            animationSpec = scaledTween(
+                durationMillis = ScreenExpand,
+                easing = GentleDecelerate,
             ),
             initialOffsetX = initialOffsetX,
         )
@@ -274,16 +494,16 @@ object ElovaireMotion {
     fun fullScreenForwardExit(
         targetOffsetX: (fullWidth: Int) -> Int = { -(it / 12) },
     ): ExitTransition = fadeOut(
-        animationSpec = tween(
-            durationMillis = 150,
-            easing = FastOutLinearInEasing,
+        animationSpec = scaledTween(
+            durationMillis = Fast,
+            easing = FadeOut,
         ),
         targetAlpha = 0.9f,
     ) +
         slideOutHorizontally(
-            animationSpec = tween(
-                durationMillis = 210,
-                easing = EmphasizedAccelerate,
+            animationSpec = scaledTween(
+                durationMillis = Standard,
+                easing = GentleAccelerate,
             ),
             targetOffsetX = targetOffsetX,
         )
@@ -291,16 +511,16 @@ object ElovaireMotion {
     fun fullScreenBackEnter(
         initialOffsetX: (fullWidth: Int) -> Int = { -(it / 12) },
     ): EnterTransition = fadeIn(
-        animationSpec = tween(
-            durationMillis = 190,
-            easing = LinearOutSlowInEasing,
+        animationSpec = scaledTween(
+            durationMillis = Component,
+            easing = FadeIn,
         ),
         initialAlpha = 0.9f,
     ) +
         slideInHorizontally(
-            animationSpec = tween(
-                durationMillis = 240,
-                easing = EmphasizedDecelerate,
+            animationSpec = scaledTween(
+                durationMillis = Screen,
+                easing = GentleDecelerate,
             ),
             initialOffsetX = initialOffsetX,
         )
@@ -308,16 +528,16 @@ object ElovaireMotion {
     fun fullScreenBackExit(
         targetOffsetX: (fullWidth: Int) -> Int = { it / 5 },
     ): ExitTransition = fadeOut(
-        animationSpec = tween(
-            durationMillis = 170,
-            easing = FastOutLinearInEasing,
+        animationSpec = scaledTween(
+            durationMillis = Fast,
+            easing = FadeOut,
         ),
         targetAlpha = 0.84f,
     ) +
         slideOutHorizontally(
-            animationSpec = tween(
-                durationMillis = 250,
-                easing = EmphasizedAccelerate,
+            animationSpec = scaledTween(
+                durationMillis = Screen,
+                easing = GentleAccelerate,
             ),
             targetOffsetX = targetOffsetX,
         )
@@ -325,16 +545,16 @@ object ElovaireMotion {
     fun topLevelEnter(
         forward: Boolean = true,
     ): EnterTransition = fadeIn(
-        animationSpec = tween(
-            durationMillis = 220,
-            easing = LinearOutSlowInEasing,
+        animationSpec = scaledTween(
+            durationMillis = Component,
+            easing = FadeIn,
         ),
         initialAlpha = 0.84f,
     ) +
         slideInHorizontally(
-            animationSpec = tween(
-                durationMillis = 260,
-                easing = EmphasizedDecelerate,
+            animationSpec = scaledTween(
+                durationMillis = Screen,
+                easing = GentleDecelerate,
             ),
             initialOffsetX = { fullWidth ->
                 val offset = (fullWidth / 16f).roundToLong().toInt()
@@ -345,16 +565,16 @@ object ElovaireMotion {
     fun topLevelExit(
         forward: Boolean = true,
     ): ExitTransition = fadeOut(
-        animationSpec = tween(
-            durationMillis = 160,
-            easing = FastOutLinearInEasing,
+        animationSpec = scaledTween(
+            durationMillis = Fast,
+            easing = FadeOut,
         ),
         targetAlpha = 0.9f,
     ) +
         slideOutHorizontally(
-            animationSpec = tween(
-                durationMillis = 220,
-                easing = EmphasizedAccelerate,
+            animationSpec = scaledTween(
+                durationMillis = Standard,
+                easing = GentleAccelerate,
             ),
             targetOffsetX = { fullWidth ->
                 val offset = (fullWidth / 20f).roundToLong().toInt()
@@ -400,6 +620,14 @@ fun rememberSystemAnimationScale(): Float {
         }
     }
     return durationScale
+}
+
+@Composable
+fun SyncElovaireMotionScale() {
+    val durationScale = rememberSystemAnimationScale()
+    SideEffect {
+        ElovaireMotion.updateSystemDurationScale(durationScale)
+    }
 }
 
 private fun readSystemAnimationScale(context: Context): Float = runCatching {
