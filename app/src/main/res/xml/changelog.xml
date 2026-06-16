@@ -14,7 +14,7 @@
         <item>Refinements to other EQ presets</item>
         <item>Minor tweaks to EQ layout</item>
         <item>Technical upgrades to bit-perfect playback framework</item>
-        <item>Tweaks to animations</item>
+        <item>Optimizations focused on reducing memory and CPU load</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

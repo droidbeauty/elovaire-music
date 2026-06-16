@@ -222,6 +222,7 @@ import androidx.compose.ui.zIndex
 import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavType
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -1002,7 +1003,6 @@ fun ElovaireRoot(
     val themeMode by container.preferenceStore.themeMode.collectAsStateWithLifecycle()
     val textSizePreset by container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
     val appLanguage by container.preferenceStore.appLanguage.collectAsStateWithLifecycle()
-    val searchHistory by container.preferenceStore.searchHistory.collectAsStateWithLifecycle()
     val playlists by container.preferenceStore.playlists.collectAsStateWithLifecycle()
     val favoriteSongIds by container.preferenceStore.favoriteSongIds.collectAsStateWithLifecycle()
     val favoriteSongIdSet = remember(favoriteSongIds) { favoriteSongIds.toHashSet() }
@@ -1016,6 +1016,9 @@ fun ElovaireRoot(
     val albumCollectionLayoutMode = albumCollectionLayoutModeName.toAlbumLayoutMode()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
     val rootScope = rememberCoroutineScope()
+    val viewModelFactory = remember(container) { ElovaireViewModelFactory(container) }
+    val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
+    val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
     val libraryState = remember(libraryContentState, libraryScanState) {
         libraryUiStateOf(libraryContentState, libraryScanState)
     }
@@ -1093,9 +1096,6 @@ fun ElovaireRoot(
     ) { granted ->
         hasNotificationPermission = granted
         container.setNotificationsEnabled(granted)
-    }
-    val lyricsService = remember(container, context.applicationContext) {
-        LyricsService(context.applicationContext)
     }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -1228,11 +1228,7 @@ fun ElovaireRoot(
     var lastPlaylistsTabRoute by rememberSaveable { mutableStateOf(PLAYLISTS_ROUTE) }
     var lastSearchTabRoute by rememberSaveable { mutableStateOf(SEARCH_ROUTE) }
     val routeOwnerOverrides = remember { mutableStateMapOf<String, String>() }
-    var searchQuery by rememberSaveable { mutableStateOf("") }
     var searchFieldFocused by rememberSaveable { mutableStateOf(false) }
-    var searchAllSongsVisible by rememberSaveable { mutableStateOf(false) }
-    var searchSongSortMode by rememberSaveable { mutableStateOf(SearchSongSortMode.Title) }
-    var searchSongSortOptionsVisible by rememberSaveable { mutableStateOf(false) }
     var homeScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     var libraryScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     var playlistsScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
@@ -1724,31 +1720,21 @@ fun ElovaireRoot(
                     }
 
                     composable(SEARCH_ROUTE) {
-                        SearchScreen(
+                        SearchRoute(
+                            viewModel = searchViewModel,
                             libraryState = libraryState,
-                            playbackState = playbackState,
-                            albumPlayCounts = albumPlayCounts,
-                            recentSearches = searchHistory,
                             favoriteSongIds = favoriteSongIdSet,
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
                             scrollToTopRequestVersion = searchScrollRequestVersion,
-                            query = searchQuery,
                             isSearchFieldFocused = searchFieldFocused,
-                            showAllSongResults = searchAllSongsVisible,
-                            searchSongSortMode = searchSongSortMode,
-                            showSearchSongSortOptions = searchSongSortOptionsVisible,
-                            onQueryChange = { searchQuery = it },
                             onSearchFieldFocusedChange = { searchFieldFocused = it },
-                            onShowAllSongResultsChange = { searchAllSongsVisible = it },
-                            onSearchSongSortModeChange = { searchSongSortMode = it },
-                            onShowSearchSongSortOptionsChange = { searchSongSortOptionsVisible = it },
                             onSearchQueryActiveChanged = { isSearchQueryActive = it },
-                            onSongSelected = { song, queue ->
+                            onPlaySong = { song, queue ->
                                 container.playbackManager.playSong(
                                     song = song,
                                     collection = queue,
-                                    sourceLabel = queue.playbackSourceLabel(fallbackAlbum = song.album),
+                                    sourceLabel = searchViewModel.playbackSourceLabelFor(queue, song.album),
                                 )
                                 openPlayerIfAllowed(null)
                             },
@@ -1760,16 +1746,7 @@ fun ElovaireRoot(
                             onArtistSelected = { artistName ->
                                 navController.navigate("$ARTIST_ROUTE/${Uri.encode(artistName)}")
                             },
-                            onRememberAlbumSearch = { album ->
-                                container.preferenceStore.addSearchHistoryEntry(albumSearchHistoryEntry(album))
-                            },
-                            onRememberArtistSearch = { song ->
-                                container.preferenceStore.addSearchHistoryEntry(artistSearchHistoryEntry(song))
-                            },
                             onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
-                            onClearSearchHistory = {
-                                container.preferenceStore.clearSearchHistory()
-                            },
                         )
                     }
 
@@ -2309,7 +2286,7 @@ fun ElovaireRoot(
                     }
                 }
                 if (canHostCompactNowPlaying) {
-                    playbackState.currentSong?.let { currentSong ->
+                    playbackNowPlayingState.currentSong?.let {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -2322,15 +2299,10 @@ fun ElovaireRoot(
                             contentAlignment = Alignment.BottomCenter,
                         ) {
                             CompactNowPlayingDockHost(
-                                playbackManager = container.playbackManager,
-                                playbackState = playbackState,
-                                song = currentSong,
+                                viewModel = nowPlayingViewModel,
                                 visible = showGlobalNowPlaying,
                                 suppressEnterAnimation = reenteringFromPlayer,
                                 onOpenPlayer = openPlayerIfAllowed,
-                                onTogglePlayback = container.playbackManager::togglePlayback,
-                                onSkipPrevious = container.playbackManager::skipPrevious,
-                                onSkipNext = container.playbackManager::skipNext,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -2402,36 +2374,25 @@ fun ElovaireRoot(
                         )
                         .zIndex(20f),
                 ) {
-                    NowPlayingScreen(
+                    NowPlayingRoute(
+                        viewModel = nowPlayingViewModel,
                         playbackManager = container.playbackManager,
-                        playbackState = playbackState,
                         enrichedSongsById = songsById,
-                        isFavorite = playbackState.currentSong?.id in favoriteSongIdSet,
+                        isFavorite = playbackNowPlayingState.currentSong?.id in favoriteSongIdSet,
                         playlists = playlists.filterNot { it.isSystem },
-                        lyricsService = lyricsService,
                         onBack = { isPlayerOverlayVisible = false },
                         onOpenCurrentAlbum = openCurrentPlayingAlbum,
-                        onTogglePlayback = container.playbackManager::togglePlayback,
-                        onSkipPrevious = container.playbackManager::skipPrevious,
-                        onSkipNext = container.playbackManager::skipNext,
-                        onCycleRepeatMode = container.playbackManager::cycleRepeatMode,
-                        onToggleShuffle = container.playbackManager::toggleShuffle,
                         onToggleFavorite = { songId -> container.preferenceStore.toggleFavoriteSong(songId) },
                         onAddCurrentSongToPlaylist = { playlistId, song ->
                             container.preferenceStore.addSongsToPlaylist(playlistId, listOf(song.id))
                         },
                         onCreatePlaylist = container.preferenceStore::createPlaylist,
-                        onQueueItemSelected = container.playbackManager::playQueueIndex,
-                        onQueueItemRemoved = container.playbackManager::removeQueueIndex,
                         onOpenEqualizer = {
                             isPlayerOverlayVisible = false
                             navController.navigate(EQUALIZER_ROUTE)
                         },
                         eqSettings = eqSettings,
                         onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
-                        onVolumeChanged = { volume ->
-                            container.playbackManager.setVolume(volume)
-                        },
                         transitionSnapshot = nowPlayingTransitionSnapshot,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -2481,19 +2442,67 @@ private fun playbackUiStateOf(
 }
 
 @Composable
-private fun CompactNowPlayingDockHost(
+private fun NowPlayingRoute(
+    viewModel: NowPlayingViewModel,
     playbackManager: PlaybackManager,
-    playbackState: PlaybackUiState,
-    song: Song,
+    enrichedSongsById: Map<Long, Song>,
+    isFavorite: Boolean,
+    playlists: List<Playlist>,
+    onBack: () -> Unit,
+    onOpenCurrentAlbum: (Long) -> Unit,
+    onToggleFavorite: (Long) -> Unit,
+    onAddCurrentSongToPlaylist: (Long, Song) -> Unit,
+    onCreatePlaylist: (String) -> Long,
+    onOpenEqualizer: () -> Unit,
+    eqSettings: EqSettings,
+    onSpaciousnessChanged: (Float) -> Unit,
+    transitionSnapshot: NowPlayingTransitionSnapshot?,
+    modifier: Modifier = Modifier,
+) {
+    val playerUiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
+    val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
+    NowPlayingScreen(
+        playbackManager = playbackManager,
+        playerUiState = playerUiState,
+        enrichedSongsById = enrichedSongsById,
+        isFavorite = isFavorite,
+        playlists = playlists,
+        lyricsUiState = lyricsUiState,
+        activeLyricsLineIndex = activeLyricsLineIndex,
+        onLyricsVisibilityChanged = viewModel::setLyricsVisible,
+        onBack = onBack,
+        onOpenCurrentAlbum = onOpenCurrentAlbum,
+        onTogglePlayback = viewModel::togglePlayback,
+        onSkipPrevious = viewModel::skipPrevious,
+        onSkipNext = viewModel::skipNext,
+        onCycleRepeatMode = viewModel::cycleRepeatMode,
+        onToggleShuffle = viewModel::toggleShuffle,
+        onToggleFavorite = onToggleFavorite,
+        onAddCurrentSongToPlaylist = onAddCurrentSongToPlaylist,
+        onCreatePlaylist = onCreatePlaylist,
+        onQueueItemSelected = viewModel::playQueueIndex,
+        onQueueItemRemoved = viewModel::removeQueueIndex,
+        onOpenEqualizer = onOpenEqualizer,
+        eqSettings = eqSettings,
+        onSpaciousnessChanged = onSpaciousnessChanged,
+        onVolumeChanged = viewModel::setVolume,
+        transitionSnapshot = transitionSnapshot,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun CompactNowPlayingDockHost(
+    viewModel: NowPlayingViewModel,
     visible: Boolean,
     suppressEnterAnimation: Boolean,
     onOpenPlayer: (NowPlayingTransitionSnapshot?) -> Unit,
-    onTogglePlayback: () -> Unit,
-    onSkipPrevious: () -> Unit,
-    onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
+    val playbackState by viewModel.miniPlayerUiState.collectAsStateWithLifecycle()
+    val song = playbackState.currentSong ?: return
+    val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
     val transportShowsPause = remember(playbackState.currentSong?.id, playbackState.transportShowsPause, song.id) {
         playbackState.currentSong?.id == song.id && playbackState.transportShowsPause
     }
@@ -2511,9 +2520,9 @@ private fun CompactNowPlayingDockHost(
         visible = visible,
         suppressEnterAnimation = suppressEnterAnimation,
         onOpenPlayer = onOpenPlayer,
-        onTogglePlayback = onTogglePlayback,
-        onSkipPrevious = onSkipPrevious,
-        onSkipNext = onSkipNext,
+        onTogglePlayback = viewModel::togglePlayback,
+        onSkipPrevious = viewModel::skipPrevious,
+        onSkipNext = viewModel::skipNext,
         modifier = modifier,
     )
 }
@@ -6543,20 +6552,62 @@ private fun InlinePlaylistCreatorRow(
 }
 
 @Composable
-private fun SearchScreen(
+private fun SearchRoute(
+    viewModel: SearchViewModel,
     libraryState: LibraryUiState,
-    playbackState: PlaybackUiState,
-    albumPlayCounts: Map<Long, Int>,
-    recentSearches: List<SearchHistoryEntry>,
     favoriteSongIds: Set<Long>,
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
-    query: String,
     isSearchFieldFocused: Boolean,
-    showAllSongResults: Boolean,
-    searchSongSortMode: SearchSongSortMode,
-    showSearchSongSortOptions: Boolean,
+    onSearchFieldFocusedChange: (Boolean) -> Unit,
+    onSearchQueryActiveChanged: (Boolean) -> Unit,
+    onPlaySong: (Song, List<Song>) -> Unit,
+    onAlbumSelected: (Album, ExpandOrigin) -> Unit,
+    onArtistSelected: (String) -> Unit,
+    onToggleFavorite: (Long) -> Unit,
+) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    SearchScreen(
+        libraryState = libraryState,
+        state = state,
+        favoriteSongIds = favoriteSongIds,
+        topPadding = topPadding,
+        bottomPadding = bottomPadding,
+        scrollToTopRequestVersion = scrollToTopRequestVersion,
+        isSearchFieldFocused = isSearchFieldFocused,
+        onQueryChange = viewModel::onQueryChange,
+        onSearchFieldFocusedChange = onSearchFieldFocusedChange,
+        onShowAllSongResultsChange = viewModel::onShowAllSongResultsChange,
+        onSearchSongSortModeChange = viewModel::onSearchSongSortModeChange,
+        onShowSearchSongSortOptionsChange = viewModel::onShowSearchSongSortOptionsChange,
+        onSearchQueryActiveChanged = onSearchQueryActiveChanged,
+        onSongSelected = { song, queue ->
+            viewModel.rememberArtistSearch(song)
+            onPlaySong(song, queue)
+        },
+        onAlbumSelected = { album, origin, rememberSearch ->
+            if (rememberSearch) {
+                viewModel.rememberAlbumSearch(album)
+            }
+            onAlbumSelected(album, origin)
+        },
+        onArtistSelected = onArtistSelected,
+        onToggleFavorite = onToggleFavorite,
+        onClearSearchHistory = viewModel::clearSearchHistory,
+        onResetSearchUi = viewModel::resetSearchUi,
+    )
+}
+
+@Composable
+private fun SearchScreen(
+    libraryState: LibraryUiState,
+    state: SearchUiState,
+    favoriteSongIds: Set<Long>,
+    topPadding: Dp,
+    bottomPadding: Dp,
+    scrollToTopRequestVersion: Long,
+    isSearchFieldFocused: Boolean,
     onQueryChange: (String) -> Unit,
     onSearchFieldFocusedChange: (Boolean) -> Unit,
     onShowAllSongResultsChange: (Boolean) -> Unit,
@@ -6564,12 +6615,11 @@ private fun SearchScreen(
     onShowSearchSongSortOptionsChange: (Boolean) -> Unit,
     onSearchQueryActiveChanged: (Boolean) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
-    onAlbumSelected: (Album, ExpandOrigin) -> Unit,
+    onAlbumSelected: (Album, ExpandOrigin, Boolean) -> Unit,
     onArtistSelected: (String) -> Unit,
-    onRememberAlbumSearch: (Album) -> Unit,
-    onRememberArtistSearch: (Song) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onClearSearchHistory: () -> Unit,
+    onResetSearchUi: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
     val copy = searchCopy(language)
@@ -6581,22 +6631,20 @@ private fun SearchScreen(
     }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    val trimmedQuery = query.trim()
-    val allSongsListState = rememberElovaireLazyListState("search_all_songs", trimmedQuery, searchSongSortMode)
-    val isSearchUiActive = trimmedQuery.isNotBlank() || isSearchFieldFocused || showAllSongResults
+    val trimmedQuery = state.query.trim()
+    val allSongsListState = rememberElovaireLazyListState("search_all_songs", trimmedQuery, state.searchSongSortMode)
+    val isSearchUiActive = trimmedQuery.isNotBlank() || isSearchFieldFocused || state.showAllSongResults
     val collapseAllSongResults: () -> Unit = {
         onShowAllSongResultsChange(false)
         onShowSearchSongSortOptionsChange(false)
     }
     val resetSearchToMain: () -> Unit = {
-        onQueryChange("")
+        onResetSearchUi()
         onSearchFieldFocusedChange(false)
-        onShowAllSongResultsChange(false)
-        onShowSearchSongSortOptionsChange(false)
         keyboardController?.hide()
         focusManager.clearFocus(force = true)
     }
-    if (showAllSongResults && trimmedQuery.isNotBlank()) {
+    if (state.showAllSongResults && trimmedQuery.isNotBlank()) {
         RegisterSharedTopBar(
             SharedTopBarSpec.Back(
                 title = commonUiCopy(language).search,
@@ -6607,8 +6655,8 @@ private fun SearchScreen(
     }
     BackHandler(enabled = isSearchUiActive) {
         when {
-            showSearchSongSortOptions -> onShowSearchSongSortOptionsChange(false)
-            showAllSongResults && trimmedQuery.isNotBlank() -> collapseAllSongResults()
+            state.showSearchSongSortOptions -> onShowSearchSongSortOptionsChange(false)
+            state.showAllSongResults && trimmedQuery.isNotBlank() -> collapseAllSongResults()
             else -> resetSearchToMain()
         }
     }
@@ -6621,92 +6669,28 @@ private fun SearchScreen(
             onShowSearchSongSortOptionsChange(false)
         }
     }
-    val contentMode = when {
-        showAllSongResults && trimmedQuery.isNotBlank() -> SearchContentMode.AllSongs
-        trimmedQuery.isBlank() -> SearchContentMode.Discover
-        else -> SearchContentMode.Results
-    }
-    LaunchedEffect(scrollToTopRequestVersion, contentMode) {
-        if (scrollToTopRequestVersion > 0L && contentMode == SearchContentMode.AllSongs) {
+    LaunchedEffect(scrollToTopRequestVersion, state.contentMode) {
+        if (scrollToTopRequestVersion > 0L && state.contentMode == SearchContentMode.AllSongs) {
             allSongsListState.animateScrollToItem(0)
         }
     }
-    val allMatchingSongs = remember(trimmedQuery, libraryState.songs, searchSongSortMode) {
-        if (trimmedQuery.isBlank()) {
-            emptyList()
-        } else {
-            val filteredSongs = libraryState.songs.filter { song ->
-                searchMatchesComposite(
-                    query = trimmedQuery,
-                    fields = listOf(song.title, song.artist, song.album),
-                )
-            }
-            when (searchSongSortMode) {
-                SearchSongSortMode.Title -> filteredSongs.sortedWith(
-                    compareBy<Song> { it.title.lowercase() }
-                        .thenBy { it.artist.lowercase() }
-                        .thenBy { it.album.lowercase() },
-                )
-                SearchSongSortMode.Artist -> filteredSongs.sortedWith(
-                    compareBy<Song> { it.artist.lowercase() }
-                        .thenBy { it.title.lowercase() }
-                        .thenBy { it.album.lowercase() },
-                )
-            }
+    val matchingArtists = remember(state.matchingArtists, language) {
+        state.matchingArtists.map { artist ->
+            SearchHistoryEntry(
+                key = "artist:${artist.name.lowercase()}",
+                kind = SearchHistoryKind.Artist,
+                title = artist.name,
+                subtitle = localizedCountLabel(artist.songCount, "song", language),
+                artUri = artist.artUri,
+                query = artist.name,
+            )
         }
-    }
-    val matchingSongs = remember(allMatchingSongs) { allMatchingSongs.take(20) }
-    val matchingAlbums = remember(trimmedQuery, libraryState.albums) {
-        if (trimmedQuery.isBlank()) {
-            emptyList()
-        } else {
-            libraryState.albums.filter { album ->
-                searchMatchesComposite(
-                    query = trimmedQuery,
-                    fields = listOf(album.title, album.artist),
-                )
-            }.take(12)
-        }
-    }
-    val matchingArtists = remember(trimmedQuery, libraryState.songs) {
-        if (trimmedQuery.isBlank()) {
-            emptyList()
-        } else {
-            libraryState.songs
-                .groupBy { it.artist }
-                .values
-                .map { artistSongs ->
-                    val firstSong = artistSongs.first()
-                    SearchHistoryEntry(
-                        key = "artist:${firstSong.artist.lowercase()}",
-                        kind = SearchHistoryKind.Artist,
-                        title = firstSong.artist,
-                        subtitle = localizedCountLabel(artistSongs.size, "song", language),
-                        artUri = firstSong.artUri,
-                        query = firstSong.artist,
-                    )
-                }
-                .filter { artist ->
-                    searchMatchesComposite(
-                        query = trimmedQuery,
-                        fields = listOf(artist.title),
-                    )
-                }
-                .take(6)
-        }
-    }
-    val suggestedAlbums = remember(libraryState.albums, albumPlayCounts, playbackState.recentAlbumIds) {
-        suggestedAlbumsFor(
-            libraryState = libraryState,
-            albumPlayCounts = albumPlayCounts,
-            recentAlbumIds = playbackState.recentAlbumIds,
-        )
     }
 
     val searchBar: @Composable () -> Unit = {
         val searchBarContentColor = MaterialTheme.colorScheme.onSurface
         OutlinedTextField(
-            value = query,
+            value = state.query,
             onValueChange = {
                 onQueryChange(it)
                 if (it.trim().isBlank()) {
@@ -6778,7 +6762,7 @@ private fun SearchScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (contentMode == SearchContentMode.AllSongs) {
+        if (state.contentMode == SearchContentMode.AllSongs) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -6791,11 +6775,11 @@ private fun SearchScreen(
             ) {
                 searchBar()
                 SearchSongsResultsHeader(
-                    resultCount = allMatchingSongs.size,
-                    selected = searchSongSortMode,
-                    expanded = showSearchSongSortOptions,
+                    resultCount = state.allMatchingSongs.size,
+                    selected = state.searchSongSortMode,
+                    expanded = state.showSearchSongSortOptions,
                     onToggleExpanded = {
-                        onShowSearchSongSortOptionsChange(!showSearchSongSortOptions)
+                        onShowSearchSongSortOptionsChange(!state.showSearchSongSortOptions)
                     },
                     onSelect = { selectedMode ->
                         onSearchSongSortModeChange(selectedMode)
@@ -6817,20 +6801,19 @@ private fun SearchScreen(
                             contentPadding = PaddingValues(bottom = bottomPadding + 84.dp),
                         ) {
                             itemsIndexed(
-                                items = allMatchingSongs,
+                                items = state.allMatchingSongs,
                                 key = { _, song -> song.id },
                             ) { index, song ->
                                 PlaylistSongRow(
                                     song = song,
                                     isFavorite = song.id in favoriteSongIds,
-                                    isCurrentSong = song.id == playbackState.currentSong?.id,
-                                    isPlaybackActive = playbackState.isPlaying,
+                                    isCurrentSong = song.id == state.currentSongId,
+                                    isPlaybackActive = state.isPlaybackActive,
                                     onClick = {
-                                        onRememberArtistSearch(song)
-                                        onSongSelected(song, allMatchingSongs)
+                                        onSongSelected(song, state.allMatchingSongs)
                                     },
                                     onToggleFavorite = { onToggleFavorite(song.id) },
-                                    showDivider = index != allMatchingSongs.lastIndex,
+                                    showDivider = index != state.allMatchingSongs.lastIndex,
                                 )
                             }
                         }
@@ -6862,7 +6845,7 @@ private fun SearchScreen(
                 }
                 item {
                     ElovaireAnimatedContent(
-                        targetState = contentMode,
+                        targetState = state.contentMode,
                         modifier = Modifier.fillMaxWidth(),
                         transitionSpec = {
                         when {
@@ -6917,16 +6900,16 @@ private fun SearchScreen(
                                 }
 
                                 SearchContentMode.Discover -> {
-                                    if (recentSearches.isNotEmpty()) {
+                                    if (state.recentSearches.isNotEmpty()) {
                                         SearchHistorySectionHeader(
                                             showClearAction = true,
                                             onClearHistory = onClearSearchHistory,
                                         )
                                         SearchHistoryListCard(
-                                            entries = recentSearches.take(6),
+                                            entries = state.recentSearches.take(6),
                                             onAlbumSelected = { albumId ->
                                                 libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                                    onAlbumSelected(album, ExpandOrigin())
+                                                    onAlbumSelected(album, ExpandOrigin(), false)
                                                 }
                                             },
                                             onArtistSelected = onArtistSelected,
@@ -6957,14 +6940,14 @@ private fun SearchScreen(
                                             }
                                         }
                                     }
-                                    if (suggestedAlbums.isNotEmpty()) {
+                                    if (state.suggestedAlbums.isNotEmpty()) {
                                         FavoriteAlbumsModule(
-                                            albums = suggestedAlbums,
+                                            albums = state.suggestedAlbums,
                                             title = searchCopy(language).suggestedAlbumsTitle,
                                             subtitle = searchCopy(language).suggestedAlbumsSubtitle,
                                             iconResId = R.drawable.ic_lucide_eye,
                                             onAlbumSelected = { album, origin ->
-                                                onAlbumSelected(album, origin)
+                                                onAlbumSelected(album, origin, false)
                                             },
                                         )
                                     }
@@ -6980,36 +6963,35 @@ private fun SearchScreen(
                                             entries = matchingArtists,
                                             onAlbumSelected = { albumId ->
                                                 libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                                    onAlbumSelected(album, ExpandOrigin())
+                                                    onAlbumSelected(album, ExpandOrigin(), false)
                                                 }
                                             },
                                             onArtistSelected = onArtistSelected,
                                         )
                                     }
 
-                                    if (matchingAlbums.isNotEmpty()) {
+                                    if (state.matchingAlbums.isNotEmpty()) {
                                         ModuleCard {
                                             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                                 SectionTitleRow(
                                                     title = commonUiCopy(language).albums,
-                                                    subtitle = copy.matchingAlbums(matchingAlbums.size),
+                                                    subtitle = copy.matchingAlbums(state.matchingAlbums.size),
                                                     compact = true,
                                                 )
                                                 ArtistAlbumGallery(
-                                                    albums = matchingAlbums,
+                                                    albums = state.matchingAlbums,
                                                     onAlbumSelected = { album, origin ->
-                                                        onRememberAlbumSearch(album)
-                                                        onAlbumSelected(album, origin)
+                                                        onAlbumSelected(album, origin, true)
                                                     },
                                                 )
                                             }
                                         }
                                     }
 
-                                    if (matchingSongs.isNotEmpty()) {
+                                    if (state.matchingSongs.isNotEmpty()) {
                                         SearchSongsPreviewHeader(
-                                            resultCount = allMatchingSongs.size,
-                                            showSeeAll = allMatchingSongs.size > matchingSongs.size,
+                                            resultCount = state.allMatchingSongs.size,
+                                            showSeeAll = state.allMatchingSongs.size > state.matchingSongs.size,
                                             onShowAll = {
                                                 focusManager.clearFocus(force = true)
                                                 keyboardController?.hide()
@@ -7018,22 +7000,21 @@ private fun SearchScreen(
                                             },
                                         )
                                         Column {
-                                            matchingSongs.forEachIndexed { index, song ->
+                                            state.matchingSongs.forEachIndexed { index, song ->
                                                 HomeRecentSongRow(
                                                     song = song,
                                                     isFavorite = song.id in favoriteSongIds,
                                                     onClick = {
-                                                        onRememberArtistSearch(song)
-                                                        onSongSelected(song, matchingSongs)
+                                                        onSongSelected(song, state.matchingSongs)
                                                     },
                                                     onToggleFavorite = { onToggleFavorite(song.id) },
-                                                    showDivider = index != matchingSongs.lastIndex,
+                                                    showDivider = index != state.matchingSongs.lastIndex,
                                                 )
                                             }
                                         }
                                     }
 
-                                    if (matchingAlbums.isEmpty() && matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
+                                    if (state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
                                         EmptyStateCard(
                                             title = searchCopy(language).noResultsTitle,
                                             message = searchCopy(language).noResultsMessage(trimmedQuery),
@@ -10887,11 +10868,13 @@ private fun AddSongsToPlaylistDialog(
 @Composable
 private fun NowPlayingScreen(
     playbackManager: PlaybackManager,
-    playbackState: PlaybackUiState,
+    playerUiState: PlayerUiState,
     enrichedSongsById: Map<Long, Song>,
     isFavorite: Boolean,
     playlists: List<Playlist>,
-    lyricsService: LyricsService,
+    lyricsUiState: LyricsUiState,
+    activeLyricsLineIndex: Int,
+    onLyricsVisibilityChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     onOpenCurrentAlbum: (Long) -> Unit,
     onTogglePlayback: () -> Unit,
@@ -10911,7 +10894,7 @@ private fun NowPlayingScreen(
     transitionSnapshot: NowPlayingTransitionSnapshot?,
     modifier: Modifier = Modifier,
 ) {
-    val liveCurrentSong = playbackState.currentSong
+    val liveCurrentSong = playerUiState.currentSong
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
     val playerHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
@@ -10995,8 +10978,8 @@ private fun NowPlayingScreen(
     val currentSong = liveCurrentSong
     val displaySong = liveDisplaySong
     val language = LocalAppLanguage.current
-    val playingFromText = remember(language, playbackState.sourceLabel, currentSong?.album) {
-        val source = playbackState.sourceLabel
+    val playingFromText = remember(language, playerUiState.sourceLabel, currentSong?.album) {
+        val source = playerUiState.sourceLabel
             ?.takeIf { it.isNotBlank() }
             ?: currentSong?.album?.takeIf { it.isNotBlank() }
             ?: localizedAllSongsSource(language)
@@ -11006,74 +10989,18 @@ private fun NowPlayingScreen(
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
-    LaunchedEffect(currentSong?.id, playbackState.currentIndex, playbackState.queue.size) {
-        val queue = playbackState.queue
-        val currentIndex = playbackState.currentIndex
-        lyricsService.cancelObsoleteRequests(
-            listOf(
-                currentSong,
-                queue.getOrNull(currentIndex + 1),
-                queue.getOrNull(currentIndex - 1),
-            ),
-        )
-        currentSong?.let { lyricsService.prefetchLyrics(it) }
-        queue.getOrNull(currentIndex + 1)?.let { lyricsService.prefetchLyrics(it) }
-        queue.getOrNull(currentIndex - 1)?.let { lyricsService.prefetchLyrics(it) }
-    }
     LaunchedEffect(queueStatusText) {
         if (queueStatusText != null) {
             delay(1500L)
             queueStatusText = null
         }
     }
-    val lyricsUiState by produceState<LyricsUiState>(
-        initialValue = when {
-            !showLyricsSheet || currentSong == null -> LyricsUiState.Hidden
-            else -> lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.toUiState() ?: LyricsUiState.Loading
-        },
-        key1 = showLyricsSheet,
-        key2 = currentSong?.id,
-    ) {
-        if (!showLyricsSheet || currentSong == null) {
-            value = LyricsUiState.Hidden
-            return@produceState
-        }
-
-        lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.let { cached ->
-            value = cached.toUiState()
-            if (cached is LyricsResult.Found && cached.payload.isSynced) {
-                return@produceState
-            }
-        }
-
-        if (value !is LyricsUiState.Ready) {
-            value = LyricsUiState.Loading
-        }
-        val fetchedResult = withTimeoutOrNull(4_200L) {
-            lyricsService.fetchLyrics(
-                song = currentSong,
-                allowCachedNotFound = false,
-                lookupMode = LyricsLookupMode.Full,
-            )
-        } ?: LyricsResult.Timeout
-
-        value = when (fetchedResult) {
-            is LyricsResult.Found -> LyricsUiState.Ready(fetchedResult.payload)
-            LyricsResult.Timeout -> {
-                lyricsService.cachedLyrics(currentSong, includeNotFound = false)?.toUiState()
-                    ?: if (lyricsService.isLookupInFlight(currentSong)) LyricsUiState.Loading else LyricsUiState.Empty
-            }
-            LyricsResult.NotFound -> {
-                if (lyricsService.isLookupInFlight(currentSong)) {
-                    LyricsUiState.Loading
-                } else {
-                    LyricsUiState.Empty
-                }
-            }
-        }
+    LaunchedEffect(showLyricsSheet) {
+        onLyricsVisibilityChanged(showLyricsSheet)
     }
     DisposableEffect(currentSong?.id) {
         onDispose {
+            onLyricsVisibilityChanged(false)
             playbackManager.cancelScrub()
         }
     }
@@ -11321,12 +11248,8 @@ private fun NowPlayingScreen(
             val centeredInfoWidth = 0.95f
             val nowPlayingTitleTopGap = ElovaireSpacing.nowPlayingTitleTopGap
             val nowPlayingTitleBottomGap = ElovaireSpacing.nowPlayingTitleBottomGap
-            val transportShowsPause = remember(
-                playbackState.currentSong?.id,
-                playbackState.transportShowsPause,
-                currentSong.id,
-            ) {
-                playbackState.currentSong?.id == currentSong.id && playbackState.transportShowsPause
+            val transportShowsPause = remember(currentSong.id, playerUiState.transportShowsPause) {
+                playerUiState.transportShowsPause
             }
             val spaciousnessEnabled = eqSettings.spaciousness > 0.02f
             val favoriteAlpha by animateFloatAsState(
@@ -11445,7 +11368,7 @@ private fun NowPlayingScreen(
                                 transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
                                 label = "player_artwork_content",
                             ) { songId ->
-                                val animatedSong = playbackState.queue.firstOrNull { it.id == songId } ?: currentSong
+                                val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
                                 ArtworkImage(
                                     uri = animatedSong.artUri,
                                     title = animatedSong.title,
@@ -11565,7 +11488,7 @@ private fun NowPlayingScreen(
                             label = "player_metadata_content",
                             modifier = Modifier.weight(1f),
                         ) { songId ->
-                            val animatedSong = playbackState.queue.firstOrNull { it.id == songId } ?: currentSong
+                            val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
                             Column(
                                 modifier = Modifier.fillMaxWidth(),
                                 verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -11723,11 +11646,11 @@ private fun NowPlayingScreen(
                         )
                         Spacer(modifier = Modifier.width(20.dp))
                         PlayerSecondaryActionButton(
-                            iconResId = repeatModeIconRes(playbackState.repeatMode),
+                            iconResId = repeatModeIconRes(playerUiState.repeatMode),
                             label = "",
                             iconSize = 20.dp,
                             tint = contentColor,
-                            showBackground = playbackState.repeatMode != PlaybackRepeatMode.Off,
+                            showBackground = playerUiState.repeatMode != PlaybackRepeatMode.Off,
                             onClick = onCycleRepeatMode,
                         )
                         Spacer(modifier = Modifier.width(20.dp))
@@ -11809,8 +11732,8 @@ private fun NowPlayingScreen(
                         ),
                 ) {
                     QueueSheet(
-                        queue = playbackState.queue,
-                        currentIndex = playbackState.currentIndex,
+                        queue = playerUiState.queue,
+                        currentIndex = playerUiState.currentIndex,
                         playlists = playlists,
                         playlistSongsById = enrichedSongsById,
                         currentSong = currentSong,
@@ -11822,9 +11745,9 @@ private fun NowPlayingScreen(
                             .align(Alignment.BottomCenter),
                         onSongSelected = onQueueItemSelected,
                         onQueueItemRemoved = onQueueItemRemoved,
-                        shuffleEnabled = playbackState.shuffleEnabled,
+                        shuffleEnabled = playerUiState.shuffleEnabled,
                         onToggleShuffle = {
-                            queueStatusText = if (playbackState.shuffleEnabled) {
+                            queueStatusText = if (playerUiState.shuffleEnabled) {
                                 "Shuffle | Disabled"
                             } else {
                                 "Shuffle | Enabled"
@@ -11844,13 +11767,13 @@ private fun NowPlayingScreen(
                         onCreatePlaylist = onCreatePlaylist,
                         statusText = queueStatusText,
                         onDismiss = { showQueueSheet = false },
-                        isPlaying = playbackState.isPlaying,
+                        isPlaying = playerUiState.isPlaying,
                     )
                 }
             }
 
             VolumeControlBar(
-                volume = playbackState.volume,
+                volume = playerUiState.volume,
                 contentColor = contentColor,
                 onVolumeChanged = onVolumeChanged,
                 modifier = Modifier
@@ -11925,8 +11848,8 @@ private fun NowPlayingScreen(
         ) {
             LyricsOverlay(
                 song = currentSong,
-                playbackManager = playbackManager,
                 lyricsUiState = lyricsUiState,
+                activeLyricsLineIndex = activeLyricsLineIndex,
                 tintColor = baseSurface.copy(alpha = 0.66f),
                 contentColor = contentColor,
                 secondaryContentColor = secondaryContentColor,
@@ -13404,8 +13327,8 @@ private fun AddToPlaylistPickerDialog(
 @Composable
 private fun LyricsOverlay(
     song: Song?,
-    playbackManager: PlaybackManager,
     lyricsUiState: LyricsUiState,
+    activeLyricsLineIndex: Int,
     tintColor: Color,
     contentColor: Color,
     secondaryContentColor: Color,
@@ -13595,9 +13518,9 @@ private fun LyricsOverlay(
 
                             is LyricsUiState.Ready -> {
                                 LyricsReadyContent(
-                                    playbackManager = playbackManager,
                                     song = song,
                                     payload = state.payload,
+                                    activeLyricLineIndex = activeLyricsLineIndex,
                                     listState = listState,
                                     autoScrollHeld = autoScrollHeld,
                                     setAutoScrollHeld = { autoScrollHeld = it },
@@ -13700,9 +13623,9 @@ private fun LyricsOverlay(
 
 @Composable
 private fun LyricsReadyContent(
-    playbackManager: PlaybackManager,
     song: Song?,
     payload: LyricsPayload,
+    activeLyricLineIndex: Int,
     listState: LazyListState,
     autoScrollHeld: Boolean,
     setAutoScrollHeld: (Boolean) -> Unit,
@@ -13716,21 +13639,7 @@ private fun LyricsReadyContent(
     onSeekTo: (Long) -> Unit,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
-    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
     val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
-    val activeLyricLineIndex by remember(payload, playbackProgress.displayPositionMs) {
-        derivedStateOf {
-            payload
-                .takeIf { it.isSynced }
-                ?.currentLineIndexAt(
-                    positionMs = playbackProgress.displayPositionMs,
-                    timingOffsetMs = 0L,
-                    switchGraceMs = 0L,
-                )
-                ?: -1
-        }
-    }
-
     LaunchedEffect(activeLyricLineIndex, payload.isSynced, autoScrollHeld) {
         if (!autoScrollHeld && payload.isSynced && activeLyricLineIndex >= 0) {
             listState.animateLyricJumpToItem(

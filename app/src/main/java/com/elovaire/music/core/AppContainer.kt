@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
+import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
@@ -34,6 +35,7 @@ class AppContainer(
         scope = appScope,
         preferenceStore = preferenceStore,
     )
+    val lyricsService = LyricsService(applicationContext)
     private val playbackEffectsController = PlaybackEffectsController()
     val playbackManager = PlaybackManager(
         context = applicationContext,
