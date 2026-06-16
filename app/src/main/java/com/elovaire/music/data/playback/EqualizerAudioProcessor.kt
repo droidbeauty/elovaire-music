@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.playback
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.audio.BaseAudioProcessor
+import androidx.media3.common.util.UnstableApi
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.exp
@@ -391,6 +392,7 @@ internal object MonoDownmixProcessor {
     }
 }
 
+@UnstableApi
 internal class EqualizerAudioProcessor(
     private val config: EqualizerDspConfig = EqualizerDspConfig(),
 ) : BaseAudioProcessor() {

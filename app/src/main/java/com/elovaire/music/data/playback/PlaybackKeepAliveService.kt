@@ -6,7 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.content.ContextCompat
+import androidx.media3.common.util.UnstableApi
 
+@UnstableApi
 class PlaybackKeepAliveService : Service() {
     override fun onStartCommand(
         intent: Intent?,

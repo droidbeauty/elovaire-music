@@ -44,6 +44,17 @@ internal val TopLevelRoutes = setOf(
     PLAYLISTS_ROUTE,
     SEARCH_ROUTE,
 )
+internal val BottomNavigationRoutes = setOf(
+    HOME_ROUTE,
+    ALBUMS_ROUTE,
+    PLAYLISTS_ROUTE,
+    SEARCH_ROUTE,
+    "$ALBUM_ROUTE/{albumId}",
+    "$PLAYLIST_ROUTE/{playlistId}",
+    "$LIBRARY_COLLECTION_ROUTE/{kind}",
+    "$GENRE_ROUTE/{genre}",
+    "$ARTIST_ROUTE/{artistName}",
+)
 internal const val NOW_PLAYING_TITLE_TEXT_SIZE_SP = 23f
 internal const val NOW_PLAYING_ARTIST_TEXT_SIZE_SP = 18f
 internal const val ALBUM_HEADER_TITLE_TEXT_SIZE_SP = 23f
@@ -81,9 +92,42 @@ internal data class TopLevelDestination(
     val contentDescription: String,
 )
 
+internal val DefaultTopLevelDestinations = listOf(
+    TopLevelDestination(
+        route = HOME_ROUTE,
+        iconResId = R.drawable.ic_lucide_house,
+        contentDescription = "Home",
+    ),
+    TopLevelDestination(
+        route = ALBUMS_ROUTE,
+        iconResId = R.drawable.ic_lucide_library,
+        contentDescription = "Albums",
+    ),
+    TopLevelDestination(
+        route = PLAYLISTS_ROUTE,
+        iconResId = R.drawable.ic_lucide_list_music,
+        contentDescription = "Playlists",
+    ),
+    TopLevelDestination(
+        route = SEARCH_ROUTE,
+        iconResId = R.drawable.ic_lucide_search,
+        contentDescription = "Search",
+    ),
+)
+
 internal data class TopLevelRouteTransitionResolution(
     val isTopLevelTransition: Boolean,
     val isForward: Boolean,
+)
+
+internal data class NavHostTransitionResolution(
+    val initialRoute: String?,
+    val targetRoute: String?,
+    val initialUsesTileExpand: Boolean,
+    val targetUsesTileExpand: Boolean,
+    val initialUsesDetailTransition: Boolean,
+    val targetUsesDetailTransition: Boolean,
+    val topLevelTransition: TopLevelRouteTransitionResolution,
 )
 
 internal enum class DetailRouteTransitionMode {
@@ -165,6 +209,41 @@ internal object ElovaireNavigationTransitions {
         return TopLevelRouteTransitionResolution(
             isTopLevelTransition = initialIndex >= 0 && targetIndex >= 0 && initialIndex != targetIndex,
             isForward = initialIndex >= 0 && targetIndex >= 0 && targetIndex > initialIndex,
+        )
+    }
+
+    fun resolveNavHostTransition(
+        initialRoute: String?,
+        targetRoute: String?,
+        initialFallbackTopLevelRoute: String?,
+        targetFallbackTopLevelRoute: String?,
+        detailRouteTransitionMode: DetailRouteTransitionMode,
+    ): NavHostTransitionResolution {
+        val resolvedInitialRoute = initialRoute.normalizedNavigationRoute()
+        val resolvedTargetRoute = targetRoute.normalizedNavigationRoute()
+        return NavHostTransitionResolution(
+            initialRoute = resolvedInitialRoute,
+            targetRoute = resolvedTargetRoute,
+            initialUsesTileExpand = usesTileExpand(
+                route = resolvedInitialRoute,
+                mode = detailRouteTransitionMode,
+            ),
+            targetUsesTileExpand = usesTileExpand(
+                route = resolvedTargetRoute,
+                mode = detailRouteTransitionMode,
+            ),
+            initialUsesDetailTransition = usesDetailTransition(resolvedInitialRoute),
+            targetUsesDetailTransition = usesDetailTransition(resolvedTargetRoute),
+            topLevelTransition = resolveTopLevelRouteTransition(
+                initialRoute = transitionTopLevelOwnerRoute(
+                    route = resolvedInitialRoute,
+                    fallbackTopLevelRoute = initialFallbackTopLevelRoute,
+                ),
+                targetRoute = transitionTopLevelOwnerRoute(
+                    route = resolvedTargetRoute,
+                    fallbackTopLevelRoute = targetFallbackTopLevelRoute,
+                ),
+            ),
         )
     }
 

@@ -201,6 +201,20 @@ internal class UsbDacHardwareVolumeController {
         lastReason = null
     }
 
+    fun onHardwareVolumeWriteFailed(reason: String) {
+        lastReason = reason
+        val currentCapability = capability
+        state = when {
+            currentCapability?.canWriteVolume == true && currentNormalizedVolume != null ->
+                UsbDacHardwareVolumeState.HardwareVolumeActive
+
+            currentCapability?.canWriteVolume == true ->
+                UsbDacHardwareVolumeState.HardwareVolumeSupported
+
+            else -> UsbDacHardwareVolumeState.HardwareVolumeUnsupported
+        }
+    }
+
     fun onError(message: String) {
         lastReason = message
         state = UsbDacHardwareVolumeState.Error(message)

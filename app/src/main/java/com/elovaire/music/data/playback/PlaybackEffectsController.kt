@@ -1,10 +1,12 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import androidx.media3.common.audio.AudioProcessor
+import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import kotlin.math.abs
 
+@UnstableApi
 class PlaybackEffectsController {
     private val equalizerProcessor = EqualizerAudioProcessor()
     private var currentSettings: EqSettings = EqSettings()

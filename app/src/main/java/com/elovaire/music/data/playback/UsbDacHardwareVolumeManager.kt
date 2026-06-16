@@ -37,6 +37,8 @@ internal class UsbDacHardwareVolumeManager(
     private var currentCapability: UsbDacHardwareVolumeCapability? = null
     private var permissionReceiverRegistered = false
     private var pendingRequestedVolume: Float? = null
+    private val capabilityCache = linkedMapOf<String, UsbDacHardwareVolumeCapability>()
+    private var currentDeviceCacheKey: String? = null
 
     private val permissionReceiver = object : BroadcastReceiver() {
         override fun onReceive(
@@ -85,7 +87,17 @@ internal class UsbDacHardwareVolumeManager(
             return
         }
         val identity = usbDevice.toIdentity()
+        val cacheKey = identity.reliableCacheKey()
+        if (
+            currentUsbDevice?.deviceId == usbDevice.deviceId &&
+            currentCapability != null &&
+            currentDeviceCacheKey == cacheKey
+        ) {
+            publishStatus("dac-unchanged")
+            return
+        }
         currentUsbDevice = usbDevice
+        currentDeviceCacheKey = cacheKey
         controller.onExternalDacDetected(identity)
         currentCapability = null
         publishStatus("dac-detected")
@@ -99,6 +111,7 @@ internal class UsbDacHardwareVolumeManager(
     fun updateAudioOutputDevice(
         audioDeviceDescriptor: UsbAudioDeviceDescriptor?,
     ) {
+        if (currentAudioDeviceDescriptor == audioDeviceDescriptor) return
         currentAudioDeviceDescriptor = audioDeviceDescriptor
         refreshConnectedDevice()
     }
@@ -158,7 +171,7 @@ internal class UsbDacHardwareVolumeManager(
             storePerDeviceVolume(capability.identity, normalizedValue)
             publishStatus("volume-applied")
         } else {
-            controller.onHardwareVolumeUnavailable("Hardware volume write failed")
+            controller.onHardwareVolumeWriteFailed("Hardware volume write failed")
             publishStatus("volume-write-failed")
         }
         return true
@@ -193,7 +206,7 @@ internal class UsbDacHardwareVolumeManager(
             return
         }
         connection.useSafely { safeConnection ->
-            val parsedCapability = parser.parse(
+            val parsedCapability = capabilityCache[identity.reliableCacheKey()] ?: parser.parse(
                 rawDescriptors = safeConnection.getRawDescriptors() ?: ByteArray(0),
                 identity = identity,
             )
@@ -202,17 +215,33 @@ internal class UsbDacHardwareVolumeManager(
                 publishStatus("unsupported-no-feature-unit")
                 return@useSafely
             }
-            val resolvedRange = readRange(safeConnection, parsedCapability)
-            if (resolvedRange == null) {
+            val resolvedCapability = if (
+                parsedCapability.range.maxRaw > parsedCapability.range.minRaw ||
+                    parsedCapability.range.stepRaw > 1
+            ) {
+                parsedCapability.copy(
+                    canWriteVolume = parsedCapability.canWriteVolume &&
+                        parsedCapability.range.maxRaw > parsedCapability.range.minRaw,
+                )
+            } else {
+                val resolvedRange = readRange(safeConnection, parsedCapability)
+                if (resolvedRange == null) {
+                    controller.onHardwareVolumeUnsupported("Unable to read DAC volume range")
+                    publishStatus("unsupported-no-range")
+                    return@useSafely
+                }
+                parsedCapability.copy(
+                    range = resolvedRange,
+                    canWriteVolume = parsedCapability.canWriteVolume && resolvedRange.maxRaw > resolvedRange.minRaw,
+                )
+            }
+            if (resolvedCapability.range.maxRaw < resolvedCapability.range.minRaw) {
                 controller.onHardwareVolumeUnsupported("Unable to read DAC volume range")
                 publishStatus("unsupported-no-range")
                 return@useSafely
             }
-            val resolvedCapability = parsedCapability.copy(
-                range = resolvedRange,
-                canWriteVolume = parsedCapability.canWriteVolume && resolvedRange.maxRaw > resolvedRange.minRaw,
-            )
             currentCapability = resolvedCapability
+            identity.reliableCacheKey()?.let { capabilityCache[it] = resolvedCapability }
             val currentRaw = if (resolvedCapability.canReadCurrent) {
                 readCurrentVolumeRaw(safeConnection, resolvedCapability)
             } else {
@@ -222,7 +251,7 @@ internal class UsbDacHardwareVolumeManager(
             val stored = restoreStoredVolumeIfSafe(resolvedCapability, currentRaw != null)
             logDebug(
                 "event=detect identity=${identity.persistenceKey()} api=${Build.VERSION.SDK_INT} supported=${resolvedCapability.canWriteVolume} " +
-                    "min=${resolvedRange.minRaw} max=${resolvedRange.maxRaw} res=${resolvedRange.stepRaw} " +
+                    "min=${resolvedCapability.range.minRaw} max=${resolvedCapability.range.maxRaw} res=${resolvedCapability.range.stepRaw} " +
                     "master=${resolvedCapability.usesMasterChannel} currentRaw=${currentRaw ?: Int.MIN_VALUE} stored=${stored ?: -1f}",
             )
             publishStatus("supported")
@@ -405,15 +434,18 @@ internal class UsbDacHardwareVolumeManager(
         currentUsbDevice = null
         currentCapability = null
         pendingRequestedVolume = null
+        currentDeviceCacheKey = null
         controller.onNoExternalDac()
     }
 
     private fun publishStatus(reason: String) {
-        _status.value = controller.status()
+        val nextStatus = controller.status()
+        if (_status.value == nextStatus) return
+        _status.value = nextStatus
         logDebug(
-            "event=status reason=$reason api=${Build.VERSION.SDK_INT} state=${status.value.state.javaClass.simpleName} " +
-                "identity=${status.value.identity?.persistenceKey().orEmpty()} current=${status.value.currentNormalizedVolume ?: -1f} " +
-                "range=${status.value.range?.minRaw ?: 0}:${status.value.range?.maxRaw ?: 0}:${status.value.range?.stepRaw ?: 0}",
+            "event=status reason=$reason api=${Build.VERSION.SDK_INT} state=${nextStatus.state.javaClass.simpleName} " +
+                "identity=${nextStatus.identity?.persistenceKey().orEmpty()} current=${nextStatus.currentNormalizedVolume ?: -1f} " +
+                "range=${nextStatus.range?.minRaw ?: 0}:${nextStatus.range?.maxRaw ?: 0}:${nextStatus.range?.stepRaw ?: 0}",
         )
     }
 
@@ -429,6 +461,10 @@ internal class UsbDacHardwareVolumeManager(
 
     private fun UsbDevice.safeSerialNumber(): String? {
         return runCatching { serialNumber }.getOrNull()
+    }
+
+    private fun UsbDacDeviceIdentity.reliableCacheKey(): String? {
+        return persistenceKey().takeIf { isReliable }
     }
 
     private fun logDebug(message: String) {

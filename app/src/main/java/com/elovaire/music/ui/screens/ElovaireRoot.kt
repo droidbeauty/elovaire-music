@@ -158,6 +158,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -300,6 +301,7 @@ import kotlin.math.pow
 import org.xmlpull.v1.XmlPullParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -427,6 +429,102 @@ private data class TopBarActionSpec(
     val contentDescription: String,
     val onClick: () -> Unit,
 )
+
+private fun tileExpandEnterTransition(expandOrigin: ExpandOrigin): EnterTransition {
+    return fadeIn(
+        animationSpec = ElovaireMotion.fadeMedium(),
+    ) +
+        scaleIn(
+            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            initialScale = 0.8f,
+            transformOrigin = expandOrigin.toTransformOrigin(),
+        ) +
+        slideInHorizontally(
+            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            initialOffsetX = { fullWidth ->
+                ((expandOrigin.xFraction - 0.5f) * fullWidth * 0.2f).roundToInt()
+            },
+        ) +
+        slideInVertically(
+            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            initialOffsetY = { fullHeight ->
+                ((expandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
+            },
+        )
+}
+
+private fun tileExpandExitTransition(expandOrigin: ExpandOrigin): ExitTransition {
+    return fadeOut(
+        animationSpec = ElovaireMotion.fadeFast(),
+    ) +
+        scaleOut(
+            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            targetScale = 0.84f,
+            transformOrigin = expandOrigin.toTransformOrigin(),
+        ) +
+        slideOutHorizontally(
+            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            targetOffsetX = { fullWidth ->
+                ((expandOrigin.xFraction - 0.5f) * fullWidth * 0.2f).roundToInt()
+            },
+        ) +
+        slideOutVertically(
+            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            targetOffsetY = { fullHeight ->
+                ((expandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
+            },
+        )
+}
+
+private fun resolveForwardEnterTransition(
+    transition: NavHostTransitionResolution,
+    expandOrigin: ExpandOrigin,
+): EnterTransition = when {
+    transition.targetRoute == PLAYER_ROUTE -> EnterTransition.None
+    transition.targetUsesTileExpand -> tileExpandEnterTransition(expandOrigin)
+    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
+        forward = transition.topLevelTransition.isForward,
+    )
+    transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardEnter()
+    else -> ElovaireMotion.fullScreenForwardEnter()
+}
+
+private fun resolveForwardExitTransition(
+    transition: NavHostTransitionResolution,
+): ExitTransition = when {
+    transition.targetRoute == PLAYER_ROUTE -> ExitTransition.None
+    transition.targetUsesTileExpand -> fadeOut(animationSpec = ElovaireMotion.fadeFast())
+    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
+        forward = transition.topLevelTransition.isForward,
+    )
+    transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardExit()
+    else -> ElovaireMotion.fullScreenForwardExit()
+}
+
+private fun resolvePopEnterTransition(
+    transition: NavHostTransitionResolution,
+): EnterTransition = when {
+    transition.initialRoute == PLAYER_ROUTE -> EnterTransition.None
+    transition.initialUsesTileExpand -> fadeIn(animationSpec = ElovaireMotion.fadeMedium())
+    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
+        forward = transition.topLevelTransition.isForward,
+    )
+    transition.targetUsesDetailTransition -> ElovaireMotion.detailBackEnter()
+    else -> ElovaireMotion.fullScreenBackEnter()
+}
+
+private fun resolvePopExitTransition(
+    transition: NavHostTransitionResolution,
+    expandOrigin: ExpandOrigin,
+): ExitTransition = when {
+    transition.initialRoute == PLAYER_ROUTE -> ExitTransition.None
+    transition.initialUsesTileExpand -> tileExpandExitTransition(expandOrigin)
+    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
+        forward = transition.topLevelTransition.isForward,
+    )
+    transition.initialUsesDetailTransition -> ElovaireMotion.detailBackExit()
+    else -> ElovaireMotion.fullScreenBackExit()
+}
 
 private sealed interface SharedTopBarSpec {
     data class Unified(
@@ -568,8 +666,12 @@ internal fun rememberElovaireLazyListState(vararg inputs: Any?): LazyListState {
             firstVisibleItemScrollOffset = cachedPosition.second,
         )
     }
-    LaunchedEffect(state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset, cacheKey) {
-        lazyListPositionCache[cacheKey] = state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+    LaunchedEffect(state, cacheKey) {
+        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
+            .distinctUntilChanged()
+            .collect { position ->
+                lazyListPositionCache[cacheKey] = position
+            }
     }
     return state
 }
@@ -650,8 +752,12 @@ private fun rememberElovaireLazyGridState(vararg inputs: Any?): LazyGridState {
             firstVisibleItemScrollOffset = cachedPosition.second,
         )
     }
-    LaunchedEffect(state.firstVisibleItemIndex, state.firstVisibleItemScrollOffset, cacheKey) {
-        lazyGridPositionCache[cacheKey] = state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+    LaunchedEffect(state, cacheKey) {
+        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
+            .distinctUntilChanged()
+            .collect { position ->
+                lazyGridPositionCache[cacheKey] = position
+            }
     }
     return state
 }
@@ -663,8 +769,12 @@ private fun rememberElovaireScrollState(vararg inputs: Any?): androidx.compose.f
     }
     val cachedPosition = remember(cacheKey) { scrollPositionCache[cacheKey] ?: 0 }
     val state = rememberScrollState(cachedPosition)
-    LaunchedEffect(state.value, cacheKey) {
-        scrollPositionCache[cacheKey] = state.value
+    LaunchedEffect(state, cacheKey) {
+        snapshotFlow { state.value }
+            .distinctUntilChanged()
+            .collect { value ->
+                scrollPositionCache[cacheKey] = value
+            }
     }
     return state
 }
@@ -1064,28 +1174,7 @@ fun ElovaireRoot(
 
     val isPlaybackActuallyPlaying = playbackState.isPlaying && playbackState.currentSong != null
 
-    val topLevelDestinations = listOf(
-        TopLevelDestination(
-            route = HOME_ROUTE,
-            iconResId = R.drawable.ic_lucide_house,
-            contentDescription = "Home",
-        ),
-        TopLevelDestination(
-            route = ALBUMS_ROUTE,
-            iconResId = R.drawable.ic_lucide_library,
-            contentDescription = "Albums",
-        ),
-        TopLevelDestination(
-            route = PLAYLISTS_ROUTE,
-            iconResId = R.drawable.ic_lucide_list_music,
-            contentDescription = "Playlists",
-        ),
-        TopLevelDestination(
-            route = SEARCH_ROUTE,
-            iconResId = R.drawable.ic_lucide_search,
-            contentDescription = "Search",
-        ),
-    )
+    val topLevelDestinations = DefaultTopLevelDestinations
 
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
@@ -1119,18 +1208,8 @@ fun ElovaireRoot(
     var libraryScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     var playlistsScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     var searchScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
-    val showTopLevelChrome = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE, SEARCH_ROUTE)
-    val showBottomNavigation = currentRoute in setOf(
-        HOME_ROUTE,
-        ALBUMS_ROUTE,
-        PLAYLISTS_ROUTE,
-        SEARCH_ROUTE,
-        "$ALBUM_ROUTE/{albumId}",
-        "$PLAYLIST_ROUTE/{playlistId}",
-        "$LIBRARY_COLLECTION_ROUTE/{kind}",
-        "$GENRE_ROUTE/{genre}",
-        "$ARTIST_ROUTE/{artistName}",
-    )
+    val showTopLevelChrome = currentRoute in TopLevelRoutes
+    val showBottomNavigation = currentRoute in BottomNavigationRoutes
     LaunchedEffect(currentRoute) {
         if (currentRoute in TopLevelRoutes) {
             browsingOriginRoute = currentRoute.orEmpty()
@@ -1465,172 +1544,50 @@ fun ElovaireRoot(
                             .fillMaxSize()
                             .blur(navHostBlur),
                         enterTransition = {
-                            val targetRoute = targetState.destination.route
-                            val initialOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = initialState.destination.route,
-                                fallbackTopLevelRoute = browsingOriginRoute,
+                            resolveForwardEnterTransition(
+                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
+                                    initialRoute = initialState.destination.route,
+                                    targetRoute = targetState.destination.route,
+                                    initialFallbackTopLevelRoute = browsingOriginRoute,
+                                    targetFallbackTopLevelRoute = selectedBottomRoute,
+                                    detailRouteTransitionMode = detailRouteTransitionMode,
+                                ),
+                                expandOrigin = detailExpandOrigin,
                             )
-                            val targetOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = targetRoute,
-                                fallbackTopLevelRoute = selectedBottomRoute,
-                            )
-                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
-                                initialRoute = initialOwnerRoute,
-                                targetRoute = targetOwnerRoute,
-                            )
-                            if (targetRoute == PLAYER_ROUTE) {
-                                EnterTransition.None
-                            } else if (
-                                ElovaireNavigationTransitions.usesTileExpand(
-                                    route = targetRoute,
-                                    mode = detailRouteTransitionMode,
-                                )
-                            ) {
-                                fadeIn(
-                                    animationSpec = ElovaireMotion.fadeMedium(),
-                                ) +
-                                    scaleIn(
-                                        animationSpec = ElovaireMotion.emphasizedEnterSpec(),
-                                        initialScale = 0.8f,
-                                        transformOrigin = detailExpandOrigin.toTransformOrigin(),
-                                    ) +
-                                    slideInHorizontally(
-                                        animationSpec = ElovaireMotion.emphasizedEnterSpec(),
-                                        initialOffsetX = { fullWidth ->
-                                            ((detailExpandOrigin.xFraction - 0.5f) * fullWidth * 0.2f).roundToInt()
-                                        },
-                                    ) +
-                                    slideInVertically(
-                                        animationSpec = ElovaireMotion.emphasizedEnterSpec(),
-                                        initialOffsetY = { fullHeight ->
-                                            ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
-                                        },
-                                    )
-                            } else if (topLevelTransition.isTopLevelTransition) {
-                                ElovaireMotion.topLevelEnter(forward = topLevelTransition.isForward)
-                            } else if (ElovaireNavigationTransitions.usesDetailTransition(targetRoute)) {
-                                ElovaireMotion.detailForwardEnter()
-                            } else {
-                                ElovaireMotion.fullScreenForwardEnter()
-                            }
                         },
                         exitTransition = {
-                            val targetRoute = targetState.destination.route
-                            val initialOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = initialState.destination.route,
-                                fallbackTopLevelRoute = browsingOriginRoute,
+                            resolveForwardExitTransition(
+                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
+                                    initialRoute = initialState.destination.route,
+                                    targetRoute = targetState.destination.route,
+                                    initialFallbackTopLevelRoute = browsingOriginRoute,
+                                    targetFallbackTopLevelRoute = selectedBottomRoute,
+                                    detailRouteTransitionMode = detailRouteTransitionMode,
+                                ),
                             )
-                            val targetOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = targetRoute,
-                                fallbackTopLevelRoute = selectedBottomRoute,
-                            )
-                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
-                                initialRoute = initialOwnerRoute,
-                                targetRoute = targetOwnerRoute,
-                            )
-                            if (targetRoute == PLAYER_ROUTE) {
-                                ExitTransition.None
-                            } else if (
-                                ElovaireNavigationTransitions.usesTileExpand(
-                                    route = targetRoute,
-                                    mode = detailRouteTransitionMode,
-                                )
-                            ) {
-                                fadeOut(
-                                    animationSpec = ElovaireMotion.fadeFast(),
-                                )
-                            } else if (topLevelTransition.isTopLevelTransition) {
-                                ElovaireMotion.topLevelExit(forward = topLevelTransition.isForward)
-                            } else if (ElovaireNavigationTransitions.usesDetailTransition(targetRoute)) {
-                                ElovaireMotion.detailForwardExit()
-                            } else {
-                                ElovaireMotion.fullScreenForwardExit()
-                            }
                         },
                         popEnterTransition = {
-                            val initialRoute = initialState.destination.route
-                            val targetRoute = targetState.destination.route
-                            val initialOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = initialRoute,
-                                fallbackTopLevelRoute = browsingOriginRoute,
+                            resolvePopEnterTransition(
+                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
+                                    initialRoute = initialState.destination.route,
+                                    targetRoute = targetState.destination.route,
+                                    initialFallbackTopLevelRoute = browsingOriginRoute,
+                                    targetFallbackTopLevelRoute = selectedBottomRoute,
+                                    detailRouteTransitionMode = detailRouteTransitionMode,
+                                ),
                             )
-                            val targetOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = targetRoute,
-                                fallbackTopLevelRoute = selectedBottomRoute,
-                            )
-                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
-                                initialRoute = initialOwnerRoute,
-                                targetRoute = targetOwnerRoute,
-                            )
-                            if (initialRoute == PLAYER_ROUTE) {
-                                EnterTransition.None
-                            } else if (
-                                ElovaireNavigationTransitions.usesTileExpand(
-                                    route = initialRoute,
-                                    mode = detailRouteTransitionMode,
-                                )
-                            ) {
-                                fadeIn(
-                                    animationSpec = ElovaireMotion.fadeMedium(),
-                                )
-                            } else if (topLevelTransition.isTopLevelTransition) {
-                                ElovaireMotion.topLevelEnter(forward = topLevelTransition.isForward)
-                            } else if (ElovaireNavigationTransitions.usesDetailTransition(targetRoute)) {
-                                ElovaireMotion.detailBackEnter()
-                            } else {
-                                ElovaireMotion.fullScreenBackEnter()
-                            }
                         },
                         popExitTransition = {
-                            val initialRoute = initialState.destination.route
-                            val targetRoute = targetState.destination.route
-                            val initialOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = initialRoute,
-                                fallbackTopLevelRoute = browsingOriginRoute,
+                            resolvePopExitTransition(
+                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
+                                    initialRoute = initialState.destination.route,
+                                    targetRoute = targetState.destination.route,
+                                    initialFallbackTopLevelRoute = browsingOriginRoute,
+                                    targetFallbackTopLevelRoute = selectedBottomRoute,
+                                    detailRouteTransitionMode = detailRouteTransitionMode,
+                                ),
+                                expandOrigin = detailExpandOrigin,
                             )
-                            val targetOwnerRoute = transitionTopLevelOwnerRoute(
-                                route = targetRoute,
-                                fallbackTopLevelRoute = selectedBottomRoute,
-                            )
-                            val topLevelTransition = ElovaireNavigationTransitions.resolveTopLevelRouteTransition(
-                                initialRoute = initialOwnerRoute,
-                                targetRoute = targetOwnerRoute,
-                            )
-                            if (initialRoute == PLAYER_ROUTE) {
-                                ExitTransition.None
-                            } else if (
-                                ElovaireNavigationTransitions.usesTileExpand(
-                                    route = initialRoute,
-                                    mode = detailRouteTransitionMode,
-                                )
-                            ) {
-                                fadeOut(
-                                    animationSpec = ElovaireMotion.fadeFast(),
-                                ) +
-                                    scaleOut(
-                                        animationSpec = ElovaireMotion.emphasizedEnterSpec(),
-                                        targetScale = 0.84f,
-                                        transformOrigin = detailExpandOrigin.toTransformOrigin(),
-                                    ) +
-                                    slideOutHorizontally(
-                                        animationSpec = ElovaireMotion.emphasizedEnterSpec(),
-                                        targetOffsetX = { fullWidth ->
-                                            ((detailExpandOrigin.xFraction - 0.5f) * fullWidth * 0.2f).roundToInt()
-                                        },
-                                    ) +
-                                    slideOutVertically(
-                                        animationSpec = ElovaireMotion.emphasizedEnterSpec(),
-                                        targetOffsetY = { fullHeight ->
-                                            ((detailExpandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
-                                        },
-                                    )
-                            } else if (topLevelTransition.isTopLevelTransition) {
-                                ElovaireMotion.topLevelExit(forward = topLevelTransition.isForward)
-                            } else if (ElovaireNavigationTransitions.usesDetailTransition(initialRoute)) {
-                                ElovaireMotion.detailBackExit()
-                            } else {
-                                ElovaireMotion.fullScreenBackExit()
-                            }
                         },
                 ) {
                     composable(HOME_ROUTE) {
@@ -3839,7 +3796,9 @@ private fun HomeScreen(
                         verticalArrangement = Arrangement.spacedBy(20.dp),
                     ) {
                         when {
-                            lastPlayedPlaylist != null && lastPlayedPlaylistSongs.isNotEmpty() -> item {
+                            lastPlayedPlaylist != null && lastPlayedPlaylistSongs.isNotEmpty() -> item(
+                                key = "home_last_played_playlist_${lastPlayedPlaylist.id}",
+                            ) {
                                 LastPlayedPlaylistModule(
                                     playlist = lastPlayedPlaylist,
                                     songs = lastPlayedPlaylistSongs,
@@ -3847,7 +3806,9 @@ private fun HomeScreen(
                                     onPlay = { onPlayPlaylist(lastPlayedPlaylist, lastPlayedPlaylistSongs) },
                                 )
                             }
-                            lastPlayedAlbum != null -> item {
+                            lastPlayedAlbum != null -> item(
+                                key = "home_last_played_album_${lastPlayedAlbum.id}",
+                            ) {
                                 val album = lastPlayedAlbum
                                 LastPlayedAlbumModule(
                                     album = album,
@@ -3858,7 +3819,7 @@ private fun HomeScreen(
                         }
 
                         if (recentlyAddedAlbums.isNotEmpty()) {
-                            item {
+                            item(key = "home_recently_added") {
                                 ModuleCard {
                                     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                                         MutedSectionHeader(
@@ -3883,7 +3844,7 @@ private fun HomeScreen(
                                 }
                             }
                         } else if (!isLibraryLoading) {
-                            item {
+                            item(key = "home_recently_added_empty") {
                                 EmptyStateCard(
                                     title = homeCopy.noRecentAdditionsTitle,
                                     message = homeCopy.noRecentAdditionsMessage,
@@ -3891,7 +3852,7 @@ private fun HomeScreen(
                             }
                         }
 
-                    item {
+                    item(key = "home_recently_played") {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Row(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -3932,7 +3893,7 @@ private fun HomeScreen(
                     }
 
                     if (favoriteAlbums.isNotEmpty()) {
-                        item {
+                        item(key = "home_favorite_albums") {
                             FavoriteAlbumsModule(
                                 albums = favoriteAlbums.take(6),
                                 title = homeCopy.favoriteAlbumsTitle,
@@ -3941,7 +3902,7 @@ private fun HomeScreen(
                             )
                         }
                     } else if (!isLibraryLoading) {
-                        item {
+                        item(key = "home_favorite_albums_empty") {
                             EmptyStateCard(
                                 title = homeCopy.noFavoriteAlbumsTitle,
                                 message = homeCopy.noFavoriteAlbumsMessage,
@@ -3967,6 +3928,7 @@ private fun LastPlayedAlbumModule(
     val screenSizePx = screenContainerSizePx()
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
+    val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val artwork = rememberArtworkBitmap(album.artUri, size = 512)
     val year = remember(album.songs) { album.songs.firstNotNullOfOrNull { it.releaseYear } }
@@ -5723,6 +5685,7 @@ private fun PlaylistGridTile(
     val screenSizePx = screenContainerSizePx()
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
+    val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
     Column(
@@ -7657,6 +7620,7 @@ private fun FavoriteAlbumCompactCell(
     val screenSizePx = screenContainerSizePx()
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
+    val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val cellColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
 
@@ -8290,6 +8254,7 @@ private fun AlbumGridCard(
     val screenSizePx = screenContainerSizePx()
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
+    val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
     Column(
@@ -8359,6 +8324,7 @@ private fun CompactAlbumRow(
     val screenSizePx = screenContainerSizePx()
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
+    val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
     Box(
@@ -8411,7 +8377,7 @@ private fun CompactAlbumRow(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 1f),
                             ),
                         ) {
-                            append(formatCountLabel(album.songCount, "track"))
+                            append(localizedCountLabel(album.songCount, "track", language))
                         }
                         append("  •  ")
                         withStyle(
@@ -8562,6 +8528,7 @@ private fun AlbumScreen(
         return
     }
 
+    val language = LocalAppLanguage.current
     val gradient by rememberArtworkGradient(album.artUri)
     val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val albumSongIds = remember(album.songs) { album.songs.map(Song::id) }
@@ -8631,22 +8598,22 @@ private fun AlbumScreen(
             }
         }
     }
-    val albumFooterText = remember(album.songCount, album.durationMs, albumOnSurface) {
+    val albumFooterText = remember(album.songCount, album.durationMs, albumOnSurface, language) {
         buildAnnotatedString {
             pushStyle(
                 SpanStyle(
-                    color = albumOnSurface.copy(alpha = 0.7f),
+                    color = albumOnSurface,
                     fontWeight = FontWeight.Normal,
                 ),
             )
-            append(formatCountLabel(album.songCount, "track"))
+            append(localizedCountLabel(album.songCount, "track", language))
             pop()
             pushStyle(SpanStyle(color = albumOnSurface.copy(alpha = 0.5f)))
             append("  •  ")
             pop()
             pushStyle(
                 SpanStyle(
-                    color = albumOnSurface,
+                    color = albumOnSurface.copy(alpha = 0.7f),
                     fontWeight = FontWeight.Normal,
                 ),
             )
@@ -8995,23 +8962,28 @@ private fun DiscSectionHeader(
 @Composable
 private fun AnimatedAudioLinesIcon(
     tint: Color,
+    animate: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val motionDurationScale = rememberSystemAnimationScale()
-    val infiniteTransition = rememberInfiniteTransition(label = "audio_lines_phase")
-    val animatedPhase by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = ElovaireMotion.scaleDurationMillis(1180, motionDurationScale).toInt(),
-                easing = LinearEasing,
+    val phase = if (animate && motionDurationScale > 0f) {
+        val infiniteTransition = rememberInfiniteTransition(label = "audio_lines_phase")
+        val animatedPhase by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 1f,
+            animationSpec = infiniteRepeatable(
+                animation = tween(
+                    durationMillis = ElovaireMotion.scaleDurationMillis(1180, motionDurationScale).toInt(),
+                    easing = LinearEasing,
+                ),
+                repeatMode = RepeatMode.Restart,
             ),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "audio_lines_value",
-    )
-    val phase = if (motionDurationScale <= 0f) 0.35f else animatedPhase
+            label = "audio_lines_value",
+        )
+        animatedPhase
+    } else {
+        0.35f
+    }
     val baseHeights = floatArrayOf(0.26f, 0.54f, 0.84f, 0.42f, 0.68f, 0.3f)
     val phaseOffsets = floatArrayOf(0f, 0.17f, 0.31f, 0.48f, 0.67f, 0.83f)
     Canvas(modifier = modifier) {
@@ -9087,6 +9059,7 @@ private fun PlaybackActiveArtworkOverlay(
         )
         AnimatedAudioLinesIcon(
             tint = Color.White.copy(alpha = 0.82f),
+            animate = true,
             modifier = Modifier.size(20.dp),
         )
     }
@@ -9138,6 +9111,7 @@ private fun AlbumSongRow(
                         if (showSignal) {
                             AnimatedAudioLinesIcon(
                                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                animate = isPlaybackActive,
                                 modifier = Modifier.size(16.dp),
                             )
                         } else {
@@ -11673,7 +11647,7 @@ private fun NowPlayingScreen(
                                         Text(
                                             text = formatDuration(renderedPlaybackProgress.durationMs),
                                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                            color = secondaryContentColor,
+                                            color = secondaryContentColor.copy(alpha = 0.7f),
                                         )
                                     }
                                 }
@@ -15756,13 +15730,13 @@ private val uiPhraseTranslations = mapOf(
         UiPhrase.Wet to "Wet",
         UiPhrase.Off to "Off",
         UiPhrase.Reverb to "Reverb",
-        UiPhrase.ToneShaping to "Tone shaping",
+        UiPhrase.ToneShaping to "Tonal balance",
         UiPhrase.Bass to "Bass",
         UiPhrase.Midrange to "Midrange",
         UiPhrase.Treble to "Treble",
         UiPhrase.EffectStrength to "Effect strength",
     ),
-    AppLanguage.Polish to mapOf(UiPhrase.About to "O aplikacji", UiPhrase.AddToPlaylist to "Dodaj do playlisty", UiPhrase.AddToQueue to "Dodaj do kolejki", UiPhrase.DeleteFromLibrary to "Usuń z biblioteki", UiPhrase.Delete to "Usuń", UiPhrase.Rename to "Zmień nazwę", UiPhrase.RemoveFromList to "Usuń z listy", UiPhrase.NewPlaylist to "Nowa playlista", UiPhrase.Cancel to "Anuluj", UiPhrase.Create to "Utwórz", UiPhrase.Reset to "Resetuj", UiPhrase.Dry to "Suchy", UiPhrase.Wet to "Mokry", UiPhrase.Off to "Wyłączone", UiPhrase.Reverb to "Pogłos", UiPhrase.ToneShaping to "Kształtowanie tonu", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Środek", UiPhrase.Treble to "Góra", UiPhrase.EffectStrength to "Siła efektu"),
+    AppLanguage.Polish to mapOf(UiPhrase.About to "O aplikacji", UiPhrase.AddToPlaylist to "Dodaj do playlisty", UiPhrase.AddToQueue to "Dodaj do kolejki", UiPhrase.DeleteFromLibrary to "Usuń z biblioteki", UiPhrase.Delete to "Usuń", UiPhrase.Rename to "Zmień nazwę", UiPhrase.RemoveFromList to "Usuń z listy", UiPhrase.NewPlaylist to "Nowa playlista", UiPhrase.Cancel to "Anuluj", UiPhrase.Create to "Utwórz", UiPhrase.Reset to "Resetuj", UiPhrase.Dry to "Suchy", UiPhrase.Wet to "Mokry", UiPhrase.Off to "Wyłączone", UiPhrase.Reverb to "Pogłos", UiPhrase.ToneShaping to "Balans tonalny", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Środek", UiPhrase.Treble to "Góra", UiPhrase.EffectStrength to "Siła efektu"),
     AppLanguage.Albanian to mapOf(UiPhrase.About to "Rreth", UiPhrase.AddToPlaylist to "Shto në listë", UiPhrase.AddToQueue to "Shto në radhë", UiPhrase.DeleteFromLibrary to "Fshi nga biblioteka", UiPhrase.Delete to "Fshi", UiPhrase.Rename to "Riemërto", UiPhrase.RemoveFromList to "Hiq nga lista", UiPhrase.NewPlaylist to "Listë e re", UiPhrase.Cancel to "Anulo", UiPhrase.Create to "Krijo", UiPhrase.Reset to "Rivendos", UiPhrase.Dry to "I thatë", UiPhrase.Wet to "I lagësht", UiPhrase.Off to "Fikur", UiPhrase.Reverb to "Reverb", UiPhrase.ToneShaping to "Formësim toni", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Mesatare", UiPhrase.Treble to "Të larta", UiPhrase.EffectStrength to "Fuqia e efektit"),
     AppLanguage.ChineseSimplified to mapOf(UiPhrase.About to "关于", UiPhrase.AddToPlaylist to "添加到播放列表", UiPhrase.AddToQueue to "添加到队列", UiPhrase.DeleteFromLibrary to "从媒体库删除", UiPhrase.Delete to "删除", UiPhrase.Rename to "重命名", UiPhrase.RemoveFromList to "从列表移除", UiPhrase.NewPlaylist to "新建播放列表", UiPhrase.Cancel to "取消", UiPhrase.Create to "创建", UiPhrase.Reset to "重置", UiPhrase.Dry to "干声", UiPhrase.Wet to "湿声", UiPhrase.Off to "关闭", UiPhrase.Reverb to "混响", UiPhrase.ToneShaping to "音色塑形", UiPhrase.Bass to "低音", UiPhrase.Midrange to "中频", UiPhrase.Treble to "高音", UiPhrase.EffectStrength to "效果强度"),
     AppLanguage.Croatian to mapOf(UiPhrase.About to "O aplikaciji", UiPhrase.AddToPlaylist to "Dodaj na popis", UiPhrase.AddToQueue to "Dodaj u red", UiPhrase.DeleteFromLibrary to "Izbriši iz biblioteke", UiPhrase.Delete to "Izbriši", UiPhrase.Rename to "Preimenuj", UiPhrase.RemoveFromList to "Ukloni s popisa", UiPhrase.NewPlaylist to "Novi popis", UiPhrase.Cancel to "Odustani", UiPhrase.Create to "Stvori", UiPhrase.Reset to "Resetiraj", UiPhrase.Dry to "Suho", UiPhrase.Wet to "Mokro", UiPhrase.Off to "Isključeno", UiPhrase.Reverb to "Odjek", UiPhrase.ToneShaping to "Oblikovanje tona", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Srednji", UiPhrase.Treble to "Visoki", UiPhrase.EffectStrength to "Jačina efekta"),
@@ -17093,7 +17067,7 @@ private fun DigitalSoundKnob(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
-        BoxWithConstraints(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(134.dp)
@@ -17335,7 +17309,7 @@ private fun EqToneKnob(
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Box(
             modifier = Modifier
@@ -17627,11 +17601,12 @@ private fun EqPresetMenu(
             eqPreset("Jazz", 0.18f, 0.26f, 0.14f, -0.08f, 0.10f, 0.22f, 0.18f, 0.12f),
             eqPreset("Classical", 0.12f, 0.16f, 0.08f, -0.04f, 0.06f, 0.18f, 0.24f, 0.18f),
             eqPreset("Acoustic", 0.10f, 0.14f, 0.06f, -0.12f, 0.14f, 0.20f, 0.18f, 0.10f),
-            eqPreset("Pop", 0.24f, 0.32f, 0.18f, -0.08f, 0.10f, 0.16f, 0.20f, 0.14f),
+            eqPreset("Pop", 0.22f, 0.28f, 0.16f, -0.06f, 0.18f, 0.24f, 0.18f, 0.10f),
             eqPreset("Rock", 0.28f, 0.22f, 0.10f, -0.12f, 0.08f, 0.18f, 0.28f, 0.22f),
             eqPreset("Metal", 0.22f, 0.18f, 0.08f, -0.14f, 0.12f, 0.24f, 0.30f, 0.26f),
             eqPreset("Vocal", -0.08f, -0.12f, -0.04f, -0.10f, 0.20f, 0.28f, 0.16f, 0.06f),
-            eqPreset("R&B", 0.30f, 0.34f, 0.16f, -0.10f, 0.12f, 0.16f, 0.12f, 0.08f),
+            eqPreset("R&B", 0.28f, 0.32f, 0.20f, -0.06f, 0.20f, 0.22f, 0.10f, 0.06f),
+            eqPreset("Soul", 0.20f, 0.24f, 0.18f, -0.04f, 0.18f, 0.24f, 0.10f, 0.04f),
             eqPreset("Hip-Hop", 0.42f, 0.46f, 0.22f, -0.12f, 0.10f, 0.12f, 0.08f, 0.04f),
         )
     }
@@ -17718,12 +17693,186 @@ private fun SpaciousnessModeMenu(
 private fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.English): String {
     return when (this) {
         SpaciousnessMode.Off -> uiPhrase(language, UiPhrase.Off)
-        SpaciousnessMode.StereoWidth -> "Stereo Width"
-        SpaciousnessMode.CrossfeedDepth -> "Crossfeed"
-        SpaciousnessMode.EarlyReflectionRoom -> "Room"
-        SpaciousnessMode.Philharmony -> "Philharmony"
-        SpaciousnessMode.HaasSpace -> "Haas Space"
-        SpaciousnessMode.HarmonicAir -> "Harmonic Air"
+        SpaciousnessMode.StereoWidth -> when (language) {
+            AppLanguage.Albanian -> "Gjerësi stereo"
+            AppLanguage.Polish -> "Szerokość stereo"
+            AppLanguage.Hindi -> "स्टीरियो चौड़ाई"
+            AppLanguage.Hungarian -> "Sztereó szélesség"
+            AppLanguage.German -> "Stereo-Breite"
+            AppLanguage.French -> "Largeur stéréo"
+            AppLanguage.Spanish -> "Amplitud estéreo"
+            AppLanguage.Italian -> "Ampiezza stereo"
+            AppLanguage.Latin -> "Latitudo stereo"
+            AppLanguage.Portuguese -> "Largura estéreo"
+            AppLanguage.Dutch -> "Stereo-breedte"
+            AppLanguage.Swedish -> "Stereobredd"
+            AppLanguage.Norwegian -> "Stereobredde"
+            AppLanguage.Danish -> "Stereobredde"
+            AppLanguage.Czech -> "Šířka sterea"
+            AppLanguage.Croatian -> "Stereo širina"
+            AppLanguage.Lithuanian -> "Stereo plotis"
+            AppLanguage.Latvian -> "Stereo platums"
+            AppLanguage.Estonian -> "Stereo laius"
+            AppLanguage.Greek -> "Πλάτος stereo"
+            AppLanguage.Macedonian -> "Стерео ширина"
+            AppLanguage.Russian -> "Ширина стерео"
+            AppLanguage.Serbian -> "Ширина стереа"
+            AppLanguage.Thai -> "ความกว้างสเตอริโอ"
+            AppLanguage.Ukrainian -> "Ширина стерео"
+            AppLanguage.ChineseSimplified -> "立体声宽度"
+            AppLanguage.Japanese -> "ステレオ幅"
+            else -> "Stereo Width"
+        }
+        SpaciousnessMode.CrossfeedDepth -> when (language) {
+            AppLanguage.Albanian -> "Përzierje kanalesh"
+            AppLanguage.Polish -> "Przenikanie kanałów"
+            AppLanguage.Hindi -> "क्रॉसफीड"
+            AppLanguage.Hungarian -> "Crossfeed"
+            AppLanguage.German -> "Crossfeed"
+            AppLanguage.French -> "Crossfeed"
+            AppLanguage.Spanish -> "Crossfeed"
+            AppLanguage.Italian -> "Crossfeed"
+            AppLanguage.Latin -> "Canales mixti"
+            AppLanguage.Portuguese -> "Crossfeed"
+            AppLanguage.Dutch -> "Crossfeed"
+            AppLanguage.Swedish -> "Crossfeed"
+            AppLanguage.Norwegian -> "Crossfeed"
+            AppLanguage.Danish -> "Crossfeed"
+            AppLanguage.Czech -> "Crossfeed"
+            AppLanguage.Croatian -> "Crossfeed"
+            AppLanguage.Lithuanian -> "Kanalų susiliejimas"
+            AppLanguage.Latvian -> "Kanālu sajaukums"
+            AppLanguage.Estonian -> "Kanalite segamine"
+            AppLanguage.Greek -> "Crossfeed"
+            AppLanguage.Macedonian -> "Вкрстено мешање"
+            AppLanguage.Russian -> "Кроссфид"
+            AppLanguage.Serbian -> "Кросфид"
+            AppLanguage.Thai -> "ครอสฟีด"
+            AppLanguage.Ukrainian -> "Кросфід"
+            AppLanguage.ChineseSimplified -> "交叉馈送"
+            AppLanguage.Japanese -> "クロスフィード"
+            else -> "Crossfeed"
+        }
+        SpaciousnessMode.EarlyReflectionRoom -> when (language) {
+            AppLanguage.Albanian -> "Dhomë"
+            AppLanguage.Polish -> "Pokój"
+            AppLanguage.Hindi -> "कमरा"
+            AppLanguage.Hungarian -> "Szoba"
+            AppLanguage.German -> "Raum"
+            AppLanguage.French -> "Pièce"
+            AppLanguage.Spanish -> "Sala"
+            AppLanguage.Italian -> "Stanza"
+            AppLanguage.Latin -> "Camera"
+            AppLanguage.Portuguese -> "Sala"
+            AppLanguage.Dutch -> "Ruimte"
+            AppLanguage.Swedish -> "Rum"
+            AppLanguage.Norwegian -> "Rom"
+            AppLanguage.Danish -> "Rum"
+            AppLanguage.Czech -> "Místnost"
+            AppLanguage.Croatian -> "Soba"
+            AppLanguage.Lithuanian -> "Kambarys"
+            AppLanguage.Latvian -> "Istaba"
+            AppLanguage.Estonian -> "Tuba"
+            AppLanguage.Greek -> "Δωμάτιο"
+            AppLanguage.Macedonian -> "Соба"
+            AppLanguage.Russian -> "Комната"
+            AppLanguage.Serbian -> "Соба"
+            AppLanguage.Thai -> "ห้อง"
+            AppLanguage.Ukrainian -> "Кімната"
+            AppLanguage.ChineseSimplified -> "房间"
+            AppLanguage.Japanese -> "ルーム"
+            else -> "Room"
+        }
+        SpaciousnessMode.Philharmony -> when (language) {
+            AppLanguage.Albanian -> "Filarmonia"
+            AppLanguage.Polish -> "Filharmonia"
+            AppLanguage.Hindi -> "फिलहार्मनी"
+            AppLanguage.Hungarian -> "Filharmónia"
+            AppLanguage.German -> "Philharmonie"
+            AppLanguage.French -> "Philharmonie"
+            AppLanguage.Spanish -> "Filarmónica"
+            AppLanguage.Italian -> "Filarmonica"
+            AppLanguage.Latin -> "Philharmonia"
+            AppLanguage.Portuguese -> "Filarmônica"
+            AppLanguage.Dutch -> "Filharmonie"
+            AppLanguage.Swedish -> "Filharmoni"
+            AppLanguage.Norwegian -> "Filharmoni"
+            AppLanguage.Danish -> "Filharmoni"
+            AppLanguage.Czech -> "Filharmonie"
+            AppLanguage.Croatian -> "Filharmonija"
+            AppLanguage.Lithuanian -> "Filharmonija"
+            AppLanguage.Latvian -> "Filharmonija"
+            AppLanguage.Estonian -> "Filharmoonia"
+            AppLanguage.Greek -> "Φιλαρμονική"
+            AppLanguage.Macedonian -> "Филхармонија"
+            AppLanguage.Russian -> "Филармония"
+            AppLanguage.Serbian -> "Филхармонија"
+            AppLanguage.Thai -> "ฟิลฮาร์โมนี"
+            AppLanguage.Ukrainian -> "Філармонія"
+            AppLanguage.ChineseSimplified -> "爱乐厅"
+            AppLanguage.Japanese -> "フィルハーモニー"
+            else -> "Philharmony"
+        }
+        SpaciousnessMode.HaasSpace -> when (language) {
+            AppLanguage.Albanian -> "Hapësira Haas"
+            AppLanguage.Polish -> "Przestrzeń Haasa"
+            AppLanguage.Hindi -> "हास स्पेस"
+            AppLanguage.Hungarian -> "Haas tér"
+            AppLanguage.German -> "Haas-Raum"
+            AppLanguage.French -> "Espace Haas"
+            AppLanguage.Spanish -> "Espacio Haas"
+            AppLanguage.Italian -> "Spazio Haas"
+            AppLanguage.Latin -> "Spatium Haas"
+            AppLanguage.Portuguese -> "Espaço Haas"
+            AppLanguage.Dutch -> "Haas-ruimte"
+            AppLanguage.Swedish -> "Haas-rymd"
+            AppLanguage.Norwegian -> "Haas-rom"
+            AppLanguage.Danish -> "Haas-rum"
+            AppLanguage.Czech -> "Haasův prostor"
+            AppLanguage.Croatian -> "Haas prostor"
+            AppLanguage.Lithuanian -> "Haas erdvė"
+            AppLanguage.Latvian -> "Haas telpa"
+            AppLanguage.Estonian -> "Haas ruum"
+            AppLanguage.Greek -> "Χώρος Haas"
+            AppLanguage.Macedonian -> "Haas простор"
+            AppLanguage.Russian -> "Пространство Хааса"
+            AppLanguage.Serbian -> "Haas простор"
+            AppLanguage.Thai -> "พื้นที่ Haas"
+            AppLanguage.Ukrainian -> "Простір Хааса"
+            AppLanguage.ChineseSimplified -> "Haas 空间"
+            AppLanguage.Japanese -> "ハース空間"
+            else -> "Haas Space"
+        }
+        SpaciousnessMode.HarmonicAir -> when (language) {
+            AppLanguage.Albanian -> "Ajër harmonik"
+            AppLanguage.Polish -> "Harmoniczne powietrze"
+            AppLanguage.Hindi -> "हार्मोनिक एयर"
+            AppLanguage.Hungarian -> "Harmonikus levegő"
+            AppLanguage.German -> "Harmonische Luft"
+            AppLanguage.French -> "Air harmonique"
+            AppLanguage.Spanish -> "Aire armónico"
+            AppLanguage.Italian -> "Aria armonica"
+            AppLanguage.Latin -> "Aer harmonicus"
+            AppLanguage.Portuguese -> "Ar harmônico"
+            AppLanguage.Dutch -> "Harmonische lucht"
+            AppLanguage.Swedish -> "Harmonisk luft"
+            AppLanguage.Norwegian -> "Harmonisk luft"
+            AppLanguage.Danish -> "Harmonisk luft"
+            AppLanguage.Czech -> "Harmonický vzduch"
+            AppLanguage.Croatian -> "Harmonični zrak"
+            AppLanguage.Lithuanian -> "Harmoningas oras"
+            AppLanguage.Latvian -> "Harmonisks gaiss"
+            AppLanguage.Estonian -> "Harmooniline õhk"
+            AppLanguage.Greek -> "Αρμονικός αέρας"
+            AppLanguage.Macedonian -> "Хармоничен воздух"
+            AppLanguage.Russian -> "Гармонический воздух"
+            AppLanguage.Serbian -> "Хармонични ваздух"
+            AppLanguage.Thai -> "อากาศฮาร์มอนิก"
+            AppLanguage.Ukrainian -> "Гармонійне повітря"
+            AppLanguage.ChineseSimplified -> "和声音场"
+            AppLanguage.Japanese -> "ハーモニックエア"
+            else -> "Harmonic Air"
+        }
     }
 }
 
@@ -17742,9 +17891,7 @@ private fun EqPresetPill(
     } else if (useSubtleIdleBackground) {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
     } else {
-        MaterialTheme.colorScheme.surfaceVariant.copy(
-            alpha = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 0.7f else 0.48f,
-        )
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
     }
     val contentColor = if (emphasized) {
         MaterialTheme.colorScheme.onPrimary

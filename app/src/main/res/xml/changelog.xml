@@ -7,8 +7,14 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.1">
-        <item>Added feature to manually edit tags from album preview list</item>
+        <item>Added feature to manually edit ID3 tags from album preview list</item>
+        <item>Added feature to sync and save ID3 tags online into songs</item>
         <item>Improved lyrics parsing method</item>
+        <item>New EQ preset - Soul</item>
+        <item>Refinements to other EQ presets</item>
+        <item>Minor tweaks to EQ layout</item>
+        <item>Technical upgrades to bit-perfect playback framework</item>
         <item>Tweaks to animations</item>
+        <item>Bug fixes</item>
     </release>
 </changelog>

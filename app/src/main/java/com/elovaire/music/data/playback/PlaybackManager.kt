@@ -13,6 +13,7 @@ import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
+import android.util.Log
 import androidx.media3.common.C
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.AudioAttributes
@@ -26,6 +27,7 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaSession
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -119,8 +121,11 @@ class PlaybackManager(
         .setConstantBitrateSeekingEnabled(true)
     private val dataSourceFactory = DefaultDataSource.Factory(appContext)
     private val mediaSourceFactory = buildMediaSourceFactory()
+    private val playbackHandler = Handler(Looper.getMainLooper())
+    private var pendingAudioPathReason: String? = null
     private var isDirectPlaybackActive = false
     private var isSwitchingAudioPath = false
+    private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var player = createPlayer(enableSignalProcessing = true)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
@@ -135,8 +140,7 @@ class PlaybackManager(
                 hasUsbOutputRoute = currentUsbOutputDescriptor() != null
                 usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
                 bitPerfectUsbManager.refreshConnectedDevices()
-                applyPreferredAudioDevice()
-                maybeRebuildPlayerForAudioPath()
+                scheduleAudioPathReevaluation("audio-device-added", AUDIO_PATH_REEVALUATION_DELAY_MS)
             }
             syncFromObservedSystemVolume()
         }
@@ -146,8 +150,7 @@ class PlaybackManager(
                 hasUsbOutputRoute = currentUsbOutputDescriptor() != null
                 usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
                 bitPerfectUsbManager.refreshConnectedDevices()
-                applyPreferredAudioDevice()
-                maybeRebuildPlayerForAudioPath()
+                scheduleAudioPathReevaluation("audio-device-removed", AUDIO_PATH_REEVALUATION_DELAY_MS)
             }
             syncFromObservedSystemVolume()
         }
@@ -168,13 +171,18 @@ class PlaybackManager(
     private var pauseFadeJob: Job? = null
     private val _playerInstanceVersion = MutableStateFlow(0L)
     val playerInstanceVersion: StateFlow<Long> = _playerInstanceVersion.asStateFlow()
+    private val audioPathReevaluationRunnable = Runnable {
+        val reason = pendingAudioPathReason ?: "unspecified"
+        pendingAudioPathReason = null
+        applyPreferredAudioDeviceIfNeeded()
+        maybeRebuildPlayerForAudioPath(reason)
+    }
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(
             mediaItem: MediaItem?,
             reason: Int,
         ) {
-            bitPerfectUsbManager.clearForStop()
-            maybeRebuildPlayerForAudioPath()
+            scheduleAudioPathReevaluation("media-item-transition", AUDIO_PATH_REEVALUATION_DELAY_MS)
             updateState()
         }
 
@@ -219,8 +227,7 @@ class PlaybackManager(
             audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
         ) {
             bitPerfectUsbManager.updateCurrentAudioTrackConfig(audioTrackConfig)
-            applyPreferredAudioDevice()
-            maybeRebuildPlayerForAudioPath()
+            scheduleAudioPathReevaluation("audio-track-initialized")
             player.volume = effectivePlayerGain()
             syncFromObservedSystemVolume()
         }
@@ -291,7 +298,7 @@ class PlaybackManager(
             )
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
         usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
-        applyPreferredAudioDevice()
+        applyPreferredAudioDeviceIfNeeded(force = true)
         attachPlayerObservers(player)
         syncFromObservedSystemVolume()
         player.volume = effectivePlayerGain()
@@ -302,8 +309,7 @@ class PlaybackManager(
     fun reevaluateAudioOutputPath() {
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
         bitPerfectUsbManager.refreshConnectedDevices()
-        applyPreferredAudioDevice()
-        maybeRebuildPlayerForAudioPath()
+        scheduleAudioPathReevaluation("effects-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
         updateState()
     }
@@ -327,6 +333,8 @@ class PlaybackManager(
                     appContext,
                     if (enableSignalProcessing) audioProcessorsProvider() else emptyArray(),
                 )
+                    // Keep the framework sink configuration stable across the regular and direct
+                    // paths so direct-playback eligibility doesn't oscillate between players.
                     .setEnableAudioFloatOutput(false)
                     .setEnableDecoderFallback(true)
                     .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
@@ -548,6 +556,7 @@ class PlaybackManager(
     fun release() {
         pauseFadeJob?.cancel()
         progressUpdateJob?.cancel()
+        playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
         appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
@@ -557,27 +566,65 @@ class PlaybackManager(
         player.release()
     }
 
-    private fun applyPreferredAudioDevice() {
-        player.setPreferredAudioDevice(bitPerfectUsbManager.preferredOutputDevice())
+    private fun scheduleAudioPathReevaluation(
+        reason: String,
+        delayMs: Long = 0L,
+    ) {
+        pendingAudioPathReason = pendingAudioPathReason
+            ?.takeIf { it == reason }
+            ?: reason
+        playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
+        playbackHandler.postDelayed(audioPathReevaluationRunnable, delayMs.coerceAtLeast(0L))
     }
 
-    private fun maybeRebuildPlayerForAudioPath() {
+    private fun applyPreferredAudioDeviceIfNeeded(force: Boolean = false) {
+        val preferredDevice = bitPerfectUsbManager.preferredOutputDevice()
+        val nextKey = preferredDevice?.let { PreferredAudioDeviceKey(it.id, it.type) }
+        if (!force && lastAppliedPreferredDeviceKey == nextKey) return
+        player.setPreferredAudioDevice(preferredDevice)
+        lastAppliedPreferredDeviceKey = nextKey
+    }
+
+    private fun maybeRebuildPlayerForAudioPath(reason: String) {
         if (isSwitchingAudioPath) return
-        val shouldUseDirectPlayback = bitPerfectUsbManager.status.value.shouldUseDirectPlayback
-        if (shouldUseDirectPlayback == isDirectPlaybackActive) {
+        if (_state.value.queue.isEmpty() && player.mediaItemCount == 0) {
             player.volume = targetPlayerOutputGain()
             return
         }
-        switchPlayerAudioPath(useDirectPlayback = shouldUseDirectPlayback)
+        when (bitPerfectUsbManager.status.value.directive) {
+            BitPerfectPlaybackDirective.KeepCurrent -> {
+                player.volume = targetPlayerOutputGain()
+            }
+
+            BitPerfectPlaybackDirective.PreferDirect -> {
+                if (!isDirectPlaybackActive) {
+                    switchPlayerAudioPath(useDirectPlayback = true, reason = reason)
+                } else {
+                    player.volume = targetPlayerOutputGain()
+                }
+            }
+
+            BitPerfectPlaybackDirective.PreferRegular -> {
+                if (isDirectPlaybackActive) {
+                    switchPlayerAudioPath(useDirectPlayback = false, reason = reason)
+                } else {
+                    player.volume = targetPlayerOutputGain()
+                }
+            }
+        }
     }
 
-    private fun switchPlayerAudioPath(useDirectPlayback: Boolean) {
+    private fun switchPlayerAudioPath(
+        useDirectPlayback: Boolean,
+        reason: String,
+    ) {
         isSwitchingAudioPath = true
         try {
             val previousPlayer = player
             val playbackSnapshot = PlaybackSnapshot.from(previousPlayer)
             val queueSnapshot = _state.value.queue
             detachPlayerObservers(previousPlayer)
+            logDebug("rebuild direct=$useDirectPlayback reason=$reason position=${playbackSnapshot.positionMs} index=${playbackSnapshot.currentIndex}")
 
             val replacementPlayer = createPlayer(enableSignalProcessing = !useDirectPlayback)
             attachPlayerObservers(replacementPlayer)
@@ -598,7 +645,8 @@ class PlaybackManager(
             player = replacementPlayer
             isDirectPlaybackActive = useDirectPlayback
             mediaSession.setPlayer(replacementPlayer)
-            applyPreferredAudioDevice()
+            lastAppliedPreferredDeviceKey = null
+            applyPreferredAudioDeviceIfNeeded(force = true)
             replacementPlayer.volume = targetPlayerOutputGain()
             _playerInstanceVersion.value += 1L
             previousPlayer.release()
@@ -620,8 +668,8 @@ class PlaybackManager(
         isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
         pausedForAudioFocusLoss = false
-        bitPerfectUsbManager.clearForStop()
-        maybeRebuildPlayerForAudioPath()
+        bitPerfectUsbManager.clearPlaybackFormat()
+        scheduleAudioPathReevaluation("set-queue", AUDIO_PATH_REEVALUATION_DELAY_MS)
 
         val mediaItems = songs.map { song ->
             song.toPlaybackMediaItem()
@@ -654,6 +702,7 @@ class PlaybackManager(
         shouldResumeAfterTransientFocusLoss = false
         pausedForAudioFocusLoss = false
         bitPerfectUsbManager.clearForStop()
+        playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         player.pause()
         player.playWhenReady = false
         player.seekTo(0L)
@@ -771,7 +820,7 @@ class PlaybackManager(
         pausedForAudioFocusLoss = false
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
         bitPerfectUsbManager.refreshConnectedDevices()
-        maybeRebuildPlayerForAudioPath()
+        scheduleAudioPathReevaluation("resume-playback")
         if (!requestAudioFocus()) return
         isPauseTransitioningToStopped = false
         shouldResumeAfterTransientFocusLoss = false
@@ -894,8 +943,8 @@ class PlaybackManager(
             ?: snapshot.currentIndex.takeIf { it in snapshot.queue.indices }
             ?: 0
         val recoverPosition = lastKnownPositionMs.coerceAtLeast(0L)
-        bitPerfectUsbManager.clearForStop()
-        maybeRebuildPlayerForAudioPath()
+        bitPerfectUsbManager.clearPlaybackFormat()
+        scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
         isRecoveringPlayback = true
         scope.launch {
             val mediaItems = snapshot.queue.map { song ->
@@ -1156,10 +1205,17 @@ class PlaybackManager(
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val MAX_HISTORY_ITEMS = 12
         const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
+        const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
+        const val TAG = "PlaybackManager"
     }
 
     private fun buildMediaSourceFactory(): MediaSource.Factory {
         return DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
+    }
+
+    private fun logDebug(message: String) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(TAG, message)
     }
 }
 
@@ -1211,6 +1267,11 @@ private data class PlaybackSnapshot(
         }
     }
 }
+
+private data class PreferredAudioDeviceKey(
+    val id: Int,
+    val type: Int,
+)
 
     private fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
         return when (this) {

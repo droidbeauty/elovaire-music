@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.metadata.id3.Id3Decoder
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
@@ -532,6 +533,7 @@ class MediaStoreScanner(
         }.getOrDefault(RetrieverMetadata())
     }
 
+    @UnstableApi
     private fun parseId3Metadata(id3Bytes: ByteArray): RetrieverMetadata {
         val metadata = runCatching { Id3Decoder().decode(id3Bytes, id3Bytes.size) }.getOrNull() ?: return RetrieverMetadata()
         var title: String? = null
