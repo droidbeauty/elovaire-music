@@ -12,7 +12,10 @@ import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.channels.BufferOverflow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -49,7 +52,11 @@ class AppContainer(
         scanner = MediaStoreScanner(applicationContext),
         scope = appScope,
     )
-    val openPlayerRequestVersion = MutableStateFlow(0L)
+    private val _openPlayerRequests = MutableSharedFlow<Unit>(
+        extraBufferCapacity = 1,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+    val openPlayerRequests: SharedFlow<Unit> = _openPlayerRequests.asSharedFlow()
 
     init {
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
@@ -60,7 +67,7 @@ class AppContainer(
             }
         }
         appScope.launch {
-            playbackManager.state
+            playbackManager.nowPlayingState
                 .map { it.currentSong?.id to it.currentSong?.albumId }
                 .distinctUntilChanged()
                 .collect { (songId, albumId) ->
@@ -80,7 +87,7 @@ class AppContainer(
     }
 
     fun requestOpenPlayer() {
-        openPlayerRequestVersion.value += 1L
+        _openPlayerRequests.tryEmit(Unit)
     }
 
     private fun notificationController(): PlaybackNotificationController {

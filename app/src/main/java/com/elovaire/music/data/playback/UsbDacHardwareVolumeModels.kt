@@ -26,7 +26,48 @@ internal data class UsbAudioDeviceDescriptor(
     val productName: String? = null,
     val sampleRates: IntArray = intArrayOf(),
     val encodings: IntArray = intArrayOf(),
-)
+) {
+    fun routingFingerprint(): UsbAudioDeviceRoutingFingerprint {
+        return UsbAudioDeviceRoutingFingerprint(
+            id = id,
+            type = type,
+            isSink = isSink,
+            productName = productName?.trim(),
+            sampleRates = sampleRates.copyOf().sortedArray(),
+            encodings = encodings.copyOf().sortedArray(),
+        )
+    }
+}
+
+internal data class UsbAudioDeviceRoutingFingerprint(
+    val id: Int,
+    val type: Int,
+    val isSink: Boolean,
+    val productName: String?,
+    val sampleRates: IntArray,
+    val encodings: IntArray,
+) {
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (other !is UsbAudioDeviceRoutingFingerprint) return false
+        return id == other.id &&
+            type == other.type &&
+            isSink == other.isSink &&
+            productName == other.productName &&
+            sampleRates.contentEquals(other.sampleRates) &&
+            encodings.contentEquals(other.encodings)
+    }
+
+    override fun hashCode(): Int {
+        var result = id
+        result = 31 * result + type
+        result = 31 * result + isSink.hashCode()
+        result = 31 * result + (productName?.hashCode() ?: 0)
+        result = 31 * result + sampleRates.contentHashCode()
+        result = 31 * result + encodings.contentHashCode()
+        return result
+    }
+}
 
 internal data class UsbDacDeviceIdentity(
     val vendorId: Int,

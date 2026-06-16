@@ -4,6 +4,8 @@ import android.media.AudioFormat
 import androidx.media3.common.C
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotSame
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -86,5 +88,39 @@ class BitPerfectPlaybackInternalsTest {
 
         assertTrue(controller.status().shouldOwnVolumeControls)
         assertEquals(UsbDacHardwareVolumeState.HardwareVolumeActive, controller.status().state)
+    }
+
+    @Test
+    fun usbAudioRoutingFingerprintUsesArrayContentsNotIdentity() {
+        val first = UsbAudioDeviceDescriptor(
+            id = 9,
+            type = 11,
+            isSink = true,
+            productName = "DAC",
+            sampleRates = intArrayOf(48_000, 96_000),
+            encodings = intArrayOf(AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_FLOAT),
+        )
+        val second = UsbAudioDeviceDescriptor(
+            id = 9,
+            type = 11,
+            isSink = true,
+            productName = "DAC",
+            sampleRates = intArrayOf(96_000, 48_000),
+            encodings = intArrayOf(AudioFormat.ENCODING_PCM_FLOAT, AudioFormat.ENCODING_PCM_16BIT),
+        )
+
+        assertNotSame(first.sampleRates, second.sampleRates)
+        assertEquals(first.routingFingerprint(), second.routingFingerprint())
+    }
+
+    @Test
+    fun playbackEffectsControllerReusesAudioProcessorArray() {
+        val controller = PlaybackEffectsController()
+
+        val first = controller.audioProcessors()
+        val second = controller.audioProcessors()
+
+        assertSame(first, second)
+        assertEquals(1, first.size)
     }
 }

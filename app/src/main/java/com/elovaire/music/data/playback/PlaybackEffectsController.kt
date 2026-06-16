@@ -9,9 +9,10 @@ import kotlin.math.abs
 @UnstableApi
 class PlaybackEffectsController {
     private val equalizerProcessor = EqualizerAudioProcessor()
+    private val audioProcessors = arrayOf<AudioProcessor>(equalizerProcessor)
     private var currentSettings: EqSettings = EqSettings()
 
-    fun audioProcessors(): Array<AudioProcessor> = arrayOf(equalizerProcessor)
+    fun audioProcessors(): Array<AudioProcessor> = audioProcessors
 
     fun updateSettings(settings: EqSettings) {
         currentSettings = settings.copy(

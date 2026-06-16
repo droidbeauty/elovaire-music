@@ -33,6 +33,7 @@ internal class UsbDacHardwareVolumeManager(
     val status: StateFlow<UsbDacHardwareVolumeStatus> = _status.asStateFlow()
 
     private var currentAudioDeviceDescriptor: UsbAudioDeviceDescriptor? = null
+    private var currentAudioDeviceFingerprint: UsbAudioDeviceRoutingFingerprint? = null
     private var currentUsbDevice: UsbDevice? = null
     private var currentCapability: UsbDacHardwareVolumeCapability? = null
     private var permissionReceiverRegistered = false
@@ -111,8 +112,10 @@ internal class UsbDacHardwareVolumeManager(
     fun updateAudioOutputDevice(
         audioDeviceDescriptor: UsbAudioDeviceDescriptor?,
     ) {
-        if (currentAudioDeviceDescriptor == audioDeviceDescriptor) return
+        val nextFingerprint = audioDeviceDescriptor?.routingFingerprint()
+        if (currentAudioDeviceFingerprint == nextFingerprint) return
         currentAudioDeviceDescriptor = audioDeviceDescriptor
+        currentAudioDeviceFingerprint = nextFingerprint
         refreshConnectedDevice()
     }
 

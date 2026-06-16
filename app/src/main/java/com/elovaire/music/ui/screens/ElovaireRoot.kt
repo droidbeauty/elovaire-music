@@ -241,6 +241,8 @@ import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryContentState
+import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
@@ -254,9 +256,14 @@ import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackNowPlayingState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
+import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueState
+import elovaire.music.droidbeauty.app.data.playback.PlaybackTransportState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
+import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
+import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.update.AppReleaseInfo
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -984,8 +991,13 @@ fun ElovaireRoot(
     val navController = rememberNavController()
     val context = LocalContext.current
     SyncElovaireMotionScale()
-    val libraryState by container.libraryRepository.state.collectAsStateWithLifecycle()
-    val playbackState by container.playbackManager.state.collectAsStateWithLifecycle()
+    val libraryContentState by container.libraryRepository.contentState.collectAsStateWithLifecycle()
+    val libraryScanState by container.libraryRepository.scanState.collectAsStateWithLifecycle()
+    val playbackNowPlayingState by container.playbackManager.nowPlayingState.collectAsStateWithLifecycle()
+    val playbackTransportState by container.playbackManager.transportState.collectAsStateWithLifecycle()
+    val playbackQueueState by container.playbackManager.queueState.collectAsStateWithLifecycle()
+    val playbackVolumeState by container.playbackManager.volumeState.collectAsStateWithLifecycle()
+    val recentPlaybackState by container.playbackManager.recentPlaybackState.collectAsStateWithLifecycle()
     val eqSettings by container.preferenceStore.eqSettings.collectAsStateWithLifecycle()
     val themeMode by container.preferenceStore.themeMode.collectAsStateWithLifecycle()
     val textSizePreset by container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
@@ -1000,11 +1012,28 @@ fun ElovaireRoot(
     val songCollectionGridEnabled by container.preferenceStore.songCollectionGridEnabled.collectAsStateWithLifecycle()
     val albumCollectionSortModeName by container.preferenceStore.albumCollectionSortMode.collectAsStateWithLifecycle()
     val songCollectionSortModeName by container.preferenceStore.songCollectionSortMode.collectAsStateWithLifecycle()
-    val openPlayerRequestVersion by container.openPlayerRequestVersion.collectAsStateWithLifecycle()
     val appUpdateState by container.appUpdateManager.uiState.collectAsStateWithLifecycle()
     val albumCollectionLayoutMode = albumCollectionLayoutModeName.toAlbumLayoutMode()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
     val rootScope = rememberCoroutineScope()
+    val libraryState = remember(libraryContentState, libraryScanState) {
+        libraryUiStateOf(libraryContentState, libraryScanState)
+    }
+    val playbackState = remember(
+        playbackNowPlayingState,
+        playbackTransportState,
+        playbackQueueState,
+        playbackVolumeState,
+        recentPlaybackState,
+    ) {
+        playbackUiStateOf(
+            nowPlaying = playbackNowPlayingState,
+            transport = playbackTransportState,
+            queue = playbackQueueState,
+            volume = playbackVolumeState,
+            recent = recentPlaybackState,
+        )
+    }
     var hasPermission by remember { mutableStateOf(hasAudioPermission(context)) }
     var hasNotificationPermission by remember { mutableStateOf(hasNotificationPermission(context)) }
     var hasRequestedAudioPermission by rememberSaveable { mutableStateOf(false) }
@@ -1377,10 +1406,8 @@ fun ElovaireRoot(
         } else {
             null
         }
-    var lastHandledOpenPlayerRequest by rememberSaveable { mutableLongStateOf(0L) }
-    LaunchedEffect(openPlayerRequestVersion) {
-        if (openPlayerRequestVersion > 0L && openPlayerRequestVersion != lastHandledOpenPlayerRequest) {
-            lastHandledOpenPlayerRequest = openPlayerRequestVersion
+    LaunchedEffect(container) {
+        container.openPlayerRequests.collect {
             openPlayerIfAllowed(null)
         }
     }
@@ -2412,6 +2439,45 @@ fun ElovaireRoot(
             }
         }
     }
+}
+
+private fun libraryUiStateOf(
+    content: LibraryContentState,
+    scan: LibraryScanState,
+): LibraryUiState {
+    return LibraryUiState(
+        permissionGranted = scan.permissionGranted,
+        isLoading = scan.isLoading,
+        scanProgress = scan.scanProgress,
+        songs = content.songs,
+        albums = content.albums,
+        errorMessage = scan.errorMessage,
+    )
+}
+
+private fun playbackUiStateOf(
+    nowPlaying: PlaybackNowPlayingState,
+    transport: PlaybackTransportState,
+    queue: PlaybackQueueState,
+    volume: PlaybackVolumeState,
+    recent: RecentPlaybackState,
+): PlaybackUiState {
+    return PlaybackUiState(
+        queue = queue.queue,
+        currentIndex = queue.currentIndex,
+        isPlaying = transport.isPlaying,
+        transportShowsPause = transport.transportShowsPause,
+        repeatMode = transport.repeatMode,
+        shuffleEnabled = transport.shuffleEnabled,
+        sourceLabel = nowPlaying.sourceLabel,
+        volume = volume.volume,
+        audioSessionId = nowPlaying.audioSessionId,
+        recentSongIds = recent.recentSongIds,
+        recentAlbumIds = recent.recentAlbumIds,
+        sourcePlaylistId = queue.sourcePlaylistId,
+        lastPlayedCollectionKind = recent.lastPlayedCollectionKind,
+        lastPlayedCollectionId = recent.lastPlayedCollectionId,
+    )
 }
 
 @Composable
@@ -10847,7 +10913,6 @@ private fun NowPlayingScreen(
 ) {
     val liveCurrentSong = playbackState.currentSong
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
-    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
     val playerHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -10900,13 +10965,6 @@ private fun NowPlayingScreen(
     var dismissAnimationRunning by remember(liveCurrentSong?.id) { mutableStateOf(false) }
     val effectiveTransitionProgress = interactiveTransitionProgress ?: transitionProgress.value
     val transitionInFlight = transitionState != PlayerOverlayTransitionState.Expanded || interactiveTransitionProgress != null || dismissAnimationRunning
-    var frozenPlaybackProgress by remember(liveCurrentSong?.id) { mutableStateOf(playbackProgress) }
-    LaunchedEffect(playbackProgress, transitionInFlight, liveCurrentSong?.id) {
-        if (!transitionInFlight) {
-            frozenPlaybackProgress = playbackProgress
-        }
-    }
-    val renderedPlaybackProgress = if (transitionInFlight) frozenPlaybackProgress else playbackProgress
     val adaptivePalette = remember(gradient, appBackground) {
         buildPlayerAdaptivePalette(
             gradient = gradient,
@@ -11263,14 +11321,6 @@ private fun NowPlayingScreen(
             val centeredInfoWidth = 0.95f
             val nowPlayingTitleTopGap = ElovaireSpacing.nowPlayingTitleTopGap
             val nowPlayingTitleBottomGap = ElovaireSpacing.nowPlayingTitleBottomGap
-            val displayedPositionMs = renderedPlaybackProgress.displayPositionMs
-            val displayedProgressFraction = remember(renderedPlaybackProgress.displayPositionMs, renderedPlaybackProgress.durationMs) {
-                if (renderedPlaybackProgress.durationMs > 0L) {
-                    (renderedPlaybackProgress.displayPositionMs.toFloat() / renderedPlaybackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-                } else {
-                    0f
-                }
-            }
             val transportShowsPause = remember(
                 playbackState.currentSong?.id,
                 playbackState.transportShowsPause,
@@ -11462,16 +11512,13 @@ private fun NowPlayingScreen(
                                         ),
                                     )
                                 }
-                                CompactPlaybackProgressBar(
-                                    progress = displayedProgressFraction,
-                                    contentColor = contentColor,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
-                                CompactPlaybackTimingRow(
-                                    displayedPositionMs = displayedPositionMs,
-                                    durationMs = renderedPlaybackProgress.durationMs,
+                                CompactQueuePlaybackSummary(
+                                    playbackManager = playbackManager,
+                                    currentSongId = currentSong.id,
+                                    freezeUpdates = transitionInFlight,
                                     contentColor = contentColor,
                                     secondaryContentColor = secondaryContentColor,
+                                    modifier = Modifier.fillMaxWidth(),
                                 )
                             }
                         }
@@ -11595,63 +11642,16 @@ private fun NowPlayingScreen(
                                 },
                             verticalArrangement = Arrangement.spacedBy(0.dp),
                         ) {
-                            Column(
+                            NowPlayingProgressSummary(
+                                playbackManager = playbackManager,
+                                currentSongId = currentSong.id,
+                                freezeUpdates = transitionInFlight,
+                                format = displaySong?.audioFormat ?: currentSong.audioFormat,
+                                quality = displaySong?.audioQuality ?: currentSong.audioQuality,
+                                contentColor = contentColor,
+                                secondaryContentColor = secondaryContentColor,
                                 modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(3.dp),
-                            ) {
-                                PlaybackProgressBar(
-                                    progress = displayedProgressFraction,
-                                    isInteracting = renderedPlaybackProgress.isUserScrubbing,
-                                    contentColor = contentColor,
-                                    onScrubStarted = {
-                                        playbackManager.beginScrub()
-                                    },
-                                    onScrubFractionChanged = { fraction ->
-                                        val target = fractionToDurationPosition(
-                                            fraction = fraction,
-                                            durationMs = renderedPlaybackProgress.durationMs,
-                                        )
-                                        playbackManager.updateScrubPosition(target)
-                                    },
-                                    onScrubFinished = { fraction ->
-                                        val target = fractionToDurationPosition(
-                                            fraction = fraction,
-                                            durationMs = renderedPlaybackProgress.durationMs,
-                                        )
-                                        playbackManager.finishScrub(target)
-                                    },
-                                )
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Box(
-                                        modifier = Modifier.weight(1f),
-                                        contentAlignment = Alignment.CenterStart,
-                                    ) {
-                                        Text(
-                                            text = formatPlaybackPosition(displayedPositionMs),
-                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                            color = secondaryContentColor,
-                                        )
-                                    }
-                                    SongFileInfoPill(
-                                        format = displaySong?.audioFormat ?: currentSong.audioFormat,
-                                        quality = displaySong?.audioQuality ?: currentSong.audioQuality,
-                                        tint = contentColor,
-                                    )
-                                    Box(
-                                        modifier = Modifier.weight(1f),
-                                        contentAlignment = Alignment.CenterEnd,
-                                    ) {
-                                        Text(
-                                            text = formatDuration(renderedPlaybackProgress.durationMs),
-                                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                            color = secondaryContentColor.copy(alpha = 0.7f),
-                                        )
-                                    }
-                                }
-                            }
+                            )
 
                             Box(
                                 modifier = Modifier
@@ -11925,7 +11925,7 @@ private fun NowPlayingScreen(
         ) {
             LyricsOverlay(
                 song = currentSong,
-                playbackProgress = renderedPlaybackProgress,
+                playbackManager = playbackManager,
                 lyricsUiState = lyricsUiState,
                 tintColor = baseSurface.copy(alpha = 0.66f),
                 contentColor = contentColor,
@@ -11945,6 +11945,143 @@ private fun NowPlayingScreen(
                 },
                 onCreatePlaylist = onCreatePlaylist,
             )
+        }
+    }
+}
+
+@Composable
+private fun rememberRenderedPlaybackProgress(
+    playbackManager: PlaybackManager,
+    currentSongId: Long?,
+    freezeUpdates: Boolean,
+): PlaybackProgressState {
+    val liveProgress by playbackManager.progressState.collectAsStateWithLifecycle()
+    var frozenProgress by remember(currentSongId) {
+        mutableStateOf(playbackManager.progressState.value)
+    }
+    LaunchedEffect(liveProgress, freezeUpdates, currentSongId) {
+        if (!freezeUpdates) {
+            frozenProgress = liveProgress
+        }
+    }
+    return if (freezeUpdates) frozenProgress else liveProgress
+}
+
+@Composable
+private fun CompactQueuePlaybackSummary(
+    playbackManager: PlaybackManager,
+    currentSongId: Long,
+    freezeUpdates: Boolean,
+    contentColor: Color,
+    secondaryContentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val playbackProgress = rememberRenderedPlaybackProgress(
+        playbackManager = playbackManager,
+        currentSongId = currentSongId,
+        freezeUpdates = freezeUpdates,
+    )
+    val progress = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs) {
+        if (playbackProgress.durationMs > 0L) {
+            (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        CompactPlaybackProgressBar(
+            progress = progress,
+            contentColor = contentColor,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        CompactPlaybackTimingRow(
+            displayedPositionMs = playbackProgress.displayPositionMs,
+            durationMs = playbackProgress.durationMs,
+            contentColor = contentColor,
+            secondaryContentColor = secondaryContentColor,
+        )
+    }
+}
+
+@Composable
+private fun NowPlayingProgressSummary(
+    playbackManager: PlaybackManager,
+    currentSongId: Long,
+    freezeUpdates: Boolean,
+    format: String,
+    quality: String?,
+    contentColor: Color,
+    secondaryContentColor: Color,
+    modifier: Modifier = Modifier,
+) {
+    val playbackProgress = rememberRenderedPlaybackProgress(
+        playbackManager = playbackManager,
+        currentSongId = currentSongId,
+        freezeUpdates = freezeUpdates,
+    )
+    val progress = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs) {
+        if (playbackProgress.durationMs > 0L) {
+            (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+        } else {
+            0f
+        }
+    }
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        PlaybackProgressBar(
+            progress = progress,
+            isInteracting = playbackProgress.isUserScrubbing,
+            contentColor = contentColor,
+            onScrubStarted = playbackManager::beginScrub,
+            onScrubFractionChanged = { fraction ->
+                val target = fractionToDurationPosition(
+                    fraction = fraction,
+                    durationMs = playbackProgress.durationMs,
+                )
+                playbackManager.updateScrubPosition(target)
+            },
+            onScrubFinished = { fraction ->
+                val target = fractionToDurationPosition(
+                    fraction = fraction,
+                    durationMs = playbackProgress.durationMs,
+                )
+                playbackManager.finishScrub(target)
+            },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterStart,
+            ) {
+                Text(
+                    text = formatPlaybackPosition(playbackProgress.displayPositionMs),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = secondaryContentColor,
+                )
+            }
+            SongFileInfoPill(
+                format = format,
+                quality = quality,
+                tint = contentColor,
+            )
+            Box(
+                modifier = Modifier.weight(1f),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Text(
+                    text = formatDuration(playbackProgress.durationMs),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                    color = secondaryContentColor.copy(alpha = 0.7f),
+                )
+            }
         }
     }
 }
@@ -13267,7 +13404,7 @@ private fun AddToPlaylistPickerDialog(
 @Composable
 private fun LyricsOverlay(
     song: Song?,
-    playbackProgress: PlaybackProgressState,
+    playbackManager: PlaybackManager,
     lyricsUiState: LyricsUiState,
     tintColor: Color,
     contentColor: Color,
@@ -13281,40 +13418,10 @@ private fun LyricsOverlay(
     val lyricsBottomBlurArea = 72.dp
     val bottomBlurSurfaceHeight = lyricsBottomBlurArea + navigationBarInsetDp()
     val lyricsHazeState = rememberHazeState()
-    val lyricLines = remember(lyricsUiState) {
-        when (lyricsUiState) {
-            is LyricsUiState.Ready -> lyricsUiState.payload.lines
-
-            else -> emptyList()
-        }
-    }
     val listState = rememberLazyListState()
     var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
     var autoScrollResumeJob by remember(song?.id) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var userLyricsScrollActive by remember(song?.id) { mutableStateOf(false) }
-    val readyLyricsPayload = (lyricsUiState as? LyricsUiState.Ready)?.payload
-    val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
-    val activeLyricLineIndex by remember(readyLyricsPayload, playbackProgress.displayPositionMs) {
-        derivedStateOf {
-            readyLyricsPayload
-                ?.takeIf { it.isSynced }
-                ?.currentLineIndexAt(
-                    positionMs = playbackProgress.displayPositionMs,
-                    timingOffsetMs = 0L,
-                    switchGraceMs = 0L,
-                )
-                ?: -1
-        }
-    }
-
-    LaunchedEffect(activeLyricLineIndex, readyLyricsPayload?.isSynced, autoScrollHeld) {
-        if (!autoScrollHeld && readyLyricsPayload?.isSynced == true && activeLyricLineIndex >= 0) {
-            listState.animateLyricJumpToItem(
-                index = activeLyricLineIndex,
-                scrollOffset = -autoScrollCenterOffsetPx,
-            )
-        }
-    }
 
     LaunchedEffect(listState.isScrollInProgress, userLyricsScrollActive) {
         if (userLyricsScrollActive && !listState.isScrollInProgress) {
@@ -13487,97 +13594,23 @@ private fun LyricsOverlay(
                             }
 
                             is LyricsUiState.Ready -> {
-                                val bottomMaskHeightPx = with(LocalDensity.current) {
-                                    (hideButtonArea + lyricsBottomBlurArea).toPx()
-                                }
-                                LazyColumn(
-                                    state = listState,
-                                    overscrollEffect = null,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                                        .drawWithContent {
-                                            drawContent()
-                                            val maskStartY = (size.height - bottomMaskHeightPx).coerceAtLeast(0f)
-                                            val maskStartFraction = if (size.height == 0f) 0f else {
-                                                (maskStartY / size.height).coerceIn(0f, 1f)
-                                            }
-                                            drawRect(
-                                                brush = Brush.verticalGradient(
-                                                    colorStops = arrayOf(
-                                                        0f to Color.Black,
-                                                        maskStartFraction to Color.Black,
-                                                        1f to Color.Transparent,
-                                                    ),
-                                                ),
-                                                blendMode = BlendMode.DstIn,
-                                            )
-                                        }
-                                        .nestedScroll(lyricsScrollObserver)
-                                        .ensureSingleItemRubberBand(listState),
-                                    contentPadding = PaddingValues(
-                                        top = 12.dp,
-                                        bottom = hideButtonArea + lyricsBottomBlurArea,
-                                    ),
-                                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                                ) {
-                                    itemsIndexed(
-                                        items = lyricLines,
-                                        key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
-                                    ) { index, line ->
-                                        val isActive = state.payload.isSynced && index == activeLyricLineIndex
-                                        val lineFontSize by animateFloatAsState(
-                                            targetValue = if (isActive) 24f else 22f,
-                                            animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
-                                            label = "lyrics_line_font_$index",
-                                        )
-                                        val lineColor by animateColorAsState(
-                                            targetValue = when {
-                                                isActive -> contentColor.copy(alpha = 1f)
-                                                else -> contentColor.copy(alpha = 0.7f)
-                                            },
-                                            animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
-                                            label = "lyrics_line_color_$index",
-                                        )
-                                        Text(
-                                            text = line.text,
-                                            style = MaterialTheme.typography.headlineMedium.copy(
-                                                fontSize = lineFontSize.sp,
-                                                fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
-                                                lineHeight = if (isActive) 31.sp else 29.sp,
-                                            ),
-                                            color = lineColor,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Start,
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .pointerInput(
-                                                    song?.id,
-                                                    lyricLines.size,
-                                                    state.payload.isSynced,
-                                                    activeLyricLineIndex,
-                                                ) {
-                                                    detectTapGestures {
-                                                        lyricsSeekPositionMs(
-                                                            lines = lyricLines,
-                                                            index = index,
-                                                            isSynced = state.payload.isSynced,
-                                                        )?.let { seekPositionMs ->
-                                                            autoScrollHeld = false
-                                                            userLyricsScrollActive = false
-                                                            autoScrollResumeJob?.cancel()
-                                                            scope.launch {
-                                                                listState.animateLyricJumpToItem(
-                                                                    index = index,
-                                                                    scrollOffset = -autoScrollCenterOffsetPx,
-                                                                )
-                                                            }
-                                                            onSeekTo(seekPositionMs)
-                                                        }
-                                                    }
-                                                },
-                                        )
-                                    }
-                                }
+                                LyricsReadyContent(
+                                    playbackManager = playbackManager,
+                                    song = song,
+                                    payload = state.payload,
+                                    listState = listState,
+                                    autoScrollHeld = autoScrollHeld,
+                                    setAutoScrollHeld = { autoScrollHeld = it },
+                                    autoScrollResumeJob = autoScrollResumeJob,
+                                    setAutoScrollResumeJob = { autoScrollResumeJob = it },
+                                    setUserLyricsScrollActive = { userLyricsScrollActive = it },
+                                    lyricsScrollObserver = lyricsScrollObserver,
+                                    hideButtonArea = hideButtonArea,
+                                    lyricsBottomBlurArea = lyricsBottomBlurArea,
+                                    contentColor = contentColor,
+                                    onSeekTo = onSeekTo,
+                                    scope = scope,
+                                )
                             }
                         }
                     }
@@ -13661,6 +13694,137 @@ private fun LyricsOverlay(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LyricsReadyContent(
+    playbackManager: PlaybackManager,
+    song: Song?,
+    payload: LyricsPayload,
+    listState: LazyListState,
+    autoScrollHeld: Boolean,
+    setAutoScrollHeld: (Boolean) -> Unit,
+    autoScrollResumeJob: kotlinx.coroutines.Job?,
+    setAutoScrollResumeJob: (kotlinx.coroutines.Job?) -> Unit,
+    setUserLyricsScrollActive: (Boolean) -> Unit,
+    lyricsScrollObserver: NestedScrollConnection,
+    hideButtonArea: Dp,
+    lyricsBottomBlurArea: Dp,
+    contentColor: Color,
+    onSeekTo: (Long) -> Unit,
+    scope: kotlinx.coroutines.CoroutineScope,
+) {
+    val playbackProgress by playbackManager.progressState.collectAsStateWithLifecycle()
+    val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
+    val activeLyricLineIndex by remember(payload, playbackProgress.displayPositionMs) {
+        derivedStateOf {
+            payload
+                .takeIf { it.isSynced }
+                ?.currentLineIndexAt(
+                    positionMs = playbackProgress.displayPositionMs,
+                    timingOffsetMs = 0L,
+                    switchGraceMs = 0L,
+                )
+                ?: -1
+        }
+    }
+
+    LaunchedEffect(activeLyricLineIndex, payload.isSynced, autoScrollHeld) {
+        if (!autoScrollHeld && payload.isSynced && activeLyricLineIndex >= 0) {
+            listState.animateLyricJumpToItem(
+                index = activeLyricLineIndex,
+                scrollOffset = -autoScrollCenterOffsetPx,
+            )
+        }
+    }
+
+    val bottomMaskHeightPx = with(LocalDensity.current) {
+        (hideButtonArea + lyricsBottomBlurArea).toPx()
+    }
+    LazyColumn(
+        state = listState,
+        overscrollEffect = null,
+        modifier = Modifier
+            .fillMaxSize()
+            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+            .drawWithContent {
+                drawContent()
+                val maskStartY = (size.height - bottomMaskHeightPx).coerceAtLeast(0f)
+                val maskStartFraction = if (size.height == 0f) 0f else {
+                    (maskStartY / size.height).coerceIn(0f, 1f)
+                }
+                drawRect(
+                    brush = Brush.verticalGradient(
+                        colorStops = arrayOf(
+                            0f to Color.Black,
+                            maskStartFraction to Color.Black,
+                            1f to Color.Transparent,
+                        ),
+                    ),
+                    blendMode = BlendMode.DstIn,
+                )
+            }
+            .nestedScroll(lyricsScrollObserver)
+            .ensureSingleItemRubberBand(listState),
+        contentPadding = PaddingValues(
+            top = 12.dp,
+            bottom = hideButtonArea + lyricsBottomBlurArea,
+        ),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        itemsIndexed(
+            items = payload.lines,
+            key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
+        ) { index, line ->
+            val isActive = payload.isSynced && index == activeLyricLineIndex
+            val lineFontSize by animateFloatAsState(
+                targetValue = if (isActive) 24f else 22f,
+                animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                label = "lyrics_line_font_$index",
+            )
+            val lineColor by animateColorAsState(
+                targetValue = when {
+                    isActive -> contentColor.copy(alpha = 1f)
+                    else -> contentColor.copy(alpha = 0.7f)
+                },
+                animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                label = "lyrics_line_color_$index",
+            )
+            Text(
+                text = line.text,
+                style = MaterialTheme.typography.headlineMedium.copy(
+                    fontSize = lineFontSize.sp,
+                    fontWeight = if (isActive) FontWeight.SemiBold else FontWeight.Medium,
+                    lineHeight = if (isActive) 31.sp else 29.sp,
+                ),
+                color = lineColor,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Start,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(song?.id, payload.lines.size, payload.isSynced, activeLyricLineIndex) {
+                        detectTapGestures {
+                            lyricsSeekPositionMs(
+                                lines = payload.lines,
+                                index = index,
+                                isSynced = payload.isSynced,
+                            )?.let { seekPositionMs ->
+                                setAutoScrollHeld(false)
+                                setUserLyricsScrollActive(false)
+                                autoScrollResumeJob?.cancel()
+                                setAutoScrollResumeJob(null)
+                                scope.launch {
+                                    listState.animateLyricJumpToItem(
+                                        index = index,
+                                        scrollOffset = -autoScrollCenterOffsetPx,
+                                    )
+                                }
+                                onSeekTo(seekPositionMs)
+                            }
+                        }
+                    },
+            )
         }
     }
 }

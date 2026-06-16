@@ -14,12 +14,27 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+data class LibraryContentState(
+    val songs: List<Song> = emptyList(),
+    val albums: List<Album> = emptyList(),
+)
+
+data class LibraryScanState(
+    val permissionGranted: Boolean = false,
+    val isLoading: Boolean = false,
+    val scanProgress: Float = 0f,
+    val errorMessage: String? = null,
+)
 
 data class LibraryUiState(
     val permissionGranted: Boolean = false,
@@ -37,7 +52,8 @@ class LibraryRepository(
 ) {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val contentResolver = appContext.contentResolver
-    private val _state = MutableStateFlow(LibraryUiState())
+    private val _contentState = MutableStateFlow(LibraryContentState())
+    private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
     private var refreshDebounceJob: Job? = null
     private var pendingRefresh = false
@@ -45,7 +61,22 @@ class LibraryRepository(
     private val pendingTargetedIndexRefreshPaths = linkedSetOf<String>()
     private var pendingMetadataEnrichment = false
     private var didBootstrapLibrary = false
-    val state: StateFlow<LibraryUiState> = _state.asStateFlow()
+    val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
+    val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
+    val state: StateFlow<LibraryUiState> = combine(contentState, scanState) { content, scan ->
+        LibraryUiState(
+            permissionGranted = scan.permissionGranted,
+            isLoading = scan.isLoading,
+            scanProgress = scan.scanProgress,
+            songs = content.songs,
+            albums = content.albums,
+            errorMessage = scan.errorMessage,
+        )
+    }.stateIn(
+        scope = scope,
+        started = SharingStarted.Eagerly,
+        initialValue = LibraryUiState(),
+    )
     private var musicDirectoryObserver: RecursiveMusicDirectoryObserver? = null
     private var mediaObserverRegistered = false
 
@@ -63,7 +94,7 @@ class LibraryRepository(
     }
 
     fun onPermissionChanged(granted: Boolean) {
-        _state.update { current ->
+        _scanState.update { current ->
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
         }
         if (granted) {
@@ -117,12 +148,14 @@ class LibraryRepository(
                         song.genre.isBlank() ||
                         song.genre == "Unknown Genre"
                 }
-                _state.value = LibraryUiState(
+                _contentState.value = LibraryContentState(
+                    songs = cachedSnapshot.snapshot.songs,
+                    albums = cachedSnapshot.snapshot.albums,
+                )
+                _scanState.value = LibraryScanState(
                     permissionGranted = true,
                     isLoading = false,
                     scanProgress = 1f,
-                    songs = cachedSnapshot.snapshot.songs,
-                    albums = cachedSnapshot.snapshot.albums,
                 )
                 val currentSignature = withContext(Dispatchers.IO) { scanner.currentSignature() }
                 if (currentSignature != cachedSnapshot.signature) {
@@ -151,9 +184,9 @@ class LibraryRepository(
     fun refresh(
         forceMediaIndex: Boolean = false,
         enrichMetadata: Boolean = false,
-        showLoadingIndicator: Boolean = _state.value.songs.isEmpty(),
+        showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
     ) {
-        if (!_state.value.permissionGranted) return
+        if (!_scanState.value.permissionGranted) return
         if (scanJob?.isActive == true) {
             pendingRefresh = true
             pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
@@ -164,9 +197,9 @@ class LibraryRepository(
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         if (showLoadingIndicator) {
-            _state.update { it.copy(isLoading = true, scanProgress = 0f, errorMessage = null) }
+            _scanState.update { it.copy(isLoading = true, scanProgress = 0f, errorMessage = null) }
         } else {
-            _state.update { it.copy(errorMessage = null) }
+            _scanState.update { it.copy(errorMessage = null) }
         }
         scanJob = scope.launch {
             val shouldRefreshIndex = forceMediaIndex || pendingIndexRefresh
@@ -187,7 +220,7 @@ class LibraryRepository(
                         enrichMetadata = shouldEnrichMetadata,
                         onProgress = if (showLoadingIndicator) { current, total ->
                             val progress = if (total <= 0) 1f else (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                            _state.update { state ->
+                            _scanState.update { state ->
                                 state.copy(
                                     permissionGranted = true,
                                     isLoading = true,
@@ -205,12 +238,14 @@ class LibraryRepository(
                     withContext(Dispatchers.IO) {
                         snapshotStore.save(snapshot)
                     }
-                    _state.value = LibraryUiState(
+                    _contentState.value = LibraryContentState(
+                        songs = snapshot.songs,
+                        albums = snapshot.albums,
+                    )
+                    _scanState.value = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
                         scanProgress = 1f,
-                        songs = snapshot.songs,
-                        albums = snapshot.albums,
                     )
                     if (!shouldEnrichMetadata && snapshot.songs.isNotEmpty()) {
                         pendingRefresh = true
@@ -218,7 +253,7 @@ class LibraryRepository(
                     }
                 }
                 .onFailure { throwable ->
-                    _state.update {
+                    _scanState.update {
                         it.copy(
                             isLoading = false,
                             scanProgress = 0f,
@@ -228,7 +263,7 @@ class LibraryRepository(
                 }
 
             scanJob = null
-            if (pendingRefresh && _state.value.permissionGranted) {
+            if (pendingRefresh && _scanState.value.permissionGranted) {
                 val shouldRefreshIndexAgain = pendingIndexRefresh
                 val shouldEnrichMetadataAgain = pendingMetadataEnrichment
                 pendingRefresh = false
@@ -243,18 +278,18 @@ class LibraryRepository(
         }
     }
 
-    fun albumById(albumId: Long): Album? = _state.value.albums.firstOrNull { it.id == albumId }
+    fun albumById(albumId: Long): Album? = _contentState.value.albums.firstOrNull { it.id == albumId }
 
     fun defaultMediaFolderPath(): String = scanner.musicDirectory().absolutePath
 
     fun setPreferredLibraryFolderPath(path: String?) {
         scanner.setPreferredLibraryFolderPath(path)
-        if (_state.value.permissionGranted) {
+        if (_scanState.value.permissionGranted) {
             ensureMusicDirectoryObserver()
             refresh(
                 forceMediaIndex = true,
                 enrichMetadata = false,
-                showLoadingIndicator = _state.value.songs.isEmpty(),
+                showLoadingIndicator = _contentState.value.songs.isEmpty(),
             )
         }
     }
@@ -263,7 +298,7 @@ class LibraryRepository(
         forceMediaIndex: Boolean = false,
         changedFilePath: String? = null,
     ) {
-        if (!_state.value.permissionGranted) return
+        if (!_scanState.value.permissionGranted) return
         pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
         if (!forceMediaIndex) {
             changedFilePath

@@ -10,6 +10,7 @@ import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioFocusRequest
 import android.media.AudioManager
+import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
@@ -34,9 +35,13 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
@@ -72,6 +77,36 @@ data class PlaybackUiState(
     val currentSong: Song?
         get() = queue.getOrNull(currentIndex)
 }
+
+data class PlaybackNowPlayingState(
+    val currentSong: Song? = null,
+    val sourceLabel: String? = null,
+    val audioSessionId: Int = 0,
+)
+
+data class PlaybackTransportState(
+    val isPlaying: Boolean = false,
+    val transportShowsPause: Boolean = false,
+    val repeatMode: PlaybackRepeatMode = PlaybackRepeatMode.Off,
+    val shuffleEnabled: Boolean = false,
+)
+
+data class PlaybackQueueState(
+    val queue: List<Song> = emptyList(),
+    val currentIndex: Int = -1,
+    val sourcePlaylistId: Long? = null,
+)
+
+data class PlaybackVolumeState(
+    val volume: Float = 1f,
+)
+
+data class RecentPlaybackState(
+    val recentSongIds: List<Long> = emptyList(),
+    val recentAlbumIds: List<Long> = emptyList(),
+    val lastPlayedCollectionKind: PlaybackCollectionKind? = null,
+    val lastPlayedCollectionId: Long? = null,
+)
 
 @SuppressLint("UnsafeOptInUsageError")
 class PlaybackManager(
@@ -137,9 +172,7 @@ class PlaybackManager(
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             if (addedDevices.hasUsbOutputDeviceChange()) {
-                hasUsbOutputRoute = currentUsbOutputDescriptor() != null
-                usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
-                bitPerfectUsbManager.refreshConnectedDevices()
+                refreshUsbAudioOutputState()
                 scheduleAudioPathReevaluation("audio-device-added", AUDIO_PATH_REEVALUATION_DELAY_MS)
             }
             syncFromObservedSystemVolume()
@@ -147,9 +180,7 @@ class PlaybackManager(
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
             if (removedDevices.hasUsbOutputDeviceChange()) {
-                hasUsbOutputRoute = currentUsbOutputDescriptor() != null
-                usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
-                bitPerfectUsbManager.refreshConnectedDevices()
+                refreshUsbAudioOutputState()
                 scheduleAudioPathReevaluation("audio-device-removed", AUDIO_PATH_REEVALUATION_DELAY_MS)
             }
             syncFromObservedSystemVolume()
@@ -263,6 +294,90 @@ class PlaybackManager(
         ),
     )
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
+    val nowPlayingState: StateFlow<PlaybackNowPlayingState> = state
+        .map { snapshot ->
+            PlaybackNowPlayingState(
+                currentSong = snapshot.currentSong,
+                sourceLabel = snapshot.sourceLabel,
+                audioSessionId = snapshot.audioSessionId,
+            )
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = PlaybackNowPlayingState(
+                currentSong = _state.value.currentSong,
+                sourceLabel = _state.value.sourceLabel,
+                audioSessionId = _state.value.audioSessionId,
+            ),
+        )
+    val transportState: StateFlow<PlaybackTransportState> = state
+        .map { snapshot ->
+            PlaybackTransportState(
+                isPlaying = snapshot.isPlaying,
+                transportShowsPause = snapshot.transportShowsPause,
+                repeatMode = snapshot.repeatMode,
+                shuffleEnabled = snapshot.shuffleEnabled,
+            )
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = PlaybackTransportState(
+                isPlaying = _state.value.isPlaying,
+                transportShowsPause = _state.value.transportShowsPause,
+                repeatMode = _state.value.repeatMode,
+                shuffleEnabled = _state.value.shuffleEnabled,
+            ),
+        )
+    val queueState: StateFlow<PlaybackQueueState> = state
+        .map { snapshot ->
+            PlaybackQueueState(
+                queue = snapshot.queue,
+                currentIndex = snapshot.currentIndex,
+                sourcePlaylistId = snapshot.sourcePlaylistId,
+            )
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = PlaybackQueueState(
+                queue = _state.value.queue,
+                currentIndex = _state.value.currentIndex,
+                sourcePlaylistId = _state.value.sourcePlaylistId,
+            ),
+        )
+    val volumeState: StateFlow<PlaybackVolumeState> = state
+        .map { snapshot -> PlaybackVolumeState(volume = snapshot.volume) }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = PlaybackVolumeState(volume = _state.value.volume),
+        )
+    val recentPlaybackState: StateFlow<RecentPlaybackState> = state
+        .map { snapshot ->
+            RecentPlaybackState(
+                recentSongIds = snapshot.recentSongIds,
+                recentAlbumIds = snapshot.recentAlbumIds,
+                lastPlayedCollectionKind = snapshot.lastPlayedCollectionKind,
+                lastPlayedCollectionId = snapshot.lastPlayedCollectionId,
+            )
+        }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = scope,
+            started = SharingStarted.Eagerly,
+            initialValue = RecentPlaybackState(
+                recentSongIds = _state.value.recentSongIds,
+                recentAlbumIds = _state.value.recentAlbumIds,
+                lastPlayedCollectionKind = _state.value.lastPlayedCollectionKind,
+                lastPlayedCollectionId = _state.value.lastPlayedCollectionId,
+            ),
+        )
     private val _progressState = MutableStateFlow(PlaybackProgressState())
     val progressState: StateFlow<PlaybackProgressState> = _progressState.asStateFlow()
     private val _manualPlaybackStartVersion = MutableStateFlow(0L)
@@ -288,16 +403,14 @@ class PlaybackManager(
         .build()
 
     init {
-        hasUsbOutputRoute = currentUsbOutputDescriptor() != null
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
-        bitPerfectUsbManager.refreshConnectedDevices()
+        refreshUsbAudioOutputState()
         appContext.contentResolver.registerContentObserver(
             Settings.System.CONTENT_URI,
             true,
             systemVolumeObserver,
             )
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
-        usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutputDescriptor())
         applyPreferredAudioDeviceIfNeeded(force = true)
         attachPlayerObservers(player)
         syncFromObservedSystemVolume()
@@ -308,7 +421,7 @@ class PlaybackManager(
 
     fun reevaluateAudioOutputPath() {
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
-        bitPerfectUsbManager.refreshConnectedDevices()
+        refreshUsbAudioOutputState()
         scheduleAudioPathReevaluation("effects-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
         updateState()
@@ -577,6 +690,13 @@ class PlaybackManager(
         playbackHandler.postDelayed(audioPathReevaluationRunnable, delayMs.coerceAtLeast(0L))
     }
 
+    private fun refreshUsbAudioOutputState() {
+        val currentUsbOutput = currentUsbOutputDescriptor()
+        hasUsbOutputRoute = currentUsbOutput != null
+        usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutput)
+        bitPerfectUsbManager.refreshConnectedDevices()
+    }
+
     private fun applyPreferredAudioDeviceIfNeeded(force: Boolean = false) {
         val preferredDevice = bitPerfectUsbManager.preferredOutputDevice()
         val nextKey = preferredDevice?.let { PreferredAudioDeviceKey(it.id, it.type) }
@@ -819,7 +939,7 @@ class PlaybackManager(
         isManualPausePending = false
         pausedForAudioFocusLoss = false
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
-        bitPerfectUsbManager.refreshConnectedDevices()
+        refreshUsbAudioOutputState()
         scheduleAudioPathReevaluation("resume-playback")
         if (!requestAudioFocus()) return
         isPauseTransitioningToStopped = false
@@ -1155,20 +1275,19 @@ class PlaybackManager(
 
     private fun currentUsbOutputDescriptor(): UsbAudioDeviceDescriptor? {
         val manager = audioManager ?: return null
-        return manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        val routedUsbDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            manager.getAudioDevicesForAttributes(platformPlaybackAudioAttributes)
+                .firstOrNull { device ->
+                    device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES
+                }
+        } else {
+            null
+        }
+        return (routedUsbDevice ?: manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
             .firstOrNull { device ->
                 device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES
-            }
-            ?.let { device ->
-                UsbAudioDeviceDescriptor(
-                    id = device.id,
-                    type = device.type,
-                    isSink = device.isSink,
-                    productName = device.productName?.toString(),
-                    sampleRates = device.sampleRates,
-                    encodings = device.encodings,
-                )
-            }
+            })
+            ?.toUsbAudioDeviceDescriptor()
     }
 
     private fun pushRecentId(
@@ -1272,6 +1391,17 @@ private data class PreferredAudioDeviceKey(
     val id: Int,
     val type: Int,
 )
+
+private fun AudioDeviceInfo.toUsbAudioDeviceDescriptor(): UsbAudioDeviceDescriptor {
+    return UsbAudioDeviceDescriptor(
+        id = id,
+        type = type,
+        isSink = isSink,
+        productName = productName?.toString(),
+        sampleRates = sampleRates.copyOf(),
+        encodings = encodings.copyOf(),
+    )
+}
 
     private fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
         return when (this) {

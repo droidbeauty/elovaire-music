@@ -20,8 +20,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -110,11 +110,13 @@ class PlaybackNotificationController(
             }
         }
         scope.launch {
-            playbackManager.state
-                .map { state ->
+            combine(
+                playbackManager.nowPlayingState,
+                playbackManager.transportState,
+            ) { nowPlaying, transport ->
                     NotificationVisibilityState(
-                        songId = state.currentSong?.id,
-                        isPlaying = state.isPlaying,
+                        songId = nowPlaying.currentSong?.id,
+                        isPlaying = transport.isPlaying,
                     )
                 }
                 .distinctUntilChanged()
