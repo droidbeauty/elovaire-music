@@ -439,22 +439,32 @@ private data class TopBarActionSpec(
 )
 
 private fun tileExpandEnterTransition(expandOrigin: ExpandOrigin): EnterTransition {
+    val albumTransitionDuration = ElovaireMotion.Emphasized + 100
     return fadeIn(
-        animationSpec = ElovaireMotion.fadeMedium(),
+        animationSpec = ElovaireMotion.standardTween(durationMillis = albumTransitionDuration),
     ) +
         scaleIn(
-            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            animationSpec = ElovaireMotion.standardTween(
+                durationMillis = albumTransitionDuration,
+                easing = ElovaireMotion.EmphasizedDecelerate,
+            ),
             initialScale = 0.8f,
             transformOrigin = expandOrigin.toTransformOrigin(),
         ) +
         slideInHorizontally(
-            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            animationSpec = ElovaireMotion.standardTween(
+                durationMillis = albumTransitionDuration,
+                easing = ElovaireMotion.EmphasizedDecelerate,
+            ),
             initialOffsetX = { fullWidth ->
                 ((expandOrigin.xFraction - 0.5f) * fullWidth * 0.2f).roundToInt()
             },
         ) +
         slideInVertically(
-            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            animationSpec = ElovaireMotion.standardTween(
+                durationMillis = albumTransitionDuration,
+                easing = ElovaireMotion.EmphasizedDecelerate,
+            ),
             initialOffsetY = { fullHeight ->
                 ((expandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
             },
@@ -462,22 +472,35 @@ private fun tileExpandEnterTransition(expandOrigin: ExpandOrigin): EnterTransiti
 }
 
 private fun tileExpandExitTransition(expandOrigin: ExpandOrigin): ExitTransition {
+    val albumTransitionDuration = ElovaireMotion.Emphasized + 100
     return fadeOut(
-        animationSpec = ElovaireMotion.fadeFast(),
+        animationSpec = ElovaireMotion.standardTween(
+            durationMillis = albumTransitionDuration,
+            easing = FastOutLinearInEasing,
+        ),
     ) +
         scaleOut(
-            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            animationSpec = ElovaireMotion.standardTween(
+                durationMillis = albumTransitionDuration,
+                easing = ElovaireMotion.EmphasizedAccelerate,
+            ),
             targetScale = 0.84f,
             transformOrigin = expandOrigin.toTransformOrigin(),
         ) +
         slideOutHorizontally(
-            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            animationSpec = ElovaireMotion.standardTween(
+                durationMillis = albumTransitionDuration,
+                easing = ElovaireMotion.EmphasizedAccelerate,
+            ),
             targetOffsetX = { fullWidth ->
                 ((expandOrigin.xFraction - 0.5f) * fullWidth * 0.2f).roundToInt()
             },
         ) +
         slideOutVertically(
-            animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+            animationSpec = ElovaireMotion.standardTween(
+                durationMillis = albumTransitionDuration,
+                easing = ElovaireMotion.EmphasizedAccelerate,
+            ),
             targetOffsetY = { fullHeight ->
                 ((expandOrigin.yFraction - 0.5f) * fullHeight * 0.2f).roundToInt()
             },
@@ -1320,8 +1343,13 @@ fun ElovaireRoot(
         }
     }
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val hideCompactNowPlayingRoutes = setOf(
+        CHANGELOG_ROUTE,
+        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+    )
     val hideCompactNowPlaying = (keyboardVisible && currentRoute == PLAYLISTS_ROUTE) ||
-        (currentRoute == SEARCH_ROUTE && isSearchQueryActive)
+        (currentRoute == SEARCH_ROUTE && isSearchQueryActive) ||
+        currentRoute in hideCompactNowPlayingRoutes
     val reserveCompactNowPlayingSpace = playbackState.currentSong != null && !hideCompactNowPlaying
     val canHostCompactNowPlaying = playbackState.currentSong != null
     val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && !isPlayerOverlayVisible
@@ -2151,7 +2179,8 @@ fun ElovaireRoot(
                             onTextSizePresetSelected = container.preferenceStore::setTextSizePreset,
                             onAppLanguageSelected = container.preferenceStore::setAppLanguage,
                             onBassChanged = container.preferenceStore::updateBass,
-                            onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
+                            onMidrangeChanged = container.preferenceStore::updateMidrange,
+                            onTrebleChanged = container.preferenceStore::updateTreble,
                             onMonoPlaybackChanged = container.preferenceStore::updateMonoPlaybackEnabled,
                             onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
                             onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
@@ -11279,9 +11308,16 @@ private fun NowPlayingScreen(
                 val dismissDistance = with(density) { 320.dp.toPx() }
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
-                        change.consume()
                         if (dismissAnimationRunning) return@detectVerticalDragGestures
+                        val continuingDismissDrag = dragDistance > 0f
+                        if (dragAmount <= 0f && !continuingDismissDrag) return@detectVerticalDragGestures
+                        change.consume()
                         dragDistance = (dragDistance + dragAmount).coerceAtLeast(0f)
+                        if (dragDistance <= 0f) {
+                            interactiveTransitionProgress = 1f
+                            transitionState = PlayerOverlayTransitionState.Expanded
+                            return@detectVerticalDragGestures
+                        }
                         transitionState = PlayerOverlayTransitionState.Dragging
                         interactiveTransitionProgress =
                             (1f - (dragDistance / dismissDistance)).coerceIn(0f, 1f)
@@ -11994,7 +12030,7 @@ private fun NowPlayingProgressSummary(
                 Text(
                     text = formatPlaybackPosition(playbackProgress.displayPositionMs),
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = secondaryContentColor,
+                    color = contentColor,
                 )
             }
             SongFileInfoPill(
@@ -15857,7 +15893,8 @@ private fun SettingsScreen(
     onTextSizePresetSelected: (TextSizePreset) -> Unit,
     onAppLanguageSelected: (AppLanguage) -> Unit,
     onBassChanged: (Float) -> Unit,
-    onSpaciousnessChanged: (Float) -> Unit,
+    onMidrangeChanged: (Float) -> Unit,
+    onTrebleChanged: (Float) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenChangelog: () -> Unit,
@@ -15959,19 +15996,29 @@ private fun SettingsScreen(
                                 .padding(horizontal = 2.dp),
                             horizontalArrangement = Arrangement.spacedBy(30.dp),
                         ) {
-                            DigitalSoundKnob(
-                                title = copy.bassBoost,
-                                iconResId = R.drawable.ic_lucide_speaker,
-                                value = eqSettings.bass.coerceAtLeast(0f).coerceIn(0f, 1f),
+                            EqToneKnob(
+                                title = uiPhrase(appLanguage, UiPhrase.Bass),
+                                value = eqSettings.bass.coerceIn(0f, 1f),
+                                valueRange = 0f..1f,
+                                accentColor = Color(0xFF2FE08D),
                                 modifier = Modifier.weight(1f),
                                 onValueChange = onBassChanged,
                             )
-                            DigitalSoundKnob(
-                                title = copy.spaciousness,
-                                iconResId = R.drawable.ic_lucide_wind,
-                                value = eqSettings.spaciousness.coerceAtLeast(0f).coerceIn(0f, 1f),
+                            EqToneKnob(
+                                title = uiPhrase(appLanguage, UiPhrase.Midrange),
+                                value = eqSettings.midrange.coerceIn(-1f, 1f),
+                                valueRange = -1f..1f,
+                                accentColor = Color(0xFF39C2FF),
                                 modifier = Modifier.weight(1f),
-                                onValueChange = onSpaciousnessChanged,
+                                onValueChange = onMidrangeChanged,
+                            )
+                            EqToneKnob(
+                                title = uiPhrase(appLanguage, UiPhrase.Treble),
+                                value = eqSettings.treble.coerceIn(-1f, 1f),
+                                valueRange = -1f..1f,
+                                accentColor = Color(0xFFFFB056),
+                                modifier = Modifier.weight(1f),
+                                onValueChange = onTrebleChanged,
                             )
                         }
                         Spacer(modifier = Modifier.height(20.dp))
@@ -16093,9 +16140,9 @@ private fun SettingsScreen(
                             Surface(
                                 shape = RoundedCornerShape(ElovaireRadii.pill),
                                 color = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                                    Color.White.copy(alpha = 0.05f)
+                                    Color.White.copy(alpha = 0.1f)
                                 } else {
-                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+                                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
                                 },
                                 contentColor = MaterialTheme.colorScheme.onSurface,
                                 onClick = onOpenChangelog,
@@ -17969,9 +18016,9 @@ private fun EqPresetPill(
     } else if (selected) {
         MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
     } else if (useSubtleIdleBackground) {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     } else {
-        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     }
     val contentColor = if (emphasized) {
         MaterialTheme.colorScheme.onPrimary

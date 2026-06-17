@@ -63,6 +63,7 @@ class PlaybackNotificationController(
                         if (currentState.currentSong != null && !currentState.isPlaying) {
                             notificationDismissedWhilePaused = true
                             pauseHideJob?.cancel()
+                            updateNotificationPlayer(null)
                         }
                     }
                     PlaybackKeepAliveService.stop(context)

@@ -1,10 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.motion
 
-import android.content.Context
-import android.database.ContentObserver
-import android.os.Handler
-import android.os.Looper
-import android.provider.Settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -34,17 +29,13 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import kotlin.math.roundToInt
-import kotlin.math.roundToLong
 
 object ElovaireMotion {
     private const val QuickBase = 20
@@ -65,8 +56,8 @@ object ElovaireMotion {
     private const val EmphasizedBase = 220
     private const val TopLevelEnterBase = 70
     private const val TopLevelExitBase = 1
-    private const val DetailEnterBase = 105
-    private const val DetailExitBase = 15
+    private const val DetailEnterBase = 205
+    private const val DetailExitBase = 115
     private const val FullScreenEnterBase = 120
     private const val FullScreenExitBase = 25
 
@@ -98,25 +89,21 @@ object ElovaireMotion {
     private var systemDurationScale by mutableFloatStateOf(1f)
 
     fun updateSystemDurationScale(scale: Float) {
-        systemDurationScale = scale.takeIf { it.isFinite() && it >= 0f } ?: 1f
+        systemDurationScale = 1f
     }
 
     private fun scaledDurationMillis(durationMillis: Int): Int = when {
         durationMillis <= 0 -> 0
-        systemDurationScale <= 0f -> 0
-        else -> (durationMillis * systemDurationScale).roundToInt().coerceAtLeast(1)
+        else -> durationMillis
     }
 
     private fun scaledDelayMillis(delayMillis: Int): Int = when {
         delayMillis <= 0 -> 0
-        systemDurationScale <= 0f -> 0
-        else -> (delayMillis * systemDurationScale).roundToInt().coerceAtLeast(1)
+        else -> delayMillis
     }
 
     private fun scaledSpringStiffness(stiffness: Float): Float {
-        if (systemDurationScale <= 0f) return 4_000f
-        val normalizedScale = systemDurationScale.coerceIn(0.5f, 2.5f)
-        return (stiffness / normalizedScale).coerceIn(240f, 3_000f)
+        return stiffness
     }
 
     private fun <T> scaledTween(
@@ -689,8 +676,7 @@ object ElovaireMotion {
         durationScale: Float,
     ): Long = when {
         durationMillis <= 0L -> 0L
-        durationScale <= 0f -> 0L
-        else -> (durationMillis * durationScale).roundToLong().coerceAtLeast(1L)
+        else -> durationMillis
     }
 
     fun scaleDurationMillis(
@@ -700,45 +686,14 @@ object ElovaireMotion {
 }
 
 @Composable
-fun rememberSystemAnimationScale(): Float {
-    val context = LocalContext.current
-    var durationScale by remember(context) {
-        mutableFloatStateOf(readSystemAnimationScale(context))
-    }
-    DisposableEffect(context) {
-        val resolver = context.contentResolver
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) {
-                durationScale = readSystemAnimationScale(context)
-            }
-        }
-        resolver.registerContentObserver(
-            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
-            false,
-            observer,
-        )
-        onDispose {
-            resolver.unregisterContentObserver(observer)
-        }
-    }
-    return durationScale
-}
+fun rememberSystemAnimationScale(): Float = 1f
 
 @Composable
 fun SyncElovaireMotionScale() {
-    val durationScale = rememberSystemAnimationScale()
     SideEffect {
-        ElovaireMotion.updateSystemDurationScale(durationScale)
+        ElovaireMotion.updateSystemDurationScale(1f)
     }
 }
-
-private fun readSystemAnimationScale(context: Context): Float = runCatching {
-    Settings.Global.getFloat(
-        context.contentResolver,
-        Settings.Global.ANIMATOR_DURATION_SCALE,
-        1f,
-    )
-}.getOrDefault(1f).takeIf { it.isFinite() && it >= 0f } ?: 1f
 
 @Composable
 fun ElovaireAnimatedVisibility(
