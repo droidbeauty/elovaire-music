@@ -303,6 +303,7 @@ internal fun createLibraryFolderPickerIntent(initialUri: Uri?): Intent {
 internal enum class AlbumLayoutMode {
     Compact,
     Grid,
+    DenseGrid,
 }
 
 internal enum class SongSortMode(

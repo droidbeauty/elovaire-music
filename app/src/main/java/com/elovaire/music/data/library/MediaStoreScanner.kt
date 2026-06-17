@@ -57,6 +57,10 @@ class MediaStoreScanner(
         }
     }
 
+    fun clearMetadataCache() {
+        metadataCache.clear()
+    }
+
     fun scan(
         refreshMediaIndex: Boolean = false,
         refreshMediaPaths: List<String> = emptyList(),

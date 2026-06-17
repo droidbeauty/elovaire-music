@@ -6,6 +6,8 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -110,14 +112,14 @@ internal class AlbumTagEditorService(
         val normalizedTrackArtist = track.artist.trim().ifBlank {
             if (originalSong.artist.isBlank() || originalSong.artist == request.album.artist) normalizedAlbumArtist else originalSong.artist
         }
-        tag.setField(FieldKey.ALBUM, normalizedAlbumTitle)
-        tag.setField(FieldKey.ALBUM_ARTIST, normalizedAlbumArtist)
-        tag.setField(FieldKey.ARTIST, normalizedTrackArtist)
-        tag.setField(FieldKey.TITLE, track.title.trim().ifBlank { originalSong.title })
-        tag.setField(FieldKey.TRACK, track.trackNumber.coerceAtLeast(1).toString())
-        tag.setField(FieldKey.DISC_NO, track.discNumber.coerceAtLeast(1).toString())
+        setOrDeleteTextField(tag, FieldKey.ALBUM, normalizedAlbumTitle)
+        setOrDeleteTextField(tag, FieldKey.ALBUM_ARTIST, normalizedAlbumArtist)
+        setOrDeleteTextField(tag, FieldKey.ARTIST, normalizedTrackArtist)
+        setOrDeleteTextField(tag, FieldKey.TITLE, track.title.trim().ifBlank { originalSong.title })
+        setOrDeleteTextField(tag, FieldKey.TRACK, track.trackNumber.coerceAtLeast(1).toString())
+        setOrDeleteTextField(tag, FieldKey.DISC_NO, track.discNumber.coerceAtLeast(1).toString())
         request.releaseYear?.takeIf { it > 0 }?.let { year ->
-            tag.setField(FieldKey.YEAR, year.toString())
+            setOrDeleteTextField(tag, FieldKey.YEAR, year.toString())
         } ?: runCatching {
             tag.deleteField(FieldKey.YEAR)
         }
@@ -137,6 +139,19 @@ internal class AlbumTagEditorService(
         audioFile.commit()
     }
 
+    private fun setOrDeleteTextField(
+        tag: org.jaudiotagger.tag.Tag,
+        fieldKey: FieldKey,
+        value: String?,
+    ) {
+        val normalizedValue = value?.trim().orEmpty()
+        if (normalizedValue.isBlank()) {
+            runCatching { tag.deleteField(fieldKey) }
+        } else {
+            tag.setField(fieldKey, normalizedValue)
+        }
+    }
+
     private fun copySongToTempFile(song: Song): File {
         val tempDir = File(appContext.cacheDir, TEMP_TAG_EDIT_DIR_NAME).apply { mkdirs() }
         val suffix = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
@@ -153,9 +168,26 @@ internal class AlbumTagEditorService(
         songUri: Uri,
         tempFile: File,
     ) {
-        contentResolver.openOutputStream(songUri, "rwt")?.use { output ->
-            tempFile.inputStream().use { input ->
-                input.copyTo(output)
+        contentResolver.openFileDescriptor(songUri, "rw")?.use { descriptor ->
+            FileOutputStream(descriptor.fileDescriptor).channel.use { outputChannel ->
+                outputChannel.position(0L)
+                outputChannel.truncate(0L)
+                FileInputStream(tempFile).channel.use { inputChannel ->
+                    var transferred = 0L
+                    val totalBytes = inputChannel.size()
+                    while (transferred < totalBytes) {
+                        val copiedBytes = inputChannel.transferTo(
+                            transferred,
+                            totalBytes - transferred,
+                            outputChannel,
+                        )
+                        if (copiedBytes <= 0L) {
+                            error("Unable to copy updated tags")
+                        }
+                        transferred += copiedBytes
+                    }
+                }
+                outputChannel.force(true)
             }
         } ?: error("Unable to write updated tags")
     }

@@ -58,6 +58,7 @@ object ElovaireMotion {
     private const val TopLevelExitBase = 1
     private const val DetailEnterBase = 205
     private const val DetailExitBase = 115
+    private const val AlbumDetailExtraBase = 100
     private const val FullScreenEnterBase = 120
     private const val FullScreenExitBase = 25
 
@@ -353,20 +354,26 @@ object ElovaireMotion {
         )
 
     fun compactBarEnter(
-        initialOffsetY: (Int) -> Int = { it / 3 },
-    ): EnterTransition = overlayFadeEnter(initialAlpha = 0.8f) +
+        initialOffsetY: (Int) -> Int = { it / 6 },
+    ): EnterTransition = fadeIn(
+        animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = FadeIn),
+        initialAlpha = 0.78f,
+    ) +
         androidx.compose.animation.expandVertically(
             expandFrom = Alignment.Bottom,
-            animationSpec = scaledTween(durationMillis = ScreenBase, easing = GentleDecelerate),
+            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = GentleDecelerate),
         ) +
         slideInVertically(
             initialOffsetY = initialOffsetY,
-            animationSpec = scaledTween(durationMillis = ScreenBase, easing = GentleDecelerate),
+            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = GentleDecelerate),
         )
 
     fun compactBarExit(
-        targetOffsetY: (Int) -> Int = { it / 4 },
-    ): ExitTransition = overlayFadeExit(targetAlpha = 0.92f) +
+        targetOffsetY: (Int) -> Int = { it / 10 },
+    ): ExitTransition = fadeOut(
+        animationSpec = scaledTween(durationMillis = StandardBase, easing = FadeOut),
+        targetAlpha = 0.9f,
+    ) +
         androidx.compose.animation.shrinkVertically(
             shrinkTowards = Alignment.Bottom,
             animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleAccelerate),
@@ -666,6 +673,80 @@ object ElovaireMotion {
         slideOutVertically(
             animationSpec = scaledTween(
                 durationMillis = DetailExitBase,
+                easing = GentleAccelerate,
+            ),
+            targetOffsetY = { it / 96 },
+        )
+
+    fun albumDetailForwardEnter(): EnterTransition = fadeIn(
+        animationSpec = scaledTween(
+            durationMillis = DetailEnterBase + AlbumDetailExtraBase,
+            easing = FadeIn,
+        ),
+        initialAlpha = 0.08f,
+    ) +
+        scaleIn(
+            animationSpec = scaledTween(
+                durationMillis = DetailEnterBase + AlbumDetailExtraBase,
+                easing = GentleDecelerate,
+            ),
+            initialScale = 0.99f,
+        ) +
+        slideInVertically(
+            animationSpec = scaledTween(
+                durationMillis = DetailEnterBase + AlbumDetailExtraBase,
+                easing = GentleDecelerate,
+            ),
+            initialOffsetY = { it / 96 },
+        )
+
+    fun albumDetailForwardExit(): ExitTransition = fadeOut(
+        animationSpec = scaledTween(
+            durationMillis = DetailExitBase + AlbumDetailExtraBase,
+            easing = FadeOut,
+        ),
+        targetAlpha = 0f,
+    ) +
+        scaleOut(
+            animationSpec = scaledTween(
+                durationMillis = DetailExitBase + AlbumDetailExtraBase,
+                easing = GentleAccelerate,
+            ),
+            targetScale = 0.998f,
+        )
+
+    fun albumDetailBackEnter(): EnterTransition = fadeIn(
+        animationSpec = scaledTween(
+            durationMillis = DetailEnterBase + AlbumDetailExtraBase,
+            easing = FadeIn,
+        ),
+        initialAlpha = 0.1f,
+    ) +
+        scaleIn(
+            animationSpec = scaledTween(
+                durationMillis = DetailEnterBase + AlbumDetailExtraBase,
+                easing = GentleDecelerate,
+            ),
+            initialScale = 0.998f,
+        )
+
+    fun albumDetailBackExit(): ExitTransition = fadeOut(
+        animationSpec = scaledTween(
+            durationMillis = DetailExitBase + AlbumDetailExtraBase,
+            easing = FadeOut,
+        ),
+        targetAlpha = 0f,
+    ) +
+        scaleOut(
+            animationSpec = scaledTween(
+                durationMillis = DetailExitBase + AlbumDetailExtraBase,
+                easing = GentleAccelerate,
+            ),
+            targetScale = 0.99f,
+        ) +
+        slideOutVertically(
+            animationSpec = scaledTween(
+                durationMillis = DetailExitBase + AlbumDetailExtraBase,
                 easing = GentleAccelerate,
             ),
             targetOffsetY = { it / 96 },

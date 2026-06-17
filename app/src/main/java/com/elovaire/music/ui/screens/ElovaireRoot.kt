@@ -438,8 +438,10 @@ private data class TopBarActionSpec(
     val onClick: () -> Unit,
 )
 
+private fun String?.isAlbumDetailRoute(): Boolean = this == "$ALBUM_ROUTE/{albumId}"
+
 private fun tileExpandEnterTransition(expandOrigin: ExpandOrigin): EnterTransition {
-    val albumTransitionDuration = ElovaireMotion.Emphasized + 100
+    val albumTransitionDuration = ElovaireMotion.Emphasized + 200
     return fadeIn(
         animationSpec = ElovaireMotion.standardTween(durationMillis = albumTransitionDuration),
     ) +
@@ -472,7 +474,7 @@ private fun tileExpandEnterTransition(expandOrigin: ExpandOrigin): EnterTransiti
 }
 
 private fun tileExpandExitTransition(expandOrigin: ExpandOrigin): ExitTransition {
-    val albumTransitionDuration = ElovaireMotion.Emphasized + 100
+    val albumTransitionDuration = ElovaireMotion.Emphasized + 200
     return fadeOut(
         animationSpec = ElovaireMotion.standardTween(
             durationMillis = albumTransitionDuration,
@@ -516,6 +518,7 @@ private fun resolveForwardEnterTransition(
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
         forward = transition.topLevelTransition.isForward,
     )
+    transition.targetRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailForwardEnter()
     transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardEnter()
     else -> ElovaireMotion.fullScreenForwardEnter()
 }
@@ -528,6 +531,7 @@ private fun resolveForwardExitTransition(
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
         forward = transition.topLevelTransition.isForward,
     )
+    transition.targetRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailForwardExit()
     transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardExit()
     else -> ElovaireMotion.fullScreenForwardExit()
 }
@@ -540,6 +544,7 @@ private fun resolvePopEnterTransition(
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
         forward = transition.topLevelTransition.isForward,
     )
+    transition.targetRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailBackEnter()
     transition.targetUsesDetailTransition -> ElovaireMotion.detailBackEnter()
     else -> ElovaireMotion.fullScreenBackEnter()
 }
@@ -553,6 +558,7 @@ private fun resolvePopExitTransition(
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
         forward = transition.topLevelTransition.isForward,
     )
+    transition.initialRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailBackExit()
     transition.initialUsesDetailTransition -> ElovaireMotion.detailBackExit()
     else -> ElovaireMotion.fullScreenBackExit()
 }
@@ -2498,6 +2504,15 @@ private fun NowPlayingRoute(
     val playerUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
     val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
+    val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
+    LaunchedEffect(viewModel) {
+        viewModel.setLyricsVisible(true)
+    }
+    DisposableEffect(viewModel) {
+        onDispose {
+            viewModel.setLyricsVisible(false)
+        }
+    }
     NowPlayingScreen(
         playbackManager = playbackManager,
         playerUiState = playerUiState,
@@ -2506,7 +2521,7 @@ private fun NowPlayingRoute(
         playlists = playlists,
         lyricsUiState = lyricsUiState,
         activeLyricsLineIndex = activeLyricsLineIndex,
-        onLyricsVisibilityChanged = viewModel::setLyricsVisible,
+        playbackProgress = playbackProgress,
         onBack = onBack,
         onOpenCurrentAlbum = onOpenCurrentAlbum,
         onTogglePlayback = viewModel::togglePlayback,
@@ -4389,6 +4404,77 @@ private fun AlbumCollectionContent(
                             album = album,
                             selectionMode = selectionModeActive,
                             selected = album.id in selectedAlbumIds,
+                            onOpen = { origin ->
+                                if (selectionModeActive) {
+                                    selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                } else {
+                                    onAlbumSelected(album, origin)
+                                }
+                            },
+                            onLongPress = {
+                                showSortOptions = false
+                                selectedAlbumIds = selectedAlbumIds + album.id
+                            },
+                        )
+                    }
+                }
+                FastScrollbar(
+                    state = gridState,
+                    topInset = topPadding + selectionTopInset + 16.dp,
+                    bottomInset = bottomPadding + 16.dp,
+                )
+            }
+
+            AlbumLayoutMode.DenseGrid -> {
+                LazyVerticalGrid(
+                    state = gridState,
+                    overscrollEffect = null,
+                    columns = GridCells.Fixed(3),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .ensureSingleItemRubberBand(gridState),
+                    contentPadding = PaddingValues(
+                        start = 6.dp,
+                        top = topPadding + selectionTopInset + 8.dp,
+                        end = 6.dp,
+                        bottom = bottomPadding + 12.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    item(span = { GridItemSpan(3) }) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 14.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AlbumSortControl(
+                                selected = sortMode,
+                                expanded = showSortOptions,
+                                onToggleExpanded = { showSortOptions = !showSortOptions },
+                                onSelect = { selectedMode ->
+                                    onSortModeChanged(selectedMode)
+                                    showSortOptions = false
+                                },
+                            )
+                            Spacer(modifier = Modifier.width(11.dp))
+                            LibraryModeToggle(
+                                layoutMode = layoutMode,
+                                onLayoutModeChanged = onLayoutModeChanged,
+                            )
+                        }
+                    }
+
+                    items(sortedAlbums, key = { it.id }) { album ->
+                        AlbumGridCard(
+                            album = album,
+                            selectionMode = selectionModeActive,
+                            selected = album.id in selectedAlbumIds,
+                            showText = false,
+                            artworkCornerRadius = 0.dp,
+                            showArtworkGlow = false,
                             onOpen = { origin ->
                                 if (selectionModeActive) {
                                     selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
@@ -7417,6 +7503,12 @@ private fun LibraryModeToggle(
             contentDescription = "Grid",
             onClick = { onLayoutModeChanged(AlbumLayoutMode.Grid) },
         )
+        ToggleIconChip(
+            iconResId = R.drawable.ic_lucide_grid_3x3,
+            selected = layoutMode == AlbumLayoutMode.DenseGrid,
+            contentDescription = "Dense grid",
+            onClick = { onLayoutModeChanged(AlbumLayoutMode.DenseGrid) },
+        )
     }
 }
 
@@ -7439,12 +7531,25 @@ private fun ToggleIconChip(
         label = "toggle_chip_content",
     )
     val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.9f else 1f,
-        animationSpec = spring(
-            dampingRatio = 0.54f,
-            stiffness = 360f,
-        ),
+        targetValue = if (pressed) 0.88f else 1f,
+        animationSpec = if (pressed) {
+            ElovaireMotion.pressDownSpec()
+        } else {
+            ElovaireMotion.bounceSpringSpec()
+        },
         label = "toggle_chip_scale",
+    )
+    val iconScale by animateFloatAsState(
+        targetValue = if (pressed) 0.92f else 1f,
+        animationSpec = if (pressed) {
+            ElovaireMotion.pressDownSpec()
+        } else {
+            ElovaireMotion.releaseSpringSpec(
+                dampingRatio = 0.78f,
+                stiffness = 520f,
+            )
+        },
+        label = "toggle_chip_icon_scale",
     )
     Surface(
         modifier = Modifier.scale(scale),
@@ -7462,7 +7567,9 @@ private fun ToggleIconChip(
             Icon(
                 painter = painterResource(id = iconResId),
                 contentDescription = contentDescription,
-                modifier = Modifier.size(15.dp),
+                modifier = Modifier
+                    .size(15.dp)
+                    .scale(iconScale),
             )
         }
     }
@@ -8331,6 +8438,9 @@ private fun AlbumGridCard(
     modifier: Modifier = Modifier,
     selectionMode: Boolean = false,
     selected: Boolean = false,
+    showText: Boolean = true,
+    artworkCornerRadius: Dp = ElovaireRadii.artwork,
+    showArtworkGlow: Boolean = true,
     onOpen: (ExpandOrigin) -> Unit,
     onLongPress: (() -> Unit)? = null,
 ) {
@@ -8360,8 +8470,8 @@ private fun AlbumGridCard(
                 uri = album.artUri,
                 title = album.title,
                 modifier = Modifier.matchParentSize(),
-                cornerRadius = ElovaireRadii.artwork,
-                showArtworkGlow = true,
+                cornerRadius = artworkCornerRadius,
+                showArtworkGlow = showArtworkGlow,
             )
             if (selectionMode) {
                 SelectionIndicatorIcon(
@@ -8372,23 +8482,25 @@ private fun AlbumGridCard(
                 )
             }
         }
-        Column(
-            modifier = Modifier.padding(horizontal = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            Text(
-                text = album.title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = album.artist,
-                style = MaterialTheme.typography.labelLarge,
-                color = readableSecondaryTextColor(),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+        if (showText) {
+            Column(
+                modifier = Modifier.padding(horizontal = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = album.title,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = album.artist,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = readableSecondaryTextColor(),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -10910,7 +11022,7 @@ private fun NowPlayingScreen(
     playlists: List<Playlist>,
     lyricsUiState: LyricsUiState,
     activeLyricsLineIndex: Int,
-    onLyricsVisibilityChanged: (Boolean) -> Unit,
+    playbackProgress: PlaybackProgressState,
     onBack: () -> Unit,
     onOpenCurrentAlbum: (Long) -> Unit,
     onTogglePlayback: () -> Unit,
@@ -11031,12 +11143,8 @@ private fun NowPlayingScreen(
             queueStatusText = null
         }
     }
-    LaunchedEffect(showLyricsSheet) {
-        onLyricsVisibilityChanged(showLyricsSheet)
-    }
     DisposableEffect(currentSong?.id) {
         onDispose {
-            onLyricsVisibilityChanged(false)
             playbackManager.cancelScrub()
         }
     }
@@ -11893,6 +12001,7 @@ private fun NowPlayingScreen(
                 song = currentSong,
                 lyricsUiState = lyricsUiState,
                 activeLyricsLineIndex = activeLyricsLineIndex,
+                playbackProgress = playbackProgress,
                 tintColor = baseSurface.copy(alpha = 0.66f),
                 contentColor = contentColor,
                 secondaryContentColor = secondaryContentColor,
@@ -13372,6 +13481,7 @@ private fun LyricsOverlay(
     song: Song?,
     lyricsUiState: LyricsUiState,
     activeLyricsLineIndex: Int,
+    playbackProgress: PlaybackProgressState,
     tintColor: Color,
     contentColor: Color,
     secondaryContentColor: Color,
@@ -13564,6 +13674,7 @@ private fun LyricsOverlay(
                                     song = song,
                                     payload = state.payload,
                                     activeLyricLineIndex = activeLyricsLineIndex,
+                                    playbackProgress = playbackProgress,
                                     listState = listState,
                                     autoScrollHeld = autoScrollHeld,
                                     setAutoScrollHeld = { autoScrollHeld = it },
@@ -13669,6 +13780,7 @@ private fun LyricsReadyContent(
     song: Song?,
     payload: LyricsPayload,
     activeLyricLineIndex: Int,
+    playbackProgress: PlaybackProgressState,
     listState: LazyListState,
     autoScrollHeld: Boolean,
     setAutoScrollHeld: (Boolean) -> Unit,
@@ -13682,11 +13794,22 @@ private fun LyricsReadyContent(
     onSeekTo: (Long) -> Unit,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
+    val resolvedActiveLyricLineIndex = remember(
+        payload,
+        activeLyricLineIndex,
+        playbackProgress.displayPositionMs,
+    ) {
+        payload.currentLineIndexAt(
+            positionMs = playbackProgress.displayPositionMs,
+            timingOffsetMs = 0L,
+            switchGraceMs = 0L,
+        )?.takeIf { payload.isSynced && it >= 0 } ?: activeLyricLineIndex
+    }
     val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
-    LaunchedEffect(activeLyricLineIndex, payload.isSynced, autoScrollHeld) {
-        if (!autoScrollHeld && payload.isSynced && activeLyricLineIndex >= 0) {
+    LaunchedEffect(resolvedActiveLyricLineIndex, payload.isSynced, autoScrollHeld) {
+        if (!autoScrollHeld && payload.isSynced && resolvedActiveLyricLineIndex >= 0) {
             listState.animateLyricJumpToItem(
-                index = activeLyricLineIndex,
+                index = resolvedActiveLyricLineIndex,
                 scrollOffset = -autoScrollCenterOffsetPx,
             )
         }
@@ -13730,7 +13853,7 @@ private fun LyricsReadyContent(
             items = payload.lines,
             key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
         ) { index, line ->
-            val isActive = payload.isSynced && index == activeLyricLineIndex
+            val isActive = payload.isSynced && index == resolvedActiveLyricLineIndex
             val lineFontSize by animateFloatAsState(
                 targetValue = if (isActive) 24f else 22f,
                 animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
@@ -13755,7 +13878,7 @@ private fun LyricsReadyContent(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .pointerInput(song?.id, payload.lines.size, payload.isSynced, activeLyricLineIndex) {
+                    .pointerInput(song?.id, payload.lines.size, payload.isSynced, resolvedActiveLyricLineIndex) {
                         detectTapGestures {
                             lyricsSeekPositionMs(
                                 lines = payload.lines,

@@ -288,12 +288,18 @@ class LibraryRepository(
             .filter(String::isNotBlank)
             .distinct()
         if (normalizedPaths.isEmpty()) {
+            if (enrichMetadata) {
+                scanner.clearMetadataCache()
+            }
             refresh(
                 forceMediaIndex = true,
                 enrichMetadata = enrichMetadata,
                 showLoadingIndicator = false,
             )
             return
+        }
+        if (enrichMetadata) {
+            scanner.clearMetadataCache()
         }
         pendingTargetedIndexRefreshPaths.addAll(normalizedPaths)
         pendingMetadataEnrichment = pendingMetadataEnrichment || enrichMetadata
