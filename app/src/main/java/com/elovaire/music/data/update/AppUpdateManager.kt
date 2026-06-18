@@ -50,10 +50,6 @@ class AppUpdateManager(
     private var downloadJob: Job? = null
     private var startupMaintenanceScheduled = false
 
-    init {
-        scheduleStartupMaintenance()
-    }
-
     fun checkForUpdates(force: Boolean = false) {
         if (_uiState.value.isChecking || _uiState.value.isDownloading || _uiState.value.isInstalling) return
         if (!force) {
@@ -159,7 +155,7 @@ class AppUpdateManager(
         }
     }
 
-    private fun scheduleStartupMaintenance() {
+    fun scheduleStartupMaintenance() {
         if (startupMaintenanceScheduled) return
         startupMaintenanceScheduled = true
         scope.launch(Dispatchers.IO) {
@@ -169,6 +165,11 @@ class AppUpdateManager(
             kotlinx.coroutines.delay(STARTUP_UPDATE_CHECK_DELAY_MS)
             checkForUpdates()
         }
+    }
+
+    fun release() {
+        downloadJob?.cancel()
+        downloadJob = null
     }
 
     private fun fetchLatestRelease(installedVersion: String): AppReleaseInfo? {

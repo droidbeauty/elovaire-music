@@ -116,7 +116,7 @@ internal class NowPlayingViewModel(
                     }
                 } ?: emit(LyricsUiState.Loading)
 
-                val fetchedResult = withTimeoutOrNull(4_200L) {
+                val fetchedResult = withTimeoutOrNull(LYRICS_LOOKUP_TIMEOUT_MS) {
                     lyricsService.fetchLyrics(
                         song = request.song,
                         allowCachedNotFound = false,
@@ -155,7 +155,7 @@ internal class NowPlayingViewModel(
             ?.currentLineIndexAt(
                 positionMs = progressState.displayPositionMs,
                 timingOffsetMs = 0L,
-                switchGraceMs = 0L,
+                switchGraceMs = LYRICS_SWITCH_GRACE_MS,
             )
             ?: -1
     }
@@ -244,4 +244,9 @@ internal class NowPlayingViewModel(
         val queue: List<Song>,
         val currentIndex: Int,
     )
+
+    private companion object {
+        const val LYRICS_LOOKUP_TIMEOUT_MS = 5_200L
+        const val LYRICS_SWITCH_GRACE_MS = 180L
+    }
 }

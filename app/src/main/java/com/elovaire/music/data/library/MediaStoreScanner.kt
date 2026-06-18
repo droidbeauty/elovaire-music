@@ -51,6 +51,7 @@ class MediaStoreScanner(
             metadataCache[song.id] = CachedSongMetadata(
                 fileName = song.fileName,
                 dateAddedSeconds = song.dateAddedSeconds,
+                dateModifiedSeconds = null,
                 isEnriched = song.metadataResolved,
                 metadata = cachedMetadata,
             )
@@ -59,6 +60,17 @@ class MediaStoreScanner(
 
     fun clearMetadataCache() {
         metadataCache.clear()
+    }
+
+    fun invalidateMetadataCacheForPaths(paths: Collection<String>) {
+        val fileNames = paths.asSequence()
+            .map(::File)
+            .map(File::getName)
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .toSet()
+        if (fileNames.isEmpty()) return
+        metadataCache.entries.removeAll { (_, cached) -> cached.fileName in fileNames }
     }
 
     fun scan(
@@ -101,6 +113,7 @@ class MediaStoreScanner(
             val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
             val sizeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
             val yearIndex = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
+            val dateModifiedIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
 
             var scannedSongs = 0
@@ -119,6 +132,7 @@ class MediaStoreScanner(
                 val fileSizeBytes = sizeIndex.takeIf { it >= 0 }?.let(cursor::getLong)?.takeIf { it > 0L }
                 val durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L)
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
+                val dateModifiedSeconds = dateModifiedIndex.takeIf { it >= 0 }?.let(cursor::getLong)
                 val mediaStoreYear = yearIndex.takeIf { it >= 0 }
                     ?.let(cursor::getInt)
                     ?.takeIf { it > 0 }
@@ -126,6 +140,7 @@ class MediaStoreScanner(
                     ?.takeIf {
                         it.fileName == fileName &&
                             it.dateAddedSeconds == dateAddedSeconds &&
+                            it.dateModifiedSeconds == dateModifiedSeconds &&
                             (!enrichMetadata || it.isEnriched)
                     }
                 val songMetadata = cachedMetadata
@@ -163,6 +178,7 @@ class MediaStoreScanner(
                 refreshedMetadataCache[id] = CachedSongMetadata(
                     fileName = fileName,
                     dateAddedSeconds = dateAddedSeconds,
+                    dateModifiedSeconds = dateModifiedSeconds,
                     isEnriched = enrichMetadata || cachedMetadata?.isEnriched == true,
                     metadata = songMetadata,
                 )
@@ -321,6 +337,7 @@ class MediaStoreScanner(
             MediaStore.Audio.Media.SIZE,
             MediaStore.Audio.Media.YEAR,
             MediaStore.Audio.Media.DATE_ADDED,
+            MediaStore.MediaColumns.DATE_MODIFIED,
             MediaStore.MediaColumns.RELATIVE_PATH,
         )
     }
@@ -348,13 +365,15 @@ class MediaStoreScanner(
     }
 
     private fun buildAllowedRelativeLibraryRoots(): List<String> {
-        return buildScanRoots()
-            .mapNotNull { root ->
-                sharedStorageRelativePath(root.absolutePath)
-                    ?.let(::normalizeRelativePath)
-                    ?.takeIf { it.isNotBlank() }
-            }
-            .distinct()
+        val preferredRoot = preferredLibraryFolderPath
+            ?.let(::File)
+            ?.takeIf { it.exists() && it.isDirectory }
+            ?: return emptyList()
+        return listOfNotNull(
+            sharedStorageRelativePath(preferredRoot.absolutePath)
+                ?.let(::normalizeRelativePath)
+                ?.takeIf { it.isNotBlank() },
+        )
     }
 
     private fun discoverSecondaryMusicDirectories(): List<File> {
@@ -804,6 +823,7 @@ internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
 private data class CachedSongMetadata(
     val fileName: String,
     val dateAddedSeconds: Long,
+    val dateModifiedSeconds: Long?,
     val isEnriched: Boolean,
     val metadata: SongMetadata,
 )

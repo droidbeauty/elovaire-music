@@ -55,6 +55,12 @@ import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
+import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
+import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing

@@ -102,18 +102,14 @@ class LibraryRepository(
             ensureMusicDirectoryObserver()
             bootstrapLibrary()
         } else {
-            scanJob?.cancel()
-            scanJob = null
-            pendingRefresh = false
-            pendingIndexRefresh = false
-            pendingTargetedIndexRefreshPaths.clear()
-            pendingMetadataEnrichment = false
-            refreshDebounceJob?.cancel()
             didBootstrapLibrary = false
-            musicDirectoryObserver?.stopWatching()
-            musicDirectoryObserver = null
-            unregisterMediaObserver()
+            releaseObserversAndJobs(clearPermissionState = false)
         }
+    }
+
+    fun release() {
+        didBootstrapLibrary = false
+        releaseObserversAndJobs(clearPermissionState = true)
     }
 
     private fun ensureMediaObserverRegistered() {
@@ -148,15 +144,21 @@ class LibraryRepository(
                         song.genre.isBlank() ||
                         song.genre == "Unknown Genre"
                 }
-                _contentState.value = LibraryContentState(
+                val cachedContent = LibraryContentState(
                     songs = cachedSnapshot.snapshot.songs,
                     albums = cachedSnapshot.snapshot.albums,
                 )
-                _scanState.value = LibraryScanState(
+                if (_contentState.value != cachedContent) {
+                    _contentState.value = cachedContent
+                }
+                val cachedScanState = LibraryScanState(
                     permissionGranted = true,
                     isLoading = false,
                     scanProgress = 1f,
                 )
+                if (_scanState.value != cachedScanState) {
+                    _scanState.value = cachedScanState
+                }
                 val currentSignature = withContext(Dispatchers.IO) { scanner.currentSignature() }
                 if (currentSignature != cachedSnapshot.signature) {
                     refresh(
@@ -238,16 +240,29 @@ class LibraryRepository(
                     withContext(Dispatchers.IO) {
                         snapshotStore.save(snapshot)
                     }
-                    _contentState.value = LibraryContentState(
+                    val nextContentState = LibraryContentState(
                         songs = snapshot.songs,
                         albums = snapshot.albums,
                     )
-                    _scanState.value = LibraryScanState(
+                    if (_contentState.value != nextContentState) {
+                        _contentState.value = nextContentState
+                    }
+                    val nextScanState = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
                         scanProgress = 1f,
                     )
-                    if (!shouldEnrichMetadata && snapshot.songs.isNotEmpty()) {
+                    if (_scanState.value != nextScanState) {
+                        _scanState.value = nextScanState
+                    }
+                    val snapshotNeedsMetadata = snapshot.songs.any { song ->
+                        !song.metadataResolved ||
+                            song.releaseYear == null ||
+                            song.qualityNeedsEnrichment() ||
+                            song.genre.isBlank() ||
+                            song.genre == "Unknown Genre"
+                    }
+                    if (!shouldEnrichMetadata && snapshotNeedsMetadata) {
                         pendingRefresh = true
                         pendingMetadataEnrichment = true
                     }
@@ -299,7 +314,7 @@ class LibraryRepository(
             return
         }
         if (enrichMetadata) {
-            scanner.clearMetadataCache()
+            scanner.invalidateMetadataCacheForPaths(normalizedPaths)
         }
         pendingTargetedIndexRefreshPaths.addAll(normalizedPaths)
         pendingMetadataEnrichment = pendingMetadataEnrichment || enrichMetadata
@@ -470,5 +485,26 @@ class LibraryRepository(
                 FileObserver.MOVED_FROM or
                 FileObserver.DELETE_SELF or
                 FileObserver.MOVE_SELF
+    }
+
+    private fun releaseObserversAndJobs(clearPermissionState: Boolean) {
+        scanJob?.cancel()
+        scanJob = null
+        refreshDebounceJob?.cancel()
+        refreshDebounceJob = null
+        pendingRefresh = false
+        pendingIndexRefresh = false
+        pendingTargetedIndexRefreshPaths.clear()
+        pendingMetadataEnrichment = false
+        musicDirectoryObserver?.stopWatching()
+        musicDirectoryObserver = null
+        unregisterMediaObserver()
+        if (clearPermissionState) {
+            _scanState.value = _scanState.value.copy(
+                permissionGranted = false,
+                isLoading = false,
+                scanProgress = 0f,
+            )
+        }
     }
 }

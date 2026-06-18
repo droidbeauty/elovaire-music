@@ -25,6 +25,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -47,7 +48,7 @@ class MainActivity : ComponentActivity() {
 
         val app = application as ElovaireApp
         val container = app.container
-        val shouldShowColdStartSplash = app.consumeColdStartSplash()
+        val shouldShowColdStartSplash = savedInstanceState == null
         handleNotificationIntent()
         setContent {
             val themeMode = container.preferenceStore.themeMode.collectAsStateWithLifecycle()
@@ -77,6 +78,10 @@ class MainActivity : ComponentActivity() {
                     delay(ElovaireMotion.scaleDurationMillis(1_500L, motionDurationScale))
                     showSplash = false
                 }
+            }
+            LaunchedEffect(container) {
+                withFrameNanos { }
+                container.scheduleDeferredStartupWork()
             }
 
             ElovaireTheme(

@@ -61,7 +61,6 @@ class AppContainer(
     val openPlayerRequests: SharedFlow<Unit> = _openPlayerRequests.asSharedFlow()
 
     init {
-        PlaybackNotificationController.ensureNotificationChannel(applicationContext)
         appScope.launch {
             preferenceStore.eqSettings.collect { settings ->
                 playbackEffectsController.updateSettings(settings)
@@ -92,7 +91,20 @@ class AppContainer(
         _openPlayerRequests.tryEmit(Unit)
     }
 
+    fun scheduleDeferredStartupWork() {
+        appUpdateManager.scheduleStartupMaintenance()
+    }
+
+    fun release() {
+        playbackNotificationController?.setNotificationsEnabled(false)
+        playbackNotificationController = null
+        appUpdateManager.release()
+        libraryRepository.release()
+        playbackManager.release()
+    }
+
     private fun notificationController(): PlaybackNotificationController {
+        PlaybackNotificationController.ensureNotificationChannel(applicationContext)
         return playbackNotificationController ?: PlaybackNotificationController(
             context = applicationContext,
             playbackManager = playbackManager,

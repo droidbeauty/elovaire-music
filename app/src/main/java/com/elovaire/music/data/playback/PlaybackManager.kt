@@ -13,6 +13,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import androidx.media3.common.C
@@ -161,6 +162,7 @@ class PlaybackManager(
     private var isDirectPlaybackActive = false
     private var isSwitchingAudioPath = false
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
+    private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var player = createPlayer(enableSignalProcessing = true)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
@@ -196,6 +198,8 @@ class PlaybackManager(
     private var isRecoveringPlayback = false
     private var lastKnownQueueIndex = -1
     private var lastKnownPositionMs = 0L
+    private var unexpectedIdleRecoveryCount = 0
+    private var lastUnexpectedIdleRecoveryElapsedMs = 0L
     private var hasUsbOutputRoute = false
     private val playbackProgressController = PlaybackProgressController()
     private var progressUpdateJob: Job? = null
@@ -213,6 +217,7 @@ class PlaybackManager(
             mediaItem: MediaItem?,
             reason: Int,
         ) {
+            resetUnexpectedIdleRecoveryGuard()
             scheduleAudioPathReevaluation("media-item-transition", AUDIO_PATH_REEVALUATION_DELAY_MS)
             updateState()
         }
@@ -236,6 +241,9 @@ class PlaybackManager(
             ) {
                 recoverUnexpectedIdleState(shouldAutoPlay = shouldAutoResumeAfterUnexpectedIdle())
             } else {
+                if (playbackState != Player.STATE_IDLE) {
+                    resetUnexpectedIdleRecoveryGuard()
+                }
                 updateState()
             }
         }
@@ -708,26 +716,57 @@ class PlaybackManager(
     private fun maybeRebuildPlayerForAudioPath(reason: String) {
         if (isSwitchingAudioPath) return
         if (_state.value.queue.isEmpty() && player.mediaItemCount == 0) {
+            lastAppliedAudioPathDecisionKey = null
             player.volume = targetPlayerOutputGain()
             return
         }
-        when (bitPerfectUsbManager.status.value.directive) {
+        val status = bitPerfectUsbManager.status.value
+        val desiredUseDirectPlayback = when (status.directive) {
+            BitPerfectPlaybackDirective.KeepCurrent -> isDirectPlaybackActive
+            BitPerfectPlaybackDirective.PreferDirect -> true
+            BitPerfectPlaybackDirective.PreferRegular -> false
+        }
+        val nextDecisionKey = AudioPathDecisionKey(
+            useDirectPlayback = desiredUseDirectPlayback,
+            directive = status.directive,
+            evaluationKey = status.evaluationKey,
+            routeDeviceId = status.activeRouteDeviceId,
+            routeType = status.activeRouteType,
+            preferredDeviceKey = bitPerfectUsbManager.preferredOutputDevice()
+                ?.let { PreferredAudioDeviceKey(it.id, it.type) },
+        )
+        if (nextDecisionKey == lastAppliedAudioPathDecisionKey) {
+            player.volume = targetPlayerOutputGain()
+            return
+        }
+        when (status.directive) {
             BitPerfectPlaybackDirective.KeepCurrent -> {
+                lastAppliedAudioPathDecisionKey = nextDecisionKey
                 player.volume = targetPlayerOutputGain()
             }
 
             BitPerfectPlaybackDirective.PreferDirect -> {
                 if (!isDirectPlaybackActive) {
-                    switchPlayerAudioPath(useDirectPlayback = true, reason = reason)
+                    switchPlayerAudioPath(
+                        useDirectPlayback = true,
+                        reason = reason,
+                        decisionKey = nextDecisionKey,
+                    )
                 } else {
+                    lastAppliedAudioPathDecisionKey = nextDecisionKey
                     player.volume = targetPlayerOutputGain()
                 }
             }
 
             BitPerfectPlaybackDirective.PreferRegular -> {
                 if (isDirectPlaybackActive) {
-                    switchPlayerAudioPath(useDirectPlayback = false, reason = reason)
+                    switchPlayerAudioPath(
+                        useDirectPlayback = false,
+                        reason = reason,
+                        decisionKey = nextDecisionKey,
+                    )
                 } else {
+                    lastAppliedAudioPathDecisionKey = nextDecisionKey
                     player.volume = targetPlayerOutputGain()
                 }
             }
@@ -737,6 +776,7 @@ class PlaybackManager(
     private fun switchPlayerAudioPath(
         useDirectPlayback: Boolean,
         reason: String,
+        decisionKey: AudioPathDecisionKey,
     ) {
         isSwitchingAudioPath = true
         try {
@@ -767,6 +807,7 @@ class PlaybackManager(
             mediaSession.setPlayer(replacementPlayer)
             lastAppliedPreferredDeviceKey = null
             applyPreferredAudioDeviceIfNeeded(force = true)
+            lastAppliedAudioPathDecisionKey = decisionKey
             replacementPlayer.volume = targetPlayerOutputGain()
             _playerInstanceVersion.value += 1L
             previousPlayer.release()
@@ -789,7 +830,9 @@ class PlaybackManager(
         shouldResumeAfterTransientFocusLoss = false
         pausedForAudioFocusLoss = false
         bitPerfectUsbManager.clearPlaybackFormat()
+        lastAppliedAudioPathDecisionKey = null
         scheduleAudioPathReevaluation("set-queue", AUDIO_PATH_REEVALUATION_DELAY_MS)
+        resetUnexpectedIdleRecoveryGuard()
 
         val mediaItems = songs.map { song ->
             song.toPlaybackMediaItem()
@@ -822,6 +865,7 @@ class PlaybackManager(
         shouldResumeAfterTransientFocusLoss = false
         pausedForAudioFocusLoss = false
         bitPerfectUsbManager.clearForStop()
+        lastAppliedAudioPathDecisionKey = null
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         player.pause()
         player.playWhenReady = false
@@ -842,6 +886,7 @@ class PlaybackManager(
         )
         _progressState.value = playbackProgressController.clear()
         syncProgressUpdateLoop()
+        resetUnexpectedIdleRecoveryGuard()
         isStoppingQueue = false
     }
 
@@ -849,6 +894,9 @@ class PlaybackManager(
         val existingState = _state.value
         val currentIndex = resolveCurrentQueueIndex(existingState)
         val currentSong = existingState.queue.getOrNull(currentIndex)
+        if (currentSong != null && (player.isPlaying || player.playWhenReady)) {
+            resetUnexpectedIdleRecoveryGuard()
+        }
         if (currentIndex >= 0) {
             lastKnownQueueIndex = currentIndex
             lastKnownPositionMs = player.currentPosition.coerceAtLeast(0L)
@@ -1058,12 +1106,17 @@ class PlaybackManager(
     private fun recoverUnexpectedIdleState(shouldAutoPlay: Boolean) {
         val snapshot = _state.value
         if (snapshot.queue.isEmpty()) return
+        if (!registerUnexpectedIdleRecoveryAttempt()) {
+            enterSafeStoppedStateAfterRecoveryFailure(snapshot)
+            return
+        }
         val recoverIndex = lastKnownQueueIndex
             .takeIf { it in snapshot.queue.indices }
             ?: snapshot.currentIndex.takeIf { it in snapshot.queue.indices }
             ?: 0
         val recoverPosition = lastKnownPositionMs.coerceAtLeast(0L)
         bitPerfectUsbManager.clearPlaybackFormat()
+        lastAppliedAudioPathDecisionKey = null
         scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
         isRecoveringPlayback = true
         scope.launch {
@@ -1082,6 +1135,46 @@ class PlaybackManager(
             isRecoveringPlayback = false
             updateState()
         }
+    }
+
+    private fun registerUnexpectedIdleRecoveryAttempt(): Boolean {
+        val nowElapsedMs = SystemClock.elapsedRealtime()
+        unexpectedIdleRecoveryCount = if (
+            nowElapsedMs - lastUnexpectedIdleRecoveryElapsedMs <= UNEXPECTED_IDLE_RECOVERY_WINDOW_MS
+        ) {
+            unexpectedIdleRecoveryCount + 1
+        } else {
+            1
+        }
+        lastUnexpectedIdleRecoveryElapsedMs = nowElapsedMs
+        return unexpectedIdleRecoveryCount <= MAX_UNEXPECTED_IDLE_RECOVERY_ATTEMPTS
+    }
+
+    private fun resetUnexpectedIdleRecoveryGuard() {
+        unexpectedIdleRecoveryCount = 0
+        lastUnexpectedIdleRecoveryElapsedMs = 0L
+    }
+
+    private fun enterSafeStoppedStateAfterRecoveryFailure(snapshot: PlaybackUiState) {
+        logDebug("recovery aborted after repeated idle/player errors")
+        cancelPauseFade(resetVolume = false)
+        shouldResumeAfterTransientFocusLoss = false
+        pausedForAudioFocusLoss = false
+        isManualPausePending = false
+        isPauseTransitioningToStopped = false
+        isRecoveringPlayback = false
+        player.pause()
+        player.playWhenReady = false
+        abandonAudioFocus()
+        val nextState = snapshot.copy(
+            isPlaying = false,
+            transportShowsPause = false,
+            audioSessionId = player.audioSessionId.takeIf { it > 0 } ?: 0,
+        )
+        if (nextState != _state.value) {
+            _state.value = nextState
+        }
+        publishProgressSnapshot()
     }
 
     private fun currentSong(): Song? {
@@ -1325,6 +1418,8 @@ class PlaybackManager(
         const val MAX_HISTORY_ITEMS = 12
         const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
+        const val MAX_UNEXPECTED_IDLE_RECOVERY_ATTEMPTS = 3
+        const val UNEXPECTED_IDLE_RECOVERY_WINDOW_MS = 10_000L
         const val TAG = "PlaybackManager"
     }
 
@@ -1337,6 +1432,15 @@ class PlaybackManager(
         Log.d(TAG, message)
     }
 }
+
+private data class AudioPathDecisionKey(
+    val useDirectPlayback: Boolean,
+    val directive: BitPerfectPlaybackDirective,
+    val evaluationKey: DirectPlaybackEvaluationKey?,
+    val routeDeviceId: Int?,
+    val routeType: Int?,
+    val preferredDeviceKey: PreferredAudioDeviceKey?,
+)
 
 private fun Song.toPlaybackMediaItem(): MediaItem {
     return MediaItem.Builder()
