@@ -6,8 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.1.1">
-        <item>Minor UI tweaks</item>
+    <release version="2.1.2">
+        <item>Improved media filtering to differentiate music from audio files from other apps</item>
+        <item>Improved quality of interactions by migrating to MVVM and StateFlow stack</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

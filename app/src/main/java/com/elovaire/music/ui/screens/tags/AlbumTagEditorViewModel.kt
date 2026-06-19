@@ -7,9 +7,11 @@ import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtworkCache
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
+import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -235,7 +237,14 @@ internal class AlbumTagEditorViewModel(
                 tagEditorService.applyEdits(request)
             }
         }.onSuccess { result ->
-            if (result.editedFilePaths.isNotEmpty()) {
+            if (result.artworkChanged) {
+                val artworkUrisToInvalidate = buildList {
+                    add(request.album.artUri)
+                    addAll(request.album.songs.map { it.artUri })
+                }
+                invalidateEditedArtwork(artworkUrisToInvalidate)
+            }
+            if (result.editedFilePaths.size == result.editedSongIds.size && result.editedFilePaths.isNotEmpty()) {
                 libraryRepository.refreshChangedFiles(
                     filePaths = result.editedFilePaths,
                     enrichMetadata = true,
@@ -299,7 +308,6 @@ internal class AlbumTagEditorViewModel(
     private fun AlbumTagEditorUiState.applyMatchSuggestionSafely(
         suggestion: AlbumTagMatchSuggestion,
     ): AlbumTagEditorUiState {
-        val tracksById = tracks.associateBy { it.songId }
         val updatedTracks = tracks.mapIndexed { index, track ->
             val matched = suggestion.tracks.getOrNull(index)
             if (matched == null) {
@@ -321,5 +329,10 @@ internal class AlbumTagEditorViewModel(
             selectedArtworkBytes = suggestion.coverArtBytes ?: selectedArtworkBytes,
             selectedArtworkUri = if (suggestion.coverArtBytes != null) null else selectedArtworkUri,
         )
+    }
+
+    private fun invalidateEditedArtwork(artworkUrisToInvalidate: List<Uri?>) {
+        invalidateArtworkCaches(artworkUrisToInvalidate)
+        invalidateNotificationArtworkCache(artworkUrisToInvalidate)
     }
 }

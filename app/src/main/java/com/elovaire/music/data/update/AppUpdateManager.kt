@@ -47,18 +47,21 @@ class AppUpdateManager(
     private val appContext = context.applicationContext
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
+    private var checkJob: Job? = null
     private var downloadJob: Job? = null
+    private var startupCleanupJob: Job? = null
+    private var startupUpdateCheckJob: Job? = null
     private var startupMaintenanceScheduled = false
 
     fun checkForUpdates(force: Boolean = false) {
-        if (_uiState.value.isChecking || _uiState.value.isDownloading || _uiState.value.isInstalling) return
+        if (checkJob?.isActive == true || _uiState.value.isDownloading || _uiState.value.isInstalling) return
         if (!force) {
             val nowMs = System.currentTimeMillis()
             val elapsedMs = nowMs - preferenceStore.lastAutomaticUpdateCheckAtMs()
             if (elapsedMs in 0 until AUTOMATIC_CHECK_INTERVAL_MS) return
             preferenceStore.setLastAutomaticUpdateCheckAtMs(nowMs)
         }
-        scope.launch {
+        checkJob = scope.launch {
             _uiState.update { it.copy(isChecking = true, errorMessage = null) }
             val installedVersion = normalizeVersionLabel(BuildConfig.VERSION_NAME)
             val dismissedVersion = preferenceStore.dismissedUpdateVersion.value?.trim()?.takeIf { it.isNotBlank() }
@@ -77,6 +80,8 @@ class AppUpdateManager(
                     errorMessage = null,
                 )
             }
+        }.also { job ->
+            job.invokeOnCompletion { checkJob = null }
         }
     }
 
@@ -158,18 +163,24 @@ class AppUpdateManager(
     fun scheduleStartupMaintenance() {
         if (startupMaintenanceScheduled) return
         startupMaintenanceScheduled = true
-        scope.launch(Dispatchers.IO) {
+        startupCleanupJob = scope.launch(Dispatchers.IO) {
             clearDownloadedInstallers()
         }
-        scope.launch {
+        startupUpdateCheckJob = scope.launch {
             kotlinx.coroutines.delay(STARTUP_UPDATE_CHECK_DELAY_MS)
             checkForUpdates()
         }
     }
 
     fun release() {
+        checkJob?.cancel()
+        checkJob = null
         downloadJob?.cancel()
         downloadJob = null
+        startupCleanupJob?.cancel()
+        startupCleanupJob = null
+        startupUpdateCheckJob?.cancel()
+        startupUpdateCheckJob = null
     }
 
     private fun fetchLatestRelease(installedVersion: String): AppReleaseInfo? {

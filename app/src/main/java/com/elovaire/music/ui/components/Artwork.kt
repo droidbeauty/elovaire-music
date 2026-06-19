@@ -187,6 +187,16 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
     }
 }
 
+internal fun invalidateArtworkCaches(uris: Collection<Uri?>) {
+    val keys = uris
+        .filterNotNull()
+        .map(Uri::toString)
+        .filter(String::isNotBlank)
+        .toSet()
+    if (keys.isEmpty()) return
+    ArtworkMemoryCache.removeMatching(keys)
+}
+
 private fun rememberCacheKey(
     uri: Uri?,
     size: Int,
@@ -376,5 +386,21 @@ private object ArtworkMemoryCache {
         gradient: List<Color>,
     ) {
         gradients[key] = gradient
+    }
+
+    @Synchronized
+    fun removeMatching(uriKeys: Set<String>) {
+        if (uriKeys.isEmpty()) return
+        uriKeys.forEach(images::remove)
+        val iterator = gradients.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (uriKeys.any { uriKey -> entry.key.startsWith("$uriKey#") }) {
+                iterator.remove()
+            }
+        }
+        images.snapshot().keys
+            .filter { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey#") } }
+            .forEach(images::remove)
     }
 }

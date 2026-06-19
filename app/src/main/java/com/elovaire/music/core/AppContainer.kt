@@ -82,6 +82,12 @@ class AppContainer(
                     }
                 }
         }
+        appScope.launch {
+            libraryRepository.contentState
+                .map { it.songs }
+                .distinctUntilChanged()
+                .collect(playbackManager::refreshLibraryMetadata)
+        }
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {

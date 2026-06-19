@@ -132,8 +132,8 @@ internal class LibrarySnapshotStore(
     }
 
     private companion object {
-        const val SNAPSHOT_FILE_NAME = "library_snapshot_v3.json"
-        const val SNAPSHOT_VERSION = 3
+        const val SNAPSHOT_FILE_NAME = "library_snapshot_v4.json"
+        const val SNAPSHOT_VERSION = 4
     }
 }
 

@@ -674,6 +674,36 @@ class PlaybackManager(
         updateState()
     }
 
+    fun refreshLibraryMetadata(updatedSongs: List<Song>) {
+        val existingState = _state.value
+        if (existingState.queue.isEmpty()) return
+        val songsById = updatedSongs.associateBy(Song::id)
+        var queueChanged = false
+        val refreshedQueue = existingState.queue.map { queuedSong ->
+            val refreshedSong = songsById[queuedSong.id]
+            if (refreshedSong != null && refreshedSong != queuedSong) {
+                queueChanged = true
+                refreshedSong
+            } else {
+                queuedSong
+            }
+        }
+        if (!queueChanged) return
+        val currentIndex = resolveCurrentQueueIndex(existingState)
+        val previousCurrentSong = existingState.queue.getOrNull(currentIndex)
+        val refreshedCurrentSong = refreshedQueue.getOrNull(currentIndex)
+        val refreshedSourceLabel = when {
+            existingState.sourcePlaylistId != null -> existingState.sourceLabel
+            existingState.sourceLabel == previousCurrentSong?.album -> refreshedCurrentSong?.album
+            else -> existingState.sourceLabel
+        }
+        _state.value = existingState.copy(
+            queue = refreshedQueue,
+            sourceLabel = refreshedSourceLabel,
+        )
+        updateState()
+    }
+
     fun release() {
         pauseFadeJob?.cancel()
         progressUpdateJob?.cancel()

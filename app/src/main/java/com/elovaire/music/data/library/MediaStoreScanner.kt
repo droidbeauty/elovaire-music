@@ -10,9 +10,11 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.metadata.id3.Id3Decoder
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -50,6 +52,7 @@ class MediaStoreScanner(
             )
             metadataCache[song.id] = CachedSongMetadata(
                 fileName = song.fileName,
+                filePath = null,
                 dateAddedSeconds = song.dateAddedSeconds,
                 dateModifiedSeconds = null,
                 isEnriched = song.metadataResolved,
@@ -63,14 +66,20 @@ class MediaStoreScanner(
     }
 
     fun invalidateMetadataCacheForPaths(paths: Collection<String>) {
-        val fileNames = paths.asSequence()
+        val normalizedPaths = paths.asSequence()
+            .map(String::trim)
+            .filter(String::isNotBlank)
+            .toSet()
+        if (normalizedPaths.isEmpty()) return
+        val fileNames = normalizedPaths.asSequence()
             .map(::File)
             .map(File::getName)
             .map(String::trim)
             .filter(String::isNotBlank)
             .toSet()
-        if (fileNames.isEmpty()) return
-        metadataCache.entries.removeAll { (_, cached) -> cached.fileName in fileNames }
+        metadataCache.entries.removeAll { (_, cached) ->
+            cached.filePath in normalizedPaths || cached.fileName in fileNames
+        }
     }
 
     fun scan(
@@ -91,7 +100,7 @@ class MediaStoreScanner(
         val projection = buildProjection()
         val selection = buildSelection()
         val orderBy = buildOrderBy()
-        val allowedRelativeRoots = buildAllowedRelativeLibraryRoots()
+        val audioFileFilter = buildAudioFileFilter()
 
         context.contentResolver.query(
             audioCollectionUri(),
@@ -115,17 +124,15 @@ class MediaStoreScanner(
             val yearIndex = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             val dateModifiedIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+            val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
+            val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
+            @Suppress("DEPRECATION")
+            val dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
 
             var scannedSongs = 0
             while (cursor.moveToNext()) {
                 val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
-                if (!shouldIncludeRelativePath(relativePath, allowedRelativeRoots)) {
-                    continue
-                }
                 val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
-                if (!isSupportedAudioFileName(fileName)) {
-                    continue
-                }
                 val id = cursor.getLong(idIndex)
                 val albumId = cursor.getLong(albumIdIndex)
                 val songUri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id)
@@ -133,9 +140,36 @@ class MediaStoreScanner(
                 val durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L)
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
                 val dateModifiedSeconds = dateModifiedIndex.takeIf { it >= 0 }?.let(cursor::getLong)
+                val filePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString)?.trim()?.ifBlank { null }
+                val mimeType = mimeTypeIndex.takeIf { it >= 0 }?.let(cursor::getString)?.trim()?.ifBlank { null }
+                val isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 }
                 val mediaStoreYear = yearIndex.takeIf { it >= 0 }
                     ?.let(cursor::getInt)
                     ?.takeIf { it > 0 }
+                val rawTitle = cursor.getString(titleIndex).orUnknown("Untitled Track")
+                val rawArtist = cursor.getString(artistIndex).orUnknown("Unknown Artist")
+                val rawAlbum = cursor.getString(albumIndex).orUnknown("Unknown Album")
+                val candidate = AudioScanCandidate(
+                    id = id,
+                    uri = songUri,
+                    displayName = fileName,
+                    title = rawTitle,
+                    artist = rawArtist,
+                    album = rawAlbum,
+                    durationMs = durationMs,
+                    mimeType = mimeType,
+                    relativePath = relativePath,
+                    absolutePath = filePath,
+                    extension = fileName.substringAfterLast('.', ""),
+                    isMusic = isMusic,
+                )
+                when (val decision = audioFileFilter.evaluate(candidate)) {
+                    AudioFileFilterDecision.Include -> Unit
+                    is AudioFileFilterDecision.Exclude -> {
+                        logFilteredOutCandidate(candidate, decision.reason)
+                        continue
+                    }
+                }
                 val cachedMetadata = metadataCache[id]
                     ?.takeIf {
                         it.fileName == fileName &&
@@ -156,9 +190,9 @@ class MediaStoreScanner(
                         )
                     } else {
                         SongMetadata(
-                            title = null,
-                            artist = null,
-                            album = null,
+                            title = rawTitle,
+                            artist = rawArtist,
+                            album = rawAlbum,
                             releaseYear = mediaStoreYear,
                             genre = null,
                             format = fileName.substringAfterLast('.', "").uppercase().ifBlank { "AUDIO" },
@@ -167,16 +201,14 @@ class MediaStoreScanner(
                             discNumber = null,
                         )
                     }
-                val rawTitle = songMetadata.title
-                    ?: cursor.getString(titleIndex).orUnknown("Untitled Track")
-                val rawArtist = songMetadata.artist
-                    ?: cursor.getString(artistIndex).orUnknown("Unknown Artist")
-                val rawAlbum = songMetadata.album
-                    ?: cursor.getString(albumIndex).orUnknown("Unknown Album")
-                val isExplicit = detectExplicit(rawTitle, fileName)
-                val title = sanitizeDisplayTitle(rawTitle, isExplicit)
+                val resolvedTitle = songMetadata.title ?: rawTitle
+                val resolvedArtist = songMetadata.artist ?: rawArtist
+                val resolvedAlbum = songMetadata.album ?: rawAlbum
+                val isExplicit = detectExplicit(resolvedTitle, fileName)
+                val title = sanitizeDisplayTitle(resolvedTitle, isExplicit)
                 refreshedMetadataCache[id] = CachedSongMetadata(
                     fileName = fileName,
+                    filePath = filePath,
                     dateAddedSeconds = dateAddedSeconds,
                     dateModifiedSeconds = dateModifiedSeconds,
                     isEnriched = enrichMetadata || cachedMetadata?.isEnriched == true,
@@ -187,8 +219,8 @@ class MediaStoreScanner(
                     id = id,
                     title = title,
                     isExplicit = isExplicit,
-                    artist = rawArtist,
-                    album = rawAlbum,
+                    artist = resolvedArtist,
+                    album = resolvedAlbum,
                     releaseYear = songMetadata.releaseYear,
                     genre = songMetadata.genre.orUnknown("Unknown Genre"),
                     audioFormat = songMetadata.format,
@@ -229,14 +261,21 @@ class MediaStoreScanner(
         var songCount = 0
         var newestDateAddedSeconds = 0L
         var idChecksum = 0L
-        val allowedRelativeRoots = buildAllowedRelativeLibraryRoots()
+        val audioFileFilter = buildAudioFileFilter()
         context.contentResolver.query(
             audioCollectionUri(),
             arrayOf(
                 MediaStore.Audio.Media._ID,
                 MediaStore.Audio.Media.DATE_ADDED,
+                MediaStore.Audio.Media.TITLE,
+                MediaStore.Audio.Media.ARTIST,
+                MediaStore.Audio.Media.ALBUM,
                 MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.Audio.Media.DURATION,
+                MediaStore.Audio.Media.MIME_TYPE,
+                MediaStore.Audio.Media.IS_MUSIC,
                 MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.DATA,
             ),
             buildSelection(),
             null,
@@ -244,18 +283,37 @@ class MediaStoreScanner(
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+            val titleIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
+            val artistIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
+            val albumIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
             val fileNameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            val durationIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
+            val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
+            val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+            @Suppress("DEPRECATION")
+            val dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
             while (cursor.moveToNext()) {
                 val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
-                if (!shouldIncludeRelativePath(relativePath, allowedRelativeRoots)) {
-                    continue
-                }
                 val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
-                if (!isSupportedAudioFileName(fileName)) {
+                val candidate = AudioScanCandidate(
+                    id = cursor.getLong(idIndex),
+                    uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idIndex)),
+                    displayName = fileName,
+                    title = cursor.getString(titleIndex),
+                    artist = cursor.getString(artistIndex),
+                    album = cursor.getString(albumIndex),
+                    durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L),
+                    mimeType = mimeTypeIndex.takeIf { it >= 0 }?.let(cursor::getString),
+                    relativePath = relativePath,
+                    absolutePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString),
+                    extension = fileName.substringAfterLast('.', ""),
+                    isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
+                )
+                if (audioFileFilter.evaluate(candidate) is AudioFileFilterDecision.Exclude) {
                     continue
                 }
-                val id = cursor.getLong(idIndex)
+                val id = candidate.id
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
                 songCount += 1
                 newestDateAddedSeconds = maxOf(newestDateAddedSeconds, dateAddedSeconds)
@@ -335,18 +393,19 @@ class MediaStoreScanner(
             MediaStore.Audio.Media.DURATION,
             MediaStore.Audio.Media.TRACK,
             MediaStore.Audio.Media.SIZE,
+            MediaStore.Audio.Media.MIME_TYPE,
+            MediaStore.Audio.Media.IS_MUSIC,
             MediaStore.Audio.Media.YEAR,
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.MediaColumns.DATE_MODIFIED,
             MediaStore.MediaColumns.RELATIVE_PATH,
+            MediaStore.MediaColumns.DATA,
         )
     }
 
     private fun buildSelection(): String {
-        val isMusicSelection = "${MediaStore.Audio.Media.IS_MUSIC} != 0"
-        val audioMimeSelection = "${MediaStore.Audio.Media.MIME_TYPE} LIKE 'audio/%'"
         val positiveDurationSelection = "${MediaStore.Audio.Media.DURATION} > 0"
-        return "(($isMusicSelection) OR ($audioMimeSelection)) AND ($positiveDurationSelection)"
+        return positiveDurationSelection
     }
 
     private fun audioCollectionUri(): Uri {
@@ -364,15 +423,14 @@ class MediaStoreScanner(
         return roots.toList()
     }
 
-    private fun buildAllowedRelativeLibraryRoots(): List<String> {
-        val preferredRoot = preferredLibraryFolderPath
-            ?.let(::File)
-            ?.takeIf { it.exists() && it.isDirectory }
-            ?: return emptyList()
-        return listOfNotNull(
-            sharedStorageRelativePath(preferredRoot.absolutePath)
-                ?.let(::normalizeRelativePath)
-                ?.takeIf { it.isNotBlank() },
+    private fun buildAudioFileFilter(): LibraryAudioFileFilter {
+        return LibraryAudioFileFilter(
+            preferredMusicFolderPath = preferredLibraryFolderPath,
+            preferredRelativeRoots = buildPreferredRelativeLibraryRoots(),
+            libraryRootPaths = buildScanRoots()
+                .map { normalizeAbsolutePath(it.absolutePath) }
+                .toSet(),
+            supportedExtensions = SUPPORTED_AUDIO_EXTENSIONS,
         )
     }
 
@@ -417,25 +475,28 @@ class MediaStoreScanner(
         return parsedDiscNumber.coerceAtLeast(1)
     }
 
-    private fun shouldIncludeRelativePath(
-        relativePath: String?,
-        allowedRelativeRoots: List<String>,
-    ): Boolean {
-        if (allowedRelativeRoots.isEmpty()) return true
-        val normalizedRelativePath = relativePath
-            ?.let(::normalizeRelativePath)
-            ?.takeIf { it.isNotBlank() }
-        if (normalizedRelativePath != null && allowedRelativeRoots.any { allowedRoot ->
-                normalizedRelativePath == allowedRoot || normalizedRelativePath.startsWith("$allowedRoot/")
-            }
-        ) {
-            return true
-        }
-        return normalizedRelativePath == null
+    private fun buildPreferredRelativeLibraryRoots(): Set<String> {
+        val preferredRoot = preferredLibraryFolderPath
+            ?.let(::File)
+            ?.takeIf { it.exists() && it.isDirectory }
+            ?: return emptySet()
+        return setOfNotNull(
+            sharedStorageRelativePath(preferredRoot.absolutePath)
+                ?.let(::normalizeRelativePath)
+                ?.takeIf { it.isNotBlank() },
+        )
     }
 
     private fun normalizeRelativePath(path: String): String {
         return path.trim().trim('/').replace("//", "/")
+    }
+
+    private fun normalizeAbsolutePath(path: String): String {
+        return path
+            .trim()
+            .replace('\\', '/')
+            .trimEnd('/')
+            .lowercase(Locale.ROOT)
     }
 
     private fun sharedStorageRelativePath(path: String): String? {
@@ -444,6 +505,19 @@ class MediaStoreScanner(
             .replace("$normalizedPath/", "")
             .trim('/')
             .ifBlank { null }
+    }
+
+    private fun logFilteredOutCandidate(
+        candidate: AudioScanCandidate,
+        reason: String,
+    ) {
+        if (!BuildConfig.DEBUG) return
+        val label = candidate.displayName
+            ?.takeIf { it.isNotBlank() }
+            ?: candidate.title
+            ?.takeIf { it.isNotBlank() }
+            ?: "audio-${candidate.id}"
+        Log.d(TAG, "Excluded $label: $reason")
     }
 
     private fun detectExplicit(
@@ -754,6 +828,7 @@ class MediaStoreScanner(
     }
 
     internal companion object {
+        private const val TAG = "LibraryAudioFilter"
         val ALBUM_ART_URI: Uri = Uri.parse("content://media/external/audio/albumart")
         const val MEDIA_SCAN_TIMEOUT_SECONDS = 8L
         const val TARGETED_MEDIA_SCAN_TIMEOUT_SECONDS = 5L
@@ -822,6 +897,7 @@ internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
 
 private data class CachedSongMetadata(
     val fileName: String,
+    val filePath: String?,
     val dateAddedSeconds: Long,
     val dateModifiedSeconds: Long?,
     val isEnriched: Boolean,

@@ -40,7 +40,6 @@ internal data class EditableTrackTagState(
     val trackNumber: String,
     val discNumber: String,
     val durationMs: Long,
-    val filePath: String?,
     val fileName: String,
 )
 
@@ -71,7 +70,6 @@ internal fun Album.toTagEditorUiState(): AlbumTagEditorUiState {
                 trackNumber = (song.trackNumber.takeIf { it > 0 } ?: index + 1).toString(),
                 discNumber = (song.discNumber.takeIf { it > 0 } ?: 1).toString(),
                 durationMs = song.durationMs,
-                filePath = null,
                 fileName = song.fileName,
             )
         },

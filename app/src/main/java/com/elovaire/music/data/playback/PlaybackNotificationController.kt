@@ -27,6 +27,15 @@ import kotlinx.coroutines.delay
 
 const val EXTRA_OPEN_PLAYER_FROM_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.OPEN_PLAYER_FROM_NOTIFICATION"
 
+internal fun invalidateNotificationArtworkCache(uris: Collection<Uri?>) {
+    val keys = uris
+        .filterNotNull()
+        .map(Uri::toString)
+        .filter(String::isNotBlank)
+    if (keys.isEmpty()) return
+    NotificationArtworkCache.removeAll(keys)
+}
+
 @UnstableApi
 class PlaybackNotificationController(
     private val context: Context,
@@ -319,29 +328,34 @@ class PlaybackNotificationController(
         val isPlaying: Boolean,
     )
 
-    private object NotificationArtworkCache {
-        private const val MAX_CACHE_BYTES = NOTIFICATION_ARTWORK_SIZE_PX * NOTIFICATION_ARTWORK_SIZE_PX * 2 * 12
+}
 
-        private val cache = object : LruCache<String, Bitmap>(MAX_CACHE_BYTES) {
-            override fun sizeOf(
-                key: String,
-                value: Bitmap,
-            ): Int {
-                return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                    value.allocationByteCount
-                } else {
-                    value.byteCount
-                }
+private object NotificationArtworkCache {
+    private const val MAX_CACHE_BYTES = 256 * 256 * 2 * 12
+
+    private val cache = object : LruCache<String, Bitmap>(MAX_CACHE_BYTES) {
+        override fun sizeOf(
+            key: String,
+            value: Bitmap,
+        ): Int {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
+                value.allocationByteCount
+            } else {
+                value.byteCount
             }
         }
+    }
 
-        operator fun get(key: String): Bitmap? = cache.get(key)
+    operator fun get(key: String): Bitmap? = cache.get(key)
 
-        fun put(
-            key: String,
-            bitmap: Bitmap,
-        ) {
-            cache.put(key, bitmap)
-        }
+    fun put(
+        key: String,
+        bitmap: Bitmap,
+    ) {
+        cache.put(key, bitmap)
+    }
+
+    fun removeAll(keys: Collection<String>) {
+        keys.forEach(cache::remove)
     }
 }

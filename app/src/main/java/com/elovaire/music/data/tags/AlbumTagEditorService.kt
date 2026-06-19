@@ -50,6 +50,7 @@ internal data class TagEditApplyResult(
     val editedSongIds: List<Long>,
     val editedUris: List<Uri>,
     val editedFilePaths: List<String>,
+    val artworkChanged: Boolean,
     val failures: List<TagEditFailure> = emptyList(),
 )
 
@@ -147,6 +148,7 @@ internal class AlbumTagEditorService(
             editedSongIds = editedSongIds,
             editedUris = editedUris,
             editedFilePaths = editedFilePaths.distinct(),
+            artworkChanged = coverArtBytes != null,
             failures = failures,
         )
     }
