@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.ui.i18n
 
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
+import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
+import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
 internal fun playingFromPrefix(language: AppLanguage): String = when (language) {
@@ -100,6 +102,134 @@ internal fun playLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Ukrainian -> "Відтворити"
     AppLanguage.Albanian -> "Luaj"
     AppLanguage.English -> "Play"
+}
+
+internal data class RootUiCopy(
+    val firstLaunchPermissionTitle: String,
+    val firstLaunchPermissionMessage: String,
+    val firstLaunchPermissionButton: String,
+    val appName: String,
+    val allAlbumsTitle: String,
+    val allAlbumsSubtitle: String,
+    val renamePlaylistTitle: String,
+    val save: String,
+    val newPlaylist: String,
+    val playlistArtworkPlaceholder: String,
+    val createPlaylistButton: String,
+    val tapToCreateNewPlaylist: String,
+    val playlistNamePlaceholder: String,
+    val clearPlaylistName: String,
+    val noSongsInPlaylistYet: String,
+    val searchLibrary: String,
+    val addSongsTitle: String,
+    val loadingLyrics: String,
+    val noLyrics: String,
+    val hideLyrics: String,
+    val updateAvailable: String,
+    val installing: String,
+    val download: String,
+    val ok: String,
+    val albumNotFound: String,
+    val playlistNotFound: String,
+    val mostPlayedSongs: String,
+    val availableReleasesSuffix: String,
+    val playAlbum: String,
+    val shuffleAlbum: String,
+    val editTags: String,
+)
+
+internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
+    AppLanguage.Polish -> RootUiCopy(
+        firstLaunchPermissionTitle = "Muzyka offline zasługuje na dostęp do Twojej biblioteki",
+        firstLaunchPermissionMessage = "Elovaire skanuje folder Muzyka na urządzeniu, aby znaleźć lokalne albumy, okładki i kolejki utworów",
+        firstLaunchPermissionButton = "Zezwól na dostęp do biblioteki audio",
+        appName = "Elovaire",
+        allAlbumsTitle = "Wszystkie albumy",
+        allAlbumsSubtitle = "Alfabetycznie według wykonawcy albumu, a następnie tytułu albumu.",
+        renamePlaylistTitle = "Zmień nazwę playlisty",
+        save = "Zapisz",
+        newPlaylist = "Nowa playlista",
+        playlistArtworkPlaceholder = "Symbol zastępczy okładki playlisty",
+        createPlaylistButton = "Utwórz playlistę",
+        tapToCreateNewPlaylist = "Stuknij, aby utworzyć nową playlistę",
+        playlistNamePlaceholder = "Nazwa playlisty",
+        clearPlaylistName = "Wyczyść nazwę playlisty",
+        noSongsInPlaylistYet = "W tej playliście nie ma jeszcze utworów",
+        searchLibrary = "Szukaj w bibliotece",
+        addSongsTitle = "Dodaj utwory",
+        loadingLyrics = "Ładowanie tekstu…",
+        noLyrics = "Wygląda na to, że ten utwór nie ma tekstu",
+        hideLyrics = "Ukryj tekst",
+        updateAvailable = "Dostępna aktualizacja",
+        installing = "Instalowanie",
+        download = "Pobierz",
+        ok = "OK",
+        albumNotFound = "Nie znaleziono albumu.",
+        playlistNotFound = "Nie znaleziono playlisty.",
+        mostPlayedSongs = "Najczęściej odtwarzane utwory",
+        availableReleasesSuffix = "dostępne wydania",
+        playAlbum = "Odtwórz album",
+        shuffleAlbum = "Tasuj album",
+        editTags = "Edytuj tagi",
+    )
+    else -> RootUiCopy(
+        firstLaunchPermissionTitle = "Offline audio deserves access to your library",
+        firstLaunchPermissionMessage = "Elovaire scans the device Music folder for local albums, artwork, and track queues",
+        firstLaunchPermissionButton = "Allow audio library access",
+        appName = "Elovaire",
+        allAlbumsTitle = "All albums",
+        allAlbumsSubtitle = "Alphabetical by album artist, then album title.",
+        renamePlaylistTitle = "Rename playlist",
+        save = "Save",
+        newPlaylist = "New playlist",
+        playlistArtworkPlaceholder = "Playlist artwork placeholder",
+        createPlaylistButton = "Create playlist",
+        tapToCreateNewPlaylist = "Tap to create new playlist",
+        playlistNamePlaceholder = "Playlist name",
+        clearPlaylistName = "Clear playlist name",
+        noSongsInPlaylistYet = "No songs in this playlist yet",
+        searchLibrary = "Search library",
+        addSongsTitle = "Add songs",
+        loadingLyrics = "Loading lyrics...",
+        noLyrics = "This song seems to have no lyrics",
+        hideLyrics = "Hide lyrics",
+        updateAvailable = "Update available",
+        installing = "Installing",
+        download = "Download",
+        ok = "OK",
+        albumNotFound = "Album not found.",
+        playlistNotFound = "Playlist not found.",
+        mostPlayedSongs = "Most played songs",
+        availableReleasesSuffix = "available releases",
+        playAlbum = "Play album",
+        shuffleAlbum = "Shuffle album",
+        editTags = "Edit tags",
+    )
+}
+
+internal fun availableReleasesLabel(count: Int, language: AppLanguage): String {
+    val copy = rootUiCopy(language)
+    return "$count ${copy.availableReleasesSuffix}"
+}
+
+internal fun repeatModeLabel(repeatMode: PlaybackRepeatMode, language: AppLanguage): String = when (repeatMode) {
+    PlaybackRepeatMode.Off -> when (language) {
+        AppLanguage.Polish -> "Kolejność"
+        else -> "Order"
+    }
+    PlaybackRepeatMode.One -> when (language) {
+        AppLanguage.Polish -> "Powtórz jeden"
+        else -> "Repeat one"
+    }
+    PlaybackRepeatMode.All -> when (language) {
+        AppLanguage.Polish -> "Powtórz wszystko"
+        else -> "Repeat all"
+    }
+}
+
+internal fun ReverbProfile.displayLabel(language: AppLanguage): String = when (this) {
+    ReverbProfile.Dry -> uiPhrase(language, UiPhrase.Dry)
+    ReverbProfile.Wet -> uiPhrase(language, UiPhrase.Wet)
 }
 
 internal data class HomeUiCopy(

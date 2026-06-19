@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
 
 internal class ElovaireViewModelFactory(
     private val appContainer: AppContainer,
@@ -22,6 +23,13 @@ internal class ElovaireViewModelFactory(
                 NowPlayingViewModel(
                     playbackManager = appContainer.playbackManager,
                     lyricsService = appContainer.lyricsService,
+                ) as T
+            }
+
+            modelClass.isAssignableFrom(AlbumTagEditorViewModel::class.java) -> {
+                AlbumTagEditorViewModel(
+                    libraryRepository = appContainer.libraryRepository,
+                    tagEditorService = appContainer.albumTagEditorService,
                 ) as T
             }
 

@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.app.RecoverableSecurityException
 import android.content.Context
@@ -253,9 +254,6 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
@@ -294,6 +292,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.availableReleasesLabel
 import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.homeCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
@@ -302,12 +301,16 @@ import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playLabel
 import elovaire.music.droidbeauty.app.ui.i18n.playingFromPrefix
 import elovaire.music.droidbeauty.app.ui.i18n.queueTitle
+import elovaire.music.droidbeauty.app.ui.i18n.repeatModeLabel
+import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchSortModeLabel
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
+import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorEvent
+import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
@@ -769,6 +772,19 @@ private fun querySongFilePaths(
             }
         }
         .toSet()
+}
+
+@SuppressLint("NewApi")
+private fun createWriteRequestIntentSender(
+    context: Context,
+    uris: List<Uri>,
+): IntentSenderRequest {
+    return IntentSenderRequest.Builder(
+        MediaStore.createWriteRequest(
+            context.contentResolver,
+            uris,
+        ).intentSender,
+    ).build()
 }
 
 private fun cleanupEmptyDirectories(paths: Set<String>) {
@@ -1863,7 +1879,10 @@ fun ElovaireRoot(
                                 container.playbackManager.playSong(
                                     song = song,
                                     collection = queue,
-                                    sourceLabel = playlist?.name ?: queue.playbackSourceLabel(fallbackAlbum = song.album),
+                                    sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
+                                        fallbackAlbum = song.album,
+                                        language = appLanguage,
+                                    ),
                                     sourcePlaylistId = playlist?.id,
                                 )
                                 openPlayerIfAllowed(null)
@@ -1939,19 +1958,14 @@ fun ElovaireRoot(
                         arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
                     ) { backStackEntry ->
                         val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
-                        val album = libraryState.albums.firstOrNull { it.id == albumId }
-                        val tagEditorService = remember(context.applicationContext) {
-                            AlbumTagEditorService(context.applicationContext)
-                        }
-                        val routeScope = rememberCoroutineScope()
-                        var pendingWriteRequest by remember(albumId) { mutableStateOf<AlbumTagEditRequest?>(null) }
-                        var pickedCoverArtUri by remember(albumId) { mutableStateOf<Uri?>(null) }
-                        var autofillSuggestion by remember(albumId) { mutableStateOf<AlbumTagMatchSuggestion?>(null) }
-                        var editorStatusMessage by rememberSaveable(albumId) { mutableStateOf<String?>(null) }
-                        var isSavingTags by remember(albumId) { mutableStateOf(false) }
-                        var isMatchingTags by remember(albumId) { mutableStateOf(false) }
-                        var performAlbumTagSave by remember(albumId) {
-                            mutableStateOf<(suspend (AlbumTagEditRequest) -> Unit)?>(null)
+                        val tagEditorViewModel: AlbumTagEditorViewModel = viewModel(
+                            viewModelStoreOwner = backStackEntry,
+                            key = "album_tag_editor_$albumId",
+                            factory = viewModelFactory,
+                        )
+                        val tagEditorState by tagEditorViewModel.uiState.collectAsStateWithLifecycle()
+                        var pendingWriteRequest by remember(albumId) {
+                            mutableStateOf<elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest?>(null)
                         }
 
                         val albumTagWriteLauncher = rememberLauncherForActivityResult(
@@ -1959,102 +1973,74 @@ fun ElovaireRoot(
                         ) { result ->
                             val pendingRequest = pendingWriteRequest ?: return@rememberLauncherForActivityResult
                             pendingWriteRequest = null
-                            if (result.resultCode == Activity.RESULT_OK) {
-                                routeScope.launch {
-                                    performAlbumTagSave?.invoke(pendingRequest)
-                                }
-                            }
+                            tagEditorViewModel.onWritePermissionResult(
+                                granted = result.resultCode == Activity.RESULT_OK,
+                                request = pendingRequest,
+                            )
                         }
 
                         val coverArtPickerLauncher = rememberLauncherForActivityResult(
                             contract = ActivityResultContracts.OpenDocument(),
                         ) { uri ->
-                            if (uri != null) {
-                                pickedCoverArtUri = uri
-                            }
+                            tagEditorViewModel.onPickedCoverArt(uri)
                         }
-                        performAlbumTagSave = { request ->
-                            isSavingTags = true
-                            editorStatusMessage = null
-                            runCatching {
-                                tagEditorService.applyEdits(request)
-                            }.onSuccess {
-                                container.libraryRepository.refreshChangedFiles(
-                                    filePaths = querySongFilePaths(context, request.album.songs).toList(),
-                                    enrichMetadata = true,
-                                )
-                                navController.navigateUp()
-                            }.onFailure { throwable ->
-                                val recoverableIntentSender = when {
-                                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException -> {
-                                        throwable.userAction.actionIntent.intentSender
+
+                        LaunchedEffect(albumId) {
+                            tagEditorViewModel.loadAlbum(albumId)
+                        }
+
+                        LaunchedEffect(tagEditorViewModel) {
+                            tagEditorViewModel.events.collect { event ->
+                                when (event) {
+                                    is AlbumTagEditorEvent.RequestWritePermission -> {
+                                        pendingWriteRequest = event.request
+                                        if (event.uris.isNotEmpty()) {
+                                            albumTagWriteLauncher.launch(
+                                                createWriteRequestIntentSender(
+                                                    context = context,
+                                                    uris = event.uris,
+                                                ),
+                                            )
+                                        } else {
+                                            tagEditorViewModel.onWritePermissionResult(
+                                                granted = true,
+                                                request = event.request,
+                                            )
+                                        }
                                     }
-                                    else -> null
-                                }
-                                if (recoverableIntentSender != null) {
-                                    pendingWriteRequest = request
-                                    albumTagWriteLauncher.launch(
-                                        IntentSenderRequest.Builder(recoverableIntentSender).build(),
-                                    )
-                                } else {
-                                    editorStatusMessage = throwable.message ?: "Unable to save tags."
+
+                                    is AlbumTagEditorEvent.RequestRecoverableWritePermission -> {
+                                        pendingWriteRequest = event.request
+                                        albumTagWriteLauncher.launch(
+                                            IntentSenderRequest.Builder(event.intentSender).build(),
+                                        )
+                                    }
+
+                                    AlbumTagEditorEvent.SaveSucceeded -> {
+                                        navController.navigateUp()
+                                    }
+
+                                    is AlbumTagEditorEvent.SavePartiallySucceeded -> Unit
                                 }
                             }
-                            isSavingTags = false
                         }
 
                         AlbumTagEditorScreen(
-                            album = album,
+                            state = tagEditorState,
                             appLanguage = appLanguage,
-                            isSaving = isSavingTags,
-                            isMatching = isMatchingTags,
-                            statusMessage = editorStatusMessage,
-                            autofillSuggestion = autofillSuggestion,
-                            pickedCoverArtUri = pickedCoverArtUri,
                             onBack = navController::navigateUp,
-                            onSave = { request ->
-                                routeScope.launch {
-                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                                        pendingWriteRequest = request
-                                        album?.songs
-                                            ?.takeIf { it.isNotEmpty() }
-                                            ?.let { songsToWrite ->
-                                                albumTagWriteLauncher.launch(
-                                                    IntentSenderRequest.Builder(
-                                                        MediaStore.createWriteRequest(
-                                                            context.contentResolver,
-                                                            songsToWrite.map(Song::uri),
-                                                        ).intentSender,
-                                                    ).build(),
-                                                )
-                                            }
-                                            ?: performAlbumTagSave?.invoke(request)
-                                    } else {
-                                        performAlbumTagSave?.invoke(request)
-                                    }
-                                }
-                            },
-                            onAutoMatch = {
-                                val targetAlbum = album
-                                if (targetAlbum != null) {
-                                    routeScope.launch {
-                                    isMatchingTags = true
-                                    editorStatusMessage = null
-                                    autofillSuggestion = runCatching {
-                                        tagEditorService.findBestOnlineMatch(targetAlbum)
-                                    }.onFailure { throwable ->
-                                        editorStatusMessage = throwable.message ?: "Unable to match album online."
-                                    }.getOrNull()
-                                    if (autofillSuggestion == null && editorStatusMessage == null) {
-                                        editorStatusMessage = "No close online match found."
-                                    }
-                                    isMatchingTags = false
-                                }
-                                }
-                            },
+                            onSave = tagEditorViewModel::requestSave,
+                            onAutoMatch = tagEditorViewModel::matchOnline,
                             onPickCoverArt = {
                                 coverArtPickerLauncher.launch(arrayOf("image/*"))
                             },
+                            onAlbumTitleChange = tagEditorViewModel::onAlbumTitleChange,
+                            onAlbumArtistChange = tagEditorViewModel::onAlbumArtistChange,
+                            onReleaseYearChange = tagEditorViewModel::onReleaseYearChange,
+                            onTrackTitleChange = tagEditorViewModel::onTrackTitleChange,
+                            onTrackArtistChange = tagEditorViewModel::onTrackArtistChange,
+                            onTrackNumberChange = tagEditorViewModel::onTrackNumberChange,
+                            onDiscNumberChange = tagEditorViewModel::onDiscNumberChange,
                         )
                     }
 
@@ -2092,9 +2078,12 @@ fun ElovaireRoot(
                                     song = song,
                                     collection = queue,
                                     sourceLabel = if (kind == LibraryCollectionKind.Songs) {
-                                        "all songs"
+                                        localizedAllSongsSource(appLanguage)
                                     } else {
-                                        queue.playbackSourceLabel(fallbackAlbum = song.album)
+                                        queue.playbackSourceLabel(
+                                            fallbackAlbum = song.album,
+                                            language = appLanguage,
+                                        )
                                     },
                                 )
                                 openPlayerIfAllowed(null)
@@ -2908,6 +2897,8 @@ private fun SharedTopBarOverlay(
     spec: SharedTopBarSpec,
     modifier: Modifier = Modifier,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     Box(
         modifier = modifier
             .fillMaxWidth()
@@ -3687,6 +3678,8 @@ private fun FrostedChrome(
 private fun PermissionGate(
     onRequestPermission: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -3705,16 +3698,16 @@ private fun PermissionGate(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
-                    text = "Offline audio deserves access to your library",
+                    text = copy.firstLaunchPermissionTitle,
                     style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(30f)),
                 )
                 Text(
-                    text = "Elovaire scans the device Music folder for local albums, artwork, and track queues",
+                    text = copy.firstLaunchPermissionMessage,
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Button(onClick = onRequestPermission) {
-                    Text("Allow audio library access")
+                    Text(copy.firstLaunchPermissionButton)
                 }
             }
         }
@@ -4360,8 +4353,8 @@ private fun AlbumCollectionContent(
     sortMode: AlbumSortMode,
     topPadding: Dp,
     bottomPadding: Dp,
-    title: String = "All albums",
-    subtitle: String = "Alphabetical by album artist, then album title.",
+    title: String = rootUiCopy(AppLanguage.English).allAlbumsTitle,
+    subtitle: String = rootUiCopy(AppLanguage.English).allAlbumsSubtitle,
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
     onSortModeChanged: (AlbumSortMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
@@ -5060,9 +5053,10 @@ private fun PlaylistsScreen(
         }
 
         playlistBeingRenamed?.let { playlist ->
+            val copy = rootUiCopy(LocalAppLanguage.current)
             PlaylistNameDialog(
-                title = "Rename playlist",
-                confirmLabel = "Save",
+                title = copy.renamePlaylistTitle,
+                confirmLabel = copy.save,
                 initialName = playlist.name,
                 onDismiss = { playlistBeingRenamed = null },
                 onConfirm = { name ->
@@ -5762,7 +5756,7 @@ private fun ArtistDetailScreen(
                 item {
                     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                         SectionTitleRow(
-                            title = "Most played songs",
+                            title = rootUiCopy(LocalAppLanguage.current).mostPlayedSongs,
                             subtitle = "${formatCountLabel(topSongs.size, "track")} you return to the most",
                             compact = true,
                         )
@@ -5788,8 +5782,8 @@ private fun ArtistDetailScreen(
                     ModuleCard {
                         Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                             SectionTitleRow(
-                                title = "Albums",
-                                subtitle = "${artistAlbums.size} available releases",
+                                title = commonUiCopy(LocalAppLanguage.current).albums,
+                                subtitle = availableReleasesLabel(artistAlbums.size, LocalAppLanguage.current),
                                 compact = true,
                             )
                             ArtistAlbumGallery(
@@ -5867,6 +5861,8 @@ private fun EmptyPlaylistState(
     modifier: Modifier = Modifier,
     onCreate: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     Column(
         modifier = modifier,
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -5884,13 +5880,13 @@ private fun EmptyPlaylistState(
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lucide_plus),
-                    contentDescription = "Create playlist",
+                    contentDescription = copy.createPlaylistButton,
                     tint = MaterialTheme.colorScheme.onPrimary,
                 )
             }
         }
         Text(
-            text = "Tap to create new playlist",
+            text = copy.tapToCreateNewPlaylist,
             style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -6052,6 +6048,8 @@ private fun PlaylistArtworkPreview(
     title: String,
     modifier: Modifier = Modifier,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     val collageSongs = remember(songs) {
         val usedAlbumIds = mutableSetOf<Long>()
         songs.filter { song ->
@@ -6140,7 +6138,7 @@ private fun PlaylistArtworkPreview(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_music),
-                            contentDescription = title.ifBlank { "Playlist artwork placeholder" },
+                            contentDescription = title.ifBlank { copy.playlistArtworkPlaceholder },
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
                             modifier = Modifier.size(40.dp),
                         )
@@ -6153,17 +6151,18 @@ private fun PlaylistArtworkPreview(
 
 @Composable
 private fun PlaylistNameDialog(
-    title: String = "New playlist",
-    confirmLabel: String = "Save",
+    title: String = rootUiCopy(AppLanguage.English).newPlaylist,
+    confirmLabel: String = rootUiCopy(AppLanguage.English).save,
     initialName: String = "",
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     var name by rememberSaveable(initialName) { mutableStateOf(initialName) }
     val canConfirm = name.isNotBlank()
-    val displayTitle = if (title == "New playlist") uiPhrase(language, UiPhrase.NewPlaylist) else title
-    val displayConfirmLabel = if (confirmLabel == "Save" || confirmLabel == "Create") uiPhrase(language, UiPhrase.Create) else confirmLabel
+    val displayTitle = if (title == rootUiCopy(AppLanguage.English).newPlaylist) uiPhrase(language, UiPhrase.NewPlaylist) else title
+    val displayConfirmLabel = if (confirmLabel == copy.save || confirmLabel == uiPhrase(AppLanguage.English, UiPhrase.Create)) uiPhrase(language, UiPhrase.Create) else confirmLabel
     Dialog(onDismissRequest = onDismiss) {
         Box(
             modifier = Modifier
@@ -6247,10 +6246,11 @@ private fun PlaylistNameInputField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
-    placeholder: String = "Playlist name",
+    placeholder: String = rootUiCopy(AppLanguage.English).playlistNamePlaceholder,
 ) {
     val language = LocalAppLanguage.current
-    val localizedPlaceholder = if (placeholder == "Playlist name") uiPhrase(language, UiPhrase.NewPlaylist) else placeholder
+    val copy = remember(language) { rootUiCopy(language) }
+    val localizedPlaceholder = if (placeholder == rootUiCopy(AppLanguage.English).playlistNamePlaceholder) copy.playlistNamePlaceholder else placeholder
     val contentColor = MaterialTheme.colorScheme.onSurface
     val leadingIconAlpha by animateFloatAsState(
         targetValue = 0.5f,
@@ -6305,7 +6305,7 @@ private fun PlaylistNameInputField(
                 ) {
                     Icon(
                         painter = painterResource(id = R.drawable.ic_lucide_x),
-                        contentDescription = "Clear playlist name",
+                        contentDescription = copy.clearPlaylistName,
                         tint = contentColor.copy(alpha = 0.86f),
                         modifier = Modifier.size(14.dp),
                     )
@@ -6590,6 +6590,8 @@ private fun PlaylistPickerRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     val highlightColor by animateColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -6634,7 +6636,7 @@ private fun PlaylistPickerRow(
                 )
                 if (playlist.songIds.isEmpty()) {
                     Text(
-                        text = "No songs in this playlist yet",
+                        text = copy.noSongsInPlaylistYet,
                         style = MaterialTheme.typography.labelLarge,
                         color = readableSecondaryTextColor().copy(alpha = 0.7f),
                     )
@@ -6677,6 +6679,8 @@ private fun InlinePlaylistCreatorRow(
     onSave: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     val canSave = name.isNotBlank()
     Box(
         modifier = modifier
@@ -6722,7 +6726,7 @@ private fun InlinePlaylistCreatorRow(
                     },
                 ) {
                     Text(
-                        text = "Save",
+                        text = copy.save,
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                     )
@@ -8804,7 +8808,7 @@ private fun AlbumScreen(
     }
     if (album == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Album not found.")
+            Text(rootUiCopy(LocalAppLanguage.current).albumNotFound)
         }
         return
     }
@@ -8919,6 +8923,7 @@ private fun AlbumScreen(
         selectedSongIds = emptySet()
         showPlaylistPicker = false
     }
+    val copy = remember(language) { rootUiCopy(language) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -9479,7 +9484,7 @@ private fun PlaylistDetailScreen(
 ) {
     if (playlist == null) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Playlist not found.")
+            Text(rootUiCopy(LocalAppLanguage.current).playlistNotFound)
         }
         return
     }
@@ -9859,8 +9864,8 @@ private fun PlaylistDetailScreen(
     }
     if (showRenameDialog && !playlist.isSystem) {
         PlaylistNameDialog(
-            title = "Rename playlist",
-            confirmLabel = "Save",
+            title = rootUiCopy(LocalAppLanguage.current).renamePlaylistTitle,
+            confirmLabel = rootUiCopy(LocalAppLanguage.current).save,
             initialName = playlist.name,
             onDismiss = { showRenameDialog = false },
             onConfirm = { name ->
@@ -10366,7 +10371,7 @@ private fun AddSongsToPlaylistOverlay(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(ElovaireRadii.input),
                     singleLine = true,
-                    placeholder = { Text("Search library") },
+                    placeholder = { Text(rootUiCopy(LocalAppLanguage.current).searchLibrary) },
                     leadingIcon = {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_search),
@@ -11026,7 +11031,7 @@ private fun AddSongsToPlaylistDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add songs") },
+        title = { Text(rootUiCopy(LocalAppLanguage.current).addSongsTitle) },
         text = {
             LazyColumn(
                 state = listState,
@@ -13699,6 +13704,8 @@ private fun LyricsOverlay(
     onSeekTo: (Long) -> Unit,
     onHideLyrics: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     BackHandler(onBack = onHideLyrics)
     val scope = rememberCoroutineScope()
     val hideButtonArea = 112.dp
@@ -13849,7 +13856,7 @@ private fun LyricsOverlay(
                                     contentAlignment = Alignment.Center,
                                 ) {
                                     Text(
-                                        text = "Loading lyrics...",
+                                        text = copy.loadingLyrics,
                                         style = MaterialTheme.typography.titleLarge,
                                         color = contentColor,
                                     )
@@ -13872,7 +13879,7 @@ private fun LyricsOverlay(
                                             modifier = Modifier.size(18.dp),
                                         )
                                         Text(
-                                            text = "This song seems to have no lyrics",
+                                            text = copy.noLyrics,
                                             style = MaterialTheme.typography.titleLarge,
                                             color = contentColor,
                                         )
@@ -13972,11 +13979,11 @@ private fun LyricsOverlay(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_eye_off),
-                            contentDescription = "Hide lyrics",
+                            contentDescription = copy.hideLyrics,
                             modifier = Modifier.size(15.dp),
                         )
                         Text(
-                            text = "Hide lyrics",
+                            text = copy.hideLyrics,
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
@@ -14704,14 +14711,6 @@ private fun Modifier.kuperRubberBand(
         .nestedScroll(connection)
 }
 
-private fun repeatModeLabel(repeatMode: PlaybackRepeatMode): String {
-    return when (repeatMode) {
-        PlaybackRepeatMode.Off -> "Order"
-        PlaybackRepeatMode.One -> "Repeat one"
-        PlaybackRepeatMode.All -> "Repeat all"
-    }
-}
-
 @DrawableRes
 private fun repeatModeIconRes(repeatMode: PlaybackRepeatMode): Int {
     return when (repeatMode) {
@@ -14721,11 +14720,11 @@ private fun repeatModeIconRes(repeatMode: PlaybackRepeatMode): Int {
     }
 }
 
-private fun List<Song>.playbackSourceLabel(fallbackAlbum: String): String {
+private fun List<Song>.playbackSourceLabel(fallbackAlbum: String, language: AppLanguage): String {
     val distinctAlbums = asSequence().map { it.album }.filter { it.isNotBlank() }.distinct().toList()
     return when {
         distinctAlbums.size == 1 -> distinctAlbums.first()
-        else -> "all songs"
+        else -> localizedAllSongsSource(language)
     }.ifBlank { fallbackAlbum }
 }
 
@@ -15345,6 +15344,7 @@ private fun LanguageSelectionDialog(
     onConfirm: (AppLanguage) -> Unit,
 ) {
     val listState = rememberElovaireLazyListState("language_picker")
+    val copy = remember(selectedLanguage) { rootUiCopy(selectedLanguage) }
     val languages = remember {
         AppLanguage.entries.sortedBy { it.englishName }
     }
@@ -15453,7 +15453,7 @@ private fun LanguageSelectionDialog(
                             contentColor = MaterialTheme.colorScheme.onPrimary,
                         ) {
                             Text(
-                                text = "OK",
+                                text = copy.ok,
                                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
                                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                             )
@@ -15552,6 +15552,8 @@ private fun UpdateAvailableBanner(
     onDismiss: () -> Unit,
     onUpdate: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { rootUiCopy(language) }
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val primaryTextColor = if (darkTheme) Color.White else InkText
     val secondaryTextColor = if (darkTheme) {
@@ -15587,7 +15589,7 @@ private fun UpdateAvailableBanner(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Update available",
+                        text = copy.updateAvailable,
                         style = MaterialTheme.typography.bodyLarge.copy(
                             fontWeight = FontWeight.SemiBold,
                             lineHeight = 22.sp,
@@ -15615,12 +15617,12 @@ private fun UpdateAvailableBanner(
                 ) {
                     Text(
                         text = when {
-                            uiState.isInstalling -> "Installing"
+                            uiState.isInstalling -> copy.installing
                             uiState.isDownloading -> {
                                 val percent = ((uiState.downloadProgress ?: 0f) * 100f).roundToInt()
-                                "Downloading $percent%"
+                                "${copy.download} $percent%"
                             }
-                            else -> "Download"
+                            else -> copy.download
                         },
                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                     )
@@ -15834,13 +15836,6 @@ private fun TextSizeStepper(
                 modifier = Modifier.size(17.dp),
             )
         }
-    }
-}
-
-private fun ReverbProfile.displayLabel(): String {
-    return when (this) {
-        ReverbProfile.Dry -> "Dry"
-        ReverbProfile.Wet -> "Wet"
     }
 }
 

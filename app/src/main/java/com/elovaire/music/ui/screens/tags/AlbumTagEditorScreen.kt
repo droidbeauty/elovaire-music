@@ -46,12 +46,11 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,10 +72,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
-import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
-import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
@@ -86,36 +81,44 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
-import java.io.File
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-internal data class AlbumTagEditorDraft(
-    val albumTitle: String,
-    val albumArtist: String,
-    val releaseYear: String,
-    val coverArtUri: Uri?,
-    val tracks: List<EditableAlbumTrack>,
-)
-
 @Composable
 internal fun AlbumTagEditorScreen(
-    album: Album?,
+    state: AlbumTagEditorUiState,
     appLanguage: AppLanguage,
-    isSaving: Boolean,
-    isMatching: Boolean,
-    statusMessage: String?,
     onBack: () -> Unit,
-    onSave: (AlbumTagEditRequest) -> Unit,
+    onSave: () -> Unit,
     onAutoMatch: () -> Unit,
     onPickCoverArt: () -> Unit,
-    autofillSuggestion: AlbumTagMatchSuggestion?,
-    pickedCoverArtUri: Uri?,
+    onAlbumTitleChange: (String) -> Unit,
+    onAlbumArtistChange: (String) -> Unit,
+    onReleaseYearChange: (String) -> Unit,
+    onTrackTitleChange: (Long, String) -> Unit,
+    onTrackArtistChange: (Long, String) -> Unit,
+    onTrackNumberChange: (Long, String) -> Unit,
+    onDiscNumberChange: (Long, String) -> Unit,
 ) {
+    val album = state.originalAlbum
+    if (state.isLoading && album == null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(22.dp),
+                strokeWidth = 2.dp,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        return
+    }
     if (album == null) {
-        LaunchedEffect(Unit) { onBack() }
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -131,42 +134,7 @@ internal fun AlbumTagEditorScreen(
         return
     }
 
-    val context = LocalContext.current
     val copy = remember(appLanguage) { tagEditorCopy(appLanguage) }
-    var albumTitle by remember(album.id) { mutableStateOf(album.title) }
-    var albumArtist by remember(album.id) { mutableStateOf(album.artist) }
-    var releaseYear by remember(album.id) { mutableStateOf(album.songs.firstNotNullOfOrNull { it.releaseYear }?.toString().orEmpty()) }
-    var selectedCoverArtUri by remember(album.id) { mutableStateOf(album.artUri) }
-    val trackDrafts = remember(album.id) {
-        mutableStateListOf<EditableAlbumTrack>().apply {
-            addAll(
-                album.songs.mapIndexed { index, song ->
-                    EditableAlbumTrack(
-                        songId = song.id,
-                        title = song.title,
-                        artist = song.artist,
-                        trackNumber = song.trackNumber.takeIf { it > 0 } ?: index + 1,
-                        discNumber = song.discNumber.takeIf { it > 0 } ?: 1,
-                    )
-                },
-            )
-        }
-    }
-
-    LaunchedEffect(autofillSuggestion) {
-        val suggestion = autofillSuggestion ?: return@LaunchedEffect
-        albumTitle = suggestion.albumTitle
-        albumArtist = suggestion.albumArtist
-        releaseYear = suggestion.releaseYear?.toString().orEmpty()
-        selectedCoverArtUri = suggestion.coverArtBytes?.let { bytes ->
-            createCoverPreviewFile(context.cacheDir, album.id, bytes)
-        } ?: selectedCoverArtUri
-        trackDrafts.clear()
-        trackDrafts.addAll(suggestion.tracks)
-    }
-    LaunchedEffect(pickedCoverArtUri) {
-        pickedCoverArtUri?.let { selectedCoverArtUri = it }
-    }
 
     Box(
         modifier = Modifier
@@ -205,9 +173,10 @@ internal fun AlbumTagEditorScreen(
                                 verticalAlignment = Alignment.Top,
                             ) {
                                 EditableArtworkCard(
-                                    artworkUri = selectedCoverArtUri,
+                                    artworkUri = state.selectedArtworkUri,
+                                    artworkBytes = state.selectedArtworkBytes,
                                     fallbackArtworkUri = album.artUri,
-                                    title = albumTitle,
+                                    title = state.albumTitle,
                                     onClick = onPickCoverArt,
                                 )
                                 Column(
@@ -233,24 +202,22 @@ internal fun AlbumTagEditorScreen(
                             }
 
                             OutlinedTextField(
-                                value = albumTitle,
-                                onValueChange = { albumTitle = it },
+                                value = state.albumTitle,
+                                onValueChange = onAlbumTitleChange,
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text(copy.albumTitle) },
                                 singleLine = true,
                             )
                             OutlinedTextField(
-                                value = albumArtist,
-                                onValueChange = { albumArtist = it },
+                                value = state.albumArtist,
+                                onValueChange = onAlbumArtistChange,
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text(copy.albumArtist) },
                                 singleLine = true,
                             )
                             OutlinedTextField(
-                                value = releaseYear,
-                                onValueChange = { input ->
-                                    releaseYear = input.filter(Char::isDigit).take(4)
-                                },
+                                value = state.releaseYear,
+                                onValueChange = onReleaseYearChange,
                                 modifier = Modifier.fillMaxWidth(),
                                 label = { Text(copy.releaseYear) },
                                 singleLine = true,
@@ -292,8 +259,8 @@ internal fun AlbumTagEditorScreen(
                                 AccentPillButton(
                                     label = copy.findOnline,
                                     iconResId = R.drawable.ic_lucide_search,
-                                    enabled = !isMatching && !isSaving,
-                                    loading = isMatching,
+                                    enabled = !state.isMatchingOnline && !state.isSaving,
+                                    loading = state.isMatchingOnline,
                                     onClick = onAutoMatch,
                                 )
                             }
@@ -311,7 +278,7 @@ internal fun AlbumTagEditorScreen(
                 )
             }
 
-            itemsIndexed(trackDrafts, key = { _, track -> track.songId }) { index, track ->
+            itemsIndexed(state.tracks, key = { _, track -> track.songId }) { index, track ->
                 Surface(
                     shape = RoundedCornerShape(ElovaireRadii.card),
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.28f),
@@ -337,7 +304,7 @@ internal fun AlbumTagEditorScreen(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
                             ) {
                                 Text(
-                                    text = album.songs.getOrNull(index)?.fileName.orEmpty(),
+                                    text = track.fileName,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                     maxLines = 1,
@@ -349,18 +316,14 @@ internal fun AlbumTagEditorScreen(
 
                         OutlinedTextField(
                             value = track.title,
-                            onValueChange = { value ->
-                                trackDrafts[index] = track.copy(title = value)
-                            },
+                            onValueChange = { value -> onTrackTitleChange(track.songId, value) },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(copy.songTitle) },
                             singleLine = true,
                         )
                         OutlinedTextField(
                             value = track.artist,
-                            onValueChange = { value ->
-                                trackDrafts[index] = track.copy(artist = value)
-                            },
+                            onValueChange = { value -> onTrackArtistChange(track.songId, value) },
                             modifier = Modifier.fillMaxWidth(),
                             label = { Text(copy.songArtist) },
                             singleLine = true,
@@ -370,22 +333,16 @@ internal fun AlbumTagEditorScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             OutlinedTextField(
-                                value = track.trackNumber.toString(),
-                                onValueChange = { value ->
-                                    val parsed = value.filter(Char::isDigit).toIntOrNull()
-                                    trackDrafts[index] = track.copy(trackNumber = parsed ?: track.trackNumber)
-                                },
+                                value = track.trackNumber,
+                                onValueChange = { value -> onTrackNumberChange(track.songId, value) },
                                 modifier = Modifier.weight(1f),
                                 label = { Text(copy.trackNumber) },
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             )
                             OutlinedTextField(
-                                value = track.discNumber.toString(),
-                                onValueChange = { value ->
-                                    val parsed = value.filter(Char::isDigit).toIntOrNull()
-                                    trackDrafts[index] = track.copy(discNumber = parsed ?: track.discNumber)
-                                },
+                                value = track.discNumber,
+                                onValueChange = { value -> onDiscNumberChange(track.songId, value) },
                                 modifier = Modifier.weight(1f),
                                 label = { Text(copy.discNumber) },
                                 singleLine = true,
@@ -398,12 +355,12 @@ internal fun AlbumTagEditorScreen(
 
             item {
                 AnimatedVisibility(
-                    visible = !statusMessage.isNullOrBlank(),
+                    visible = !state.statusMessage.isNullOrBlank(),
                     enter = fadeIn(animationSpec = ElovaireMotion.standardTween(durationMillis = 120)),
                     exit = fadeOut(animationSpec = ElovaireMotion.standardTween(durationMillis = 120)),
                 ) {
                     Text(
-                        text = statusMessage.orEmpty(),
+                        text = state.statusMessage.orEmpty(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp),
@@ -422,20 +379,10 @@ internal fun AlbumTagEditorScreen(
             subtitle = album.title,
             onBack = onBack,
             onAutoMatch = onAutoMatch,
-            onSave = {
-                onSave(
-                    AlbumTagEditRequest(
-                        album = album,
-                        albumTitle = albumTitle,
-                        albumArtist = albumArtist,
-                        releaseYear = releaseYear.toIntOrNull(),
-                        coverArtUri = selectedCoverArtUri,
-                        tracks = trackDrafts.toList(),
-                    ),
-                )
-            },
-            matching = isMatching,
-            saving = isSaving,
+            onSave = onSave,
+            matching = state.isMatchingOnline,
+            saving = state.isSaving,
+            saveEnabled = state.canSave,
             modifier = Modifier.align(Alignment.TopCenter),
         )
     }
@@ -444,11 +391,12 @@ internal fun AlbumTagEditorScreen(
 @Composable
 private fun EditableArtworkCard(
     artworkUri: Uri?,
+    artworkBytes: ByteArray?,
     fallbackArtworkUri: Uri?,
     title: String,
     onClick: () -> Unit,
 ) {
-    val previewBitmap = rememberPreviewBitmap(artworkUri, fallbackArtworkUri)
+    val previewBitmap = rememberPreviewBitmap(artworkUri, artworkBytes)
     Surface(
         modifier = Modifier
             .size(126.dp)
@@ -491,17 +439,19 @@ private fun EditableArtworkCard(
 @Composable
 private fun rememberPreviewBitmap(
     selectedUri: Uri?,
-    fallbackUri: Uri?,
+    artworkBytes: ByteArray?,
 ): ImageBitmap? {
+    var bitmap by remember(selectedUri, artworkBytes) { mutableStateOf<ImageBitmap?>(null) }
     val context = LocalContext.current
-    var bitmap by remember(selectedUri, fallbackUri) { mutableStateOf<ImageBitmap?>(null) }
-    LaunchedEffect(selectedUri, fallbackUri) {
-        bitmap = selectedUri?.let { uri ->
-            runCatching {
-                context.contentResolver.openInputStream(uri)?.use { input ->
+    LaunchedEffect(selectedUri, artworkBytes) {
+        bitmap = when {
+            artworkBytes != null -> BitmapFactory.decodeByteArray(artworkBytes, 0, artworkBytes.size)?.asImageBitmap()
+            selectedUri != null -> runCatching {
+                context.contentResolver.openInputStream(selectedUri)?.use { input ->
                     BitmapFactory.decodeStream(input)?.asImageBitmap()
                 }
             }.getOrNull()
+            else -> null
         }
     }
     return bitmap
@@ -516,6 +466,7 @@ private fun AlbumTagEditorTopBar(
     onSave: () -> Unit,
     matching: Boolean,
     saving: Boolean,
+    saveEnabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -568,7 +519,7 @@ private fun AlbumTagEditorTopBar(
                 iconResId = R.drawable.ic_lucide_check,
                 contentDescription = "Save",
                 onClick = onSave,
-                enabled = !matching && !saving,
+                enabled = !matching && !saving && saveEnabled,
                 loading = saving,
             )
         }
@@ -675,17 +626,6 @@ private fun AccentPillButton(
 
 @Composable
 private fun editorTopBarHeight() = ElovaireSpacing.topBarContentHeight + 28.dp
-
-private fun createCoverPreviewFile(
-    cacheDir: File,
-    albumId: Long,
-    bytes: ByteArray,
-): Uri {
-    val tempDir = File(cacheDir, "album-tag-cover-preview").apply { mkdirs() }
-    val previewFile = File(tempDir, "album-$albumId-${System.nanoTime()}.img")
-    previewFile.writeBytes(bytes)
-    return Uri.fromFile(previewFile)
-}
 
 private data class TagEditorScrollbarMetrics(
     val scrollFraction: Float,

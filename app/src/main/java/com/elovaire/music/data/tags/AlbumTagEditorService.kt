@@ -34,6 +34,7 @@ internal data class AlbumTagEditRequest(
     val albumArtist: String,
     val releaseYear: Int?,
     val coverArtUri: Uri?,
+    val coverArtBytes: ByteArray? = null,
     val tracks: List<EditableAlbumTrack>,
 )
 
@@ -43,6 +44,19 @@ internal data class AlbumTagMatchSuggestion(
     val releaseYear: Int?,
     val coverArtBytes: ByteArray?,
     val tracks: List<EditableAlbumTrack>,
+)
+
+internal data class TagEditApplyResult(
+    val editedSongIds: List<Long>,
+    val editedUris: List<Uri>,
+    val editedFilePaths: List<String>,
+    val failures: List<TagEditFailure> = emptyList(),
+)
+
+internal data class TagEditFailure(
+    val songId: Long,
+    val fileName: String,
+    val reason: String,
 )
 
 internal class AlbumTagEditorService(
@@ -74,10 +88,14 @@ internal class AlbumTagEditorService(
         )
     }
 
-    suspend fun applyEdits(request: AlbumTagEditRequest) = withContext(Dispatchers.IO) {
+    suspend fun applyEdits(request: AlbumTagEditRequest): TagEditApplyResult = withContext(Dispatchers.IO) {
         val trackEditsById = request.tracks.associateBy { it.songId }
-        val coverArtBytes = request.coverArtUri?.let(::readBytes)
+        val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)
         val coverArtMimeType = coverArtBytes?.let(::detectMimeType)
+        val editedSongIds = mutableListOf<Long>()
+        val editedUris = mutableListOf<Uri>()
+        val editedFilePaths = mutableListOf<String>()
+        val failures = mutableListOf<TagEditFailure>()
         request.album.songs.forEach { song ->
             val trackEdit = trackEditsById[song.id] ?: return@forEach
             val tempFile = copySongToTempFile(song)
@@ -90,11 +108,47 @@ internal class AlbumTagEditorService(
                     coverArtBytes = coverArtBytes,
                     coverArtMimeType = coverArtMimeType,
                 )
+                val verificationFailures = verifyWrittenTags(
+                    tempFile = tempFile,
+                    expected = ExpectedTagValues(
+                        title = trackEdit.title.trim().ifBlank { song.title },
+                        artist = trackEdit.artist.trim().ifBlank { song.artist },
+                        album = request.albumTitle.trim().ifBlank { song.album },
+                        albumArtist = request.albumArtist.trim().ifBlank { song.artist },
+                        year = request.releaseYear?.takeIf { it > 0 }?.toString(),
+                        trackNumber = trackEdit.trackNumber.coerceAtLeast(1).toString(),
+                        discNumber = trackEdit.discNumber.coerceAtLeast(1).toString(),
+                    ),
+                )
+                if (verificationFailures.isNotEmpty()) {
+                    failures += TagEditFailure(
+                        songId = song.id,
+                        fileName = song.fileName,
+                        reason = verificationFailures.joinToString(),
+                    )
+                    return@forEach
+                }
                 overwriteSongFromTemp(song.uri, tempFile)
+                editedSongIds += song.id
+                editedUris += song.uri
+                resolveFilePath(song)?.let(editedFilePaths::add)
+            } catch (throwable: Throwable) {
+                if (throwable is SecurityException) throw throwable
+                failures += TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = throwable.message ?: "Unable to save tags.",
+                )
             } finally {
                 runCatching { tempFile.delete() }
             }
         }
+        TagEditApplyResult(
+            editedSongIds = editedSongIds,
+            editedUris = editedUris,
+            editedFilePaths = editedFilePaths.distinct(),
+            failures = failures,
+        )
     }
 
     private fun updateTagFile(
@@ -152,6 +206,33 @@ internal class AlbumTagEditorService(
         }
     }
 
+    private fun verifyWrittenTags(
+        tempFile: File,
+        expected: ExpectedTagValues,
+    ): List<String> {
+        val audioFile = AudioFileIO.read(tempFile)
+        val tag = audioFile.tagOrCreateAndSetDefault
+        val failures = mutableListOf<String>()
+
+        fun check(field: FieldKey, expectedValue: String?, label: String) {
+            val normalizedExpected = expectedValue.orEmpty().trim()
+            if (normalizedExpected.isBlank()) return
+            val actual = tag.getFirst(field).orEmpty().trim()
+            if (actual != normalizedExpected) {
+                failures += "$label expected '$normalizedExpected' but was '$actual'"
+            }
+        }
+
+        check(FieldKey.TITLE, expected.title, "Title")
+        check(FieldKey.ARTIST, expected.artist, "Artist")
+        check(FieldKey.ALBUM, expected.album, "Album")
+        check(FieldKey.ALBUM_ARTIST, expected.albumArtist, "Album artist")
+        check(FieldKey.YEAR, expected.year, "Year")
+        check(FieldKey.TRACK, expected.trackNumber, "Track")
+        check(FieldKey.DISC_NO, expected.discNumber, "Disc")
+        return failures
+    }
+
     private fun copySongToTempFile(song: Song): File {
         val tempDir = File(appContext.cacheDir, TEMP_TAG_EDIT_DIR_NAME).apply { mkdirs() }
         val suffix = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
@@ -190,6 +271,27 @@ internal class AlbumTagEditorService(
                 outputChannel.force(true)
             }
         } ?: error("Unable to write updated tags")
+    }
+
+    private fun resolveFilePath(song: Song): String? {
+        return when (song.uri.scheme) {
+            "file" -> song.uri.path
+            else -> runCatching {
+                contentResolver.query(
+                    song.uri,
+                    arrayOf(android.provider.MediaStore.MediaColumns.DATA),
+                    null,
+                    null,
+                    null,
+                )?.use { cursor ->
+                    if (!cursor.moveToFirst()) {
+                        null
+                    } else {
+                        cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DATA))
+                    }
+                }
+            }.getOrNull()
+        }
     }
 
     private fun readBytes(uri: Uri): ByteArray? {
@@ -490,6 +592,16 @@ internal class AlbumTagEditorService(
         val albumArtist: String,
         val releaseYear: Int?,
         val tracks: List<EditableAlbumTrack>,
+    )
+
+    private data class ExpectedTagValues(
+        val title: String,
+        val artist: String,
+        val album: String,
+        val albumArtist: String,
+        val year: String?,
+        val trackNumber: String,
+        val discNumber: String,
     )
 
     private companion object {
