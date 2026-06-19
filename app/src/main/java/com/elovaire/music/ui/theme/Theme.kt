@@ -49,7 +49,7 @@ fun ElovaireTheme(
     val darkTheme = resolveDarkTheme(themeMode = themeMode, systemDark = isSystemInDarkTheme())
 
     // Picks the full Material color scheme for the resolved mode above.
-    val colorScheme = resolvedColorScheme(darkTheme)
+    val colorScheme = elovaireResolvedColorScheme(darkTheme)
 
     CompositionLocalProvider(LocalTextScale provides textSizePreset.scaleFactor) {
         MaterialTheme(
@@ -80,10 +80,10 @@ fun themeBackgroundForMode(
     systemDark: Boolean,
 ): Color {
     // Convenience helper used when UI needs the resolved screen background color directly.
-    return resolvedColorScheme(resolveDarkTheme(themeMode, systemDark)).background
+    return elovaireResolvedColorScheme(resolveDarkTheme(themeMode, systemDark)).background
 }
 
-private fun resolvedColorScheme(darkTheme: Boolean): ColorScheme {
+fun elovaireResolvedColorScheme(darkTheme: Boolean): ColorScheme {
     // Single switch point between the light and dark palettes above.
     return if (darkTheme) DarkColors else LightColors
 }

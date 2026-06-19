@@ -317,6 +317,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
+import elovaire.music.droidbeauty.app.ui.theme.elovaireResolvedColorScheme
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import elovaire.music.droidbeauty.app.ui.theme.rememberElovaireOverscrollFactory
 import elovaire.music.droidbeauty.app.ui.theme.InkText
@@ -1469,7 +1470,7 @@ fun ElovaireRoot(
             navController.navigate(ABOUT_ROUTE)
         }
     }
-    val showPlaylistCreateAction = currentRoute == PLAYLISTS_ROUTE && playlists.isNotEmpty()
+    val showPlaylistCreateAction = currentRoute == PLAYLISTS_ROUTE
     val sharedTopBarSpec = sharedTopBarController.registration?.spec
         ?: if (showTopLevelChrome) {
             SharedTopBarSpec.Unified(
@@ -2538,6 +2539,18 @@ private fun playbackUiStateOf(
 }
 
 @Composable
+private fun ForceDarkColorScheme(
+    content: @Composable () -> Unit,
+) {
+    MaterialTheme(
+        colorScheme = elovaireResolvedColorScheme(darkTheme = true),
+        typography = MaterialTheme.typography,
+        shapes = MaterialTheme.shapes,
+        content = content,
+    )
+}
+
+@Composable
 private fun NowPlayingRoute(
     viewModel: NowPlayingViewModel,
     playbackManager: PlaybackManager,
@@ -2567,34 +2580,36 @@ private fun NowPlayingRoute(
             viewModel.setLyricsVisible(false)
         }
     }
-    NowPlayingScreen(
-        playbackManager = playbackManager,
-        playerUiState = playerUiState,
-        enrichedSongsById = enrichedSongsById,
-        isFavorite = isFavorite,
-        playlists = playlists,
-        lyricsUiState = lyricsUiState,
-        activeLyricsLineIndex = activeLyricsLineIndex,
-        playbackProgress = playbackProgress,
-        onBack = onBack,
-        onOpenCurrentAlbum = onOpenCurrentAlbum,
-        onTogglePlayback = viewModel::togglePlayback,
-        onSkipPrevious = viewModel::skipPrevious,
-        onSkipNext = viewModel::skipNext,
-        onCycleRepeatMode = viewModel::cycleRepeatMode,
-        onToggleShuffle = viewModel::toggleShuffle,
-        onToggleFavorite = onToggleFavorite,
-        onAddCurrentSongToPlaylist = onAddCurrentSongToPlaylist,
-        onCreatePlaylist = onCreatePlaylist,
-        onQueueItemSelected = viewModel::playQueueIndex,
-        onQueueItemRemoved = viewModel::removeQueueIndex,
-        onOpenEqualizer = onOpenEqualizer,
-        eqSettings = eqSettings,
-        onSpaciousnessChanged = onSpaciousnessChanged,
-        onVolumeChanged = viewModel::setVolume,
-        transitionSnapshot = transitionSnapshot,
-        modifier = modifier,
-    )
+    ForceDarkColorScheme {
+        NowPlayingScreen(
+            playbackManager = playbackManager,
+            playerUiState = playerUiState,
+            enrichedSongsById = enrichedSongsById,
+            isFavorite = isFavorite,
+            playlists = playlists,
+            lyricsUiState = lyricsUiState,
+            activeLyricsLineIndex = activeLyricsLineIndex,
+            playbackProgress = playbackProgress,
+            onBack = onBack,
+            onOpenCurrentAlbum = onOpenCurrentAlbum,
+            onTogglePlayback = viewModel::togglePlayback,
+            onSkipPrevious = viewModel::skipPrevious,
+            onSkipNext = viewModel::skipNext,
+            onCycleRepeatMode = viewModel::cycleRepeatMode,
+            onToggleShuffle = viewModel::toggleShuffle,
+            onToggleFavorite = onToggleFavorite,
+            onAddCurrentSongToPlaylist = onAddCurrentSongToPlaylist,
+            onCreatePlaylist = onCreatePlaylist,
+            onQueueItemSelected = viewModel::playQueueIndex,
+            onQueueItemRemoved = viewModel::removeQueueIndex,
+            onOpenEqualizer = onOpenEqualizer,
+            eqSettings = eqSettings,
+            onSpaciousnessChanged = onSpaciousnessChanged,
+            onVolumeChanged = viewModel::setVolume,
+            transitionSnapshot = transitionSnapshot,
+            modifier = modifier,
+        )
+    }
 }
 
 @Composable
@@ -2653,55 +2668,57 @@ private fun StandaloneNowPlayingDock(
     val resolvedSurface = albumTint.compositeOver(baseTint)
     val contentColor = if (resolvedSurface.luminance() > 0.42f) InkText else Color.White
     val secondaryContentColor = contentColor.copy(alpha = 0.72f)
-    ElovaireAnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = ElovaireMotion.compactBarEnter(),
-        exit = ElovaireMotion.compactBarExit(),
-        label = "CompactNowPlayingDockVisibility",
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(ElovaireRadii.card))
-                .background(baseTint)
-                .border(
-                    width = 1.dp,
-                    color = Color.White.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) 0.05f else 0.04f),
-                    shape = RoundedCornerShape(ElovaireRadii.card),
-                ),
+    ForceDarkColorScheme {
+        ElovaireAnimatedVisibility(
+            visible = visible,
+            modifier = modifier,
+            enter = ElovaireMotion.compactBarEnter(),
+            exit = ElovaireMotion.compactBarExit(),
+            label = "CompactNowPlayingDockVisibility",
         ) {
-            val artworkBitmap = artwork.value
-            if (artworkBitmap != null) {
-                Image(
-                    bitmap = artworkBitmap,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(72.dp)
-                        .blur(48.dp),
-                    alpha = 0.9f,
-                )
-            }
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(72.dp)
-                    .background(albumTint),
-            )
-            NowPlayingBar(
-                song = song,
-                isPlaying = isPlaying,
-                progress = progress,
-                visible = visible,
-                contentColor = contentColor,
-                secondaryContentColor = secondaryContentColor,
-                onOpenPlayer = onOpenPlayer,
-                onTogglePlayback = onTogglePlayback,
-                onSkipPrevious = onSkipPrevious,
-                onSkipNext = onSkipNext,
-            )
+                    .clip(RoundedCornerShape(ElovaireRadii.card))
+                    .background(baseTint)
+                    .border(
+                        width = 1.dp,
+                        color = Color.White.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) 0.05f else 0.04f),
+                        shape = RoundedCornerShape(ElovaireRadii.card),
+                    ),
+            ) {
+                val artworkBitmap = artwork.value
+                if (artworkBitmap != null) {
+                    Image(
+                        bitmap = artworkBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(72.dp)
+                            .blur(48.dp),
+                        alpha = 0.9f,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(72.dp)
+                        .background(albumTint),
+                )
+                NowPlayingBar(
+                    song = song,
+                    isPlaying = isPlaying,
+                    progress = progress,
+                    visible = visible,
+                    contentColor = contentColor,
+                    secondaryContentColor = secondaryContentColor,
+                    onOpenPlayer = onOpenPlayer,
+                    onTogglePlayback = onTogglePlayback,
+                    onSkipPrevious = onSkipPrevious,
+                    onSkipNext = onSkipNext,
+                )
+            }
         }
     }
 }
@@ -4111,127 +4128,128 @@ private fun LastPlayedAlbumModule(
     onPlay: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val screenSizePx = screenContainerSizePx()
-    val screenWidthPx = screenSizePx.width.toFloat()
-    val screenHeightPx = screenSizePx.height.toFloat()
-    val language = LocalAppLanguage.current
-    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val artwork = rememberArtworkBitmap(album.artUri, size = 512)
-    val year = remember(album.songs) { album.songs.firstNotNullOfOrNull { it.releaseYear } }
-    val genre = remember(album.songs) {
-        album.songs.firstOrNull { it.genre.isNotBlank() && it.genre != "Unknown Genre" }?.genre
-    }
-    val gradient = rememberArtworkGradient(album.artUri).value
-    val metaItems = remember(year, genre) {
-        buildList {
-            year?.toString()?.let(::add)
-            genre?.let(::add)
+    ForceDarkColorScheme {
+        val screenSizePx = screenContainerSizePx()
+        val screenWidthPx = screenSizePx.width.toFloat()
+        val screenHeightPx = screenSizePx.height.toFloat()
+        var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+        val artwork = rememberArtworkBitmap(album.artUri, size = 512)
+        val year = remember(album.songs) { album.songs.firstNotNullOfOrNull { it.releaseYear } }
+        val genre = remember(album.songs) {
+            album.songs.firstOrNull { it.genre.isNotBlank() && it.genre != "Unknown Genre" }?.genre
         }
-    }
-    val playBackground = gradient.first()
-        .copy(alpha = 0.24f)
-        .compositeOver(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
-    val playTint = if (playBackground.luminance() > 0.56f) InkText else Color.White
-    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
-    val albumTint = gradient.first().copy(alpha = 0.46f)
-    val controlBaseTint = if (darkTheme) {
-        gradient.last().copy(alpha = 0.28f).compositeOver(Color.Black.copy(alpha = 0.16f))
-    } else {
-        gradient.last().copy(alpha = 0.22f).compositeOver(Color.White.copy(alpha = 0.16f))
-    }
-    val contentColor = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White
-    val secondaryContentColor = contentColor.copy(alpha = 0.72f)
+        val gradient = rememberArtworkGradient(album.artUri).value
+        val metaItems = remember(year, genre) {
+            buildList {
+                year?.toString()?.let(::add)
+                genre?.let(::add)
+            }
+        }
+        val playBackground = gradient.first()
+            .copy(alpha = 0.24f)
+            .compositeOver(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+        val playTint = if (playBackground.luminance() > 0.56f) InkText else Color.White
+        val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
+        val albumTint = gradient.first().copy(alpha = 0.46f)
+        val controlBaseTint = if (darkTheme) {
+            gradient.last().copy(alpha = 0.28f).compositeOver(Color.Black.copy(alpha = 0.16f))
+        } else {
+            gradient.last().copy(alpha = 0.22f).compositeOver(Color.White.copy(alpha = 0.16f))
+        }
+        val contentColor = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White
+        val secondaryContentColor = contentColor.copy(alpha = 0.72f)
 
-    Box(
-        modifier = modifier
-            .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
-            )
-            .clip(RoundedCornerShape(ElovaireRadii.module))
-            .background(baseTint)
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = if (darkTheme) 0.05f else 0.04f),
-                shape = RoundedCornerShape(ElovaireRadii.module),
-            ),
-    ) {
-        artwork.value?.let { artworkBitmap ->
-            Image(
-                bitmap = artworkBitmap,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
+        Box(
+            modifier = modifier
+                .onGloballyPositioned { bounds = it.boundsInWindow() }
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+                )
+                .clip(RoundedCornerShape(ElovaireRadii.module))
+                .background(baseTint)
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = if (darkTheme) 0.05f else 0.04f),
+                    shape = RoundedCornerShape(ElovaireRadii.module),
+                ),
+        ) {
+            artwork.value?.let { artworkBitmap ->
+                Image(
+                    bitmap = artworkBitmap,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .blur(40.dp),
+                    alpha = 0.88f,
+                )
+            }
+            Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .blur(40.dp),
-                alpha = 0.88f,
+                    .background(albumTint),
             )
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(albumTint),
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            ArtworkImage(
-                uri = album.artUri,
-                title = album.title,
-                modifier = Modifier.size(88.dp),
-                cornerRadius = ElovaireRadii.artwork,
-                showArtworkGlow = true,
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = album.title,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = contentColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
+                ArtworkImage(
+                    uri = album.artUri,
+                    title = album.title,
+                    modifier = Modifier.size(88.dp),
+                    cornerRadius = ElovaireRadii.artwork,
+                    showArtworkGlow = true,
                 )
-                Text(
-                    text = album.artist,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    color = secondaryContentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                if (metaItems.isNotEmpty()) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
                     Text(
-                        text = metaItems.joinToString("  •  "),
-                        style = MaterialTheme.typography.labelLarge,
+                        text = album.title,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = contentColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = album.artist,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                         color = secondaryContentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (metaItems.isNotEmpty()) {
+                        Text(
+                            text = metaItems.joinToString("  •  "),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = secondaryContentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
                 }
-            }
-            Surface(
-                onClick = onPlay,
-                shape = CircleShape,
-                color = playBackground,
-                contentColor = playTint,
-            ) {
-                Box(
-                    modifier = Modifier.size(46.dp),
-                    contentAlignment = Alignment.Center,
+                Surface(
+                    onClick = onPlay,
+                    shape = CircleShape,
+                    color = playBackground,
+                    contentColor = playTint,
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_play),
-                        contentDescription = "Play album",
-                        modifier = Modifier.size(20.dp),
-                    )
+                    Box(
+                        modifier = Modifier.size(46.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_play),
+                            contentDescription = "Play album",
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
             }
         }
@@ -4247,131 +4265,133 @@ private fun LastPlayedPlaylistModule(
     onShuffle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val artworkSong = songs.firstOrNull()
-    val artwork = rememberArtworkBitmap(artworkSong?.artUri, size = 512)
-    val gradient = rememberArtworkGradient(artworkSong?.artUri).value
-    val totalDurationMs = remember(songs) { songs.sumOf { it.durationMs } }
-    val language = LocalAppLanguage.current
-    val metaItems = remember(songs, totalDurationMs, language) {
-        listOf(
-            localizedCountLabel(songs.size, "track", language),
-            formatPlaylistDuration(totalDurationMs),
-        )
-    }
-    val playBackground = gradient.first()
-        .copy(alpha = 0.24f)
-        .compositeOver(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
-    val playTint = if (playBackground.luminance() > 0.56f) InkText else Color.White
-    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
-    val playlistTint = gradient.first().copy(alpha = 0.46f)
-    val controlBaseTint = if (darkTheme) {
-        gradient.last().copy(alpha = 0.28f).compositeOver(Color.Black.copy(alpha = 0.16f))
-    } else {
-        gradient.last().copy(alpha = 0.22f).compositeOver(Color.White.copy(alpha = 0.16f))
-    }
-    val contentColor = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White
-    val secondaryContentColor = contentColor.copy(alpha = 0.72f)
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(ElovaireRadii.module))
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onOpen,
-            )
-            .background(baseTint)
-            .border(
-                width = 1.dp,
-                color = Color.White.copy(alpha = if (darkTheme) 0.05f else 0.04f),
-                shape = RoundedCornerShape(ElovaireRadii.module),
-            ),
-    ) {
-        artwork.value?.let { artworkBitmap ->
-            Image(
-                bitmap = artworkBitmap,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .matchParentSize()
-                    .blur(40.dp),
-                alpha = 0.88f,
+    ForceDarkColorScheme {
+        val artworkSong = songs.firstOrNull()
+        val artwork = rememberArtworkBitmap(artworkSong?.artUri, size = 512)
+        val gradient = rememberArtworkGradient(artworkSong?.artUri).value
+        val totalDurationMs = remember(songs) { songs.sumOf { it.durationMs } }
+        val language = LocalAppLanguage.current
+        val metaItems = remember(songs, totalDurationMs, language) {
+            listOf(
+                localizedCountLabel(songs.size, "track", language),
+                formatPlaylistDuration(totalDurationMs),
             )
         }
+        val playBackground = gradient.first()
+            .copy(alpha = 0.24f)
+            .compositeOver(MaterialTheme.colorScheme.surface.copy(alpha = 0.78f))
+        val playTint = if (playBackground.luminance() > 0.56f) InkText else Color.White
+        val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+        val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
+        val playlistTint = gradient.first().copy(alpha = 0.46f)
+        val controlBaseTint = if (darkTheme) {
+            gradient.last().copy(alpha = 0.28f).compositeOver(Color.Black.copy(alpha = 0.16f))
+        } else {
+            gradient.last().copy(alpha = 0.22f).compositeOver(Color.White.copy(alpha = 0.16f))
+        }
+        val contentColor = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White
+        val secondaryContentColor = contentColor.copy(alpha = 0.72f)
+
         Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(playlistTint),
-        )
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(18.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-            verticalAlignment = Alignment.CenterVertically,
+            modifier = modifier
+                .clip(RoundedCornerShape(ElovaireRadii.module))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onOpen,
+                )
+                .background(baseTint)
+                .border(
+                    width = 1.dp,
+                    color = Color.White.copy(alpha = if (darkTheme) 0.05f else 0.04f),
+                    shape = RoundedCornerShape(ElovaireRadii.module),
+                ),
         ) {
-            ArtworkImage(
-                uri = artworkSong?.artUri,
-                title = playlist.name,
-                modifier = Modifier.size(88.dp),
-                cornerRadius = ElovaireRadii.artwork,
-                showArtworkGlow = true,
-            )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = playlist.name,
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                    color = contentColor,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = artworkSong?.artist.orEmpty(),
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    color = secondaryContentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = metaItems.joinToString("  •  "),
-                    style = MaterialTheme.typography.labelLarge,
-                    color = secondaryContentColor,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+            artwork.value?.let { artworkBitmap ->
+                Image(
+                    bitmap = artworkBitmap,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .matchParentSize()
+                        .blur(40.dp),
+                    alpha = 0.88f,
                 )
             }
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(playlistTint),
+            )
             Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Surface(
-                    onClick = onPlay,
-                    shape = CircleShape,
-                    color = playBackground,
-                    contentColor = playTint,
-                ) {
-                    Box(
-                        modifier = Modifier.size(46.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_play),
-                            contentDescription = playLabel(language),
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                AlbumHeaderActionButton(
-                    iconResId = R.drawable.ic_lucide_shuffle,
-                    contentDescription = "Shuffle playlist",
-                    tint = playTint,
-                    backgroundColor = playBackground,
-                    onClick = onShuffle,
+                ArtworkImage(
+                    uri = artworkSong?.artUri,
+                    title = playlist.name,
+                    modifier = Modifier.size(88.dp),
+                    cornerRadius = ElovaireRadii.artwork,
+                    showArtworkGlow = true,
                 )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = playlist.name,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                        color = contentColor,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = artworkSong?.artist.orEmpty(),
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                        color = secondaryContentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = metaItems.joinToString("  •  "),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = secondaryContentColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Surface(
+                        onClick = onPlay,
+                        shape = CircleShape,
+                        color = playBackground,
+                        contentColor = playTint,
+                    ) {
+                        Box(
+                            modifier = Modifier.size(46.dp),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_play),
+                                contentDescription = playLabel(language),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                    AlbumHeaderActionButton(
+                        iconResId = R.drawable.ic_lucide_shuffle,
+                        contentDescription = "Shuffle playlist",
+                        tint = playTint,
+                        backgroundColor = playBackground,
+                        onClick = onShuffle,
+                    )
+                }
             }
         }
     }
@@ -5005,7 +5025,6 @@ private fun PlaylistsScreen(
                 modifier = Modifier
                     .align(Alignment.Center)
                     .padding(horizontal = 20.dp),
-                onCreate = onRequestCreatePlaylist,
             )
         } else {
             LazyVerticalGrid(
@@ -5891,36 +5910,24 @@ private fun ArtistAlbumGallery(
 @Composable
 private fun EmptyPlaylistState(
     modifier: Modifier = Modifier,
-    onCreate: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
-    val copy = remember(language) { rootUiCopy(language) }
     Column(
-        modifier = modifier,
+        modifier = modifier.fillMaxWidth(0.74f),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Surface(
-            onClick = onCreate,
-            shape = RoundedCornerShape(ElovaireRadii.card),
-            color = MaterialTheme.colorScheme.primary,
-            shadowElevation = 6.dp,
-        ) {
-            Box(
-                modifier = Modifier.size(74.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_plus),
-                    contentDescription = copy.createPlaylistButton,
-                    tint = MaterialTheme.colorScheme.onPrimary,
-                )
-            }
-        }
         Text(
-            text = copy.tapToCreateNewPlaylist,
+            text = miscPhrase(language, MiscPhrase.NothingInHere),
+            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = miscPhrase(language, MiscPhrase.TapPlusToCreatePlaylist),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = readableSecondaryTextColor(),
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -9123,7 +9130,7 @@ private fun AlbumScreen(
                                 iconResId = R.drawable.ic_lucide_shuffle,
                                 contentDescription = "Shuffle album",
                                 tint = Color.White,
-                                backgroundColor = RoseAccent.copy(alpha = 0.7f),
+                                backgroundColor = RoseAccent,
                                 iconSize = 18.dp,
                                 onClick = { onShuffleAlbum(album) },
                             )
@@ -9696,7 +9703,7 @@ private fun PlaylistDetailScreen(
                                 iconResId = R.drawable.ic_lucide_shuffle,
                                 contentDescription = "Shuffle playlist",
                                 tint = Color.White,
-                                backgroundColor = RoseAccent.copy(alpha = 0.7f),
+                                backgroundColor = RoseAccent,
                                 iconSize = 18.dp,
                                 onClick = { onShufflePlaylist(playlistSongs, playlist.name) },
                             )
@@ -11835,7 +11842,7 @@ private fun NowPlayingScreen(
                     .align(Alignment.CenterHorizontally)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 462.dp
+                val queueSheetTopExtension = 502.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
