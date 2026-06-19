@@ -21,6 +21,10 @@ class LyricsService(
 
     fun isLookupInFlight(song: Song): Boolean = repository.isLookupInFlight(song)
 
+    fun clearCacheFor(song: Song) {
+        repository.clearCacheFor(song)
+    }
+
     fun prefetchLyrics(song: Song) {
         repository.prefetchLyrics(song)
     }

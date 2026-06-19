@@ -35,7 +35,7 @@ internal data class EqualizerPreset(
 
 internal data class EqualizerDspConfig(
     val bandCenterFrequenciesHz: FloatArray = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ,
-    val minBandGainDb: Float = -10f,
+    val minBandGainDb: Float = -8f,
     val maxBandGainDb: Float = 8f,
     val minPreampDb: Float = -12f,
     val maxPreampDb: Float = 6f,

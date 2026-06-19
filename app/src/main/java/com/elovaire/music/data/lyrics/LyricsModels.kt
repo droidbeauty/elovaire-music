@@ -34,6 +34,22 @@ data class LyricsSearchQuery(
     val variants: List<LyricsQueryVariant>,
 )
 
+internal data class LrcLibResponse(
+    val id: Int,
+    val name: String,
+    val artistName: String,
+    val albumName: String?,
+    val duration: Double,
+    val plainLyrics: String?,
+    val syncedLyrics: String?,
+    val instrumental: Boolean = false,
+)
+
+internal data class RankedLyricsCandidate(
+    val response: LrcLibResponse,
+    val score: Int,
+)
+
 data class LyricsCandidate(
     val providerId: String,
     val title: String,
@@ -66,6 +82,12 @@ data class LyricsPayload(
         positionMs: Long,
         timingOffsetMs: Long = 0L,
         switchGraceMs: Long = 180L,
+    ): Int? = currentLineIndexAtFast(positionMs, timingOffsetMs, switchGraceMs)
+
+    fun currentLineIndexAtFast(
+        positionMs: Long,
+        timingOffsetMs: Long = 0L,
+        switchGraceMs: Long = 120L,
     ): Int? {
         if (!isSynced || lines.isEmpty()) return null
         val correctedPositionMs = correctedLyricPositionMs(
@@ -74,13 +96,26 @@ data class LyricsPayload(
             switchGraceMs = switchGraceMs,
         )
         if (correctedPositionMs < 0L) return null
-        val firstTimestampMs = lines.firstNotNullOfOrNull { it.startTimeMs } ?: return null
-        if (correctedPositionMs < firstTimestampMs) return null
-        return resolveActiveLyricLineIndex(
-            lines = lines,
-            positionMs = correctedPositionMs,
-            timingOffsetMs = 0L,
-        )
+
+        var low = 0
+        var high = lines.lastIndex
+        var result = -1
+
+        while (low <= high) {
+            val mid = (low + high) ushr 1
+            val startTimeMs = lines[mid].startTimeMs ?: Long.MAX_VALUE
+            if (startTimeMs <= correctedPositionMs) {
+                result = mid
+                low = mid + 1
+            } else {
+                high = mid - 1
+            }
+        }
+
+        if (result < 0) return null
+        val endTimeMs = lines[result].endTimeMs
+        if (endTimeMs != null && correctedPositionMs > endTimeMs + 500L) return null
+        return result
     }
 
     fun currentLineAt(

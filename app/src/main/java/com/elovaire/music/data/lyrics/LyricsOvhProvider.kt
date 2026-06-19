@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.domain.model.Song
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -10,6 +11,31 @@ import java.nio.charset.StandardCharsets
 
 internal class LyricsOvhProvider : LyricsProvider {
     override val providerName: String = "lyrics.ovh"
+
+    override suspend fun findBestLyrics(
+        song: Song,
+        identity: LyricsIdentity,
+        lookupMode: LyricsLookupMode,
+    ): ProviderLyricsMatch? {
+        val candidates = buildLyricsQueryVariants(identity)
+            .take(MAX_QUERY_VARIANTS)
+            .mapIndexed { index, variant ->
+                LyricsCandidate(
+                    providerId = "lyrics.ovh::$index::${variant.artist}::${variant.title}",
+                    title = variant.title,
+                    artist = variant.artist,
+                    album = variant.album.orEmpty(),
+                    durationMs = song.durationMs.takeIf { it > 0L },
+                    instrumental = false,
+                    plainLyrics = "",
+                    syncedLyrics = "",
+                    sourceUrl = null,
+                )
+            }
+        return candidates
+            .mapNotNull { candidate -> getLyrics(candidate, identity) }
+            .maxByOrNull { it.confidence }
+    }
 
     override suspend fun search(query: LyricsSearchQuery): List<LyricsCandidate> {
         return query.variants

@@ -267,6 +267,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.update.AppReleaseInfo
+import elovaire.music.droidbeauty.app.data.update.AppUpdateTransientStatus
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -1086,6 +1087,12 @@ fun ElovaireRoot(
     val albumCollectionSortModeName by container.preferenceStore.albumCollectionSortMode.collectAsStateWithLifecycle()
     val songCollectionSortModeName by container.preferenceStore.songCollectionSortMode.collectAsStateWithLifecycle()
     val appUpdateState by container.appUpdateManager.uiState.collectAsStateWithLifecycle()
+    LaunchedEffect(appUpdateState.transientStatus) {
+        if (appUpdateState.transientStatus != null) {
+            delay(2_500L)
+            container.appUpdateManager.clearTransientStatus()
+        }
+    }
     val albumCollectionLayoutMode = albumCollectionLayoutModeName.toAlbumLayoutMode()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
     val rootScope = rememberCoroutineScope()
@@ -2335,18 +2342,26 @@ fun ElovaireRoot(
                                 top = topBarHeight + 8.dp,
                             ),
                         visible = (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
-                            appUpdateState.availableRelease != null,
+                            (appUpdateState.availableRelease != null || appUpdateState.transientStatus != null),
                         enter = ElovaireMotion.bannerEnter(),
                         exit = ElovaireMotion.bannerExit(),
                         label = "UpdateBannerVisibility",
                     ) {
-                        appUpdateState.availableRelease?.let { release ->
-                            UpdateAvailableBanner(
-                                release = release,
-                                uiState = appUpdateState,
-                                onDismiss = container.appUpdateManager::dismissAvailableUpdate,
-                                onUpdate = container.appUpdateManager::startUpdate,
-                            )
+                        when {
+                            appUpdateState.availableRelease != null -> {
+                                UpdateAvailableBanner(
+                                    release = requireNotNull(appUpdateState.availableRelease),
+                                    uiState = appUpdateState,
+                                    onDismiss = container.appUpdateManager::dismissAvailableUpdate,
+                                    onUpdate = container.appUpdateManager::startUpdate,
+                                )
+                            }
+                            appUpdateState.transientStatus == AppUpdateTransientStatus.UpToDate -> {
+                                UpdateStatusBanner(
+                                    text = rootUiCopy(LocalAppLanguage.current).appUpToDate,
+                                    iconResId = R.drawable.ic_lucide_check,
+                                )
+                            }
                         }
                     }
                     ElovaireAnimatedVisibility(
@@ -14748,194 +14763,197 @@ private fun EqualizerScreen(
     val graphScrollState = rememberScrollState()
     val language = LocalAppLanguage.current
     val copy = remember(language) { settingsCopy(language) }
+    val graphContentWidth = EQ_GRAPH_EDGE_PADDING * 2 +
+        EQ_BAND_SPACING * (EqualizerDspModel.BAND_COUNT - 1).coerceAtLeast(0).toFloat()
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        LazyColumn(
-            state = listState,
-            overscrollEffect = null,
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding()
-                .ensureSingleItemRubberBand(listState),
-            contentPadding = PaddingValues(
+                .padding(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
                 end = 18.dp,
                 bottom = 96.dp + buttonNavigationScrollBoost(),
             ),
-            verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            item {
-                Box {
-                    val graphContentWidth = EQ_GRAPH_EDGE_PADDING * 2 +
-                        EQ_BAND_SPACING * (EqualizerDspModel.BAND_COUNT - 1).coerceAtLeast(0).toFloat()
-                    Column {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(EQ_DB_SCALE_GAP),
-                            verticalAlignment = Alignment.Top,
-                        ) {
-                            EqDbScale(
-                                modifier = Modifier
-                                    .width(EQ_DB_SCALE_WIDTH)
-                                    .height(260.dp),
-                            )
-                            Column(
-                                modifier = Modifier
-                                    .horizontalGestureSafe()
-                                    .horizontalScroll(graphScrollState),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
-                            ) {
-                                EqResponseGraph(
-                                    settings = settings,
-                                    onBandChanged = onBandChanged,
-                                    modifier = Modifier
-                                        .width(graphContentWidth)
-                                        .height(260.dp),
-                                )
-                                EqBandFrequencyLabels(
-                                    contentWidth = graphContentWidth,
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        EqHorizontalScrollbar(
-                            scrollState = graphScrollState,
+            Column {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(EQ_DB_SCALE_GAP),
+                    verticalAlignment = Alignment.Top,
+                ) {
+                    EqDbScale(
+                        modifier = Modifier
+                            .width(EQ_DB_SCALE_WIDTH)
+                            .height(260.dp),
+                    )
+                    Column(
+                        modifier = Modifier
+                            .horizontalGestureSafe()
+                            .horizontalScroll(graphScrollState),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        EqResponseGraph(
+                            settings = settings,
+                            onBandChanged = onBandChanged,
+                            modifier = Modifier
+                                .width(graphContentWidth)
+                                .height(260.dp),
+                        )
+                        EqBandFrequencyLabels(
                             contentWidth = graphContentWidth,
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        EqMiniResponseGraph(
-                            settings = settings,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(60.dp),
-                        )
-                        Spacer(modifier = Modifier.height(20.dp))
-                        EqPresetMenu(
-                            currentSettings = settings,
-                            onApplyPreset = onApplyPreset,
-                            onReset = onReset,
-                        )
                     }
                 }
+                Spacer(modifier = Modifier.height(12.dp))
+                EqHorizontalScrollbar(
+                    scrollState = graphScrollState,
+                    contentWidth = graphContentWidth,
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                EqMiniResponseGraph(
+                    settings = settings,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp),
+                )
+                Spacer(modifier = Modifier.height(20.dp))
+                EqPresetMenu(
+                    currentSettings = settings,
+                    onApplyPreset = onApplyPreset,
+                    onReset = onReset,
+                )
             }
-            item {
-                ModuleCard {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(20.dp),
-                    ) {
-                        SettingsCategoryText(
-                            title = uiPhrase(language, UiPhrase.ToneShaping),
-                            iconResId = R.drawable.ic_lucide_audio_waveform,
-                        )
-                        Row(
+            Spacer(modifier = Modifier.height(18.dp))
+            LazyColumn(
+                state = listState,
+                overscrollEffect = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .ensureSingleItemRubberBand(listState),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                item {
+                    ModuleCard {
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(20.dp),
+                            verticalArrangement = Arrangement.spacedBy(20.dp),
                         ) {
-                            EqToneKnob(
-                                title = uiPhrase(language, UiPhrase.Bass),
-                                value = settings.bass.coerceIn(0f, 1f),
-                                valueRange = 0f..1f,
-                                accentColor = Color(0xFF2FE08D),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onBassChanged,
+                            SettingsCategoryText(
+                                title = uiPhrase(language, UiPhrase.ToneShaping),
+                                iconResId = R.drawable.ic_lucide_audio_waveform,
                             )
-                            EqToneKnob(
-                                title = uiPhrase(language, UiPhrase.Midrange),
-                                value = settings.midrange.coerceIn(-1f, 1f),
-                                valueRange = -1f..1f,
-                                accentColor = Color(0xFF39C2FF),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onMidrangeChanged,
-                            )
-                            EqToneKnob(
-                                title = uiPhrase(language, UiPhrase.Treble),
-                                value = settings.treble.coerceIn(-1f, 1f),
-                                valueRange = -1f..1f,
-                                accentColor = Color(0xFFFFB056),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onTrebleChanged,
-                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(20.dp),
+                            ) {
+                                EqToneKnob(
+                                    title = uiPhrase(language, UiPhrase.Bass),
+                                    value = settings.bass.coerceIn(0f, 1f),
+                                    valueRange = 0f..1f,
+                                    accentColor = Color(0xFF2FE08D),
+                                    modifier = Modifier.weight(1f),
+                                    onValueChange = onBassChanged,
+                                )
+                                EqToneKnob(
+                                    title = uiPhrase(language, UiPhrase.Midrange),
+                                    value = settings.midrange.coerceIn(-1f, 1f),
+                                    valueRange = -1f..1f,
+                                    accentColor = Color(0xFF39C2FF),
+                                    modifier = Modifier.weight(1f),
+                                    onValueChange = onMidrangeChanged,
+                                )
+                                EqToneKnob(
+                                    title = uiPhrase(language, UiPhrase.Treble),
+                                    value = settings.treble.coerceIn(-1f, 1f),
+                                    valueRange = -1f..1f,
+                                    accentColor = Color(0xFFFFB056),
+                                    modifier = Modifier.weight(1f),
+                                    onValueChange = onTrebleChanged,
+                                )
+                            }
                         }
                     }
                 }
-            }
-            item {
-                ModuleCard {
-                    Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
-                        SettingsCategoryText(
-                            title = copy.spaciousness,
-                            iconResId = R.drawable.ic_lucide_wind,
-                        )
-                        SpaciousnessModeMenu(
-                            currentMode = settings.spaciousnessMode,
-                            spaciousnessAmount = settings.spaciousness,
-                            onModeSelected = onSpaciousnessModeChanged,
-                        )
-                        EqMacroSliderRow(
-                            title = uiPhrase(language, UiPhrase.EffectStrength),
-                            value = settings.spaciousness.coerceIn(0f, 1f),
-                            valueText = "${(settings.spaciousness.coerceIn(0f, 1f) * 100f).roundToInt()}%",
-                            onValueChange = onSpaciousnessChanged,
-                            valueRange = 0f..1f,
-                        )
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Row(
+                item {
+                    ModuleCard {
+                        Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                            SettingsCategoryText(
+                                title = copy.spaciousness,
+                                iconResId = R.drawable.ic_lucide_wind,
+                            )
+                            SpaciousnessModeMenu(
+                                currentMode = settings.spaciousnessMode,
+                                spaciousnessAmount = settings.spaciousness,
+                                onModeSelected = onSpaciousnessModeChanged,
+                            )
+                            EqMacroSliderRow(
+                                title = uiPhrase(language, UiPhrase.EffectStrength),
+                                value = settings.spaciousness.coerceIn(0f, 1f),
+                                valueText = "${(settings.spaciousness.coerceIn(0f, 1f) * 100f).roundToInt()}%",
+                                onValueChange = onSpaciousnessChanged,
+                                valueRange = 0f..1f,
+                            )
+                            Column(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
                             ) {
-                                Text(
-                                    text = uiPhrase(language, UiPhrase.Reverb),
-                                    style = MaterialTheme.typography.titleLarge.copy(
-                                        fontSize = elovaireScaledSp(16f),
-                                    ),
-                                )
-                                Text(
-                                    text = if (settings.reverbDurationMs <= 0) uiPhrase(language, UiPhrase.Off) else "${settings.reverbDurationMs} ms",
-                                    style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
-                                )
-                            }
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalGestureSafe()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                EqPresetPill(
-                                    label = uiPhrase(language, UiPhrase.Reset),
-                                    selected = false,
-                                    emphasized = true,
-                                    useSubtleIdleBackground = true,
-                                    onClick = onResetReverb,
-                                )
-                                ReverbProfile.entries.forEach { profile ->
-                                    EqPresetPill(
-                                        label = when (profile) {
-                                            ReverbProfile.Dry -> uiPhrase(language, UiPhrase.Dry)
-                                            ReverbProfile.Wet -> uiPhrase(language, UiPhrase.Wet)
-                                        },
-                                        selected = settings.reverbDurationMs > 0 && settings.reverbProfile == profile,
-                                        useSubtleIdleBackground = true,
-                                        onClick = { onReverbProfileChanged(profile) },
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = uiPhrase(language, UiPhrase.Reverb),
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = elovaireScaledSp(16f),
+                                        ),
+                                    )
+                                    Text(
+                                        text = if (settings.reverbDurationMs <= 0) uiPhrase(language, UiPhrase.Off) else "${settings.reverbDurationMs} ms",
+                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(18f)),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.84f),
                                     )
                                 }
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .horizontalGestureSafe()
+                                        .horizontalScroll(rememberScrollState()),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    EqPresetPill(
+                                        label = uiPhrase(language, UiPhrase.Reset),
+                                        selected = false,
+                                        emphasized = true,
+                                        useSubtleIdleBackground = true,
+                                        onClick = onResetReverb,
+                                    )
+                                    ReverbProfile.entries.forEach { profile ->
+                                        EqPresetPill(
+                                            label = when (profile) {
+                                                ReverbProfile.Dry -> uiPhrase(language, UiPhrase.Dry)
+                                                ReverbProfile.Wet -> uiPhrase(language, UiPhrase.Wet)
+                                            },
+                                            selected = settings.reverbDurationMs > 0 && settings.reverbProfile == profile,
+                                            useSubtleIdleBackground = true,
+                                            onClick = { onReverbProfileChanged(profile) },
+                                        )
+                                    }
+                                }
+                                ReverbStepSlider(
+                                    valueMs = settings.reverbDurationMs,
+                                    onValueChange = onReverbDurationChanged,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
                             }
-                            ReverbStepSlider(
-                                valueMs = settings.reverbDurationMs,
-                                onValueChange = onReverbDurationChanged,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
                         }
                     }
                 }
@@ -14943,7 +14961,7 @@ private fun EqualizerScreen(
         }
         FastScrollbar(
             state = listState,
-            topInset = topBarOccupiedHeight() + 16.dp,
+            topInset = topBarOccupiedHeight() + 414.dp,
             bottomInset = navigationBarInsetDp() + 48.dp,
         )
         PinnedBackTopBar(
@@ -15633,6 +15651,44 @@ private fun UpdateAvailableBanner(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun UpdateStatusBanner(
+    text: String,
+    @DrawableRes iconResId: Int,
+) {
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val primaryTextColor = if (darkTheme) Color.White else InkText
+    DynamicBackdropSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        overlayAlpha = 0.7f,
+        borderColor = blurSurfaceBorderColor(),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 24.dp, end = 24.dp, top = 12.dp, bottom = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = iconResId),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    lineHeight = 22.sp,
+                ),
+                color = primaryTextColor,
+            )
         }
     }
 }
@@ -17451,7 +17507,7 @@ private fun eqBandFractions(): List<Float> {
     return List(count) { index -> index.toFloat() / (count - 1).toFloat() }
 }
 
-private fun eqDbLevels(): List<Float> = listOf(8f, 4f, 0f, -5f, -10f)
+private fun eqDbLevels(): List<Float> = listOf(8f, 4f, 0f, -4f, -8f)
 
 private fun eqLevelFraction(
     levelDb: Float,
@@ -17522,16 +17578,23 @@ private fun eqPreset(
     brilliance: Float,
     air: Float,
 ): EqPresetDefinition {
+    fun adjustedPresetBandValue(value: Float): Float {
+        return if (value < 0f) {
+            (value * 1.25f).coerceIn(-1f, 0f)
+        } else {
+            value
+        }
+    }
     val bandShape = List(EqualizerDspModel.BAND_COUNT) { index ->
         when (EqualizerDspModel.bandDefinition(index).frequencyHz) {
-            in 0f..30f -> bass
-            in 30.0001f..60f -> subBass
-            in 60.0001f..350f -> lowBass
-            in 350.0001f..750f -> lowMid
-            in 750.0001f..1_500f -> presence
-            in 1_500.0001f..3_000f -> upperMid
-            in 3_000.0001f..8_000f -> brilliance
-            else -> air
+            in 0f..30f -> adjustedPresetBandValue(bass)
+            in 30.0001f..60f -> adjustedPresetBandValue(subBass)
+            in 60.0001f..350f -> adjustedPresetBandValue(lowBass)
+            in 350.0001f..750f -> adjustedPresetBandValue(lowMid)
+            in 750.0001f..1_500f -> adjustedPresetBandValue(presence)
+            in 1_500.0001f..3_000f -> adjustedPresetBandValue(upperMid)
+            in 3_000.0001f..8_000f -> adjustedPresetBandValue(brilliance)
+            else -> adjustedPresetBandValue(air)
         }.coerceIn(-1f, 1f)
     }
     val settings = EqSettings(

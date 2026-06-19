@@ -152,7 +152,7 @@ internal class NowPlayingViewModel(
         (lyricsState as? LyricsUiState.Ready)
             ?.payload
             ?.takeIf { it.isSynced }
-            ?.currentLineIndexAt(
+            ?.currentLineIndexAtFast(
                 positionMs = progressState.displayPositionMs,
                 timingOffsetMs = 0L,
                 switchGraceMs = LYRICS_SWITCH_GRACE_MS,
@@ -169,10 +169,12 @@ internal class NowPlayingViewModel(
     init {
         viewModelScope.launch {
             combine(
+                lyricsVisible,
                 playbackManager.nowPlayingState,
                 playbackManager.queueState,
-            ) { nowPlaying, queue ->
+            ) { visible, nowPlaying, queue ->
                 PrefetchRequest(
+                    visible = visible,
                     currentSong = nowPlaying.currentSong,
                     queue = queue.queue,
                     currentIndex = queue.currentIndex,
@@ -187,6 +189,7 @@ internal class NowPlayingViewModel(
                             request.queue.getOrNull(request.currentIndex - 1),
                         ),
                     )
+                    if (!request.visible) return@collect
                     request.currentSong?.let(lyricsService::prefetchLyrics)
                     request.queue.getOrNull(request.currentIndex + 1)?.let(lyricsService::prefetchLyrics)
                     request.queue.getOrNull(request.currentIndex - 1)?.let(lyricsService::prefetchLyrics)
@@ -240,13 +243,14 @@ internal class NowPlayingViewModel(
     )
 
     private data class PrefetchRequest(
+        val visible: Boolean,
         val currentSong: Song?,
         val queue: List<Song>,
         val currentIndex: Int,
     )
 
     private companion object {
-        const val LYRICS_LOOKUP_TIMEOUT_MS = 5_200L
-        const val LYRICS_SWITCH_GRACE_MS = 180L
+        const val LYRICS_LOOKUP_TIMEOUT_MS = 4_800L
+        const val LYRICS_SWITCH_GRACE_MS = 120L
     }
 }

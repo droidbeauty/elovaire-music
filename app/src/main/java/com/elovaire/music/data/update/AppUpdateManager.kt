@@ -37,7 +37,12 @@ data class AppUpdateUiState(
     val isInstalling: Boolean = false,
     val downloadProgress: Float? = null,
     val errorMessage: String? = null,
+    val transientStatus: AppUpdateTransientStatus? = null,
 )
+
+enum class AppUpdateTransientStatus {
+    UpToDate,
+}
 
 class AppUpdateManager(
     private val context: Context,
@@ -62,22 +67,28 @@ class AppUpdateManager(
             preferenceStore.setLastAutomaticUpdateCheckAtMs(nowMs)
         }
         checkJob = scope.launch {
-            _uiState.update { it.copy(isChecking = true, errorMessage = null) }
+            _uiState.update { it.copy(isChecking = true, errorMessage = null, transientStatus = null) }
             val installedVersion = normalizeVersionLabel(BuildConfig.VERSION_NAME)
             val dismissedVersion = preferenceStore.dismissedUpdateVersion.value?.trim()?.takeIf { it.isNotBlank() }
             if (dismissedVersion != null && !isVersionNewer(dismissedVersion, installedVersion)) {
                 preferenceStore.setDismissedUpdateVersion(null)
             }
-            val latestRelease = runCatching {
+            val latestReleaseResult = runCatching {
                 withContext(Dispatchers.IO) { fetchLatestRelease(installedVersion) }
-            }.getOrNull()
+            }
+            val latestRelease = latestReleaseResult.getOrNull()
             val shouldShow = latestRelease != null && (force || dismissedVersion != latestRelease.versionName)
 
             _uiState.update { current ->
                 current.copy(
                     availableRelease = latestRelease.takeIf { shouldShow },
                     isChecking = false,
-                    errorMessage = null,
+                    errorMessage = latestReleaseResult.exceptionOrNull()?.message,
+                    transientStatus = if (force && latestRelease == null && latestReleaseResult.isSuccess) {
+                        AppUpdateTransientStatus.UpToDate
+                    } else {
+                        null
+                    },
                 )
             }
         }.also { job ->
@@ -147,6 +158,12 @@ class AppUpdateManager(
                 downloadProgress = null,
                 errorMessage = null,
             )
+        }
+    }
+
+    fun clearTransientStatus() {
+        _uiState.update { state ->
+            if (state.transientStatus == null) state else state.copy(transientStatus = null)
         }
     }
 
