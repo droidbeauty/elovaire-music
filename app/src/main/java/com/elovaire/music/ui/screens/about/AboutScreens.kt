@@ -689,15 +689,21 @@ private fun localizedAboutTitle(
     "Resources" -> when (language) {
         AppLanguage.Polish -> "Zasoby"
         AppLanguage.ChineseSimplified -> "资源"
+        AppLanguage.Croatian -> "Resursi"
         AppLanguage.Czech -> "Zdroje"
         AppLanguage.French -> "Ressources"
         AppLanguage.German -> "Ressourcen"
         AppLanguage.Italian -> "Risorse"
         AppLanguage.Japanese -> "リソース"
+        AppLanguage.Korean -> "리소스"
+        AppLanguage.Malay -> "Sumber"
         AppLanguage.Portuguese -> "Recursos"
         AppLanguage.Russian -> "Ресурсы"
+        AppLanguage.Slovak -> "Zdroje"
         AppLanguage.Spanish -> "Recursos"
         AppLanguage.Ukrainian -> "Ресурси"
+        AppLanguage.Bengali -> "রিসোর্স"
+        AppLanguage.Urdu -> "وسائل"
         else -> title
     }
     else -> title
@@ -711,43 +717,61 @@ private fun localizedAboutDescription(
     "Droid Beauty" -> when (language) {
         AppLanguage.Polish -> "Minimalnie zaprojektowane aplikacje i doświadczenia dla piękniejszego Androida"
         AppLanguage.ChineseSimplified -> "以极简设计打造更美好的 Android 应用与体验"
+        AppLanguage.Croatian -> "Minimalno dizajnirane aplikacije i iskustva za ljepši Android"
         AppLanguage.Czech -> "Minimalisticky navržené aplikace a zážitky pro krásnější Android"
         AppLanguage.French -> "Des applications et expériences au design minimal pour embellir Android"
         AppLanguage.German -> "Minimal gestaltete Apps und Erlebnisse für ein schöneres Android"
         AppLanguage.Italian -> "App ed esperienze dal design minimale per rendere Android più bello"
         AppLanguage.Japanese -> "Android をより美しくする、ミニマルに設計されたアプリと体験"
+        AppLanguage.Korean -> "더 아름다운 Android를 위한 미니멀한 앱과 경험"
+        AppLanguage.Malay -> "Aplikasi dan pengalaman berreka bentuk minimal untuk Android yang lebih indah"
         AppLanguage.Portuguese -> "Apps e experiências de design minimal para tornar o Android mais bonito"
         AppLanguage.Russian -> "Минималистичные приложения и впечатления для более красивого Android"
+        AppLanguage.Slovak -> "Minimalisticky navrhnuté aplikácie a zážitky pre krajší Android"
         AppLanguage.Spanish -> "Apps y experiencias de diseño minimalista para hacer Android más bello"
         AppLanguage.Ukrainian -> "Мінімалістично створені застосунки й враження для красивішого Android"
+        AppLanguage.Bengali -> "আরও সুন্দর Android-এর জন্য ন্যূনতম নকশার অ্যাপ ও অভিজ্ঞতা"
+        AppLanguage.Urdu -> "زیادہ خوبصورت Android کے لیے کم سے کم انداز میں ڈیزائن کردہ ایپس اور تجربات"
         else -> description
     }
     "Elovaire" -> when (language) {
         AppLanguage.Polish -> "Elegancki odtwarzacz offline stworzony z myślą o Twojej lokalnej muzyce"
         AppLanguage.ChineseSimplified -> "为你的本地音乐打造的优雅离线播放器"
+        AppLanguage.Croatian -> "Elegantni offline reproduktor stvoren za vašu lokalnu glazbu"
         AppLanguage.Czech -> "Elegantní offline přehrávač vytvořený pro vaši místní hudbu"
         AppLanguage.French -> "Un lecteur hors ligne élégant conçu pour votre musique locale"
         AppLanguage.German -> "Ein eleganter Offline-Player für deine lokale Musik"
         AppLanguage.Italian -> "Un player offline elegante creato per la tua musica locale"
         AppLanguage.Japanese -> "ローカル音楽のために作られた、エレガントなオフラインプレーヤー"
+        AppLanguage.Korean -> "로컬 음악을 위해 만들어진 우아한 오프라인 플레이어"
+        AppLanguage.Malay -> "Pemain luar talian yang elegan untuk muzik tempatan anda"
         AppLanguage.Portuguese -> "Um reprodutor offline elegante feito para a sua música local"
         AppLanguage.Russian -> "Элегантный офлайн-плеер для вашей локальной музыки"
+        AppLanguage.Slovak -> "Elegantný offline prehrávač vytvorený pre vašu lokálnu hudbu"
         AppLanguage.Spanish -> "Un reproductor sin conexión elegante hecho para tu música local"
         AppLanguage.Ukrainian -> "Елегантний офлайн-програвач для вашої локальної музики"
+        AppLanguage.Bengali -> "আপনার লোকাল সঙ্গীতের জন্য তৈরি একটি মার্জিত অফলাইন প্লেয়ার"
+        AppLanguage.Urdu -> "آپ کی مقامی موسیقی کے لیے بنایا گیا ایک نفیس آف لائن پلیئر"
         else -> description
     }
     "Resources" -> when (language) {
         AppLanguage.Polish -> "Projekty, narzędzia i biblioteki, które pomagają tworzyć Elovaire"
         AppLanguage.ChineseSimplified -> "帮助打造 Elovaire 的项目、工具和库"
+        AppLanguage.Croatian -> "Projekti, alati i biblioteke koji pomažu stvarati Elovaire"
         AppLanguage.Czech -> "Projekty, nástroje a knihovny, které pomáhají tvořit Elovaire"
         AppLanguage.French -> "Projets, outils et bibliothèques qui aident à créer Elovaire"
         AppLanguage.German -> "Projekte, Werkzeuge und Bibliotheken, die Elovaire ermöglichen"
         AppLanguage.Italian -> "Progetti, strumenti e librerie che aiutano a creare Elovaire"
         AppLanguage.Japanese -> "Elovaire の制作を支えるプロジェクト、ツール、ライブラリ"
+        AppLanguage.Korean -> "Elovaire를 만드는 데 도움을 주는 프로젝트, 도구, 라이브러리"
+        AppLanguage.Malay -> "Projek, alat dan pustaka yang membantu membina Elovaire"
         AppLanguage.Portuguese -> "Projetos, ferramentas e bibliotecas que ajudam a criar o Elovaire"
         AppLanguage.Russian -> "Проекты, инструменты и библиотеки, которые помогают создавать Elovaire"
+        AppLanguage.Slovak -> "Projekty, nástroje a knižnice, ktoré pomáhajú vytvárať Elovaire"
         AppLanguage.Spanish -> "Proyectos, herramientas y bibliotecas que ayudan a crear Elovaire"
         AppLanguage.Ukrainian -> "Проєкти, інструменти та бібліотеки, що допомагають створювати Elovaire"
+        AppLanguage.Bengali -> "Elovaire তৈরিতে সহায়ক প্রকল্প, টুল এবং লাইব্রেরি"
+        AppLanguage.Urdu -> "وہ منصوبے، اوزار اور لائبریریاں جو Elovaire بنانے میں مدد کرتی ہیں"
         else -> description
     }
     else -> description
@@ -760,15 +784,21 @@ private fun localizedAboutLinkLabel(
     "website", "play store" -> when (language) {
         AppLanguage.Polish -> if (label.equals("Play Store", true)) "Sklep Play" else "Strona"
         AppLanguage.ChineseSimplified -> if (label.equals("Play Store", true)) "Play 商店" else "网站"
+        AppLanguage.Croatian -> if (label.equals("Play Store", true)) "Play trgovina" else "Web"
         AppLanguage.Czech -> if (label.equals("Play Store", true)) "Obchod Play" else "Web"
         AppLanguage.French -> if (label.equals("Play Store", true)) "Play Store" else "Site web"
         AppLanguage.German -> if (label.equals("Play Store", true)) "Play Store" else "Website"
         AppLanguage.Italian -> if (label.equals("Play Store", true)) "Play Store" else "Sito web"
         AppLanguage.Japanese -> if (label.equals("Play Store", true)) "Play ストア" else "ウェブサイト"
+        AppLanguage.Korean -> if (label.equals("Play Store", true)) "Play 스토어" else "웹사이트"
+        AppLanguage.Malay -> if (label.equals("Play Store", true)) "Play Store" else "Laman web"
         AppLanguage.Portuguese -> if (label.equals("Play Store", true)) "Play Store" else "Site"
         AppLanguage.Russian -> if (label.equals("Play Store", true)) "Play Маркет" else "Сайт"
+        AppLanguage.Slovak -> if (label.equals("Play Store", true)) "Obchod Play" else "Web"
         AppLanguage.Spanish -> if (label.equals("Play Store", true)) "Play Store" else "Sitio web"
         AppLanguage.Ukrainian -> if (label.equals("Play Store", true)) "Play Маркет" else "Сайт"
+        AppLanguage.Bengali -> if (label.equals("Play Store", true)) "Play Store" else "ওয়েবসাইট"
+        AppLanguage.Urdu -> if (label.equals("Play Store", true)) "پلے اسٹور" else "ویب سائٹ"
         else -> label
     }
     "twitter" -> if (language == AppLanguage.Japanese) "X" else label

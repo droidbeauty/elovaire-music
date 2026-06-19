@@ -670,12 +670,13 @@ internal fun albumSearchHistoryEntry(album: Album): SearchHistoryEntry {
 }
 
 internal fun artistSearchHistoryEntry(song: Song): SearchHistoryEntry {
+    val normalizedArtist = normalizeSearchText(song.artist)
     return SearchHistoryEntry(
-        key = "artist:${song.artist.lowercase()}",
+        key = "artist:$normalizedArtist",
         kind = SearchHistoryKind.Artist,
-        title = song.artist,
+        title = song.artist.trim(),
         subtitle = song.album,
         artUri = song.artUri,
-        query = song.artist,
+        query = song.artist.trim(),
     )
 }

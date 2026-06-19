@@ -279,7 +279,7 @@ internal class AlbumTagEditorViewModel(
             }
         }.onFailure { throwable ->
             val recoverableIntentSender = when {
-                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException -> {
+                throwable is RecoverableSecurityException -> {
                     throwable.userAction.actionIntent.intentSender
                 }
 

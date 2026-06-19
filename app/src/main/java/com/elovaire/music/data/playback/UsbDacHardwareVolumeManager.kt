@@ -14,6 +14,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -480,15 +481,6 @@ internal class UsbDacHardwareVolumeManager(
             block(this)
         } finally {
             runCatching { close() }
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    private inline fun <reified T> Intent.getParcelableExtraCompat(name: String): T? {
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getParcelableExtra(name, T::class.java)
-        } else {
-            getParcelableExtra(name) as? T
         }
     }
 

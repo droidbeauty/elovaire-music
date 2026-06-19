@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import android.os.Build
 import android.util.LruCache
 import android.util.Size
 import androidx.compose.foundation.background
@@ -228,11 +227,9 @@ private fun loadBitmap(
 ): Bitmap? {
     if (uri == null) return null
 
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        runCatching {
-            context.contentResolver.loadThumbnail(uri, Size(size, size), null)
-        }.getOrNull()?.let { return it }
-    }
+    runCatching {
+        context.contentResolver.loadThumbnail(uri, Size(size, size), null)
+    }.getOrNull()?.let { return it }
 
     decodeBitmapStream(context, uri, size)?.let { return it }
 

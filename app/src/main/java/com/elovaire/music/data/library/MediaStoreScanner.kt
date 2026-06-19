@@ -15,6 +15,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.extractor.metadata.id3.Id3Decoder
 import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.resolveMediaStoreFilePath
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -140,6 +141,7 @@ class MediaStoreScanner(
             val yearIndex = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
             val dateModifiedIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+            val volumeNameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
             val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
             val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
             @Suppress("DEPRECATION")
@@ -156,7 +158,14 @@ class MediaStoreScanner(
                 val durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L)
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
                 val dateModifiedSeconds = dateModifiedIndex.takeIf { it >= 0 }?.let(cursor::getLong)
-                val filePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString)?.trim()?.ifBlank { null }
+                val volumeName = volumeNameIndex.takeIf { it >= 0 }?.let(cursor::getString)
+                val filePath = resolveMediaStoreFilePath(
+                    context = context,
+                    rawDataPath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString),
+                    relativePath = relativePath,
+                    displayName = fileName,
+                    volumeName = volumeName,
+                )
                 val mimeType = mimeTypeIndex.takeIf { it >= 0 }?.let(cursor::getString)?.trim()?.ifBlank { null }
                 val isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 }
                 val mediaStoreYear = yearIndex.takeIf { it >= 0 }
@@ -291,6 +300,7 @@ class MediaStoreScanner(
                 MediaStore.Audio.Media.MIME_TYPE,
                 MediaStore.Audio.Media.IS_MUSIC,
                 MediaStore.MediaColumns.RELATIVE_PATH,
+                MediaStore.MediaColumns.VOLUME_NAME,
                 MediaStore.MediaColumns.DATA,
             ),
             buildSelection(),
@@ -307,11 +317,13 @@ class MediaStoreScanner(
             val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
             val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
+            val volumeNameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
             @Suppress("DEPRECATION")
             val dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
             while (cursor.moveToNext()) {
                 val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
                 val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
+                val volumeName = volumeNameIndex.takeIf { it >= 0 }?.let(cursor::getString)
                 val candidate = AudioScanCandidate(
                     id = cursor.getLong(idIndex),
                     uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idIndex)),
@@ -322,7 +334,13 @@ class MediaStoreScanner(
                     durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L),
                     mimeType = mimeTypeIndex.takeIf { it >= 0 }?.let(cursor::getString),
                     relativePath = relativePath,
-                    absolutePath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString),
+                    absolutePath = resolveMediaStoreFilePath(
+                        context = context,
+                        rawDataPath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString),
+                        relativePath = relativePath,
+                        displayName = fileName,
+                        volumeName = volumeName,
+                    ),
                     extension = fileName.substringAfterLast('.', ""),
                     isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
                 )
@@ -416,6 +434,7 @@ class MediaStoreScanner(
             MediaStore.Audio.Media.DATE_ADDED,
             MediaStore.MediaColumns.DATE_MODIFIED,
             MediaStore.MediaColumns.RELATIVE_PATH,
+            MediaStore.MediaColumns.VOLUME_NAME,
             MediaStore.MediaColumns.DATA,
         )
     }

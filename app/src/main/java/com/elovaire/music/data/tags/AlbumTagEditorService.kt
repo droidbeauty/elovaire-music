@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -294,24 +295,7 @@ internal class AlbumTagEditorService(
     }
 
     private fun resolveFilePath(song: Song): String? {
-        return when (song.uri.scheme) {
-            "file" -> song.uri.path
-            else -> runCatching {
-                contentResolver.query(
-                    song.uri,
-                    arrayOf(android.provider.MediaStore.MediaColumns.DATA),
-                    null,
-                    null,
-                    null,
-                )?.use { cursor ->
-                    if (!cursor.moveToFirst()) {
-                        null
-                    } else {
-                        cursor.getString(cursor.getColumnIndexOrThrow(android.provider.MediaStore.MediaColumns.DATA))
-                    }
-                }
-            }.getOrNull()
-        }
+        return contentResolver.queryMediaStoreFilePath(appContext, song.uri)
     }
 
     private fun readBytes(uri: Uri): ByteArray? {

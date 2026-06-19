@@ -1,12 +1,16 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
+import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
+import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
 
 @UnstableApi
 class PlaybackKeepAliveService : Service() {
@@ -17,19 +21,27 @@ class PlaybackKeepAliveService : Service() {
     ): Int {
         when (intent?.action) {
             ACTION_START -> {
-                val notification = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra(EXTRA_NOTIFICATION, Notification::class.java)
-                } else {
-                    @Suppress("DEPRECATION")
-                    intent.getParcelableExtra(EXTRA_NOTIFICATION)
-                }
+                val notification = intent.getParcelableExtraCompat<Notification>(EXTRA_NOTIFICATION)
                 val notificationId = intent.getIntExtra(
                     EXTRA_NOTIFICATION_ID,
                     PlaybackNotificationController.NOTIFICATION_ID,
                 )
                 if (notification != null) {
                     PlaybackNotificationController.ensureNotificationChannel(this)
-                    startForeground(notificationId, notification)
+                    runCatching {
+                        ServiceCompat.startForeground(
+                            this,
+                            notificationId,
+                            notification,
+                            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                        )
+                    }.onFailure { throwable ->
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && throwable is ForegroundServiceStartNotAllowedException) {
+                            stopSelf()
+                        } else {
+                            throw throwable
+                        }
+                    }
                 } else {
                     stopSelf()
                 }
@@ -45,12 +57,7 @@ class PlaybackKeepAliveService : Service() {
     override fun onBind(intent: Intent?) = null
 
     override fun onDestroy() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_REMOVE)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(true)
-        }
+        stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
 
@@ -70,7 +77,13 @@ class PlaybackKeepAliveService : Service() {
                 putExtra(EXTRA_NOTIFICATION_ID, notificationId)
                 putExtra(EXTRA_NOTIFICATION, notification)
             }
-            ContextCompat.startForegroundService(context, intent)
+            runCatching {
+                ContextCompat.startForegroundService(context, intent)
+            }.onFailure { throwable ->
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || throwable !is ForegroundServiceStartNotAllowedException) {
+                    throw throwable
+                }
+            }
         }
 
         fun stop(context: Context) {

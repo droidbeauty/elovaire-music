@@ -6,7 +6,6 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.os.Build
 import android.util.LruCache
 import android.util.Size
 import androidx.core.app.NotificationCompat
@@ -284,24 +283,23 @@ class PlaybackNotificationController(
 
         private fun loadBitmap(context: Context, uri: Uri): Bitmap? {
             NotificationArtworkCache[uri.toString()]?.let { return it }
-            return runCatching {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    context.contentResolver.loadThumbnail(uri, Size(NOTIFICATION_ARTWORK_SIZE_PX, NOTIFICATION_ARTWORK_SIZE_PX), null)
-                } else {
-                    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        BitmapFactory.decodeStream(input, null, bounds)
-                    }
-                    val options = BitmapFactory.Options().apply {
-                        inPreferredConfig = Bitmap.Config.RGB_565
-                        inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, NOTIFICATION_ARTWORK_SIZE_PX)
-                    }
-                    context.contentResolver.openInputStream(uri)?.use { input ->
-                        BitmapFactory.decodeStream(input, null, options)
-                    }
+            val bitmap = runCatching {
+                context.contentResolver.loadThumbnail(uri, Size(NOTIFICATION_ARTWORK_SIZE_PX, NOTIFICATION_ARTWORK_SIZE_PX), null)
+            }.getOrNull() ?: runCatching {
+                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input, null, bounds)
                 }
-            }.getOrNull()?.also { bitmap ->
-                NotificationArtworkCache.put(uri.toString(), bitmap)
+                val options = BitmapFactory.Options().apply {
+                    inPreferredConfig = Bitmap.Config.RGB_565
+                    inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, NOTIFICATION_ARTWORK_SIZE_PX)
+                }
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    BitmapFactory.decodeStream(input, null, options)
+                }
+            }.getOrNull()
+            return bitmap?.also { cachedBitmap ->
+                NotificationArtworkCache.put(uri.toString(), cachedBitmap)
             }
         }
 
@@ -338,11 +336,7 @@ private object NotificationArtworkCache {
             key: String,
             value: Bitmap,
         ): Int {
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-                value.allocationByteCount
-            } else {
-                value.byteCount
-            }
+            return value.allocationByteCount
         }
     }
 

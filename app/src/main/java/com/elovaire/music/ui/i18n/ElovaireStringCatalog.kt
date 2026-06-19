@@ -8,22 +8,27 @@ import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
 internal fun playingFromPrefix(language: AppLanguage): String = when (language) {
     AppLanguage.Polish -> "Odtwarzanie z"
+    AppLanguage.Slovak -> "Prehráva sa z"
     AppLanguage.ChineseSimplified -> "播放来源"
+    AppLanguage.Korean -> "재생 위치"
     AppLanguage.Czech -> "Přehrávání z"
     AppLanguage.Lithuanian -> "Groja iš"
     AppLanguage.Danish -> "Afspiller fra"
     AppLanguage.French -> "Lecture depuis"
     AppLanguage.German -> "Wiedergabe aus"
     AppLanguage.Dutch -> "Afspelen vanuit"
+    AppLanguage.Malay -> "Dimainkan dari"
     AppLanguage.Norwegian -> "Spiller fra"
     AppLanguage.Swedish -> "Spelar från"
     AppLanguage.Spanish -> "Reproduciendo desde"
     AppLanguage.Portuguese -> "A reproduzir de"
     AppLanguage.Estonian -> "Esitamine allikast"
+    AppLanguage.Bengali -> "যেখান থেকে চলছে"
     AppLanguage.Greek -> "Αναπαραγωγή από"
     AppLanguage.Croatian -> "Reprodukcija iz"
     AppLanguage.Russian -> "Воспроизведение из"
     AppLanguage.Ukrainian -> "Відтворення з"
+    AppLanguage.Urdu -> "یہاں سے چل رہا ہے"
     AppLanguage.Latvian -> "Atskaņo no"
     AppLanguage.Italian -> "Riproduzione da"
     AppLanguage.Albanian -> "Duke luajtur nga"
@@ -44,22 +49,27 @@ internal fun localizedAllSongsSource(language: AppLanguage): String = when (lang
 
 internal fun queueTitle(language: AppLanguage): String = when (language) {
     AppLanguage.Polish -> "Kolejka"
+    AppLanguage.Slovak -> "Front"
     AppLanguage.ChineseSimplified -> "队列"
+    AppLanguage.Korean -> "대기열"
     AppLanguage.Czech -> "Fronta"
     AppLanguage.Lithuanian -> "Eilė"
     AppLanguage.Danish -> "Kø"
     AppLanguage.French -> "File"
     AppLanguage.German -> "Warteschlange"
     AppLanguage.Dutch -> "Wachtrij"
+    AppLanguage.Malay -> "Barisan"
     AppLanguage.Norwegian -> "Kø"
     AppLanguage.Swedish -> "Kö"
     AppLanguage.Spanish -> "Cola"
     AppLanguage.Portuguese -> "Fila"
     AppLanguage.Estonian -> "Järjekord"
+    AppLanguage.Bengali -> "কিউ"
     AppLanguage.Greek -> "Ουρά"
     AppLanguage.Croatian -> "Red"
     AppLanguage.Russian -> "Очередь"
     AppLanguage.Ukrainian -> "Черга"
+    AppLanguage.Urdu -> "قطار"
     AppLanguage.Latvian -> "Rinda"
     AppLanguage.Italian -> "Coda"
     AppLanguage.Albanian -> "Radha"
@@ -75,15 +85,19 @@ internal fun queueTitle(language: AppLanguage): String = when (language) {
 
 internal fun playLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Polish -> "Odtwórz"
+    AppLanguage.Slovak -> "Prehrať"
     AppLanguage.ChineseSimplified -> "播放"
     AppLanguage.Croatian -> "Reproduciraj"
+    AppLanguage.Korean -> "재생"
     AppLanguage.Czech -> "Přehrát"
     AppLanguage.Danish -> "Afspil"
     AppLanguage.Dutch -> "Afspelen"
+    AppLanguage.Malay -> "Mainkan"
     AppLanguage.Estonian -> "Esita"
     AppLanguage.French -> "Lire"
     AppLanguage.German -> "Abspielen"
     AppLanguage.Greek -> "Αναπαραγωγή"
+    AppLanguage.Bengali -> "চালান"
     AppLanguage.Hindi -> "चलाएँ"
     AppLanguage.Hungarian -> "Lejátszás"
     AppLanguage.Italian -> "Riproduci"
@@ -100,6 +114,7 @@ internal fun playLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Swedish -> "Spela"
     AppLanguage.Thai -> "เล่น"
     AppLanguage.Ukrainian -> "Відтворити"
+    AppLanguage.Urdu -> "چلائیں"
     AppLanguage.Albanian -> "Luaj"
     AppLanguage.English -> "Play"
 }
@@ -174,6 +189,176 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         shuffleAlbum = "Tasuj album",
         editTags = "Edytuj tagi",
     )
+    AppLanguage.Slovak -> RootUiCopy(
+        firstLaunchPermissionTitle = "Offline hudba si zaslúži prístup k vašej knižnici",
+        firstLaunchPermissionMessage = "Elovaire prehľadáva priečinok Music v zariadení a hľadá lokálne albumy, obaly a fronty skladieb",
+        firstLaunchPermissionButton = "Povoliť prístup k zvukovej knižnici",
+        appName = "Elovaire",
+        allAlbumsTitle = "Všetky albumy",
+        allAlbumsSubtitle = "Abecedne podľa interpreta albumu, potom podľa názvu albumu.",
+        renamePlaylistTitle = "Premenovať playlist",
+        save = "Uložiť",
+        newPlaylist = "Nový playlist",
+        playlistArtworkPlaceholder = "Zástupný obrázok playlistu",
+        createPlaylistButton = "Vytvoriť playlist",
+        tapToCreateNewPlaylist = "Ťuknutím vytvoríte nový playlist",
+        playlistNamePlaceholder = "Názov playlistu",
+        clearPlaylistName = "Vymazať názov playlistu",
+        noSongsInPlaylistYet = "V tomto playliste ešte nie sú žiadne skladby",
+        searchLibrary = "Hľadať v knižnici",
+        addSongsTitle = "Pridať skladby",
+        loadingLyrics = "Načítavajú sa texty…",
+        noLyrics = "Zdá sa, že táto skladba nemá text",
+        hideLyrics = "Skryť text",
+        updateAvailable = "Dostupná aktualizácia",
+        appUpToDate = "Elovaire je aktuálny",
+        installing = "Inštaluje sa",
+        download = "Stiahnuť",
+        ok = "OK",
+        albumNotFound = "Album sa nenašiel.",
+        playlistNotFound = "Playlist sa nenašiel.",
+        mostPlayedSongs = "Najčastejšie prehrávané skladby",
+        availableReleasesSuffix = "dostupné vydania",
+        playAlbum = "Prehrať album",
+        shuffleAlbum = "Zamiešať album",
+        editTags = "Upraviť tagy",
+    )
+    AppLanguage.Korean -> RootUiCopy(
+        firstLaunchPermissionTitle = "오프라인 음악에는 라이브러리 접근 권한이 필요합니다",
+        firstLaunchPermissionMessage = "Elovaire가 기기의 Music 폴더를 스캔하여 로컬 앨범, 아트워크, 트랙 대기열을 찾습니다",
+        firstLaunchPermissionButton = "오디오 라이브러리 접근 허용",
+        appName = "Elovaire",
+        allAlbumsTitle = "모든 앨범",
+        allAlbumsSubtitle = "앨범 아티스트 기준 가나다순, 그다음 앨범 제목순입니다.",
+        renamePlaylistTitle = "플레이리스트 이름 변경",
+        save = "저장",
+        newPlaylist = "새 플레이리스트",
+        playlistArtworkPlaceholder = "플레이리스트 아트워크 자리표시자",
+        createPlaylistButton = "플레이리스트 만들기",
+        tapToCreateNewPlaylist = "탭하여 새 플레이리스트 만들기",
+        playlistNamePlaceholder = "플레이리스트 이름",
+        clearPlaylistName = "플레이리스트 이름 지우기",
+        noSongsInPlaylistYet = "이 플레이리스트에는 아직 곡이 없습니다",
+        searchLibrary = "라이브러리 검색",
+        addSongsTitle = "곡 추가",
+        loadingLyrics = "가사를 불러오는 중…",
+        noLyrics = "이 곡에는 가사가 없는 것 같습니다",
+        hideLyrics = "가사 숨기기",
+        updateAvailable = "업데이트 사용 가능",
+        appUpToDate = "Elovaire가 최신 상태입니다",
+        installing = "설치 중",
+        download = "다운로드",
+        ok = "확인",
+        albumNotFound = "앨범을 찾을 수 없습니다.",
+        playlistNotFound = "플레이리스트를 찾을 수 없습니다.",
+        mostPlayedSongs = "가장 많이 재생한 곡",
+        availableReleasesSuffix = "개의 발매반",
+        playAlbum = "앨범 재생",
+        shuffleAlbum = "앨범 셔플",
+        editTags = "태그 편집",
+    )
+    AppLanguage.Malay -> RootUiCopy(
+        firstLaunchPermissionTitle = "Audio luar talian memerlukan akses ke pustaka anda",
+        firstLaunchPermissionMessage = "Elovaire mengimbas folder Music pada peranti untuk album tempatan, karya seni dan barisan trek",
+        firstLaunchPermissionButton = "Benarkan akses pustaka audio",
+        appName = "Elovaire",
+        allAlbumsTitle = "Semua album",
+        allAlbumsSubtitle = "Disusun mengikut artis album, kemudian tajuk album.",
+        renamePlaylistTitle = "Namakan semula senarai main",
+        save = "Simpan",
+        newPlaylist = "Senarai main baharu",
+        playlistArtworkPlaceholder = "Pemegang tempat karya seni senarai main",
+        createPlaylistButton = "Cipta senarai main",
+        tapToCreateNewPlaylist = "Ketik untuk mencipta senarai main baharu",
+        playlistNamePlaceholder = "Nama senarai main",
+        clearPlaylistName = "Kosongkan nama senarai main",
+        noSongsInPlaylistYet = "Belum ada lagu dalam senarai main ini",
+        searchLibrary = "Cari pustaka",
+        addSongsTitle = "Tambah lagu",
+        loadingLyrics = "Memuatkan lirik…",
+        noLyrics = "Lagu ini nampaknya tiada lirik",
+        hideLyrics = "Sembunyikan lirik",
+        updateAvailable = "Kemas kini tersedia",
+        appUpToDate = "Elovaire sudah terkini",
+        installing = "Memasang",
+        download = "Muat turun",
+        ok = "OK",
+        albumNotFound = "Album tidak ditemui.",
+        playlistNotFound = "Senarai main tidak ditemui.",
+        mostPlayedSongs = "Lagu paling kerap dimainkan",
+        availableReleasesSuffix = "keluaran tersedia",
+        playAlbum = "Mainkan album",
+        shuffleAlbum = "Kocok album",
+        editTags = "Edit tag",
+    )
+    AppLanguage.Bengali -> RootUiCopy(
+        firstLaunchPermissionTitle = "অফলাইন অডিওর জন্য আপনার লাইব্রেরিতে প্রবেশাধিকার দরকার",
+        firstLaunchPermissionMessage = "Elovaire আপনার ডিভাইসের Music ফোল্ডার স্ক্যান করে স্থানীয় অ্যালবাম, কভার আর্ট ও ট্র্যাক কিউ খুঁজে নেয়",
+        firstLaunchPermissionButton = "অডিও লাইব্রেরি অ্যাক্সেস দিন",
+        appName = "Elovaire",
+        allAlbumsTitle = "সব অ্যালবাম",
+        allAlbumsSubtitle = "অ্যালবাম শিল্পী অনুযায়ী, তারপর অ্যালবামের শিরোনাম অনুযায়ী বর্ণানুক্রমে।",
+        renamePlaylistTitle = "প্লেলিস্টের নাম বদলান",
+        save = "সংরক্ষণ করুন",
+        newPlaylist = "নতুন প্লেলিস্ট",
+        playlistArtworkPlaceholder = "প্লেলিস্ট কভার প্লেসহোল্ডার",
+        createPlaylistButton = "প্লেলিস্ট তৈরি করুন",
+        tapToCreateNewPlaylist = "ট্যাপ করে নতুন প্লেলিস্ট তৈরি করুন",
+        playlistNamePlaceholder = "প্লেলিস্টের নাম",
+        clearPlaylistName = "প্লেলিস্টের নাম মুছুন",
+        noSongsInPlaylistYet = "এই প্লেলিস্টে এখনো কোনো গান নেই",
+        searchLibrary = "লাইব্রেরি খুঁজুন",
+        addSongsTitle = "গান যোগ করুন",
+        loadingLyrics = "গানের কথা লোড হচ্ছে…",
+        noLyrics = "মনে হচ্ছে এই গানের কথা নেই",
+        hideLyrics = "গানের কথা লুকান",
+        updateAvailable = "আপডেট উপলভ্য",
+        appUpToDate = "Elovaire সর্বশেষ সংস্করণে আছে",
+        installing = "ইনস্টল হচ্ছে",
+        download = "ডাউনলোড",
+        ok = "ঠিক আছে",
+        albumNotFound = "অ্যালবাম পাওয়া যায়নি।",
+        playlistNotFound = "প্লেলিস্ট পাওয়া যায়নি।",
+        mostPlayedSongs = "সবচেয়ে বেশি শোনা গান",
+        availableReleasesSuffix = "টি উপলভ্য সংস্করণ",
+        playAlbum = "অ্যালবাম চালান",
+        shuffleAlbum = "অ্যালবাম শাফল করুন",
+        editTags = "ট্যাগ সম্পাদনা",
+    )
+    AppLanguage.Urdu -> RootUiCopy(
+        firstLaunchPermissionTitle = "آف لائن آڈیو کو آپ کی لائبریری تک رسائی درکار ہے",
+        firstLaunchPermissionMessage = "Elovaire آپ کے آلے کے Music فولڈر کو اسکین کرتا ہے تاکہ مقامی البمز، آرٹ ورک اور ٹریک قطاریں تلاش کی جا سکیں",
+        firstLaunchPermissionButton = "آڈیو لائبریری تک رسائی دیں",
+        appName = "Elovaire",
+        allAlbumsTitle = "تمام البمز",
+        allAlbumsSubtitle = "پہلے البم آرٹسٹ، پھر البم عنوان کے مطابق حروف تہجی ترتیب۔",
+        renamePlaylistTitle = "پلے لسٹ کا نام تبدیل کریں",
+        save = "محفوظ کریں",
+        newPlaylist = "نئی پلے لسٹ",
+        playlistArtworkPlaceholder = "پلے لسٹ آرٹ ورک پلیس ہولڈر",
+        createPlaylistButton = "پلے لسٹ بنائیں",
+        tapToCreateNewPlaylist = "نئی پلے لسٹ بنانے کے لیے ٹیپ کریں",
+        playlistNamePlaceholder = "پلے لسٹ کا نام",
+        clearPlaylistName = "پلے لسٹ کا نام صاف کریں",
+        noSongsInPlaylistYet = "اس پلے لسٹ میں ابھی کوئی گانا نہیں ہے",
+        searchLibrary = "لائبریری تلاش کریں",
+        addSongsTitle = "گانے شامل کریں",
+        loadingLyrics = "بول لوڈ ہو رہے ہیں…",
+        noLyrics = "لگتا ہے اس گانے کے بول موجود نہیں ہیں",
+        hideLyrics = "بول چھپائیں",
+        updateAvailable = "اپ ڈیٹ دستیاب ہے",
+        appUpToDate = "Elovaire تازہ ترین ہے",
+        installing = "انسٹال ہو رہا ہے",
+        download = "ڈاؤن لوڈ",
+        ok = "ٹھیک ہے",
+        albumNotFound = "البم نہیں ملا۔",
+        playlistNotFound = "پلے لسٹ نہیں ملی۔",
+        mostPlayedSongs = "سب سے زیادہ چلنے والے گانے",
+        availableReleasesSuffix = "دستیاب ریلیزز",
+        playAlbum = "البم چلائیں",
+        shuffleAlbum = "البم شفل کریں",
+        editTags = "ٹیگز میں ترمیم کریں",
+    )
     else -> RootUiCopy(
         firstLaunchPermissionTitle = "Offline audio deserves access to your library",
         firstLaunchPermissionMessage = "Elovaire scans the device Music folder for local albums, artwork, and track queues",
@@ -218,14 +403,29 @@ internal fun availableReleasesLabel(count: Int, language: AppLanguage): String {
 internal fun repeatModeLabel(repeatMode: PlaybackRepeatMode, language: AppLanguage): String = when (repeatMode) {
     PlaybackRepeatMode.Off -> when (language) {
         AppLanguage.Polish -> "Kolejność"
+        AppLanguage.Slovak -> "Poradie"
+        AppLanguage.Korean -> "순서"
+        AppLanguage.Malay -> "Turutan"
+        AppLanguage.Bengali -> "ক্রম"
+        AppLanguage.Urdu -> "ترتیب"
         else -> "Order"
     }
     PlaybackRepeatMode.One -> when (language) {
         AppLanguage.Polish -> "Powtórz jeden"
+        AppLanguage.Slovak -> "Opakovať jednu"
+        AppLanguage.Korean -> "한 곡 반복"
+        AppLanguage.Malay -> "Ulang satu"
+        AppLanguage.Bengali -> "একটি পুনরাবৃত্তি"
+        AppLanguage.Urdu -> "ایک کو دہرائیں"
         else -> "Repeat one"
     }
     PlaybackRepeatMode.All -> when (language) {
         AppLanguage.Polish -> "Powtórz wszystko"
+        AppLanguage.Slovak -> "Opakovať všetko"
+        AppLanguage.Korean -> "전체 반복"
+        AppLanguage.Malay -> "Ulang semua"
+        AppLanguage.Bengali -> "সব পুনরাবৃত্তি"
+        AppLanguage.Urdu -> "سب دہرائیں"
         else -> "Repeat all"
     }
 }
@@ -615,6 +815,76 @@ internal fun homeCopy(language: AppLanguage): HomeUiCopy = when (language) {
         noFavoriteAlbumsTitle = "Ще не було відкрито жодного альбому",
         noFavoriteAlbumsMessage = "Відкрийте або відтворіть будь-який альбом, і він з’явиться тут зі своєю обкладинкою в центрі уваги",
     )
+    AppLanguage.Slovak -> HomeUiCopy(
+        indexingTitle = "Prebieha indexovanie knižnice",
+        indexingMessage = "Skladby a albumy sa zobrazia po dokončení indexovania",
+        emptyLibraryTitle = "Nenašla sa žiadna hudba",
+        emptyLibraryMessage = "Skladby a albumy sa tu zobrazia, keď pridáte hudbu do predvoleného priečinka Music v zariadení",
+        noRecentAdditionsTitle = "Zatiaľ nič nedávno pridané",
+        noRecentAdditionsMessage = "Pridajte albumy do priečinka Music v zariadení a najnovšie sa tu zobrazia automaticky",
+        recentlyPlayedSongsTitle = "Nedávno prehrávané skladby",
+        recentlyPlayedSongsEmpty = "Skladby sa tu čoskoro zobrazia",
+        favoriteAlbumsTitle = "Vaše obľúbené albumy",
+        favoriteAlbumsSubtitle = "Hudba, ku ktorej sa často vraciate",
+        noFavoriteAlbumsTitle = "Zatiaľ nebol otvorený žiadny album",
+        noFavoriteAlbumsMessage = "Otvorte alebo prehrajte ľubovoľný album a zobrazí sa tu s obalom v popredí",
+    )
+    AppLanguage.Korean -> HomeUiCopy(
+        indexingTitle = "라이브러리를 인덱싱하는 중입니다",
+        indexingMessage = "인덱싱이 끝나면 곡과 앨범이 여기에 표시됩니다",
+        emptyLibraryTitle = "음악을 찾을 수 없습니다",
+        emptyLibraryMessage = "기기의 기본 Music 폴더에 음악을 추가하면 곡과 앨범이 여기에 표시됩니다",
+        noRecentAdditionsTitle = "최근 추가된 항목이 아직 없습니다",
+        noRecentAdditionsMessage = "기기의 Music 폴더에 앨범을 추가하면 최신 항목이 여기에 자동으로 표시됩니다",
+        recentlyPlayedSongsTitle = "최근 재생한 곡",
+        recentlyPlayedSongsEmpty = "곡이 곧 여기에 표시됩니다",
+        favoriteAlbumsTitle = "자주 듣는 앨범",
+        favoriteAlbumsSubtitle = "자주 다시 찾게 되는 음악",
+        noFavoriteAlbumsTitle = "아직 연 앨범이 없습니다",
+        noFavoriteAlbumsMessage = "아무 앨범이나 열거나 재생하면 커버와 함께 여기에 표시됩니다",
+    )
+    AppLanguage.Malay -> HomeUiCopy(
+        indexingTitle = "Pustaka sedang diindeks",
+        indexingMessage = "Lagu dan album akan muncul apabila pengindeksan selesai",
+        emptyLibraryTitle = "Tiada muzik ditemui",
+        emptyLibraryMessage = "Lagu dan album akan muncul di sini apabila anda menambah muzik ke folder Music lalai pada peranti",
+        noRecentAdditionsTitle = "Belum ada penambahan terkini",
+        noRecentAdditionsMessage = "Tambah album ke folder Music pada peranti dan yang terbaharu akan muncul di sini secara automatik",
+        recentlyPlayedSongsTitle = "Lagu yang baru dimainkan",
+        recentlyPlayedSongsEmpty = "Lagu akan muncul di sini tidak lama lagi",
+        favoriteAlbumsTitle = "Album kegemaran anda",
+        favoriteAlbumsSubtitle = "Muzik yang anda kerap kembali dengar",
+        noFavoriteAlbumsTitle = "Belum ada album yang dibuka",
+        noFavoriteAlbumsMessage = "Buka atau mainkan mana-mana album dan ia akan muncul di sini dengan kulit hadapan di depan",
+    )
+    AppLanguage.Bengali -> HomeUiCopy(
+        indexingTitle = "লাইব্রেরি ইনডেক্স করা হচ্ছে",
+        indexingMessage = "ইনডেক্সিং শেষ হলে গান ও অ্যালবাম এখানে দেখা যাবে",
+        emptyLibraryTitle = "কোনো সঙ্গীত পাওয়া যায়নি",
+        emptyLibraryMessage = "আপনি ডিভাইসের ডিফল্ট Music ফোল্ডারে সঙ্গীত যোগ করলে গান ও অ্যালবাম এখানে দেখা যাবে",
+        noRecentAdditionsTitle = "এখনও সাম্প্রতিক কিছু যোগ হয়নি",
+        noRecentAdditionsMessage = "ডিভাইসের Music ফোল্ডারে অ্যালবাম যোগ করুন, নতুনগুলো এখানে স্বয়ংক্রিয়ভাবে দেখাবে",
+        recentlyPlayedSongsTitle = "সম্প্রতি শোনা গান",
+        recentlyPlayedSongsEmpty = "গানগুলো শিগগিরই এখানে দেখা যাবে",
+        favoriteAlbumsTitle = "আপনার প্রিয় অ্যালবাম",
+        favoriteAlbumsSubtitle = "যে সঙ্গীতে আপনি বারবার ফিরে আসেন",
+        noFavoriteAlbumsTitle = "এখনও কোনো অ্যালবাম খোলা হয়নি",
+        noFavoriteAlbumsMessage = "যেকোনো অ্যালবাম খুলুন বা চালান, সেটি এখানে কভারের সাথে দেখাবে",
+    )
+    AppLanguage.Urdu -> HomeUiCopy(
+        indexingTitle = "لائبریری کی فہرست بنائی جا رہی ہے",
+        indexingMessage = "فہرست سازی مکمل ہونے پر گانے اور البمز یہاں دکھائی دیں گے",
+        emptyLibraryTitle = "کوئی موسیقی نہیں ملی",
+        emptyLibraryMessage = "جب آپ آلے کے طے شدہ Music فولڈر میں موسیقی شامل کریں گے تو گانے اور البمز یہاں دکھائی دیں گے",
+        noRecentAdditionsTitle = "ابھی تک حالیہ اضافہ نہیں ہوا",
+        noRecentAdditionsMessage = "آلے کے Music فولڈر میں البمز شامل کریں، تازہ ترین خود بخود یہاں ظاہر ہوں گے",
+        recentlyPlayedSongsTitle = "حال ہی میں چلائے گئے گانے",
+        recentlyPlayedSongsEmpty = "گانے جلد یہاں دکھائی دیں گے",
+        favoriteAlbumsTitle = "آپ کے پسندیدہ البمز",
+        favoriteAlbumsSubtitle = "وہ موسیقی جس کی طرف آپ بار بار لوٹتے ہیں",
+        noFavoriteAlbumsTitle = "ابھی تک کوئی البم نہیں کھولا گیا",
+        noFavoriteAlbumsMessage = "کوئی بھی البم کھولیں یا چلائیں، وہ یہاں اپنے کور کے ساتھ نمایاں ہو جائے گا",
+    )
     AppLanguage.Albanian -> HomeUiCopy(
         indexingTitle = "Biblioteka po indeksohet",
         indexingMessage = "Këngët dhe albumet do të shfaqen pasi të përfundojë indeksimi",
@@ -800,6 +1070,14 @@ internal fun localizedCountLabel(
             "genre" -> "sjanger" to "sjangre"
             else -> noun to noun
         }
+        AppLanguage.Slovak -> when (noun) {
+            "song" -> "skladba" to "skladby"
+            "track" -> "skladba" to "skladby"
+            "album" -> "album" to "albumy"
+            "artist" -> "interpret" to "interpreti"
+            "genre" -> "žáner" to "žánre"
+            else -> noun to "${noun}y"
+        }
         AppLanguage.Polish -> when (noun) {
             "song" -> "utwór" to "utwory"
             "track" -> "utwór" to "utwory"
@@ -848,6 +1126,15 @@ internal fun localizedCountLabel(
             "genre" -> "genre" to "genrer"
             else -> noun to noun
         }
+        AppLanguage.Korean -> noun to noun
+        AppLanguage.Malay -> when (noun) {
+            "song" -> "lagu" to "lagu"
+            "track" -> "runut" to "runut"
+            "album" -> "album" to "album"
+            "artist" -> "artis" to "artis"
+            "genre" -> "genre" to "genre"
+            else -> noun to noun
+        }
         AppLanguage.Thai -> when (noun) {
             "song" -> "เพลง" to "เพลง"
             "track" -> "แทร็ก" to "แทร็ก"
@@ -856,12 +1143,28 @@ internal fun localizedCountLabel(
             "genre" -> "แนวเพลง" to "แนวเพลง"
             else -> noun to noun
         }
+        AppLanguage.Bengali -> when (noun) {
+            "song" -> "গান" to "গান"
+            "track" -> "ট্র্যাক" to "ট্র্যাক"
+            "album" -> "অ্যালবাম" to "অ্যালবাম"
+            "artist" -> "শিল্পী" to "শিল্পী"
+            "genre" -> "ধরন" to "ধরন"
+            else -> noun to noun
+        }
         AppLanguage.Ukrainian -> when (noun) {
             "song" -> "пісня" to "пісні"
             "track" -> "трек" to "треки"
             "album" -> "альбом" to "альбоми"
             "artist" -> "виконавець" to "виконавці"
             "genre" -> "жанр" to "жанри"
+            else -> noun to noun
+        }
+        AppLanguage.Urdu -> when (noun) {
+            "song" -> "گانا" to "گانے"
+            "track" -> "ٹریک" to "ٹریک"
+            "album" -> "البم" to "البمز"
+            "artist" -> "آرٹسٹ" to "آرٹسٹس"
+            "genre" -> "صنف" to "اصناف"
             else -> noun to noun
         }
         AppLanguage.English -> when (noun) {
@@ -1131,6 +1434,51 @@ internal fun miscPhrase(language: AppLanguage, phrase: MiscPhrase): String = whe
         MiscPhrase.ChooseSongs -> "Оберіть пісні"
         MiscPhrase.AddSongs -> "Додати пісні"
     }
+    AppLanguage.Slovak -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Nedávno pridané"
+        MiscPhrase.WhatsNew -> "Čo je nové?"
+        MiscPhrase.NoSongsYet -> "Zatiaľ žiadne skladby"
+        MiscPhrase.AddSongsViaEdit -> "Pridajte sem skladby klepnutím na tlačidlo úprav"
+        MiscPhrase.Selected -> "vybrané"
+        MiscPhrase.ChooseSongs -> "Vyberte skladby"
+        MiscPhrase.AddSongs -> "Pridať skladby"
+    }
+    AppLanguage.Korean -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "최근 추가됨"
+        MiscPhrase.WhatsNew -> "새로운 내용"
+        MiscPhrase.NoSongsYet -> "아직 곡이 없습니다"
+        MiscPhrase.AddSongsViaEdit -> "편집 버튼을 눌러 여기에 곡을 추가하세요"
+        MiscPhrase.Selected -> "선택됨"
+        MiscPhrase.ChooseSongs -> "곡 선택"
+        MiscPhrase.AddSongs -> "곡 추가"
+    }
+    AppLanguage.Malay -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "Baru ditambah"
+        MiscPhrase.WhatsNew -> "Apa yang baharu?"
+        MiscPhrase.NoSongsYet -> "Belum ada lagu"
+        MiscPhrase.AddSongsViaEdit -> "Tambah lagu di sini dengan mengetik butang edit"
+        MiscPhrase.Selected -> "dipilih"
+        MiscPhrase.ChooseSongs -> "Pilih lagu"
+        MiscPhrase.AddSongs -> "Tambah lagu"
+    }
+    AppLanguage.Bengali -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "সম্প্রতি যোগ করা"
+        MiscPhrase.WhatsNew -> "নতুন কী?"
+        MiscPhrase.NoSongsYet -> "এখনও কোনো গান নেই"
+        MiscPhrase.AddSongsViaEdit -> "এডিট বোতাম ট্যাপ করে এখানে গান যোগ করুন"
+        MiscPhrase.Selected -> "নির্বাচিত"
+        MiscPhrase.ChooseSongs -> "গান বেছে নিন"
+        MiscPhrase.AddSongs -> "গান যোগ করুন"
+    }
+    AppLanguage.Urdu -> when (phrase) {
+        MiscPhrase.RecentlyAdded -> "حال ہی میں شامل کردہ"
+        MiscPhrase.WhatsNew -> "نیا کیا ہے؟"
+        MiscPhrase.NoSongsYet -> "ابھی تک کوئی گانا نہیں"
+        MiscPhrase.AddSongsViaEdit -> "ایڈٹ بٹن دبا کر یہاں گانے شامل کریں"
+        MiscPhrase.Selected -> "منتخب"
+        MiscPhrase.ChooseSongs -> "گانے منتخب کریں"
+        MiscPhrase.AddSongs -> "گانے شامل کریں"
+    }
     AppLanguage.English -> when (phrase) {
         MiscPhrase.RecentlyAdded -> "Recently added"
         MiscPhrase.WhatsNew -> "What’s new?"
@@ -1189,6 +1537,11 @@ internal fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language)
     AppLanguage.Swedish -> CommonUiCopy("Hem", "Bibliotek", "Spellistor", "Sök", "Välkommen", "Låtar", "Album", "Artister", "Genrer", "Ljust", "Mörkt", "System", "i ditt bibliotek", "totalt", "hittade", "Din musik, förädlad till en elegant upplevelse")
     AppLanguage.Thai -> CommonUiCopy("หน้าแรก", "คลังเพลง", "เพลย์ลิสต์", "ค้นหา", "ยินดีต้อนรับ", "เพลง", "อัลบั้ม", "ศิลปิน", "แนวเพลง", "สว่าง", "มืด", "ระบบ", "ในคลังของคุณ", "ทั้งหมด", "พบ", "เพลงของคุณ ถูกขัดเกลาให้เป็นประสบการณ์อันสง่างาม")
     AppLanguage.Ukrainian -> CommonUiCopy("Головна", "Бібліотека", "Плейлисти", "Пошук", "Ласкаво просимо", "Пісні", "Альбоми", "Виконавці", "Жанри", "Світла", "Темна", "Система", "у вашій бібліотеці", "усього", "знайдено", "Ваша музика, відточена до елегантного досвіду")
+    AppLanguage.Slovak -> CommonUiCopy("Domov", "Knižnica", "Playlisty", "Hľadať", "Vitajte", "Skladby", "Albumy", "Interpreti", "Žánre", "Svetlý", "Tmavý", "Systém", "vo vašej knižnici", "celkovo", "nájdené", "Vaša hudba, premenená na elegantný zážitok")
+    AppLanguage.Korean -> CommonUiCopy("홈", "라이브러리", "플레이리스트", "검색", "환영합니다", "곡", "앨범", "아티스트", "장르", "라이트", "다크", "시스템", "라이브러리 안", "전체", "찾음", "당신의 음악을 우아한 경험으로 다듬었습니다")
+    AppLanguage.Malay -> CommonUiCopy("Laman utama", "Pustaka", "Senarai main", "Cari", "Selamat datang", "Lagu", "Album", "Artis", "Genre", "Cerah", "Gelap", "Sistem", "dalam pustaka anda", "jumlah", "ditemui", "Muzik anda, diperhalus menjadi pengalaman yang elegan")
+    AppLanguage.Bengali -> CommonUiCopy("হোম", "লাইব্রেরি", "প্লেলিস্ট", "সার্চ", "স্বাগতম", "গান", "অ্যালবাম", "শিল্পী", "ধরন", "হালকা", "গাঢ়", "সিস্টেম", "আপনার লাইব্রেরিতে", "মোট", "পাওয়া গেছে", "আপনার সঙ্গীত, একে পরিণত করা হয়েছে এক মার্জিত অভিজ্ঞতায়")
+    AppLanguage.Urdu -> CommonUiCopy("ہوم", "لائبریری", "پلے لسٹس", "تلاش", "خوش آمدید", "گانے", "البمز", "آرٹسٹس", "اصناف", "ہلکا", "گہرا", "سسٹم", "آپ کی لائبریری میں", "کل", "ملے", "آپ کی موسیقی، ایک نفیس تجربے میں ڈھلی ہوئی")
     AppLanguage.English -> CommonUiCopy("Home", "Library", "Playlists", "Search", "Welcome", "Songs", "Albums", "Artists", "Genres", "Light", "Dark", "System", "in your library", "in total", "found", "Your music, refined into an elegant experience")
 }
 
@@ -1226,6 +1579,11 @@ internal fun searchCopy(language: AppLanguage): SearchUiCopy = when (language) {
     AppLanguage.Portuguese -> SearchUiCopy("Artistas, álbuns e mais", "Limpar pesquisa", "Ainda nada pesquisado", "Mais resultados aparecerão ao pesquisar músicas e álbuns", "Álbuns sugeridos", "Talvez queira revisitá-los", "Pesquisas recentes", "Limpar histórico", "Sem resultados", "Nada na biblioteca offline atual corresponde a", "ainda", "artistas correspondentes", "álbuns correspondentes", "músicas correspondentes")
     AppLanguage.Russian -> SearchUiCopy("Исполнители, альбомы и другое", "Очистить поиск", "Пока ничего не искали", "Больше результатов появится при поиске песен и альбомов", "Предложенные альбомы", "Возможно, стоит вернуться к ним", "Недавние поиски", "Очистить историю", "Нет результатов", "В текущей офлайн-библиотеке ничего не найдено для", "пока", "подходящих исполнителей", "подходящих альбомов", "подходящих песен")
     AppLanguage.Ukrainian -> SearchUiCopy("Виконавці, альбоми тощо", "Очистити пошук", "Поки нічого не шукали", "Більше результатів з’явиться під час пошуку пісень і альбомів", "Запропоновані альбоми", "Можливо, варто повернутися до них", "Нещодавні пошуки", "Очистити історію", "Немає результатів", "У поточній офлайн-бібліотеці нічого не збігається з", "поки", "відповідних виконавців", "відповідних альбомів", "відповідних пісень")
+    AppLanguage.Slovak -> SearchUiCopy("Interpreti, albumy a ďalšie", "Vymazať hľadanie", "Zatiaľ nič nehľadané", "Ďalšie výsledky sa zobrazia počas hľadania skladieb a albumov", "Navrhované albumy", "Možno sa k nim budete chcieť vrátiť", "Nedávno hľadané", "Vymazať históriu", "Žiadne výsledky", "V aktuálnej offline knižnici sa nič nezhoduje s", "zatiaľ", "zodpovedajúcich interpretov", "zodpovedajúcich albumov", "zodpovedajúcich skladieb")
+    AppLanguage.Korean -> SearchUiCopy("아티스트, 앨범 등", "검색 지우기", "아직 검색한 내용이 없습니다", "곡과 앨범을 검색하면 더 많은 결과가 여기에 표시됩니다", "추천 앨범", "다시 들어보고 싶을지도 모릅니다", "최근 검색", "기록 지우기", "결과 없음", "현재 오프라인 라이브러리에서 다음과 일치하는 항목이 없습니다", "", "개의 일치하는 아티스트", "개의 일치하는 앨범", "개의 일치하는 곡")
+    AppLanguage.Malay -> SearchUiCopy("Artis, album dan banyak lagi", "Kosongkan carian", "Belum ada carian", "Lebih banyak hasil akan muncul di sini apabila anda mencari lagu dan album", "Album disyorkan", "Anda mungkin mahu kembali mendengarnya", "Carian terkini", "Kosongkan sejarah", "Tiada hasil", "Tiada apa-apa dalam pustaka luar talian semasa yang sepadan dengan", "lagi", "artis sepadan", "album sepadan", "lagu sepadan")
+    AppLanguage.Bengali -> SearchUiCopy("শিল্পী, অ্যালবাম এবং আরও", "সার্চ মুছুন", "এখনও কিছু খোঁজা হয়নি", "গান ও অ্যালবাম খুঁজলে আরও ফল এখানে দেখা যাবে", "প্রস্তাবিত অ্যালবাম", "সম্ভবত এগুলোতে আবার ফিরতে চাইবেন", "সাম্প্রতিক অনুসন্ধান", "ইতিহাস মুছুন", "কোনো ফল নেই", "বর্তমান অফলাইন লাইব্রেরিতে এর সাথে মেলে এমন কিছু নেই", "এখনও", "মিল থাকা শিল্পী", "মিল থাকা অ্যালবাম", "মিল থাকা গান")
+    AppLanguage.Urdu -> SearchUiCopy("آرٹسٹس، البمز اور مزید", "تلاش صاف کریں", "ابھی تک کچھ تلاش نہیں کیا گیا", "گانے اور البمز تلاش کرتے وقت مزید نتائج یہاں دکھائی دیں گے", "تجویز کردہ البمز", "شاید آپ دوبارہ انہیں سننا چاہیں", "حالیہ تلاشیں", "تاریخ صاف کریں", "کوئی نتیجہ نہیں", "موجودہ آف لائن لائبریری میں اس سے ملتا کچھ نہیں", "ابھی", "مطابق آرٹسٹس", "مطابق البمز", "مطابق گانے")
     else -> SearchUiCopy("Artists, albums & more", "Clear search", "Nothing searched yet", "More results will show here as you search for songs and albums", "Suggested albums", "You should probably revisit these", "Recently searched", "Clear history", "No results", "Nothing in the current offline library matches", "yet", "matching artists", "matching album results", "matching song results")
 }
 
@@ -1245,6 +1603,11 @@ internal fun searchSortModeLabel(
         AppLanguage.Portuguese -> "Nome da música"
         AppLanguage.Russian -> "Название песни"
         AppLanguage.Ukrainian -> "Назва пісні"
+        AppLanguage.Slovak -> "Názov skladby"
+        AppLanguage.Korean -> "곡 이름"
+        AppLanguage.Malay -> "Nama lagu"
+        AppLanguage.Bengali -> "গানের নাম"
+        AppLanguage.Urdu -> "گانے کا نام"
         else -> "Song name"
     }
     SearchSongSortMode.Artist -> when (language) {
@@ -1259,6 +1622,11 @@ internal fun searchSortModeLabel(
         AppLanguage.Portuguese -> "Nome do artista"
         AppLanguage.Russian -> "Имя исполнителя"
         AppLanguage.Ukrainian -> "Ім’я виконавця"
+        AppLanguage.Slovak -> "Meno interpreta"
+        AppLanguage.Korean -> "아티스트 이름"
+        AppLanguage.Malay -> "Nama artis"
+        AppLanguage.Bengali -> "শিল্পীর নাম"
+        AppLanguage.Urdu -> "آرٹسٹ کا نام"
         else -> "Artist name"
     }
 }
@@ -1316,6 +1684,11 @@ internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (l
     AppLanguage.Macedonian -> SettingsLanguageCopy("Поставки", "Изглед", "Тема", "Големина на текст", "Јазик", "Моментално се користи: ${language.nativeName}", "Звук", "Засилување на бас", "Просторност", "Еквилајзер", "Вклучи моно", "Ја префрла стерео репродукцијата во моно", "Други поставки", "Скенирај библиотека", "Го освежува индексирањето за нови медиуми", "Скенирај", "Провери ажурирања", "Проверува дали има нова верзија", "Провери", "Промени", "Создадено со страст за музика и добар дизајн")
     AppLanguage.Serbian -> SettingsLanguageCopy("Подешавања", "Изглед", "Тема", "Величина текста", "Језик", "Тренутно се користи: ${language.nativeName}", "Звук", "Појачање баса", "Просторност", "Еквилајзер", "Укључи моно", "Пребацује стерео репродукцију у моно", "Остала подешавања", "Скенирај библиотеку", "Освежава индексирање за нове медије", "Скенирај", "Провери ажурирања", "Проверава да ли је доступна нова верзија", "Провери", "Промене", "Дизајнирано са страшћу за музику и добар дизајн")
     AppLanguage.Thai -> SettingsLanguageCopy("การตั้งค่า", "รูปลักษณ์", "ธีม", "ขนาดข้อความ", "ภาษา", "ใช้อยู่: ${language.nativeName}", "เสียง", "เพิ่มเสียงเบส", "มิติเสียง", "อีควอไลเซอร์", "เปิดโมโน", "เปลี่ยนการเล่นสเตอริโอเป็นโมโน", "การตั้งค่าอื่น", "สแกนคลังเพลง", "รีเฟรชดัชนีเพื่อค้นหาสื่อใหม่", "สแกน", "ตรวจสอบอัปเดต", "ตรวจสอบว่ามีเวอร์ชันใหม่หรือไม่", "ตรวจสอบ", "บันทึกการเปลี่ยนแปลง", "ออกแบบด้วยความหลงใหลในดนตรีและดีไซน์ที่ดี")
+    AppLanguage.Slovak -> SettingsLanguageCopy("Nastavenia", "Vzhľad", "Téma", "Veľkosť textu", "Jazyk", "Momentálne používaný: ${language.nativeName}", "Zvuk", "Zosilnenie basov", "Priestorovosť", "Ekvalizér", "Zapnúť mono", "Prepne stereo prehrávanie na mono", "Ďalšie nastavenia", "Skenovať knižnicu", "Obnoví index pre nové médiá", "Skenovať", "Skontrolovať aktualizácie", "Skontroluje, či je dostupná nová verzia", "Skontrolovať", "Zmeny", "Vytvorené s vášňou pre hudbu a skvelý dizajn")
+    AppLanguage.Korean -> SettingsLanguageCopy("설정", "모양", "테마", "텍스트 크기", "언어", "현재 사용 중: ${language.nativeName}", "사운드", "저음 강화", "공간감", "이퀄라이저", "모노 사용", "스테레오 재생을 모노로 전환합니다", "기타 설정", "라이브러리 스캔", "새 미디어를 찾기 위해 인덱스를 새로 고칩니다", "스캔", "업데이트 확인", "새 버전이 있는지 확인합니다", "확인", "변경 사항", "음악과 좋은 디자인에 대한 열정으로 만들어졌습니다")
+    AppLanguage.Malay -> SettingsLanguageCopy("Tetapan", "Penampilan", "Tema", "Saiz teks", "Bahasa", "Sedang digunakan: ${language.nativeName}", "Bunyi", "Penguat bass", "Keluasan", "Penyama", "Dayakan mono", "Menukar main balik stereo kepada mono", "Tetapan lain", "Imbas pustaka", "Segarkan pengindeksan untuk media baharu", "Imbas", "Semak kemas kini", "Semak sama ada versi baharu tersedia", "Semak", "Log perubahan", "Direka dengan semangat terhadap muzik dan reka bentuk yang hebat")
+    AppLanguage.Bengali -> SettingsLanguageCopy("সেটিংস", "চেহারা", "থিম", "টেক্সটের আকার", "ভাষা", "বর্তমানে ব্যবহৃত: ${language.nativeName}", "শব্দ", "বেস বুস্ট", "স্পেসিয়াসনেস", "ইকুয়ালাইজার", "মোনো চালু করুন", "স্টেরিও প্লেব্যাককে মোনোতে বদলে দেয়", "অন্যান্য সেটিংস", "লাইব্রেরি স্ক্যান করুন", "নতুন মিডিয়ার জন্য ইনডেক্স রিফ্রেশ করে", "স্ক্যান", "আপডেট পরীক্ষা করুন", "নতুন সংস্করণ উপলভ্য কি না পরীক্ষা করে", "পরীক্ষা করুন", "পরিবর্তনপঞ্জি", "সঙ্গীত ও দারুণ ডিজাইনের প্রতি ভালবাসা দিয়ে নির্মিত")
+    AppLanguage.Urdu -> SettingsLanguageCopy("سیٹنگز", "ظاہری شکل", "تھیم", "متن کا سائز", "زبان", "فی الحال استعمال میں: ${language.nativeName}", "آواز", "باس بوسٹ", "کشادگی", "ایکوالائزر", "مونو فعال کریں", "اسٹیریو پلے بیک کو مونو میں بدلتا ہے", "دیگر سیٹنگز", "لائبریری اسکین کریں", "نئے میڈیا کے لیے انڈیکس تازہ کرتا ہے", "اسکین", "اپ ڈیٹس چیک کریں", "چیک کریں کہ نئی ورژن دستیاب ہے یا نہیں", "چیک کریں", "تبدیلیاں", "موسیقی اور عمدہ ڈیزائن کے شوق سے تیار کیا گیا")
     AppLanguage.English -> SettingsLanguageCopy("Settings", "Appearance", "Theme", "Text size", "Language", "Currently used: ${language.nativeName}", "Sound", "Bass boost", "Spaciousness", "Equalizer", "Enable mono", "Switches stereo playback to mono", "Other settings", "Scan library", "Refresh indexing in search for new media", "Scan", "Check for updates", "Check if there's new version available", "Check", "Changelog", "Designed with passion for music and great design")
 }
 
@@ -1375,6 +1748,11 @@ private val uiPhraseTranslations = mapOf(
     AppLanguage.Albanian to mapOf(UiPhrase.About to "Rreth", UiPhrase.AddToPlaylist to "Shto në listë", UiPhrase.AddToQueue to "Shto në radhë", UiPhrase.DeleteFromLibrary to "Fshi nga biblioteka", UiPhrase.DeleteAlbum to "Fshi albumin", UiPhrase.Delete to "Fshi", UiPhrase.Rename to "Riemërto", UiPhrase.RemoveFromList to "Hiq nga lista", UiPhrase.NewPlaylist to "Listë e re", UiPhrase.Cancel to "Anulo", UiPhrase.Create to "Krijo", UiPhrase.Reset to "Rivendos", UiPhrase.Dry to "I thatë", UiPhrase.Wet to "I lagësht", UiPhrase.Off to "Fikur", UiPhrase.Reverb to "Reverb", UiPhrase.ToneShaping to "Formësim toni", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Mesatare", UiPhrase.Treble to "Të larta", UiPhrase.EffectStrength to "Fuqia e efektit"),
     AppLanguage.ChineseSimplified to mapOf(UiPhrase.About to "关于", UiPhrase.AddToPlaylist to "添加到播放列表", UiPhrase.AddToQueue to "添加到队列", UiPhrase.DeleteFromLibrary to "从媒体库删除", UiPhrase.DeleteAlbum to "删除专辑", UiPhrase.Delete to "删除", UiPhrase.Rename to "重命名", UiPhrase.RemoveFromList to "从列表移除", UiPhrase.NewPlaylist to "新建播放列表", UiPhrase.Cancel to "取消", UiPhrase.Create to "创建", UiPhrase.Reset to "重置", UiPhrase.Dry to "干声", UiPhrase.Wet to "湿声", UiPhrase.Off to "关闭", UiPhrase.Reverb to "混响", UiPhrase.ToneShaping to "音色塑形", UiPhrase.Bass to "低音", UiPhrase.Midrange to "中频", UiPhrase.Treble to "高音", UiPhrase.EffectStrength to "效果强度"),
     AppLanguage.Croatian to mapOf(UiPhrase.About to "O aplikaciji", UiPhrase.AddToPlaylist to "Dodaj na popis", UiPhrase.AddToQueue to "Dodaj u red", UiPhrase.DeleteFromLibrary to "Izbriši iz biblioteke", UiPhrase.DeleteAlbum to "Izbriši album", UiPhrase.Delete to "Izbriši", UiPhrase.Rename to "Preimenuj", UiPhrase.RemoveFromList to "Ukloni s popisa", UiPhrase.NewPlaylist to "Novi popis", UiPhrase.Cancel to "Odustani", UiPhrase.Create to "Stvori", UiPhrase.Reset to "Resetiraj", UiPhrase.Dry to "Suho", UiPhrase.Wet to "Mokro", UiPhrase.Off to "Isključeno", UiPhrase.Reverb to "Odjek", UiPhrase.ToneShaping to "Oblikovanje tona", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Srednji", UiPhrase.Treble to "Visoki", UiPhrase.EffectStrength to "Jačina efekta"),
+    AppLanguage.Slovak to mapOf(UiPhrase.About to "O aplikácii", UiPhrase.AddToPlaylist to "Pridať do playlistu", UiPhrase.AddToQueue to "Pridať do frontu", UiPhrase.DeleteFromLibrary to "Odstrániť z knižnice", UiPhrase.DeleteAlbum to "Odstrániť album", UiPhrase.Delete to "Odstrániť", UiPhrase.Rename to "Premenovať", UiPhrase.RemoveFromList to "Odstrániť zo zoznamu", UiPhrase.NewPlaylist to "Nový playlist", UiPhrase.Cancel to "Zrušiť", UiPhrase.Create to "Vytvoriť", UiPhrase.Reset to "Resetovať", UiPhrase.Dry to "Suchý", UiPhrase.Wet to "Mokrý", UiPhrase.Off to "Vypnuté", UiPhrase.Reverb to "Reverb", UiPhrase.ToneShaping to "Tónové vyváženie", UiPhrase.Bass to "Basy", UiPhrase.Midrange to "Stredy", UiPhrase.Treble to "Výšky", UiPhrase.EffectStrength to "Sila efektu"),
+    AppLanguage.Korean to mapOf(UiPhrase.About to "정보", UiPhrase.AddToPlaylist to "플레이리스트에 추가", UiPhrase.AddToQueue to "대기열에 추가", UiPhrase.DeleteFromLibrary to "라이브러리에서 삭제", UiPhrase.DeleteAlbum to "앨범 삭제", UiPhrase.Delete to "삭제", UiPhrase.Rename to "이름 변경", UiPhrase.RemoveFromList to "목록에서 제거", UiPhrase.NewPlaylist to "새 플레이리스트", UiPhrase.Cancel to "취소", UiPhrase.Create to "만들기", UiPhrase.Reset to "재설정", UiPhrase.Dry to "드라이", UiPhrase.Wet to "웻", UiPhrase.Off to "끔", UiPhrase.Reverb to "리버브", UiPhrase.ToneShaping to "톤 밸런스", UiPhrase.Bass to "저음", UiPhrase.Midrange to "중역", UiPhrase.Treble to "고역", UiPhrase.EffectStrength to "효과 강도"),
+    AppLanguage.Malay to mapOf(UiPhrase.About to "Perihal", UiPhrase.AddToPlaylist to "Tambah ke senarai main", UiPhrase.AddToQueue to "Tambah ke barisan", UiPhrase.DeleteFromLibrary to "Padam daripada pustaka", UiPhrase.DeleteAlbum to "Padam album", UiPhrase.Delete to "Padam", UiPhrase.Rename to "Namakan semula", UiPhrase.RemoveFromList to "Buang daripada senarai", UiPhrase.NewPlaylist to "Senarai main baharu", UiPhrase.Cancel to "Batal", UiPhrase.Create to "Cipta", UiPhrase.Reset to "Tetapkan semula", UiPhrase.Dry to "Kering", UiPhrase.Wet to "Basah", UiPhrase.Off to "Mati", UiPhrase.Reverb to "Reverb", UiPhrase.ToneShaping to "Imbangan tonal", UiPhrase.Bass to "Bass", UiPhrase.Midrange to "Pertengahan", UiPhrase.Treble to "Trebel", UiPhrase.EffectStrength to "Kekuatan kesan"),
+    AppLanguage.Bengali to mapOf(UiPhrase.About to "অ্যাপ সম্পর্কে", UiPhrase.AddToPlaylist to "প্লেলিস্টে যোগ করুন", UiPhrase.AddToQueue to "কিউতে যোগ করুন", UiPhrase.DeleteFromLibrary to "লাইব্রেরি থেকে মুছুন", UiPhrase.DeleteAlbum to "অ্যালবাম মুছুন", UiPhrase.Delete to "মুছুন", UiPhrase.Rename to "নাম বদলান", UiPhrase.RemoveFromList to "তালিকা থেকে সরান", UiPhrase.NewPlaylist to "নতুন প্লেলিস্ট", UiPhrase.Cancel to "বাতিল", UiPhrase.Create to "তৈরি করুন", UiPhrase.Reset to "রিসেট", UiPhrase.Dry to "ড্রাই", UiPhrase.Wet to "ওয়েট", UiPhrase.Off to "বন্ধ", UiPhrase.Reverb to "রিভার্ব", UiPhrase.ToneShaping to "টোনাল ব্যালান্স", UiPhrase.Bass to "বেস", UiPhrase.Midrange to "মিডরেঞ্জ", UiPhrase.Treble to "ট্রেবল", UiPhrase.EffectStrength to "ইফেক্টের শক্তি"),
+    AppLanguage.Urdu to mapOf(UiPhrase.About to "ایپ کے بارے میں", UiPhrase.AddToPlaylist to "پلے لسٹ میں شامل کریں", UiPhrase.AddToQueue to "قطار میں شامل کریں", UiPhrase.DeleteFromLibrary to "لائبریری سے حذف کریں", UiPhrase.DeleteAlbum to "البم حذف کریں", UiPhrase.Delete to "حذف کریں", UiPhrase.Rename to "نام تبدیل کریں", UiPhrase.RemoveFromList to "فہرست سے ہٹائیں", UiPhrase.NewPlaylist to "نئی پلے لسٹ", UiPhrase.Cancel to "منسوخ", UiPhrase.Create to "بنائیں", UiPhrase.Reset to "ری سیٹ", UiPhrase.Dry to "خشک", UiPhrase.Wet to "گیلا", UiPhrase.Off to "بند", UiPhrase.Reverb to "ریورب", UiPhrase.ToneShaping to "ٹونل بیلنس", UiPhrase.Bass to "باس", UiPhrase.Midrange to "درمیانی", UiPhrase.Treble to "ٹرےبل", UiPhrase.EffectStrength to "اثر کی طاقت"),
     AppLanguage.Czech to mapOf(UiPhrase.About to "O aplikaci", UiPhrase.AddToPlaylist to "Přidat do playlistu", UiPhrase.AddToQueue to "Přidat do fronty", UiPhrase.DeleteFromLibrary to "Smazat z knihovny", UiPhrase.DeleteAlbum to "Smazat album", UiPhrase.Delete to "Smazat", UiPhrase.Rename to "Přejmenovat", UiPhrase.RemoveFromList to "Odebrat ze seznamu", UiPhrase.NewPlaylist to "Nový playlist", UiPhrase.Cancel to "Zrušit", UiPhrase.Create to "Vytvořit", UiPhrase.Reset to "Resetovat", UiPhrase.Dry to "Suchý", UiPhrase.Wet to "Mokrý", UiPhrase.Off to "Vypnuto", UiPhrase.Reverb to "Dozvuk", UiPhrase.ToneShaping to "Tvarování tónu", UiPhrase.Bass to "Basy", UiPhrase.Midrange to "Středy", UiPhrase.Treble to "Výšky", UiPhrase.EffectStrength to "Síla efektu"),
     AppLanguage.Danish to mapOf(UiPhrase.About to "Om", UiPhrase.AddToPlaylist to "Føj til playliste", UiPhrase.AddToQueue to "Føj til kø", UiPhrase.DeleteFromLibrary to "Slet fra bibliotek", UiPhrase.DeleteAlbum to "Slet album", UiPhrase.Delete to "Slet", UiPhrase.Rename to "Omdøb", UiPhrase.RemoveFromList to "Fjern fra liste", UiPhrase.NewPlaylist to "Ny playliste", UiPhrase.Cancel to "Annuller", UiPhrase.Create to "Opret", UiPhrase.Reset to "Nulstil", UiPhrase.Dry to "Tør", UiPhrase.Wet to "Våd", UiPhrase.Off to "Fra", UiPhrase.Reverb to "Rumklang", UiPhrase.ToneShaping to "Toneformning", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Mellemtone", UiPhrase.Treble to "Diskant", UiPhrase.EffectStrength to "Effektstyrke"),
     AppLanguage.Dutch to mapOf(UiPhrase.About to "Over", UiPhrase.AddToPlaylist to "Toevoegen aan afspeellijst", UiPhrase.AddToQueue to "Toevoegen aan wachtrij", UiPhrase.DeleteFromLibrary to "Verwijderen uit bibliotheek", UiPhrase.DeleteAlbum to "Album verwijderen", UiPhrase.Delete to "Verwijderen", UiPhrase.Rename to "Naam wijzigen", UiPhrase.RemoveFromList to "Uit lijst verwijderen", UiPhrase.NewPlaylist to "Nieuwe afspeellijst", UiPhrase.Cancel to "Annuleren", UiPhrase.Create to "Maken", UiPhrase.Reset to "Resetten", UiPhrase.Dry to "Droog", UiPhrase.Wet to "Nat", UiPhrase.Off to "Uit", UiPhrase.Reverb to "Galm", UiPhrase.ToneShaping to "Toonvorming", UiPhrase.Bass to "Bas", UiPhrase.Midrange to "Midden", UiPhrase.Treble to "Hoge tonen", UiPhrase.EffectStrength to "Effectsterkte"),
@@ -1429,6 +1807,11 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Serbian -> "Ширина стереа"
             AppLanguage.Thai -> "ความกว้างสเตอริโอ"
             AppLanguage.Ukrainian -> "Ширина стерео"
+            AppLanguage.Slovak -> "Stereo šírka"
+            AppLanguage.Korean -> "스테레오 폭"
+            AppLanguage.Malay -> "Lebar stereo"
+            AppLanguage.Bengali -> "স্টেরিও প্রস্থ"
+            AppLanguage.Urdu -> "اسٹیریو چوڑائی"
             AppLanguage.ChineseSimplified -> "立体声宽度"
             AppLanguage.Japanese -> "ステレオ幅"
             else -> "Stereo Width"
@@ -1459,6 +1842,11 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Serbian -> "Кросфид"
             AppLanguage.Thai -> "ครอสฟีด"
             AppLanguage.Ukrainian -> "Кросфід"
+            AppLanguage.Slovak -> "Crossfeed"
+            AppLanguage.Korean -> "크로스피드"
+            AppLanguage.Malay -> "Crossfeed"
+            AppLanguage.Bengali -> "ক্রসফিড"
+            AppLanguage.Urdu -> "کراس فیڈ"
             AppLanguage.ChineseSimplified -> "交叉馈送"
             AppLanguage.Japanese -> "クロスフィード"
             else -> "Crossfeed"
@@ -1489,6 +1877,11 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Serbian -> "Соба"
             AppLanguage.Thai -> "ห้อง"
             AppLanguage.Ukrainian -> "Кімната"
+            AppLanguage.Slovak -> "Miestnosť"
+            AppLanguage.Korean -> "룸"
+            AppLanguage.Malay -> "Bilik"
+            AppLanguage.Bengali -> "রুম"
+            AppLanguage.Urdu -> "کمرہ"
             AppLanguage.ChineseSimplified -> "房间"
             AppLanguage.Japanese -> "ルーム"
             else -> "Room"
@@ -1519,6 +1912,11 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Serbian -> "Филхармонија"
             AppLanguage.Thai -> "ฟิลฮาร์โมนี"
             AppLanguage.Ukrainian -> "Філармонія"
+            AppLanguage.Slovak -> "Filharmónia"
+            AppLanguage.Korean -> "필하모니"
+            AppLanguage.Malay -> "Filharmoni"
+            AppLanguage.Bengali -> "ফিলহারমনি"
+            AppLanguage.Urdu -> "فلہارمونی"
             AppLanguage.ChineseSimplified -> "爱乐厅"
             AppLanguage.Japanese -> "フィルハーモニー"
             else -> "Philharmony"
@@ -1549,6 +1947,11 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Serbian -> "Haas простор"
             AppLanguage.Thai -> "พื้นที่ Haas"
             AppLanguage.Ukrainian -> "Простір Хааса"
+            AppLanguage.Slovak -> "Haas priestor"
+            AppLanguage.Korean -> "하스 공간"
+            AppLanguage.Malay -> "Ruang Haas"
+            AppLanguage.Bengali -> "হাস স্পেস"
+            AppLanguage.Urdu -> "ہاس اسپیس"
             AppLanguage.ChineseSimplified -> "Haas 空间"
             AppLanguage.Japanese -> "ハース空間"
             else -> "Haas Space"
@@ -1579,6 +1982,11 @@ internal fun SpaciousnessMode.displayLabel(language: AppLanguage = AppLanguage.E
             AppLanguage.Serbian -> "Хармонични ваздух"
             AppLanguage.Thai -> "อากาศฮาร์มอนิก"
             AppLanguage.Ukrainian -> "Гармонійне повітря"
+            AppLanguage.Slovak -> "Harmonický vzduch"
+            AppLanguage.Korean -> "하모닉 에어"
+            AppLanguage.Malay -> "Udara harmonik"
+            AppLanguage.Bengali -> "হারমনিক এয়ার"
+            AppLanguage.Urdu -> "ہارمونک ایئر"
             AppLanguage.ChineseSimplified -> "和声音场"
             AppLanguage.Japanese -> "ハーモニックエア"
             else -> "Harmonic Air"

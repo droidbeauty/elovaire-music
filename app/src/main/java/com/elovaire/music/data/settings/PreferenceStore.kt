@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
 import android.net.Uri
-import android.os.Build
 import androidx.core.content.edit
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
@@ -101,10 +100,17 @@ class PreferenceStore(context: Context) {
     }
 
     fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
+        val normalizedEntry = entry.copy(
+            key = entry.key.trim(),
+            title = entry.title.trim(),
+            subtitle = entry.subtitle.trim(),
+            query = entry.query?.trim()?.takeIf { it.isNotBlank() },
+        )
+        if (normalizedEntry.key.isBlank() || normalizedEntry.title.isBlank()) return
         val updated = buildList {
-            add(entry)
+            add(normalizedEntry)
             _searchHistory.value.asSequence()
-                .filter { it.key != entry.key }
+                .filter { it.key != normalizedEntry.key }
                 .take(MAX_SEARCH_HISTORY - 1)
                 .forEach(::add)
         }
@@ -485,14 +491,10 @@ class PreferenceStore(context: Context) {
     }
 
     private fun resolveDeviceLanguage(): AppLanguage {
-        val locale = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            appContext.resources.configuration.locales[0]
-        } else {
-            @Suppress("DEPRECATION")
-            appContext.resources.configuration.locale
-        } ?: return AppLanguage.English
+        val locale = appContext.resources.configuration.locales[0] ?: return AppLanguage.English
         return when (locale.language.lowercase()) {
             "sq" -> AppLanguage.Albanian
+            "bn" -> AppLanguage.Bengali
             "hr" -> AppLanguage.Croatian
             "cs" -> AppLanguage.Czech
             "da" -> AppLanguage.Danish
@@ -505,20 +507,24 @@ class PreferenceStore(context: Context) {
             "hu" -> AppLanguage.Hungarian
             "it" -> AppLanguage.Italian
             "ja" -> AppLanguage.Japanese
+            "ko" -> AppLanguage.Korean
             "la" -> AppLanguage.Latin
             "lv" -> AppLanguage.Latvian
             "lt" -> AppLanguage.Lithuanian
+            "ms" -> AppLanguage.Malay
             "mk" -> AppLanguage.Macedonian
             "no", "nb", "nn" -> AppLanguage.Norwegian
             "pl" -> AppLanguage.Polish
             "pt" -> AppLanguage.Portuguese
             "ru" -> AppLanguage.Russian
+            "sk" -> AppLanguage.Slovak
             "sr" -> AppLanguage.Serbian
             "zh" -> AppLanguage.ChineseSimplified
             "es" -> AppLanguage.Spanish
             "sv" -> AppLanguage.Swedish
             "th" -> AppLanguage.Thai
             "uk" -> AppLanguage.Ukrainian
+            "ur" -> AppLanguage.Urdu
             "en" -> AppLanguage.English
             else -> AppLanguage.English
         }

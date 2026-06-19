@@ -434,24 +434,12 @@ class LibraryRepository(
         }
 
         private fun createObserver(directory: File): FileObserver {
-            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                object : FileObserver(directory, OBSERVER_MASK) {
-                    override fun onEvent(
-                        event: Int,
-                        path: String?,
-                    ) {
-                        dispatchDirectoryEvent(directory, event, path)
-                    }
-                }
-            } else {
-                @Suppress("DEPRECATION")
-                object : FileObserver(directory.absolutePath, OBSERVER_MASK) {
-                    override fun onEvent(
-                        event: Int,
-                        path: String?,
-                    ) {
-                        dispatchDirectoryEvent(directory, event, path)
-                    }
+            return object : FileObserver(directory, OBSERVER_MASK) {
+                override fun onEvent(
+                    event: Int,
+                    path: String?,
+                ) {
+                    dispatchDirectoryEvent(directory, event, path)
                 }
             }
         }

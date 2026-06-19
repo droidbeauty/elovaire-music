@@ -1,10 +1,8 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
-import android.annotation.SuppressLint
 import android.content.ContentResolver
 import android.content.Context
-import android.net.Uri
-import android.provider.MediaStore
+import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.BufferedInputStream
 import java.io.File
@@ -16,6 +14,7 @@ import java.util.Locale
 internal class LocalLyricsResolver(
     context: Context,
 ) {
+    private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = context.applicationContext.contentResolver
 
     fun resolve(song: Song): LocalLyricsMatch? {
@@ -271,18 +270,8 @@ internal class LocalLyricsResolver(
         return null
     }
 
-    @SuppressLint("Range")
     private fun resolveSongFile(song: Song): File? {
-        if (song.uri.scheme == "file") {
-            return song.uri.path?.let(::File)?.takeIf(File::exists)
-        }
-        val projection = arrayOf(MediaStore.MediaColumns.DATA)
-        val resolvedPath = runCatching {
-            contentResolver.query(song.uri, projection, null, null, null)?.use { cursor ->
-                if (!cursor.moveToFirst()) return@use null
-                cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA))
-            }
-        }.getOrNull()
+        val resolvedPath = contentResolver.queryMediaStoreFilePath(appContext, song.uri)
         return resolvedPath?.let(::File)?.takeIf(File::exists)
     }
 

@@ -3,19 +3,19 @@ package elovaire.music.droidbeauty.app.ui.screens
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
+import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 internal data class SearchArtistResult(
@@ -49,19 +49,42 @@ internal class SearchViewModel(
     private val _showAllSongResults = MutableStateFlow(false)
     private val _searchSongSortMode = MutableStateFlow(SearchSongSortMode.Title)
     private val _showSearchSongSortOptions = MutableStateFlow(false)
-    private val searchConfig = combine(
+    private val searchUiConfig = combine(
         _query,
         _showAllSongResults,
         _searchSongSortMode,
         _showSearchSongSortOptions,
     ) { query, showAllSongs, sortMode, showSortOptions ->
-        SearchConfig(
+        SearchUiConfig(
             query = query,
             showAllSongs = showAllSongs,
             sortMode = sortMode,
             showSortOptions = showSortOptions,
         )
     }
+        .distinctUntilChanged()
+
+    private val searchIndex = libraryRepository.contentState
+        .map { it.toSearchIndex() }
+        .distinctUntilChanged()
+
+    private val normalizedQuery = _query
+        .map { normalizeSearchText(it.trim()) }
+        .distinctUntilChanged()
+
+    private val searchResults = combine(
+        normalizedQuery,
+        _searchSongSortMode,
+        searchIndex,
+    ) { query, sortMode, index ->
+        buildSearchResults(
+            normalizedQuery = query,
+            sortMode = sortMode,
+            index = index,
+        )
+    }
+        .distinctUntilChanged()
+
     private val playbackSnapshot = combine(
         playbackManager.recentPlaybackState,
         playbackManager.nowPlayingState,
@@ -73,43 +96,58 @@ internal class SearchViewModel(
             isPlaybackActive = transport.isPlaying,
         )
     }
+        .distinctUntilChanged()
+
+    private val suggestedAlbums = combine(
+        searchIndex,
+        preferenceStore.albumPlayCounts,
+        playbackManager.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
+    ) { index, albumPlayCounts, recentAlbumIds ->
+        buildSuggestedAlbums(
+            albums = index.albums.map(SearchableAlbum::album),
+            albumPlayCounts = albumPlayCounts,
+            recentAlbumIds = recentAlbumIds,
+        )
+    }
+        .distinctUntilChanged()
+
+    private val recentSearches = combine(
+        preferenceStore.searchHistory,
+        searchIndex,
+    ) { history, index ->
+        sanitizeSearchHistory(
+            history = history,
+            index = index,
+        )
+    }
+        .distinctUntilChanged()
 
     val uiState: StateFlow<SearchUiState> = combine(
-        searchConfig,
-        libraryRepository.contentState,
-        preferenceStore.searchHistory,
-        preferenceStore.albumPlayCounts,
+        searchUiConfig,
+        recentSearches,
+        searchResults,
+        suggestedAlbums,
         playbackSnapshot,
-    ) { searchConfig, libraryContent, recentSearches, albumPlayCounts, playbackSnapshot ->
-        val trimmedQuery = searchConfig.query.trim()
-        val allMatchingSongs = buildMatchingSongs(
-            query = trimmedQuery,
-            songs = libraryContent.songs,
-            sortMode = searchConfig.sortMode,
-        )
-        val contentMode = when {
-            searchConfig.showAllSongs && trimmedQuery.isNotBlank() -> SearchContentMode.AllSongs
-            trimmedQuery.isBlank() -> SearchContentMode.Discover
-            else -> SearchContentMode.Results
-        }
+    ) { config, history, results, suggested, playback ->
+        val trimmedQuery = config.query.trim()
         SearchUiState(
-            query = searchConfig.query,
-            showAllSongResults = searchConfig.showAllSongs,
-            searchSongSortMode = searchConfig.sortMode,
-            showSearchSongSortOptions = searchConfig.showSortOptions,
-            contentMode = contentMode,
-            recentSearches = recentSearches,
-            allMatchingSongs = allMatchingSongs,
-            matchingSongs = allMatchingSongs.take(20),
-            matchingAlbums = buildMatchingAlbums(trimmedQuery, libraryContent),
-            matchingArtists = buildMatchingArtists(trimmedQuery, libraryContent),
-            suggestedAlbums = buildSuggestedAlbums(
-                libraryContent = libraryContent,
-                albumPlayCounts = albumPlayCounts,
-                recentAlbumIds = playbackSnapshot.recentAlbumIds,
-            ),
-            currentSongId = playbackSnapshot.currentSongId,
-            isPlaybackActive = playbackSnapshot.isPlaybackActive,
+            query = config.query,
+            showAllSongResults = config.showAllSongs,
+            searchSongSortMode = config.sortMode,
+            showSearchSongSortOptions = config.showSortOptions,
+            contentMode = when {
+                config.showAllSongs && trimmedQuery.isNotBlank() -> SearchContentMode.AllSongs
+                trimmedQuery.isBlank() -> SearchContentMode.Discover
+                else -> SearchContentMode.Results
+            },
+            recentSearches = history,
+            allMatchingSongs = results.allMatchingSongs,
+            matchingSongs = results.matchingSongs,
+            matchingAlbums = results.matchingAlbums,
+            matchingArtists = results.matchingArtists,
+            suggestedAlbums = if (trimmedQuery.isBlank()) suggested else emptyList(),
+            currentSongId = playback.currentSongId,
+            isPlaybackActive = playback.isPlaybackActive,
         )
     }
         .distinctUntilChanged()
@@ -162,7 +200,7 @@ internal class SearchViewModel(
     }
 
     private companion object {
-        data class SearchConfig(
+        data class SearchUiConfig(
             val query: String,
             val showAllSongs: Boolean,
             val sortMode: SearchSongSortMode,
@@ -175,77 +213,103 @@ internal class SearchViewModel(
             val isPlaybackActive: Boolean,
         )
 
-        fun buildMatchingSongs(
-            query: String,
-            songs: List<Song>,
+        data class SearchResults(
+            val allMatchingSongs: List<Song> = emptyList(),
+            val matchingSongs: List<Song> = emptyList(),
+            val matchingAlbums: List<Album> = emptyList(),
+            val matchingArtists: List<SearchArtistResult> = emptyList(),
+        )
+
+        fun buildSearchResults(
+            normalizedQuery: String,
             sortMode: SearchSongSortMode,
-        ): List<Song> {
-            if (query.isBlank()) return emptyList()
-            val filteredSongs = songs.filter { song ->
-                searchMatchesComposite(
-                    query = query,
-                    fields = listOf(song.title, song.artist, song.album),
-                )
-            }
-            return when (sortMode) {
-                SearchSongSortMode.Title -> filteredSongs.sortedWith(
-                    compareBy<Song> { it.title.lowercase() }
-                        .thenBy { it.artist.lowercase() }
-                        .thenBy { it.album.lowercase() },
-                )
+            index: SearchIndex,
+        ): SearchResults {
+            if (normalizedQuery.isBlank()) return SearchResults()
 
-                SearchSongSortMode.Artist -> filteredSongs.sortedWith(
-                    compareBy<Song> { it.artist.lowercase() }
-                        .thenBy { it.title.lowercase() }
-                        .thenBy { it.album.lowercase() },
-                )
-            }
-        }
-
-        fun buildMatchingAlbums(
-            query: String,
-            libraryContent: LibraryContentState,
-        ): List<Album> {
-            if (query.isBlank()) return emptyList()
-            return libraryContent.albums.filter { album ->
-                searchMatchesComposite(
-                    query = query,
-                    fields = listOf(album.title, album.artist),
-                )
-            }.take(12)
-        }
-
-        fun buildMatchingArtists(
-            query: String,
-            libraryContent: LibraryContentState,
-        ): List<SearchArtistResult> {
-            if (query.isBlank()) return emptyList()
-            return libraryContent.songs
-                .groupBy { it.artist }
-                .values
-                .map { artistSongs ->
-                    SearchArtistResult(
-                        name = artistSongs.first().artist,
-                        songCount = artistSongs.size,
-                        artUri = artistSongs.first().artUri,
+            val rankedSongs = index.songs.mapNotNull { searchable ->
+                scoreMatch(
+                    normalizedQuery = normalizedQuery,
+                    normalizedTitle = searchable.normalizedTitle,
+                    normalizedArtist = searchable.normalizedArtist,
+                    normalizedAlbum = searchable.normalizedAlbum,
+                )?.let { score ->
+                    RankedResult(
+                        value = searchable.song,
+                        score = score,
                     )
                 }
-                .filter { artist ->
-                    searchMatchesComposite(
-                        query = query,
-                        fields = listOf(artist.name),
+            }
+            val allMatchingSongs = sortRankedSongs(
+                ranked = rankedSongs,
+                sortMode = sortMode,
+            )
+
+            val matchingAlbums = index.albums
+                .mapNotNull { searchable ->
+                    scoreMatch(
+                        normalizedQuery = normalizedQuery,
+                        normalizedTitle = searchable.normalizedTitle,
+                        normalizedArtist = searchable.normalizedArtist,
+                        normalizedAlbum = "",
+                    )?.let { score ->
+                        RankedResult(
+                            value = searchable.album,
+                            score = score,
+                        )
+                    }
+                }
+                .sortedWith(
+                    compareByDescending<RankedResult<Album>> { it.score }
+                        .thenBy { normalizeSearchText(it.value.artist) }
+                        .thenBy { normalizeSearchText(it.value.title) }
+                        .thenBy { it.value.id },
+                )
+                .map(RankedResult<Album>::value)
+                .take(12)
+
+            val matchingArtists = index.artists
+                .mapNotNull { artist ->
+                    scoreMatch(
+                        normalizedQuery = normalizedQuery,
+                        normalizedTitle = artist.normalizedName,
+                        normalizedArtist = "",
+                    )?.let { score ->
+                        RankedResult(
+                            value = artist,
+                            score = score,
+                        )
+                    }
+                }
+                .sortedWith(
+                    compareByDescending<RankedResult<SearchableArtist>> { it.score }
+                        .thenByDescending { it.value.songCount }
+                        .thenBy { normalizeSearchText(it.value.displayName) },
+                )
+                .map { rankedArtist ->
+                    SearchArtistResult(
+                        name = rankedArtist.value.displayName,
+                        songCount = rankedArtist.value.songCount,
+                        artUri = rankedArtist.value.artUri,
                     )
                 }
                 .take(6)
+
+            return SearchResults(
+                allMatchingSongs = allMatchingSongs,
+                matchingSongs = allMatchingSongs.take(20),
+                matchingAlbums = matchingAlbums,
+                matchingArtists = matchingArtists,
+            )
         }
 
         fun buildSuggestedAlbums(
-            libraryContent: LibraryContentState,
+            albums: List<Album>,
             albumPlayCounts: Map<Long, Int>,
             recentAlbumIds: List<Long>,
         ): List<Album> {
             val recentAlbumIdSet = recentAlbumIds.toSet()
-            val rarePlayedAlbums = libraryContent.albums
+            val rarePlayedAlbums = albums
                 .mapNotNull { album ->
                     val playCount = albumPlayCounts[album.id] ?: 0
                     if (playCount > 0) album to playCount else null
@@ -253,17 +317,17 @@ internal class SearchViewModel(
                 .sortedWith(
                     compareBy<Pair<Album, Int>> { it.second }
                         .thenBy { album -> if (album.first.id in recentAlbumIdSet) 1 else 0 }
-                        .thenBy { it.first.artist.lowercase() }
-                        .thenBy { it.first.title.lowercase() },
+                        .thenBy { normalizeSearchText(it.first.artist) }
+                        .thenBy { normalizeSearchText(it.first.title) },
                 )
                 .map { it.first }
 
-            val neverPlayedAlbums = libraryContent.albums
+            val neverPlayedAlbums = albums
                 .filter { (albumPlayCounts[it.id] ?: 0) == 0 }
                 .sortedWith(
                     compareBy<Album> { if (it.id in recentAlbumIdSet) 1 else 0 }
-                        .thenBy { it.artist.lowercase() }
-                        .thenBy { it.title.lowercase() },
+                        .thenBy { normalizeSearchText(it.artist) }
+                        .thenBy { normalizeSearchText(it.title) },
                 )
 
             return buildList {
@@ -274,19 +338,30 @@ internal class SearchViewModel(
             }
         }
 
-        fun searchMatchesComposite(
-            query: String,
-            fields: List<String>,
-        ): Boolean {
-            val normalizedQuery = query.trim().lowercase()
-            if (normalizedQuery.isBlank()) return true
-            val tokens = normalizedQuery.split(Regex("\\s+")).filter { it.isNotBlank() }
-            if (tokens.isEmpty()) return true
-            val haystack = fields.asSequence()
-                .map { it.trim().lowercase() }
-                .filter { it.isNotBlank() }
-                .joinToString(separator = " ")
-            return tokens.all { token -> haystack.contains(token) }
+        fun sanitizeSearchHistory(
+            history: List<SearchHistoryEntry>,
+            index: SearchIndex,
+        ): List<SearchHistoryEntry> {
+            return history.mapNotNull { entry ->
+                when (entry.kind) {
+                    SearchHistoryKind.Album -> {
+                        entry.albumId
+                            ?.let(index.albumsById::get)
+                            ?.let(::albumSearchHistoryEntry)
+                    }
+
+                    SearchHistoryKind.Artist -> {
+                        val normalizedArtist = normalizeSearchText(entry.query ?: entry.title)
+                        val artist = index.artistsByNormalizedName[normalizedArtist] ?: return@mapNotNull null
+                        entry.copy(
+                            key = "artist:${artist.normalizedName}",
+                            title = artist.displayName,
+                            artUri = artist.artUri,
+                            query = artist.displayName,
+                        )
+                    }
+                }
+            }.distinctBy(SearchHistoryEntry::key)
         }
 
         fun List<Song>.playbackSourceLabel(fallbackAlbum: String): String {

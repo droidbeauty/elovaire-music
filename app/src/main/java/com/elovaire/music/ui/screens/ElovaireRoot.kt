@@ -6,12 +6,10 @@ import android.app.Activity
 import android.app.RecoverableSecurityException
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.BitmapFactory
 import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
-import android.provider.DocumentsContract
 import android.provider.MediaStore
 import android.util.Xml
 import java.io.File
@@ -220,7 +218,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.zIndex
-import androidx.core.content.ContextCompat
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -244,6 +241,10 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
+import elovaire.music.droidbeauty.app.core.hasNotificationPostingPermission
+import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
+import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
@@ -706,11 +707,7 @@ private fun blurSurfaceBorderColor(): Color {
 
 @Composable
 private fun Modifier.horizontalGestureSafe(): Modifier {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-        this.systemGestureExclusion()
-    } else {
-        this
-    }
+    return this.systemGestureExclusion()
 }
 
 @Composable
@@ -752,26 +749,7 @@ private fun querySongFilePaths(
 ): Set<String> {
     val contentResolver = context.contentResolver
     return songs.asSequence()
-        .mapNotNull { song ->
-            when (song.uri.scheme) {
-                "file" -> song.uri.path
-                else -> runCatching {
-                    contentResolver.query(
-                        song.uri,
-                        arrayOf(MediaStore.MediaColumns.DATA),
-                        null,
-                        null,
-                        null,
-                    )?.use { cursor ->
-                        if (!cursor.moveToFirst()) {
-                            null
-                        } else {
-                            cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DATA))
-                        }
-                    }
-                }.getOrNull()
-            }
-        }
+        .mapNotNull { song -> contentResolver.queryMediaStoreFilePath(context, song.uri) }
         .toSet()
 }
 
@@ -1117,8 +1095,8 @@ fun ElovaireRoot(
             recent = recentPlaybackState,
         )
     }
-    var hasPermission by remember { mutableStateOf(hasAudioPermission(context)) }
-    var hasNotificationPermission by remember { mutableStateOf(hasNotificationPermission(context)) }
+    var hasPermission by remember { mutableStateOf(context.hasAudioReadPermission()) }
+    var hasNotificationPermission by remember { mutableStateOf(context.hasNotificationPostingPermission()) }
     var hasRequestedAudioPermission by rememberSaveable { mutableStateOf(false) }
     var hasRequestedNotificationPermission by rememberSaveable { mutableStateOf(false) }
     var firstLaunchPermissionExperienceActive by rememberSaveable {
@@ -1227,7 +1205,7 @@ fun ElovaireRoot(
         container.libraryRepository.onPermissionChanged(hasPermission)
         if (!hasPermission && !hasRequestedAudioPermission) {
             hasRequestedAudioPermission = true
-            permissionLauncher.launch(audioPermission())
+            permissionLauncher.launch(requiredAudioPermission())
         } else if (
             hasPermission &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -1246,8 +1224,8 @@ fun ElovaireRoot(
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
-                val refreshedAudioPermission = hasAudioPermission(context)
-                val refreshedNotificationPermission = hasNotificationPermission(context)
+                val refreshedAudioPermission = context.hasAudioReadPermission()
+                val refreshedNotificationPermission = context.hasNotificationPostingPermission()
                 if (hasPermission != refreshedAudioPermission) {
                     hasPermission = refreshedAudioPermission
                     container.libraryRepository.onPermissionChanged(refreshedAudioPermission)
@@ -1298,7 +1276,7 @@ fun ElovaireRoot(
     if (!hasPermission) {
         FirstLaunchPermissionLoadingScreen(
             showLoading = true,
-            onRequestPermission = { permissionLauncher.launch(audioPermission()) },
+            onRequestPermission = { permissionLauncher.launch(requiredAudioPermission()) },
         )
         return
     }
@@ -1570,7 +1548,7 @@ fun ElovaireRoot(
                             )
                         }.onFailure { throwable ->
                             val intentSender = when {
-                                Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && throwable is RecoverableSecurityException -> {
+                                throwable is RecoverableSecurityException -> {
                                     throwable.userAction.actionIntent.intentSender
                                 }
                                 else -> null
@@ -1767,6 +1745,18 @@ fun ElovaireRoot(
                                     openPlayerIfAllowed(null)
                                 }
                             },
+                            onShufflePlaylist = { playlist, songs ->
+                                val shuffledSongs = songs.shuffled()
+                                shuffledSongs.firstOrNull()?.let { firstSong ->
+                                    container.playbackManager.playSong(
+                                        song = firstSong,
+                                        collection = shuffledSongs,
+                                        sourceLabel = playlist.name,
+                                        sourcePlaylistId = playlist.id,
+                                    )
+                                    openPlayerIfAllowed(null)
+                                }
+                            },
                             onSongSelected = { song ->
                                 val sourceAlbum = albumsById[song.albumId]
                                 if (sourceAlbum != null) {
@@ -1876,6 +1866,18 @@ fun ElovaireRoot(
                                     container.playbackManager.playSong(
                                         song = firstSong,
                                         collection = songs,
+                                        sourceLabel = sourceLabel,
+                                        sourcePlaylistId = playlist?.id,
+                                    )
+                                    openPlayerIfAllowed(null)
+                                }
+                            },
+                            onShufflePlaylist = { songs, sourceLabel ->
+                                val shuffledSongs = songs.shuffled()
+                                shuffledSongs.firstOrNull()?.let { firstSong ->
+                                    container.playbackManager.playSong(
+                                        song = firstSong,
+                                        collection = shuffledSongs,
                                         sourceLabel = sourceLabel,
                                         sourcePlaylistId = playlist?.id,
                                     )
@@ -2375,7 +2377,7 @@ fun ElovaireRoot(
                     ) {
                         FirstLaunchPermissionLoadingScreen(
                             showLoading = true,
-                            onRequestPermission = { permissionLauncher.launch(audioPermission()) },
+                            onRequestPermission = { permissionLauncher.launch(requiredAudioPermission()) },
                         )
                     }
                 }
@@ -3826,6 +3828,7 @@ private fun HomeScreen(
     onPlaylistSelected: (Playlist) -> Unit,
     onPlayAlbum: (Album) -> Unit,
     onPlayPlaylist: (Playlist, List<Song>) -> Unit,
+    onShufflePlaylist: (Playlist, List<Song>) -> Unit,
     onSongSelected: (Song) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
@@ -3986,6 +3989,7 @@ private fun HomeScreen(
                                     songs = lastPlayedPlaylistSongs,
                                     onOpen = { onPlaylistSelected(lastPlayedPlaylist) },
                                     onPlay = { onPlayPlaylist(lastPlayedPlaylist, lastPlayedPlaylistSongs) },
+                                    onShuffle = { onShufflePlaylist(lastPlayedPlaylist, lastPlayedPlaylistSongs) },
                                 )
                             }
                             lastPlayedAlbum != null -> item(
@@ -4240,6 +4244,7 @@ private fun LastPlayedPlaylistModule(
     songs: List<Song>,
     onOpen: () -> Unit,
     onPlay: () -> Unit,
+    onShuffle: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val artworkSong = songs.firstOrNull()
@@ -4339,22 +4344,34 @@ private fun LastPlayedPlaylistModule(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            Surface(
-                onClick = onPlay,
-                shape = CircleShape,
-                color = playBackground,
-                contentColor = playTint,
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Box(
-                    modifier = Modifier.size(46.dp),
-                    contentAlignment = Alignment.Center,
+                Surface(
+                    onClick = onPlay,
+                    shape = CircleShape,
+                    color = playBackground,
+                    contentColor = playTint,
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_play),
-                        contentDescription = playLabel(language),
-                        modifier = Modifier.size(20.dp),
-                    )
+                    Box(
+                        modifier = Modifier.size(46.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_play),
+                            contentDescription = playLabel(language),
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                 }
+                AlbumHeaderActionButton(
+                    iconResId = R.drawable.ic_lucide_shuffle,
+                    contentDescription = "Shuffle playlist",
+                    tint = playTint,
+                    backgroundColor = playBackground,
+                    onClick = onShuffle,
+                )
             }
         }
     }
@@ -9490,6 +9507,7 @@ private fun PlaylistDetailScreen(
     bottomPadding: Dp,
     onBack: () -> Unit,
     onPlayPlaylist: (List<Song>, String) -> Unit,
+    onShufflePlaylist: (List<Song>, String) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onAddSongs: (List<Long>) -> Unit,
     onUpdateSongOrder: (List<Long>) -> Unit,
@@ -9665,11 +9683,24 @@ private fun PlaylistDetailScreen(
                                 overflow = TextOverflow.Ellipsis,
                             )
                         }
-                        AlbumHeaderPlayButton(
-                            tint = Color.White,
-                            backgroundColor = RoseAccent,
-                            onClick = { onPlayPlaylist(playlistSongs, playlist.name) },
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            AlbumHeaderPlayButton(
+                                tint = Color.White,
+                                backgroundColor = RoseAccent,
+                                onClick = { onPlayPlaylist(playlistSongs, playlist.name) },
+                            )
+                            AlbumHeaderActionButton(
+                                iconResId = R.drawable.ic_lucide_shuffle,
+                                contentDescription = "Shuffle playlist",
+                                tint = Color.White,
+                                backgroundColor = RoseAccent.copy(alpha = 0.7f),
+                                iconSize = 18.dp,
+                                onClick = { onShufflePlaylist(playlistSongs, playlist.name) },
+                            )
+                        }
                     }
                 }
             }
@@ -17826,23 +17857,6 @@ private fun suggestedAlbumsFor(
             if (none { it.id == album.id }) add(album)
             if (size == 6) return@buildList
         }
-    }
-}
-
-private fun hasAudioPermission(context: Context): Boolean {
-    return ContextCompat.checkSelfPermission(context, audioPermission()) == PackageManager.PERMISSION_GRANTED
-}
-
-private fun hasNotificationPermission(context: Context): Boolean {
-    return Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-}
-
-private fun audioPermission(): String {
-    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        Manifest.permission.READ_MEDIA_AUDIO
-    } else {
-        Manifest.permission.READ_EXTERNAL_STORAGE
     }
 }
 
