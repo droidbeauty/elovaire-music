@@ -55,7 +55,9 @@ class AppContainer(
         appContext = applicationContext,
         scanner = MediaStoreScanner(applicationContext),
         scope = appScope,
-    )
+    ).also { repository ->
+        repository.setPreferredLibraryFolderPath(preferenceStore.libraryFolderPath.value)
+    }
     private val _openPlayerRequests = MutableSharedFlow<Unit>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
@@ -87,6 +89,10 @@ class AppContainer(
                 .map { it.songs }
                 .distinctUntilChanged()
                 .collect(playbackManager::refreshLibraryMetadata)
+        }
+        appScope.launch {
+            preferenceStore.libraryFolderPath
+                .collect(libraryRepository::setPreferredLibraryFolderPath)
         }
     }
 

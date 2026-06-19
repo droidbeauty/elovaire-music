@@ -12,6 +12,7 @@ internal data class LibrarySignature(
     val songCount: Int,
     val newestDateAddedSeconds: Long,
     val idChecksum: Long,
+    val filterFingerprint: String = "",
 )
 
 internal data class CachedLibrarySnapshot(
@@ -39,6 +40,7 @@ internal class LibrarySnapshotStore(
                 songCount = root.optInt("songCount", 0),
                 newestDateAddedSeconds = root.optLong("newestDateAddedSeconds", 0L),
                 idChecksum = root.optLong("idChecksum", 0L),
+                filterFingerprint = root.optString("filterFingerprint"),
             )
             val songs = buildList {
                 val songsArray = root.optJSONArray("songs") ?: JSONArray()
@@ -68,7 +70,10 @@ internal class LibrarySnapshotStore(
                     )
                 }
             }.filter(::isSupportedLibrarySong)
-            val filteredSignature = signatureFromSongs(songs)
+            val filteredSignature = signatureFromSongs(
+                songs = songs,
+                filterFingerprint = signature.filterFingerprint,
+            )
 
             CachedLibrarySnapshot(
                 snapshot = LibrarySnapshot(
@@ -80,15 +85,22 @@ internal class LibrarySnapshotStore(
         }.getOrNull()
     }
 
-    fun save(snapshot: LibrarySnapshot) {
+    fun save(
+        snapshot: LibrarySnapshot,
+        filterFingerprint: String,
+    ) {
         runCatching {
             val songs = snapshot.songs.filter(::isSupportedLibrarySong)
-            val signature = signatureFromSongs(songs)
+            val signature = signatureFromSongs(
+                songs = songs,
+                filterFingerprint = filterFingerprint,
+            )
             val serializedSnapshot = JSONObject().apply {
                 put("version", SNAPSHOT_VERSION)
                 put("songCount", signature.songCount)
                 put("newestDateAddedSeconds", signature.newestDateAddedSeconds)
                 put("idChecksum", signature.idChecksum)
+                put("filterFingerprint", signature.filterFingerprint)
                 put(
                     "songs",
                     JSONArray().apply {
@@ -132,18 +144,22 @@ internal class LibrarySnapshotStore(
     }
 
     private companion object {
-        const val SNAPSHOT_FILE_NAME = "library_snapshot_v4.json"
-        const val SNAPSHOT_VERSION = 4
+        const val SNAPSHOT_FILE_NAME = "library_snapshot_v5.json"
+        const val SNAPSHOT_VERSION = 5
     }
 }
 
-internal fun signatureFromSongs(songs: List<Song>): LibrarySignature {
+internal fun signatureFromSongs(
+    songs: List<Song>,
+    filterFingerprint: String = "",
+): LibrarySignature {
     return LibrarySignature(
         songCount = songs.size,
         newestDateAddedSeconds = songs.maxOfOrNull(Song::dateAddedSeconds) ?: 0L,
         idChecksum = songs.fold(0L) { acc, song ->
             acc xor (song.id shl 1) xor song.dateAddedSeconds
         },
+        filterFingerprint = filterFingerprint,
     )
 }
 

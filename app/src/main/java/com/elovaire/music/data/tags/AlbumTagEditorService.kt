@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.tags
 
 import android.content.ContentResolver
 import android.content.Context
+import android.media.MediaMetadataRetriever
 import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -120,6 +121,7 @@ internal class AlbumTagEditorService(
                         trackNumber = trackEdit.trackNumber.coerceAtLeast(1).toString(),
                         discNumber = trackEdit.discNumber.coerceAtLeast(1).toString(),
                     ),
+                    expectArtwork = coverArtBytes != null,
                 )
                 if (verificationFailures.isNotEmpty()) {
                     failures += TagEditFailure(
@@ -211,6 +213,7 @@ internal class AlbumTagEditorService(
     private fun verifyWrittenTags(
         tempFile: File,
         expected: ExpectedTagValues,
+        expectArtwork: Boolean,
     ): List<String> {
         val audioFile = AudioFileIO.read(tempFile)
         val tag = audioFile.tagOrCreateAndSetDefault
@@ -232,7 +235,22 @@ internal class AlbumTagEditorService(
         check(FieldKey.YEAR, expected.year, "Year")
         check(FieldKey.TRACK, expected.trackNumber, "Track")
         check(FieldKey.DISC_NO, expected.discNumber, "Disc")
+        if (expectArtwork && !hasEmbeddedArtwork(tempFile)) {
+            failures += "Artwork was not embedded correctly"
+        }
         return failures
+    }
+
+    private fun hasEmbeddedArtwork(tempFile: File): Boolean {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(tempFile.absolutePath)
+            retriever.embeddedPicture?.isNotEmpty() == true
+        } catch (_: Throwable) {
+            false
+        } finally {
+            runCatching { retriever.release() }
+        }
     }
 
     private fun copySongToTempFile(song: Song): File {

@@ -238,7 +238,10 @@ class LibraryRepository(
             }
                 .onSuccess { snapshot ->
                     withContext(Dispatchers.IO) {
-                        snapshotStore.save(snapshot)
+                        snapshotStore.save(
+                            snapshot = snapshot,
+                            filterFingerprint = scanner.currentFilterFingerprint(),
+                        )
                     }
                     val nextContentState = LibraryContentState(
                         songs = snapshot.songs,
@@ -336,7 +339,8 @@ class LibraryRepository(
     fun defaultMediaFolderPath(): String = scanner.musicDirectory().absolutePath
 
     fun setPreferredLibraryFolderPath(path: String?) {
-        scanner.setPreferredLibraryFolderPath(path)
+        val changed = scanner.setPreferredLibraryFolderPath(path)
+        if (!changed) return
         if (_scanState.value.permissionGranted) {
             ensureMusicDirectoryObserver()
             refresh(

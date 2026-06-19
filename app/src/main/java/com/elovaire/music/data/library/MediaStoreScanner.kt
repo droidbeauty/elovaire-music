@@ -29,8 +29,24 @@ class MediaStoreScanner(
     private val metadataCache = mutableMapOf<Long, CachedSongMetadata>()
     private var preferredLibraryFolderPath: String? = null
 
-    fun setPreferredLibraryFolderPath(path: String?) {
-        preferredLibraryFolderPath = path?.trim()?.ifBlank { null }
+    fun setPreferredLibraryFolderPath(path: String?): Boolean {
+        val cleanedPath = path
+            ?.trim()
+            ?.ifBlank { null }
+            ?.replace('\\', '/')
+            ?.trimEnd('/')
+        if (normalizeAbsolutePath(preferredLibraryFolderPath.orEmpty()) == normalizeAbsolutePath(cleanedPath.orEmpty())) {
+            return false
+        }
+        preferredLibraryFolderPath = cleanedPath
+        return true
+    }
+
+    fun currentFilterFingerprint(): String {
+        return listOf(
+            FILTER_FINGERPRINT_VERSION.toString(),
+            normalizeAbsolutePath(preferredLibraryFolderPath.orEmpty()).orEmpty(),
+        ).joinToString("::")
     }
 
     fun primeMetadataCache(
@@ -324,6 +340,7 @@ class MediaStoreScanner(
             songCount = songCount,
             newestDateAddedSeconds = newestDateAddedSeconds,
             idChecksum = idChecksum,
+            filterFingerprint = currentFilterFingerprint(),
         )
     }
 
@@ -966,6 +983,7 @@ internal fun isSupportedLibrarySong(song: Song): Boolean {
     return isSupportedAudioFileName(song.fileName)
 }
 
+private const val FILTER_FINGERPRINT_VERSION = 1
 private val LOSSY_AUDIO_FORMATS = setOf("MP3", "AAC", "OGG", "OPUS", "AMR", "3GP", "MP4", "M4A")
 private val LOSSLESS_AUDIO_FORMATS = setOf("FLAC", "WAV")
 private val LOSSLESS_QUALITY_REGEX = Regex("""\d{1,2}/\d{1,3}(?:\.\d)?kHz""")
