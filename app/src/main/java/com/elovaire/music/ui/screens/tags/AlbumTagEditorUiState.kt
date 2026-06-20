@@ -14,6 +14,7 @@ internal data class AlbumTagEditorUiState(
     val albumTitle: String = "",
     val albumArtist: String = "",
     val releaseYear: String = "",
+    val yearClearedExplicitly: Boolean = false,
     val tracks: List<EditableTrackTagState> = emptyList(),
     val selectedArtworkUri: Uri? = null,
     val selectedArtworkBytes: ByteArray? = null,
@@ -58,6 +59,7 @@ internal fun Album.toTagEditorUiState(): AlbumTagEditorUiState {
         albumTitle = title,
         albumArtist = artist,
         releaseYear = releaseYear,
+        yearClearedExplicitly = false,
         tracks = songs.mapIndexed { index, song ->
             EditableTrackTagState(
                 songId = song.id,
@@ -87,7 +89,10 @@ internal fun AlbumTagEditorUiState.toAlbumTagEditRequest(): AlbumTagEditRequest?
         albumTitle = albumTitle,
         albumArtist = albumArtist,
         releaseYear = releaseYear.toIntOrNull(),
-        coverArtUri = selectedArtworkUri,
+        shouldClearYear = yearClearedExplicitly && releaseYear.isBlank(),
+        coverArtUri = selectedArtworkUri?.takeIf { selected ->
+            selected.toString() != album.artUri?.toString()
+        },
         coverArtBytes = selectedArtworkBytes,
         tracks = tracks.mapIndexed { index, track ->
             EditableAlbumTrack(
@@ -96,6 +101,7 @@ internal fun AlbumTagEditorUiState.toAlbumTagEditRequest(): AlbumTagEditRequest?
                 artist = track.artist,
                 trackNumber = track.trackNumber.toIntOrNull()?.coerceAtLeast(1) ?: (index + 1),
                 discNumber = track.discNumber.toIntOrNull()?.coerceAtLeast(1) ?: 1,
+                durationMs = track.durationMs,
             )
         },
     )

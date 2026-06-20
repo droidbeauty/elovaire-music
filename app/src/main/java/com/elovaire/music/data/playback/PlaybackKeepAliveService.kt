@@ -7,9 +7,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
+import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.media3.common.util.UnstableApi
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
 
 @UnstableApi
@@ -36,10 +38,11 @@ class PlaybackKeepAliveService : Service() {
                             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
                         )
                     }.onFailure { throwable ->
+                        logStartFailure("Unable to promote playback service to foreground", throwable)
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && throwable is ForegroundServiceStartNotAllowedException) {
                             stopSelf()
                         } else {
-                            throw throwable
+                            stopSelf()
                         }
                     }
                 } else {
@@ -80,14 +83,22 @@ class PlaybackKeepAliveService : Service() {
             runCatching {
                 ContextCompat.startForegroundService(context, intent)
             }.onFailure { throwable ->
-                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S || throwable !is ForegroundServiceStartNotAllowedException) {
-                    throw throwable
-                }
+                logStartFailure("Unable to start playback foreground service", throwable)
             }
         }
 
         fun stop(context: Context) {
             context.stopService(Intent(context, PlaybackKeepAliveService::class.java))
         }
+
+        private fun logStartFailure(
+            message: String,
+            throwable: Throwable,
+        ) {
+            if (!BuildConfig.DEBUG) return
+            Log.w(TAG, message, throwable)
+        }
+
+        private const val TAG = "PlaybackKeepAlive"
     }
 }

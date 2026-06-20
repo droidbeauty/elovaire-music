@@ -2,25 +2,34 @@ package elovaire.music.droidbeauty.app.data.tags
 
 import android.content.ContentResolver
 import android.content.Context
-import android.media.MediaMetadataRetriever
+import android.app.PendingIntent
+import android.app.RecoverableSecurityException
 import android.net.Uri
+import android.util.Log
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
+import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
+import elovaire.music.droidbeauty.app.data.tags.matching.AlbumTagMatchResult
+import elovaire.music.droidbeauty.app.data.tags.matching.AndroidChromaprintFingerprintProvider
+import elovaire.music.droidbeauty.app.data.tags.matching.CoverArtArchiveClient
+import elovaire.music.droidbeauty.app.data.tags.matching.EmbeddedArtworkProvider
+import elovaire.music.droidbeauty.app.data.tags.matching.FingerprintAlbumTagMatcher
+import elovaire.music.droidbeauty.app.data.tags.matching.HttpAcoustIdClient
+import elovaire.music.droidbeauty.app.data.tags.matching.HttpMusicBrainzClient
+import elovaire.music.droidbeauty.app.data.tags.matching.TagMatchCache
+import elovaire.music.droidbeauty.app.data.tags.matching.TidalArtworkProvider
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.images.ArtworkFactory
-import org.json.JSONObject
 
 internal data class EditableAlbumTrack(
     val songId: Long,
@@ -28,6 +37,7 @@ internal data class EditableAlbumTrack(
     val artist: String,
     val trackNumber: Int,
     val discNumber: Int,
+    val durationMs: Long? = null,
 )
 
 internal data class AlbumTagEditRequest(
@@ -35,6 +45,7 @@ internal data class AlbumTagEditRequest(
     val albumTitle: String,
     val albumArtist: String,
     val releaseYear: Int?,
+    val shouldClearYear: Boolean = false,
     val coverArtUri: Uri?,
     val coverArtBytes: ByteArray? = null,
     val tracks: List<EditableAlbumTrack>,
@@ -48,12 +59,20 @@ internal data class AlbumTagMatchSuggestion(
     val tracks: List<EditableAlbumTrack>,
 )
 
+internal sealed interface OnlineTagMatchOutcome {
+    data class Success(val suggestion: AlbumTagMatchSuggestion) : OnlineTagMatchOutcome
+    data class Unavailable(val reason: String) : OnlineTagMatchOutcome
+    data class NoMatch(val reason: String) : OnlineTagMatchOutcome
+    data class Failed(val reason: String) : OnlineTagMatchOutcome
+}
+
 internal data class TagEditApplyResult(
     val editedSongIds: List<Long>,
     val editedUris: List<Uri>,
     val editedFilePaths: List<String>,
     val artworkChanged: Boolean,
     val failures: List<TagEditFailure> = emptyList(),
+    val permissionRequest: PendingIntent? = null,
 )
 
 internal data class TagEditFailure(
@@ -67,28 +86,47 @@ internal class AlbumTagEditorService(
 ) {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
+    private val matchCache = TagMatchCache(appContext)
+    private val albumMatcher = FingerprintAlbumTagMatcher(
+        fingerprintProvider = AndroidChromaprintFingerprintProvider(appContext, matchCache),
+        acoustIdClient = HttpAcoustIdClient(BuildConfig.ACOUSTID_API_KEY, matchCache),
+        musicBrainzClient = HttpMusicBrainzClient(matchCache),
+        artworkResolver = AlbumArtworkResolver(
+            tidalArtworkProvider = TidalArtworkProvider(),
+            coverArtArchiveClient = CoverArtArchiveClient(),
+            embeddedArtworkProvider = EmbeddedArtworkProvider(appContext),
+        ),
+    )
 
-    suspend fun findBestOnlineMatch(album: Album): AlbumTagMatchSuggestion? = withContext(Dispatchers.IO) {
-        val bestCandidate = searchBestCandidate(album) ?: return@withContext null
-        delay(MUSIC_BRAINZ_RATE_LIMIT_MS)
-        val release = fetchRelease(bestCandidate.id) ?: return@withContext null
-        val albumArtist = release.albumArtist.ifBlank { bestCandidate.albumArtist.ifBlank { album.artist } }
-        val coverBytes = fetchTidalCoverArt(
-            albumTitle = release.title.ifBlank { album.title },
-            albumArtist = albumArtist,
-        ) ?: fetchCoverArt(bestCandidate.id)
-        val mappedTracks = mapTracks(
-            albumSongs = album.songs,
-            matchedTracks = release.tracks,
-            fallbackArtist = albumArtist,
-        )
-        AlbumTagMatchSuggestion(
-            albumTitle = release.title.ifBlank { album.title },
-            albumArtist = albumArtist,
-            releaseYear = release.releaseYear ?: bestCandidate.releaseYear,
-            coverArtBytes = coverBytes,
-            tracks = mappedTracks,
-        )
+    suspend fun findBestOnlineMatch(album: Album): OnlineTagMatchOutcome = withContext(Dispatchers.IO) {
+        when (val result = albumMatcher.matchAlbum(album)) {
+            is AlbumTagMatchResult.Success -> {
+                val suggestion = AlbumTagMatchSuggestion(
+                    albumTitle = result.match.release.title.ifBlank { album.title },
+                    albumArtist = result.match.release.albumArtist.ifBlank { album.artist },
+                    releaseYear = result.match.release.releaseYear,
+                    coverArtBytes = result.artwork?.bytes,
+                    tracks = album.songs.map { song ->
+                        val resolved = result.match.trackMatches.firstOrNull { it.song.id == song.id }
+                        EditableAlbumTrack(
+                            songId = song.id,
+                            title = resolved?.remoteTrack?.title?.takeIf(String::isNotBlank) ?: song.title,
+                            artist = resolved?.remoteTrack?.artist?.takeIf(String::isNotBlank) ?: song.artist,
+                            trackNumber = resolved?.remoteTrack?.trackNumber?.takeIf { it > 0 }
+                                ?: song.trackNumber.coerceAtLeast(1),
+                            discNumber = resolved?.remoteTrack?.discNumber?.takeIf { it > 0 }
+                                ?: song.discNumber.coerceAtLeast(1),
+                            durationMs = song.durationMs,
+                        )
+                    },
+                )
+                OnlineTagMatchOutcome.Success(suggestion)
+            }
+
+            is AlbumTagMatchResult.Unavailable -> OnlineTagMatchOutcome.Unavailable(result.reason)
+            is AlbumTagMatchResult.NoMatch -> OnlineTagMatchOutcome.NoMatch(result.reason)
+            is AlbumTagMatchResult.Failed -> OnlineTagMatchOutcome.Failed(result.reason)
+        }
     }
 
     suspend fun applyEdits(request: AlbumTagEditRequest): TagEditApplyResult = withContext(Dispatchers.IO) {
@@ -99,28 +137,51 @@ internal class AlbumTagEditorService(
         val editedUris = mutableListOf<Uri>()
         val editedFilePaths = mutableListOf<String>()
         val failures = mutableListOf<TagEditFailure>()
+        var permissionRequest: PendingIntent? = null
         request.album.songs.forEach { song ->
-            val trackEdit = trackEditsById[song.id] ?: return@forEach
-            val tempFile = copySongToTempFile(song)
+            val extension = song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+            if (extension !in WRITABLE_TAG_EXTENSIONS) {
+                failures += TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = "This audio format cannot be tagged safely.",
+                )
+                return@forEach
+            }
+            val trackEdit = trackEditsById[song.id]
+            if (trackEdit == null) {
+                logDebug("Missing per-track edit row for songId=${song.id}; applying album-level values only.")
+            }
+            val effectiveTrack = EffectiveTrackEdit.from(song, trackEdit)
+            var tempFile: File? = null
+            var backupFile: File? = null
+            var persistedVerificationFile: File? = null
             try {
+                val originalBackup = copySongToTempFile(song, "backup")
+                backupFile = originalBackup
+                val workingFile = createTagEditTempFile(song, "working").also { file ->
+                    originalBackup.copyTo(file, overwrite = true)
+                }
+                tempFile = workingFile
                 updateTagFile(
-                    tempFile = tempFile,
+                    tempFile = workingFile,
                     originalSong = song,
                     request = request,
-                    track = trackEdit,
+                    track = effectiveTrack,
                     coverArtBytes = coverArtBytes,
                     coverArtMimeType = coverArtMimeType,
                 )
                 val verificationFailures = verifyWrittenTags(
-                    tempFile = tempFile,
+                    tempFile = workingFile,
                     expected = ExpectedTagValues(
-                        title = trackEdit.title.trim().ifBlank { song.title },
-                        artist = trackEdit.artist.trim().ifBlank { song.artist },
+                        title = effectiveTrack.title,
+                        artist = effectiveTrack.artist,
                         album = request.albumTitle.trim().ifBlank { song.album },
                         albumArtist = request.albumArtist.trim().ifBlank { song.artist },
                         year = request.releaseYear?.takeIf { it > 0 }?.toString(),
-                        trackNumber = trackEdit.trackNumber.coerceAtLeast(1).toString(),
-                        discNumber = trackEdit.discNumber.coerceAtLeast(1).toString(),
+                        shouldClearYear = request.shouldClearYear,
+                        trackNumber = effectiveTrack.trackNumber.coerceAtLeast(1).toString(),
+                        discNumber = effectiveTrack.discNumber.coerceAtLeast(1).toString(),
                     ),
                     expectArtwork = coverArtBytes != null,
                 )
@@ -132,27 +193,64 @@ internal class AlbumTagEditorService(
                     )
                     return@forEach
                 }
-                overwriteSongFromTemp(song.uri, tempFile)
+                try {
+                    overwriteSongFromTemp(song.uri, tempFile)
+                } catch (writeFailure: Throwable) {
+                    runCatching { overwriteSongFromTemp(song.uri, originalBackup) }
+                    throw writeFailure
+                }
+                persistedVerificationFile = copySongToTempFile(song, "verify")
+                val persistedFailures = verifyWrittenTags(
+                    tempFile = persistedVerificationFile,
+                    expected = ExpectedTagValues(
+                        title = effectiveTrack.title,
+                        artist = effectiveTrack.artist,
+                        album = request.albumTitle.trim().ifBlank { song.album },
+                        albumArtist = request.albumArtist.trim().ifBlank { song.artist },
+                        year = request.releaseYear?.takeIf { it > 0 }?.toString(),
+                        shouldClearYear = request.shouldClearYear,
+                        trackNumber = effectiveTrack.trackNumber.coerceAtLeast(1).toString(),
+                        discNumber = effectiveTrack.discNumber.coerceAtLeast(1).toString(),
+                    ),
+                    expectArtwork = coverArtBytes != null,
+                )
+                if (persistedFailures.isNotEmpty()) {
+                    overwriteSongFromTemp(song.uri, originalBackup)
+                    error("Persisted tag verification failed: ${persistedFailures.joinToString()}")
+                }
                 editedSongIds += song.id
                 editedUris += song.uri
                 resolveFilePath(song)?.let(editedFilePaths::add)
+            } catch (throwable: CancellationException) {
+                throw throwable
+            } catch (throwable: RecoverableSecurityException) {
+                if (permissionRequest == null) {
+                    permissionRequest = throwable.userAction.actionIntent
+                }
+                failures += TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = "Additional write access is required for this file.",
+                )
             } catch (throwable: Throwable) {
-                if (throwable is SecurityException) throw throwable
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,
                     reason = throwable.message ?: "Unable to save tags.",
                 )
             } finally {
-                runCatching { tempFile.delete() }
+                runCatching { tempFile?.delete() }
+                runCatching { backupFile?.delete() }
+                runCatching { persistedVerificationFile?.delete() }
             }
         }
         TagEditApplyResult(
             editedSongIds = editedSongIds,
             editedUris = editedUris,
             editedFilePaths = editedFilePaths.distinct(),
-            artworkChanged = coverArtBytes != null,
+            artworkChanged = coverArtBytes != null && editedSongIds.isNotEmpty(),
             failures = failures,
+            permissionRequest = permissionRequest,
         )
     }
 
@@ -160,7 +258,7 @@ internal class AlbumTagEditorService(
         tempFile: File,
         originalSong: Song,
         request: AlbumTagEditRequest,
-        track: EditableAlbumTrack,
+        track: EffectiveTrackEdit,
         coverArtBytes: ByteArray?,
         coverArtMimeType: String?,
     ) {
@@ -168,18 +266,16 @@ internal class AlbumTagEditorService(
         val tag = audioFile.tagOrCreateAndSetDefault
         val normalizedAlbumTitle = request.albumTitle.trim().ifBlank { originalSong.album }
         val normalizedAlbumArtist = request.albumArtist.trim().ifBlank { originalSong.artist }
-        val normalizedTrackArtist = track.artist.trim().ifBlank {
-            if (originalSong.artist.isBlank() || originalSong.artist == request.album.artist) normalizedAlbumArtist else originalSong.artist
-        }
+        val normalizedTrackArtist = track.artist.trim().ifBlank { originalSong.artist }
         setOrDeleteTextField(tag, FieldKey.ALBUM, normalizedAlbumTitle)
         setOrDeleteTextField(tag, FieldKey.ALBUM_ARTIST, normalizedAlbumArtist)
         setOrDeleteTextField(tag, FieldKey.ARTIST, normalizedTrackArtist)
         setOrDeleteTextField(tag, FieldKey.TITLE, track.title.trim().ifBlank { originalSong.title })
         setOrDeleteTextField(tag, FieldKey.TRACK, track.trackNumber.coerceAtLeast(1).toString())
         setOrDeleteTextField(tag, FieldKey.DISC_NO, track.discNumber.coerceAtLeast(1).toString())
-        request.releaseYear?.takeIf { it > 0 }?.let { year ->
-            setOrDeleteTextField(tag, FieldKey.YEAR, year.toString())
-        } ?: runCatching {
+        if (request.releaseYear != null && request.releaseYear > 0) {
+            setOrDeleteTextField(tag, FieldKey.YEAR, request.releaseYear.toString())
+        } else if (request.shouldClearYear) {
             tag.deleteField(FieldKey.YEAR)
         }
         if (coverArtBytes != null && coverArtMimeType != null) {
@@ -229,35 +325,30 @@ internal class AlbumTagEditorService(
             }
         }
 
+        fun checkCleared(field: FieldKey, label: String, shouldBeCleared: Boolean) {
+            if (!shouldBeCleared) return
+            val actual = tag.getFirst(field).orEmpty().trim()
+            if (actual.isNotEmpty()) {
+                failures += "$label should be cleared but was '$actual'"
+            }
+        }
+
         check(FieldKey.TITLE, expected.title, "Title")
         check(FieldKey.ARTIST, expected.artist, "Artist")
         check(FieldKey.ALBUM, expected.album, "Album")
         check(FieldKey.ALBUM_ARTIST, expected.albumArtist, "Album artist")
         check(FieldKey.YEAR, expected.year, "Year")
+        checkCleared(FieldKey.YEAR, "Year", expected.shouldClearYear)
         check(FieldKey.TRACK, expected.trackNumber, "Track")
         check(FieldKey.DISC_NO, expected.discNumber, "Disc")
-        if (expectArtwork && !hasEmbeddedArtwork(tempFile)) {
+        if (expectArtwork && tag.firstArtwork?.binaryData?.isNotEmpty() != true) {
             failures += "Artwork was not embedded correctly"
         }
         return failures
     }
 
-    private fun hasEmbeddedArtwork(tempFile: File): Boolean {
-        val retriever = MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(tempFile.absolutePath)
-            retriever.embeddedPicture?.isNotEmpty() == true
-        } catch (_: Throwable) {
-            false
-        } finally {
-            runCatching { retriever.release() }
-        }
-    }
-
-    private fun copySongToTempFile(song: Song): File {
-        val tempDir = File(appContext.cacheDir, TEMP_TAG_EDIT_DIR_NAME).apply { mkdirs() }
-        val suffix = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
-        val tempFile = File(tempDir, "${song.id}-${System.nanoTime()}.$suffix")
+    private fun copySongToTempFile(song: Song, purpose: String): File {
+        val tempFile = createTagEditTempFile(song, purpose)
         contentResolver.openInputStream(song.uri)?.use { input ->
             tempFile.outputStream().use { output ->
                 input.copyTo(output)
@@ -266,11 +357,22 @@ internal class AlbumTagEditorService(
         return tempFile
     }
 
+    private fun createTagEditTempFile(song: Song, purpose: String): File {
+        val tempDir = File(appContext.cacheDir, TEMP_TAG_EDIT_DIR_NAME).apply { mkdirs() }
+        val suffix = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
+        return File(tempDir, "${song.id}-$purpose-${System.nanoTime()}.$suffix")
+    }
+
     private fun overwriteSongFromTemp(
         songUri: Uri,
         tempFile: File,
     ) {
-        contentResolver.openFileDescriptor(songUri, "rw")?.use { descriptor ->
+        val descriptor = try {
+            contentResolver.openFileDescriptor(songUri, "rwt")
+        } catch (_: IllegalArgumentException) {
+            contentResolver.openFileDescriptor(songUri, "rw")
+        } ?: error("Unable to write updated tags")
+        descriptor.use {
             FileOutputStream(descriptor.fileDescriptor).channel.use { outputChannel ->
                 outputChannel.position(0L)
                 outputChannel.truncate(0L)
@@ -291,7 +393,7 @@ internal class AlbumTagEditorService(
                 }
                 outputChannel.force(true)
             }
-        } ?: error("Unable to write updated tags")
+        }
     }
 
     private fun resolveFilePath(song: Song): String? {
@@ -329,274 +431,26 @@ internal class AlbumTagEditorService(
         return artworkFile
     }
 
-    private fun searchBestCandidate(album: Album): ReleaseCandidate? {
-        val query = buildSearchQuery(album)
-        val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
-        val url = "$MUSIC_BRAINZ_BASE/release?query=$encodedQuery&fmt=json&limit=5"
-        val json = getJsonObject(url) ?: return null
-        val releases = json.optJSONArray("releases") ?: return null
-        var best: ReleaseCandidate? = null
-        var bestScore = Float.NEGATIVE_INFINITY
-        for (index in 0 until releases.length()) {
-            val candidate = releases.optJSONObject(index)?.toReleaseCandidate() ?: continue
-            val score = scoreCandidate(album, candidate)
-            if (score > bestScore) {
-                best = candidate
-                bestScore = score
-            }
-        }
-        return best
-    }
-
-    private fun buildSearchQuery(album: Album): String {
-        val title = album.title.trim()
-        val artist = album.artist.trim()
-        return buildString {
-            if (title.isNotBlank()) append("release:\"").append(title).append('"')
-            if (artist.isNotBlank()) {
-                if (isNotBlank()) append(" AND ")
-                append("artist:\"").append(artist).append('"')
-            }
-        }.ifBlank {
-            listOf(album.title, album.artist).filter { it.isNotBlank() }.joinToString(" ")
-        }
-    }
-
-    private fun scoreCandidate(
-        album: Album,
-        candidate: ReleaseCandidate,
-    ): Float {
-        var score = 0f
-        score += normalizedStringSimilarity(album.title, candidate.title) * 6f
-        score += normalizedStringSimilarity(album.artist, candidate.albumArtist) * 5f
-        score -= kotlin.math.abs(album.songCount - candidate.trackCount).toFloat() * 0.8f
-        val releaseYear = album.songs.firstNotNullOfOrNull { it.releaseYear }
-        if (releaseYear != null && candidate.releaseYear != null) {
-            score -= kotlin.math.abs(releaseYear - candidate.releaseYear).toFloat() * 0.35f
-        }
-        return score
-    }
-
-    private fun fetchRelease(releaseId: String): MatchedRelease? {
-        val url = "$MUSIC_BRAINZ_BASE/release/$releaseId?inc=recordings+artist-credits+media&fmt=json"
-        val json = getJsonObject(url) ?: return null
-        val title = json.optString("title").trim()
-        val albumArtist = json.optJSONArray("artist-credit").toArtistCreditString()
-        val releaseYear = json.optString("date").takeIf { it.isNotBlank() }?.take(4)?.toIntOrNull()
-        val media = json.optJSONArray("media") ?: return null
-        val tracks = buildList {
-            for (mediaIndex in 0 until media.length()) {
-                val mediaObject = media.optJSONObject(mediaIndex) ?: continue
-                val discNumber = mediaObject.optInt("position").takeIf { it > 0 } ?: mediaIndex + 1
-                val mediaTracks = mediaObject.optJSONArray("tracks") ?: continue
-                for (trackIndex in 0 until mediaTracks.length()) {
-                    val trackObject = mediaTracks.optJSONObject(trackIndex) ?: continue
-                    val matchedTitle = trackObject.optString("title").trim()
-                        .ifBlank { trackObject.optJSONObject("recording")?.optString("title").orEmpty().trim() }
-                    if (matchedTitle.isBlank()) continue
-                    val matchedArtist = trackObject.optJSONArray("artist-credit").toArtistCreditString()
-                        .ifBlank { albumArtist }
-                    add(
-                        EditableAlbumTrack(
-                            songId = -1L,
-                            title = matchedTitle,
-                            artist = matchedArtist,
-                            trackNumber = trackObject.optInt("position").takeIf { it > 0 } ?: trackIndex + 1,
-                            discNumber = discNumber,
-                        ),
-                    )
-                }
-            }
-        }
-        if (tracks.isEmpty()) return null
-        return MatchedRelease(
-            title = title,
-            albumArtist = albumArtist,
-            releaseYear = releaseYear,
-            tracks = tracks,
-        )
-    }
-
-    private fun fetchCoverArt(releaseId: String): ByteArray? {
-        val url = "$COVER_ART_BASE/release/$releaseId/front-500"
-        return getBytes(url)
-    }
-
-    private fun fetchTidalCoverArt(
-        albumTitle: String,
-        albumArtist: String,
-    ): ByteArray? {
-        val queries = buildList {
-            listOf(albumArtist, albumTitle, "tidal")
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
-                .takeIf { it.isNotBlank() }
-                ?.let(::add)
-            listOf(albumArtist, albumTitle)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
-                .takeIf { it.isNotBlank() }
-                ?.let(::add)
-        }.distinct()
-        queries.forEach { query ->
-            val artworkUrl = extractTidalArtworkUrl(query) ?: return@forEach
-            getBytes(artworkUrl)?.let { return it }
-        }
-        return null
-    }
-
-    private fun extractTidalArtworkUrl(query: String): String? {
-        val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
-        val urls = listOf(
-            "https://listen.tidal.com/search/albums?q=$encodedQuery",
-            "https://tidal.com/browse/search?query=$encodedQuery",
-        )
-        urls.forEach { url ->
-            val html = getText(url, accept = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8")
-                ?: return@forEach
-            TIDAL_ARTWORK_REGEX.find(html)?.groupValues?.getOrNull(1)?.let { match ->
-                return match
-                    .replace("\\/", "/")
-                    .replace("&amp;", "&")
-                    .replace(Regex("""/\d{2,4}x\d{2,4}(?=\.jpg)"""), "/1280x1280")
-            }
-        }
-        return null
-    }
-
-    private fun mapTracks(
-        albumSongs: List<Song>,
-        matchedTracks: List<EditableAlbumTrack>,
-        fallbackArtist: String,
-    ): List<EditableAlbumTrack> {
-        val sortedSongs = albumSongs.sortedWith(
-            compareBy<Song>({ it.discNumber }, { it.trackNumber }, { it.fileName.lowercase(Locale.ROOT) }),
-        )
-        return sortedSongs.mapIndexed { index, song ->
-            val matched = matchedTracks.getOrNull(index)
-            EditableAlbumTrack(
-                songId = song.id,
-                title = matched?.title?.ifBlank { song.title } ?: song.title,
-                artist = matched?.artist?.ifBlank { fallbackArtist } ?: song.artist.ifBlank { fallbackArtist },
-                trackNumber = matched?.trackNumber ?: song.trackNumber.coerceAtLeast(index + 1),
-                discNumber = matched?.discNumber ?: song.discNumber.coerceAtLeast(1),
-            )
-        }
-    }
-
-    private fun normalizedStringSimilarity(
-        left: String,
-        right: String,
-    ): Float {
-        val normalizedLeft = normalizeForMatching(left)
-        val normalizedRight = normalizeForMatching(right)
-        if (normalizedLeft.isBlank() || normalizedRight.isBlank()) return 0f
-        if (normalizedLeft == normalizedRight) return 1f
-        if (normalizedLeft.contains(normalizedRight) || normalizedRight.contains(normalizedLeft)) return 0.85f
-        val sharedTokens = normalizedLeft.split(' ').intersect(normalizedRight.split(' ').toSet())
-        val maxTokens = maxOf(normalizedLeft.split(' ').size, normalizedRight.split(' ').size).coerceAtLeast(1)
-        return (sharedTokens.size.toFloat() / maxTokens.toFloat()).coerceIn(0f, 1f)
-    }
-
-    private fun normalizeForMatching(value: String): String {
-        return value
-            .lowercase(Locale.ROOT)
-            .replace(Regex("""\([^)]*\)|\[[^]]*]"""), " ")
-            .replace(Regex("""[^a-z0-9]+"""), " ")
-            .trim()
-            .replace(Regex("""\s+"""), " ")
-    }
-
-    private fun getJsonObject(url: String): JSONObject? {
-        return getText(url)?.let(::JSONObject)
-    }
-
-    private fun getText(
-        url: String,
-        accept: String = "application/json",
-    ): String? {
-        val connection = (URL(url).openConnection() as? HttpURLConnection) ?: return null
-        return connection.useRequest(accept = accept) { input ->
-            input.bufferedReader().use { reader -> reader.readText() }
-        }
-    }
-
-    private fun getBytes(url: String): ByteArray? {
-        val connection = (URL(url).openConnection() as? HttpURLConnection) ?: return null
-        return connection.useRequest(accept = "*/*") { input ->
-            input.readBytes()
-        }
-    }
-
-    private inline fun <T> HttpURLConnection.useRequest(
-        accept: String = "application/json",
-        block: (java.io.InputStream) -> T,
-    ): T? {
-        connectTimeout = NETWORK_TIMEOUT_MS
-        readTimeout = NETWORK_TIMEOUT_MS
-        requestMethod = "GET"
-        setRequestProperty("Accept", accept)
-        setRequestProperty("User-Agent", USER_AGENT)
-        instanceFollowRedirects = true
-        return runCatching {
-            inputStream.use(block)
-        }.getOrNull().also {
-            disconnect()
-        }
-    }
-
-    private fun JSONObject.toReleaseCandidate(): ReleaseCandidate? {
-        val id = optString("id").trim().takeIf { it.isNotBlank() } ?: return null
-        val title = optString("title").trim().takeIf { it.isNotBlank() } ?: return null
-        val trackCount = optInt("track-count").takeIf { it > 0 }
-            ?: optJSONArray("media")?.let { media ->
-                var total = 0
-                for (index in 0 until media.length()) {
-                    total += media.optJSONObject(index)?.optInt("track-count") ?: 0
-                }
-                total.takeIf { it > 0 }
-            }
-            ?: 0
-        return ReleaseCandidate(
-            id = id,
-            title = title,
-            albumArtist = optJSONArray("artist-credit").toArtistCreditString(),
-            releaseYear = optString("date").takeIf { it.isNotBlank() }?.take(4)?.toIntOrNull(),
-            trackCount = trackCount,
-        )
-    }
-
-    private fun org.json.JSONArray?.toArtistCreditString(): String {
-        if (this == null) return ""
-        return buildString {
-            for (index in 0 until length()) {
-                val value = opt(index)
-                when (value) {
-                    is JSONObject -> {
-                        val name = value.optString("name").trim()
-                            .ifBlank { value.optJSONObject("artist")?.optString("name").orEmpty().trim() }
-                        append(name)
-                    }
-                    is String -> append(value)
-                }
-            }
-        }.replace(Regex("""\s+"""), " ").trim()
-    }
-
-    private data class ReleaseCandidate(
-        val id: String,
+    private data class EffectiveTrackEdit(
         val title: String,
-        val albumArtist: String,
-        val releaseYear: Int?,
-        val trackCount: Int,
-    )
-
-    private data class MatchedRelease(
-        val title: String,
-        val albumArtist: String,
-        val releaseYear: Int?,
-        val tracks: List<EditableAlbumTrack>,
-    )
+        val artist: String,
+        val trackNumber: Int,
+        val discNumber: Int,
+    ) {
+        companion object {
+            fun from(
+                song: Song,
+                track: EditableAlbumTrack?,
+            ): EffectiveTrackEdit {
+                return EffectiveTrackEdit(
+                    title = track?.title?.trim().orEmpty().ifBlank { song.title },
+                    artist = track?.artist?.trim().orEmpty().ifBlank { song.artist },
+                    trackNumber = track?.trackNumber?.takeIf { it > 0 } ?: song.trackNumber.coerceAtLeast(1),
+                    discNumber = track?.discNumber?.takeIf { it > 0 } ?: song.discNumber.coerceAtLeast(1),
+                )
+            }
+        }
+    }
 
     private data class ExpectedTagValues(
         val title: String,
@@ -604,20 +458,19 @@ internal class AlbumTagEditorService(
         val album: String,
         val albumArtist: String,
         val year: String?,
+        val shouldClearYear: Boolean,
         val trackNumber: String,
         val discNumber: String,
     )
 
     private companion object {
-        const val NETWORK_TIMEOUT_MS = 5_000
-        const val MUSIC_BRAINZ_RATE_LIMIT_MS = 1_050L
-        const val USER_AGENT = "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)"
-        const val MUSIC_BRAINZ_BASE = "https://musicbrainz.org/ws/2"
-        const val COVER_ART_BASE = "https://coverartarchive.org"
         const val TEMP_TAG_EDIT_DIR_NAME = "album-tag-edits"
-        val TIDAL_ARTWORK_REGEX = Regex(
-            """(https:\\?/\\?/resources\.tidal\.com/images/[a-z0-9/]+/1280x1280\.jpg)""",
-            RegexOption.IGNORE_CASE,
-        )
+        val WRITABLE_TAG_EXTENSIONS = setOf("mp3", "m4a", "mp4", "aac", "flac", "ogg", "opus", "wav")
+        const val TAG = "AlbumTagEditor"
+    }
+
+    private fun logDebug(message: String) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(TAG, message)
     }
 }

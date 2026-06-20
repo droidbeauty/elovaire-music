@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.data.update
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import androidx.core.content.FileProvider
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
@@ -35,6 +37,7 @@ data class AppUpdateUiState(
     val isChecking: Boolean = false,
     val isDownloading: Boolean = false,
     val isInstalling: Boolean = false,
+    val installPermissionRequired: Boolean = false,
     val downloadProgress: Float? = null,
     val errorMessage: String? = null,
     val transientStatus: AppUpdateTransientStatus? = null,
@@ -57,6 +60,7 @@ class AppUpdateManager(
     private var startupCleanupJob: Job? = null
     private var startupUpdateCheckJob: Job? = null
     private var startupMaintenanceScheduled = false
+    private var pendingInstallApk: File? = null
 
     fun checkForUpdates(force: Boolean = false) {
         if (checkJob?.isActive == true || _uiState.value.isDownloading || _uiState.value.isInstalling) return
@@ -106,10 +110,38 @@ class AppUpdateManager(
         val release = _uiState.value.availableRelease ?: return
         if (downloadJob?.isActive == true) return
         downloadJob = scope.launch {
+            val reusableApk = pendingInstallApk?.takeIf { it.exists() && it.name == release.assetFileName }
+            if (reusableApk != null) {
+                if (!ensureInstallerPermission(reusableApk)) return@launch
+                val launchError = runCatching { launchPackageInstaller(reusableApk) }.exceptionOrNull()
+                if (launchError != null) {
+                    _uiState.update {
+                        it.copy(
+                            isDownloading = false,
+                            isInstalling = false,
+                            installPermissionRequired = false,
+                            downloadProgress = null,
+                            errorMessage = launchError.message ?: "Unable to install update",
+                        )
+                    }
+                    return@launch
+                }
+                _uiState.update {
+                    it.copy(
+                        isDownloading = false,
+                        isInstalling = false,
+                        installPermissionRequired = false,
+                        downloadProgress = null,
+                        errorMessage = null,
+                    )
+                }
+                return@launch
+            }
             _uiState.update {
                 it.copy(
                     isDownloading = true,
                     isInstalling = false,
+                    installPermissionRequired = false,
                     downloadProgress = 0f,
                     errorMessage = null,
                 )
@@ -123,6 +155,7 @@ class AppUpdateManager(
                     it.copy(
                         isDownloading = false,
                         isInstalling = false,
+                        installPermissionRequired = false,
                         downloadProgress = null,
                         errorMessage = throwable.message ?: "Unable to download update",
                     )
@@ -130,19 +163,35 @@ class AppUpdateManager(
                 return@launch
             }
 
+            pendingInstallApk = apkFile
             _uiState.update {
                 it.copy(
                     isDownloading = false,
                     isInstalling = true,
+                    installPermissionRequired = false,
                     downloadProgress = 1f,
                     errorMessage = null,
                 )
             }
-            launchPackageInstaller(apkFile)
+            if (!ensureInstallerPermission(apkFile)) return@launch
+            val launchError = runCatching { launchPackageInstaller(apkFile) }.exceptionOrNull()
+            if (launchError != null) {
+                _uiState.update {
+                    it.copy(
+                        isDownloading = false,
+                        isInstalling = false,
+                        installPermissionRequired = false,
+                        downloadProgress = null,
+                        errorMessage = launchError.message ?: "Unable to install update",
+                    )
+                }
+                return@launch
+            }
             _uiState.update {
                 it.copy(
                     isDownloading = false,
                     isInstalling = false,
+                    installPermissionRequired = false,
                     downloadProgress = null,
                     errorMessage = null,
                 )
@@ -155,6 +204,7 @@ class AppUpdateManager(
             it.copy(
                 isDownloading = false,
                 isInstalling = false,
+                installPermissionRequired = false,
                 downloadProgress = null,
                 errorMessage = null,
             )
@@ -170,11 +220,16 @@ class AppUpdateManager(
     fun clearDownloadedInstallers() {
         runCatching {
             updatesDirectory().listFiles()?.forEach { file ->
-                if (file.isFile && file.extension.equals("apk", ignoreCase = true)) {
+                if (file.isFile && (
+                        file.extension.equals("apk", ignoreCase = true) ||
+                            file.extension.equals("part", ignoreCase = true)
+                    )
+                ) {
                     file.delete()
                 }
             }
         }
+        pendingInstallApk = null
     }
 
     fun scheduleStartupMaintenance() {
@@ -264,6 +319,11 @@ class AppUpdateManager(
     private fun downloadReleaseApk(release: AppReleaseInfo): File {
         val updatesDir = updatesDirectory().apply { mkdirs() }
         val targetFile = File(updatesDir, release.assetFileName)
+        val partFile = File(updatesDir, "${release.assetFileName}.part")
+        runCatching {
+            partFile.delete()
+            targetFile.delete()
+        }
         val connection = (URL(release.downloadUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = NETWORK_TIMEOUT_MS
@@ -276,26 +336,84 @@ class AppUpdateManager(
             throw IllegalStateException("Update download failed")
         }
         val totalBytes = connection.contentLengthLong.takeIf { it > 0L }
-        connection.inputStream.use { input ->
-            targetFile.outputStream().use { output ->
-                val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                var bytesCopied = 0L
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read <= 0) break
-                    output.write(buffer, 0, read)
-                    bytesCopied += read
-                    val progress = totalBytes?.let { bytesCopied.toFloat() / it.toFloat() }
-                    _uiState.update { state ->
-                        state.copy(downloadProgress = progress?.coerceIn(0f, 1f))
+        val copiedBytes = try {
+            connection.inputStream.use { input ->
+                partFile.outputStream().use { output ->
+                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                    var bytesCopied = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read <= 0) break
+                        output.write(buffer, 0, read)
+                        bytesCopied += read
+                        val progress = totalBytes?.let { bytesCopied.toFloat() / it.toFloat() }
+                        _uiState.update { state ->
+                            state.copy(downloadProgress = progress?.coerceIn(0f, 1f))
+                        }
                     }
+                    bytesCopied
                 }
             }
+        } catch (throwable: Throwable) {
+            runCatching { partFile.delete() }
+            throw throwable
+        } finally {
+            connection.disconnect()
+        }
+        if (copiedBytes <= 0L || !partFile.exists()) {
+            runCatching { partFile.delete() }
+            error("Downloaded update is empty")
+        }
+        if (totalBytes != null && copiedBytes != totalBytes) {
+            runCatching { partFile.delete() }
+            error("Downloaded update is incomplete")
+        }
+        if (!partFile.renameTo(targetFile)) {
+            partFile.copyTo(targetFile, overwrite = true)
+            partFile.delete()
+        }
+        if (!targetFile.exists() || targetFile.length() <= 0L) {
+            runCatching { targetFile.delete() }
+            error("Downloaded update is invalid")
         }
         return targetFile
     }
 
+    private fun ensureInstallerPermission(apkFile: File): Boolean {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !appContext.packageManager.canRequestPackageInstalls()
+        ) {
+            pendingInstallApk = apkFile
+            _uiState.update {
+                it.copy(
+                    isDownloading = false,
+                    isInstalling = false,
+                    installPermissionRequired = true,
+                    downloadProgress = null,
+                    errorMessage = "Allow installing updates from this source first.",
+                )
+            }
+            openUnknownAppSourcesSettings()
+            return false
+        }
+        return true
+    }
+
+    private fun openUnknownAppSourcesSettings() {
+        val intent = Intent(
+            Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
+            Uri.parse("package:${appContext.packageName}"),
+        ).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { appContext.startActivity(intent) }
+    }
+
     private fun launchPackageInstaller(apkFile: File) {
+        if (!apkFile.exists() || apkFile.length() <= 0L) {
+            pendingInstallApk = null
+            error("Downloaded update is invalid")
+        }
         val apkUri = FileProvider.getUriForFile(
             appContext,
             "${BuildConfig.APPLICATION_ID}.fileprovider",

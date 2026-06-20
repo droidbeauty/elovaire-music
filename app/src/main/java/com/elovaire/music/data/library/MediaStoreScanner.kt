@@ -59,6 +59,7 @@ class MediaStoreScanner(
             val cachedMetadata = SongMetadata(
                 title = song.title,
                 artist = song.artist,
+                albumArtist = song.albumArtist,
                 album = song.album,
                 releaseYear = song.releaseYear,
                 genre = song.genre.takeIf { hasMeaningfulGenre },
@@ -99,6 +100,11 @@ class MediaStoreScanner(
         }
     }
 
+    fun invalidateMetadataCacheForSongIds(songIds: Collection<Long>) {
+        if (songIds.isEmpty()) return
+        metadataCache.keys.removeAll(songIds.toSet())
+    }
+
     fun scan(
         refreshMediaIndex: Boolean = false,
         refreshMediaPaths: List<String> = emptyList(),
@@ -111,7 +117,7 @@ class MediaStoreScanner(
             refreshMediaIndex(refreshMediaPaths)
         }
 
-        var totalSongs = 0
+        var totalRows = 0
         val songs = mutableListOf<Song>()
         val refreshedMetadataCache = mutableMapOf<Long, CachedSongMetadata>()
         val projection = buildProjection()
@@ -126,8 +132,8 @@ class MediaStoreScanner(
             null,
             orderBy,
         )?.use { cursor ->
-            totalSongs = cursor.count.coerceAtLeast(0)
-            onProgress?.invoke(0, totalSongs)
+            totalRows = cursor.count.coerceAtLeast(0)
+            onProgress?.invoke(0, totalRows)
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val albumIdIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val titleIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
@@ -147,8 +153,9 @@ class MediaStoreScanner(
             @Suppress("DEPRECATION")
             val dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
 
-            var scannedSongs = 0
+            var processedRows = 0
             while (cursor.moveToNext()) {
+                processedRows += 1
                 val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
                 val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
                 val id = cursor.getLong(idIndex)
@@ -192,6 +199,9 @@ class MediaStoreScanner(
                     AudioFileFilterDecision.Include -> Unit
                     is AudioFileFilterDecision.Exclude -> {
                         logFilteredOutCandidate(candidate, decision.reason)
+                        if (processedRows == totalRows || processedRows % 24 == 0) {
+                            onProgress?.invoke(processedRows, totalRows)
+                        }
                         continue
                     }
                 }
@@ -217,6 +227,7 @@ class MediaStoreScanner(
                         SongMetadata(
                             title = rawTitle,
                             artist = rawArtist,
+                            albumArtist = null,
                             album = rawAlbum,
                             releaseYear = mediaStoreYear,
                             genre = null,
@@ -259,18 +270,18 @@ class MediaStoreScanner(
                     uri = songUri,
                     artUri = albumArtworkUri(albumId),
                     metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
+                    albumArtist = songMetadata.albumArtist,
                 )
-                scannedSongs += 1
-                if (scannedSongs == totalSongs || scannedSongs % 24 == 0) {
-                    onProgress?.invoke(scannedSongs, totalSongs)
+                if (processedRows == totalRows || processedRows % 24 == 0) {
+                    onProgress?.invoke(processedRows, totalRows)
                 }
             }
         }
 
-        if (totalSongs == 0) {
+        if (totalRows == 0) {
             onProgress?.invoke(1, 1)
         } else {
-            onProgress?.invoke(totalSongs, totalSongs)
+            onProgress?.invoke(totalRows, totalRows)
         }
 
         metadataCache.clear()
@@ -609,6 +620,7 @@ class MediaStoreScanner(
         return SongMetadata(
             title = retrieverMetadata.title,
             artist = retrieverMetadata.artist,
+            albumArtist = retrieverMetadata.albumArtist,
             album = retrieverMetadata.album,
             releaseYear = year,
             genre = genre,
@@ -634,6 +646,9 @@ class MediaStoreScanner(
                         ?.trim()
                         ?.takeIf { it.isNotBlank() },
                     artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() },
+                    albumArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
                         ?.trim()
                         ?.takeIf { it.isNotBlank() },
                     album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
@@ -695,7 +710,8 @@ class MediaStoreScanner(
         }
         return RetrieverMetadata(
             title = title,
-            artist = artist ?: albumArtist,
+            artist = artist,
+            albumArtist = albumArtist,
             album = album,
             year = year,
             genre = genre,
@@ -770,6 +786,7 @@ class MediaStoreScanner(
         return RetrieverMetadata(
             title = title ?: fallback.title,
             artist = artist ?: fallback.artist,
+            albumArtist = albumArtist ?: fallback.albumArtist,
             album = album ?: fallback.album,
             year = year ?: fallback.year,
             sampleRate = sampleRate ?: fallback.sampleRate,
@@ -943,6 +960,7 @@ private data class CachedSongMetadata(
 private data class SongMetadata(
     val title: String?,
     val artist: String?,
+    val albumArtist: String?,
     val album: String?,
     val releaseYear: Int?,
     val genre: String?,
@@ -961,6 +979,7 @@ private data class ExtractorMetadata(
 private data class RetrieverMetadata(
     val title: String? = null,
     val artist: String? = null,
+    val albumArtist: String? = null,
     val album: String? = null,
     val year: Int? = null,
     val sampleRate: Int? = null,

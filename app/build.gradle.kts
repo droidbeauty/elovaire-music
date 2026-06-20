@@ -12,6 +12,9 @@ val localProperties = Properties().apply {
 val geniusAccessToken = providers.gradleProperty("GENIUS_ACCESS_TOKEN").orNull
     ?: System.getenv("GENIUS_ACCESS_TOKEN")
     ?: localProperties.getProperty("GENIUS_ACCESS_TOKEN")
+val acoustIdApiKey = providers.gradleProperty("ACOUSTID_API_KEY").orNull
+    ?: System.getenv("ACOUSTID_API_KEY")
+    ?: localProperties.getProperty("ACOUSTID_API_KEY")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -22,6 +25,7 @@ plugins {
 android {
     namespace = AppBuildConfig.packageName
     compileSdk = 37
+    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = AppBuildConfig.packageName
@@ -34,6 +38,17 @@ android {
             "GENIUS_ACCESS_TOKEN",
             "\"${geniusAccessToken.orEmpty().replace("\"", "\\\"")}\"",
         )
+        buildConfigField(
+            "String",
+            "ACOUSTID_API_KEY",
+            "\"${acoustIdApiKey.orEmpty().replace("\"", "\\\"")}\"",
+        )
+
+        externalNativeBuild {
+            cmake {
+                cppFlags += "-std=c++17"
+            }
+        }
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -59,6 +74,13 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
     }
 
     packaging {

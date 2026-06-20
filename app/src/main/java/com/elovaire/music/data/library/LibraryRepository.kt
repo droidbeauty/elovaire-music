@@ -298,15 +298,19 @@ class LibraryRepository(
 
     fun refreshChangedFiles(
         filePaths: List<String>,
+        songIds: List<Long> = emptyList(),
         enrichMetadata: Boolean = true,
     ) {
         if (!_scanState.value.permissionGranted) return
+        if (enrichMetadata && songIds.isNotEmpty()) {
+            scanner.invalidateMetadataCacheForSongIds(songIds)
+        }
         val normalizedPaths = filePaths
             .map(String::trim)
             .filter(String::isNotBlank)
             .distinct()
         if (normalizedPaths.isEmpty()) {
-            if (enrichMetadata) {
+            if (enrichMetadata && songIds.isEmpty()) {
                 scanner.clearMetadataCache()
             }
             refresh(

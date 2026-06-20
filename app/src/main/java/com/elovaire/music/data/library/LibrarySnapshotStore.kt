@@ -52,6 +52,7 @@ internal class LibrarySnapshotStore(
                             title = songJson.optString("title"),
                             isExplicit = songJson.optBoolean("isExplicit"),
                             artist = songJson.optString("artist"),
+                            albumArtist = songJson.optString("albumArtist").takeIf { it.isNotBlank() },
                             album = songJson.optString("album"),
                             releaseYear = songJson.optInt("releaseYear").takeIf { it > 0 },
                             genre = songJson.optString("genre"),
@@ -111,6 +112,7 @@ internal class LibrarySnapshotStore(
                                     put("title", song.title)
                                     put("isExplicit", song.isExplicit)
                                     put("artist", song.artist)
+                                    put("albumArtist", song.albumArtist.orEmpty())
                                     put("album", song.album)
                                     put("releaseYear", song.releaseYear ?: 0)
                                     put("genre", song.genre)
@@ -144,8 +146,8 @@ internal class LibrarySnapshotStore(
     }
 
     private companion object {
-        const val SNAPSHOT_FILE_NAME = "library_snapshot_v5.json"
-        const val SNAPSHOT_VERSION = 5
+        const val SNAPSHOT_FILE_NAME = "library_snapshot_v6.json"
+        const val SNAPSHOT_VERSION = 6
     }
 }
 
@@ -175,7 +177,7 @@ internal fun buildAlbumsFromSongs(
             Album(
                 id = firstSong.albumId,
                 title = firstSong.album,
-                artist = firstSong.artist,
+                artist = firstSong.albumArtist?.takeIf { it.isNotBlank() } ?: firstSong.artist,
                 artUri = firstSong.artUri,
                 songCount = sortedSongs.size,
                 durationMs = sortedSongs.sumOf { it.durationMs },

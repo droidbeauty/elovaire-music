@@ -21,6 +21,7 @@ data class Song(
     val uri: Uri,
     val artUri: Uri?,
     val metadataResolved: Boolean = false,
+    val albumArtist: String? = null,
 )
 
 data class Album(

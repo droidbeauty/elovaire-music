@@ -21,7 +21,11 @@ class AppUpdateInstallReceiver : BroadcastReceiver() {
     private fun clearDownloadedInstallers(context: Context) {
         runCatching {
             File(context.cacheDir, "updates").listFiles()?.forEach { file ->
-                if (file.isFile && file.extension.equals("apk", ignoreCase = true)) {
+                if (file.isFile && (
+                        file.extension.equals("apk", ignoreCase = true) ||
+                            file.extension.equals("part", ignoreCase = true)
+                    )
+                ) {
                     file.delete()
                 }
             }

@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtwor
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
+import elovaire.music.droidbeauty.app.data.tags.OnlineTagMatchOutcome
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -100,8 +101,10 @@ internal class AlbumTagEditorViewModel(
     }
 
     fun onReleaseYearChange(value: String) {
+        val normalizedYear = value.filter(Char::isDigit).take(4)
         _uiState.value = _uiState.value.copy(
-            releaseYear = value.filter(Char::isDigit).take(4),
+            releaseYear = normalizedYear,
+            yearClearedExplicitly = value.isBlank(),
             statusMessage = null,
             saveFailures = emptyList(),
         ).recalculateFlags()
@@ -174,22 +177,37 @@ internal class AlbumTagEditorViewModel(
                 statusMessage = null,
                 saveFailures = emptyList(),
             ).recalculateFlags()
-            val result = withContext(Dispatchers.IO) {
-                runCatching { tagEditorService.findBestOnlineMatch(album) }.getOrNull()
+            val outcome = withContext(Dispatchers.IO) {
+                runCatching { tagEditorService.findBestOnlineMatch(album) }
+                    .getOrElse { throwable ->
+                        OnlineTagMatchOutcome.Failed(throwable.message ?: "Online matching failed.")
+                    }
             }
-            _uiState.value = if (result == null) {
-                _uiState.value.copy(
+            _uiState.value = when (outcome) {
+                is OnlineTagMatchOutcome.Success -> {
+                    _uiState.value.applyMatchSuggestionSafely(outcome.suggestion)
+                        .copy(
+                            isMatchingOnline = false,
+                            matchedRelease = outcome.suggestion,
+                            statusMessage = null,
+                        )
+                        .recalculateFlags()
+                }
+
+                is OnlineTagMatchOutcome.Unavailable -> _uiState.value.copy(
                     isMatchingOnline = false,
-                    statusMessage = "No close online match found.",
+                    statusMessage = outcome.reason,
                 ).recalculateFlags()
-            } else {
-                _uiState.value.applyMatchSuggestionSafely(result)
-                    .copy(
-                        isMatchingOnline = false,
-                        matchedRelease = result,
-                        statusMessage = null,
-                    )
-                    .recalculateFlags()
+
+                is OnlineTagMatchOutcome.NoMatch -> _uiState.value.copy(
+                    isMatchingOnline = false,
+                    statusMessage = outcome.reason,
+                ).recalculateFlags()
+
+                is OnlineTagMatchOutcome.Failed -> _uiState.value.copy(
+                    isMatchingOnline = false,
+                    statusMessage = outcome.reason,
+                ).recalculateFlags()
             }
         }
     }
@@ -244,16 +262,11 @@ internal class AlbumTagEditorViewModel(
                 }
                 invalidateEditedArtwork(artworkUrisToInvalidate)
             }
-            if (result.editedFilePaths.size == result.editedSongIds.size && result.editedFilePaths.isNotEmpty()) {
+            if (result.editedSongIds.isNotEmpty()) {
                 libraryRepository.refreshChangedFiles(
                     filePaths = result.editedFilePaths,
+                    songIds = result.editedSongIds,
                     enrichMetadata = true,
-                )
-            } else if (result.editedSongIds.isNotEmpty()) {
-                libraryRepository.refresh(
-                    forceMediaIndex = true,
-                    enrichMetadata = true,
-                    showLoadingIndicator = false,
                 )
             }
             val failures = result.failures.map { failure ->
@@ -267,12 +280,21 @@ internal class AlbumTagEditorViewModel(
                 isSaving = false,
                 saveFailures = failures,
                 statusMessage = when {
+                    result.permissionRequest != null && result.editedSongIds.isNotEmpty() -> "Saved with ${failures.size} issue(s)."
+                    result.permissionRequest != null -> "Additional write access is needed to finish saving."
                     failures.isEmpty() -> null
                     result.editedSongIds.isNotEmpty() -> "Saved with ${failures.size} issue(s)."
                     else -> failures.firstOrNull()?.reason ?: "No tags were saved."
                 },
             ).recalculateFlags()
-            if (failures.isEmpty()) {
+            if (result.permissionRequest != null) {
+                _events.emit(
+                    AlbumTagEditorEvent.RequestRecoverableWritePermission(
+                        request = request,
+                        intentSender = result.permissionRequest.intentSender,
+                    ),
+                )
+            } else if (failures.isEmpty()) {
                 _events.emit(AlbumTagEditorEvent.SaveSucceeded)
             } else if (result.editedSongIds.isNotEmpty()) {
                 _events.emit(AlbumTagEditorEvent.SavePartiallySucceeded(failures))
@@ -308,8 +330,9 @@ internal class AlbumTagEditorViewModel(
     private fun AlbumTagEditorUiState.applyMatchSuggestionSafely(
         suggestion: AlbumTagMatchSuggestion,
     ): AlbumTagEditorUiState {
-        val updatedTracks = tracks.mapIndexed { index, track ->
-            val matched = suggestion.tracks.getOrNull(index)
+        val suggestedTracksById = suggestion.tracks.associateBy { it.songId }
+        val updatedTracks = tracks.map { track ->
+            val matched = suggestedTracksById[track.songId]
             if (matched == null) {
                 track
             } else {
@@ -325,6 +348,7 @@ internal class AlbumTagEditorViewModel(
             albumTitle = suggestion.albumTitle.ifBlank { albumTitle },
             albumArtist = suggestion.albumArtist.ifBlank { albumArtist },
             releaseYear = suggestion.releaseYear?.toString().orEmpty().ifBlank { releaseYear },
+            yearClearedExplicitly = suggestion.releaseYear?.let { false } ?: yearClearedExplicitly,
             tracks = updatedTracks,
             selectedArtworkBytes = suggestion.coverArtBytes ?: selectedArtworkBytes,
             selectedArtworkUri = if (suggestion.coverArtBytes != null) null else selectedArtworkUri,
