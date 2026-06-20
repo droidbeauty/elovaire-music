@@ -135,7 +135,8 @@ class LibraryRepository(
         didBootstrapLibrary = true
         scope.launch {
             val cachedSnapshot = withContext(Dispatchers.IO) { snapshotStore.load() }
-            if (cachedSnapshot != null) {
+            val cacheMatchesCurrentFilter = cachedSnapshot?.signature?.filterFingerprint == scanner.currentFilterFingerprint()
+            if (cachedSnapshot != null && cacheMatchesCurrentFilter) {
                 scanner.primeMetadataCache(cachedSnapshot.snapshot.songs)
                 val cachedSnapshotNeedsMetadata = cachedSnapshot.snapshot.songs.any { song ->
                     !song.metadataResolved ||

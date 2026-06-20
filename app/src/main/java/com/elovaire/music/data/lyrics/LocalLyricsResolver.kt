@@ -251,7 +251,7 @@ internal class LocalLyricsResolver(
                     raw = readTextFile(lrcFile).orEmpty(),
                     providerName = PROVIDER_SIDECAR,
                     confidence = LOCAL_CONFIDENCE,
-                )?.takeIf { it.isSynced && it.lines.isNotEmpty() }?.let { payload ->
+                )?.takeIf { it.lines.isNotEmpty() }?.let { payload ->
                     return LocalLyricsMatch(payload)
                 }
             }

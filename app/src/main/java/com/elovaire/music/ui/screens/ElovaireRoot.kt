@@ -156,6 +156,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -336,6 +337,8 @@ import kotlin.math.pow
 import org.xmlpull.v1.XmlPullParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -1041,6 +1044,7 @@ private fun Modifier.playerFrostedSurface(
 @Composable
 fun ElovaireRoot(
     container: AppContainer,
+    resetHomeScrollOnColdStart: Boolean = false,
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
@@ -1300,7 +1304,7 @@ fun ElovaireRoot(
     var detailRouteTransitionMode by remember { mutableStateOf(DetailRouteTransitionMode.TileExpand) }
     var nowPlayingTransitionSnapshot by remember { mutableStateOf<NowPlayingTransitionSnapshot?>(null) }
     var isPlayerOverlayVisible by rememberSaveable { mutableStateOf(false) }
-    var lastPlayerOpenRequestAt by remember { mutableLongStateOf(0L) }
+    val openNowPlayingMutex = remember { Mutex() }
     var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
     var browsingOriginRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
     var selectedBottomRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
@@ -1430,14 +1434,24 @@ fun ElovaireRoot(
             darkTheme = darkTheme,
         )
     }
-    val openPlayerIfAllowed: (NowPlayingTransitionSnapshot?) -> Unit = { snapshot ->
-        val now = System.currentTimeMillis()
-        if (now - lastPlayerOpenRequestAt > 450L) {
-            lastPlayerOpenRequestAt = now
-            nowPlayingTransitionSnapshot = snapshot
-            isPlayerOverlayVisible = true
+    val requestOpenNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit = { snapshot ->
+        rootScope.launch {
+            openNowPlayingMutex.withLock {
+                if (container.playbackManager.state.value.currentSong == null || isPlayerOverlayVisible) {
+                    return@withLock
+                }
+                nowPlayingTransitionSnapshot = snapshot
+                isPlayerOverlayVisible = true
+                withFrameNanos { }
+                if (!isPlayerOverlayVisible && container.playbackManager.state.value.currentSong != null) {
+                    nowPlayingTransitionSnapshot = snapshot
+                    isPlayerOverlayVisible = true
+                    withFrameNanos { }
+                }
+            }
         }
     }
+    val currentRequestOpenNowPlaying by rememberUpdatedState(requestOpenNowPlaying)
     val openCurrentPlayingAlbum: (Long) -> Unit = { albumId ->
         val sameAlbumAlreadyVisible =
             currentRoute == "$ALBUM_ROUTE/{albumId}" && currentAlbumRouteId == albumId
@@ -1489,8 +1503,8 @@ fun ElovaireRoot(
             null
         }
     LaunchedEffect(container) {
-        container.openPlayerRequests.collect {
-            openPlayerIfAllowed(null)
+        container.openNowPlayingCommands.collect {
+            currentRequestOpenNowPlaying(null)
         }
     }
     LaunchedEffect(isPlayerOverlayVisible) {
@@ -1717,6 +1731,7 @@ fun ElovaireRoot(
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
                             scrollToTopRequestVersion = homeScrollRequestVersion,
+                            resetScrollOnColdStart = resetHomeScrollOnColdStart,
                             playInitialReveal = playFirstLaunchHomeReveal,
                             onInitialRevealFinished = {
                                 playFirstLaunchHomeReveal = false
@@ -1743,7 +1758,7 @@ fun ElovaireRoot(
                                         sourceLabel = playlist.name,
                                         sourcePlaylistId = playlist.id,
                                     )
-                                    openPlayerIfAllowed(null)
+                                    requestOpenNowPlaying(null)
                                 }
                             },
                             onShufflePlaylist = { playlist, songs ->
@@ -1755,7 +1770,7 @@ fun ElovaireRoot(
                                         sourceLabel = playlist.name,
                                         sourcePlaylistId = playlist.id,
                                     )
-                                    openPlayerIfAllowed(null)
+                                    requestOpenNowPlaying(null)
                                 }
                             },
                             onSongSelected = { song ->
@@ -1774,7 +1789,7 @@ fun ElovaireRoot(
                                         sourceLabel = song.album,
                                     )
                                 }
-                                openPlayerIfAllowed(null)
+                                requestOpenNowPlaying(null)
                             },
                             onToggleFavorite = { songId ->
                                 container.preferenceStore.toggleFavoriteSong(songId)
@@ -1834,7 +1849,7 @@ fun ElovaireRoot(
                                     collection = queue,
                                     sourceLabel = searchViewModel.playbackSourceLabelFor(queue, song.album),
                                 )
-                                openPlayerIfAllowed(null)
+                                requestOpenNowPlaying(null)
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
@@ -1870,7 +1885,7 @@ fun ElovaireRoot(
                                         sourceLabel = sourceLabel,
                                         sourcePlaylistId = playlist?.id,
                                     )
-                                    openPlayerIfAllowed(null)
+                                    requestOpenNowPlaying(null)
                                 }
                             },
                             onShufflePlaylist = { songs, sourceLabel ->
@@ -1882,7 +1897,7 @@ fun ElovaireRoot(
                                         sourceLabel = sourceLabel,
                                         sourcePlaylistId = playlist?.id,
                                     )
-                                    openPlayerIfAllowed(null)
+                                    requestOpenNowPlaying(null)
                                 }
                             },
                             onSongSelected = { song, queue ->
@@ -1895,7 +1910,7 @@ fun ElovaireRoot(
                                     ),
                                     sourcePlaylistId = playlist?.id,
                                 )
-                                openPlayerIfAllowed(null)
+                                requestOpenNowPlaying(null)
                             },
                             onAddSongs = { songIds ->
                                 container.preferenceStore.addSongsToPlaylist(playlistId, songIds)
@@ -1947,7 +1962,7 @@ fun ElovaireRoot(
                                     collection = songs,
                                     sourceLabel = album?.title ?: selectedSong.album,
                                 )
-                                openPlayerIfAllowed(null)
+                                requestOpenNowPlaying(null)
                             },
                             playlists = playlists,
                             onAddSongsToPlaylist = { playlistId, songIds ->
@@ -2096,7 +2111,7 @@ fun ElovaireRoot(
                                         )
                                     },
                                 )
-                                openPlayerIfAllowed(null)
+                                requestOpenNowPlaying(null)
                             },
                             onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
                             onAddAlbumToPlaylist = { playlistId, album ->
@@ -2188,7 +2203,7 @@ fun ElovaireRoot(
                             onBack = navController::navigateUp,
                             onSongSelected = { song, queue ->
                                 container.playbackManager.playSong(song, queue, sourceLabel = artistName)
-                                openPlayerIfAllowed(null)
+                                requestOpenNowPlaying(null)
                             },
                             onAlbumSelected = { album, origin ->
                                 detailExpandOrigin = origin
@@ -2399,7 +2414,7 @@ fun ElovaireRoot(
                                 viewModel = nowPlayingViewModel,
                                 visible = showGlobalNowPlaying,
                                 suppressEnterAnimation = reenteringFromPlayer,
-                                onOpenPlayer = openPlayerIfAllowed,
+                                onOpenPlayer = requestOpenNowPlaying,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
@@ -2572,9 +2587,6 @@ private fun NowPlayingRoute(
     val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
     val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
     val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
-    LaunchedEffect(viewModel) {
-        viewModel.setLyricsVisible(true)
-    }
     DisposableEffect(viewModel) {
         onDispose {
             viewModel.setLyricsVisible(false)
@@ -2590,6 +2602,7 @@ private fun NowPlayingRoute(
             lyricsUiState = lyricsUiState,
             activeLyricsLineIndex = activeLyricsLineIndex,
             playbackProgress = playbackProgress,
+            onLyricsVisibilityChanged = viewModel::setLyricsVisible,
             onBack = onBack,
             onOpenCurrentAlbum = onOpenCurrentAlbum,
             onTogglePlayback = viewModel::togglePlayback,
@@ -3481,6 +3494,28 @@ private fun NowPlayingBar(
                 width = 1.dp,
                 color = Color.White.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) 0.08f else 0.05f),
                 shape = RoundedCornerShape(ElovaireRadii.card),
+            )
+            .clickable(
+                enabled = visible,
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    val validSnapshot = if (
+                        barBounds != null &&
+                        artworkBounds != null &&
+                        barBounds!!.isValidTransitionBounds &&
+                        artworkBounds!!.isValidTransitionBounds
+                    ) {
+                        NowPlayingTransitionSnapshot(
+                            songId = song.id,
+                            barBounds = barBounds!!,
+                            artworkBounds = artworkBounds!!,
+                        )
+                    } else {
+                        null
+                    }
+                    onOpenPlayer(validSnapshot)
+                },
             ),
     ) {
         Row(
@@ -3517,30 +3552,6 @@ private fun NowPlayingBar(
                         } else {
                             Modifier
                         }
-                    )
-                    .clickable(
-                        enabled = visible,
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {
-                            val validSnapshot = if (
-                                barBounds != null &&
-                                artworkBounds != null &&
-                                barBounds!!.isValidTransitionBounds &&
-                                artworkBounds!!.isValidTransitionBounds
-                            ) {
-                                NowPlayingTransitionSnapshot(
-                                    songId = song.id,
-                                    barBounds = barBounds!!,
-                                    artworkBounds = artworkBounds!!,
-                                )
-                            } else {
-                                null
-                            }
-                            onOpenPlayer(
-                                validSnapshot,
-                            )
-                        },
                     ),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -3839,6 +3850,7 @@ private fun HomeScreen(
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
+    resetScrollOnColdStart: Boolean,
     playInitialReveal: Boolean,
     onInitialRevealFinished: () -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
@@ -3854,6 +3866,14 @@ private fun HomeScreen(
     val homeCopy = remember(language) { homeCopy(language) }
     val motionDurationScale = rememberSystemAnimationScale()
     var revealModules by rememberSaveable(playInitialReveal) { mutableStateOf(!playInitialReveal) }
+    LaunchedEffect(resetScrollOnColdStart) {
+        if (resetScrollOnColdStart) {
+            lazyListPositionCache["home_screen"] = 0 to 0
+            listState.scrollToItem(0, 0)
+            withFrameNanos { }
+            listState.scrollToItem(0, 0)
+        }
+    }
     LaunchedEffect(scrollToTopRequestVersion) {
         if (scrollToTopRequestVersion > 0L && listState.firstVisibleItemIndex + listState.firstVisibleItemScrollOffset > 0) {
             listState.animateScrollToItem(0)
@@ -11167,6 +11187,7 @@ private fun NowPlayingScreen(
     lyricsUiState: LyricsUiState,
     activeLyricsLineIndex: Int,
     playbackProgress: PlaybackProgressState,
+    onLyricsVisibilityChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     onOpenCurrentAlbum: (Long) -> Unit,
     onTogglePlayback: () -> Unit,
@@ -11277,10 +11298,16 @@ private fun NowPlayingScreen(
             ?: localizedAllSongsSource(language)
         "${playingFromPrefix(language)} $source"
     }
-    var showLyricsSheet by remember(currentSong?.id) { mutableStateOf(false) }
+    var showLyricsSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
+    LaunchedEffect(showLyricsSheet) {
+        onLyricsVisibilityChanged(showLyricsSheet)
+    }
+    DisposableEffect(Unit) {
+        onDispose { onLyricsVisibilityChanged(false) }
+    }
     LaunchedEffect(queueStatusText) {
         if (queueStatusText != null) {
             delay(1500L)

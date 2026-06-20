@@ -1,7 +1,9 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
@@ -10,6 +12,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -17,9 +20,10 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeoutOrNull
 
 internal data class PlayerUiState(
     val currentSong: Song? = null,
@@ -91,52 +95,40 @@ internal class NowPlayingViewModel(
     val lyricsUiState: StateFlow<LyricsUiState> = combine(
         lyricsVisible,
         playbackManager.nowPlayingState,
-        playbackManager.queueState,
-    ) { visible, nowPlaying, queue ->
+    ) { visible, nowPlaying ->
+        val song = nowPlaying.currentSong
         LyricsRequest(
             visible = visible,
-            song = nowPlaying.currentSong,
-            queue = queue.queue,
-            currentIndex = queue.currentIndex,
+            song = song,
+            identityKey = song?.let { "${it.id}:${it.uri}:${it.title}:${it.artist}:${it.durationMs / 1_000L}" },
         )
     }
-        .distinctUntilChanged()
+        .distinctUntilChanged { previous, current ->
+            previous.visible == current.visible && previous.identityKey == current.identityKey
+        }
         .flatMapLatest { request ->
             flow {
                 if (!request.visible || request.song == null) {
+                    logLyrics("hidden visible=${request.visible} song=${request.song?.id}")
                     emit(LyricsUiState.Hidden)
                     return@flow
                 }
 
                 lyricsService.cachedLyrics(request.song, includeNotFound = false)?.let { cached ->
-                    emit(cached.toUiState())
+                    val cachedState = cached.toUiState()
+                    emit(cachedState)
+                    logLyrics("cache song=${request.song.id} state=${cachedState::class.simpleName}")
                     if (cached is LyricsResult.Found && cached.payload.isSynced) {
                         return@flow
                     }
                 } ?: emit(LyricsUiState.Loading)
 
-                val fetchedResult = withTimeoutOrNull(LYRICS_LOOKUP_TIMEOUT_MS) {
-                    lyricsService.fetchLyrics(
-                        song = request.song,
-                        allowCachedNotFound = false,
-                        lookupMode = LyricsLookupMode.Full,
-                    )
-                } ?: LyricsResult.Timeout
-
-                emit(
-                    when (fetchedResult) {
-                        is LyricsResult.Found -> LyricsUiState.Ready(fetchedResult.payload)
-                        LyricsResult.Timeout -> {
-                            lyricsService.cachedLyrics(request.song, includeNotFound = false)?.toUiState()
-                                ?: if (lyricsService.isLookupInFlight(request.song)) LyricsUiState.Loading else LyricsUiState.Empty
-                        }
-
-                        LyricsResult.NotFound -> {
-                            if (lyricsService.isLookupInFlight(request.song)) LyricsUiState.Loading else LyricsUiState.Empty
-                        }
-                    },
-                )
-            }
+                lyricsService.lyricsForSong(request.song, LyricsLookupMode.Full).collect { fetchedResult ->
+                    val state = fetchedResult.toUiState()
+                    logLyrics("remote song=${request.song.id} state=${state::class.simpleName}")
+                    emit(state)
+                }
+            }.flowOn(Dispatchers.IO)
         }
         .distinctUntilChanged()
         .stateIn(
@@ -183,11 +175,15 @@ internal class NowPlayingViewModel(
                 .distinctUntilChanged()
                 .collect { request ->
                     lyricsService.cancelObsoleteRequests(
-                        listOf(
-                            request.currentSong,
-                            request.queue.getOrNull(request.currentIndex + 1),
-                            request.queue.getOrNull(request.currentIndex - 1),
-                        ),
+                        if (request.visible) {
+                            listOf(
+                                request.currentSong,
+                                request.queue.getOrNull(request.currentIndex + 1),
+                                request.queue.getOrNull(request.currentIndex - 1),
+                            )
+                        } else {
+                            emptyList()
+                        },
                     )
                     if (!request.visible) return@collect
                     request.currentSong?.let(lyricsService::prefetchLyrics)
@@ -198,6 +194,7 @@ internal class NowPlayingViewModel(
     }
 
     fun setLyricsVisible(visible: Boolean) {
+        logLyrics("visibility=$visible song=${playbackManager.nowPlayingState.value.currentSong?.id}")
         lyricsVisible.value = visible
     }
 
@@ -238,8 +235,7 @@ internal class NowPlayingViewModel(
     private data class LyricsRequest(
         val visible: Boolean,
         val song: Song?,
-        val queue: List<Song>,
-        val currentIndex: Int,
+        val identityKey: String?,
     )
 
     private data class PrefetchRequest(
@@ -250,7 +246,11 @@ internal class NowPlayingViewModel(
     )
 
     private companion object {
-        const val LYRICS_LOOKUP_TIMEOUT_MS = 4_800L
         const val LYRICS_SWITCH_GRACE_MS = 120L
+        const val TAG = "LyricsPipeline"
+    }
+
+    private fun logLyrics(message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message)
     }
 }

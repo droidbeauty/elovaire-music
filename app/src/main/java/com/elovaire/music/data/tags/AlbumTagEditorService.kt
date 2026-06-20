@@ -8,6 +8,8 @@ import android.net.Uri
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumTagMatchResult
 import elovaire.music.droidbeauty.app.data.tags.matching.AndroidChromaprintFingerprintProvider
@@ -140,11 +142,21 @@ internal class AlbumTagEditorService(
         var permissionRequest: PendingIntent? = null
         request.album.songs.forEach { song ->
             val extension = song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-            if (extension !in WRITABLE_TAG_EXTENSIONS) {
+            val capability = AudioFormatPolicy.capabilityForExtension(extension)
+            if (capability?.tagWriteSupport != TagWriteSupport.Safe) {
+                logDebug("Skipped unsafe tag write for ${song.fileName}: ${capability?.notes ?: "unknown format"}")
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,
                     reason = "This audio format cannot be tagged safely.",
+                )
+                return@forEach
+            }
+            if (coverArtBytes != null && !capability.canEmbedArtwork) {
+                failures += TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = "Artwork cannot be embedded safely in this audio format.",
                 )
                 return@forEach
             }
@@ -465,7 +477,6 @@ internal class AlbumTagEditorService(
 
     private companion object {
         const val TEMP_TAG_EDIT_DIR_NAME = "album-tag-edits"
-        val WRITABLE_TAG_EXTENSIONS = setOf("mp3", "m4a", "mp4", "aac", "flac", "ogg", "opus", "wav")
         const val TAG = "AlbumTagEditor"
     }
 

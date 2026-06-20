@@ -3,13 +3,14 @@ package elovaire.music.droidbeauty.app.data.lyrics
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.domain.model.Song
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -21,6 +22,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import java.util.Collections
 
 internal interface LrcLibApi {
     suspend fun get(
@@ -62,7 +64,7 @@ internal class LrcLibLyricsProvider(
 
         val strategies = buildList {
             add(
-                LyricsSearchStrategy(name = "exact_get", allowEarlyExit = true) {
+                LyricsSearchStrategy(name = "exact_get") {
                     listOfNotNull(
                         api.get(
                             trackName = exactVariant.title,
@@ -74,7 +76,7 @@ internal class LrcLibLyricsProvider(
                 },
             )
             add(
-                LyricsSearchStrategy(name = "artist_track_search", allowEarlyExit = true) {
+                LyricsSearchStrategy(name = "artist_track_search") {
                     api.search(
                         trackName = exactVariant.title,
                         artistName = exactVariant.artist,
@@ -111,7 +113,15 @@ internal class LrcLibLyricsProvider(
             strategies = strategies,
             timeoutMs = if (lookupMode == LyricsLookupMode.Full) FULL_LOOKUP_TIMEOUT_MS else FAST_LOOKUP_TIMEOUT_MS,
         )
-        val best = rankLrcLibMatches(song, responses).firstOrNull() ?: return@withContext null
+        val ranked = rankLrcLibMatches(song, responses)
+        val best = ranked.firstOrNull() ?: run {
+            logDebug("no acceptable candidate song=${song.id} candidates=${responses.size}")
+            return@withContext null
+        }
+        logDebug(
+            "selected song=${song.id} candidate=${best.response.id} score=${best.score} " +
+                "synced=${!best.response.syncedLyrics.isNullOrBlank()}",
+        )
         return@withContext best.response.toProviderLyricsMatch(best.score, providerName)
     }
 
@@ -146,7 +156,6 @@ internal class LrcLibLyricsProvider(
 
     private data class LyricsSearchStrategy(
         val name: String,
-        val allowEarlyExit: Boolean = false,
         val block: suspend () -> List<LrcLibResponse>,
     )
 
@@ -154,12 +163,13 @@ internal class LrcLibLyricsProvider(
         strategies: List<LyricsSearchStrategy>,
         timeoutMs: Long,
     ): List<LrcLibResponse> = coroutineScope {
-        val firstResult = CompletableDeferred<List<LrcLibResponse>?>()
+        val collected = Collections.synchronizedList(mutableListOf<LrcLibResponse>())
 
         val jobs = strategies.map { strategy ->
             async(ioDispatcher) {
                 val results = runCatching { strategy.block() }
                     .getOrElse { throwable ->
+                        if (throwable is CancellationException) throw throwable
                         if (BuildConfig.DEBUG) {
                             Log.d(TAG, "strategy ${strategy.name} failed", throwable)
                         }
@@ -167,24 +177,20 @@ internal class LrcLibLyricsProvider(
                     }
                     .filter { it.hasLyrics() }
                     .distinctBy { it.id }
-
-                if (strategy.allowEarlyExit && results.isNotEmpty() && !firstResult.isCompleted) {
-                    firstResult.complete(results)
-                }
+                collected.addAll(results)
                 results
             }
         }
 
-        val first = withTimeoutOrNull(timeoutMs) { firstResult.await() }
-        if (first != null) {
-            jobs.forEach { it.cancel() }
-            return@coroutineScope first
-        }
-
-        jobs.awaitAll()
-            .flatten()
+        withTimeoutOrNull(timeoutMs) { jobs.joinAll() }
+        jobs.forEach { it.cancelAndJoin() }
+        synchronized(collected) { collected.toList() }
             .filter { it.hasLyrics() }
             .distinctBy { it.id }
+    }
+
+    private fun logDebug(message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message)
     }
 
     private companion object {

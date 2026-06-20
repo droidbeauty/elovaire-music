@@ -18,8 +18,9 @@ internal fun Song.toLyricsIdentity(): LyricsIdentity {
 
     val cacheKeys = buildList {
         add(normalizedLookupKey)
-        if (id > 0L) add("media::$id")
-        uri.toString().takeIf { it.isNotBlank() }?.let { add("uri::${it.hashCode()}") }
+        val metadataSignature = "$normalizedArtist::$normalizedTitle::$durationBucketSeconds"
+        if (id > 0L) add("media::$id::$metadataSignature")
+        uri.toString().takeIf { it.isNotBlank() }?.let { add("uri::${it.hashCode()}::$metadataSignature") }
     }.distinct()
 
     return LyricsIdentity(

@@ -1,6 +1,9 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.net.Uri
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
 import java.util.Locale
 
 internal data class AudioScanCandidate(
@@ -16,6 +19,7 @@ internal data class AudioScanCandidate(
     val absolutePath: String?,
     val extension: String?,
     val isMusic: Boolean?,
+    val detectedFormat: DetectedAudioFormat? = null,
 )
 
 internal sealed interface AudioFileFilterDecision {
@@ -30,7 +34,6 @@ internal class LibraryAudioFileFilter(
     private val preferredMusicFolderPath: String?,
     private val preferredRelativeRoots: Set<String>,
     private val libraryRootPaths: Set<String>,
-    private val supportedExtensions: Set<String>,
 ) {
     fun evaluate(candidate: AudioScanCandidate): AudioFileFilterDecision {
         val normalizedExtension = candidate.extension
@@ -38,7 +41,7 @@ internal class LibraryAudioFileFilter(
             ?.lowercase(Locale.ROOT)
             ?.takeIf { it.isNotBlank() }
             ?: return AudioFileFilterDecision.Exclude("Missing extension")
-        if (normalizedExtension !in supportedExtensions) {
+        if (normalizedExtension !in AudioFormatPolicy.scannerExtensions) {
             return AudioFileFilterDecision.Exclude("Unsupported extension")
         }
 
@@ -48,6 +51,25 @@ internal class LibraryAudioFileFilter(
             normalizedAbsolutePath = normalizedAbsolutePath,
             normalizedRelativePath = normalizedRelativePath,
         )
+        val capability = AudioFormatPolicy.capabilityForExtension(normalizedExtension)
+            ?: return AudioFileFilterDecision.Exclude("Unsupported format")
+        if (!insidePreferredFolder && normalizedExtension in VOICE_CONTAINER_EXTENSIONS) {
+            return AudioFileFilterDecision.Exclude("Voice-oriented format outside preferred music folder")
+        }
+        val detectedFormat = candidate.detectedFormat
+        if (detectedFormat?.detectionSucceeded == true) {
+            if (!detectedFormat.hasAudioTrack) {
+                return AudioFileFilterDecision.Exclude("No detectable audio track")
+            }
+            if (detectedFormat.hasVideoTrack) {
+                return AudioFileFilterDecision.Exclude("Contains a video track")
+            }
+            if (AudioFormatPolicy.playbackSupport(detectedFormat) == PlaybackSupport.Unsupported) {
+                return AudioFileFilterDecision.Exclude("No compatible audio decoder")
+            }
+        } else if (normalizedExtension in CONTAINER_VALIDATION_REQUIRED_EXTENSIONS) {
+            return AudioFileFilterDecision.Exclude("Container could not be validated")
+        }
 
         if (candidate.durationMs <= 0L) {
             return AudioFileFilterDecision.Exclude("Invalid duration")
@@ -71,6 +93,14 @@ internal class LibraryAudioFileFilter(
 
         if (!insidePreferredFolder && candidate.isMusic == false && !isInsideLibraryRoot(normalizedAbsolutePath)) {
             return AudioFileFilterDecision.Exclude("MediaStore says non-music")
+        }
+
+        if (
+            capability.playbackSupport == PlaybackSupport.PlatformDependent &&
+            !insidePreferredFolder &&
+            candidate.isMusic != true
+        ) {
+            return AudioFileFilterDecision.Exclude("Platform-dependent non-music audio")
         }
 
         return AudioFileFilterDecision.Include
@@ -147,6 +177,8 @@ internal class LibraryAudioFileFilter(
 
     private companion object {
         private const val MIN_MUSIC_DURATION_MS = 45_000L
+        private val CONTAINER_VALIDATION_REQUIRED_EXTENSIONS = setOf("mp4", "mka", "3gp", "amr")
+        private val VOICE_CONTAINER_EXTENSIONS = setOf("amr", "3gp")
 
         private val ExcludedPathFragments = listOf(
             "/ringtones/",

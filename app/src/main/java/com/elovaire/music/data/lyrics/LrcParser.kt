@@ -15,19 +15,27 @@ internal fun parseLrcOrPlain(
 ): LyricsPayload? {
     if (raw.isBlank()) return null
 
-    var offsetMs = 0L
+    val normalizedRaw = raw.normalizeLyricBreaks()
+    val offsetMs = normalizedRaw
+        .lineSequence()
+        .mapNotNull { line ->
+            LRC_METADATA_REGEX.matchEntire(line.trim())
+                ?.takeIf { it.groupValues[1].equals("offset", ignoreCase = true) }
+                ?.groupValues
+                ?.get(2)
+                ?.trim()
+                ?.toLongOrNull()
+        }
+        .lastOrNull()
+        ?: 0L
     val timed = mutableListOf<LyricsLine>()
     val plain = mutableListOf<String>()
 
-    raw.normalizeLyricBreaks()
+    normalizedRaw
         .lineSequence()
         .forEach { rawLine ->
             val metadataMatch = LRC_METADATA_REGEX.matchEntire(rawLine.trim())
             if (metadataMatch != null) {
-                val key = metadataMatch.groupValues[1].lowercase(Locale.US)
-                if (key == "offset") {
-                    offsetMs = metadataMatch.groupValues[2].trim().toLongOrNull() ?: offsetMs
-                }
                 return@forEach
             }
 
@@ -40,6 +48,8 @@ internal fun parseLrcOrPlain(
                 }
                 return@forEach
             }
+
+            if (text.isBlank()) return@forEach
 
             matches.forEach { match ->
                 timed += LyricsLine(

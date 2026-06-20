@@ -1,0 +1,60 @@
+package elovaire.music.droidbeauty.app.data.lyrics
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class LrcParserTest {
+    @Test
+    fun parsesMultipleTimestampPrecisionsAndAppliesGlobalOffset() {
+        val payload = requireNotNull(
+            parseLrcOrPlain(
+                raw = """
+                    [00:01.50][00:02.500]First line
+                    [offset:250]
+                    [00:03]Second line
+                """.trimIndent(),
+                providerName = "test",
+                confidence = 90,
+            ),
+        )
+
+        assertTrue(payload.isSynced)
+        assertEquals(listOf(1_750L, 2_750L, 3_250L), payload.lines.map { it.startTimeMs })
+        assertEquals(listOf(0, 1, 2), payload.lines.map { it.index })
+    }
+
+    @Test
+    fun plainLyricsRemainVisibleWithoutTiming() {
+        val payload = requireNotNull(
+            parseLrcOrPlain(
+                raw = "First line\nSecond line",
+                providerName = "test",
+                confidence = 60,
+            ),
+        )
+
+        assertFalse(payload.isSynced)
+        assertEquals(listOf("First line", "Second line"), payload.lines.map { it.text })
+        assertEquals(listOf(null, null), payload.lines.map { it.startTimeMs })
+    }
+
+    @Test
+    fun blankTimedLinesAndMetadataDoNotCreateVisibleRows() {
+        val payload = requireNotNull(
+            parseLrcOrPlain(
+                raw = """
+                    [ar:Artist]
+                    [ti:Title]
+                    [00:01.00]
+                    [00:02.00]Visible
+                """.trimIndent(),
+                providerName = "test",
+                confidence = 90,
+            ),
+        )
+
+        assertEquals(listOf("Visible"), payload.lines.map { it.text })
+    }
+}

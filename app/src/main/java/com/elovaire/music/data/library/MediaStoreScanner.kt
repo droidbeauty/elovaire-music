@@ -2,8 +2,6 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.ContentUris
 import android.content.Context
-import android.media.MediaExtractor
-import android.media.MediaFormat
 import android.media.MediaMetadataRetriever
 import android.media.MediaScannerConnection
 import android.net.Uri
@@ -11,23 +9,25 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.extractor.metadata.id3.Id3Decoder
-import androidx.media3.extractor.metadata.id3.TextInformationFrame
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.resolveMediaStoreFilePath
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.AudioQualityFormatter
+import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlin.math.pow
 
 class MediaStoreScanner(
     private val context: Context,
 ) {
     private val metadataCache = mutableMapOf<Long, CachedSongMetadata>()
+    private val audioFormatDetector = AudioFormatDetector(context)
     private var preferredLibraryFolderPath: String? = null
 
     fun setPreferredLibraryFolderPath(path: String?): Boolean {
@@ -181,6 +181,7 @@ class MediaStoreScanner(
                 val rawTitle = cursor.getString(titleIndex).orUnknown("Untitled Track")
                 val rawArtist = cursor.getString(artistIndex).orUnknown("Unknown Artist")
                 val rawAlbum = cursor.getString(albumIndex).orUnknown("Unknown Album")
+                val detectedFormat = audioFormatDetector.detect(songUri, fileName, mimeType)
                 val candidate = AudioScanCandidate(
                     id = id,
                     uri = songUri,
@@ -194,9 +195,10 @@ class MediaStoreScanner(
                     absolutePath = filePath,
                     extension = fileName.substringAfterLast('.', ""),
                     isMusic = isMusic,
+                    detectedFormat = detectedFormat,
                 )
                 when (val decision = audioFileFilter.evaluate(candidate)) {
-                    AudioFileFilterDecision.Include -> Unit
+                    AudioFileFilterDecision.Include -> logPlatformDependentCandidate(candidate)
                     is AudioFileFilterDecision.Exclude -> {
                         logFilteredOutCandidate(candidate, decision.reason)
                         if (processedRows == totalRows || processedRows % 24 == 0) {
@@ -218,10 +220,10 @@ class MediaStoreScanner(
                         readSongMetadata(
                             songId = id,
                             songUri = songUri,
-                            fileName = fileName,
                             mediaStoreYear = mediaStoreYear,
                             fileSizeBytes = fileSizeBytes,
                             durationMs = durationMs,
+                            detectedFormat = detectedFormat,
                         )
                     } else {
                         SongMetadata(
@@ -231,7 +233,7 @@ class MediaStoreScanner(
                             album = rawAlbum,
                             releaseYear = mediaStoreYear,
                             genre = null,
-                            format = fileName.substringAfterLast('.', "").uppercase().ifBlank { "AUDIO" },
+                            format = detectedFormat.displayName,
                             quality = null,
                             trackNumber = null,
                             discNumber = null,
@@ -354,6 +356,15 @@ class MediaStoreScanner(
                     ),
                     extension = fileName.substringAfterLast('.', ""),
                     isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
+                    detectedFormat = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+                        .takeIf { it in CONTAINER_VALIDATION_REQUIRED_EXTENSIONS }
+                        ?.let {
+                            audioFormatDetector.detect(
+                                uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idIndex)),
+                                fileName = fileName,
+                                mediaStoreMimeType = mimeTypeIndex.takeIf { index -> index >= 0 }?.let(cursor::getString),
+                            )
+                        },
                 )
                 if (audioFileFilter.evaluate(candidate) is AudioFileFilterDecision.Exclude) {
                     continue
@@ -387,7 +398,7 @@ class MediaStoreScanner(
         val audioPaths = scanRoots
             .asSequence()
             .flatMap { root -> root.walkTopDown() }
-            .filter { file -> file.isFile && file.extension.lowercase() in SUPPORTED_AUDIO_EXTENSIONS }
+            .filter { file -> file.isFile && file.extension.lowercase() in AudioFormatPolicy.scannerExtensions }
             .map(File::getAbsolutePath)
             .toList()
 
@@ -410,7 +421,7 @@ class MediaStoreScanner(
             .filter { file ->
                 file.exists() &&
                     file.isFile &&
-                    file.extension.lowercase() in SUPPORTED_AUDIO_EXTENSIONS
+                    file.extension.lowercase() in AudioFormatPolicy.scannerExtensions
             }
             .map(File::getAbsolutePath)
             .distinct()
@@ -477,7 +488,6 @@ class MediaStoreScanner(
             libraryRootPaths = buildScanRoots()
                 .map { normalizeAbsolutePath(it.absolutePath) }
                 .toSet(),
-            supportedExtensions = SUPPORTED_AUDIO_EXTENSIONS,
         )
     }
 
@@ -567,6 +577,14 @@ class MediaStoreScanner(
         Log.d(TAG, "Excluded $label: $reason")
     }
 
+    private fun logPlatformDependentCandidate(candidate: AudioScanCandidate) {
+        if (!BuildConfig.DEBUG) return
+        val capability = AudioFormatPolicy.capabilityForExtension(candidate.extension) ?: return
+        if (capability.playbackSupport != PlaybackSupport.PlatformDependent) return
+        val label = candidate.displayName?.takeIf(String::isNotBlank) ?: "audio-${candidate.id}"
+        Log.d(TAG, "Included platform-dependent audio $label (${capability.displayName})")
+    }
+
     private fun detectExplicit(
         title: String,
         fileName: String,
@@ -593,24 +611,18 @@ class MediaStoreScanner(
     private fun readSongMetadata(
         songId: Long,
         songUri: Uri,
-        fileName: String,
         mediaStoreYear: Int?,
         fileSizeBytes: Long?,
         durationMs: Long,
+        detectedFormat: DetectedAudioFormat,
     ): SongMetadata {
-        val extractorMetadata = readExtractorMetadata(songUri)
-        val retrieverMetadata = readRetrieverMetadata(songUri, fileName)
-        val resolvedFormat = resolveAudioFormat(
-            fileName = fileName,
-            mimeType = extractorMetadata.mimeType,
-            retrieverMimeType = retrieverMetadata.mimeType,
-            bitDepth = retrieverMetadata.bitDepth,
-        )
+        val retrieverMetadata = readRetrieverMetadata(songUri)
+        val resolvedFormat = detectedFormat.displayName
         val year = retrieverMetadata.year ?: mediaStoreYear
-        val sampleRate = retrieverMetadata.sampleRate ?: extractorMetadata.sampleRate
+        val sampleRate = retrieverMetadata.sampleRate ?: detectedFormat.sampleRate
         val bitDepth = retrieverMetadata.bitDepth
         val bitrate = retrieverMetadata.bitrate
-            ?: extractorMetadata.bitrate
+            ?: detectedFormat.bitrate
             ?: estimateBitrateBitsPerSecond(
                 fileSizeBytes = fileSizeBytes,
                 durationMs = durationMs,
@@ -625,18 +637,19 @@ class MediaStoreScanner(
             releaseYear = year,
             genre = genre,
             format = resolvedFormat,
-            quality = formatAudioQuality(
-                format = resolvedFormat,
+            quality = AudioQualityFormatter.format(
+                container = detectedFormat.container,
                 bitDepth = bitDepth,
                 sampleRate = sampleRate,
                 bitrate = bitrate,
+                codecMimeType = detectedFormat.codecMimeType,
             ),
             trackNumber = retrieverMetadata.trackNumber,
             discNumber = retrieverMetadata.discNumber,
         )
     }
 
-    private fun readRetrieverMetadata(songUri: Uri, fileName: String): RetrieverMetadata {
+    private fun readRetrieverMetadata(songUri: Uri): RetrieverMetadata {
         return runCatching {
             val retriever = MediaMetadataRetriever()
             try {
@@ -662,9 +675,6 @@ class MediaStoreScanner(
                     sampleRate = extractRetrieverSampleRate(retriever),
                     bitDepth = extractRetrieverBitDepth(retriever),
                     bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull(),
-                    mimeType = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_MIMETYPE)
-                        ?.trim()
-                        ?.takeIf { it.isNotBlank() },
                     genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
                         ?.substringBefore(';')
                         ?.substringBefore('/')
@@ -679,67 +689,6 @@ class MediaStoreScanner(
                 runCatching { retriever.release() }
             }
         }.getOrDefault(RetrieverMetadata())
-    }
-
-    @UnstableApi
-    private fun parseId3Metadata(id3Bytes: ByteArray): RetrieverMetadata {
-        val metadata = runCatching { Id3Decoder().decode(id3Bytes, id3Bytes.size) }.getOrNull() ?: return RetrieverMetadata()
-        var title: String? = null
-        var artist: String? = null
-        var albumArtist: String? = null
-        var album: String? = null
-        var year: Int? = null
-        var genre: String? = null
-        var trackNumber: Int? = null
-        var discNumber: Int? = null
-        for (index in 0 until metadata.length()) {
-            val entry = metadata.get(index)
-            if (entry is TextInformationFrame) {
-                val value = entry.values.firstOrNull()?.trim()?.takeIf { it.isNotBlank() } ?: continue
-                when (entry.id.uppercase(Locale.ROOT)) {
-                    "TIT2", "TT2" -> title = title ?: value
-                    "TPE1", "TP1" -> artist = artist ?: value
-                    "TPE2", "TP2" -> albumArtist = albumArtist ?: value
-                    "TALB", "TAL" -> album = album ?: value
-                    "TDRC", "TYER", "TORY", "TDAT" -> year = year ?: parseYearFromDateTag(value)
-                    "TCON", "TCO" -> genre = genre ?: value.substringBefore(';').substringBefore('/').trim().ifBlank { null }
-                    "TRCK", "TRK" -> trackNumber = trackNumber ?: parseTrackNumberTag(value)
-                    "TPOS" -> discNumber = discNumber ?: value.substringBefore('/').trim().toIntOrNull()?.takeIf { it > 0 }
-                }
-            }
-        }
-        return RetrieverMetadata(
-            title = title,
-            artist = artist,
-            albumArtist = albumArtist,
-            album = album,
-            year = year,
-            genre = genre,
-            trackNumber = trackNumber,
-            discNumber = discNumber,
-        )
-    }
-
-    private fun readExtractorMetadata(songUri: Uri): ExtractorMetadata {
-        return runCatching {
-            val extractor = MediaExtractor()
-            try {
-                extractor.setDataSource(context, songUri, emptyMap())
-                val format = (0 until extractor.trackCount)
-                    .asSequence()
-                    .map(extractor::getTrackFormat)
-                    .firstOrNull { trackFormat ->
-                        trackFormat.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-                    }
-                ExtractorMetadata(
-                    sampleRate = format?.getIntegerOrNull(MediaFormat.KEY_SAMPLE_RATE),
-                    bitrate = format?.getIntegerOrNull(MediaFormat.KEY_BIT_RATE),
-                    mimeType = format?.getString(MediaFormat.KEY_MIME),
-                )
-            } finally {
-                runCatching { extractor.release() }
-            }
-        }.getOrDefault(ExtractorMetadata())
     }
 
     private fun queryGenre(songId: Long): String? {
@@ -782,23 +731,6 @@ class MediaStoreScanner(
             ?.takeIf { it > 0 }
     }
 
-    private fun RetrieverMetadata.mergeWith(fallback: RetrieverMetadata): RetrieverMetadata {
-        return RetrieverMetadata(
-            title = title ?: fallback.title,
-            artist = artist ?: fallback.artist,
-            albumArtist = albumArtist ?: fallback.albumArtist,
-            album = album ?: fallback.album,
-            year = year ?: fallback.year,
-            sampleRate = sampleRate ?: fallback.sampleRate,
-            bitDepth = bitDepth ?: fallback.bitDepth,
-            bitrate = bitrate ?: fallback.bitrate,
-            mimeType = mimeType ?: fallback.mimeType,
-            genre = genre ?: fallback.genre,
-            trackNumber = trackNumber ?: fallback.trackNumber,
-            discNumber = discNumber ?: fallback.discNumber,
-        )
-    }
-
     private fun extractRetrieverDiscNumber(retriever: MediaMetadataRetriever): Int? {
         return runCatching {
             val keyField = MediaMetadataRetriever::class.java.getField("METADATA_KEY_DISC_NUMBER")
@@ -809,57 +741,6 @@ class MediaStoreScanner(
                 ?.toIntOrNull()
                 ?.takeIf { it > 0 }
         }.getOrNull()
-    }
-
-    private fun formatAudioQuality(
-        format: String,
-        bitDepth: Int?,
-        sampleRate: Int?,
-        bitrate: Int?,
-    ): String? {
-        val sampleRateText = sampleRate?.takeIf { it > 0 }?.let(::formatSampleRate)
-        val normalizedFormat = format.uppercase()
-        return when {
-            isLosslessFormat(normalizedFormat) && bitDepth != null && bitDepth > 0 && sampleRateText != null ->
-                "${bitDepth}/${sampleRateText}"
-            isLossyFormat(normalizedFormat) && bitrate != null && bitrate > 0 && sampleRateText != null ->
-                "${(bitrate / 1000f).roundQuality()}/${sampleRateText}"
-            bitDepth != null && bitDepth > 0 && sampleRateText != null -> "${bitDepth}/${sampleRateText}"
-            bitrate != null && bitrate > 0 && sampleRateText != null -> "${(bitrate / 1000f).roundQuality()}/${sampleRateText}"
-            sampleRateText != null -> sampleRateText
-            bitrate != null && bitrate > 0 -> "${(bitrate / 1000f).roundQuality()}kbps"
-            else -> null
-        }
-    }
-
-    private fun resolveAudioFormat(
-        fileName: String,
-        mimeType: String? = null,
-        retrieverMimeType: String? = null,
-        bitDepth: Int? = null,
-    ): String {
-        val extension = fileName.substringAfterLast('.', "").uppercase().ifBlank { "AUDIO" }
-        return when {
-            mimeType.equals("audio/mpeg", ignoreCase = true) -> "MP3"
-            mimeType.equals("audio/flac", ignoreCase = true) -> "FLAC"
-            mimeType.equals("audio/ogg", ignoreCase = true) -> "OGG"
-            mimeType.equals("audio/opus", ignoreCase = true) -> "OPUS"
-            mimeType.equals("audio/aac", ignoreCase = true) -> "AAC"
-            mimeType.equals("audio/mp4a-latm", ignoreCase = true) && extension == "M4A" -> "AAC"
-            mimeType.equals("audio/wav", ignoreCase = true) || mimeType.equals("audio/x-wav", ignoreCase = true) -> "WAV"
-            else -> extension
-        }
-    }
-
-    private fun formatSampleRate(sampleRate: Int): String {
-        val khz = sampleRate / 1000f
-        val rounded = if (khz % 1f == 0f) khz.toInt().toString() else String.format(Locale.ROOT, "%.1f", khz)
-        return "${rounded}kHz"
-    }
-
-    private fun Float.roundQuality(): String {
-        val rounded = kotlin.math.round(this)
-        return if (kotlin.math.abs(this - rounded) < 0.05f) rounded.toInt().toString() else String.format(Locale.ROOT, "%.1f", this)
     }
 
     private fun estimateBitrateBitsPerSecond(
@@ -897,19 +778,7 @@ class MediaStoreScanner(
             option = RegexOption.IGNORE_CASE,
         )
         val STORAGE_ROOT_REGEX = Regex("""^/storage/[^/]+(?:/[^/]+)?/""")
-        val SUPPORTED_AUDIO_EXTENSIONS = setOf(
-            "mp3",
-            "m4a",
-            "aac",
-            "flac",
-            "wav",
-            "ogg",
-            "opus",
-            "amr",
-            "3gp",
-            "mp4",
-            "mka",
-        )
+        private val CONTAINER_VALIDATION_REQUIRED_EXTENSIONS = setOf("mp4", "mka", "3gp", "amr")
     }
 
     @Suppress("InlinedApi")
@@ -924,10 +793,6 @@ class MediaStoreScanner(
         return runCatching {
             retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)?.toIntOrNull()
         }.getOrNull()
-    }
-
-    private fun MediaFormat.getIntegerOrNull(key: String): Int? {
-        return if (containsKey(key)) getInteger(key) else null
     }
 
 }
@@ -970,12 +835,6 @@ private data class SongMetadata(
     val discNumber: Int?,
 )
 
-private data class ExtractorMetadata(
-    val sampleRate: Int? = null,
-    val bitrate: Int? = null,
-    val mimeType: String? = null,
-)
-
 private data class RetrieverMetadata(
     val title: String? = null,
     val artist: String? = null,
@@ -985,7 +844,6 @@ private data class RetrieverMetadata(
     val sampleRate: Int? = null,
     val bitDepth: Int? = null,
     val bitrate: Int? = null,
-    val mimeType: String? = null,
     val genre: String? = null,
     val trackNumber: Int? = null,
     val discNumber: Int? = null,
@@ -1010,7 +868,7 @@ private fun isLosslessFormat(format: String): Boolean {
 }
 
 internal fun isSupportedAudioExtension(extension: String): Boolean {
-    return extension.lowercase() in MediaStoreScanner.SUPPORTED_AUDIO_EXTENSIONS
+    return extension.lowercase() in AudioFormatPolicy.scannerExtensions
 }
 
 internal fun isSupportedAudioFileName(fileName: String): Boolean {
@@ -1021,7 +879,20 @@ internal fun isSupportedLibrarySong(song: Song): Boolean {
     return isSupportedAudioFileName(song.fileName)
 }
 
-private const val FILTER_FINGERPRINT_VERSION = 1
-private val LOSSY_AUDIO_FORMATS = setOf("MP3", "AAC", "OGG", "OPUS", "AMR", "3GP", "MP4", "M4A")
+private const val FILTER_FINGERPRINT_VERSION = 2
+private val LOSSY_AUDIO_FORMATS = setOf(
+    "MP3",
+    "AAC",
+    "OGG",
+    "OGG/OPUS",
+    "OPUS",
+    "AMR",
+    "3GP",
+    "3GP AUDIO",
+    "MP4",
+    "MP4 AUDIO",
+    "M4A",
+    "MKA",
+)
 private val LOSSLESS_AUDIO_FORMATS = setOf("FLAC", "WAV")
 private val LOSSLESS_QUALITY_REGEX = Regex("""\d{1,2}/\d{1,3}(?:\.\d)?kHz""")

@@ -2,8 +2,10 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import android.annotation.SuppressLint
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.hardware.usb.UsbManager
 import android.database.ContentObserver
 import android.media.AudioDeviceCallback
@@ -17,9 +19,11 @@ import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import androidx.media3.common.C
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
@@ -29,8 +33,10 @@ import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaSession
+import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.MainActivity
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
@@ -57,6 +63,19 @@ enum class PlaybackRepeatMode {
 enum class PlaybackCollectionKind {
     Album,
     Playlist,
+}
+
+enum class PlaybackCommand {
+    Play,
+    Pause,
+    Toggle,
+}
+
+enum class PlaybackCommandOrigin {
+    InApp,
+    ExternalController,
+    AudioInterruption,
+    BecomingNoisy,
 }
 
 data class PlaybackUiState(
@@ -107,6 +126,13 @@ data class RecentPlaybackState(
     val recentAlbumIds: List<Long> = emptyList(),
     val lastPlayedCollectionKind: PlaybackCollectionKind? = null,
     val lastPlayedCollectionId: Long? = null,
+)
+
+data class PlaybackFormatFailure(
+    val songId: Long,
+    val fileName: String,
+    val format: String,
+    val reason: String,
 )
 
 @SuppressLint("UnsafeOptInUsageError")
@@ -164,6 +190,7 @@ class PlaybackManager(
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var player = createPlayer(enableSignalProcessing = true)
+    private var commandGatewayPlayer: Player = PlaybackCommandPlayer(player)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
             platformPlaybackAudioAttributes,
@@ -189,6 +216,13 @@ class PlaybackManager(
             syncFromObservedSystemVolume()
         }
     }
+    private val becomingNoisyReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
+                dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.BecomingNoisy)
+            }
+        }
+    }
     private var lastRecordedSongId: Long? = null
     private var hasAudioFocus = false
     private var isPauseTransitioningToStopped = false
@@ -200,6 +234,7 @@ class PlaybackManager(
     private var isRecoveringPlayback = false
     private var lastKnownQueueIndex = -1
     private var lastKnownPositionMs = 0L
+    private val failedPlaybackSongIds = mutableSetOf<Long>()
     private var unexpectedIdleRecoveryCount = 0
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
     private var hasUsbOutputRoute = false
@@ -251,7 +286,10 @@ class PlaybackManager(
             }
         }
 
-        override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+        override fun onPlayerError(error: PlaybackException) {
+            if (error.isUnsupportedFormatError() && handleUnsupportedPlaybackFormat(error)) {
+                return
+            }
             if (_state.value.queue.isNotEmpty() && !isStoppingQueue && !isRecoveringPlayback) {
                 recoverUnexpectedIdleState(shouldAutoPlay = shouldAutoResumeAfterUnexpectedIdle())
             } else {
@@ -391,15 +429,17 @@ class PlaybackManager(
         )
     private val _progressState = MutableStateFlow(PlaybackProgressState())
     val progressState: StateFlow<PlaybackProgressState> = _progressState.asStateFlow()
+    private val _playbackFormatFailure = MutableStateFlow<PlaybackFormatFailure?>(null)
+    val playbackFormatFailure: StateFlow<PlaybackFormatFailure?> = _playbackFormatFailure.asStateFlow()
     private val _manualPlaybackStartVersion = MutableStateFlow(0L)
     val manualPlaybackStartVersion: StateFlow<Long> = _manualPlaybackStartVersion.asStateFlow()
     val playerInstance: Player
-        get() = player
+        get() = commandGatewayPlayer
     val mediaSessionToken
         get() = mediaSession.token
     val platformMediaSessionToken
         get() = mediaSession.platformToken
-    private val mediaSession = MediaSession.Builder(context, player)
+    private val mediaSession = MediaSession.Builder(context, commandGatewayPlayer)
         .setSessionActivity(
             PendingIntent.getActivity(
                 context,
@@ -422,6 +462,7 @@ class PlaybackManager(
             systemVolumeObserver,
             )
         audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
+        registerBecomingNoisyReceiver()
         applyPreferredAudioDeviceIfNeeded(force = true)
         attachPlayerObservers(player)
         syncFromObservedSystemVolume()
@@ -468,13 +509,41 @@ class PlaybackManager(
             )
             .setAudioAttributes(playbackAudioAttributes, false)
             .setWakeMode(C.WAKE_MODE_LOCAL)
-            .setHandleAudioBecomingNoisy(true)
+            .setHandleAudioBecomingNoisy(false)
             .build()
             .apply {
                 repeatMode = Player.REPEAT_MODE_OFF
             }
         bitPerfectUsbManager.preferredOutputDevice()?.let(configuredPlayer::setPreferredAudioDevice)
         return configuredPlayer
+    }
+
+    private inner class PlaybackCommandPlayer(
+        delegate: Player,
+    ) : ForwardingPlayer(delegate) {
+        override fun play() {
+            dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.ExternalController)
+        }
+
+        override fun pause() {
+            dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.ExternalController)
+        }
+
+        override fun setPlayWhenReady(playWhenReady: Boolean) {
+            dispatchPlaybackCommand(
+                command = if (playWhenReady) PlaybackCommand.Play else PlaybackCommand.Pause,
+                origin = PlaybackCommandOrigin.ExternalController,
+            )
+        }
+    }
+
+    private fun registerBecomingNoisyReceiver() {
+        ContextCompat.registerReceiver(
+            appContext,
+            becomingNoisyReceiver,
+            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
     }
 
     private fun attachPlayerObservers(target: ExoPlayer) {
@@ -504,23 +573,66 @@ class PlaybackManager(
     }
 
     fun togglePlayback() {
-        clearInterruptionResumeState()
-        if (isManualPausePending) {
-            cancelPauseFade()
-            isManualPausePending = false
-            isPauseTransitioningToStopped = false
-            recordManualPlaybackStart()
-            resumePlayback()
-        } else if (player.isPlaying) {
-            isPauseTransitioningToStopped = true
-            isManualPausePending = true
-            beginManualPauseFadeOut()
+        dispatchPlaybackCommand(PlaybackCommand.Toggle, PlaybackCommandOrigin.InApp)
+    }
+
+    fun dispatchPlaybackCommand(
+        command: PlaybackCommand,
+        origin: PlaybackCommandOrigin = PlaybackCommandOrigin.InApp,
+    ) {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            playbackHandler.post { dispatchPlaybackCommand(command, origin) }
+            return
+        }
+        val resolvedCommand = if (command == PlaybackCommand.Toggle) {
+            if (isManualPausePending) {
+                PlaybackCommand.Play
+            } else if (player.isPlaying || player.playWhenReady) {
+                PlaybackCommand.Pause
+            } else {
+                PlaybackCommand.Play
+            }
         } else {
-            cancelPauseFade()
-            isManualPausePending = false
-            isPauseTransitioningToStopped = false
-            recordManualPlaybackStart()
-            resumePlayback()
+            command
+        }
+        when (resolvedCommand) {
+            PlaybackCommand.Play -> {
+                clearInterruptionResumeState()
+                cancelPauseFade()
+                isManualPausePending = false
+                isPauseTransitioningToStopped = false
+                if (origin == PlaybackCommandOrigin.InApp || origin == PlaybackCommandOrigin.ExternalController) {
+                    recordManualPlaybackStart()
+                }
+                resumePlayback()
+            }
+
+            PlaybackCommand.Pause -> {
+                if (origin != PlaybackCommandOrigin.AudioInterruption) {
+                    clearInterruptionResumeState()
+                }
+                if (origin != PlaybackCommandOrigin.InApp) {
+                    cancelPauseFade(resetVolume = false)
+                    isManualPausePending = false
+                    isPauseTransitioningToStopped = true
+                    player.pause()
+                    player.volume = effectivePlayerGain()
+                    if (origin == PlaybackCommandOrigin.ExternalController || origin == PlaybackCommandOrigin.BecomingNoisy) {
+                        abandonAudioFocus()
+                    }
+                } else if (!isManualPausePending && (player.isPlaying || player.playWhenReady)) {
+                    isPauseTransitioningToStopped = true
+                    isManualPausePending = true
+                    beginManualPauseFadeOut()
+                } else if (!player.isPlaying && !player.playWhenReady) {
+                    cancelPauseFade(resetVolume = false)
+                    isManualPausePending = false
+                    isPauseTransitioningToStopped = false
+                    player.pause()
+                }
+            }
+
+            PlaybackCommand.Toggle -> Unit
         }
         updateState()
     }
@@ -711,6 +823,7 @@ class PlaybackManager(
         abandonAudioFocus()
         appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
         audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
+        runCatching { appContext.unregisterReceiver(becomingNoisyReceiver) }
         detachPlayerObservers(player)
         mediaSession.release()
         player.release()
@@ -832,8 +945,9 @@ class PlaybackManager(
                 }
             }
             player = replacementPlayer
+            commandGatewayPlayer = PlaybackCommandPlayer(replacementPlayer)
             isDirectPlaybackActive = useDirectPlayback
-            mediaSession.setPlayer(replacementPlayer)
+            mediaSession.setPlayer(commandGatewayPlayer)
             lastAppliedPreferredDeviceKey = null
             applyPreferredAudioDeviceIfNeeded(force = true)
             lastAppliedAudioPathDecisionKey = decisionKey
@@ -853,6 +967,8 @@ class PlaybackManager(
         sourcePlaylistId: Long?,
     ) {
         if (songs.isEmpty()) return
+        failedPlaybackSongIds.clear()
+        _playbackFormatFailure.value = null
         cancelPauseFade()
         isManualPausePending = false
         isPauseTransitioningToStopped = false
@@ -902,6 +1018,7 @@ class PlaybackManager(
         isPauseTransitioningToStopped = false
         abandonAudioFocus()
         lastRecordedSongId = null
+        failedPlaybackSongIds.clear()
         _state.value = _state.value.copy(
             queue = emptyList(),
             currentIndex = -1,
@@ -995,6 +1112,32 @@ class PlaybackManager(
         publishProgressSnapshot()
     }
 
+    private fun handleUnsupportedPlaybackFormat(error: PlaybackException): Boolean {
+        val song = currentSong() ?: return false
+        if (!failedPlaybackSongIds.add(song.id)) {
+            logDebug("Repeated unsupported playback failure ignored for ${song.fileName}")
+            return true
+        }
+        _playbackFormatFailure.value = PlaybackFormatFailure(
+            songId = song.id,
+            fileName = song.fileName,
+            format = song.audioFormat,
+            reason = error.errorCodeName,
+        )
+        logDebug("Unsupported playback format ${song.audioFormat} (${song.fileName}): ${error.errorCodeName}")
+        if (player.hasNextMediaItem()) {
+            player.seekToNextMediaItem()
+            player.prepare()
+            if (requestAudioFocus()) {
+                player.play()
+            }
+            updateState()
+        } else {
+            stopAndClearQueue()
+        }
+        return true
+    }
+
     private fun publishProgressSnapshot() {
         val updatedProgress = playbackProgressController.onPlayerSnapshot(
             mediaId = currentSong()?.id,
@@ -1086,7 +1229,7 @@ class PlaybackManager(
                 pendingResumeAfterExternalInterruption = false
                 externalInterruptionResumeJob?.cancel()
                 if (shouldResume) {
-                    resumePlayback()
+                    dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.AudioInterruption)
                 } else {
                     pausedForAudioFocusLoss = false
                     player.volume = effectivePlayerGain()
@@ -1105,9 +1248,7 @@ class PlaybackManager(
                 scheduleExternalInterruptionResumeWatch()
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
-                player.pause()
-                player.volume = effectivePlayerGain()
-                updateState()
+                dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.AudioInterruption)
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
@@ -1121,9 +1262,7 @@ class PlaybackManager(
                 scheduleExternalInterruptionResumeWatch()
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
-                player.pause()
-                player.volume = effectivePlayerGain()
-                updateState()
+                dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.AudioInterruption)
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
@@ -1138,10 +1277,8 @@ class PlaybackManager(
                 scheduleExternalInterruptionResumeWatch()
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
-                player.pause()
-                player.volume = effectivePlayerGain()
+                dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.AudioInterruption)
                 abandonAudioFocus()
-                updateState()
             }
         }
     }
@@ -1279,8 +1416,7 @@ class PlaybackManager(
                     break
                 }
                 if (!hasActiveExternalMediaPlayback()) {
-                    resumePlayback()
-                    updateState()
+                    dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.AudioInterruption)
                     break
                 }
                 delay(EXTERNAL_INTERRUPTION_RESUME_DELAY_MS)
@@ -1530,18 +1666,13 @@ private fun Song.toPlaybackMediaItem(): MediaItem {
 }
 
 private fun Song.inferPlaybackMimeType(): String? {
-    val extension = fileName.substringAfterLast('.', "").lowercase()
-    val normalizedFormat = audioFormat.uppercase()
-    return when {
-        extension in setOf("m4a", "mp4") -> "audio/mp4"
-        extension == "aac" || normalizedFormat == "AAC" -> "audio/aac"
-        extension == "flac" || normalizedFormat == "FLAC" -> "audio/flac"
-        extension == "wav" || normalizedFormat == "WAV" -> "audio/wav"
-        extension == "mp3" || normalizedFormat == "MP3" -> "audio/mpeg"
-        extension == "ogg" || normalizedFormat == "OGG" -> "audio/ogg"
-        extension == "opus" || normalizedFormat == "OPUS" -> "audio/opus"
-        else -> null
-    }
+    return AudioFormatPolicy.playbackMimeType(fileName)
+}
+
+private fun PlaybackException.isUnsupportedFormatError(): Boolean {
+    return errorCode == PlaybackException.ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED ||
+        errorCode == PlaybackException.ERROR_CODE_DECODER_INIT_FAILED ||
+        errorCode == PlaybackException.ERROR_CODE_DECODING_FORMAT_UNSUPPORTED
 }
 
 private fun Float.quantizedVolume(): Float {

@@ -33,9 +33,9 @@ internal fun scoreLrcLibMatch(
 
     val hasSynced = !response.syncedLyrics.isNullOrBlank()
     val durationTolerance = if (hasSynced) {
-        (songDurationSec * 0.02).coerceIn(5.0, 8.0)
+        (songDurationSec * 0.04).coerceIn(6.0, 15.0)
     } else {
-        (songDurationSec * 0.04).coerceIn(8.0, 15.0)
+        (songDurationSec * 0.06).coerceIn(8.0, 20.0)
     }
 
     val durationDiff = abs(response.duration - songDurationSec)

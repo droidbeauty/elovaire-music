@@ -417,7 +417,7 @@ internal sealed interface LyricsUiState {
 }
 
 internal fun LyricsResult.toUiState(): LyricsUiState = when (this) {
-    is LyricsResult.Found -> LyricsUiState.Ready(payload)
+    is LyricsResult.Found -> if (payload.lines.isEmpty()) LyricsUiState.Empty else LyricsUiState.Ready(payload)
     LyricsResult.NotFound -> LyricsUiState.Empty
     LyricsResult.Timeout -> LyricsUiState.Empty
 }

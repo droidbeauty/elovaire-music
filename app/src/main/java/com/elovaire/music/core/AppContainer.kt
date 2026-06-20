@@ -14,10 +14,10 @@ import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.channels.BufferOverflow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.SharedFlow
-import kotlinx.coroutines.flow.asSharedFlow
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -58,11 +58,9 @@ class AppContainer(
     ).also { repository ->
         repository.setPreferredLibraryFolderPath(preferenceStore.libraryFolderPath.value)
     }
-    private val _openPlayerRequests = MutableSharedFlow<Unit>(
-        extraBufferCapacity = 1,
-        onBufferOverflow = BufferOverflow.DROP_OLDEST,
-    )
-    val openPlayerRequests: SharedFlow<Unit> = _openPlayerRequests.asSharedFlow()
+    private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
+    private val coldStartHomeResetConsumed = AtomicBoolean(false)
+    val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
 
     init {
         appScope.launch {
@@ -101,8 +99,12 @@ class AppContainer(
         notificationController().setNotificationsEnabled(enabled)
     }
 
-    fun requestOpenPlayer() {
-        _openPlayerRequests.tryEmit(Unit)
+    fun requestOpenNowPlaying() {
+        openNowPlayingChannel.trySend(Unit)
+    }
+
+    fun consumeColdStartHomeReset(): Boolean {
+        return coldStartHomeResetConsumed.compareAndSet(false, true)
     }
 
     fun scheduleDeferredStartupWork() {
@@ -110,6 +112,7 @@ class AppContainer(
     }
 
     fun release() {
+        openNowPlayingChannel.close()
         playbackNotificationController?.setNotificationsEnabled(false)
         playbackNotificationController = null
         appUpdateManager.release()

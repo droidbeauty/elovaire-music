@@ -49,6 +49,8 @@ class MainActivity : ComponentActivity() {
         val app = application as ElovaireApp
         val container = app.container
         val shouldShowColdStartSplash = savedInstanceState == null
+        val isFirstActivityInProcess = container.consumeColdStartHomeReset()
+        val resetHomeScrollOnColdStart = shouldShowColdStartSplash && isFirstActivityInProcess
         handleNotificationIntent()
         setContent {
             val themeMode = container.preferenceStore.themeMode.collectAsStateWithLifecycle()
@@ -89,7 +91,10 @@ class MainActivity : ComponentActivity() {
                 textSizePreset = textSizePreset.value,
             ) {
                 Box(modifier = Modifier.fillMaxSize()) {
-                    ElovaireRoot(container = container)
+                    ElovaireRoot(
+                        container = container,
+                        resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
+                    )
                     if (themeOverlayAlpha.value > 0f) {
                         Box(
                             modifier = Modifier
@@ -152,7 +157,7 @@ class MainActivity : ComponentActivity() {
 
     private fun handleNotificationIntent() {
         if (intent?.getBooleanExtra(EXTRA_OPEN_PLAYER_FROM_NOTIFICATION, false) == true) {
-            (application as ElovaireApp).container.requestOpenPlayer()
+            (application as ElovaireApp).container.requestOpenNowPlaying()
             intent?.removeExtra(EXTRA_OPEN_PLAYER_FROM_NOTIFICATION)
         }
     }

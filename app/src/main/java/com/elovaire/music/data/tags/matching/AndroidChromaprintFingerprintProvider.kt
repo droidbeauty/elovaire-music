@@ -6,6 +6,11 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.provider.MediaStore
+import android.util.Log
+import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
@@ -18,9 +23,24 @@ internal class AndroidChromaprintFingerprintProvider(
     private val cache: TagMatchCache,
 ) : AudioFingerprintProvider {
     private val appContext = context.applicationContext
+    private val formatDetector = AudioFormatDetector(appContext)
 
     override suspend fun fingerprint(song: Song): Result<AudioFingerprint> = withContext(Dispatchers.IO) {
         runCatching {
+            if (!AudioFormatPolicy.canFingerprint(song.fileName)) {
+                throw UnsupportedFingerprintFormat(song.fileName)
+            }
+            val detected = formatDetector.detect(song.uri, song.fileName, null)
+            if (
+                !detected.hasAudioTrack ||
+                detected.hasVideoTrack ||
+                AudioFormatPolicy.playbackSupport(detected) == PlaybackSupport.Unsupported
+            ) {
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "Fingerprint skipped for ${song.fileName}: unsupported decode path")
+                }
+                throw UnsupportedFingerprintFormat(song.fileName)
+            }
             val signature = fileSignature(song)
             val cached = cache.getFingerprint(signature)
             if (!cached.isNullOrBlank()) {
@@ -182,8 +202,12 @@ internal class AndroidChromaprintFingerprintProvider(
 
     private companion object {
         const val CODEC_TIMEOUT_US = 10_000L
+        const val TAG = "AudioFingerprint"
     }
 }
+
+internal class UnsupportedFingerprintFormat(fileName: String) :
+    IllegalArgumentException("Fingerprinting is unavailable for ${fileName.substringAfterLast('/', fileName)}")
 
 internal class NativeChromaprintBridge {
     init {
