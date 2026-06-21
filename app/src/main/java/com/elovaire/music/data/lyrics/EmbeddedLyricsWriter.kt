@@ -36,9 +36,6 @@ internal class EmbeddedLyricsWriter(context: Context) {
 
     fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
         val lyrics = rawLyrics.trim()
-        if (lyrics.isBlank()) {
-            return EmbeddedLyricsWriteResult.Failure("Lyrics cannot be empty.")
-        }
         val extension = song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
         val capability = AudioFormatPolicy.capabilityForExtension(extension)
         if (capability?.tagWriteSupport != TagWriteSupport.Safe) {
@@ -53,7 +50,12 @@ internal class EmbeddedLyricsWriter(context: Context) {
             workingFile = createTempFile(song, "working").also { backupFile.copyTo(it, overwrite = true) }
 
             val audioFile = AudioFileIO.read(workingFile)
-            audioFile.tagOrCreateAndSetDefault.setField(FieldKey.LYRICS, lyrics)
+            val tag = audioFile.tagOrCreateAndSetDefault
+            if (lyrics.isBlank()) {
+                tag.deleteField(FieldKey.LYRICS)
+            } else {
+                tag.setField(FieldKey.LYRICS, lyrics)
+            }
             audioFile.commit()
             verifyLyrics(workingFile, lyrics)
 

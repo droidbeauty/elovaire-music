@@ -13871,6 +13871,7 @@ private fun LyricsOverlay(
     val copy = remember(language) { rootUiCopy(language) }
     val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
+    var overlayEntered by remember(song?.id) { mutableStateOf(false) }
     val hideButtonArea = 112.dp
     val lyricsBottomBlurArea = 72.dp
     val bottomBlurSurfaceHeight = lyricsBottomBlurArea + navigationBarInsetDp()
@@ -13883,6 +13884,49 @@ private fun LyricsOverlay(
     var lyricsDraft by remember(song?.id) { mutableStateOf("") }
     var observedSaveRevision by remember(song?.id) {
         mutableLongStateOf(lyricsEditorUiState.savedRevision)
+    }
+    val backgroundReveal by animateFloatAsState(
+        targetValue = if (overlayEntered) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = ElovaireMotion.ScreenExpand,
+            easing = FastOutSlowInEasing,
+        ),
+        label = "lyrics_background_reveal",
+    )
+    val headerReveal by animateFloatAsState(
+        targetValue = if (overlayEntered) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = ElovaireMotion.Standard,
+            delayMillis = 30,
+            easing = LinearOutSlowInEasing,
+        ),
+        label = "lyrics_header_reveal",
+    )
+    val dividerReveal by animateFloatAsState(
+        targetValue = if (overlayEntered) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = ElovaireMotion.Standard,
+            delayMillis = 65,
+            easing = LinearOutSlowInEasing,
+        ),
+        label = "lyrics_divider_reveal",
+    )
+    val contentReveal by animateFloatAsState(
+        targetValue = if (overlayEntered) 1f else 0f,
+        animationSpec = tween(
+            durationMillis = ElovaireMotion.Screen,
+            delayMillis = 95,
+            easing = FastOutSlowInEasing,
+        ),
+        label = "lyrics_content_reveal",
+    )
+    val canSubmitLyricsEdit = !lyricsEditorUiState.isSaving &&
+        (lyricsDraft.isNotBlank() || lyricsUiState is LyricsUiState.Ready)
+
+    LaunchedEffect(song?.id) {
+        overlayEntered = false
+        withFrameNanos { }
+        overlayEntered = true
     }
     BackHandler {
         if (isEditingLyrics) {
@@ -13945,9 +13989,9 @@ private fun LyricsOverlay(
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        tintColor.copy(alpha = 0.9f),
-                        tintColor.copy(alpha = 0.84f),
-                        tintColor.copy(alpha = 0.92f),
+                        tintColor.copy(alpha = 0.42f + (0.48f * backgroundReveal)),
+                        tintColor.copy(alpha = 0.36f + (0.48f * backgroundReveal)),
+                        tintColor.copy(alpha = 0.48f + (0.44f * backgroundReveal)),
                     ),
                 ),
             ),
@@ -13966,7 +14010,10 @@ private fun LyricsOverlay(
                     .padding(horizontal = 20.dp, vertical = 18.dp),
             ) {
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(headerReveal)
+                        .offset(y = ((1f - headerReveal) * (-18f)).dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -14023,7 +14070,8 @@ private fun LyricsOverlay(
                             },
                             contentDescription = if (isEditingLyrics) copy.save else "Edit lyrics",
                             tint = contentColor,
-                            enabled = !lyricsEditorUiState.isSaving && (!isEditingLyrics || lyricsDraft.isNotBlank()),
+                            enabled = !isEditingLyrics || canSubmitLyricsEdit,
+                            backgroundAlpha = 0f,
                             onClick = {
                                 if (isEditingLyrics) {
                                     onSaveLyrics(lyricsDraft)
@@ -14045,7 +14093,9 @@ private fun LyricsOverlay(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 14.dp),
+                        .padding(bottom = 14.dp)
+                        .alpha(dividerReveal)
+                        .offset(y = ((1f - dividerReveal) * (-12f)).dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
@@ -14059,7 +14109,9 @@ private fun LyricsOverlay(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .weight(1f),
+                        .weight(1f)
+                        .alpha(contentReveal)
+                        .offset(y = ((1f - contentReveal) * (-10f)).dp),
                 ) {
                     AnimatedContent(
                         targetState = isEditingLyrics,
@@ -14133,6 +14185,7 @@ private fun LyricsOverlay(
                                             iconResId = R.drawable.ic_lucide_plus,
                                             contentDescription = "Add lyrics",
                                             tint = contentColor,
+                                            backgroundAlpha = 0.2f,
                                             onClick = {
                                                 lyricsDraft = ""
                                                 onClearLyricsEditorError()
@@ -14264,6 +14317,7 @@ private fun LyricsEditorActionButton(
     contentDescription: String,
     tint: Color,
     enabled: Boolean = true,
+    backgroundAlpha: Float = 0f,
     onClick: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -14278,7 +14332,13 @@ private fun LyricsEditorActionButton(
             .size(44.dp)
             .scale(scale)
             .clip(CircleShape)
-            .background(tint.copy(alpha = if (enabled) 0.2f else 0.08f))
+            .background(
+                if (backgroundAlpha > 0f) {
+                    tint.copy(alpha = if (enabled) backgroundAlpha else backgroundAlpha * 0.4f)
+                } else {
+                    Color.Transparent
+                },
+            )
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,

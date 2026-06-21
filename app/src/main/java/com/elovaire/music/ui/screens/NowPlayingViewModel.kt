@@ -122,13 +122,13 @@ internal class NowPlayingViewModel(
             visible = visible,
             song = song,
             identityKey = song?.let { "${it.id}:${it.uri}:${it.title}:${it.artist}:${it.durationMs / 1_000L}" },
-            manualPayload = manualOverride?.takeIf { it.songId == song?.id }?.payload,
+            manualUiState = manualOverride?.takeIf { it.songId == song?.id }?.uiState,
         )
     }
         .distinctUntilChanged { previous, current ->
             previous.visible == current.visible &&
                 previous.identityKey == current.identityKey &&
-                previous.manualPayload == current.manualPayload
+                previous.manualUiState == current.manualUiState
         }
         .flatMapLatest { request ->
             flow {
@@ -138,8 +138,8 @@ internal class NowPlayingViewModel(
                     return@flow
                 }
 
-                request.manualPayload?.let { payload ->
-                    emit(LyricsUiState.Ready(payload))
+                request.manualUiState?.let { uiState ->
+                    emit(uiState)
                     return@flow
                 }
 
@@ -231,12 +231,6 @@ internal class NowPlayingViewModel(
         if (_lyricsEditorUiState.value.isSaving) return
         val song = playbackManager.nowPlayingState.value.currentSong ?: return
         val lyrics = rawLyrics.trim()
-        if (lyrics.isBlank()) {
-            _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
-                errorMessage = "Lyrics cannot be empty.",
-            )
-            return
-        }
         pendingLyricsSave = PendingLyricsSave(song, lyrics)
         lyricsService.createLyricsWritePermissionRequest(song)?.let { request ->
             _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
@@ -274,7 +268,14 @@ internal class NowPlayingViewModel(
             when (val result = lyricsService.saveEmbeddedLyrics(pending.song, pending.lyrics)) {
                 is EmbeddedLyricsWriteResult.Success -> {
                     pendingLyricsSave = null
-                    manualLyricsOverride.value = ManualLyricsOverride(pending.song.id, result.payload)
+                    manualLyricsOverride.value = ManualLyricsOverride(
+                        songId = pending.song.id,
+                        uiState = if (result.payload.lines.isEmpty()) {
+                            LyricsUiState.Empty
+                        } else {
+                            LyricsUiState.Ready(result.payload)
+                        },
+                    )
                     _lyricsEditorUiState.value = LyricsEditorUiState(
                         savedRevision = _lyricsEditorUiState.value.savedRevision + 1L,
                     )
@@ -333,12 +334,12 @@ internal class NowPlayingViewModel(
         val visible: Boolean,
         val song: Song?,
         val identityKey: String?,
-        val manualPayload: LyricsPayload?,
+        val manualUiState: LyricsUiState?,
     )
 
     private data class ManualLyricsOverride(
         val songId: Long,
-        val payload: LyricsPayload,
+        val uiState: LyricsUiState,
     )
 
     private data class PendingLyricsSave(
