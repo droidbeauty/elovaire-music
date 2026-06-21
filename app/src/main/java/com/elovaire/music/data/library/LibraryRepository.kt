@@ -80,6 +80,7 @@ class LibraryRepository(
     private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
     private var refreshDebounceJob: Job? = null
+    private var observerRebuildJob: Job? = null
     private var pendingRefresh = false
     private var pendingIndexRefresh = false
     private val pendingTargetedIndexRefreshPaths = linkedSetOf<String>()
@@ -521,7 +522,7 @@ class LibraryRepository(
         val changed = scanner.setPreferredLibraryFolderPath(path)
         if (!changed) return
         if (_scanState.value.permissionGranted) {
-            ensureMusicDirectoryObserver()
+            ensureMusicDirectoryObserver(forceRebuild = true)
             refresh(
                 forceMediaIndex = true,
                 enrichMetadata = false,
@@ -555,11 +556,25 @@ class LibraryRepository(
         }
     }
 
-    private fun ensureMusicDirectoryObserver() {
+    private fun ensureMusicDirectoryObserver(forceRebuild: Boolean = false) {
         val musicDirectory = scanner.musicDirectory()
-        if (musicDirectoryObserver?.rootPath == musicDirectory.absolutePath) return
+        if (!forceRebuild && musicDirectoryObserver?.rootPath == musicDirectory.absolutePath) return
         musicDirectoryObserver?.stopWatching()
         musicDirectoryObserver = createMusicDirectoryObserver()?.also { it.startWatching() }
+    }
+
+    private fun requestMusicDirectoryObserverRebuild() {
+        observerRebuildJob?.cancel()
+        observerRebuildJob = scope.launch {
+            delay(AUTO_REFRESH_DEBOUNCE_MS)
+            observerRebuildJob = null
+            val observer = musicDirectoryObserver
+            if (observer != null) {
+                observer.rebuildWatchingTree()
+            } else {
+                ensureMusicDirectoryObserver(forceRebuild = true)
+            }
+        }
     }
 
     private fun createMusicDirectoryObserver(): RecursiveMusicDirectoryObserver? {
@@ -568,7 +583,7 @@ class LibraryRepository(
 
         return RecursiveMusicDirectoryObserver(musicDirectory) { event, changedFile ->
             if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
-                ensureMusicDirectoryObserver()
+                requestMusicDirectoryObserverRebuild()
             }
             val requiresFullMediaIndexRefresh = event and FULL_INDEX_REFRESH_EVENT_MASK != 0
             if (changedFile == null || changedFile.isDirectory || isSupportedAudioExtension(changedFile.extension)) {
@@ -588,6 +603,10 @@ class LibraryRepository(
         private val observers = linkedMapOf<String, FileObserver>()
 
         fun startWatching() {
+            rebuildObservers()
+        }
+
+        fun rebuildWatchingTree() {
             rebuildObservers()
         }
 
@@ -667,6 +686,8 @@ class LibraryRepository(
         scanJob = null
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
+        observerRebuildJob?.cancel()
+        observerRebuildJob = null
         pendingRefresh = false
         pendingIndexRefresh = false
         pendingTargetedIndexRefreshPaths.clear()

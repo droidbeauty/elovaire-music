@@ -89,7 +89,7 @@ class AppContainer(
             libraryRepository.contentState
                 .map { it.songs }
                 .distinctUntilChanged()
-                .collect(playbackManager::refreshLibraryMetadata)
+                .collect(playbackManager::refreshQueuedLibraryMetadata)
         }
         appScope.launch {
             preferenceStore.gaplessPlaybackEnabled
@@ -128,6 +128,7 @@ class AppContainer(
         lyricsService.release()
         libraryRepository.release()
         playbackManager.release()
+        preferenceStore.release()
         appJob.cancel()
     }
 

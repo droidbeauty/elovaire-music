@@ -806,10 +806,14 @@ class PlaybackManager(
         updateState()
     }
 
-    fun refreshLibraryMetadata(updatedSongs: List<Song>) {
+    fun refreshQueuedLibraryMetadata(updatedSongs: List<Song>) {
         val existingState = _state.value
         if (existingState.queue.isEmpty()) return
-        val songsById = updatedSongs.associateBy(Song::id)
+        val queuedSongIds = existingState.queue.asSequence().mapTo(linkedSetOf(), Song::id)
+        val songsById = updatedSongs.asSequence()
+            .filter { it.id in queuedSongIds }
+            .associateBy(Song::id)
+        if (songsById.isEmpty()) return
         var queueChanged = false
         val refreshedQueue = existingState.queue.map { queuedSong ->
             val refreshedSong = songsById[queuedSong.id]

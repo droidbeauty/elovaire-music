@@ -45,6 +45,21 @@ internal data class RankedResult<T>(
     val score: Int,
 )
 
+internal data class NormalizedSearchQuery(
+    val value: String,
+    val tokens: List<String>,
+) {
+    companion object {
+        fun from(rawQuery: String): NormalizedSearchQuery {
+            val normalized = normalizeSearchText(rawQuery.trim())
+            return NormalizedSearchQuery(
+                value = normalized,
+                tokens = normalized.split(' ').filter { it.isNotBlank() },
+            )
+        }
+    }
+}
+
 internal fun LibraryContentState.toSearchIndex(): SearchIndex {
     val searchableSongs = songs.map { song ->
         val normalizedTitle = normalizeSearchText(song.title)
@@ -128,15 +143,16 @@ internal fun normalizeSearchText(value: String): String {
 }
 
 internal fun scoreMatch(
-    normalizedQuery: String,
+    query: NormalizedSearchQuery,
     normalizedTitle: String,
     normalizedArtist: String,
     normalizedAlbum: String = "",
     normalizedComposite: String? = null,
 ): Int? {
+    val normalizedQuery = query.value
     if (normalizedQuery.isBlank()) return null
 
-    val tokens = normalizedQuery.split(' ').filter { it.isNotBlank() }
+    val tokens = query.tokens
     if (tokens.isEmpty()) return null
 
     val composite = normalizedComposite ?: buildNormalizedComposite(

@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.ui.components
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
@@ -57,13 +59,17 @@ fun ArtworkImage(
     overlay: (@Composable BoxScope.() -> Unit)? = null,
 ) {
     val image = rememberArtworkBitmap(uri = uri, size = requestedSizePx)
-    val gradient = rememberArtworkGradient(uri).value
+    val artworkBitmap = image.value
+    val gradient = if (showArtworkGlow && artworkBitmap == null) {
+        rememberArtworkGradient(uri).value
+    } else {
+        null
+    }
     val shape = RoundedCornerShape(cornerRadius)
 
     Box(
         modifier = modifier,
     ) {
-        val artworkBitmap = image.value
         if (showArtworkGlow) {
             if (artworkBitmap != null) {
                 Image(
@@ -79,6 +85,10 @@ fun ArtworkImage(
                     alpha = 0.34f,
                 )
             } else {
+                val fallbackGradient = gradient ?: defaultArtworkGradient(
+                    MaterialTheme.colorScheme.primary,
+                    MaterialTheme.colorScheme.background,
+                )
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -88,9 +98,9 @@ fun ArtworkImage(
                         .background(
                             brush = Brush.verticalGradient(
                                 colors = listOf(
-                                    gradient.first().copy(alpha = 0f),
-                                    gradient.first().copy(alpha = 0.1f),
-                                    gradient.last().copy(alpha = 0.16f),
+                                    fallbackGradient.first().copy(alpha = 0f),
+                                    fallbackGradient.first().copy(alpha = 0.1f),
+                                    fallbackGradient.last().copy(alpha = 0.16f),
                                 ),
                             ),
                         )
@@ -148,6 +158,7 @@ fun rememberArtworkBitmap(
     val context = LocalContext.current
     val normalizedSize = normalizeArtworkRequestSize(size)
     val cacheKey = rememberCacheKey(uri, normalizedSize)
+    ArtworkMemoryCache.ensureRegistered(context.applicationContext)
     return produceState<ImageBitmap?>(initialValue = ArtworkMemoryCache.image(cacheKey), uri, normalizedSize) {
         val cached = ArtworkMemoryCache.image(cacheKey)
         if (cached != null) {
@@ -168,6 +179,7 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
     val fallbackColor = MaterialTheme.colorScheme.primary
     val foundation = MaterialTheme.colorScheme.background
     val cacheKey = rememberGradientCacheKey(uri)
+    ArtworkMemoryCache.ensureRegistered(context.applicationContext)
     return produceState(
         initialValue = ArtworkMemoryCache.gradient(cacheKey) ?: defaultArtworkGradient(fallbackColor, foundation),
         key1 = uri,
@@ -346,10 +358,14 @@ private fun defaultArtworkGradient(
 }
 
 private object ArtworkMemoryCache {
-    private const val MAX_IMAGE_CACHE_BYTES = 24 * 1024 * 1024
+    private val maxImageCacheBytes = (Runtime.getRuntime().maxMemory() / 8L)
+        .coerceAtMost(24L * 1024L * 1024L)
+        .coerceAtLeast(4L * 1024L * 1024L)
+        .toInt()
     private const val MAX_GRADIENTS = 160
+    private var callbacksRegistered = false
 
-    private val images = object : LruCache<String, ImageBitmap>(MAX_IMAGE_CACHE_BYTES) {
+    private val images = object : LruCache<String, ImageBitmap>(maxImageCacheBytes) {
         override fun sizeOf(
             key: String,
             value: ImageBitmap,
@@ -386,9 +402,27 @@ private object ArtworkMemoryCache {
     }
 
     @Synchronized
+    fun ensureRegistered(appContext: Context) {
+        if (callbacksRegistered) return
+        appContext.registerComponentCallbacks(object : ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            @Deprecated("Deprecated Android callback")
+            @Suppress("DEPRECATION")
+            override fun onLowMemory() {
+                trim(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+            }
+
+            override fun onTrimMemory(level: Int) {
+                trim(level)
+            }
+        })
+        callbacksRegistered = true
+    }
+
+    @Synchronized
     fun removeMatching(uriKeys: Set<String>) {
         if (uriKeys.isEmpty()) return
-        uriKeys.forEach(images::remove)
         val iterator = gradients.entries.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
@@ -399,5 +433,28 @@ private object ArtworkMemoryCache {
         images.snapshot().keys
             .filter { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey#") } }
             .forEach(images::remove)
+    }
+
+    @Suppress("DEPRECATION")
+    @Synchronized
+    private fun trim(level: Int) {
+        when {
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> {
+                    images.evictAll()
+                    gradients.clear()
+                }
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
+                images.trimToSize((maxImageCacheBytes / 2).coerceAtLeast(1))
+                while (gradients.size > MAX_GRADIENTS / 2) {
+                    gradients.entries.iterator().run {
+                        if (hasNext()) {
+                            next()
+                            remove()
+                        }
+                    }
+                }
+            }
+        }
     }
 }

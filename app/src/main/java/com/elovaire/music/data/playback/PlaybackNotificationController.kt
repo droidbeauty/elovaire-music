@@ -1,8 +1,10 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.app.PendingIntent
+import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -16,6 +18,7 @@ import androidx.media3.ui.PlayerNotificationManager
 import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.R
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
@@ -23,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 const val EXTRA_OPEN_PLAYER_FROM_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.OPEN_PLAYER_FROM_NOTIFICATION"
 
@@ -41,6 +45,12 @@ class PlaybackNotificationController(
     private val playbackManager: PlaybackManager,
     private val scope: CoroutineScope,
 ) {
+    private val pendingArtworkLoads = linkedMapOf<String, Job>()
+
+    init {
+        NotificationArtworkCache.ensureRegistered(context.applicationContext)
+    }
+
     private val notificationManager = PlayerNotificationManager.Builder(
         context,
         NOTIFICATION_ID,
@@ -228,9 +238,10 @@ class PlaybackNotificationController(
             player: Player,
             callback: PlayerNotificationManager.BitmapCallback,
         ): Bitmap? {
-            return playbackManager.state.value.currentSong
-                ?.artUri
-                ?.let { loadBitmap(context, it) }
+            val artworkUri = playbackManager.state.value.currentSong?.artUri ?: return null
+            NotificationArtworkCache[artworkUri.toString()]?.let { return it }
+            loadArtworkAsync(artworkUri, callback)
+            return null
         }
     }
 
@@ -265,6 +276,23 @@ class PlaybackNotificationController(
         ) {
             if (action == ACTION_SHUFFLE) {
                 playbackManager.toggleShuffle()
+            }
+        }
+    }
+
+    private fun loadArtworkAsync(
+        uri: Uri,
+        callback: PlayerNotificationManager.BitmapCallback,
+    ) {
+        val cacheKey = uri.toString()
+        if (pendingArtworkLoads[cacheKey]?.isActive == true) return
+        pendingArtworkLoads[cacheKey] = scope.launch(Dispatchers.IO) {
+            val bitmap = loadBitmap(context, uri)
+            withContext(Dispatchers.Main.immediate) {
+                pendingArtworkLoads.remove(cacheKey)
+                if (bitmap != null && playbackManager.state.value.currentSong?.artUri == uri) {
+                    callback.onBitmap(bitmap)
+                }
             }
         }
     }
@@ -334,15 +362,38 @@ class PlaybackNotificationController(
 }
 
 private object NotificationArtworkCache {
-    private const val MAX_CACHE_BYTES = 256 * 256 * 2 * 12
+    private val maxCacheBytes = (Runtime.getRuntime().maxMemory() / 16L)
+        .coerceAtMost(256L * 256L * 2L * 12L)
+        .coerceAtLeast(2L * 1024L * 1024L)
+        .toInt()
+    private var callbacksRegistered = false
 
-    private val cache = object : LruCache<String, Bitmap>(MAX_CACHE_BYTES) {
+    private val cache = object : LruCache<String, Bitmap>(maxCacheBytes) {
         override fun sizeOf(
             key: String,
             value: Bitmap,
         ): Int {
             return value.allocationByteCount
         }
+    }
+
+    @Synchronized
+    fun ensureRegistered(appContext: Context) {
+        if (callbacksRegistered) return
+        appContext.registerComponentCallbacks(object : ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            @Deprecated("Deprecated Android callback")
+            @Suppress("DEPRECATION")
+            override fun onLowMemory() {
+                trim(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
+            }
+
+            override fun onTrimMemory(level: Int) {
+                trim(level)
+            }
+        })
+        callbacksRegistered = true
     }
 
     operator fun get(key: String): Bitmap? = cache.get(key)
@@ -356,5 +407,15 @@ private object NotificationArtworkCache {
 
     fun removeAll(keys: Collection<String>) {
         keys.forEach(cache::remove)
+    }
+
+    @Suppress("DEPRECATION")
+    @Synchronized
+    private fun trim(level: Int) {
+        when {
+            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
+                level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> cache.evictAll()
+            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
+        }
     }
 }

@@ -15,13 +15,24 @@ import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 
 class PreferenceStore(context: Context) {
     private val appContext = context.applicationContext
     private val preferences = appContext.getSharedPreferences("elovaire_preferences", Context.MODE_PRIVATE)
+    private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var playbackHistoryPersistJob: Job? = null
+    private var eqPersistJob: Job? = null
+    private var pendingEqSettings: EqSettings? = null
 
     private val _themeMode = MutableStateFlow(loadThemeMode())
     val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -137,7 +148,8 @@ class PreferenceStore(context: Context) {
         val updated = _albumPlayCounts.value.toMutableMap().apply {
             this[albumId] = (this[albumId] ?: 0) + 1
         }.toMap()
-        persistAlbumPlayCounts(updated)
+        _albumPlayCounts.value = updated
+        schedulePlaybackHistoryPersistence()
     }
 
     fun incrementSongPlayCount(songId: Long) {
@@ -145,7 +157,8 @@ class PreferenceStore(context: Context) {
         val updated = _songPlayCounts.value.toMutableMap().apply {
             this[songId] = (this[songId] ?: 0) + 1
         }.toMap()
-        persistSongPlayCounts(updated)
+        _songPlayCounts.value = updated
+        schedulePlaybackHistoryPersistence()
     }
 
     fun setRecentPlaybackIds(
@@ -162,20 +175,11 @@ class PreferenceStore(context: Context) {
             .filter { it > 0L }
             .distinct()
             .take(MAX_RECENT_PLAYBACK_IDS)
-        preferences.edit {
-            putString(KEY_RECENT_SONG_IDS, normalizedSongIds.joinToString(","))
-            putString(KEY_RECENT_ALBUM_IDS, normalizedAlbumIds.joinToString(","))
-            putString(KEY_LAST_PLAYED_COLLECTION_KIND, lastPlayedCollectionKind?.name)
-            if (lastPlayedCollectionId != null && lastPlayedCollectionId > 0L) {
-                putLong(KEY_LAST_PLAYED_COLLECTION_ID, lastPlayedCollectionId)
-            } else {
-                remove(KEY_LAST_PLAYED_COLLECTION_ID)
-            }
-        }
         _recentSongIds.value = normalizedSongIds
         _recentAlbumIds.value = normalizedAlbumIds
         _lastPlayedCollectionKind.value = lastPlayedCollectionKind
         _lastPlayedCollectionId.value = lastPlayedCollectionId?.takeIf { it > 0L }
+        schedulePlaybackHistoryPersistence()
     }
 
     fun createPlaylist(name: String): Long {
@@ -267,23 +271,23 @@ class PreferenceStore(context: Context) {
         val updatedBands = _eqSettings.value.bands.toMutableList().apply {
             set(index, EqValuePolicy.clampBandNormalized(value))
         }
-        persistEqSettings(_eqSettings.value.copy(bands = updatedBands))
+        persistEqSettings(_eqSettings.value.copy(bands = updatedBands), immediate = false)
     }
 
     fun updateBass(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(bass = EqValuePolicy.clampPositiveMacro(value)))
+        persistEqSettings(_eqSettings.value.copy(bass = EqValuePolicy.clampPositiveMacro(value)), immediate = false)
     }
 
     fun updateMidrange(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(midrange = EqValuePolicy.clampMacro(value)))
+        persistEqSettings(_eqSettings.value.copy(midrange = EqValuePolicy.clampMacro(value)), immediate = false)
     }
 
     fun updateTreble(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(treble = EqValuePolicy.clampMacro(value)))
+        persistEqSettings(_eqSettings.value.copy(treble = EqValuePolicy.clampMacro(value)), immediate = false)
     }
 
     fun updateSpaciousness(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(spaciousness = EqValuePolicy.clampPositiveMacro(value)))
+        persistEqSettings(_eqSettings.value.copy(spaciousness = EqValuePolicy.clampPositiveMacro(value)), immediate = false)
     }
 
     fun updateSpaciousnessMode(mode: SpaciousnessMode) {
@@ -424,20 +428,84 @@ class PreferenceStore(context: Context) {
         }
     }
 
-    private fun persistEqSettings(settings: EqSettings) {
+    fun release() {
+        flushPlaybackHistoryPersistence(commit = true)
+        flushEqSettingsPersistence(commit = true)
+        preferenceScope.cancel()
+    }
+
+    private fun persistEqSettings(
+        settings: EqSettings,
+        immediate: Boolean = true,
+    ) {
         val normalizedSettings = EqValuePolicy.sanitize(settings)
-        preferences.edit {
-            putString(KEY_BANDS, normalizedSettings.bands.joinToString(","))
-            putFloat(KEY_BASS, normalizedSettings.bass)
-            putFloat(KEY_MIDRANGE, normalizedSettings.midrange)
-            putFloat(KEY_TREBLE, normalizedSettings.treble)
-            putFloat(KEY_SPACIOUSNESS, normalizedSettings.spaciousness)
-            putString(KEY_SPACIOUSNESS_MODE, normalizedSettings.spaciousnessMode.name)
-            putBoolean(KEY_MONO_ENABLED, normalizedSettings.monoEnabled)
-            putInt(KEY_REVERB_DURATION_MS, normalizedSettings.reverbDurationMs)
-            putString(KEY_REVERB_PROFILE, normalizedSettings.reverbProfile.name)
-        }
         _eqSettings.value = normalizedSettings
+        if (immediate) {
+            flushEqSettingsPersistence(commit = false)
+            writeEqSettings(normalizedSettings, commit = false)
+        } else {
+            pendingEqSettings = normalizedSettings
+            scheduleEqSettingsPersistence()
+        }
+    }
+
+    private fun schedulePlaybackHistoryPersistence() {
+        playbackHistoryPersistJob?.cancel()
+        playbackHistoryPersistJob = preferenceScope.launch {
+            delay(PLAYBACK_HISTORY_PERSIST_DEBOUNCE_MS)
+            flushPlaybackHistoryPersistence(commit = false)
+        }
+    }
+
+    private fun flushPlaybackHistoryPersistence(commit: Boolean) {
+        playbackHistoryPersistJob?.cancel()
+        playbackHistoryPersistJob = null
+        preferences.edit(commit = commit) {
+            putString(KEY_ALBUM_PLAY_COUNTS, _albumPlayCounts.value.serializePlayCounts())
+            putString(KEY_SONG_PLAY_COUNTS, _songPlayCounts.value.serializePlayCounts())
+            putString(KEY_RECENT_SONG_IDS, _recentSongIds.value.joinToString(","))
+            putString(KEY_RECENT_ALBUM_IDS, _recentAlbumIds.value.joinToString(","))
+            putString(KEY_LAST_PLAYED_COLLECTION_KIND, _lastPlayedCollectionKind.value?.name)
+            val lastPlayedCollectionId = _lastPlayedCollectionId.value
+            if (lastPlayedCollectionId != null && lastPlayedCollectionId > 0L) {
+                putLong(KEY_LAST_PLAYED_COLLECTION_ID, lastPlayedCollectionId)
+            } else {
+                remove(KEY_LAST_PLAYED_COLLECTION_ID)
+            }
+        }
+    }
+
+    private fun scheduleEqSettingsPersistence() {
+        eqPersistJob?.cancel()
+        eqPersistJob = preferenceScope.launch {
+            delay(EQ_SETTINGS_PERSIST_DEBOUNCE_MS)
+            flushEqSettingsPersistence(commit = false)
+        }
+    }
+
+    private fun flushEqSettingsPersistence(commit: Boolean) {
+        eqPersistJob?.cancel()
+        eqPersistJob = null
+        val settings = pendingEqSettings ?: return
+        pendingEqSettings = null
+        writeEqSettings(settings, commit = commit)
+    }
+
+    private fun writeEqSettings(
+        settings: EqSettings,
+        commit: Boolean,
+    ) {
+        preferences.edit(commit = commit) {
+            putString(KEY_BANDS, settings.bands.joinToString(","))
+            putFloat(KEY_BASS, settings.bass)
+            putFloat(KEY_MIDRANGE, settings.midrange)
+            putFloat(KEY_TREBLE, settings.treble)
+            putFloat(KEY_SPACIOUSNESS, settings.spaciousness)
+            putString(KEY_SPACIOUSNESS_MODE, settings.spaciousnessMode.name)
+            putBoolean(KEY_MONO_ENABLED, settings.monoEnabled)
+            putInt(KEY_REVERB_DURATION_MS, settings.reverbDurationMs)
+            putString(KEY_REVERB_PROFILE, settings.reverbProfile.name)
+        }
     }
 
     private fun loadThemeMode(): ThemeMode {
@@ -681,26 +749,6 @@ class PreferenceStore(context: Context) {
         _playlists.value = assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value)
     }
 
-    private fun persistAlbumPlayCounts(counts: Map<Long, Int>) {
-        preferences.edit {
-            putString(
-                KEY_ALBUM_PLAY_COUNTS,
-                counts.serializePlayCounts(),
-            )
-        }
-        _albumPlayCounts.value = counts
-    }
-
-    private fun persistSongPlayCounts(counts: Map<Long, Int>) {
-        preferences.edit {
-            putString(
-                KEY_SONG_PLAY_COUNTS,
-                counts.serializePlayCounts(),
-            )
-        }
-        _songPlayCounts.value = counts
-    }
-
     private fun Map<Long, Int>.serializePlayCounts(): String {
         return entries.joinToString(",") { "${it.key}:${it.value}" }
     }
@@ -786,6 +834,8 @@ class PreferenceStore(context: Context) {
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
+        const val PLAYBACK_HISTORY_PERSIST_DEBOUNCE_MS = 350L
+        const val EQ_SETTINGS_PERSIST_DEBOUNCE_MS = 120L
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"
     }

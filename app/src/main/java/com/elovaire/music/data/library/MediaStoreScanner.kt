@@ -122,6 +122,7 @@ class MediaStoreScanner(
         var totalRows = 0
         val songs = mutableListOf<Song>()
         val refreshedMetadataCache = mutableMapOf<Long, CachedSongMetadata>()
+        val genreCache = mutableMapOf<Long, String?>()
         val projection = buildProjection()
         val selection = buildSelection()
         val orderBy = buildOrderBy()
@@ -238,6 +239,7 @@ class MediaStoreScanner(
                             fileSizeBytes = fileSizeBytes,
                             durationMs = durationMs,
                             detectedFormat = detectedFormat,
+                            genreCache = genreCache,
                         )
                     } else {
                         SongMetadata(
@@ -440,15 +442,29 @@ class MediaStoreScanner(
             .distinctBy { it.absolutePath }
         if (scanRoots.isEmpty()) return
 
-        scanAudioPaths(
-            paths = scanRoots
-            .asSequence()
-            .flatMap { root -> root.walkTopDown() }
-            .filter { file -> file.isFile && file.extension.lowercase() in AudioFormatPolicy.scannerExtensions }
+        val scannerExtensions = AudioFormatPolicy.scannerExtensions
+        val pendingChunk = ArrayList<String>(MEDIA_SCANNER_CHUNK_SIZE)
+
+        fun flushChunk() {
+            if (pendingChunk.isEmpty()) return
+            scanAudioPaths(
+                paths = pendingChunk,
+                timeoutSeconds = MEDIA_SCAN_TIMEOUT_SECONDS,
+            )
+            pendingChunk.clear()
+        }
+
+        scanRoots.asSequence()
+            .flatMap(File::walkTopDown)
+            .filter { file -> file.isFile && file.extension.lowercase(Locale.ROOT) in scannerExtensions }
             .map(File::getAbsolutePath)
-            .toList(),
-            timeoutSeconds = MEDIA_SCAN_TIMEOUT_SECONDS,
-        )
+            .forEach { path ->
+                pendingChunk += path
+                if (pendingChunk.size >= MEDIA_SCANNER_CHUNK_SIZE) {
+                    flushChunk()
+                }
+            }
+        flushChunk()
     }
 
     fun refreshMediaIndex(paths: List<String>) {
@@ -473,15 +489,17 @@ class MediaStoreScanner(
             .distinct()
         if (audioPaths.isEmpty()) return
 
-        val latch = CountDownLatch(audioPaths.size)
-        MediaScannerConnection.scanFile(
-            context,
-            audioPaths.toTypedArray(),
-            null,
-        ) { _, _ ->
-            latch.countDown()
+        audioPaths.chunked(MEDIA_SCANNER_CHUNK_SIZE).forEach { chunk ->
+            val latch = CountDownLatch(chunk.size)
+            MediaScannerConnection.scanFile(
+                context,
+                chunk.toTypedArray(),
+                null,
+            ) { _, _ ->
+                latch.countDown()
+            }
+            latch.await(timeoutSeconds, TimeUnit.SECONDS)
         }
-        latch.await(timeoutSeconds, TimeUnit.SECONDS)
     }
 
     private fun buildProjection(): Array<String> {
@@ -683,6 +701,7 @@ class MediaStoreScanner(
         fileSizeBytes: Long?,
         durationMs: Long,
         detectedFormat: DetectedAudioFormat,
+        genreCache: MutableMap<Long, String?>,
     ): SongMetadata {
         val embeddedMetadata = embeddedTagMetadataReader.read(filePath)
         val retrieverMetadata = readRetrieverMetadata(songUri)
@@ -697,7 +716,9 @@ class MediaStoreScanner(
                 durationMs = durationMs,
                 resolvedFormat = resolvedFormat,
             )
-        val genre = embeddedMetadata?.genre ?: retrieverMetadata.genre ?: queryGenre(songId)
+        val genre = embeddedMetadata?.genre
+            ?: retrieverMetadata.genre
+            ?: genreCache.getOrPut(songId) { queryGenre(songId) }
         return SongMetadata(
             title = embeddedMetadata?.title ?: retrieverMetadata.title,
             artist = embeddedMetadata?.artist ?: retrieverMetadata.artist,
@@ -836,6 +857,7 @@ class MediaStoreScanner(
         const val MEDIA_SCAN_TIMEOUT_SECONDS = 8L
         const val TARGETED_MEDIA_SCAN_TIMEOUT_SECONDS = 5L
         const val MEDIASTORE_ID_QUERY_CHUNK_SIZE = 400
+        const val MEDIA_SCANNER_CHUNK_SIZE = 160
         val YEAR_REGEX = Regex("""\b(19|20)\d{2}\b""")
         val EXPLICIT_MARKERS = listOf(
             "(explicit)",
@@ -875,11 +897,11 @@ internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
                 { it.discNumber },
                 { if (it.trackNumber > 0) 0 else 1 },
                 { if (it.trackNumber > 0) it.trackNumber else Int.MAX_VALUE },
-                { it.fileName.lowercase() },
+                { it.fileName.lowercase(Locale.ROOT) },
             ),
         )
     } else {
-        albumSongs.sortedBy { it.fileName.lowercase() }
+        albumSongs.sortedBy { it.fileName.lowercase(Locale.ROOT) }
     }
 }
 

@@ -10,11 +10,13 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -67,10 +69,12 @@ internal class SearchViewModel(
     private val searchIndex = libraryRepository.contentState
         .map { it.toSearchIndex() }
         .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
 
     private val normalizedQuery = _query
-        .map { normalizeSearchText(it.trim()) }
+        .map(NormalizedSearchQuery::from)
         .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
 
     private val searchResults = combine(
         normalizedQuery,
@@ -78,12 +82,13 @@ internal class SearchViewModel(
         searchIndex,
     ) { query, sortMode, index ->
         buildSearchResults(
-            normalizedQuery = query,
+            query = query,
             sortMode = sortMode,
             index = index,
         )
     }
         .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
 
     private val playbackSnapshot = combine(
         playbackManager.recentPlaybackState,
@@ -221,15 +226,15 @@ internal class SearchViewModel(
         )
 
         fun buildSearchResults(
-            normalizedQuery: String,
+            query: NormalizedSearchQuery,
             sortMode: SearchSongSortMode,
             index: SearchIndex,
         ): SearchResults {
-            if (normalizedQuery.isBlank()) return SearchResults()
+            if (query.value.isBlank()) return SearchResults()
 
             val rankedSongs = index.songs.mapNotNull { searchable ->
                 scoreMatch(
-                    normalizedQuery = normalizedQuery,
+                    query = query,
                     normalizedTitle = searchable.normalizedTitle,
                     normalizedArtist = searchable.normalizedArtist,
                     normalizedAlbum = searchable.normalizedAlbum,
@@ -249,7 +254,7 @@ internal class SearchViewModel(
             val matchingAlbums = index.albums
                 .mapNotNull { searchable ->
                     scoreMatch(
-                        normalizedQuery = normalizedQuery,
+                        query = query,
                         normalizedTitle = searchable.normalizedTitle,
                         normalizedArtist = searchable.normalizedArtist,
                         normalizedAlbum = "",
@@ -273,7 +278,7 @@ internal class SearchViewModel(
             val matchingArtists = index.artists
                 .mapNotNull { artist ->
                     scoreMatch(
-                        normalizedQuery = normalizedQuery,
+                        query = query,
                         normalizedTitle = artist.normalizedName,
                         normalizedArtist = "",
                         normalizedComposite = artist.normalizedName,
