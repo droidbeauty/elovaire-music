@@ -53,4 +53,10 @@ target_compile_definitions(
 )
 
 target_compile_options(elovaire_chromaprint PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_options(
+    elovaire_chromaprint
+    PRIVATE
+    "-Wl,-z,max-page-size=16384"
+    "-Wl,-z,common-page-size=16384"
+)
 target_link_libraries(elovaire_chromaprint android log m)

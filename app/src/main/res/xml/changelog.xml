@@ -6,16 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.2">
+    <release version="2.2.1">
         <item></item>
-        <item>Added gapless playback feature with button in queue menu</item>
-        <item>Added shuffle feature to playlists</item>
-        <item>Added option to manually add lyrics to songs via standard copy-paste</item>
-        <item>Improved search feature framework</item>
-        <item>Improved playback and codec support framework</item>
-        <item>Minor tweaks to EQ layout</item>
-        <item>UI translated to 5 previously unsupported languages: Bengali, Korean, Mayan, Slovak and Urdu</item>
-        <item>Efficiency and compatibility optimizations targeted for older devices</item>
-        <item>A lot of bug fixes</item>
+        <item>Bug fixes</item>
     </release>
 </changelog>
