@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
+import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +50,7 @@ internal data class PlayerUiState(
     val shuffleEnabled: Boolean = false,
     val volume: Float = 1f,
     val sourceLabel: String? = null,
+    val gaplessPlaybackEnabled: Boolean = true,
 )
 
 internal data class MiniPlayerUiState(
@@ -59,6 +61,7 @@ internal data class MiniPlayerUiState(
 
 internal class NowPlayingViewModel(
     private val playbackManager: PlaybackManager,
+    private val preferenceStore: PreferenceStore,
     private val lyricsService: LyricsService,
 ) : ViewModel() {
     private val lyricsVisible = MutableStateFlow(false)
@@ -74,7 +77,8 @@ internal class NowPlayingViewModel(
         playbackManager.transportState,
         playbackManager.queueState,
         playbackManager.volumeState,
-    ) { nowPlaying, transport, queue, volume ->
+        preferenceStore.gaplessPlaybackEnabled,
+    ) { nowPlaying, transport, queue, volume, gaplessPlaybackEnabled ->
         PlayerUiState(
             currentSong = nowPlaying.currentSong,
             isPlaying = transport.isPlaying,
@@ -85,6 +89,7 @@ internal class NowPlayingViewModel(
             shuffleEnabled = transport.shuffleEnabled,
             volume = volume.volume,
             sourceLabel = nowPlaying.sourceLabel,
+            gaplessPlaybackEnabled = gaplessPlaybackEnabled,
         )
     }
         .distinctUntilChanged()
@@ -314,6 +319,10 @@ internal class NowPlayingViewModel(
 
     fun toggleShuffle() {
         playbackManager.toggleShuffle()
+    }
+
+    fun toggleGaplessPlayback() {
+        preferenceStore.setGaplessPlaybackEnabled(!preferenceStore.gaplessPlaybackEnabled.value)
     }
 
     fun setVolume(volume: Float) {

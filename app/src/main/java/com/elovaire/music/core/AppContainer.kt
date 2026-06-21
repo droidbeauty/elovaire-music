@@ -92,6 +92,12 @@ class AppContainer(
                 .collect(playbackManager::refreshLibraryMetadata)
         }
         appScope.launch {
+            preferenceStore.gaplessPlaybackEnabled
+                .map { it }
+                .distinctUntilChanged()
+                .collect(playbackManager::setGaplessPlaybackEnabled)
+        }
+        appScope.launch {
             preferenceStore.libraryFolderPath
                 .collect(libraryRepository::setPreferredLibraryFolderPath)
         }

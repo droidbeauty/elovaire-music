@@ -22,6 +22,7 @@ internal class ElovaireViewModelFactory(
             modelClass.isAssignableFrom(NowPlayingViewModel::class.java) -> {
                 NowPlayingViewModel(
                     playbackManager = appContainer.playbackManager,
+                    preferenceStore = appContainer.preferenceStore,
                     lyricsService = appContainer.lyricsService,
                 ) as T
             }

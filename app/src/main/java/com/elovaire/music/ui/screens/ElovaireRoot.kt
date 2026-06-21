@@ -2470,8 +2470,6 @@ fun ElovaireRoot(
                             isPlayerOverlayVisible = false
                             navController.navigate(EQUALIZER_ROUTE)
                         },
-                        eqSettings = eqSettings,
-                        onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
                         transitionSnapshot = nowPlayingTransitionSnapshot,
                         modifier = Modifier.fillMaxSize(),
                     )
@@ -2547,8 +2545,6 @@ private fun NowPlayingRoute(
     onAddCurrentSongToPlaylist: (Long, Song) -> Unit,
     onCreatePlaylist: (String) -> Long,
     onOpenEqualizer: () -> Unit,
-    eqSettings: EqSettings,
-    onSpaciousnessChanged: (Float) -> Unit,
     transitionSnapshot: NowPlayingTransitionSnapshot?,
     modifier: Modifier = Modifier,
 ) {
@@ -2605,8 +2601,7 @@ private fun NowPlayingRoute(
             onQueueItemSelected = viewModel::playQueueIndex,
             onQueueItemRemoved = viewModel::removeQueueIndex,
             onOpenEqualizer = onOpenEqualizer,
-            eqSettings = eqSettings,
-            onSpaciousnessChanged = onSpaciousnessChanged,
+            onToggleGaplessPlayback = viewModel::toggleGaplessPlayback,
             onVolumeChanged = viewModel::setVolume,
             transitionSnapshot = transitionSnapshot,
             modifier = modifier,
@@ -9587,6 +9582,7 @@ private fun AlbumSongRow(
                 SongOverflowMenuButton(
                     song = song,
                     tint = MaterialTheme.colorScheme.onSurface,
+                    showGoToAlbum = false,
                 )
             }
         }
@@ -11276,8 +11272,7 @@ private fun NowPlayingScreen(
     onQueueItemSelected: (Int) -> Unit,
     onQueueItemRemoved: (Int) -> Unit,
     onOpenEqualizer: () -> Unit,
-    eqSettings: EqSettings,
-    onSpaciousnessChanged: (Float) -> Unit,
+    onToggleGaplessPlayback: () -> Unit,
     onVolumeChanged: (Float) -> Unit,
     transitionSnapshot: NowPlayingTransitionSnapshot?,
     modifier: Modifier = Modifier,
@@ -11377,15 +11372,16 @@ private fun NowPlayingScreen(
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
+    var queueStatusVersion by remember(currentSong?.id) { mutableStateOf(0L) }
     LaunchedEffect(showLyricsSheet) {
         onLyricsVisibilityChanged(showLyricsSheet)
     }
     DisposableEffect(Unit) {
         onDispose { onLyricsVisibilityChanged(false) }
     }
-    LaunchedEffect(queueStatusText) {
+    LaunchedEffect(queueStatusVersion) {
         if (queueStatusText != null) {
-            delay(1500L)
+            delay(2000L)
             queueStatusText = null
         }
     }
@@ -11641,7 +11637,6 @@ private fun NowPlayingScreen(
             val transportShowsPause = remember(currentSong.id, playerUiState.transportShowsPause) {
                 playerUiState.transportShowsPause
             }
-            val spaciousnessEnabled = eqSettings.spaciousness > 0.02f
             val favoriteAlpha by animateFloatAsState(
                 targetValue = if (showQueueSheet) 0f else 1f,
                 animationSpec = tween(80),
@@ -12149,16 +12144,19 @@ private fun NowPlayingScreen(
                             } else {
                                 "Shuffle | Enabled"
                             }
+                            queueStatusVersion += 1L
                             onToggleShuffle()
                         },
-                        spaciousnessEnabled = spaciousnessEnabled,
-                        onToggleSpaciousness = {
-                            val enabling = !spaciousnessEnabled
-                            queueStatusText = if (enabling) "Spaciousness | Enabled" else null
-                            onSpaciousnessChanged(if (enabling) 0.5f else 0f)
+                        gaplessPlaybackEnabled = playerUiState.gaplessPlaybackEnabled,
+                        onToggleGaplessPlayback = {
+                            queueStatusText = if (playerUiState.gaplessPlaybackEnabled) {
+                                "Gapless playback | Off"
+                            } else {
+                                "Gapless playback | On"
+                            }
+                            queueStatusVersion += 1L
+                            onToggleGaplessPlayback()
                         },
-                        spaciousnessAmount = eqSettings.spaciousness.coerceIn(0f, 1f),
-                        onSpaciousnessAmountChanged = onSpaciousnessChanged,
                         onOpenEqualizer = onOpenEqualizer,
                         onAddSongToPlaylist = onAddCurrentSongToPlaylist,
                         onCreatePlaylist = onCreatePlaylist,
@@ -12526,10 +12524,8 @@ private fun QueueSheet(
     onQueueItemRemoved: (Int) -> Unit,
     shuffleEnabled: Boolean,
     onToggleShuffle: () -> Unit,
-    spaciousnessEnabled: Boolean,
-    onToggleSpaciousness: () -> Unit,
-    spaciousnessAmount: Float,
-    onSpaciousnessAmountChanged: (Float) -> Unit,
+    gaplessPlaybackEnabled: Boolean,
+    onToggleGaplessPlayback: () -> Unit,
     onOpenEqualizer: () -> Unit,
     onAddSongToPlaylist: (Long, Song) -> Unit,
     onCreatePlaylist: (String) -> Long,
@@ -12540,19 +12536,13 @@ private fun QueueSheet(
 ) {
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("equalizer_screen")
-    var showSpaciousnessSlider by remember(spaciousnessEnabled) { mutableStateOf(spaciousnessEnabled) }
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
-    val footerExpanded = showSpaciousnessSlider || statusText != null
+    val footerExpanded = statusText != null
     val footerHeight by animateDpAsState(
         targetValue = if (footerExpanded) 90.dp else 60.dp,
         animationSpec = tween(120, easing = FastOutSlowInEasing),
         label = "queue_footer_height",
     )
-    LaunchedEffect(spaciousnessEnabled) {
-        if (!spaciousnessEnabled) {
-            showSpaciousnessSlider = false
-        }
-    }
     LaunchedEffect(currentIndex, queue.size) {
         if (currentIndex in queue.indices) {
             listState.scrollToItem((currentIndex - 2).coerceAtLeast(0))
@@ -12687,7 +12677,7 @@ private fun QueueSheet(
                             .height(20.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        if (queueStatus != null && !showSpaciousnessSlider) {
+                        if (queueStatus != null) {
                             Text(
                                 text = queueStatus,
                                 style = MaterialTheme.typography.labelLarge,
@@ -12697,41 +12687,6 @@ private fun QueueSheet(
                         }
                     }
                 }
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = showSpaciousnessSlider,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 10.dp),
-                    enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) + slideInVertically(
-                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                        initialOffsetY = { it / 3 },
-                    ),
-                    exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()) + slideOutVertically(
-                        animationSpec = ElovaireMotion.standardTween(
-                            durationMillis = ElovaireMotion.Fast,
-                            easing = FastOutLinearInEasing,
-                        ),
-                        targetOffsetY = { it / 4 },
-                    ),
-                ) {
-                    ThinContinuousSlider(
-                        value = spaciousnessAmount.coerceIn(0f, 1f),
-                        onValueChange = {
-                            val clamped = it.coerceIn(0f, 1f)
-                            onSpaciousnessAmountChanged(clamped)
-                            if (clamped <= 0.001f) {
-                                showSpaciousnessSlider = false
-                                if (spaciousnessEnabled) {
-                                    onToggleSpaciousness()
-                                }
-                            }
-                        },
-                        valueRange = 0f..1f,
-                        lineThickness = 4.dp,
-                        knobSize = 18.dp,
-                        modifier = Modifier.fillMaxWidth(0.9f),
-                    )
-                }
                 Row(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
@@ -12740,25 +12695,13 @@ private fun QueueSheet(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_wind,
+                        iconResId = R.drawable.ic_lucide_separator_vertical,
                         label = "",
+                        contentDescription = "Gapless playback",
                         iconSize = 20.dp,
                         tint = tint,
-                        showBackground = spaciousnessEnabled,
-                        onClick = {
-                            if (!spaciousnessEnabled) {
-                                showSpaciousnessSlider = true
-                                if (spaciousnessAmount < 0.02f) {
-                                    onSpaciousnessAmountChanged(0.5f)
-                                }
-                                onToggleSpaciousness()
-                            } else if (!showSpaciousnessSlider) {
-                                showSpaciousnessSlider = true
-                            } else {
-                                showSpaciousnessSlider = false
-                                onToggleSpaciousness()
-                            }
-                        },
+                        showBackground = gaplessPlaybackEnabled,
+                        onClick = onToggleGaplessPlayback,
                     )
                     Spacer(modifier = Modifier.width(20.dp))
                     PlayerSecondaryActionButton(
@@ -13569,6 +13512,7 @@ private fun AlbumOverflowMenuButton(
                         text = uiPhrase(language, UiPhrase.DeleteAlbum),
                         tint = DestructiveRed,
                         containerColor = DestructiveRed.copy(alpha = 0.2f),
+                        cornerRadius = (ElovaireRadii.card * 0.72f) - 2.dp,
                         bottomPadding = 10.dp,
                         onClick = {
                             expanded = false
@@ -13598,6 +13542,7 @@ private fun AlbumOverflowMenuButton(
 private fun SongOverflowMenuButton(
     song: Song,
     tint: Color,
+    showGoToAlbum: Boolean = true,
 ) {
     val actions = LocalSongMenuActions.current
     val language = LocalAppLanguage.current
@@ -13673,20 +13618,23 @@ private fun SongOverflowMenuButton(
                             actions.onAddToQueue(song)
                         },
                     )
-                    SongContextMenuItem(
-                        iconResId = R.drawable.ic_lucide_disc_album,
-                        text = uiPhrase(language, UiPhrase.GoToAlbum),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                        onClick = {
-                            expanded = false
-                            actions.onGoToAlbum(song)
-                        },
-                    )
+                    if (showGoToAlbum) {
+                        SongContextMenuItem(
+                            iconResId = R.drawable.ic_lucide_disc_album,
+                            text = uiPhrase(language, UiPhrase.GoToAlbum),
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            onClick = {
+                                expanded = false
+                                actions.onGoToAlbum(song)
+                            },
+                        )
+                    }
                     SongContextMenuItem(
                         iconResId = R.drawable.ic_lucide_trash_2,
                         text = uiPhrase(language, actions.deletePhrase),
                         tint = DestructiveRed,
                         containerColor = DestructiveRed.copy(alpha = 0.2f),
+                        cornerRadius = (ElovaireRadii.card * 0.72f) - 2.dp,
                         bottomPadding = 10.dp,
                         onClick = {
                             expanded = false
@@ -13824,6 +13772,7 @@ private fun SongContextMenuItem(
     text: String,
     tint: Color,
     containerColor: Color = Color.Transparent,
+    cornerRadius: Dp = ElovaireRadii.card * 0.72f,
     topPadding: Dp = 6.dp,
     bottomPadding: Dp = 6.dp,
     onClick: () -> Unit,
@@ -13832,7 +13781,7 @@ private fun SongContextMenuItem(
         modifier = Modifier
             .fillMaxWidth()
             .padding(start = 10.dp, top = topPadding, end = 10.dp, bottom = bottomPadding)
-            .clip(RoundedCornerShape(ElovaireRadii.card * 0.72f))
+            .clip(RoundedCornerShape(cornerRadius))
             .background(containerColor)
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 10.dp),
@@ -14557,6 +14506,7 @@ private fun LyricsReadyContent(
 private fun PlayerSecondaryActionButton(
     iconResId: Int,
     label: String,
+    contentDescription: String = label,
     iconSize: Dp = 18.dp,
     tint: Color,
     showBackground: Boolean,
@@ -14607,7 +14557,7 @@ private fun PlayerSecondaryActionButton(
         ) {
             Icon(
                 painter = painterResource(id = iconResId),
-                contentDescription = label,
+                contentDescription = contentDescription.ifBlank { null },
                 tint = tint.copy(alpha = 0.92f),
                 modifier = Modifier.size(iconSize),
             )
@@ -15191,11 +15141,11 @@ private fun EqualizerScreen(
                 .fillMaxSize()
                 .navigationBarsPadding()
                 .padding(
-                start = 18.dp,
-                top = topBarOccupiedHeight() + 8.dp,
-                end = 18.dp,
-                bottom = 96.dp + buttonNavigationScrollBoost(),
-            ),
+                    start = 18.dp,
+                    top = topBarOccupiedHeight() + 8.dp,
+                    end = 18.dp,
+                    bottom = 16.dp,
+                ),
         ) {
             Column {
                 Row(
@@ -15212,7 +15162,7 @@ private fun EqualizerScreen(
                         modifier = Modifier
                             .horizontalGestureSafe()
                             .horizontalScroll(graphScrollState),
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         EqResponseGraph(
                             settings = settings,
@@ -15231,14 +15181,14 @@ private fun EqualizerScreen(
                     scrollState = graphScrollState,
                     contentWidth = graphContentWidth,
                 )
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(4.dp))
                 EqMiniResponseGraph(
                     settings = settings,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(60.dp),
                 )
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 EqPresetMenu(
                     currentSettings = settings,
                     onApplyPreset = onApplyPreset,
@@ -15378,7 +15328,7 @@ private fun EqualizerScreen(
         FastScrollbar(
             state = listState,
             topInset = topBarOccupiedHeight() + 390.dp,
-            bottomInset = navigationBarInsetDp() + 48.dp,
+            bottomInset = navigationBarInsetDp() + 16.dp,
         )
         PinnedBackTopBar(
             title = copy.equalizer,

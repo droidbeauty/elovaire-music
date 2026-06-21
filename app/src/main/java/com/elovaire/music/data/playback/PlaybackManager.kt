@@ -190,6 +190,7 @@ class PlaybackManager(
     private var isSwitchingAudioPath = false
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
+    private var gaplessPlaybackEnabled = true
     private var player = createPlayer(enableSignalProcessing = true)
     private var commandGatewayPlayer: Player = PlaybackCommandPlayer(player)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
@@ -838,6 +839,11 @@ class PlaybackManager(
             sourceLabel = refreshedSourceLabel,
         )
         updateState()
+    }
+
+    fun setGaplessPlaybackEnabled(enabled: Boolean) {
+        if (gaplessPlaybackEnabled == enabled) return
+        gaplessPlaybackEnabled = enabled
     }
 
     fun release() {

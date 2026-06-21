@@ -38,6 +38,9 @@ class PreferenceStore(context: Context) {
     private val _playbackVolume = MutableStateFlow(loadPlaybackVolume())
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
 
+    private val _gaplessPlaybackEnabled = MutableStateFlow(loadGaplessPlaybackEnabled())
+    val gaplessPlaybackEnabled: StateFlow<Boolean> = _gaplessPlaybackEnabled.asStateFlow()
+
     private val _albumCollectionLayoutMode = MutableStateFlow(loadAlbumCollectionLayoutMode())
     val albumCollectionLayoutMode: StateFlow<String> = _albumCollectionLayoutMode.asStateFlow()
 
@@ -345,6 +348,13 @@ class PreferenceStore(context: Context) {
         _playbackVolume.value = volume
     }
 
+    fun setGaplessPlaybackEnabled(enabled: Boolean) {
+        preferences.edit {
+            putBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, enabled)
+        }
+        _gaplessPlaybackEnabled.value = enabled
+    }
+
     fun setAlbumCollectionLayoutMode(mode: String) {
         val normalizedMode = mode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE }
         preferences.edit {
@@ -513,6 +523,10 @@ class PreferenceStore(context: Context) {
 
     private fun loadPlaybackVolume(): Float {
         return preferences.getFloat(KEY_PLAYBACK_VOLUME, 1f).coerceIn(0f, 1f)
+    }
+
+    private fun loadGaplessPlaybackEnabled(): Boolean {
+        return preferences.getBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, true)
     }
 
     private fun loadAlbumCollectionLayoutMode(): String {
@@ -749,6 +763,7 @@ class PreferenceStore(context: Context) {
         const val KEY_LAST_PLAYED_COLLECTION_KIND = "last_played_collection_kind"
         const val KEY_LAST_PLAYED_COLLECTION_ID = "last_played_collection_id"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
+        const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
         const val KEY_ALBUM_COLLECTION_LAYOUT_MODE = "album_collection_layout_mode"
         const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"
