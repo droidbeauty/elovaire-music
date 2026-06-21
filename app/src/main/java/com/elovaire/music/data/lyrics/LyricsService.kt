@@ -36,6 +36,10 @@ class LyricsService(
         repository.cancelObsoleteRequests(keepSongs)
     }
 
+    fun release() {
+        repository.release()
+    }
+
     suspend fun fetchLyrics(
         song: Song,
         allowCachedNotFound: Boolean = true,

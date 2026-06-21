@@ -64,21 +64,30 @@ class AppUpdateManager(
 
     fun checkForUpdates(force: Boolean = false) {
         if (checkJob?.isActive == true || _uiState.value.isDownloading || _uiState.value.isInstalling) return
-        if (!force) {
+    
+        val automaticCheckStartedAtMs = if (!force) {
             val nowMs = System.currentTimeMillis()
             val elapsedMs = nowMs - preferenceStore.lastAutomaticUpdateCheckAtMs()
             if (elapsedMs in 0 until AUTOMATIC_CHECK_INTERVAL_MS) return
-            preferenceStore.setLastAutomaticUpdateCheckAtMs(nowMs)
+            nowMs
+        } else {
+            null
         }
+
         checkJob = scope.launch {
             _uiState.update { it.copy(isChecking = true, errorMessage = null, transientStatus = null) }
             val installedVersion = normalizeVersionLabel(BuildConfig.VERSION_NAME)
-            val dismissedVersion = preferenceStore.dismissedUpdateVersion.value?.trim()?.takeIf { it.isNotBlank() }
+            val dismissedVersion = preferenceStore.dismissedUpdateVersion.value
+                ?.trim()
+                ?.takeIf { it.isNotBlank() }
             if (dismissedVersion != null && !isVersionNewer(dismissedVersion, installedVersion)) {
                 preferenceStore.setDismissedUpdateVersion(null)
             }
             val latestReleaseResult = runCatching {
                 withContext(Dispatchers.IO) { fetchLatestRelease(installedVersion) }
+            }
+            if (automaticCheckStartedAtMs != null && latestReleaseResult.isSuccess) {
+                preferenceStore.setLastAutomaticUpdateCheckAtMs(automaticCheckStartedAtMs)
             }
             val latestRelease = latestReleaseResult.getOrNull()
             val shouldShow = latestRelease != null && (force || dismissedVersion != latestRelease.versionName)

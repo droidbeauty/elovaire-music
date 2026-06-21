@@ -13,6 +13,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,6 +77,12 @@ internal class LyricsRepository(
             }
             obsolete
         }
+    }
+
+    fun release() {
+        inFlightRequests.values.forEach { request -> request.cancel() }
+        inFlightRequests.clear()
+        serviceScope.cancel()
     }
 
     suspend fun fetchLyrics(

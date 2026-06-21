@@ -76,7 +76,7 @@ internal fun parseLrcOrPlain(
     val indexed = sorted.mapIndexed { index, line ->
         line.copy(
             index = index,
-            endTimeMs = sorted.getOrNull(index + 1)?.startTimeMs?.minus(1L),
+            endTimeMs = sorted.nextDistinctStartTimeAfter(index)?.minus(1L),
         )
     }
 
@@ -170,6 +170,14 @@ private fun MatchResult.toTimeMs(): Long {
         else -> frac.take(3).toLong()
     }
     return min * 60_000L + sec * 1_000L + ms
+}
+
+private fun List<LyricsLine>.nextDistinctStartTimeAfter(index: Int): Long? {
+    val currentStart = getOrNull(index)?.startTimeMs ?: return null
+    return asSequence()
+        .drop(index + 1)
+        .mapNotNull(LyricsLine::startTimeMs)
+        .firstOrNull { it > currentStart }
 }
 
 private fun ByteArray.startsWith(other: ByteArray): Boolean {

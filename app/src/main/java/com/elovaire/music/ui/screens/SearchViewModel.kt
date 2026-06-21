@@ -233,6 +233,7 @@ internal class SearchViewModel(
                     normalizedTitle = searchable.normalizedTitle,
                     normalizedArtist = searchable.normalizedArtist,
                     normalizedAlbum = searchable.normalizedAlbum,
+                    normalizedComposite = searchable.normalizedComposite,
                 )?.let { score ->
                     RankedResult(
                         value = searchable.song,
@@ -252,6 +253,7 @@ internal class SearchViewModel(
                         normalizedTitle = searchable.normalizedTitle,
                         normalizedArtist = searchable.normalizedArtist,
                         normalizedAlbum = "",
+                        normalizedComposite = searchable.normalizedComposite,
                     )?.let { score ->
                         RankedResult(
                             value = searchable.album,
@@ -274,6 +276,7 @@ internal class SearchViewModel(
                         normalizedQuery = normalizedQuery,
                         normalizedTitle = artist.normalizedName,
                         normalizedArtist = "",
+                        normalizedComposite = artist.normalizedName,
                     )?.let { score ->
                         RankedResult(
                             value = artist,

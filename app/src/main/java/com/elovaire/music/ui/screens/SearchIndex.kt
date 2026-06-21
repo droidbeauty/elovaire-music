@@ -132,13 +132,14 @@ internal fun scoreMatch(
     normalizedTitle: String,
     normalizedArtist: String,
     normalizedAlbum: String = "",
+    normalizedComposite: String? = null,
 ): Int? {
     if (normalizedQuery.isBlank()) return null
 
     val tokens = normalizedQuery.split(' ').filter { it.isNotBlank() }
     if (tokens.isEmpty()) return null
 
-    val composite = buildNormalizedComposite(
+    val composite = normalizedComposite ?: buildNormalizedComposite(
         normalizedTitle,
         normalizedArtist,
         normalizedAlbum,

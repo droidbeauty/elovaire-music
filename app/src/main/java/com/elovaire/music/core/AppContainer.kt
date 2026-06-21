@@ -30,7 +30,8 @@ class AppContainer(
     appContext: Context,
 ) {
     private val applicationContext = appContext.applicationContext
-    private val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    private val appJob = SupervisorJob()
+    private val appScope = CoroutineScope(appJob + Dispatchers.Main.immediate)
 
     val preferenceStore = PreferenceStore(applicationContext)
     val appUpdateManager = AppUpdateManager(
@@ -118,8 +119,10 @@ class AppContainer(
         playbackNotificationController?.setNotificationsEnabled(false)
         playbackNotificationController = null
         appUpdateManager.release()
+        lyricsService.release()
         libraryRepository.release()
         playbackManager.release()
+        appJob.cancel()
     }
 
     private fun notificationController(): PlaybackNotificationController {
