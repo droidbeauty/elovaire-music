@@ -42,12 +42,17 @@ internal data class EditableAlbumTrack(
     val durationMs: Long? = null,
 )
 
+internal sealed interface TagFieldEdit<out T> {
+    data object Unchanged : TagFieldEdit<Nothing>
+    data object Cleared : TagFieldEdit<Nothing>
+    data class Value<T>(val value: T) : TagFieldEdit<T>
+}
+
 internal data class AlbumTagEditRequest(
     val album: Album,
-    val albumTitle: String,
-    val albumArtist: String,
-    val releaseYear: Int?,
-    val shouldClearYear: Boolean = false,
+    val albumTitle: TagFieldEdit<String>,
+    val albumArtist: TagFieldEdit<String>,
+    val releaseYear: TagFieldEdit<Int>,
     val coverArtUri: Uri?,
     val coverArtBytes: ByteArray? = null,
     val tracks: List<EditableAlbumTrack>,
@@ -72,6 +77,7 @@ internal data class TagEditApplyResult(
     val editedSongIds: List<Long>,
     val editedUris: List<Uri>,
     val editedFilePaths: List<String>,
+    val editedSongs: List<Song>,
     val artworkChanged: Boolean,
     val failures: List<TagEditFailure> = emptyList(),
     val permissionRequest: PendingIntent? = null,
@@ -132,14 +138,35 @@ internal class AlbumTagEditorService(
     }
 
     suspend fun applyEdits(request: AlbumTagEditRequest): TagEditApplyResult = withContext(Dispatchers.IO) {
+        logDebug(
+            "Applying tag edit album=${request.album.id} title=${request.albumTitle} " +
+                "artist=${request.albumArtist} releaseYear=${request.releaseYear} tracks=${request.tracks.size}",
+        )
         val trackEditsById = request.tracks.associateBy { it.songId }
         val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)
         val coverArtMimeType = coverArtBytes?.let(::detectMimeType)
         val editedSongIds = mutableListOf<Long>()
         val editedUris = mutableListOf<Uri>()
         val editedFilePaths = mutableListOf<String>()
+        val editedSongs = mutableListOf<Song>()
         val failures = mutableListOf<TagEditFailure>()
         var permissionRequest: PendingIntent? = null
+        if (request.coverArtUri != null && coverArtBytes == null) {
+            return@withContext TagEditApplyResult(
+                editedSongIds = emptyList(),
+                editedUris = emptyList(),
+                editedFilePaths = emptyList(),
+                editedSongs = emptyList(),
+                artworkChanged = false,
+                failures = request.album.songs.map { song ->
+                    TagEditFailure(
+                        songId = song.id,
+                        fileName = song.fileName,
+                        reason = "Unable to read the selected artwork.",
+                    )
+                },
+            )
+        }
         request.album.songs.forEach { song ->
             val extension = song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
             val capability = AudioFormatPolicy.capabilityForExtension(extension)
@@ -161,6 +188,13 @@ internal class AlbumTagEditorService(
                 return@forEach
             }
             val trackEdit = trackEditsById[song.id]
+            val hasAlbumLevelChanges = request.albumTitle !is TagFieldEdit.Unchanged ||
+                request.albumArtist !is TagFieldEdit.Unchanged ||
+                request.releaseYear !is TagFieldEdit.Unchanged ||
+                coverArtBytes != null
+            if (trackEdit == null && !hasAlbumLevelChanges) {
+                return@forEach
+            }
             if (trackEdit == null) {
                 logDebug("Missing per-track edit row for songId=${song.id}; applying album-level values only.")
             }
@@ -186,14 +220,16 @@ internal class AlbumTagEditorService(
                 val verificationFailures = verifyWrittenTags(
                     tempFile = workingFile,
                     expected = ExpectedTagValues(
-                        title = effectiveTrack.title,
-                        artist = effectiveTrack.artist,
-                        album = request.albumTitle.trim().ifBlank { song.album },
-                        albumArtist = request.albumArtist.trim().ifBlank { song.artist },
-                        year = request.releaseYear?.takeIf { it > 0 }?.toString(),
-                        shouldClearYear = request.shouldClearYear,
-                        trackNumber = effectiveTrack.trackNumber.coerceAtLeast(1).toString(),
-                        discNumber = effectiveTrack.discNumber.coerceAtLeast(1).toString(),
+                        title = trackEdit?.let { effectiveTrack.title },
+                        artist = trackEdit?.let { effectiveTrack.artist },
+                        album = request.albumTitle.expectedValue(),
+                        albumArtist = request.albumArtist.expectedValue(),
+                        year = request.releaseYear.expectedYear(),
+                        shouldClearAlbum = request.albumTitle is TagFieldEdit.Cleared,
+                        shouldClearAlbumArtist = request.albumArtist is TagFieldEdit.Cleared,
+                        shouldClearYear = request.releaseYear is TagFieldEdit.Cleared,
+                        trackNumber = trackEdit?.let { effectiveTrack.trackNumber.coerceAtLeast(1).toString() },
+                        discNumber = trackEdit?.let { effectiveTrack.discNumber.coerceAtLeast(1).toString() },
                     ),
                     expectArtwork = coverArtBytes != null,
                 )
@@ -215,14 +251,16 @@ internal class AlbumTagEditorService(
                 val persistedFailures = verifyWrittenTags(
                     tempFile = persistedVerificationFile,
                     expected = ExpectedTagValues(
-                        title = effectiveTrack.title,
-                        artist = effectiveTrack.artist,
-                        album = request.albumTitle.trim().ifBlank { song.album },
-                        albumArtist = request.albumArtist.trim().ifBlank { song.artist },
-                        year = request.releaseYear?.takeIf { it > 0 }?.toString(),
-                        shouldClearYear = request.shouldClearYear,
-                        trackNumber = effectiveTrack.trackNumber.coerceAtLeast(1).toString(),
-                        discNumber = effectiveTrack.discNumber.coerceAtLeast(1).toString(),
+                        title = trackEdit?.let { effectiveTrack.title },
+                        artist = trackEdit?.let { effectiveTrack.artist },
+                        album = request.albumTitle.expectedValue(),
+                        albumArtist = request.albumArtist.expectedValue(),
+                        year = request.releaseYear.expectedYear(),
+                        shouldClearAlbum = request.albumTitle is TagFieldEdit.Cleared,
+                        shouldClearAlbumArtist = request.albumArtist is TagFieldEdit.Cleared,
+                        shouldClearYear = request.releaseYear is TagFieldEdit.Cleared,
+                        trackNumber = trackEdit?.let { effectiveTrack.trackNumber.coerceAtLeast(1).toString() },
+                        discNumber = trackEdit?.let { effectiveTrack.discNumber.coerceAtLeast(1).toString() },
                     ),
                     expectArtwork = coverArtBytes != null,
                 )
@@ -233,6 +271,17 @@ internal class AlbumTagEditorService(
                 editedSongIds += song.id
                 editedUris += song.uri
                 resolveFilePath(song)?.let(editedFilePaths::add)
+                editedSongs += song.copy(
+                    title = trackEdit?.let { effectiveTrack.title } ?: song.title,
+                    artist = trackEdit?.let { effectiveTrack.artist } ?: song.artist,
+                    album = request.albumTitle.valueOr(song.album).ifBlank { song.album },
+                    albumArtist = request.albumArtist.valueOr(song.albumArtist ?: song.artist)
+                        .takeIf(String::isNotBlank),
+                    releaseYear = request.releaseYear.valueOr(song.releaseYear),
+                    trackNumber = trackEdit?.let { effectiveTrack.trackNumber } ?: song.trackNumber,
+                    discNumber = trackEdit?.let { effectiveTrack.discNumber } ?: song.discNumber,
+                    metadataResolved = true,
+                )
             } catch (throwable: CancellationException) {
                 throw throwable
             } catch (throwable: RecoverableSecurityException) {
@@ -260,6 +309,7 @@ internal class AlbumTagEditorService(
             editedSongIds = editedSongIds,
             editedUris = editedUris,
             editedFilePaths = editedFilePaths.distinct(),
+            editedSongs = editedSongs,
             artworkChanged = coverArtBytes != null && editedSongIds.isNotEmpty(),
             failures = failures,
             permissionRequest = permissionRequest,
@@ -276,20 +326,15 @@ internal class AlbumTagEditorService(
     ) {
         val audioFile = AudioFileIO.read(tempFile)
         val tag = audioFile.tagOrCreateAndSetDefault
-        val normalizedAlbumTitle = request.albumTitle.trim().ifBlank { originalSong.album }
-        val normalizedAlbumArtist = request.albumArtist.trim().ifBlank { originalSong.artist }
-        val normalizedTrackArtist = track.artist.trim().ifBlank { originalSong.artist }
-        setOrDeleteTextField(tag, FieldKey.ALBUM, normalizedAlbumTitle)
-        setOrDeleteTextField(tag, FieldKey.ALBUM_ARTIST, normalizedAlbumArtist)
-        setOrDeleteTextField(tag, FieldKey.ARTIST, normalizedTrackArtist)
-        setOrDeleteTextField(tag, FieldKey.TITLE, track.title.trim().ifBlank { originalSong.title })
-        setOrDeleteTextField(tag, FieldKey.TRACK, track.trackNumber.coerceAtLeast(1).toString())
-        setOrDeleteTextField(tag, FieldKey.DISC_NO, track.discNumber.coerceAtLeast(1).toString())
-        if (request.releaseYear != null && request.releaseYear > 0) {
-            setOrDeleteTextField(tag, FieldKey.YEAR, request.releaseYear.toString())
-        } else if (request.shouldClearYear) {
-            tag.deleteField(FieldKey.YEAR)
+        applyTextEdit(tag, FieldKey.ALBUM, request.albumTitle)
+        applyTextEdit(tag, FieldKey.ALBUM_ARTIST, request.albumArtist)
+        if (request.tracks.any { it.songId == originalSong.id }) {
+            setOrDeleteTextField(tag, FieldKey.ARTIST, track.artist.trim().ifBlank { originalSong.artist })
+            setOrDeleteTextField(tag, FieldKey.TITLE, track.title.trim().ifBlank { originalSong.title })
+            setOrDeleteTextField(tag, FieldKey.TRACK, track.trackNumber.coerceAtLeast(1).toString())
+            setOrDeleteTextField(tag, FieldKey.DISC_NO, track.discNumber.coerceAtLeast(1).toString())
         }
+        applyReleaseYear(tag, request.releaseYear)
         if (coverArtBytes != null && coverArtMimeType != null) {
             runCatching { tag.deleteArtworkField() }
             val artworkTempFile = createArtworkTempFile(
@@ -304,6 +349,36 @@ internal class AlbumTagEditorService(
             }
         }
         audioFile.commit()
+    }
+
+    private fun applyTextEdit(
+        tag: org.jaudiotagger.tag.Tag,
+        fieldKey: FieldKey,
+        edit: TagFieldEdit<String>,
+    ) {
+        when (edit) {
+            TagFieldEdit.Unchanged -> Unit
+            TagFieldEdit.Cleared -> runCatching { tag.deleteField(fieldKey) }
+            is TagFieldEdit.Value -> setOrDeleteTextField(tag, fieldKey, edit.value)
+        }
+    }
+
+    private fun applyReleaseYear(
+        tag: org.jaudiotagger.tag.Tag,
+        edit: TagFieldEdit<Int>,
+    ) {
+        when (edit) {
+            TagFieldEdit.Unchanged -> Unit
+            TagFieldEdit.Cleared -> {
+                runCatching { tag.deleteField(FieldKey.YEAR) }
+                runCatching { tag.deleteField(FieldKey.ORIGINAL_YEAR) }
+            }
+            is TagFieldEdit.Value -> {
+                val year = edit.value.coerceIn(MIN_RELEASE_YEAR, MAX_RELEASE_YEAR).toString()
+                tag.setField(FieldKey.YEAR, year)
+                runCatching { tag.setField(FieldKey.ORIGINAL_YEAR, year) }
+            }
+        }
     }
 
     private fun setOrDeleteTextField(
@@ -350,6 +425,8 @@ internal class AlbumTagEditorService(
         check(FieldKey.ALBUM, expected.album, "Album")
         check(FieldKey.ALBUM_ARTIST, expected.albumArtist, "Album artist")
         check(FieldKey.YEAR, expected.year, "Year")
+        checkCleared(FieldKey.ALBUM, "Album", expected.shouldClearAlbum)
+        checkCleared(FieldKey.ALBUM_ARTIST, "Album artist", expected.shouldClearAlbumArtist)
         checkCleared(FieldKey.YEAR, "Year", expected.shouldClearYear)
         check(FieldKey.TRACK, expected.trackNumber, "Track")
         check(FieldKey.DISC_NO, expected.discNumber, "Disc")
@@ -465,19 +542,40 @@ internal class AlbumTagEditorService(
     }
 
     private data class ExpectedTagValues(
-        val title: String,
-        val artist: String,
-        val album: String,
-        val albumArtist: String,
+        val title: String?,
+        val artist: String?,
+        val album: String?,
+        val albumArtist: String?,
         val year: String?,
+        val shouldClearAlbum: Boolean,
+        val shouldClearAlbumArtist: Boolean,
         val shouldClearYear: Boolean,
-        val trackNumber: String,
-        val discNumber: String,
+        val trackNumber: String?,
+        val discNumber: String?,
     )
+
+    private fun TagFieldEdit<String>.expectedValue(): String? = (this as? TagFieldEdit.Value)?.value
+
+    private fun TagFieldEdit<Int>.expectedYear(): String? =
+        (this as? TagFieldEdit.Value)?.value?.coerceIn(MIN_RELEASE_YEAR, MAX_RELEASE_YEAR)?.toString()
+
+    private fun TagFieldEdit<String>.valueOr(fallback: String): String = when (this) {
+        TagFieldEdit.Unchanged -> fallback
+        TagFieldEdit.Cleared -> ""
+        is TagFieldEdit.Value -> value.trim()
+    }
+
+    private fun TagFieldEdit<Int>.valueOr(fallback: Int?): Int? = when (this) {
+        TagFieldEdit.Unchanged -> fallback
+        TagFieldEdit.Cleared -> null
+        is TagFieldEdit.Value -> value.coerceIn(MIN_RELEASE_YEAR, MAX_RELEASE_YEAR)
+    }
 
     private companion object {
         const val TEMP_TAG_EDIT_DIR_NAME = "album-tag-edits"
         const val TAG = "AlbumTagEditor"
+        const val MIN_RELEASE_YEAR = 1
+        const val MAX_RELEASE_YEAR = 9999
     }
 
     private fun logDebug(message: String) {

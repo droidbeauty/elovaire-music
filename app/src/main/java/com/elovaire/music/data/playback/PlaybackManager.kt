@@ -23,6 +23,7 @@ import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
+import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
@@ -799,6 +800,11 @@ class PlaybackManager(
             }
         }
         if (!queueChanged) return
+        refreshedQueue.forEachIndexed { index, refreshedSong ->
+            if (existingState.queue.getOrNull(index) != refreshedSong && index < player.mediaItemCount) {
+                player.replaceMediaItem(index, refreshedSong.toPlaybackMediaItem())
+            }
+        }
         val currentIndex = resolveCurrentQueueIndex(existingState)
         val previousCurrentSong = existingState.queue.getOrNull(currentIndex)
         val refreshedCurrentSong = refreshedQueue.getOrNull(currentIndex)
@@ -1662,6 +1668,15 @@ private fun Song.toPlaybackMediaItem(): MediaItem {
         .setMediaId(id.toString())
         .setUri(uri)
         .setMimeType(inferPlaybackMimeType())
+        .setMediaMetadata(
+            MediaMetadata.Builder()
+                .setTitle(title)
+                .setArtist(artist)
+                .setAlbumTitle(album)
+                .setAlbumArtist(albumArtist)
+                .setArtworkUri(artUri)
+                .build(),
+        )
         .build()
 }
 

@@ -1931,7 +1931,14 @@ fun ElovaireRoot(
                         arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
                     ) { backStackEntry ->
                         val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
+                        var routedAlbumSongIds by remember(albumId) { mutableStateOf<Set<Long>>(emptySet()) }
                         val album = libraryState.albums.firstOrNull { it.id == albumId }
+                            ?: libraryState.albums.firstOrNull { candidate ->
+                                routedAlbumSongIds.isNotEmpty() && candidate.songs.any { it.id in routedAlbumSongIds }
+                            }
+                        LaunchedEffect(album?.id) {
+                            album?.songs?.mapTo(linkedSetOf(), Song::id)?.let { routedAlbumSongIds = it }
+                        }
                         val previousRoute = navController.previousBackStackEntry?.destination?.route
                         AlbumScreen(
                             album = album,

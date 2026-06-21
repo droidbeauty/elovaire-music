@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.AudioQualityFormatter
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
 import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -28,6 +29,7 @@ class MediaStoreScanner(
 ) {
     private val metadataCache = mutableMapOf<Long, CachedSongMetadata>()
     private val audioFormatDetector = AudioFormatDetector(context)
+    private val embeddedTagMetadataReader = EmbeddedTagMetadataReader()
     private var preferredLibraryFolderPath: String? = null
 
     fun setPreferredLibraryFolderPath(path: String?): Boolean {
@@ -220,6 +222,7 @@ class MediaStoreScanner(
                         readSongMetadata(
                             songId = id,
                             songUri = songUri,
+                            filePath = filePath,
                             mediaStoreYear = mediaStoreYear,
                             fileSizeBytes = fileSizeBytes,
                             durationMs = durationMs,
@@ -611,14 +614,16 @@ class MediaStoreScanner(
     private fun readSongMetadata(
         songId: Long,
         songUri: Uri,
+        filePath: String?,
         mediaStoreYear: Int?,
         fileSizeBytes: Long?,
         durationMs: Long,
         detectedFormat: DetectedAudioFormat,
     ): SongMetadata {
+        val embeddedMetadata = embeddedTagMetadataReader.read(filePath)
         val retrieverMetadata = readRetrieverMetadata(songUri)
         val resolvedFormat = detectedFormat.displayName
-        val year = retrieverMetadata.year ?: mediaStoreYear
+        val year = embeddedMetadata?.releaseYear ?: retrieverMetadata.year ?: mediaStoreYear
         val sampleRate = retrieverMetadata.sampleRate ?: detectedFormat.sampleRate
         val bitDepth = retrieverMetadata.bitDepth
         val bitrate = retrieverMetadata.bitrate
@@ -628,12 +633,12 @@ class MediaStoreScanner(
                 durationMs = durationMs,
                 resolvedFormat = resolvedFormat,
             )
-        val genre = retrieverMetadata.genre ?: queryGenre(songId)
+        val genre = embeddedMetadata?.genre ?: retrieverMetadata.genre ?: queryGenre(songId)
         return SongMetadata(
-            title = retrieverMetadata.title,
-            artist = retrieverMetadata.artist,
-            albumArtist = retrieverMetadata.albumArtist,
-            album = retrieverMetadata.album,
+            title = embeddedMetadata?.title ?: retrieverMetadata.title,
+            artist = embeddedMetadata?.artist ?: retrieverMetadata.artist,
+            albumArtist = embeddedMetadata?.albumArtist ?: retrieverMetadata.albumArtist,
+            album = embeddedMetadata?.album ?: retrieverMetadata.album,
             releaseYear = year,
             genre = genre,
             format = resolvedFormat,
@@ -644,8 +649,8 @@ class MediaStoreScanner(
                 bitrate = bitrate,
                 codecMimeType = detectedFormat.codecMimeType,
             ),
-            trackNumber = retrieverMetadata.trackNumber,
-            discNumber = retrieverMetadata.discNumber,
+            trackNumber = embeddedMetadata?.trackNumber ?: retrieverMetadata.trackNumber,
+            discNumber = embeddedMetadata?.discNumber ?: retrieverMetadata.discNumber,
         )
     }
 

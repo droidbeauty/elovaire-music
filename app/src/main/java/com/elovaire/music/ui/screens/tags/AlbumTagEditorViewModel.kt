@@ -263,6 +263,7 @@ internal class AlbumTagEditorViewModel(
                 invalidateEditedArtwork(artworkUrisToInvalidate)
             }
             if (result.editedSongIds.isNotEmpty()) {
+                libraryRepository.applyVerifiedTagEdits(result.editedSongs)
                 libraryRepository.refreshChangedFiles(
                     filePaths = result.editedFilePaths,
                     songIds = result.editedSongIds,
@@ -294,7 +295,7 @@ internal class AlbumTagEditorViewModel(
                         intentSender = result.permissionRequest.intentSender,
                     ),
                 )
-            } else if (failures.isEmpty()) {
+            } else if (failures.isEmpty() && result.editedSongIds.isNotEmpty()) {
                 _events.emit(AlbumTagEditorEvent.SaveSucceeded)
             } else if (result.editedSongIds.isNotEmpty()) {
                 _events.emit(AlbumTagEditorEvent.SavePartiallySucceeded(failures))

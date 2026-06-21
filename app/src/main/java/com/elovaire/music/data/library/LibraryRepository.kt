@@ -339,6 +339,28 @@ class LibraryRepository(
         )
     }
 
+    suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
+        if (editedSongs.isEmpty()) return
+        val updatesById = editedSongs.associateBy(Song::id)
+        val current = _contentState.value
+        val updatedSongs = current.songs.map { song -> updatesById[song.id] ?: song }
+        if (updatedSongs == current.songs) return
+        val updatedState = LibraryContentState(
+            songs = updatedSongs,
+            albums = buildAlbumsFromSongs(updatedSongs),
+        )
+        _contentState.value = updatedState
+        withContext(Dispatchers.IO) {
+            snapshotStore.save(
+                snapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
+                    songs = updatedState.songs,
+                    albums = updatedState.albums,
+                ),
+                filterFingerprint = scanner.currentFilterFingerprint(),
+            )
+        }
+    }
+
     fun albumById(albumId: Long): Album? = _contentState.value.albums.firstOrNull { it.id == albumId }
 
     fun defaultMediaFolderPath(): String = scanner.musicDirectory().absolutePath

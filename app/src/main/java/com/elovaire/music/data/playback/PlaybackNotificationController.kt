@@ -126,12 +126,16 @@ class PlaybackNotificationController(
                     NotificationVisibilityState(
                         songId = nowPlaying.currentSong?.id,
                         isPlaying = transport.isPlaying,
+                        metadataSignature = nowPlaying.currentSong?.let { song ->
+                            "${song.title}\u0000${song.artist}\u0000${song.album}\u0000${song.artUri}"
+                        },
                     )
                 }
                 .distinctUntilChanged()
                 .collectLatest {
                     val state = playbackManager.state.value
                 if (!notificationsEnabled) return@collectLatest
+                notificationManager.invalidate()
                 when {
                     state.currentSong == null -> {
                         pauseHideJob?.cancel()
@@ -324,6 +328,7 @@ class PlaybackNotificationController(
     private data class NotificationVisibilityState(
         val songId: Long?,
         val isPlaying: Boolean,
+        val metadataSignature: String?,
     )
 
 }
