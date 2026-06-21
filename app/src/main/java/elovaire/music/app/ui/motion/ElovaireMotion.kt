@@ -46,29 +46,29 @@ import androidx.compose.ui.platform.LocalContext
 import kotlin.math.roundToInt
 
 object ElovaireMotion {
-    private const val QuickBase = 55
-    private const val FastBase = 90
-    private const val StandardBase = 120
+    private const val QuickBase = 75
+    private const val FastBase = 100
+    private const val StandardBase = 150
     private const val MediumBase = 160
     private const val SpaciousBase = 200
     private const val ScreenBase = 160
-    private const val ScreenFadeBase = 80
-    private const val ScreenSlideBase = 140
-    private const val ScreenExpandBase = 220
-    private const val PlayerScreenBase = 260
-    private const val PlayerFadeBase = 80
-    private const val ControlsBase = 70
+    private const val ScreenFadeBase = 100
+    private const val ScreenSlideBase = 200
+    private const val ScreenExpandBase = 250
+    private const val PlayerScreenBase = 300
+    private const val PlayerFadeBase = 90
+    private const val ControlsBase = 100
     private const val ChromeResizeBase = 100
     private const val MicroBase = 70
-    private const val ComponentBase = 110
-    private const val EmphasizedBase = 240
-    private const val TopLevelEnterBase = 90
-    private const val TopLevelExitBase = 55
-    private const val DetailEnterBase = 205
-    private const val DetailExitBase = 135
-    private const val AlbumDetailTransitionBase = 420
-    private const val FullScreenEnterBase = 145
-    private const val FullScreenExitBase = 90
+    private const val ComponentBase = 150
+    private const val EmphasizedBase = 250
+    private const val TopLevelEnterBase = 100
+    private const val TopLevelExitBase = 100
+    private const val DetailEnterBase = 250
+    private const val DetailExitBase = 200
+    private const val AlbumDetailTransitionBase = 450
+    private const val FullScreenEnterBase = 200
+    private const val FullScreenExitBase = 150
 
     val Quick: Int get() = scaledDurationMillis(QuickBase)
     val Fast: Int get() = scaledDurationMillis(FastBase)

@@ -3,7 +3,7 @@
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/1.png"
-    alt="Elovaire - elegant Android music player for local libraries"
+    alt="Elovaire - elegant music listening experience"
     width="100%"
   />
 </p>
@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
     <img
-      alt="Download the latest Elovaire release"
+      alt="Download the latest release"
       src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20latest&logo=github&logoColor=white&color=3CB371"
     />
   </a>
@@ -27,22 +27,22 @@
 </p>
 
 <p align="center">
-  <b>Your local music library, made beautiful.</b>
+  <b>Your local music library, present like art that it is</b>
 </p>
 
 <p align="center">
-  Elovaire is a native Android music player for people who still love owning their music — clean library browsing, expressive artwork, smooth playback, lyrics, playlists and refined audio controls, all built around files stored on your device.
+  Elovaire is Android native music player for people who still love owning their music — minimalistic UI focused around album artwork, customizable playlists and refined audio controls. All designed so you can take full advantage of listening offline
 </p>
 
 ---
 
 ## About
 
-Elovaire is made for offline listening without the clutter of streaming-first music apps.
+Elovaire turns listening to music into elegant experience - as it should be
 
-It gives your albums, artists, playlists and favorite songs a polished home, with an interface that feels calm, visual and easy to move through. Artwork is treated as part of the experience, the now-playing screen feels spacious, and the player stays focused on the music instead of pushing feeds, recommendations or accounts.
+It gives your albums, artists and favorite songs an organized place. Intuitive UI feels calm, delivering classy visuals. Artwork is treated as essential part of the experience, the now-playing screen feels spacious so you can listen without interruptions. No ads, no random notifications. Your music under your control
 
-Because Elovaire is built around local files, your library stays yours. Browse by songs, albums, artists, genres and playlists, search quickly, open lyrics when you want them, and shape playback with built-in audio controls.
+Efficient architecture supports all features across devices running Android 10 through 17. Browse by songs, albums, artists, genres and playlists. Instantly search even through large collection of music, open lyrics when you feel like a superstar, and shape playback with built-in audio controls
 
 ## Highlights
 
@@ -50,10 +50,10 @@ Because Elovaire is built around local files, your library stays yours. Browse b
 - Beautiful artwork-led library, playlist, search and now-playing screens
 - Full player and compact mini-player for quick control while browsing
 - Lyrics support with local and online lookup paths
-- 18-band equalizer with bass, treble, spaciousness, reverb and mono controls
+- 18-band equalizer with built-in presets and additional features
 - Smooth Compose UI with frosted blur, animated transitions and adaptive visual details
-- Library scanning through Android MediaStore and local folder observation
-- Built-in update flow that can check for the latest GitHub release
+- Fast library scanning through Android MediaStore and local folder observation
+- Built-in update flow based on looking for the latest GitHub release
 
 ---
 
@@ -89,7 +89,7 @@ Because Elovaire is built around local files, your library stays yours. Browse b
 
 ### Lyrics
 
-- Timed and plain lyrics support
+- Support for manually added lyrics - stored in song metadata
 - Local embedded lyrics and sidecar lyric-file lookup
 - Online lookup fallbacks when local lyrics are unavailable
 - Lyrics overlay designed to stay close to the listening experience without taking over the app
@@ -106,10 +106,10 @@ Because Elovaire is built around local files, your library stays yours. Browse b
 ### Interface
 
 - Light, dark and system theme modes
-- Adjustable text-size presets
-- Frosted glass and backdrop blur surfaces
+- Adjustable text-size
+- Frosted glass effects and backdrop blur surfaces
 - Smooth route transitions, animated player surfaces and artwork-driven visual accents
-- Built with Jetpack Compose for a modern native Android feel
+- Built with Jetpack Compose for a modern Android native feel
 
 ---
 
@@ -131,7 +131,7 @@ Because Elovaire is built around local files, your library stays yours. Browse b
 
 ## Built With
 
-Elovaire is a native Android project built with:
+Elovaire is built for Android based on optimized architecture
 
 - Kotlin
 - Jetpack Compose
