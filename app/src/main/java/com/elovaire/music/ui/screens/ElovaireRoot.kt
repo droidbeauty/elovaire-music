@@ -127,7 +127,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.AlertDialog
@@ -217,12 +216,16 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
 import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
@@ -361,6 +364,7 @@ private data class SongMenuActions(
     val onAddToPlaylist: (playlistId: Long, song: Song) -> Unit = { _, _ -> },
     val onCreatePlaylist: (String) -> Long = { -1L },
     val onAddToQueue: (Song) -> Unit = {},
+    val onGoToAlbum: (Song) -> Unit = {},
     val onDeleteFromLibrary: (Song) -> Unit = {},
     val deletePhrase: UiPhrase = UiPhrase.DeleteFromLibrary,
 )
@@ -1559,6 +1563,14 @@ fun ElovaireRoot(
             onCreatePlaylist = container.preferenceStore::createPlaylist,
             onAddToQueue = { song ->
                 container.playbackManager.enqueueSong(song)
+            },
+            onGoToAlbum = { song ->
+                val album = albumsById[song.albumId]
+                if (album != null) {
+                    openAlbum(album, ExpandOrigin(), AlbumOpenSource.LibraryAlbums)
+                } else if (song.albumId > 0L) {
+                    navController.navigate("$ALBUM_ROUTE/${song.albumId}")
+                }
             },
             onDeleteFromLibrary = { song ->
                 deleteSongsFromDevice(listOf(song))
@@ -11932,7 +11944,7 @@ private fun NowPlayingScreen(
                     .align(Alignment.CenterHorizontally)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 502.dp
+                val queueSheetTopExtension = 532.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -12829,7 +12841,7 @@ private fun QueueSongRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(6.dp))
+                .clip(RoundedCornerShape(8.dp))
                 .background(
                     if (active) tint.copy(alpha = 0.1f) else Color.Transparent,
                 )
@@ -12963,43 +12975,32 @@ private fun QueueSongOverflowMenuButton(
         }
 
         if (shouldRenderMenu) {
-            DropdownMenu(
-                expanded = true,
+            OverflowContextMenuPopup(
+                expanded = expanded,
                 onDismissRequest = { expanded = false },
-                offset = OverflowMenuAnchorOffset,
-                containerColor = Color.Transparent,
-                shadowElevation = 0.dp,
-                tonalElevation = 0.dp,
             ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = expanded,
-                    enter = ElovaireMotion.contextMenuEnter(),
-                    exit = ElovaireMotion.contextMenuExit(),
-                    label = "QueueSongOverflowMenuVisibility",
+                QueueContextMenuSurface(
+                    modifier = Modifier.width(210.dp),
                 ) {
-                    QueueContextMenuSurface(
-                        modifier = Modifier.width(210.dp),
-                    ) {
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_list_plus,
-                            text = uiPhrase(language, UiPhrase.AddToPlaylist),
-                            tint = tint,
-                            onClick = {
-                                expanded = false
-                                onAddToPlaylist()
-                            },
-                        )
-                        DividerLine()
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_list_x,
-                            text = uiPhrase(language, UiPhrase.RemoveFromList),
-                            tint = tint,
-                            onClick = {
-                                expanded = false
-                                onRemoveFromQueue()
-                            },
-                        )
-                    }
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_list_plus,
+                        text = uiPhrase(language, UiPhrase.AddToPlaylist),
+                        tint = tint,
+                        onClick = {
+                            expanded = false
+                            onAddToPlaylist()
+                        },
+                    )
+                    DividerLine()
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_list_x,
+                        text = uiPhrase(language, UiPhrase.RemoveFromList),
+                        tint = tint,
+                        onClick = {
+                            expanded = false
+                            onRemoveFromQueue()
+                        },
+                    )
                 }
             }
         }
@@ -13441,7 +13442,43 @@ private fun InlineFavoriteSongButton(
 }
 
 private val OverflowMenuIconSize = 21.6.dp
-private val OverflowMenuAnchorOffset = DpOffset(x = 4.dp, y = (-8).dp)
+
+private object OverflowContextMenuPositionProvider : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+        popupContentSize: IntSize,
+    ): IntOffset {
+        val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
+        val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
+        val x = (anchorBounds.right - popupContentSize.width).coerceIn(0, maxX)
+        val y = anchorBounds.top.coerceIn(0, maxY)
+        return IntOffset(x, y)
+    }
+}
+
+@Composable
+private fun OverflowContextMenuPopup(
+    expanded: Boolean,
+    onDismissRequest: () -> Unit,
+    content: @Composable () -> Unit,
+) {
+    Popup(
+        popupPositionProvider = OverflowContextMenuPositionProvider,
+        onDismissRequest = onDismissRequest,
+        properties = PopupProperties(focusable = true),
+    ) {
+        androidx.compose.animation.AnimatedVisibility(
+            visible = expanded,
+            enter = ElovaireMotion.contextMenuEnter(),
+            exit = ElovaireMotion.contextMenuExit(),
+            label = "OverflowContextMenuVisibility",
+        ) {
+            content()
+        }
+    }
+}
 
 @Composable
 private fun AlbumOverflowMenuButton(
@@ -13500,55 +13537,44 @@ private fun AlbumOverflowMenuButton(
         }
 
         if (shouldRenderMenu) {
-            DropdownMenu(
-                expanded = true,
+            OverflowContextMenuPopup(
+                expanded = expanded,
                 onDismissRequest = { expanded = false },
-                offset = OverflowMenuAnchorOffset,
-                containerColor = Color.Transparent,
-                shadowElevation = 0.dp,
-                tonalElevation = 0.dp,
             ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = expanded,
-                    enter = ElovaireMotion.contextMenuEnter(),
-                    exit = ElovaireMotion.contextMenuExit(),
-                    label = "AlbumOverflowMenuVisibility",
+                FrostedContextMenuSurface(
+                    modifier = Modifier.width(208.dp),
                 ) {
-                    FrostedContextMenuSurface(
-                        modifier = Modifier.width(208.dp),
-                    ) {
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_plus,
-                            text = uiPhrase(language, UiPhrase.AddToQueue),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            onClick = {
-                                expanded = false
-                                onAddToQueue()
-                            },
-                        )
-                        DividerLine()
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_list_music,
-                            text = uiPhrase(language, UiPhrase.AddToPlaylist),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            onClick = {
-                                expanded = false
-                                showPlaylistDialog = true
-                            },
-                        )
-                        DividerLine()
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_trash_2,
-                            text = uiPhrase(language, UiPhrase.DeleteAlbum),
-                            tint = DestructiveRed,
-                            containerColor = DestructiveRed.copy(alpha = 0.2f),
-                            bottomPadding = 10.dp,
-                            onClick = {
-                                expanded = false
-                                onDeleteAlbum()
-                            },
-                        )
-                    }
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_plus,
+                        text = uiPhrase(language, UiPhrase.AddToQueue),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        onClick = {
+                            expanded = false
+                            onAddToQueue()
+                        },
+                    )
+                    DividerLine()
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_list_music,
+                        text = uiPhrase(language, UiPhrase.AddToPlaylist),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        onClick = {
+                            expanded = false
+                            showPlaylistDialog = true
+                        },
+                    )
+                    DividerLine()
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_trash_2,
+                        text = uiPhrase(language, UiPhrase.DeleteAlbum),
+                        tint = DestructiveRed,
+                        containerColor = DestructiveRed.copy(alpha = 0.2f),
+                        bottomPadding = 10.dp,
+                        onClick = {
+                            expanded = false
+                            onDeleteAlbum()
+                        },
+                    )
                 }
             }
         }
@@ -13621,54 +13647,52 @@ private fun SongOverflowMenuButton(
         }
 
         if (shouldRenderMenu) {
-            DropdownMenu(
-                expanded = true,
+            OverflowContextMenuPopup(
+                expanded = expanded,
                 onDismissRequest = { expanded = false },
-                offset = OverflowMenuAnchorOffset,
-                containerColor = Color.Transparent,
-                shadowElevation = 0.dp,
-                tonalElevation = 0.dp,
             ) {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = expanded,
-                    enter = ElovaireMotion.contextMenuEnter(),
-                    exit = ElovaireMotion.contextMenuExit(),
-                    label = "SongOverflowMenuVisibility",
+                FrostedContextMenuSurface(
+                    modifier = Modifier.width(208.dp),
                 ) {
-                    FrostedContextMenuSurface(
-                        modifier = Modifier.width(208.dp),
-                    ) {
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_list_music,
-                            text = uiPhrase(language, UiPhrase.AddToPlaylist),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            onClick = {
-                                expanded = false
-                                showPlaylistDialog = true
-                            },
-                        )
-                        DividerLine()
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_plus,
-                            text = uiPhrase(language, UiPhrase.AddToQueue),
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            onClick = {
-                                expanded = false
-                                actions.onAddToQueue(song)
-                            },
-                        )
-                        SongContextMenuItem(
-                            iconResId = R.drawable.ic_lucide_trash_2,
-                            text = uiPhrase(language, actions.deletePhrase),
-                            tint = DestructiveRed,
-                            containerColor = DestructiveRed.copy(alpha = 0.2f),
-                            bottomPadding = 10.dp,
-                            onClick = {
-                                expanded = false
-                                actions.onDeleteFromLibrary(song)
-                            },
-                        )
-                    }
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_list_music,
+                        text = uiPhrase(language, UiPhrase.AddToPlaylist),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        onClick = {
+                            expanded = false
+                            showPlaylistDialog = true
+                        },
+                    )
+                    DividerLine()
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_plus,
+                        text = uiPhrase(language, UiPhrase.AddToQueue),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        onClick = {
+                            expanded = false
+                            actions.onAddToQueue(song)
+                        },
+                    )
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_disc_album,
+                        text = uiPhrase(language, UiPhrase.GoToAlbum),
+                        tint = MaterialTheme.colorScheme.onSurface,
+                        onClick = {
+                            expanded = false
+                            actions.onGoToAlbum(song)
+                        },
+                    )
+                    SongContextMenuItem(
+                        iconResId = R.drawable.ic_lucide_trash_2,
+                        text = uiPhrase(language, actions.deletePhrase),
+                        tint = DestructiveRed,
+                        containerColor = DestructiveRed.copy(alpha = 0.2f),
+                        bottomPadding = 10.dp,
+                        onClick = {
+                            expanded = false
+                            actions.onDeleteFromLibrary(song)
+                        },
+                    )
                 }
             }
         }

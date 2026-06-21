@@ -64,6 +64,8 @@ internal class LibrarySnapshotStore(
                             trackNumber = songJson.optInt("trackNumber"),
                             discNumber = songJson.optInt("discNumber", 1).coerceAtLeast(1),
                             dateAddedSeconds = songJson.optLong("dateAddedSeconds"),
+                            dateModifiedSeconds = songJson.optLong("dateModifiedSeconds")
+                                .takeIf { it > 0L },
                             uri = Uri.parse(songJson.optString("uri")),
                             artUri = songJson.optString("artUri").takeIf { it.isNotBlank() }?.let(Uri::parse),
                             metadataResolved = songJson.optBoolean("metadataResolved", false),
@@ -124,6 +126,7 @@ internal class LibrarySnapshotStore(
                                     put("trackNumber", song.trackNumber)
                                     put("discNumber", song.discNumber)
                                     put("dateAddedSeconds", song.dateAddedSeconds)
+                                    put("dateModifiedSeconds", song.dateModifiedSeconds ?: 0L)
                                     put("uri", song.uri.toString())
                                     put("artUri", song.artUri?.toString().orEmpty())
                                     put("metadataResolved", song.metadataResolved)
@@ -159,10 +162,23 @@ internal fun signatureFromSongs(
         songCount = songs.size,
         newestDateAddedSeconds = songs.maxOfOrNull(Song::dateAddedSeconds) ?: 0L,
         idChecksum = songs.fold(0L) { acc, song ->
-            acc xor (song.id shl 1) xor song.dateAddedSeconds
+            acc xor songSignatureChecksum(
+                id = song.id,
+                dateAddedSeconds = song.dateAddedSeconds,
+                dateModifiedSeconds = song.dateModifiedSeconds,
+            )
         },
         filterFingerprint = filterFingerprint,
     )
+}
+
+internal fun songSignatureChecksum(
+    id: Long,
+    dateAddedSeconds: Long,
+    dateModifiedSeconds: Long?,
+): Long {
+    val modified = dateModifiedSeconds ?: 0L
+    return (id shl 1) xor dateAddedSeconds xor (modified shl 7)
 }
 
 internal fun buildAlbumsFromSongs(

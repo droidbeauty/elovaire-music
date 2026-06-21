@@ -14,6 +14,8 @@ import java.net.URL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -325,7 +327,7 @@ class AppUpdateManager(
         ).takeIf { it.downloadUrl.isNotBlank() }
     }
 
-    private fun downloadReleaseApk(release: AppReleaseInfo): File {
+    private suspend fun downloadReleaseApk(release: AppReleaseInfo): File {
         val updatesDir = updatesDirectory().apply { mkdirs() }
         val targetFile = File(updatesDir, release.assetFileName)
         val partFile = File(updatesDir, "${release.assetFileName}.part")
@@ -340,17 +342,18 @@ class AppUpdateManager(
             setRequestProperty("User-Agent", "Elovaire/${BuildConfig.VERSION_NAME}")
             instanceFollowRedirects = true
         }
-        connection.connect()
-        if (connection.responseCode !in 200..299) {
-            throw IllegalStateException("Update download failed")
-        }
-        val totalBytes = connection.contentLengthLong.takeIf { it > 0L }
-        val copiedBytes = try {
+        try {
+            connection.connect()
+            if (connection.responseCode !in 200..299) {
+                throw IllegalStateException("Update download failed")
+            }
+            val totalBytes = connection.contentLengthLong.takeIf { it > 0L }
             connection.inputStream.use { input ->
                 partFile.outputStream().use { output ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     var bytesCopied = 0L
                     while (true) {
+                        currentCoroutineContext().ensureActive()
                         val read = input.read(buffer)
                         if (read <= 0) break
                         output.write(buffer, 0, read)
@@ -360,32 +363,30 @@ class AppUpdateManager(
                             state.copy(downloadProgress = progress?.coerceIn(0f, 1f))
                         }
                     }
-                    bytesCopied
+                    if (bytesCopied <= 0L || !partFile.exists()) {
+                        error("Downloaded update is empty")
+                    }
+                    if (totalBytes != null && bytesCopied != totalBytes) {
+                        error("Downloaded update is incomplete")
+                    }
                 }
             }
+
+            if (!partFile.renameTo(targetFile)) {
+                partFile.copyTo(targetFile, overwrite = true)
+                partFile.delete()
+            }
+            if (!targetFile.exists() || targetFile.length() <= 0L) {
+                runCatching { targetFile.delete() }
+                error("Downloaded update is invalid")
+            }
+            return targetFile
         } catch (throwable: Throwable) {
             runCatching { partFile.delete() }
             throw throwable
         } finally {
             connection.disconnect()
         }
-        if (copiedBytes <= 0L || !partFile.exists()) {
-            runCatching { partFile.delete() }
-            error("Downloaded update is empty")
-        }
-        if (totalBytes != null && copiedBytes != totalBytes) {
-            runCatching { partFile.delete() }
-            error("Downloaded update is incomplete")
-        }
-        if (!partFile.renameTo(targetFile)) {
-            partFile.copyTo(targetFile, overwrite = true)
-            partFile.delete()
-        }
-        if (!targetFile.exists() || targetFile.length() <= 0L) {
-            runCatching { targetFile.delete() }
-            error("Downloaded update is invalid")
-        }
-        return targetFile
     }
 
     private fun ensureInstallerPermission(apkFile: File): Boolean {

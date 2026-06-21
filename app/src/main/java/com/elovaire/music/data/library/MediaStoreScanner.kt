@@ -74,7 +74,7 @@ class MediaStoreScanner(
                 fileName = song.fileName,
                 filePath = null,
                 dateAddedSeconds = song.dateAddedSeconds,
-                dateModifiedSeconds = null,
+                dateModifiedSeconds = song.dateModifiedSeconds,
                 isEnriched = song.metadataResolved,
                 metadata = cachedMetadata,
             )
@@ -166,7 +166,10 @@ class MediaStoreScanner(
                 val fileSizeBytes = sizeIndex.takeIf { it >= 0 }?.let(cursor::getLong)?.takeIf { it > 0L }
                 val durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L)
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
-                val dateModifiedSeconds = dateModifiedIndex.takeIf { it >= 0 }?.let(cursor::getLong)
+                val dateModifiedSeconds = dateModifiedIndex
+                    .takeIf { it >= 0 && !cursor.isNull(it) }
+                    ?.let(cursor::getLong)
+                    ?.takeIf { it > 0L }
                 val volumeName = volumeNameIndex.takeIf { it >= 0 }?.let(cursor::getString)
                 val filePath = resolveMediaStoreFilePath(
                     context = context,
@@ -280,6 +283,7 @@ class MediaStoreScanner(
                     trackNumber = songMetadata.trackNumber ?: normalizeTrackNumber(rawTrack),
                     discNumber = songMetadata.discNumber ?: normalizeDiscNumber(rawTrack),
                     dateAddedSeconds = dateAddedSeconds,
+                    dateModifiedSeconds = dateModifiedSeconds,
                     uri = songUri,
                     artUri = albumArtworkUri(albumId),
                     metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
@@ -325,6 +329,7 @@ class MediaStoreScanner(
                 MediaStore.Audio.Media.IS_MUSIC,
                 MediaStore.MediaColumns.RELATIVE_PATH,
                 MediaStore.MediaColumns.VOLUME_NAME,
+                MediaStore.MediaColumns.DATE_MODIFIED,
                 MediaStore.MediaColumns.DATA,
             ),
             buildSelection(),
@@ -342,6 +347,7 @@ class MediaStoreScanner(
             val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
             val relativePathIndex = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
             val volumeNameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
+            val dateModifiedIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
             @Suppress("DEPRECATION")
             val dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
             while (cursor.moveToNext()) {
@@ -382,9 +388,18 @@ class MediaStoreScanner(
                 }
                 val id = candidate.id
                 val dateAddedSeconds = cursor.getLong(dateAddedIndex)
+                val modified = dateModifiedIndex
+                    .takeIf { it >= 0 && !cursor.isNull(it) }
+                    ?.let(cursor::getLong)
+                    ?.coerceAtLeast(0L)
+                    ?: 0L
                 songCount += 1
                 newestDateAddedSeconds = maxOf(newestDateAddedSeconds, dateAddedSeconds)
-                idChecksum = idChecksum xor (id shl 1) xor dateAddedSeconds
+                idChecksum = idChecksum xor songSignatureChecksum(
+                    id = id,
+                    dateAddedSeconds = dateAddedSeconds,
+                    dateModifiedSeconds = modified,
+                )
             }
         }
         return LibrarySignature(
@@ -425,33 +440,34 @@ class MediaStoreScanner(
             .distinctBy { it.absolutePath }
         if (scanRoots.isEmpty()) return
 
-        val audioPaths = scanRoots
+        scanAudioPaths(
+            paths = scanRoots
             .asSequence()
             .flatMap { root -> root.walkTopDown() }
             .filter { file -> file.isFile && file.extension.lowercase() in AudioFormatPolicy.scannerExtensions }
             .map(File::getAbsolutePath)
-            .toList()
-
-        if (audioPaths.isEmpty()) return
-
-        val latch = CountDownLatch(audioPaths.size)
-        MediaScannerConnection.scanFile(
-            context,
-            audioPaths.toTypedArray(),
-            null,
-        ) { _, _ ->
-            latch.countDown()
-        }
-        latch.await(MEDIA_SCAN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .toList(),
+            timeoutSeconds = MEDIA_SCAN_TIMEOUT_SECONDS,
+        )
     }
 
     fun refreshMediaIndex(paths: List<String>) {
+        scanAudioPaths(
+            paths = paths,
+            timeoutSeconds = TARGETED_MEDIA_SCAN_TIMEOUT_SECONDS,
+        )
+    }
+
+    private fun scanAudioPaths(
+        paths: Iterable<String>,
+        timeoutSeconds: Long,
+    ) {
         val audioPaths = paths
             .map(::File)
             .filter { file ->
                 file.exists() &&
                     file.isFile &&
-                    file.extension.lowercase() in AudioFormatPolicy.scannerExtensions
+                    file.extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions
             }
             .map(File::getAbsolutePath)
             .distinct()
@@ -465,7 +481,7 @@ class MediaStoreScanner(
         ) { _, _ ->
             latch.countDown()
         }
-        latch.await(TARGETED_MEDIA_SCAN_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        latch.await(timeoutSeconds, TimeUnit.SECONDS)
     }
 
     private fun buildProjection(): Array<String> {

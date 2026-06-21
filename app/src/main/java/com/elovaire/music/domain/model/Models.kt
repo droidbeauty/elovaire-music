@@ -18,6 +18,7 @@ data class Song(
     val trackNumber: Int,
     val discNumber: Int,
     val dateAddedSeconds: Long,
+    val dateModifiedSeconds: Long? = null,
     val uri: Uri,
     val artUri: Uri?,
     val metadataResolved: Boolean = false,

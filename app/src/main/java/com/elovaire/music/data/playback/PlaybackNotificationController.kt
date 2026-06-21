@@ -171,7 +171,7 @@ class PlaybackNotificationController(
                         }
                     }
                 }
-                }
+            }
         }
     }
 
@@ -193,7 +193,7 @@ class PlaybackNotificationController(
     private fun shouldShowNotification(currentState: PlaybackUiState): Boolean {
         if (currentState.currentSong == null) return false
         if (notificationDismissedWhilePaused) return false
-        return currentState.isPlaying || currentState.currentSong != null
+        return true
     }
 
     private fun updateNotificationPlayer(player: Player?) {

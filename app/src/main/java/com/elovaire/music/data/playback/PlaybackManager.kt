@@ -1752,21 +1752,21 @@ private fun AudioDeviceInfo.toUsbAudioDeviceDescriptor(): UsbAudioDeviceDescript
     )
 }
 
-    private fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
-        return when (this) {
-            Player.REPEAT_MODE_ONE -> PlaybackRepeatMode.One
-            Player.REPEAT_MODE_ALL -> PlaybackRepeatMode.All
-            else -> PlaybackRepeatMode.Off
-        }
+private fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
+    return when (this) {
+        Player.REPEAT_MODE_ONE -> PlaybackRepeatMode.One
+        Player.REPEAT_MODE_ALL -> PlaybackRepeatMode.All
+        else -> PlaybackRepeatMode.Off
     }
+}
 
-    private fun PlaybackRepeatMode.toPlayerRepeatMode(): Int {
-        return when (this) {
-            PlaybackRepeatMode.Off -> Player.REPEAT_MODE_OFF
-            PlaybackRepeatMode.One -> Player.REPEAT_MODE_ONE
-            PlaybackRepeatMode.All -> Player.REPEAT_MODE_ALL
-        }
+private fun PlaybackRepeatMode.toPlayerRepeatMode(): Int {
+    return when (this) {
+        PlaybackRepeatMode.Off -> Player.REPEAT_MODE_OFF
+        PlaybackRepeatMode.One -> Player.REPEAT_MODE_ONE
+        PlaybackRepeatMode.All -> Player.REPEAT_MODE_ALL
     }
+}
 
 private val USB_AUDIO_OUTPUT_DEVICE_TYPES = setOf(
     AudioDeviceInfo.TYPE_USB_DEVICE,
