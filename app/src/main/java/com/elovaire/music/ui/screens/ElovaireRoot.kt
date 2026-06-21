@@ -11,6 +11,7 @@ import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Log
 import android.util.Xml
 import java.io.File
 import androidx.annotation.DrawableRes
@@ -249,6 +250,7 @@ import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
+import elovaire.music.droidbeauty.app.data.library.LibraryDeleteRequest
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
@@ -256,6 +258,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
+import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
@@ -283,10 +286,12 @@ import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
+import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
+import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.SyncElovaireMotionScale
 import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
@@ -359,6 +364,7 @@ private data class SongMenuActions(
 private data class PendingSongDeletion(
     val songs: List<Song>,
     val parentDirectories: Set<String> = emptySet(),
+    val filePaths: Set<String> = emptySet(),
 )
 
 internal fun Context.loadAboutScreenModel(): AboutScreenModel {
@@ -469,85 +475,16 @@ private data class TopBarActionSpec(
 
 private fun String?.isAlbumDetailRoute(): Boolean = this == "$ALBUM_ROUTE/{albumId}"
 
-private fun tileExpandEnterTransition(expandOrigin: ExpandOrigin): EnterTransition {
-    val albumTransitionDuration = ElovaireMotion.Emphasized + 200
-    return fadeIn(
-        animationSpec = ElovaireMotion.standardTween(durationMillis = albumTransitionDuration),
-    ) +
-        scaleIn(
-            animationSpec = ElovaireMotion.standardTween(
-                durationMillis = albumTransitionDuration,
-                easing = ElovaireMotion.EmphasizedDecelerate,
-            ),
-            initialScale = 0.76f,
-            transformOrigin = expandOrigin.toTransformOrigin(),
-        ) +
-        slideInHorizontally(
-            animationSpec = ElovaireMotion.standardTween(
-                durationMillis = albumTransitionDuration,
-                easing = ElovaireMotion.EmphasizedDecelerate,
-            ),
-            initialOffsetX = { fullWidth ->
-                ((expandOrigin.xFraction - 0.5f) * fullWidth * 0.24f).roundToInt()
-            },
-        ) +
-        slideInVertically(
-            animationSpec = ElovaireMotion.standardTween(
-                durationMillis = albumTransitionDuration,
-                easing = ElovaireMotion.EmphasizedDecelerate,
-            ),
-            initialOffsetY = { fullHeight ->
-                ((expandOrigin.yFraction - 0.5f) * fullHeight * 0.24f).roundToInt()
-            },
-        )
-}
-
-private fun tileExpandExitTransition(expandOrigin: ExpandOrigin): ExitTransition {
-    val albumTransitionDuration = ElovaireMotion.Emphasized + 200
-    return fadeOut(
-        animationSpec = ElovaireMotion.standardTween(
-            durationMillis = albumTransitionDuration,
-            easing = FastOutLinearInEasing,
-        ),
-    ) +
-        scaleOut(
-            animationSpec = ElovaireMotion.standardTween(
-                durationMillis = albumTransitionDuration,
-                easing = ElovaireMotion.EmphasizedAccelerate,
-            ),
-            targetScale = 0.82f,
-            transformOrigin = expandOrigin.toTransformOrigin(),
-        ) +
-        slideOutHorizontally(
-            animationSpec = ElovaireMotion.standardTween(
-                durationMillis = albumTransitionDuration,
-                easing = ElovaireMotion.EmphasizedAccelerate,
-            ),
-            targetOffsetX = { fullWidth ->
-                ((expandOrigin.xFraction - 0.5f) * fullWidth * 0.24f).roundToInt()
-            },
-        ) +
-        slideOutVertically(
-            animationSpec = ElovaireMotion.standardTween(
-                durationMillis = albumTransitionDuration,
-                easing = ElovaireMotion.EmphasizedAccelerate,
-            ),
-            targetOffsetY = { fullHeight ->
-                ((expandOrigin.yFraction - 0.5f) * fullHeight * 0.24f).roundToInt()
-            },
-        )
-}
-
 private fun resolveForwardEnterTransition(
     transition: NavHostTransitionResolution,
     expandOrigin: ExpandOrigin,
 ): EnterTransition = when {
     transition.targetRoute == PLAYER_ROUTE -> EnterTransition.None
-    transition.targetUsesTileExpand -> tileExpandEnterTransition(expandOrigin)
+    transition.targetUsesTileExpand -> ElovaireAlbumMotion.forwardEnter(expandOrigin.toTransformOrigin())
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
         forward = transition.topLevelTransition.isForward,
     )
-    transition.targetRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailForwardEnter()
+    transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.forwardEnter(expandOrigin.toTransformOrigin())
     transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardEnter()
     else -> ElovaireMotion.fullScreenForwardEnter()
 }
@@ -556,11 +493,11 @@ private fun resolveForwardExitTransition(
     transition: NavHostTransitionResolution,
 ): ExitTransition = when {
     transition.targetRoute == PLAYER_ROUTE -> ExitTransition.None
-    transition.targetUsesTileExpand -> fadeOut(animationSpec = ElovaireMotion.fadeFast())
+    transition.targetUsesTileExpand -> ElovaireAlbumMotion.forwardExit()
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
         forward = transition.topLevelTransition.isForward,
     )
-    transition.targetRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailForwardExit()
+    transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.forwardExit()
     transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardExit()
     else -> ElovaireMotion.fullScreenForwardExit()
 }
@@ -569,11 +506,11 @@ private fun resolvePopEnterTransition(
     transition: NavHostTransitionResolution,
 ): EnterTransition = when {
     transition.initialRoute == PLAYER_ROUTE -> EnterTransition.None
-    transition.initialUsesTileExpand -> fadeIn(animationSpec = ElovaireMotion.fadeMedium())
+    transition.initialUsesTileExpand -> ElovaireAlbumMotion.backEnter()
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
         forward = transition.topLevelTransition.isForward,
     )
-    transition.targetRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailBackEnter()
+    transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.backEnter()
     transition.targetUsesDetailTransition -> ElovaireMotion.detailBackEnter()
     else -> ElovaireMotion.fullScreenBackEnter()
 }
@@ -583,11 +520,11 @@ private fun resolvePopExitTransition(
     expandOrigin: ExpandOrigin,
 ): ExitTransition = when {
     transition.initialRoute == PLAYER_ROUTE -> ExitTransition.None
-    transition.initialUsesTileExpand -> tileExpandExitTransition(expandOrigin)
+    transition.initialUsesTileExpand -> ElovaireAlbumMotion.backExit(expandOrigin.toTransformOrigin())
     transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
         forward = transition.topLevelTransition.isForward,
     )
-    transition.initialRoute.isAlbumDetailRoute() -> ElovaireMotion.albumDetailBackExit()
+    transition.initialRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.backExit(expandOrigin.toTransformOrigin())
     transition.initialUsesDetailTransition -> ElovaireMotion.detailBackExit()
     else -> ElovaireMotion.fullScreenBackExit()
 }
@@ -736,15 +673,6 @@ internal fun rememberElovaireLazyListState(vararg inputs: Any?): LazyListState {
             }
     }
     return state
-}
-
-private fun querySongParentDirectories(
-    context: Context,
-    songs: List<Song>,
-): Set<String> {
-    return querySongFilePaths(context, songs)
-        .mapNotNull { path -> File(path).parentFile?.absolutePath }
-        .toSet()
 }
 
 private fun querySongFilePaths(
@@ -1179,17 +1107,22 @@ fun ElovaireRoot(
     suspend fun completeSongDeletion(
         songs: List<Song>,
         parentDirectories: Set<String>,
+        filePaths: Set<String>,
     ) {
-        songs.forEach { song ->
-            container.preferenceStore.removeSongReferences(song.id)
-        }
+        invalidateArtworkCaches(songs.flatMap { listOf(it.artUri, it.uri) })
+        val deleteResult = container.libraryRepository.refreshAfterDelete(
+            LibraryDeleteRequest(
+                songIds = songs.mapTo(linkedSetOf(), Song::id),
+                albumIds = songs.mapTo(linkedSetOf(), Song::albumId),
+                uris = songs.mapTo(linkedSetOf(), Song::uri),
+                filePaths = filePaths,
+            ),
+        )
         withContext(Dispatchers.IO) {
             cleanupEmptyDirectories(parentDirectories)
         }
-        container.libraryRepository.refresh(
-            forceMediaIndex = true,
-            showLoadingIndicator = false,
-        )
+        container.playbackManager.removeSongsFromQueue(deleteResult.deletedSongIds)
+        deleteResult.deletedSongIds.forEach(container.preferenceStore::removeSongReferences)
     }
     val deleteSongLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
@@ -1201,6 +1134,7 @@ fun ElovaireRoot(
                 completeSongDeletion(
                     songs = pendingDeletion.songs,
                     parentDirectories = pendingDeletion.parentDirectories,
+                    filePaths = pendingDeletion.filePaths,
                 )
             }
         }
@@ -1293,6 +1227,13 @@ fun ElovaireRoot(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val currentConcreteRoute = currentBackStackEntry?.concreteNavigationRoute() ?: currentRoute
+    var previousMotionRoute by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(currentConcreteRoute) {
+        if (BuildConfig.DEBUG && previousMotionRoute != currentConcreteRoute) {
+            Log.d("ElovaireMotion", "Route ${previousMotionRoute.orEmpty()} -> ${currentConcreteRoute.orEmpty()}")
+        }
+        previousMotionRoute = currentConcreteRoute
+    }
     val currentAlbumRouteId = currentBackStackEntry?.arguments?.let { arguments ->
         when {
             arguments.containsKey("albumId") -> arguments.getString("albumId")?.toLongOrNull()
@@ -1318,6 +1259,14 @@ fun ElovaireRoot(
     var libraryScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     var playlistsScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     var searchScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
+    val openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit = { album, origin, source ->
+        if (BuildConfig.DEBUG) {
+            Log.d("ElovaireMotion", "Album transition ${source.name} -> AlbumDetail(${album.id})")
+        }
+        detailExpandOrigin = origin
+        detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
+        navController.navigate("$ALBUM_ROUTE/${album.id}")
+    }
     val showTopLevelChrome = currentRoute in TopLevelRoutes
     val showBottomNavigation = currentRoute in BottomNavigationRoutes
     LaunchedEffect(currentRoute) {
@@ -1399,6 +1348,7 @@ fun ElovaireRoot(
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val hideCompactNowPlayingRoutes = setOf(
         CHANGELOG_ROUTE,
+        EQUALIZER_ROUTE,
         "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
     )
     val hideCompactNowPlaying = (keyboardVisible && currentRoute == PLAYLISTS_ROUTE) ||
@@ -1457,7 +1407,13 @@ fun ElovaireRoot(
             currentRoute == "$ALBUM_ROUTE/{albumId}" && currentAlbumRouteId == albumId
         isPlayerOverlayVisible = false
         if (!sameAlbumAlreadyVisible) {
-            navController.navigate("$ALBUM_ROUTE/$albumId")
+            albumsById[albumId]?.let { album ->
+                openAlbum(album, ExpandOrigin(), AlbumOpenSource.Player)
+            } ?: run {
+                detailExpandOrigin = ExpandOrigin()
+                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
+                navController.navigate("$ALBUM_ROUTE/$albumId")
+            }
         }
     }
     val openSettingsFromMenu = remember(navController) {
@@ -1535,11 +1491,15 @@ fun ElovaireRoot(
             val uniqueSongs = songs.distinctBy { it.id }
             if (uniqueSongs.isNotEmpty()) {
                 rootScope.launch {
-                    val parentDirectories = querySongParentDirectories(context, uniqueSongs)
+                    val filePaths = querySongFilePaths(context, uniqueSongs)
+                    val parentDirectories = filePaths.mapNotNullTo(linkedSetOf()) { path ->
+                        File(path).parentFile?.absolutePath
+                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                         pendingSongDeletion = PendingSongDeletion(
                             songs = uniqueSongs,
                             parentDirectories = parentDirectories,
+                            filePaths = filePaths,
                         )
                         deleteSongLauncher.launch(
                             IntentSenderRequest.Builder(
@@ -1560,6 +1520,7 @@ fun ElovaireRoot(
                             completeSongDeletion(
                                 songs = uniqueSongs,
                                 parentDirectories = parentDirectories,
+                                filePaths = filePaths,
                             )
                         }.onFailure { throwable ->
                             val intentSender = when {
@@ -1572,6 +1533,7 @@ fun ElovaireRoot(
                                 pendingSongDeletion = PendingSongDeletion(
                                     songs = uniqueSongs,
                                     parentDirectories = parentDirectories,
+                                    filePaths = filePaths,
                                 )
                                 deleteSongLauncher.launch(
                                     IntentSenderRequest.Builder(intentSender).build(),
@@ -1738,9 +1700,7 @@ fun ElovaireRoot(
                                 firstLaunchPermissionExperienceActive = false
                             },
                             onAlbumSelected = { album, origin ->
-                                detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-                                navController.navigate("$ALBUM_ROUTE/${album.id}")
+                                openAlbum(album, origin, AlbumOpenSource.HomeSection)
                             },
                             onPlaylistSelected = { playlist ->
                                 detailExpandOrigin = ExpandOrigin()
@@ -1807,9 +1767,7 @@ fun ElovaireRoot(
                                 navController.navigate("$LIBRARY_COLLECTION_ROUTE/${kind.name}")
                             },
                             onAlbumSelected = { album, origin ->
-                                detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-                                navController.navigate("$ALBUM_ROUTE/${album.id}")
+                                openAlbum(album, origin, AlbumOpenSource.LibraryAlbums)
                             },
                         )
                     }
@@ -1852,9 +1810,7 @@ fun ElovaireRoot(
                                 requestOpenNowPlaying(null)
                             },
                             onAlbumSelected = { album, origin ->
-                                detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-                                navController.navigate("$ALBUM_ROUTE/${album.id}")
+                                openAlbum(album, origin, AlbumOpenSource.SearchResults)
                             },
                             onArtistSelected = { artistName ->
                                 navController.navigate("$ARTIST_ROUTE/${Uri.encode(artistName)}")
@@ -1942,6 +1898,7 @@ fun ElovaireRoot(
                         val previousRoute = navController.previousBackStackEntry?.destination?.route
                         AlbumScreen(
                             album = album,
+                            removingSongIds = libraryState.removingSongIds,
                             favoriteSongIds = favoriteSongIdSet,
                             currentSongId = playbackState.currentSong?.id,
                             isCurrentSongPlaying = isPlaybackActuallyPlaying,
@@ -2098,9 +2055,7 @@ fun ElovaireRoot(
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onAlbumSelected = { album, origin ->
-                                detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-                                navController.navigate("$ALBUM_ROUTE/${album.id}")
+                                openAlbum(album, origin, AlbumOpenSource.LibraryAlbums)
                             },
                             onAddAlbumToQueue = { album ->
                                 album.songs.forEach(container.playbackManager::enqueueSong)
@@ -2174,9 +2129,7 @@ fun ElovaireRoot(
                                 container.preferenceStore.setAlbumCollectionSortMode(mode.name)
                             },
                             onAlbumSelected = { album, origin ->
-                                detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-                                navController.navigate("$ALBUM_ROUTE/${album.id}")
+                                openAlbum(album, origin, AlbumOpenSource.GenreDetail)
                             },
                             onAddAlbumToQueue = { album ->
                                 album.songs.forEach(container.playbackManager::enqueueSong)
@@ -2213,32 +2166,29 @@ fun ElovaireRoot(
                                 requestOpenNowPlaying(null)
                             },
                             onAlbumSelected = { album, origin ->
-                                detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
-                                navController.navigate("$ALBUM_ROUTE/${album.id}")
+                                openAlbum(album, origin, AlbumOpenSource.ArtistDetail)
                             },
                             onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
                         )
                     }
 
                     composable(EQUALIZER_ROUTE) {
+                        val equalizerViewModel: EqualizerViewModel = viewModel(factory = viewModelFactory)
+                        val equalizerUiState by equalizerViewModel.uiState.collectAsStateWithLifecycle()
                         EqualizerScreen(
-                            settings = eqSettings,
+                            settings = equalizerUiState.toEqSettings(),
                             onBack = navController::navigateUp,
-                            onBandChanged = container.preferenceStore::updateBand,
-                            onBassChanged = container.preferenceStore::updateBass,
-                            onMidrangeChanged = container.preferenceStore::updateMidrange,
-                            onTrebleChanged = container.preferenceStore::updateTreble,
-                            onSpaciousnessChanged = container.preferenceStore::updateSpaciousness,
-                            onSpaciousnessModeChanged = container.preferenceStore::updateSpaciousnessMode,
-                            onReverbDurationChanged = container.preferenceStore::updateReverbDurationMs,
-                            onReverbProfileChanged = container.preferenceStore::updateReverbProfile,
-                            onResetReverb = {
-                                container.preferenceStore.updateReverbDurationMs(0)
-                                container.preferenceStore.updateReverbProfile(ReverbProfile.Dry)
-                            },
-                            onApplyPreset = container.preferenceStore::setEqSettings,
-                            onReset = container.preferenceStore::resetEqSettings,
+                            onBandChanged = equalizerViewModel::updateBand,
+                            onBassChanged = equalizerViewModel::updateBass,
+                            onMidrangeChanged = equalizerViewModel::updateMidrange,
+                            onTrebleChanged = equalizerViewModel::updateTreble,
+                            onSpaciousnessChanged = equalizerViewModel::updateSpaciousness,
+                            onSpaciousnessModeChanged = equalizerViewModel::updateSpaciousnessMode,
+                            onReverbDurationChanged = equalizerViewModel::updateReverbDuration,
+                            onReverbProfileChanged = equalizerViewModel::updateReverbProfile,
+                            onResetReverb = equalizerViewModel::resetReverb,
+                            onApplyPreset = equalizerViewModel::applyPreset,
+                            onReset = equalizerViewModel::resetEffects,
                         )
                     }
 
@@ -2315,23 +2265,17 @@ fun ElovaireRoot(
                             )
                         }
                     }
-                    ElovaireAnimatedVisibility(
-                        visible = showTopBarMenu,
+                    TopBarContextMenuOverlay(
+                        expanded = showTopBarMenu,
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(10f),
-                        enter = ElovaireMotion.overlayFadeEnter(initialAlpha = 0.86f),
-                        exit = ElovaireMotion.overlayFadeExit(),
-                        label = "TopBarContextMenuOverlay",
-                    ) {
-                        TopBarContextMenuOverlay(
-                            onDismiss = { showTopBarMenu = false },
-                            onOpenSettings = openSettingsFromMenu,
-                            onOpenEqualizer = openEqualizerFromMenu,
-                            onOpenChangelog = openChangelogSheetFromMenu,
-                            onOpenAbout = openAboutFromMenu,
-                        )
-                    }
+                        onDismiss = { showTopBarMenu = false },
+                        onOpenSettings = openSettingsFromMenu,
+                        onOpenEqualizer = openEqualizerFromMenu,
+                        onOpenChangelog = openChangelogSheetFromMenu,
+                        onOpenAbout = openAboutFromMenu,
+                    )
                     ElovaireAnimatedVisibility(
                         visible = showChangelogSheet,
                         modifier = Modifier
@@ -2531,6 +2475,8 @@ private fun libraryUiStateOf(
         scanProgress = scan.scanProgress,
         songs = content.songs,
         albums = content.albums,
+        removingSongIds = content.removingSongIds,
+        removingAlbumIds = content.removingAlbumIds,
         errorMessage = scan.errorMessage,
     )
 }
@@ -4425,8 +4371,28 @@ private fun LastPlayedPlaylistModule(
 }
 
 @Composable
+private fun Modifier.libraryRemovalAnimation(isRemoving: Boolean): Modifier {
+    val alpha by animateFloatAsState(
+        targetValue = if (isRemoving) 0f else 1f,
+        animationSpec = tween(if (isRemoving) 180 else 120),
+        label = "library_item_removal_alpha",
+    )
+    val scale by animateFloatAsState(
+        targetValue = if (isRemoving) 0.96f else 1f,
+        animationSpec = tween(if (isRemoving) 180 else 120),
+        label = "library_item_removal_scale",
+    )
+    return graphicsLayer {
+        this.alpha = alpha
+        scaleX = scale
+        scaleY = scale
+    }
+}
+
+@Composable
 private fun AlbumCollectionContent(
     albums: List<Album>,
+    removingAlbumIds: Set<Long> = emptySet(),
     playlists: List<Playlist>,
     layoutMode: AlbumLayoutMode,
     sortMode: AlbumSortMode,
@@ -4523,6 +4489,13 @@ private fun AlbumCollectionContent(
                     items(sortedAlbums, key = { it.id }) { album ->
                         AlbumGridCard(
                             album = album,
+                            modifier = Modifier
+                                .animateItem(
+                                    fadeInSpec = null,
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = tween(180),
+                                )
+                                .libraryRemovalAnimation(album.id in removingAlbumIds),
                             selectionMode = selectionModeActive,
                             selected = album.id in selectedAlbumIds,
                             onOpen = { origin ->
@@ -4591,6 +4564,13 @@ private fun AlbumCollectionContent(
                     items(sortedAlbums, key = { it.id }) { album ->
                         AlbumGridCard(
                             album = album,
+                            modifier = Modifier
+                                .animateItem(
+                                    fadeInSpec = null,
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = tween(180),
+                                )
+                                .libraryRemovalAnimation(album.id in removingAlbumIds),
                             selectionMode = selectionModeActive,
                             selected = album.id in selectedAlbumIds,
                             showText = false,
@@ -4656,36 +4636,46 @@ private fun AlbumCollectionContent(
                     }
 
                     itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
-                        CompactAlbumRow(
-                            album = album,
-                            selectionMode = selectionModeActive,
-                            selected = album.id in selectedAlbumIds,
-                            isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
-                            showFavoriteButton = true,
-                            playlists = playlists,
-                            playlistSongsById = playlistSongsById,
-                            onOpen = { origin ->
-                                if (selectionModeActive) {
-                                    selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
-                                } else {
-                                    onAlbumSelected(album, origin)
-                                }
-                            },
-                            onToggleFavorite = {
-                                onSetAlbumFavorite(
-                                    album.songs.map(Song::id),
-                                    album.songs.any { it.id !in favoriteSongIds },
+                        Box(
+                            modifier = Modifier
+                                .animateItem(
+                                    fadeInSpec = null,
+                                    fadeOutSpec = tween(180),
+                                    placementSpec = tween(180),
                                 )
-                            },
-                            onAddToQueue = { onAddAlbumToQueue(album) },
-                            onAddToPlaylist = { playlistId -> onAddAlbumToPlaylist(playlistId, album) },
-                            onCreatePlaylist = onCreatePlaylist,
-                            onDeleteAlbum = { onDeleteAlbumFromDevice(album) },
-                            onLongPress = {
-                                showSortOptions = false
-                                selectedAlbumIds = selectedAlbumIds + album.id
-                            },
-                        )
+                                .libraryRemovalAnimation(album.id in removingAlbumIds),
+                        ) {
+                            CompactAlbumRow(
+                                album = album,
+                                selectionMode = selectionModeActive,
+                                selected = album.id in selectedAlbumIds,
+                                isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
+                                showFavoriteButton = true,
+                                playlists = playlists,
+                                playlistSongsById = playlistSongsById,
+                                onOpen = { origin ->
+                                    if (selectionModeActive) {
+                                        selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
+                                    } else {
+                                        onAlbumSelected(album, origin)
+                                    }
+                                },
+                                onToggleFavorite = {
+                                    onSetAlbumFavorite(
+                                        album.songs.map(Song::id),
+                                        album.songs.any { it.id !in favoriteSongIds },
+                                    )
+                                },
+                                onAddToQueue = { onAddAlbumToQueue(album) },
+                                onAddToPlaylist = { playlistId -> onAddAlbumToPlaylist(playlistId, album) },
+                                onCreatePlaylist = onCreatePlaylist,
+                                onDeleteAlbum = { onDeleteAlbumFromDevice(album) },
+                                onLongPress = {
+                                    showSortOptions = false
+                                    selectedAlbumIds = selectedAlbumIds + album.id
+                                },
+                            )
+                        }
                         if (index != sortedAlbums.lastIndex) {
                             Box(
                                 modifier = Modifier.fillMaxWidth(),
@@ -5340,6 +5330,7 @@ private fun LibraryCollectionScreen(
     when (kind) {
         LibraryCollectionKind.Songs -> SongCollectionScreen(
             songs = libraryState.songs,
+            removingSongIds = libraryState.removingSongIds,
             favoriteSongIds = favoriteSongIds,
             sortMode = songSortMode,
             currentSongId = currentSongId,
@@ -5354,6 +5345,7 @@ private fun LibraryCollectionScreen(
         LibraryCollectionKind.Albums -> Box(modifier = Modifier.fillMaxSize()) {
             AlbumCollectionContent(
                 albums = libraryState.albums,
+                removingAlbumIds = libraryState.removingAlbumIds,
                 playlists = playlists,
                 layoutMode = albumCollectionLayoutMode,
                 sortMode = albumSortMode,
@@ -5399,6 +5391,7 @@ private fun LibraryCollectionScreen(
 @Composable
 private fun SongCollectionScreen(
     songs: List<Song>,
+    removingSongIds: Set<Long>,
     favoriteSongIds: Set<Long>,
     sortMode: SongSortMode,
     currentSongId: Long?,
@@ -5467,20 +5460,30 @@ private fun SongCollectionScreen(
                 key = { _, song -> song.id },
                 contentType = { _, _ -> "song_row" },
             ) { index, song ->
-                GroupedListRowContainer(
-                    index = index,
-                    lastIndex = sortedSongs.lastIndex,
+                Box(
+                    modifier = Modifier
+                        .animateItem(
+                            fadeInSpec = null,
+                            fadeOutSpec = tween(180),
+                            placementSpec = tween(180),
+                        )
+                        .libraryRemovalAnimation(song.id in removingSongIds),
                 ) {
-                    PlaylistSongRow(
-                        song = song,
-                        isFavorite = song.id in favoriteSongIds,
-                        isCurrentSong = song.id == currentSongId,
-                        isPlaybackActive = isCurrentSongPlaying,
-                        onClick = { onSongSelected(song, sortedSongs) },
-                        onToggleFavorite = { onToggleFavorite(song.id) },
-                        showOverflowMenu = true,
-                        showDivider = index != sortedSongs.lastIndex,
-                    )
+                    GroupedListRowContainer(
+                        index = index,
+                        lastIndex = sortedSongs.lastIndex,
+                    ) {
+                        PlaylistSongRow(
+                            song = song,
+                            isFavorite = song.id in favoriteSongIds,
+                            isCurrentSong = song.id == currentSongId,
+                            isPlaybackActive = isCurrentSongPlaying,
+                            onClick = { onSongSelected(song, sortedSongs) },
+                            onToggleFavorite = { onToggleFavorite(song.id) },
+                            showOverflowMenu = true,
+                            showDivider = index != sortedSongs.lastIndex,
+                        )
+                    }
                 }
             }
         }
@@ -5753,6 +5756,7 @@ private fun GenreAlbumsScreen(
     Box(modifier = Modifier.fillMaxSize()) {
         AlbumCollectionContent(
             albums = filteredAlbums,
+            removingAlbumIds = libraryState.removingAlbumIds,
             playlists = playlists,
             layoutMode = layoutMode,
             sortMode = sortMode,
@@ -8849,6 +8853,7 @@ private fun PlaylistLaneCard(
 @Composable
 private fun AlbumScreen(
     album: Album?,
+    removingSongIds: Set<Long>,
     favoriteSongIds: Set<Long>,
     currentSongId: Long?,
     isCurrentSongPlaying: Boolean,
@@ -8880,6 +8885,14 @@ private fun AlbumScreen(
     }
 
     val language = LocalAppLanguage.current
+    var allowHeavyAlbumEffects by remember(album.id) { mutableStateOf(false) }
+    LaunchedEffect(album.id) {
+        withFrameNanos { }
+        allowHeavyAlbumEffects = true
+        if (BuildConfig.DEBUG) {
+            Log.d("ElovaireMotion", "AlbumDetail(${album.id}) heavy effects enabled after first frame")
+        }
+    }
     val gradient by rememberArtworkGradient(album.artUri)
     val isLightTheme = MaterialTheme.colorScheme.background.luminance() > 0.5f
     val albumSongIds = remember(album.songs) { album.songs.map(Song::id) }
@@ -9036,7 +9049,13 @@ private fun AlbumScreen(
                                     ),
                                     shape = RoundedCornerShape(ElovaireRadii.module),
                                 )
-                                .blur(if (isLightTheme) 32.dp else 40.dp),
+                                .blur(
+                                    if (allowHeavyAlbumEffects) {
+                                        if (isLightTheme) 32.dp else 40.dp
+                                    } else {
+                                        0.dp
+                                    },
+                                ),
                         )
                         Surface(
                             modifier = Modifier.matchParentSize(),
@@ -9182,31 +9201,41 @@ private fun AlbumScreen(
                     key = { _, song -> song.id },
                     contentType = { _, _ -> "album_song_row" },
                 ) { index, song ->
-                    GroupedListRowContainer(
-                        index = index,
-                        lastIndex = discSongs.lastIndex,
+                    Box(
+                        modifier = Modifier
+                            .animateItem(
+                                fadeInSpec = null,
+                                fadeOutSpec = tween(180),
+                                placementSpec = tween(180),
+                            )
+                            .libraryRemovalAnimation(song.id in removingSongIds),
                     ) {
-                        AlbumSongRow(
-                            song = song,
-                            trackIndex = if (song.trackNumber > 0) song.trackNumber else index + 1,
-                            selectionMode = selectionModeActive,
-                            selected = song.id in selectedSongIds,
-                            isFavorite = song.id in favoriteSongIds,
-                            isCurrentSong = song.id == currentSongId,
-                            isPlaybackActive = isCurrentSongPlaying,
-                            onClick = {
-                                if (selectionModeActive) {
-                                    selectedSongIds = selectedSongIds.toggleSelection(song.id)
-                                } else {
-                                    onSongSelected(song, album.songs)
-                                }
-                            },
-                            onLongPress = {
-                                selectedSongIds = selectedSongIds + song.id
-                            },
-                            onToggleFavorite = { onToggleFavorite(song.id) },
-                            showDivider = index != discSongs.lastIndex,
-                        )
+                        GroupedListRowContainer(
+                            index = index,
+                            lastIndex = discSongs.lastIndex,
+                        ) {
+                            AlbumSongRow(
+                                song = song,
+                                trackIndex = if (song.trackNumber > 0) song.trackNumber else index + 1,
+                                selectionMode = selectionModeActive,
+                                selected = song.id in selectedSongIds,
+                                isFavorite = song.id in favoriteSongIds,
+                                isCurrentSong = song.id == currentSongId,
+                                isPlaybackActive = isCurrentSongPlaying,
+                                onClick = {
+                                    if (selectionModeActive) {
+                                        selectedSongIds = selectedSongIds.toggleSelection(song.id)
+                                    } else {
+                                        onSongSelected(song, album.songs)
+                                    }
+                                },
+                                onLongPress = {
+                                    selectedSongIds = selectedSongIds + song.id
+                                },
+                                onToggleFavorite = { onToggleFavorite(song.id) },
+                                showDivider = index != discSongs.lastIndex,
+                            )
+                        }
                     }
                 }
 
@@ -13649,6 +13678,8 @@ private fun FrostedContextMenuSurface(
 
 @Composable
 private fun TopBarContextMenuOverlay(
+    expanded: Boolean,
+    modifier: Modifier = Modifier,
     onDismiss: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenEqualizer: () -> Unit,
@@ -13657,17 +13688,29 @@ private fun TopBarContextMenuOverlay(
 ) {
     val language = LocalAppLanguage.current
     val settingsCopy = remember(language) { settingsCopy(language) }
+    BackHandler(enabled = expanded, onBack = onDismiss)
     Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = onDismiss,
-            ),
+        modifier = modifier,
     ) {
-        androidx.compose.animation.AnimatedVisibility(
-            visible = true,
+        ElovaireAnimatedVisibility(
+            visible = expanded,
+            modifier = Modifier.fillMaxSize(),
+            enter = ElovaireMotion.overlayFadeEnter(initialAlpha = 0.86f),
+            exit = ElovaireMotion.overlayFadeExit(),
+            label = "TopBarContextMenuScrim",
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            )
+        }
+        ElovaireAnimatedVisibility(
+            visible = expanded,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
@@ -14828,7 +14871,7 @@ private fun EqualizerScreen(
     onReverbDurationChanged: (Int) -> Unit,
     onReverbProfileChanged: (ReverbProfile) -> Unit,
     onResetReverb: () -> Unit,
-    onApplyPreset: (EqSettings) -> Unit,
+    onApplyPreset: (String, EqSettings) -> Unit,
     onReset: () -> Unit,
 ) {
     val listState = rememberElovaireLazyListState("equalizer_screen")
@@ -14862,7 +14905,7 @@ private fun EqualizerScreen(
                     EqDbScale(
                         modifier = Modifier
                             .width(EQ_DB_SCALE_WIDTH)
-                            .height(260.dp),
+                            .height(EQ_BAND_PANEL_HEIGHT),
                     )
                     Column(
                         modifier = Modifier
@@ -14875,7 +14918,7 @@ private fun EqualizerScreen(
                             onBandChanged = onBandChanged,
                             modifier = Modifier
                                 .width(graphContentWidth)
-                                .height(260.dp),
+                                .height(EQ_BAND_PANEL_HEIGHT),
                         )
                         EqBandFrequencyLabels(
                             contentWidth = graphContentWidth,
@@ -15033,7 +15076,7 @@ private fun EqualizerScreen(
         }
         FastScrollbar(
             state = listState,
-            topInset = topBarOccupiedHeight() + 414.dp,
+            topInset = topBarOccupiedHeight() + 390.dp,
             bottomInset = navigationBarInsetDp() + 48.dp,
         )
         PinnedBackTopBar(
@@ -16915,7 +16958,7 @@ private data class EqPresetDefinition(
 @Composable
 private fun EqPresetMenu(
     currentSettings: EqSettings,
-    onApplyPreset: (EqSettings) -> Unit,
+    onApplyPreset: (String, EqSettings) -> Unit,
     onReset: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
@@ -16950,7 +16993,7 @@ private fun EqPresetMenu(
     ) {
         EqPresetPill(
             label = uiPhrase(language, UiPhrase.Reset),
-            selected = activePresetName == null && currentSettings != EqSettings(),
+            selected = activePresetName == null && EqValuePolicy.hasSignalAlteringEffects(currentSettings),
             emphasized = true,
             onClick = onReset,
         )
@@ -16960,6 +17003,7 @@ private fun EqPresetMenu(
                 selected = preset.name == activePresetName,
                 onClick = {
                     onApplyPreset(
+                        preset.name,
                         currentSettings.copy(
                             bands = preset.settings.bands,
                         ),
@@ -17099,10 +17143,13 @@ private fun EqResponseGraph(
                         fraction = ((offset.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
                         bandFractions = bandFractions,
                     )
-                    val verticalFraction = (1f - (offset.y / size.height.toFloat())).coerceIn(0f, 1f)
                     onBandChanged(
                         bandIndex,
-                        EqualizerDspModel.graphFractionToNormalized(verticalFraction, eqGraphConfig),
+                        eqGraphYToNormalized(
+                            y = offset.y,
+                            height = size.height.toFloat(),
+                            config = eqGraphConfig,
+                        ),
                     )
                 }
             }
@@ -17116,8 +17163,14 @@ private fun EqResponseGraph(
                             fraction = ((offset.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
                             bandFractions = bandFractions,
                         )
-                        val normalized = (1f - (offset.y / size.height.toFloat())).coerceIn(0f, 1f)
-                        onBandChanged(bandIndex, ((normalized * 2f) - 1f).coerceIn(-1f, 1f))
+                        onBandChanged(
+                            bandIndex,
+                            eqGraphYToNormalized(
+                                y = offset.y,
+                                height = size.height.toFloat(),
+                                config = eqGraphConfig,
+                            ),
+                        )
                     },
                     onDrag = { change, _ ->
                         change.consume()
@@ -17128,10 +17181,13 @@ private fun EqResponseGraph(
                             fraction = ((change.position.x - horizontalPadding) / graphWidth).coerceIn(0f, 1f),
                             bandFractions = bandFractions,
                         )
-                        val verticalFraction = (1f - (change.position.y / size.height.toFloat())).coerceIn(0f, 1f)
                         onBandChanged(
                             index,
-                            EqualizerDspModel.graphFractionToNormalized(verticalFraction, eqGraphConfig),
+                            eqGraphYToNormalized(
+                                y = change.position.y,
+                                height = size.height.toFloat(),
+                                config = eqGraphConfig,
+                            ),
                         )
                     },
                 )
@@ -17206,6 +17262,19 @@ private fun EqResponseGraph(
             }
         }
     }
+}
+
+private fun eqGraphYToNormalized(
+    y: Float,
+    height: Float,
+    config: EqualizerDspConfig,
+): Float {
+    if (height <= 0f) return 0f
+    val topPadding = height * 0.08f
+    val bottomPadding = height * 0.12f
+    val graphHeight = (height - topPadding - bottomPadding).coerceAtLeast(1f)
+    val graphFraction = (1f - ((y - topPadding) / graphHeight)).coerceIn(0f, 1f)
+    return EqualizerDspModel.graphFractionToNormalized(graphFraction, config)
 }
 
 @Composable

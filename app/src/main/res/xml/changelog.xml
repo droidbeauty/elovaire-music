@@ -7,7 +7,6 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.2">
-        <item>Redesigned tag editing UI</item>
         <item>Added shuffle feature to playlists</item>
         <item>Improved lyrics feature framework for more accurate and faster fetching</item>
         <item>Improved search feature framework</item>

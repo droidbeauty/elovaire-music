@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.database.ContentObserver
+import android.net.Uri
 import android.os.Build
 import android.os.FileObserver
 import android.os.Handler
@@ -27,6 +28,8 @@ import kotlinx.coroutines.withContext
 data class LibraryContentState(
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
+    val removingSongIds: Set<Long> = emptySet(),
+    val removingAlbumIds: Set<Long> = emptySet(),
 )
 
 data class LibraryScanState(
@@ -42,7 +45,28 @@ data class LibraryUiState(
     val scanProgress: Float = 0f,
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
+    val removingSongIds: Set<Long> = emptySet(),
+    val removingAlbumIds: Set<Long> = emptySet(),
     val errorMessage: String? = null,
+)
+
+data class LibraryDeleteRequest(
+    val songIds: Set<Long>,
+    val albumIds: Set<Long>,
+    val uris: Set<Uri>,
+    val filePaths: Set<String>,
+)
+
+data class LibraryDeleteResult(
+    val deletedSongIds: Set<Long>,
+    val deletedAlbumIds: Set<Long>,
+    val failed: List<LibraryDeleteFailure>,
+)
+
+data class LibraryDeleteFailure(
+    val songId: Long?,
+    val albumId: Long?,
+    val reason: String,
 )
 
 class LibraryRepository(
@@ -60,6 +84,10 @@ class LibraryRepository(
     private var pendingIndexRefresh = false
     private val pendingTargetedIndexRefreshPaths = linkedSetOf<String>()
     private var pendingMetadataEnrichment = false
+    private var suppressObserverRefreshUntilMs = 0L
+    private val pendingDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
+    private val pendingDeletedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
+    private val confirmedDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
     private var didBootstrapLibrary = false
     val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
@@ -70,6 +98,8 @@ class LibraryRepository(
             scanProgress = scan.scanProgress,
             songs = content.songs,
             albums = content.albums,
+            removingSongIds = content.removingSongIds,
+            removingAlbumIds = content.removingAlbumIds,
             errorMessage = scan.errorMessage,
         )
     }.stateIn(
@@ -148,6 +178,8 @@ class LibraryRepository(
                 val cachedContent = LibraryContentState(
                     songs = cachedSnapshot.snapshot.songs,
                     albums = cachedSnapshot.snapshot.albums,
+                    removingSongIds = pendingDeletedSongIds.value,
+                    removingAlbumIds = pendingDeletedAlbumIds.value,
                 )
                 if (_contentState.value != cachedContent) {
                     _contentState.value = cachedContent
@@ -238,15 +270,19 @@ class LibraryRepository(
                 }
             }
                 .onSuccess { snapshot ->
-                    withContext(Dispatchers.IO) {
-                        snapshotStore.save(
-                            snapshot = snapshot,
-                            filterFingerprint = scanner.currentFilterFingerprint(),
-                        )
-                    }
+                    val suppressedSongIds = pendingDeletedSongIds.value + confirmedDeletedSongIds.value
+                    val visibleSongs = snapshot.songs.filterNot { it.id in suppressedSongIds }
+                    val scannedSongIds = snapshot.songs.mapTo(hashSetOf(), Song::id)
+                    confirmedDeletedSongIds.update { tombstones -> tombstones.filterTo(linkedSetOf()) { it in scannedSongIds } }
+                    val visibleSnapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
+                        songs = visibleSongs,
+                        albums = buildAlbumsFromSongs(visibleSongs),
+                    )
                     val nextContentState = LibraryContentState(
-                        songs = snapshot.songs,
-                        albums = snapshot.albums,
+                        songs = visibleSnapshot.songs,
+                        albums = visibleSnapshot.albums,
+                        removingSongIds = pendingDeletedSongIds.value,
+                        removingAlbumIds = pendingDeletedAlbumIds.value,
                     )
                     if (_contentState.value != nextContentState) {
                         _contentState.value = nextContentState
@@ -259,7 +295,13 @@ class LibraryRepository(
                     if (_scanState.value != nextScanState) {
                         _scanState.value = nextScanState
                     }
-                    val snapshotNeedsMetadata = snapshot.songs.any { song ->
+                    withContext(Dispatchers.IO) {
+                        snapshotStore.save(
+                            snapshot = visibleSnapshot,
+                            filterFingerprint = scanner.currentFilterFingerprint(),
+                        )
+                    }
+                    val snapshotNeedsMetadata = visibleSnapshot.songs.any { song ->
                         !song.metadataResolved ||
                             song.releaseYear == null ||
                             song.qualityNeedsEnrichment() ||
@@ -339,6 +381,114 @@ class LibraryRepository(
         )
     }
 
+    fun markDeletingSongs(songIds: Collection<Long>) {
+        if (songIds.isEmpty()) return
+        pendingDeletedSongIds.update { it + songIds }
+        publishPendingDeletionState()
+    }
+
+    fun markDeletingAlbums(albumIds: Collection<Long>) {
+        if (albumIds.isEmpty()) return
+        pendingDeletedAlbumIds.update { it + albumIds }
+        publishPendingDeletionState()
+    }
+
+    fun clearPendingDeletedSongs(songIds: Collection<Long>) {
+        if (songIds.isEmpty()) return
+        pendingDeletedSongIds.update { it - songIds.toSet() }
+        publishPendingDeletionState()
+    }
+
+    fun clearPendingDeletedAlbums(albumIds: Collection<Long>) {
+        if (albumIds.isEmpty()) return
+        pendingDeletedAlbumIds.update { it - albumIds.toSet() }
+        publishPendingDeletionState()
+    }
+
+    suspend fun refreshAfterDelete(request: LibraryDeleteRequest): LibraryDeleteResult {
+        if (request.songIds.isEmpty()) {
+            return LibraryDeleteResult(emptySet(), emptySet(), emptyList())
+        }
+        val current = _contentState.value
+        val fullyDeletedAlbumIds = request.albumIds.filterTo(linkedSetOf()) { albumId ->
+            current.albums
+                .firstOrNull { it.id == albumId }
+                ?.songs
+                ?.all { it.id in request.songIds } == true
+        }
+        markDeletingSongs(request.songIds)
+        markDeletingAlbums(fullyDeletedAlbumIds)
+        suppressObserverRefreshUntilMs = System.currentTimeMillis() + DELETE_OBSERVER_SUPPRESSION_MS
+        refreshDebounceJob?.cancel()
+        refreshDebounceJob = null
+        pendingIndexRefresh = false
+        pendingTargetedIndexRefreshPaths.clear()
+        scanner.invalidateMetadataCacheForSongIds(request.songIds)
+        scanner.invalidateMetadataCacheForPaths(request.filePaths)
+
+        delay(DELETE_EXIT_ANIMATION_MS)
+        val remainingSongs = _contentState.value.songs.filterNot { it.id in request.songIds }
+        val updatedState = LibraryContentState(
+            songs = remainingSongs,
+            albums = buildAlbumsFromSongs(remainingSongs),
+            removingSongIds = pendingDeletedSongIds.value,
+            removingAlbumIds = pendingDeletedAlbumIds.value,
+        )
+        if (_contentState.value != updatedState) {
+            _contentState.value = updatedState
+        }
+        withContext(Dispatchers.IO) {
+            snapshotStore.save(
+                snapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
+                    songs = updatedState.songs,
+                    albums = updatedState.albums,
+                ),
+                filterFingerprint = scanner.currentFilterFingerprint(),
+            )
+        }
+
+        delay(DELETE_CONFIRMATION_DELAY_MS)
+        val stillPresent = withContext(Dispatchers.IO) {
+            scanner.findExistingSongIds(request.songIds)
+        }
+        val deletedSongIds = request.songIds - stillPresent
+        confirmedDeletedSongIds.update { it + deletedSongIds }
+        clearPendingDeletedSongs(request.songIds)
+        clearPendingDeletedAlbums(fullyDeletedAlbumIds)
+        if (stillPresent.isNotEmpty()) {
+            refresh(
+                forceMediaIndex = false,
+                enrichMetadata = false,
+                showLoadingIndicator = false,
+            )
+            _scanState.update { state ->
+                state.copy(errorMessage = "Some files could not be deleted.")
+            }
+        }
+        return LibraryDeleteResult(
+            deletedSongIds = deletedSongIds,
+            deletedAlbumIds = fullyDeletedAlbumIds.filterTo(linkedSetOf()) { albumId ->
+                updatedState.albums.none { it.id == albumId }
+            },
+            failed = stillPresent.map { songId ->
+                LibraryDeleteFailure(
+                    songId = songId,
+                    albumId = current.songs.firstOrNull { it.id == songId }?.albumId,
+                    reason = "The file is still present after deletion.",
+                )
+            },
+        )
+    }
+
+    private fun publishPendingDeletionState() {
+        _contentState.update { current ->
+            current.copy(
+                removingSongIds = pendingDeletedSongIds.value,
+                removingAlbumIds = pendingDeletedAlbumIds.value,
+            )
+        }
+    }
+
     suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
         if (editedSongs.isEmpty()) return
         val updatesById = editedSongs.associateBy(Song::id)
@@ -348,6 +498,8 @@ class LibraryRepository(
         val updatedState = LibraryContentState(
             songs = updatedSongs,
             albums = buildAlbumsFromSongs(updatedSongs),
+            removingSongIds = current.removingSongIds,
+            removingAlbumIds = current.removingAlbumIds,
         )
         _contentState.value = updatedState
         withContext(Dispatchers.IO) {
@@ -383,6 +535,7 @@ class LibraryRepository(
         changedFilePath: String? = null,
     ) {
         if (!_scanState.value.permissionGranted) return
+        if (System.currentTimeMillis() < suppressObserverRefreshUntilMs) return
         pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
         if (!forceMediaIndex) {
             changedFilePath
@@ -482,7 +635,10 @@ class LibraryRepository(
     }
 
     private companion object {
-        const val AUTO_REFRESH_DEBOUNCE_MS = 900L
+        const val AUTO_REFRESH_DEBOUNCE_MS = 350L
+        const val DELETE_EXIT_ANIMATION_MS = 190L
+        const val DELETE_CONFIRMATION_DELAY_MS = 500L
+        const val DELETE_OBSERVER_SUPPRESSION_MS = 1_200L
         const val OBSERVER_MASK =
             FileObserver.CREATE or
                 FileObserver.CLOSE_WRITE or
@@ -515,6 +671,13 @@ class LibraryRepository(
         pendingIndexRefresh = false
         pendingTargetedIndexRefreshPaths.clear()
         pendingMetadataEnrichment = false
+        suppressObserverRefreshUntilMs = 0L
+        pendingDeletedSongIds.value = emptySet()
+        pendingDeletedAlbumIds.value = emptySet()
+        confirmedDeletedSongIds.value = emptySet()
+        _contentState.update { current ->
+            current.copy(removingSongIds = emptySet(), removingAlbumIds = emptySet())
+        }
         musicDirectoryObserver?.stopWatching()
         musicDirectoryObserver = null
         unregisterMediaObserver()

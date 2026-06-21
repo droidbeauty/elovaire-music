@@ -785,6 +785,26 @@ class PlaybackManager(
         updateState()
     }
 
+    fun removeSongsFromQueue(songIds: Set<Long>) {
+        if (songIds.isEmpty()) return
+        val existingQueue = _state.value.queue
+        val indicesToRemove = existingQueue.indices.filter { existingQueue[it].id in songIds }
+        if (indicesToRemove.isEmpty()) return
+        if (indicesToRemove.size == existingQueue.size) {
+            stopAndClearQueue()
+            return
+        }
+        cancelPauseFade()
+        clearInterruptionResumeState()
+        indicesToRemove.asReversed().forEach(player::removeMediaItem)
+        val updatedQueue = existingQueue.filterNot { it.id in songIds }
+        _state.value = _state.value.copy(
+            queue = updatedQueue,
+            currentIndex = player.currentMediaItemIndex.coerceIn(0, updatedQueue.lastIndex),
+        )
+        updateState()
+    }
+
     fun refreshLibraryMetadata(updatedSongs: List<Song>) {
         val existingState = _state.value
         if (existingState.queue.isEmpty()) return

@@ -26,6 +26,12 @@ internal class ElovaireViewModelFactory(
                 ) as T
             }
 
+            modelClass.isAssignableFrom(EqualizerViewModel::class.java) -> {
+                EqualizerViewModel(
+                    preferenceStore = appContainer.preferenceStore,
+                ) as T
+            }
+
             modelClass.isAssignableFrom(AlbumTagEditorViewModel::class.java) -> {
                 AlbumTagEditorViewModel(
                     libraryRepository = appContainer.libraryRepository,

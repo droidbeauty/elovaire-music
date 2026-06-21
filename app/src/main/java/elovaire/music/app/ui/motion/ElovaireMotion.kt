@@ -1,5 +1,9 @@
 package elovaire.music.droidbeauty.app.ui.motion
 
+import android.database.ContentObserver
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedContentScope
 import androidx.compose.animation.AnimatedContentTransitionScope
@@ -29,38 +33,42 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalContext
 import kotlin.math.roundToInt
 
 object ElovaireMotion {
-    private const val QuickBase = 20
-    private const val FastBase = 60
-    private const val StandardBase = 100
-    private const val MediumBase = 140
-    private const val SpaciousBase = 180
+    private const val QuickBase = 55
+    private const val FastBase = 90
+    private const val StandardBase = 120
+    private const val MediumBase = 160
+    private const val SpaciousBase = 200
     private const val ScreenBase = 160
     private const val ScreenFadeBase = 80
     private const val ScreenSlideBase = 140
     private const val ScreenExpandBase = 220
     private const val PlayerScreenBase = 260
     private const val PlayerFadeBase = 80
-    private const val ControlsBase = 40
-    private const val ChromeResizeBase = 80
-    private const val MicroBase = 10
-    private const val ComponentBase = 80
-    private const val EmphasizedBase = 220
-    private const val TopLevelEnterBase = 70
-    private const val TopLevelExitBase = 1
+    private const val ControlsBase = 70
+    private const val ChromeResizeBase = 100
+    private const val MicroBase = 70
+    private const val ComponentBase = 110
+    private const val EmphasizedBase = 240
+    private const val TopLevelEnterBase = 90
+    private const val TopLevelExitBase = 55
     private const val DetailEnterBase = 205
-    private const val DetailExitBase = 115
-    private const val AlbumDetailExtraBase = 100
-    private const val FullScreenEnterBase = 120
-    private const val FullScreenExitBase = 25
+    private const val DetailExitBase = 135
+    private const val AlbumDetailTransitionBase = 420
+    private const val FullScreenEnterBase = 145
+    private const val FullScreenExitBase = 90
 
     val Quick: Int get() = scaledDurationMillis(QuickBase)
     val Fast: Int get() = scaledDurationMillis(FastBase)
@@ -90,21 +98,24 @@ object ElovaireMotion {
     private var systemDurationScale by mutableFloatStateOf(1f)
 
     fun updateSystemDurationScale(scale: Float) {
-        systemDurationScale = 1f
+        systemDurationScale = scale.coerceAtLeast(0f)
     }
 
     private fun scaledDurationMillis(durationMillis: Int): Int = when {
         durationMillis <= 0 -> 0
-        else -> durationMillis
+        systemDurationScale <= 0f -> 0
+        else -> (durationMillis * systemDurationScale).roundToInt().coerceAtLeast(1)
     }
 
     private fun scaledDelayMillis(delayMillis: Int): Int = when {
         delayMillis <= 0 -> 0
-        else -> delayMillis
+        systemDurationScale <= 0f -> 0
+        else -> (delayMillis * systemDurationScale).roundToInt().coerceAtLeast(0)
     }
 
     private fun scaledSpringStiffness(stiffness: Float): Float {
-        return stiffness
+        if (systemDurationScale <= 0f) return stiffness
+        return (stiffness / (systemDurationScale * systemDurationScale)).coerceIn(25f, 10_000f)
     }
 
     private fun <T> scaledTween(
@@ -200,7 +211,7 @@ object ElovaireMotion {
     )
 
     fun <T> pressDownSpec(): FiniteAnimationSpec<T> = scaledTween(
-        durationMillis = 1,
+        durationMillis = MicroBase,
         easing = SoftOut,
     )
 
@@ -229,7 +240,7 @@ object ElovaireMotion {
     )
 
     fun <T> iconSwapOutSpec(): FiniteAnimationSpec<T> = scaledTween(
-        durationMillis = 10,
+        durationMillis = QuickBase,
         easing = FadeOut,
     )
 
@@ -678,78 +689,106 @@ object ElovaireMotion {
             targetOffsetY = { it / 96 },
         )
 
-    fun albumDetailForwardEnter(): EnterTransition = fadeIn(
+    fun albumDetailForwardEnter(
+        transformOrigin: TransformOrigin = TransformOrigin.Center,
+    ): EnterTransition = fadeIn(
         animationSpec = scaledTween(
-            durationMillis = DetailEnterBase + AlbumDetailExtraBase,
+            durationMillis = AlbumDetailTransitionBase,
+            easing = FadeIn,
+        ),
+        initialAlpha = 0.04f,
+    ) +
+        scaleIn(
+            animationSpec = scaledTween(
+                durationMillis = AlbumDetailTransitionBase,
+                easing = GentleDecelerate,
+            ),
+            initialScale = 0.76f,
+            transformOrigin = transformOrigin,
+        ) +
+        slideInHorizontally(
+            animationSpec = scaledTween(
+                durationMillis = AlbumDetailTransitionBase,
+                easing = GentleDecelerate,
+            ),
+            initialOffsetX = { fullWidth ->
+                ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+            },
+        ) +
+        slideInVertically(
+            animationSpec = scaledTween(
+                durationMillis = AlbumDetailTransitionBase,
+                easing = GentleDecelerate,
+            ),
+            initialOffsetY = { fullHeight ->
+                ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+            },
+        )
+
+    fun albumDetailForwardExit(): ExitTransition = fadeOut(
+        animationSpec = scaledTween(
+            durationMillis = DetailExitBase,
+            easing = FadeOut,
+        ),
+        targetAlpha = 0f,
+    ) +
+        scaleOut(
+            animationSpec = scaledTween(
+                durationMillis = DetailExitBase,
+                easing = GentleAccelerate,
+            ),
+            targetScale = 0.994f,
+        )
+
+    fun albumDetailBackEnter(): EnterTransition = fadeIn(
+        animationSpec = scaledTween(
+            durationMillis = DetailExitBase,
             easing = FadeIn,
         ),
         initialAlpha = 0.08f,
     ) +
         scaleIn(
             animationSpec = scaledTween(
-                durationMillis = DetailEnterBase + AlbumDetailExtraBase,
+                durationMillis = DetailExitBase,
                 easing = GentleDecelerate,
             ),
-            initialScale = 0.99f,
+            initialScale = 0.994f,
+        )
+
+    fun albumDetailBackExit(
+        transformOrigin: TransformOrigin = TransformOrigin.Center,
+    ): ExitTransition = fadeOut(
+        animationSpec = scaledTween(
+            durationMillis = AlbumDetailTransitionBase,
+            easing = FadeOut,
+        ),
+        targetAlpha = 0f,
+    ) +
+        scaleOut(
+            animationSpec = scaledTween(
+                durationMillis = AlbumDetailTransitionBase,
+                easing = GentleAccelerate,
+            ),
+            targetScale = 0.82f,
+            transformOrigin = transformOrigin,
         ) +
-        slideInVertically(
+        slideOutHorizontally(
             animationSpec = scaledTween(
-                durationMillis = DetailEnterBase + AlbumDetailExtraBase,
-                easing = GentleDecelerate,
-            ),
-            initialOffsetY = { it / 96 },
-        )
-
-    fun albumDetailForwardExit(): ExitTransition = fadeOut(
-        animationSpec = scaledTween(
-            durationMillis = DetailExitBase + AlbumDetailExtraBase,
-            easing = FadeOut,
-        ),
-        targetAlpha = 0f,
-    ) +
-        scaleOut(
-            animationSpec = scaledTween(
-                durationMillis = DetailExitBase + AlbumDetailExtraBase,
+                durationMillis = AlbumDetailTransitionBase,
                 easing = GentleAccelerate,
             ),
-            targetScale = 0.998f,
-        )
-
-    fun albumDetailBackEnter(): EnterTransition = fadeIn(
-        animationSpec = scaledTween(
-            durationMillis = DetailEnterBase + AlbumDetailExtraBase,
-            easing = FadeIn,
-        ),
-        initialAlpha = 0.1f,
-    ) +
-        scaleIn(
-            animationSpec = scaledTween(
-                durationMillis = DetailEnterBase + AlbumDetailExtraBase,
-                easing = GentleDecelerate,
-            ),
-            initialScale = 0.998f,
-        )
-
-    fun albumDetailBackExit(): ExitTransition = fadeOut(
-        animationSpec = scaledTween(
-            durationMillis = DetailExitBase + AlbumDetailExtraBase,
-            easing = FadeOut,
-        ),
-        targetAlpha = 0f,
-    ) +
-        scaleOut(
-            animationSpec = scaledTween(
-                durationMillis = DetailExitBase + AlbumDetailExtraBase,
-                easing = GentleAccelerate,
-            ),
-            targetScale = 0.99f,
+            targetOffsetX = { fullWidth ->
+                ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+            },
         ) +
         slideOutVertically(
             animationSpec = scaledTween(
-                durationMillis = DetailExitBase + AlbumDetailExtraBase,
+                durationMillis = AlbumDetailTransitionBase,
                 easing = GentleAccelerate,
             ),
-            targetOffsetY = { it / 96 },
+            targetOffsetY = { fullHeight ->
+                ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+            },
         )
 
     fun scaleDurationMillis(
@@ -757,7 +796,8 @@ object ElovaireMotion {
         durationScale: Float,
     ): Long = when {
         durationMillis <= 0L -> 0L
-        else -> durationMillis
+        durationScale <= 0f -> 0L
+        else -> (durationMillis * durationScale).roundToInt().toLong().coerceAtLeast(1L)
     }
 
     fun scaleDurationMillis(
@@ -766,13 +806,52 @@ object ElovaireMotion {
     ): Long = scaleDurationMillis(durationMillis.toLong(), durationScale)
 }
 
+object ElovaireAlbumMotion {
+    fun forwardEnter(transformOrigin: TransformOrigin): EnterTransition =
+        ElovaireMotion.albumDetailForwardEnter(transformOrigin)
+
+    fun forwardExit(): ExitTransition = ElovaireMotion.albumDetailForwardExit()
+
+    fun backEnter(): EnterTransition = ElovaireMotion.albumDetailBackEnter()
+
+    fun backExit(transformOrigin: TransformOrigin): ExitTransition =
+        ElovaireMotion.albumDetailBackExit(transformOrigin)
+}
+
 @Composable
-fun rememberSystemAnimationScale(): Float = 1f
+fun rememberSystemAnimationScale(): Float {
+    val context = LocalContext.current
+    val resolver = context.contentResolver
+    var scale by remember {
+        mutableFloatStateOf(
+            runCatching {
+                Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+            }.getOrDefault(1f).coerceAtLeast(0f),
+        )
+    }
+    DisposableEffect(resolver) {
+        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
+            override fun onChange(selfChange: Boolean) {
+                scale = runCatching {
+                    Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+                }.getOrDefault(1f).coerceAtLeast(0f)
+            }
+        }
+        resolver.registerContentObserver(
+            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
+            false,
+            observer,
+        )
+        onDispose { runCatching { resolver.unregisterContentObserver(observer) } }
+    }
+    return scale
+}
 
 @Composable
 fun SyncElovaireMotionScale() {
+    val scale = rememberSystemAnimationScale()
     SideEffect {
-        ElovaireMotion.updateSystemDurationScale(1f)
+        ElovaireMotion.updateSystemDurationScale(scale)
     }
 }
 

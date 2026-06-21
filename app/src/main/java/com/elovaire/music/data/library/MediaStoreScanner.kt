@@ -183,7 +183,15 @@ class MediaStoreScanner(
                 val rawTitle = cursor.getString(titleIndex).orUnknown("Untitled Track")
                 val rawArtist = cursor.getString(artistIndex).orUnknown("Unknown Artist")
                 val rawAlbum = cursor.getString(albumIndex).orUnknown("Unknown Album")
-                val detectedFormat = audioFormatDetector.detect(songUri, fileName, mimeType)
+                val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+                val detectedFormat = if (enrichMetadata || extension in CONTAINER_VALIDATION_REQUIRED_EXTENSIONS) {
+                    audioFormatDetector.detect(songUri, fileName, mimeType)
+                } else {
+                    fastDetectedFormat(
+                        extension = extension,
+                        mimeType = mimeType,
+                    )
+                }
                 val candidate = AudioScanCandidate(
                     id = id,
                     uri = songUri,
@@ -195,7 +203,7 @@ class MediaStoreScanner(
                     mimeType = mimeType,
                     relativePath = relativePath,
                     absolutePath = filePath,
-                    extension = fileName.substringAfterLast('.', ""),
+                    extension = extension,
                     isMusic = isMusic,
                     detectedFormat = detectedFormat,
                 )
@@ -387,6 +395,25 @@ class MediaStoreScanner(
         )
     }
 
+    fun findExistingSongIds(songIds: Set<Long>): Set<Long> {
+        if (songIds.isEmpty()) return emptySet()
+        return songIds.chunked(MEDIASTORE_ID_QUERY_CHUNK_SIZE).flatMapTo(linkedSetOf()) { chunk ->
+            val placeholders = List(chunk.size) { "?" }.joinToString(",")
+            context.contentResolver.query(
+                audioCollectionUri(),
+                arrayOf(MediaStore.Audio.Media._ID),
+                "${MediaStore.Audio.Media._ID} IN ($placeholders)",
+                chunk.map(Long::toString).toTypedArray(),
+                null,
+            )?.use { cursor ->
+                val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
+                buildList {
+                    while (cursor.moveToNext()) add(cursor.getLong(idIndex))
+                }
+            }.orEmpty()
+        }
+    }
+
     fun musicDirectory(): File {
         @Suppress("DEPRECATION")
         return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
@@ -461,6 +488,27 @@ class MediaStoreScanner(
             MediaStore.MediaColumns.RELATIVE_PATH,
             MediaStore.MediaColumns.VOLUME_NAME,
             MediaStore.MediaColumns.DATA,
+        )
+    }
+
+    private fun fastDetectedFormat(
+        extension: String,
+        mimeType: String?,
+    ): DetectedAudioFormat {
+        val container = AudioFormatPolicy.resolveContainer(extension, mimeType, null)
+        return DetectedAudioFormat(
+            container = container,
+            displayName = AudioFormatPolicy.displayName(container, extension),
+            mimeType = mimeType,
+            codecMimeType = mimeType,
+            detectionSucceeded = false,
+            hasAudioTrack = true,
+            hasVideoTrack = false,
+            decoderAvailable = null,
+            sampleRate = null,
+            channelCount = null,
+            bitrate = null,
+            bitDepth = null,
         )
     }
 
@@ -771,6 +819,7 @@ class MediaStoreScanner(
         val ALBUM_ART_URI: Uri = Uri.parse("content://media/external/audio/albumart")
         const val MEDIA_SCAN_TIMEOUT_SECONDS = 8L
         const val TARGETED_MEDIA_SCAN_TIMEOUT_SECONDS = 5L
+        const val MEDIASTORE_ID_QUERY_CHUNK_SIZE = 400
         val YEAR_REGEX = Regex("""\b(19|20)\d{2}\b""")
         val EXPLICIT_MARKERS = listOf(
             "(explicit)",

@@ -64,6 +64,7 @@ internal val EQ_DB_SCALE_WIDTH = 30.dp
 internal val EQ_DB_SCALE_GAP = 10.dp
 internal val EQ_BAND_SPACING = 40.dp
 internal val EQ_GRAPH_EDGE_PADDING = 18.dp
+internal val EQ_BAND_PANEL_HEIGHT = 236.dp
 internal val lazyListPositionCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Int>>()
 internal val lazyGridPositionCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Int>>()
 internal val scrollPositionCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
@@ -374,6 +375,15 @@ internal data class ExpandOrigin(
     val xFraction: Float = 0.5f,
     val yFraction: Float = 0.5f,
 )
+
+internal enum class AlbumOpenSource {
+    LibraryAlbums,
+    HomeSection,
+    SearchResults,
+    ArtistDetail,
+    GenreDetail,
+    Player,
+}
 
 internal data class NowPlayingTransitionSnapshot(
     val songId: Long,

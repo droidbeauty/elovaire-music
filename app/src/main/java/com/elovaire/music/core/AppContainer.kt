@@ -20,10 +20,12 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 @SuppressLint("UnsafeOptInUsageError")
+@OptIn(kotlinx.coroutines.FlowPreview::class)
 class AppContainer(
     appContext: Context,
 ) {
@@ -64,8 +66,8 @@ class AppContainer(
 
     init {
         appScope.launch {
-            preferenceStore.eqSettings.collect { settings ->
-                playbackEffectsController.updateSettings(settings)
+            preferenceStore.eqSettings.debounce(40L).collect { settings ->
+                playbackEffectsController.applyEffectSettings(settings)
                 playbackManager.reevaluateAudioOutputPath()
             }
         }

@@ -13,6 +13,8 @@ import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
+import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
+import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -260,25 +262,25 @@ class PreferenceStore(context: Context) {
         if (index !in 0 until BAND_COUNT) return
 
         val updatedBands = _eqSettings.value.bands.toMutableList().apply {
-            set(index, value.coerceIn(-1f, 1f))
+            set(index, EqValuePolicy.clampBandNormalized(value))
         }
         persistEqSettings(_eqSettings.value.copy(bands = updatedBands))
     }
 
     fun updateBass(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(bass = value.coerceIn(-1f, 1f)))
+        persistEqSettings(_eqSettings.value.copy(bass = EqValuePolicy.clampPositiveMacro(value)))
     }
 
     fun updateMidrange(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(midrange = value.coerceIn(-1f, 1f)))
+        persistEqSettings(_eqSettings.value.copy(midrange = EqValuePolicy.clampMacro(value)))
     }
 
     fun updateTreble(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(treble = value.coerceIn(-1f, 1f)))
+        persistEqSettings(_eqSettings.value.copy(treble = EqValuePolicy.clampMacro(value)))
     }
 
     fun updateSpaciousness(value: Float) {
-        persistEqSettings(_eqSettings.value.copy(spaciousness = value.coerceIn(-1f, 1f)))
+        persistEqSettings(_eqSettings.value.copy(spaciousness = EqValuePolicy.clampPositiveMacro(value)))
     }
 
     fun updateSpaciousnessMode(mode: SpaciousnessMode) {
@@ -328,22 +330,7 @@ class PreferenceStore(context: Context) {
     }
 
     fun setEqSettings(settings: EqSettings) {
-        val normalizedBands = List(BAND_COUNT) { index ->
-            settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
-        }
-        persistEqSettings(
-            settings.copy(
-                bands = normalizedBands,
-                bass = settings.bass.coerceIn(-1f, 1f),
-                midrange = settings.midrange.coerceIn(-1f, 1f),
-                treble = settings.treble.coerceIn(-1f, 1f),
-                spaciousness = settings.spaciousness.coerceIn(-1f, 1f),
-                spaciousnessMode = settings.spaciousnessMode,
-                monoEnabled = settings.monoEnabled,
-                reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
-                reverbProfile = settings.reverbProfile,
-            ),
-        )
+        persistEqSettings(EqValuePolicy.sanitize(settings))
     }
 
     fun resetEqSettings() {
@@ -428,9 +415,7 @@ class PreferenceStore(context: Context) {
     }
 
     private fun persistEqSettings(settings: EqSettings) {
-        val normalizedSettings = settings.copy(
-            reverbDurationMs = normalizeReverbDurationMs(settings.reverbDurationMs),
-        )
+        val normalizedSettings = EqValuePolicy.sanitize(settings)
         preferences.edit {
             putString(KEY_BANDS, normalizedSettings.bands.joinToString(","))
             putFloat(KEY_BASS, normalizedSettings.bass)
@@ -457,7 +442,7 @@ class PreferenceStore(context: Context) {
             ?.mapNotNull { it.toFloatOrNull() }
             .orEmpty()
         val bands = List(BAND_COUNT) { index -> parsedBands.getOrNull(index) ?: 0f }
-        return EqSettings(
+        return EqValuePolicy.sanitize(EqSettings(
             bands = bands,
             bass = preferences.getFloat(KEY_BASS, 0f),
             midrange = preferences.getFloat(KEY_MIDRANGE, 0f),
@@ -471,11 +456,7 @@ class PreferenceStore(context: Context) {
             reverbProfile = preferences.getString(KEY_REVERB_PROFILE, ReverbProfile.Dry.name)
                 ?.let { saved -> ReverbProfile.entries.firstOrNull { it.name == saved } }
                 ?: ReverbProfile.Dry,
-        )
-    }
-
-    private fun normalizeReverbDurationMs(valueMs: Int): Int {
-        return ((valueMs.coerceIn(0, MAX_REVERB_DURATION_MS) + (REVERB_STEP_MS / 2)) / REVERB_STEP_MS) * REVERB_STEP_MS
+        ))
     }
 
     private fun loadTextSizePreset(): TextSizePreset {
@@ -790,8 +771,6 @@ class PreferenceStore(context: Context) {
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
-        const val REVERB_STEP_MS = 50
-        const val MAX_REVERB_DURATION_MS = 500
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"
     }
