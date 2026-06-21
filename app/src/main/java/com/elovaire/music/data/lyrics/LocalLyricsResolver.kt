@@ -10,6 +10,8 @@ import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.Charset
 import java.util.Locale
+import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.tag.FieldKey
 
 internal class LocalLyricsResolver(
     context: Context,
@@ -26,10 +28,39 @@ internal class LocalLyricsResolver(
             input.readBytesCompat(4)
         } ?: return null
 
-        return when {
+        val specializedMatch = when {
             headerBytes.startsWithAscii("ID3") -> readId3Lyrics(song)
             headerBytes.startsWithAscii("fLaC") -> readFlacLyrics(song)
             else -> null
+        }
+        return specializedMatch ?: readGenericEmbeddedLyrics(song)
+    }
+
+    private fun readGenericEmbeddedLyrics(song: Song): LocalLyricsMatch? {
+        val extension = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
+        val tempFile = File.createTempFile("lyrics-${song.id}-", ".$extension", appContext.cacheDir)
+        return try {
+            contentResolver.openInputStream(song.uri)?.use { input ->
+                tempFile.outputStream().use(input::copyTo)
+            } ?: return null
+            val rawLyrics = AudioFileIO.read(tempFile)
+                .tag
+                ?.getFirst(FieldKey.LYRICS)
+                .orEmpty()
+                .trim()
+            val lines = parsePlainLyrics(rawLyrics).orEmpty()
+            if (lines.isEmpty()) null else LocalLyricsMatch(
+                LyricsPayload(
+                    lines = lines,
+                    isSynced = false,
+                    providerName = "Embedded",
+                    confidence = 100,
+                ),
+            )
+        } catch (_: Throwable) {
+            null
+        } finally {
+            runCatching { tempFile.delete() }
         }
     }
 

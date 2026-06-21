@@ -9,11 +9,13 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 
 class LyricsService(
     context: Context,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    private val embeddedLyricsWriter = EmbeddedLyricsWriter(context.applicationContext)
     private val repository = LyricsRepository(
         appContext = context.applicationContext,
         ioDispatcher = ioDispatcher,
@@ -26,6 +28,20 @@ class LyricsService(
 
     fun clearCacheFor(song: Song) {
         repository.clearCacheFor(song)
+    }
+
+    internal fun createLyricsWritePermissionRequest(song: Song) =
+        embeddedLyricsWriter.createWritePermissionRequest(song)
+
+    internal suspend fun saveEmbeddedLyrics(
+        song: Song,
+        lyrics: String,
+    ): EmbeddedLyricsWriteResult = withContext(ioDispatcher) {
+        embeddedLyricsWriter.write(song, lyrics).also { result ->
+            if (result is EmbeddedLyricsWriteResult.Success) {
+                repository.clearCacheFor(song)
+            }
+        }
     }
 
     fun prefetchLyrics(song: Song) {

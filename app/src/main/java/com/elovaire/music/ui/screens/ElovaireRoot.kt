@@ -59,6 +59,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -177,6 +178,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
@@ -192,6 +194,8 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -2538,8 +2542,25 @@ private fun NowPlayingRoute(
 ) {
     val playerUiState by viewModel.uiState.collectAsStateWithLifecycle()
     val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
+    val lyricsEditorUiState by viewModel.lyricsEditorUiState.collectAsStateWithLifecycle()
     val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
     val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
+    val lyricsWriteLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartIntentSenderForResult(),
+    ) { result ->
+        viewModel.onLyricsWritePermissionResult(result.resultCode == Activity.RESULT_OK)
+    }
+    LaunchedEffect(viewModel) {
+        viewModel.lyricsEditorEvents.collect { event ->
+            when (event) {
+                is LyricsEditorEvent.RequestWritePermission -> {
+                    lyricsWriteLauncher.launch(
+                        IntentSenderRequest.Builder(event.request.intentSender).build(),
+                    )
+                }
+            }
+        }
+    }
     DisposableEffect(viewModel) {
         onDispose {
             viewModel.setLyricsVisible(false)
@@ -2553,9 +2574,12 @@ private fun NowPlayingRoute(
             isFavorite = isFavorite,
             playlists = playlists,
             lyricsUiState = lyricsUiState,
+            lyricsEditorUiState = lyricsEditorUiState,
             activeLyricsLineIndex = activeLyricsLineIndex,
             playbackProgress = playbackProgress,
             onLyricsVisibilityChanged = viewModel::setLyricsVisible,
+            onSaveLyrics = viewModel::requestSaveLyrics,
+            onClearLyricsEditorError = viewModel::clearLyricsEditorError,
             onBack = onBack,
             onOpenCurrentAlbum = onOpenCurrentAlbum,
             onTogglePlayback = viewModel::togglePlayback,
@@ -11221,9 +11245,12 @@ private fun NowPlayingScreen(
     isFavorite: Boolean,
     playlists: List<Playlist>,
     lyricsUiState: LyricsUiState,
+    lyricsEditorUiState: LyricsEditorUiState,
     activeLyricsLineIndex: Int,
     playbackProgress: PlaybackProgressState,
     onLyricsVisibilityChanged: (Boolean) -> Unit,
+    onSaveLyrics: (String) -> Unit,
+    onClearLyricsEditorError: () -> Unit,
     onBack: () -> Unit,
     onOpenCurrentAlbum: (Long) -> Unit,
     onTogglePlayback: () -> Unit,
@@ -12207,6 +12234,7 @@ private fun NowPlayingScreen(
             LyricsOverlay(
                 song = currentSong,
                 lyricsUiState = lyricsUiState,
+                lyricsEditorUiState = lyricsEditorUiState,
                 activeLyricsLineIndex = activeLyricsLineIndex,
                 playbackProgress = playbackProgress,
                 tintColor = baseSurface.copy(alpha = 0.66f),
@@ -12214,6 +12242,8 @@ private fun NowPlayingScreen(
                 secondaryContentColor = secondaryContentColor,
                 onSeekTo = playbackManager::seekTo,
                 onHideLyrics = { showLyricsSheet = false },
+                onSaveLyrics = onSaveLyrics,
+                onClearLyricsEditorError = onClearLyricsEditorError,
             )
         }
         if (showAddToPlaylistDialog) {
@@ -13826,6 +13856,7 @@ private fun AddToPlaylistPickerDialog(
 private fun LyricsOverlay(
     song: Song?,
     lyricsUiState: LyricsUiState,
+    lyricsEditorUiState: LyricsEditorUiState,
     activeLyricsLineIndex: Int,
     playbackProgress: PlaybackProgressState,
     tintColor: Color,
@@ -13833,10 +13864,12 @@ private fun LyricsOverlay(
     secondaryContentColor: Color,
     onSeekTo: (Long) -> Unit,
     onHideLyrics: () -> Unit,
+    onSaveLyrics: (String) -> Unit,
+    onClearLyricsEditorError: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
     val copy = remember(language) { rootUiCopy(language) }
-    BackHandler(onBack = onHideLyrics)
+    val focusManager = LocalFocusManager.current
     val scope = rememberCoroutineScope()
     val hideButtonArea = 112.dp
     val lyricsBottomBlurArea = 72.dp
@@ -13846,6 +13879,36 @@ private fun LyricsOverlay(
     var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
     var autoScrollResumeJob by remember(song?.id) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     var userLyricsScrollActive by remember(song?.id) { mutableStateOf(false) }
+    var isEditingLyrics by remember(song?.id) { mutableStateOf(false) }
+    var lyricsDraft by remember(song?.id) { mutableStateOf("") }
+    var observedSaveRevision by remember(song?.id) {
+        mutableLongStateOf(lyricsEditorUiState.savedRevision)
+    }
+    BackHandler {
+        if (isEditingLyrics) {
+            isEditingLyrics = false
+            onClearLyricsEditorError()
+        } else {
+            onHideLyrics()
+        }
+    }
+
+    LaunchedEffect(lyricsUiState, song?.id, isEditingLyrics) {
+        if (!isEditingLyrics) {
+            lyricsDraft = (lyricsUiState as? LyricsUiState.Ready)
+                ?.payload
+                ?.lines
+                ?.joinToString("\n") { it.text }
+                .orEmpty()
+        }
+    }
+    LaunchedEffect(lyricsEditorUiState.savedRevision) {
+        if (lyricsEditorUiState.savedRevision > observedSaveRevision) {
+            observedSaveRevision = lyricsEditorUiState.savedRevision
+            isEditingLyrics = false
+            focusManager.clearFocus(force = true)
+        }
+    }
 
     LaunchedEffect(listState.isScrollInProgress, userLyricsScrollActive) {
         if (userLyricsScrollActive && !listState.isScrollInProgress) {
@@ -13902,42 +13965,79 @@ private fun LyricsOverlay(
                     .navigationBarsPadding()
                     .padding(horizontal = 20.dp, vertical = 18.dp),
             ) {
-                song?.let {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(0.75f),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_circle_play),
-                            contentDescription = null,
-                            tint = secondaryContentColor,
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                            horizontalAlignment = Alignment.Start,
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    song?.let {
+                        Row(
+                            modifier = Modifier.weight(1f),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = it.title,
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontSize = elovaireScaledSp(17f),
-                                    fontWeight = FontWeight.Medium,
-                                ),
-                                color = contentColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_circle_play),
+                                contentDescription = null,
+                                tint = secondaryContentColor,
+                                modifier = Modifier.size(18.dp),
                             )
-                            Text(
-                                text = it.artist,
-                                style = MaterialTheme.typography.labelLarge.copy(
-                                    fontSize = elovaireScaledSp(15f),
-                                ),
-                                color = secondaryContentColor,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Column(
+                                modifier = Modifier.fillMaxWidth(0.75f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                                horizontalAlignment = Alignment.Start,
+                            ) {
+                                Text(
+                                    text = it.title,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = elovaireScaledSp(17f),
+                                        fontWeight = FontWeight.Medium,
+                                    ),
+                                    color = contentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                                Text(
+                                    text = it.artist,
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = elovaireScaledSp(15f),
+                                    ),
+                                    color = secondaryContentColor,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
                         }
+                    }
+                    ElovaireAnimatedVisibility(
+                        visible = isEditingLyrics || lyricsUiState is LyricsUiState.Ready,
+                        enter = ElovaireMotion.contextMenuEnter(),
+                        exit = ElovaireMotion.contextMenuExit(),
+                        label = "lyrics_edit_action_visibility",
+                    ) {
+                        LyricsEditorActionButton(
+                            iconResId = if (isEditingLyrics) {
+                                R.drawable.ic_lucide_check
+                            } else {
+                                R.drawable.ic_lucide_square_pen
+                            },
+                            contentDescription = if (isEditingLyrics) copy.save else "Edit lyrics",
+                            tint = contentColor,
+                            enabled = !lyricsEditorUiState.isSaving && (!isEditingLyrics || lyricsDraft.isNotBlank()),
+                            onClick = {
+                                if (isEditingLyrics) {
+                                    onSaveLyrics(lyricsDraft)
+                                } else {
+                                    lyricsDraft = (lyricsUiState as? LyricsUiState.Ready)
+                                        ?.payload
+                                        ?.lines
+                                        ?.joinToString("\n") { line -> line.text }
+                                        .orEmpty()
+                                    onClearLyricsEditorError()
+                                    isEditingLyrics = true
+                                }
+                            },
+                        )
                     }
                 }
 
@@ -13962,7 +14062,7 @@ private fun LyricsOverlay(
                         .weight(1f),
                 ) {
                     AnimatedContent(
-                        targetState = lyricsUiState,
+                        targetState = isEditingLyrics,
                         transitionSpec = {
                             fadeIn(animationSpec = tween(ElovaireMotion.Standard, easing = LinearOutSlowInEasing)) +
                                 slideInVertically(
@@ -13975,10 +14075,20 @@ private fun LyricsOverlay(
                                 ) togetherWith
                                 fadeOut(animationSpec = tween(ElovaireMotion.Quick, easing = FastOutLinearInEasing))
                         },
-                        contentKey = { state -> state::class },
-                        label = "lyrics_content_state",
-                    ) { state ->
-                        when (state) {
+                        contentKey = { it },
+                        label = "lyrics_editor_state",
+                    ) { editing ->
+                        if (editing) {
+                            LyricsTextEditor(
+                                value = lyricsDraft,
+                                onValueChange = {
+                                    lyricsDraft = it
+                                    onClearLyricsEditorError()
+                                },
+                                contentColor = contentColor,
+                                errorMessage = lyricsEditorUiState.errorMessage,
+                            )
+                        } else when (val state = lyricsUiState) {
                             LyricsUiState.Hidden -> Unit
                             LyricsUiState.Loading -> {
                                 Box(
@@ -13998,20 +14108,36 @@ private fun LyricsOverlay(
                                     modifier = Modifier.fillMaxSize(),
                                     contentAlignment = Alignment.Center,
                                 ) {
-                                    Row(
-                                        verticalAlignment = Alignment.CenterVertically,
-                                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(24.dp),
                                     ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.ic_lucide_info),
-                                            contentDescription = null,
-                                            tint = contentColor.copy(alpha = 0.7f),
-                                            modifier = Modifier.size(18.dp),
-                                        )
-                                        Text(
-                                            text = copy.noLyrics,
-                                            style = MaterialTheme.typography.titleLarge,
-                                            color = contentColor,
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                        ) {
+                                            Icon(
+                                                painter = painterResource(id = R.drawable.ic_lucide_info),
+                                                contentDescription = null,
+                                                tint = contentColor.copy(alpha = 0.7f),
+                                                modifier = Modifier.size(18.dp),
+                                            )
+                                            Text(
+                                                text = copy.noLyrics,
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = contentColor,
+                                                textAlign = TextAlign.Center,
+                                            )
+                                        }
+                                        LyricsEditorActionButton(
+                                            iconResId = R.drawable.ic_lucide_plus,
+                                            contentDescription = "Add lyrics",
+                                            tint = contentColor,
+                                            onClick = {
+                                                lyricsDraft = ""
+                                                onClearLyricsEditorError()
+                                                isEditingLyrics = true
+                                            },
                                         )
                                     }
                                 }
@@ -14071,54 +14197,145 @@ private fun LyricsOverlay(
                         },
                 )
             }
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(
-                                Color.Transparent,
-                                tintColor.copy(alpha = 0.08f),
-                                tintColor.copy(alpha = 0.28f),
-                                tintColor.copy(alpha = 0.62f),
-                                tintColor.copy(alpha = 0.96f),
-                            ),
-                        ),
-                    ),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(lyricsBottomBlurArea)
-                    .offset(y = (-6).dp)
-                    .padding(horizontal = 20.dp)
-                    .zIndex(4f),
-                contentAlignment = Alignment.Center,
+            ElovaireAnimatedVisibility(
+                visible = !isEditingLyrics,
+                enter = ElovaireMotion.standardEnter(),
+                exit = ElovaireMotion.standardExit(),
+                label = "hide_lyrics_action_visibility",
             ) {
-                Surface(
-                    onClick = onHideLyrics,
-                    shape = RoundedCornerShape(ElovaireRadii.pill),
-                    color = contentColor.copy(alpha = 0.18f),
-                    contentColor = contentColor,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Box(modifier = Modifier.matchParentSize()) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        Color.Transparent,
+                                        tintColor.copy(alpha = 0.08f),
+                                        tintColor.copy(alpha = 0.28f),
+                                        tintColor.copy(alpha = 0.62f),
+                                        tintColor.copy(alpha = 0.96f),
+                                    ),
+                                ),
+                            ),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .height(lyricsBottomBlurArea)
+                            .offset(y = (-6).dp)
+                            .padding(horizontal = 20.dp)
+                            .zIndex(4f),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_eye_off),
-                            contentDescription = copy.hideLyrics,
-                            modifier = Modifier.size(15.dp),
-                        )
-                        Text(
-                            text = copy.hideLyrics,
-                            style = MaterialTheme.typography.labelLarge,
-                        )
+                        Surface(
+                            onClick = onHideLyrics,
+                            shape = RoundedCornerShape(ElovaireRadii.pill),
+                            color = contentColor.copy(alpha = 0.18f),
+                            contentColor = contentColor,
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ic_lucide_eye_off),
+                                    contentDescription = copy.hideLyrics,
+                                    modifier = Modifier.size(15.dp),
+                                )
+                                Text(
+                                    text = copy.hideLyrics,
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
+                        }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LyricsEditorActionButton(
+    @DrawableRes iconResId: Int,
+    contentDescription: String,
+    tint: Color,
+    enabled: Boolean = true,
+    onClick: () -> Unit,
+) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) 0.88f else 1f,
+        animationSpec = ElovaireMotion.releaseSpringSpec(),
+        label = "lyrics_editor_action_scale",
+    )
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .scale(scale)
+            .clip(CircleShape)
+            .background(tint.copy(alpha = if (enabled) 0.2f else 0.08f))
+            .clickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(iconResId),
+            contentDescription = contentDescription,
+            tint = tint.copy(alpha = if (enabled) 1f else 0.4f),
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
+@Composable
+private fun LyricsTextEditor(
+    value: String,
+    onValueChange: (String) -> Unit,
+    contentColor: Color,
+    errorMessage: String?,
+) {
+    val scrollState = rememberScrollState()
+    val focusRequester = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        withFrameNanos { }
+        focusRequester.requestFocus()
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        BasicTextField(
+            value = value,
+            onValueChange = onValueChange,
+            textStyle = MaterialTheme.typography.titleLarge.copy(
+                color = contentColor,
+                fontWeight = FontWeight.Medium,
+                lineHeight = elovaireScaledSp(30f),
+            ),
+            cursorBrush = SolidColor(contentColor),
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+                .focusRequester(focusRequester)
+                .verticalScroll(scrollState),
+        )
+        if (!errorMessage.isNullOrBlank()) {
+            Text(
+                text = errorMessage,
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor.copy(alpha = 0.7f),
+            )
         }
     }
 }
