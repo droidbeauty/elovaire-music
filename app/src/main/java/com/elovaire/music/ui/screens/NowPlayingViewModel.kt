@@ -50,7 +50,7 @@ internal data class PlayerUiState(
     val shuffleEnabled: Boolean = false,
     val volume: Float = 1f,
     val sourceLabel: String? = null,
-    val gaplessPlaybackEnabled: Boolean = true,
+    val gaplessPlaybackEnabled: Boolean = false,
 )
 
 internal data class MiniPlayerUiState(

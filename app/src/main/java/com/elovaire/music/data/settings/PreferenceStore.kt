@@ -526,7 +526,7 @@ class PreferenceStore(context: Context) {
     }
 
     private fun loadGaplessPlaybackEnabled(): Boolean {
-        return preferences.getBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, true)
+        return preferences.getBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, false)
     }
 
     private fun loadAlbumCollectionLayoutMode(): String {
