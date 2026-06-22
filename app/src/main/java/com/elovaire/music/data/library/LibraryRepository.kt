@@ -7,6 +7,7 @@ import android.os.Build
 import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -73,6 +74,7 @@ class LibraryRepository(
     appContext: Context,
     private val scanner: MediaStoreScanner,
     private val scope: CoroutineScope,
+    private val appForegroundState: StateFlow<Boolean>,
 ) {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val contentResolver = appContext.contentResolver
@@ -86,6 +88,8 @@ class LibraryRepository(
     private val pendingTargetedIndexRefreshPaths = linkedSetOf<String>()
     private var pendingMetadataEnrichment = false
     private var suppressObserverRefreshUntilMs = 0L
+    private var backgroundLibraryDirty = false
+    private val recentObservedPaths = linkedMapOf<String, Long>()
     private val pendingDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
     private val pendingDeletedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
     private val confirmedDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
@@ -110,6 +114,21 @@ class LibraryRepository(
     )
     private var musicDirectoryObserver: RecursiveMusicDirectoryObserver? = null
     private var mediaObserverRegistered = false
+
+    init {
+        scope.launch {
+            appForegroundState.collect { isForeground ->
+                if (isForeground && backgroundLibraryDirty && _scanState.value.permissionGranted) {
+                    backgroundLibraryDirty = false
+                    refresh(
+                        forceMediaIndex = pendingIndexRefresh,
+                        enrichMetadata = false,
+                        showLoadingIndicator = false,
+                    )
+                }
+            }
+        }
+    }
 
     private val mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
@@ -537,12 +556,20 @@ class LibraryRepository(
     ) {
         if (!_scanState.value.permissionGranted) return
         if (System.currentTimeMillis() < suppressObserverRefreshUntilMs) return
+        val normalizedChangedPath = changedFilePath
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        if (!forceMediaIndex && normalizedChangedPath != null && shouldCoalesceObservedPath(normalizedChangedPath)) {
+            backgroundLibraryDirty = backgroundLibraryDirty || !appForegroundState.value
+            return
+        }
         pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
         if (!forceMediaIndex) {
-            changedFilePath
-                ?.trim()
-                ?.takeIf { it.isNotBlank() }
-                ?.let(pendingTargetedIndexRefreshPaths::add)
+            normalizedChangedPath?.let(pendingTargetedIndexRefreshPaths::add)
+        }
+        if (!appForegroundState.value) {
+            backgroundLibraryDirty = true
+            return
         }
         refreshDebounceJob?.cancel()
         refreshDebounceJob = scope.launch {
@@ -575,6 +602,16 @@ class LibraryRepository(
                 ensureMusicDirectoryObserver(forceRebuild = true)
             }
         }
+    }
+
+    private fun shouldCoalesceObservedPath(path: String): Boolean {
+        val nowMs = SystemClock.elapsedRealtime()
+        recentObservedPaths.entries.removeIf { (_, observedAtMs) ->
+            nowMs - observedAtMs > OBSERVED_PATH_COALESCE_WINDOW_MS
+        }
+        val lastObservedAtMs = recentObservedPaths[path]
+        recentObservedPaths[path] = nowMs
+        return lastObservedAtMs != null && nowMs - lastObservedAtMs < OBSERVED_PATH_COALESCE_WINDOW_MS
     }
 
     private fun createMusicDirectoryObserver(): RecursiveMusicDirectoryObserver? {
@@ -658,6 +695,7 @@ class LibraryRepository(
         const val DELETE_EXIT_ANIMATION_MS = 190L
         const val DELETE_CONFIRMATION_DELAY_MS = 500L
         const val DELETE_OBSERVER_SUPPRESSION_MS = 1_200L
+        const val OBSERVED_PATH_COALESCE_WINDOW_MS = 900L
         const val OBSERVER_MASK =
             FileObserver.CREATE or
                 FileObserver.CLOSE_WRITE or
@@ -693,6 +731,8 @@ class LibraryRepository(
         pendingTargetedIndexRefreshPaths.clear()
         pendingMetadataEnrichment = false
         suppressObserverRefreshUntilMs = 0L
+        backgroundLibraryDirty = false
+        recentObservedPaths.clear()
         pendingDeletedSongIds.value = emptySet()
         pendingDeletedAlbumIds.value = emptySet()
         confirmedDeletedSongIds.value = emptySet()

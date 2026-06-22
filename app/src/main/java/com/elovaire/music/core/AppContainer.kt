@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.annotation.SuppressLint
+import android.app.Application
 import android.content.Context
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
@@ -30,6 +31,7 @@ class AppContainer(
     appContext: Context,
 ) {
     private val applicationContext = appContext.applicationContext
+    private val appForegroundTracker = AppForegroundTracker(applicationContext as Application)
     private val appJob = SupervisorJob()
     private val appScope = CoroutineScope(appJob + Dispatchers.Main.immediate)
 
@@ -38,6 +40,7 @@ class AppContainer(
         context = applicationContext,
         scope = appScope,
         preferenceStore = preferenceStore,
+        appForegroundState = appForegroundTracker.isForeground,
     )
     val lyricsService = LyricsService(applicationContext)
     internal val albumTagEditorService = AlbumTagEditorService(applicationContext)
@@ -58,6 +61,7 @@ class AppContainer(
         appContext = applicationContext,
         scanner = MediaStoreScanner(applicationContext),
         scope = appScope,
+        appForegroundState = appForegroundTracker.isForeground,
     ).also { repository ->
         repository.setPreferredLibraryFolderPath(preferenceStore.libraryFolderPath.value)
     }
@@ -69,7 +73,9 @@ class AppContainer(
         appScope.launch {
             preferenceStore.eqSettings.debounce(40L).collect { settings ->
                 playbackEffectsController.applyEffectSettings(settings)
-                playbackManager.reevaluateAudioOutputPath()
+                if (playbackManager.hasActiveQueue()) {
+                    playbackManager.reevaluateAudioOutputPath()
+                }
             }
         }
         appScope.launch {
@@ -77,17 +83,18 @@ class AppContainer(
                 .map { it.currentSong?.id to it.currentSong?.albumId }
                 .distinctUntilChanged()
                 .collect { (songId, albumId) ->
-                    preferenceStore.recordPlaybackTransition(
-                        songId = songId,
-                        albumId = albumId,
-                    )
+                    preferenceStore.recordPlaybackTransition(songId, albumId)
                 }
         }
         appScope.launch {
             libraryRepository.contentState
                 .map { it.songs }
                 .distinctUntilChanged()
-                .collect(playbackManager::refreshQueuedLibraryMetadata)
+                .collect { songs ->
+                    if (playbackManager.hasActiveQueue()) {
+                        playbackManager.refreshQueuedLibraryMetadata(songs)
+                    }
+                }
         }
         appScope.launch {
             preferenceStore.gaplessPlaybackEnabled

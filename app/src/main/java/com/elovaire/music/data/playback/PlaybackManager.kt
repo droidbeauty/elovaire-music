@@ -191,6 +191,9 @@ class PlaybackManager(
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var gaplessPlaybackEnabled = true
+    private var volumeObserverRegistered = false
+    private var audioDeviceCallbackRegistered = false
+    private var noisyReceiverRegistered = false
     private var player = createPlayer(enableSignalProcessing = true)
     private var commandGatewayPlayer: Player = PlaybackCommandPlayer(player)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
@@ -458,27 +461,25 @@ class PlaybackManager(
     init {
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
         refreshUsbAudioOutputState()
-        appContext.contentResolver.registerContentObserver(
-            Settings.System.CONTENT_URI,
-            true,
-            systemVolumeObserver,
-            )
-        audioManager?.registerAudioDeviceCallback(audioDeviceCallback, Handler(Looper.getMainLooper()))
-        registerBecomingNoisyReceiver()
         applyPreferredAudioDeviceIfNeeded(force = true)
         attachPlayerObservers(player)
         syncFromObservedSystemVolume()
         player.volume = effectivePlayerGain()
-
+        syncRuntimeObservers()
         syncProgressUpdateLoop()
     }
 
     fun reevaluateAudioOutputPath() {
+        if (!hasActiveQueue()) return
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
         refreshUsbAudioOutputState()
         scheduleAudioPathReevaluation("effects-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
         updateState()
+    }
+
+    fun hasActiveQueue(): Boolean {
+        return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
     }
 
     fun playSong(
@@ -537,15 +538,6 @@ class PlaybackManager(
                 origin = PlaybackCommandOrigin.ExternalController,
             )
         }
-    }
-
-    private fun registerBecomingNoisyReceiver() {
-        ContextCompat.registerReceiver(
-            appContext,
-            becomingNoisyReceiver,
-            IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
     }
 
     private fun attachPlayerObservers(target: ExoPlayer) {
@@ -857,9 +849,9 @@ class PlaybackManager(
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
-        appContext.contentResolver.unregisterContentObserver(systemVolumeObserver)
-        audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback)
-        runCatching { appContext.unregisterReceiver(becomingNoisyReceiver) }
+        setNoisyReceiverRegistered(false)
+        setAudioDeviceCallbackRegistered(false)
+        setVolumeObserverRegistered(false)
         detachPlayerObservers(player)
         mediaSession.release()
         player.release()
@@ -881,6 +873,7 @@ class PlaybackManager(
         hasUsbOutputRoute = currentUsbOutput != null
         usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutput)
         bitPerfectUsbManager.refreshConnectedDevices()
+        syncRuntimeObservers()
     }
 
     private fun applyPreferredAudioDeviceIfNeeded(force: Boolean = false) {
@@ -1065,6 +1058,7 @@ class PlaybackManager(
             sourcePlaylistId = null,
         )
         _progressState.value = playbackProgressController.clear()
+        syncRuntimeObservers()
         syncProgressUpdateLoop()
         resetUnexpectedIdleRecoveryGuard()
         isStoppingQueue = false
@@ -1145,6 +1139,7 @@ class PlaybackManager(
                 )
             }
         }
+        syncRuntimeObservers()
         publishProgressSnapshot()
     }
 
@@ -1399,7 +1394,7 @@ class PlaybackManager(
     }
 
     private fun syncProgressUpdateLoop() {
-        val shouldPoll = player.isPlaying || playbackProgressController.needsActivePolling()
+        val shouldPoll = hasActiveQueue() && (player.isPlaying || playbackProgressController.needsActivePolling())
         if (!shouldPoll) {
             progressUpdateJob?.cancel()
             progressUpdateJob = null
@@ -1441,7 +1436,13 @@ class PlaybackManager(
     private fun scheduleExternalInterruptionResumeWatch() {
         if (!pendingResumeAfterExternalInterruption || externalInterruptionResumeJob?.isActive == true) return
         externalInterruptionResumeJob = scope.launch {
+            val startedAtMs = SystemClock.elapsedRealtime()
             while (isActive && pendingResumeAfterExternalInterruption) {
+                val elapsedMs = SystemClock.elapsedRealtime() - startedAtMs
+                if (elapsedMs >= EXTERNAL_INTERRUPTION_MAX_WATCH_MS) {
+                    clearInterruptionResumeState()
+                    break
+                }
                 if (
                     _state.value.queue.isEmpty() ||
                     isManualPausePending ||
@@ -1455,9 +1456,63 @@ class PlaybackManager(
                     dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.AudioInterruption)
                     break
                 }
-                delay(EXTERNAL_INTERRUPTION_RESUME_DELAY_MS)
+                delay(
+                    if (elapsedMs < EXTERNAL_INTERRUPTION_FAST_WATCH_MS) {
+                        EXTERNAL_INTERRUPTION_FAST_DELAY_MS
+                    } else {
+                        EXTERNAL_INTERRUPTION_BACKOFF_DELAY_MS
+                    },
+                )
             }
         }
+    }
+
+    private fun syncRuntimeObservers() {
+        val hasQueue = hasActiveQueue()
+        val wantsPlaybackRuntime = hasQueue || player.isPlaying || player.playWhenReady
+        val wantsNoisyReceiver = player.isPlaying || player.playWhenReady
+        setVolumeObserverRegistered(wantsPlaybackRuntime)
+        setAudioDeviceCallbackRegistered(wantsPlaybackRuntime || hasUsbOutputRoute)
+        setNoisyReceiverRegistered(wantsNoisyReceiver)
+    }
+
+    private fun setVolumeObserverRegistered(registered: Boolean) {
+        if (volumeObserverRegistered == registered) return
+        if (registered) {
+            appContext.contentResolver.registerContentObserver(
+                Settings.System.CONTENT_URI,
+                true,
+                systemVolumeObserver,
+            )
+        } else {
+            runCatching { appContext.contentResolver.unregisterContentObserver(systemVolumeObserver) }
+        }
+        volumeObserverRegistered = registered
+    }
+
+    private fun setAudioDeviceCallbackRegistered(registered: Boolean) {
+        if (audioDeviceCallbackRegistered == registered) return
+        if (registered) {
+            audioManager?.registerAudioDeviceCallback(audioDeviceCallback, playbackHandler)
+        } else {
+            runCatching { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) }
+        }
+        audioDeviceCallbackRegistered = registered
+    }
+
+    private fun setNoisyReceiverRegistered(registered: Boolean) {
+        if (noisyReceiverRegistered == registered) return
+        if (registered) {
+            ContextCompat.registerReceiver(
+                appContext,
+                becomingNoisyReceiver,
+                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                ContextCompat.RECEIVER_NOT_EXPORTED,
+            )
+        } else {
+            runCatching { appContext.unregisterReceiver(becomingNoisyReceiver) }
+        }
+        noisyReceiverRegistered = registered
     }
 
     private fun hasActiveExternalMediaPlayback(): Boolean {
@@ -1668,7 +1723,10 @@ class PlaybackManager(
         const val MAX_HISTORY_ITEMS = 12
         const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
-        const val EXTERNAL_INTERRUPTION_RESUME_DELAY_MS = 350L
+        const val EXTERNAL_INTERRUPTION_FAST_WATCH_MS = 10_000L
+        const val EXTERNAL_INTERRUPTION_MAX_WATCH_MS = 5 * 60_000L
+        const val EXTERNAL_INTERRUPTION_FAST_DELAY_MS = 500L
+        const val EXTERNAL_INTERRUPTION_BACKOFF_DELAY_MS = 3_000L
         const val MAX_UNEXPECTED_IDLE_RECOVERY_ATTEMPTS = 3
         const val UNEXPECTED_IDLE_RECOVERY_WINDOW_MS = 10_000L
         const val TAG = "PlaybackManager"

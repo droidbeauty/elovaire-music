@@ -53,6 +53,7 @@ class AppUpdateManager(
     private val context: Context,
     private val scope: CoroutineScope,
     private val preferenceStore: PreferenceStore,
+    private val appForegroundState: StateFlow<Boolean>,
 ) {
     private val appContext = context.applicationContext
     private val _uiState = MutableStateFlow(AppUpdateUiState())
@@ -62,7 +63,19 @@ class AppUpdateManager(
     private var startupCleanupJob: Job? = null
     private var startupUpdateCheckJob: Job? = null
     private var startupMaintenanceScheduled = false
+    private var pendingAutomaticStartupCheck = false
     private var pendingInstallApk: File? = null
+
+    init {
+        scope.launch {
+            appForegroundState.collect { isForeground ->
+                if (isForeground && pendingAutomaticStartupCheck) {
+                    pendingAutomaticStartupCheck = false
+                    checkForUpdates()
+                }
+            }
+        }
+    }
 
     fun checkForUpdates(force: Boolean = false) {
         if (checkJob?.isActive == true || _uiState.value.isDownloading || _uiState.value.isInstalling) return
@@ -251,7 +264,11 @@ class AppUpdateManager(
         }
         startupUpdateCheckJob = scope.launch {
             kotlinx.coroutines.delay(STARTUP_UPDATE_CHECK_DELAY_MS)
-            checkForUpdates()
+            if (appForegroundState.value) {
+                checkForUpdates()
+            } else {
+                pendingAutomaticStartupCheck = true
+            }
         }
     }
 

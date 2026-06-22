@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 const val EXTRA_OPEN_PLAYER_FROM_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.OPEN_PLAYER_FROM_NOTIFICATION"
@@ -46,6 +47,7 @@ class PlaybackNotificationController(
     private val scope: CoroutineScope,
 ) {
     private val pendingArtworkLoads = linkedMapOf<String, Job>()
+    private val notificationJobs = mutableListOf<Job>()
 
     init {
         NotificationArtworkCache.ensureRegistered(context.applicationContext)
@@ -65,7 +67,8 @@ class PlaybackNotificationController(
                     notification: android.app.Notification,
                     ongoing: Boolean,
                 ) {
-                    if (ongoing || playbackManager.state.value.currentSong != null) {
+                    val state = playbackManager.state.value
+                    if (ongoing && state.transportShowsPause && state.currentSong != null) {
                         PlaybackKeepAliveService.start(context, notificationId, notification)
                     } else {
                         PlaybackKeepAliveService.stop(context)
@@ -107,8 +110,9 @@ class PlaybackNotificationController(
     private var lastManualPlaybackStartVersion = 0L
     private var attachedPlayer: Player? = null
 
-    init {
-        scope.launch {
+    private fun startNotificationCollectorsIfNeeded() {
+        if (notificationJobs.any { it.isActive }) return
+        notificationJobs += scope.launch {
             playbackManager.manualPlaybackStartVersion.collect { version ->
                 if (version == lastManualPlaybackStartVersion) return@collect
                 lastManualPlaybackStartVersion = version
@@ -119,7 +123,7 @@ class PlaybackNotificationController(
                 }
             }
         }
-        scope.launch {
+        notificationJobs += scope.launch {
             playbackManager.playerInstanceVersion.collect {
                 if (!notificationsEnabled) return@collect
                 val currentState = playbackManager.state.value
@@ -128,7 +132,7 @@ class PlaybackNotificationController(
                 }
             }
         }
-        scope.launch {
+        notificationJobs += scope.launch {
             combine(
                 playbackManager.nowPlayingState,
                 playbackManager.transportState,
@@ -186,18 +190,30 @@ class PlaybackNotificationController(
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
+        if (notificationsEnabled == enabled) return
         notificationsEnabled = enabled
         if (!enabled) {
-            pauseHideJob?.cancel()
+            stopNotificationCollectors()
             updateNotificationPlayer(null)
+            PlaybackKeepAliveService.stop(context)
             return
         }
+        startNotificationCollectorsIfNeeded()
         val currentState = playbackManager.state.value
         if (shouldShowNotification(currentState)) {
             updateNotificationPlayer(playbackManager.playerInstance)
         } else {
             updateNotificationPlayer(null)
         }
+    }
+
+    private fun stopNotificationCollectors() {
+        notificationJobs.forEach(Job::cancel)
+        notificationJobs.clear()
+        pauseHideJob?.cancel()
+        pauseHideJob = null
+        pendingArtworkLoads.values.forEach(Job::cancel)
+        pendingArtworkLoads.clear()
     }
 
     private fun shouldShowNotification(currentState: PlaybackUiState): Boolean {
@@ -284,14 +300,25 @@ class PlaybackNotificationController(
         uri: Uri,
         callback: PlayerNotificationManager.BitmapCallback,
     ) {
+        if (!notificationsEnabled) return
         val cacheKey = uri.toString()
         if (pendingArtworkLoads[cacheKey]?.isActive == true) return
         pendingArtworkLoads[cacheKey] = scope.launch(Dispatchers.IO) {
-            val bitmap = loadBitmap(context, uri)
-            withContext(Dispatchers.Main.immediate) {
-                pendingArtworkLoads.remove(cacheKey)
-                if (bitmap != null && playbackManager.state.value.currentSong?.artUri == uri) {
-                    callback.onBitmap(bitmap)
+            try {
+                if (!notificationsEnabled) return@launch
+                val bitmap = loadBitmap(context, uri)
+                withContext(Dispatchers.Main.immediate) {
+                    if (
+                        notificationsEnabled &&
+                        bitmap != null &&
+                        playbackManager.state.value.currentSong?.artUri == uri
+                    ) {
+                        callback.onBitmap(bitmap)
+                    }
+                }
+            } finally {
+                withContext(NonCancellable + Dispatchers.Main.immediate) {
+                    pendingArtworkLoads.remove(cacheKey)
                 }
             }
         }

@@ -29,6 +29,7 @@ class PlaybackKeepAliveService : Service() {
                     PlaybackNotificationController.NOTIFICATION_ID,
                 )
                 if (notification != null) {
+                    markRunning(notificationId)
                     PlaybackNotificationController.ensureNotificationChannel(this)
                     runCatching {
                         ServiceCompat.startForeground(
@@ -39,6 +40,7 @@ class PlaybackKeepAliveService : Service() {
                         )
                     }.onFailure { throwable ->
                         logStartFailure("Unable to promote playback service to foreground", throwable)
+                        clearRunningState()
                         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && throwable is ForegroundServiceStartNotAllowedException) {
                             stopSelf()
                         } else {
@@ -60,6 +62,7 @@ class PlaybackKeepAliveService : Service() {
     override fun onBind(intent: Intent?) = null
 
     override fun onDestroy() {
+        clearRunningState()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }
@@ -75,6 +78,7 @@ class PlaybackKeepAliveService : Service() {
             notificationId: Int,
             notification: Notification,
         ) {
+            if (isRunningFor(notificationId)) return
             val intent = Intent(context, PlaybackKeepAliveService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_NOTIFICATION_ID, notificationId)
@@ -88,7 +92,23 @@ class PlaybackKeepAliveService : Service() {
         }
 
         fun stop(context: Context) {
+            clearRunningState()
             context.stopService(Intent(context, PlaybackKeepAliveService::class.java))
+        }
+
+        @Volatile
+        private var runningNotificationId: Int? = null
+
+        private fun isRunningFor(notificationId: Int): Boolean {
+            return runningNotificationId == notificationId
+        }
+
+        private fun markRunning(notificationId: Int) {
+            runningNotificationId = notificationId
+        }
+
+        private fun clearRunningState() {
+            runningNotificationId = null
         }
 
         private fun logStartFailure(
