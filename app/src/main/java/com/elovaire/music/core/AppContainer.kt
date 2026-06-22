@@ -77,12 +77,10 @@ class AppContainer(
                 .map { it.currentSong?.id to it.currentSong?.albumId }
                 .distinctUntilChanged()
                 .collect { (songId, albumId) ->
-                    if (songId != null) {
-                        preferenceStore.incrementSongPlayCount(songId)
-                    }
-                    if (albumId != null) {
-                        preferenceStore.incrementAlbumPlayCount(albumId)
-                    }
+                    preferenceStore.recordPlaybackTransition(
+                        songId = songId,
+                        albumId = albumId,
+                    )
                 }
         }
         appScope.launch {

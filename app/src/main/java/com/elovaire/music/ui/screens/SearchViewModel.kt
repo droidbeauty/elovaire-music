@@ -225,6 +225,14 @@ internal class SearchViewModel(
             val matchingArtists: List<SearchArtistResult> = emptyList(),
         )
 
+        data class SuggestedAlbumCandidate(
+            val album: Album,
+            val playCount: Int,
+            val isRecent: Boolean,
+            val normalizedArtist: String,
+            val normalizedTitle: String,
+        )
+
         fun buildSearchResults(
             query: NormalizedSearchQuery,
             sortMode: SearchSongSortMode,
@@ -311,26 +319,33 @@ internal class SearchViewModel(
             recentAlbumIds: List<Long>,
         ): List<Album> {
             val recentAlbumIdSet = recentAlbumIds.toSet()
-            val rarePlayedAlbums = albums
-                .mapNotNull { album ->
-                    val playCount = albumPlayCounts[album.id] ?: 0
-                    if (playCount > 0) album to playCount else null
-                }
-                .sortedWith(
-                    compareBy<Pair<Album, Int>> { it.second }
-                        .thenBy { album -> if (album.first.id in recentAlbumIdSet) 1 else 0 }
-                        .thenBy { normalizeSearchText(it.first.artist) }
-                        .thenBy { normalizeSearchText(it.first.title) },
+            val sortableAlbums = albums.map { album ->
+                SuggestedAlbumCandidate(
+                    album = album,
+                    playCount = albumPlayCounts[album.id] ?: 0,
+                    isRecent = album.id in recentAlbumIdSet,
+                    normalizedArtist = normalizeSearchText(album.artist),
+                    normalizedTitle = normalizeSearchText(album.title),
                 )
-                .map { it.first }
+            }
+            val rarePlayedAlbums = sortableAlbums
+                .filter { it.playCount > 0 }
+                .sortedWith(
+                    compareBy<SuggestedAlbumCandidate> { it.playCount }
+                        .thenBy { if (it.isRecent) 1 else 0 }
+                        .thenBy(SuggestedAlbumCandidate::normalizedArtist)
+                        .thenBy(SuggestedAlbumCandidate::normalizedTitle),
+                )
+                .map(SuggestedAlbumCandidate::album)
 
-            val neverPlayedAlbums = albums
-                .filter { (albumPlayCounts[it.id] ?: 0) == 0 }
+            val neverPlayedAlbums = sortableAlbums
+                .filter { it.playCount == 0 }
                 .sortedWith(
-                    compareBy<Album> { if (it.id in recentAlbumIdSet) 1 else 0 }
-                        .thenBy { normalizeSearchText(it.artist) }
-                        .thenBy { normalizeSearchText(it.title) },
+                    compareBy<SuggestedAlbumCandidate> { if (it.isRecent) 1 else 0 }
+                        .thenBy(SuggestedAlbumCandidate::normalizedArtist)
+                        .thenBy(SuggestedAlbumCandidate::normalizedTitle),
                 )
+                .map(SuggestedAlbumCandidate::album)
 
             return buildList {
                 (rarePlayedAlbums + neverPlayedAlbums).forEach { album ->

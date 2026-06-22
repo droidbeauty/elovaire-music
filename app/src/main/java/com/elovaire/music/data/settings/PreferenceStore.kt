@@ -95,6 +95,7 @@ class PreferenceStore(context: Context) {
     val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
 
     fun setThemeMode(themeMode: ThemeMode) {
+        if (_themeMode.value == themeMode) return
         preferences.edit {
             putString(KEY_THEME_MODE, themeMode.name)
         }
@@ -102,6 +103,7 @@ class PreferenceStore(context: Context) {
     }
 
     fun setTextSizePreset(textSizePreset: TextSizePreset) {
+        if (_textSizePreset.value == textSizePreset) return
         preferences.edit {
             putString(KEY_TEXT_SIZE_PRESET, textSizePreset.name)
         }
@@ -109,6 +111,7 @@ class PreferenceStore(context: Context) {
     }
 
     fun setAppLanguage(language: AppLanguage) {
+        if (_appLanguage.value == language) return
         preferences.edit {
             putString(KEY_APP_LANGUAGE, language.name)
         }
@@ -130,6 +133,7 @@ class PreferenceStore(context: Context) {
                 .take(MAX_SEARCH_HISTORY - 1)
                 .forEach(::add)
         }
+        if (_searchHistory.value == updated) return
         preferences.edit {
             putString(KEY_SEARCH_HISTORY, updated.joinToString(RECORD_SEPARATOR) { it.serialize() })
         }
@@ -137,28 +141,33 @@ class PreferenceStore(context: Context) {
     }
 
     fun clearSearchHistory() {
+        if (_searchHistory.value.isEmpty()) return
         preferences.edit {
             remove(KEY_SEARCH_HISTORY)
         }
         _searchHistory.value = emptyList()
     }
 
-    fun incrementAlbumPlayCount(albumId: Long) {
-        if (albumId <= 0L) return
-        val updated = _albumPlayCounts.value.toMutableMap().apply {
-            this[albumId] = (this[albumId] ?: 0) + 1
-        }.toMap()
-        _albumPlayCounts.value = updated
-        schedulePlaybackHistoryPersistence()
-    }
-
-    fun incrementSongPlayCount(songId: Long) {
-        if (songId <= 0L) return
-        val updated = _songPlayCounts.value.toMutableMap().apply {
-            this[songId] = (this[songId] ?: 0) + 1
-        }.toMap()
-        _songPlayCounts.value = updated
-        schedulePlaybackHistoryPersistence()
+    fun recordPlaybackTransition(
+        songId: Long?,
+        albumId: Long?,
+    ) {
+        var changed = false
+        if (songId != null && songId > 0L) {
+            _songPlayCounts.value = _songPlayCounts.value.toMutableMap().apply {
+                this[songId] = (this[songId] ?: 0) + 1
+            }.toMap()
+            changed = true
+        }
+        if (albumId != null && albumId > 0L) {
+            _albumPlayCounts.value = _albumPlayCounts.value.toMutableMap().apply {
+                this[albumId] = (this[albumId] ?: 0) + 1
+            }.toMap()
+            changed = true
+        }
+        if (changed) {
+            schedulePlaybackHistoryPersistence()
+        }
     }
 
     fun setRecentPlaybackIds(
@@ -175,10 +184,19 @@ class PreferenceStore(context: Context) {
             .filter { it > 0L }
             .distinct()
             .take(MAX_RECENT_PLAYBACK_IDS)
+        val normalizedCollectionId = lastPlayedCollectionId?.takeIf { it > 0L }
+        if (
+            _recentSongIds.value == normalizedSongIds &&
+            _recentAlbumIds.value == normalizedAlbumIds &&
+            _lastPlayedCollectionKind.value == lastPlayedCollectionKind &&
+            _lastPlayedCollectionId.value == normalizedCollectionId
+        ) {
+            return
+        }
         _recentSongIds.value = normalizedSongIds
         _recentAlbumIds.value = normalizedAlbumIds
         _lastPlayedCollectionKind.value = lastPlayedCollectionKind
-        _lastPlayedCollectionId.value = lastPlayedCollectionId?.takeIf { it > 0L }
+        _lastPlayedCollectionId.value = normalizedCollectionId
         schedulePlaybackHistoryPersistence()
     }
 
@@ -248,11 +266,13 @@ class PreferenceStore(context: Context) {
         favorite: Boolean,
     ) {
         if (songIds.isEmpty()) return
+        val songIdSet = songIds.toSet()
         val updated = if (favorite) {
             (_favoriteSongIds.value + songIds).distinct()
         } else {
-            _favoriteSongIds.value.filterNot { it in songIds.toSet() }
+            _favoriteSongIds.value.filterNot { it in songIdSet }
         }
+        if (_favoriteSongIds.value == updated) return
         persistFavoriteSongIds(updated)
     }
 
@@ -261,8 +281,11 @@ class PreferenceStore(context: Context) {
             playlist.copy(songIds = playlist.songIds.filterNot { it == songId })
         }
         val updatedFavorites = _favoriteSongIds.value.filterNot { it == songId }
-        persistPlaylists(updatedPlaylists)
-        persistFavoriteSongIds(updatedFavorites)
+        if (_userPlaylists.value == updatedPlaylists && _favoriteSongIds.value == updatedFavorites) return
+        persistPlaylistAndFavorites(
+            playlists = updatedPlaylists,
+            favoriteSongIds = updatedFavorites,
+        )
     }
 
     fun updateBand(index: Int, value: Float) {
@@ -346,6 +369,7 @@ class PreferenceStore(context: Context) {
 
     fun setPlaybackVolume(value: Float) {
         val volume = value.coerceIn(0f, 1f)
+        if (_playbackVolume.value == volume) return
         preferences.edit {
             putFloat(KEY_PLAYBACK_VOLUME, volume)
         }
@@ -353,6 +377,7 @@ class PreferenceStore(context: Context) {
     }
 
     fun setGaplessPlaybackEnabled(enabled: Boolean) {
+        if (_gaplessPlaybackEnabled.value == enabled) return
         preferences.edit {
             putBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, enabled)
         }
@@ -361,6 +386,7 @@ class PreferenceStore(context: Context) {
 
     fun setAlbumCollectionLayoutMode(mode: String) {
         val normalizedMode = mode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE }
+        if (_albumCollectionLayoutMode.value == normalizedMode) return
         preferences.edit {
             putString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, normalizedMode)
         }
@@ -368,6 +394,7 @@ class PreferenceStore(context: Context) {
     }
 
     fun setSongCollectionGridEnabled(enabled: Boolean) {
+        if (_songCollectionGridEnabled.value == enabled) return
         preferences.edit {
             putBoolean(KEY_SONG_COLLECTION_GRID_ENABLED, enabled)
         }
@@ -376,6 +403,7 @@ class PreferenceStore(context: Context) {
 
     fun setAlbumCollectionSortMode(sortMode: String) {
         val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_SORT_MODE }
+        if (_albumCollectionSortMode.value == normalizedSortMode) return
         preferences.edit {
             putString(KEY_ALBUM_COLLECTION_SORT_MODE, normalizedSortMode)
         }
@@ -384,6 +412,7 @@ class PreferenceStore(context: Context) {
 
     fun setSongCollectionSortMode(sortMode: String) {
         val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_SONG_COLLECTION_SORT_MODE }
+        if (_songCollectionSortMode.value == normalizedSortMode) return
         preferences.edit {
             putString(KEY_SONG_COLLECTION_SORT_MODE, normalizedSortMode)
         }
@@ -395,9 +424,11 @@ class PreferenceStore(context: Context) {
         path: String,
     ) {
         val normalizedPath = path.trim()
+        val normalizedUri = uri?.toString()
+        if (_libraryFolderUri.value?.toString() == normalizedUri && _libraryFolderPath.value == normalizedPath) return
         preferences.edit {
             if (uri != null) {
-                putString(KEY_LIBRARY_FOLDER_URI, uri.toString())
+                putString(KEY_LIBRARY_FOLDER_URI, normalizedUri)
             } else {
                 remove(KEY_LIBRARY_FOLDER_URI)
             }
@@ -408,14 +439,16 @@ class PreferenceStore(context: Context) {
     }
 
     fun setDismissedUpdateVersion(versionName: String?) {
+        val normalizedVersion = versionName?.trim()?.takeIf { it.isNotBlank() }
+        if (_dismissedUpdateVersion.value == normalizedVersion) return
         preferences.edit {
-            if (versionName.isNullOrBlank()) {
+            if (normalizedVersion == null) {
                 remove(KEY_DISMISSED_UPDATE_VERSION)
             } else {
-                putString(KEY_DISMISSED_UPDATE_VERSION, versionName.trim())
+                putString(KEY_DISMISSED_UPDATE_VERSION, normalizedVersion)
             }
         }
-        _dismissedUpdateVersion.value = versionName?.trim()?.takeIf { it.isNotBlank() }
+        _dismissedUpdateVersion.value = normalizedVersion
     }
 
     fun lastAutomaticUpdateCheckAtMs(): Long {
@@ -423,8 +456,10 @@ class PreferenceStore(context: Context) {
     }
 
     fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long) {
+        val normalizedTimestamp = timestampMs.coerceAtLeast(0L)
+        if (lastAutomaticUpdateCheckAtMs() == normalizedTimestamp) return
         preferences.edit {
-            putLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, timestampMs.coerceAtLeast(0L))
+            putLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, normalizedTimestamp)
         }
     }
 
@@ -747,6 +782,19 @@ class PreferenceStore(context: Context) {
         }
         _favoriteSongIds.value = songIds
         _playlists.value = assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value)
+    }
+
+    private fun persistPlaylistAndFavorites(
+        playlists: List<Playlist>,
+        favoriteSongIds: List<Long>,
+    ) {
+        preferences.edit {
+            putString(KEY_PLAYLISTS, playlists.joinToString(RECORD_SEPARATOR) { it.serialize() })
+            putString(KEY_FAVORITE_SONG_IDS, favoriteSongIds.joinToString(","))
+        }
+        _userPlaylists.value = playlists
+        _favoriteSongIds.value = favoriteSongIds
+        _playlists.value = assemblePlaylists(playlists, favoriteSongIds)
     }
 
     private fun Map<Long, Int>.serializePlayCounts(): String {

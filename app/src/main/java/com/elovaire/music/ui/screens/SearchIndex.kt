@@ -9,9 +9,6 @@ import kotlin.math.min
 
 internal data class SearchableSong(
     val song: Song,
-    val title: String,
-    val artist: String,
-    val album: String,
     val normalizedTitle: String,
     val normalizedArtist: String,
     val normalizedAlbum: String,
@@ -67,9 +64,6 @@ internal fun LibraryContentState.toSearchIndex(): SearchIndex {
         val normalizedAlbum = normalizeSearchText(song.album)
         SearchableSong(
             song = song,
-            title = song.title,
-            artist = song.artist,
-            album = song.album,
             normalizedTitle = normalizedTitle,
             normalizedArtist = normalizedArtist,
             normalizedAlbum = normalizedAlbum,
