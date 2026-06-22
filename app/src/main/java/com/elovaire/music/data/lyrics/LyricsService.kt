@@ -30,6 +30,8 @@ class LyricsService(
         repository.clearCacheFor(song)
     }
 
+    fun localLyrics(song: Song): LyricsResult? = repository.localLyrics(song)
+
     internal fun createLyricsWritePermissionRequest(song: Song) =
         embeddedLyricsWriter.createWritePermissionRequest(song)
 

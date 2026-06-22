@@ -152,10 +152,19 @@ internal class NowPlayingViewModel(
                     val cachedState = cached.toUiState()
                     emit(cachedState)
                     logLyrics("cache song=${request.song.id} state=${cachedState::class.simpleName}")
-                    if (cached is LyricsResult.Found && cached.payload.isSynced) {
+                    if (cached is LyricsResult.Found) {
                         return@flow
                     }
-                } ?: emit(LyricsUiState.Loading)
+                }
+
+                lyricsService.localLyrics(request.song)?.let { local ->
+                    val localState = local.toUiState()
+                    emit(localState)
+                    logLyrics("local song=${request.song.id} state=${localState::class.simpleName}")
+                    return@flow
+                }
+
+                emit(LyricsUiState.Loading)
 
                 lyricsService.lyricsForSong(request.song, LyricsLookupMode.Full).collect { fetchedResult ->
                     val state = fetchedResult.toUiState()

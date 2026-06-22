@@ -44,6 +44,18 @@ internal class LyricsRepository(
         return result
     }
 
+    fun localLyrics(song: Song): LyricsResult? {
+        val identity = song.toLyricsIdentity()
+        val localMatch = localLyricsResolver.resolve(song) ?: return null
+        val entry = localMatch.toCacheEntry()
+        rememberPositive(identity, entry)
+        cache.put(identity, entry)
+        logDebug(
+            "local-priority song=${song.id} result=${if (localMatch.payload.isSynced) "synced" else "plain"}",
+        )
+        return entry.result
+    }
+
     fun clearCacheFor(song: Song) {
         val identity = song.toLyricsIdentity()
         identity.cacheKeys.forEach(memoryPositiveCache::remove)
@@ -53,8 +65,7 @@ internal class LyricsRepository(
     fun prefetchLyrics(song: Song) {
         val identity = song.toLyricsIdentity()
         val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = false)
-        val alreadyHasSyncedLyrics = (cachedResult as? LyricsResult.Found)?.payload?.isSynced == true
-        if (alreadyHasSyncedLyrics || inFlightRequests.keys.any { it.identityPart() == identity.normalizedLookupKey }) {
+        if (cachedResult is LyricsResult.Found || inFlightRequests.keys.any { it.identityPart() == identity.normalizedLookupKey }) {
             return
         }
         serviceScope.launch {
@@ -92,37 +103,26 @@ internal class LyricsRepository(
     ): LyricsResult = coroutineScope {
         val identity = song.toLyricsIdentity()
         val requestKey = identity.requestKey(lookupMode)
-        val preferSyncedUpgrade = lookupMode == LyricsLookupMode.Full
         val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = allowCachedNotFound)
-        val cachedPlainFallback = (cachedResult as? LyricsResult.Found)
-            ?.takeIf { preferSyncedUpgrade && !it.payload.isSynced }
-
-        if (cachedResult != null && cachedPlainFallback == null) {
+        if (cachedResult != null) {
             return@coroutineScope cachedResult
         }
 
         val existing = inFlightRequests[requestKey]
         if (existing != null) {
-            val existingResult = existing.await().result
-            return@coroutineScope if (cachedPlainFallback != null && existingResult !is LyricsResult.Found) {
-                cachedPlainFallback
-            } else {
-                existingResult
-            }
+            return@coroutineScope existing.await().result
         }
 
         val request = serviceScope.async {
             runCatching {
-                resolveLyrics(song, identity, lookupMode, cachedPlainFallback)
+                resolveLyrics(song, lookupMode)
             }.getOrElse { throwable ->
                 if (throwable is CancellationException) throw throwable
                 logDebug("lyrics lookup failed for ${identity.artist} - ${identity.title}", throwable)
                 LyricsLookupOutcome(
-                    result = cachedPlainFallback ?: LyricsResult.Timeout,
-                    cacheTtlMs = if (cachedPlainFallback == null) CACHE_TTL_TIMEOUT_MS else POSITIVE_CACHE_TTL_MS,
-                    state = if (cachedPlainFallback == null) LyricsLookupState.Error else LyricsLookupState.FoundUnsynced,
-                    providerName = cachedPlainFallback?.payload?.providerName,
-                    confidence = cachedPlainFallback?.payload?.confidence ?: 0,
+                    result = LyricsResult.Timeout,
+                    cacheTtlMs = CACHE_TTL_TIMEOUT_MS,
+                    state = LyricsLookupState.Error,
                 )
             }
         }
@@ -154,11 +154,10 @@ internal class LyricsRepository(
 
     private suspend fun resolveLyrics(
         song: Song,
-        identity: LyricsIdentity,
         lookupMode: LyricsLookupMode,
-        cachedPlainFallback: LyricsResult.Found?,
     ): LyricsLookupOutcome = coroutineScope {
         cache.clearExpired()
+        val identity = song.toLyricsIdentity()
 
         val local = withContext(ioDispatcher) {
             withTimeoutOrNull(LOCAL_LOOKUP_TIMEOUT_MS) {
@@ -166,28 +165,16 @@ internal class LyricsRepository(
             }
         }
         logDebug("local song=${song.id} result=${local?.payload?.let { if (it.isSynced) "synced" else "plain" } ?: "none"}")
-        if (local?.payload?.isSynced == true) {
+        if (local != null) {
             return@coroutineScope local.toLookupOutcome()
         }
 
         if (!isNetworkAvailable()) {
-            val offlineResult = local?.payload
-                ?: cachedPlainFallback?.payload
-            return@coroutineScope if (offlineResult != null) {
-                LyricsLookupOutcome(
-                    result = LyricsResult.Found(offlineResult),
-                    cacheTtlMs = POSITIVE_CACHE_TTL_MS,
-                    state = if (offlineResult.isSynced) LyricsLookupState.FoundSynced else LyricsLookupState.FoundUnsynced,
-                    providerName = offlineResult.providerName,
-                    confidence = offlineResult.confidence,
-                )
-            } else {
-                LyricsLookupOutcome(
-                    result = LyricsResult.NotFound,
-                    cacheTtlMs = CACHE_TTL_OFFLINE_MS,
-                    state = LyricsLookupState.Error,
-                )
-            }
+            return@coroutineScope LyricsLookupOutcome(
+                result = LyricsResult.NotFound,
+                cacheTtlMs = CACHE_TTL_OFFLINE_MS,
+                state = LyricsLookupState.Error,
+            )
         }
 
         val remoteOutcome = withContext(ioDispatcher) {
@@ -207,13 +194,7 @@ internal class LyricsRepository(
                 "provider=${remoteMatch?.providerName} synced=${remoteMatch?.payload?.isSynced}",
         )
 
-        val bestPayload = when {
-            remoteMatch?.payload?.isSynced == true -> remoteMatch.payload
-            local?.payload != null -> local.payload
-            remoteMatch?.payload != null -> remoteMatch.payload
-            cachedPlainFallback != null -> cachedPlainFallback.payload
-            else -> null
-        }
+        val bestPayload = remoteMatch?.payload
 
         return@coroutineScope when {
             bestPayload != null -> LyricsLookupOutcome(
@@ -243,6 +224,15 @@ internal class LyricsRepository(
             result = LyricsResult.Found(payload),
             cacheTtlMs = POSITIVE_CACHE_TTL_MS,
             state = if (payload.isSynced) LyricsLookupState.FoundSynced else LyricsLookupState.FoundUnsynced,
+            providerName = payload.providerName,
+            confidence = payload.confidence,
+        )
+    }
+
+    private fun LocalLyricsMatch.toCacheEntry(): LyricsCacheEntry {
+        return LyricsCacheEntry(
+            result = LyricsResult.Found(payload),
+            expiresAtMillis = System.currentTimeMillis() + POSITIVE_CACHE_TTL_MS,
             providerName = payload.providerName,
             confidence = payload.confidence,
         )

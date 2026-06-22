@@ -20,7 +20,7 @@ internal class LocalLyricsResolver(
     private val contentResolver: ContentResolver = context.applicationContext.contentResolver
 
     fun resolve(song: Song): LocalLyricsMatch? {
-        return readSidecarLyrics(song) ?: readEmbeddedLyrics(song)
+        return readEmbeddedLyrics(song) ?: readSidecarLyrics(song)
     }
 
     private fun readEmbeddedLyrics(song: Song): LocalLyricsMatch? {

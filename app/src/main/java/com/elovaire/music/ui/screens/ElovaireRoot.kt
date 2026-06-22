@@ -785,6 +785,7 @@ private fun Modifier.elovairePressBounce(
     interactionSource: MutableInteractionSource,
     label: String,
     pressedScale: Float = 0.9f,
+    releaseAnimationSpec: AnimationSpec<Float> = ElovaireMotion.chromeReleaseSpec(),
 ): Modifier {
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
@@ -792,7 +793,7 @@ private fun Modifier.elovairePressBounce(
         animationSpec = if (pressed) {
             ElovaireMotion.pressDownSpec()
         } else {
-            ElovaireMotion.chromeReleaseSpec()
+            releaseAnimationSpec
         },
         label = label,
     )
@@ -1367,6 +1368,7 @@ fun ElovaireRoot(
         currentRoute in hideCompactNowPlayingRoutes
     val reserveCompactNowPlayingSpace = playbackState.currentSong != null && !hideCompactNowPlaying
     val canHostCompactNowPlaying = playbackState.currentSong != null
+    val showPlayerOverlay = isPlayerOverlayVisible && playbackNowPlayingState.currentSong != null
     val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && !isPlayerOverlayVisible
     val reenteringFromPlayer = compactDockReturningFromPlayer
     val overscrollFactory = rememberElovaireOverscrollFactory()
@@ -1503,7 +1505,7 @@ fun ElovaireRoot(
     SideEffect {
         val window = (rootView.context as? Activity)?.window ?: return@SideEffect
         val controller = WindowCompat.getInsetsController(window, rootView)
-        val usesLightSystemBarIcons = if (isPlayerOverlayVisible) {
+        val usesLightSystemBarIcons = if (showPlayerOverlay) {
             playerAdaptivePalette.contentColor.luminance() < 0.56f
         } else {
             !darkTheme
@@ -2460,7 +2462,7 @@ fun ElovaireRoot(
             }
             }
             ElovaireAnimatedVisibility(
-                visible = isPlayerOverlayVisible,
+                visible = showPlayerOverlay,
                 enter = fadeIn(
                     animationSpec = ElovaireMotion.standardTween(
                         durationMillis = 220,
@@ -11354,13 +11356,15 @@ private fun NowPlayingScreen(
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     var playerDismissTriggered by rememberSaveable { mutableStateOf(false) }
+    var playerHasRenderedSong by rememberSaveable { mutableStateOf(liveCurrentSong != null) }
     LaunchedEffect(liveCurrentSong?.id) {
         if (liveCurrentSong == null) {
-            if (!playerDismissTriggered) {
+            if (playerHasRenderedSong && !playerDismissTriggered) {
                 playerDismissTriggered = true
                 onBack()
             }
         } else {
+            playerHasRenderedSong = true
             playerDismissTriggered = false
         }
     }
@@ -17410,7 +17414,7 @@ private fun EqPresetPill(
     val backgroundColor = if (emphasized) {
         MaterialTheme.colorScheme.primary
     } else if (selected) {
-        MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f)
     } else if (useSubtleIdleBackground) {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
     } else {
@@ -17419,7 +17423,7 @@ private fun EqPresetPill(
     val contentColor = if (emphasized) {
         MaterialTheme.colorScheme.onPrimary
     } else if (selected) {
-        MaterialTheme.colorScheme.primary
+        MaterialTheme.colorScheme.onPrimary
     } else {
         MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
     }
@@ -17428,6 +17432,8 @@ private fun EqPresetPill(
         modifier = Modifier.elovairePressBounce(
             interactionSource = interactionSource,
             label = "${label}_eq_preset_scale",
+            pressedScale = 0.96f,
+            releaseAnimationSpec = ElovaireMotion.bounceSpringSpec(),
         ),
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = backgroundColor,
@@ -17748,7 +17754,7 @@ private fun EqBandFrequencyLabels(
     BoxWithConstraints(
         modifier = modifier
             .width(contentWidth)
-            .height(18.dp),
+            .height(EQ_BAND_LABEL_HEIGHT),
     ) {
         val labelWidth = 36.dp
         val graphWidth = maxWidth - (EQ_GRAPH_EDGE_PADDING * 2)
