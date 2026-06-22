@@ -47,7 +47,7 @@ Efficient architecture supports all features across devices running Android 10 t
 ## Highlights
 
 - Offline-first playback for music stored directly on your Android device
-- Beautiful artwork-led library, playlist, search and now-playing screens
+- Beautiful artwork-led library
 - Full player and compact mini-player for quick control while browsing
 - Lyrics support with local and online lookup paths
 - 18-band equalizer with built-in presets and additional features
@@ -76,14 +76,13 @@ Efficient architecture supports all features across devices running Android 10 t
 - Artwork-rich album and playlist views
 - Fast search with recent history and expandable song results
 - Favorites, play counts and recent playback awareness
-- Folder-aware library scanning with refresh handling for changed music files
+- Folder-aware library scanning with auto refresh handling
 - Support for common local audio containers and codecs through Android Media3 and platform decoders, including MP3, AAC/M4A, FLAC, WAV, Ogg, Opus, AMR, 3GP, MP4 and MKA, with some additional formats depending on device decoder support
 
 ### Playback
 
 - Full now-playing screen with queue, lyrics overlay, volume control, repeat, shuffle and playback actions
 - Compact now-playing bar for quick access from the rest of the app
-- Background playback with media notification controls
 - Playback recovery handling for unexpected idle/player states
 - USB DAC and direct-output awareness for cleaner output paths where supported by the device
 
@@ -100,8 +99,7 @@ Efficient architecture supports all features across devices running Android 10 t
 - Preset support and manual shaping
 - Bass and treble controls
 - Spaciousness modes for a wider stereo presentation
-- Reverb control for added room character
-- True mono playback toggle that downmixes stereo into centered dual-mono output
+- Adjustable reverb effect
 
 ### Interface
 
@@ -109,7 +107,6 @@ Efficient architecture supports all features across devices running Android 10 t
 - Adjustable text-size
 - Frosted glass effects and backdrop blur surfaces
 - Smooth route transitions, animated player surfaces and artwork-driven visual accents
-- Built with Jetpack Compose for a modern Android native feel
 
 ---
 
