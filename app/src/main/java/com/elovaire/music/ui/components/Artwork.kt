@@ -158,17 +158,28 @@ fun rememberArtworkBitmap(
     val context = LocalContext.current
     val normalizedSize = normalizeArtworkRequestSize(size)
     val cacheKey = rememberCacheKey(uri, normalizedSize)
+    val uriKey = uri?.toString().orEmpty()
     ArtworkMemoryCache.ensureRegistered(context.applicationContext)
-    return produceState<ImageBitmap?>(initialValue = ArtworkMemoryCache.image(cacheKey), uri, normalizedSize) {
+    val cachedImage = ArtworkMemoryCache.image(cacheKey)
+    val fallbackImage = if (cachedImage != null || uriKey.isBlank()) {
+        cachedImage
+    } else {
+        ArtworkMemoryCache.bestImageForUri(uriKey, normalizedSize)
+    }
+    return produceState<ImageBitmap?>(initialValue = fallbackImage, uri, normalizedSize) {
         val cached = ArtworkMemoryCache.image(cacheKey)
         if (cached != null) {
             value = cached
             return@produceState
         }
-        value = withContext(Dispatchers.IO) {
+        value = value ?: ArtworkMemoryCache.bestImageForUri(uriKey, normalizedSize)
+        val loaded = withContext(Dispatchers.IO) {
             loadBitmap(context, uri, normalizedSize)?.asImageBitmap()?.also { bitmap ->
                 ArtworkMemoryCache.putImage(cacheKey, bitmap)
             }
+        }
+        if (loaded != null || value == null) {
+            value = loaded
         }
     }
 }
@@ -388,6 +399,35 @@ private object ArtworkMemoryCache {
         image: ImageBitmap,
     ) {
         images.put(key, image)
+    }
+
+    @Synchronized
+    fun bestImageForUri(
+        uriKey: String,
+        requestedSize: Int,
+    ): ImageBitmap? {
+        if (uriKey.isBlank()) return null
+        val prefix = "$uriKey#"
+        val snapshot = images.snapshot()
+        var bestExactOrLarger: Pair<Int, ImageBitmap>? = null
+        var bestSmaller: Pair<Int, ImageBitmap>? = null
+        snapshot.forEach { (key, image) ->
+            if (!key.startsWith(prefix)) return@forEach
+            val cachedSize = key.substringAfterLast('#', "").toIntOrNull() ?: return@forEach
+            when {
+                cachedSize >= requestedSize && (
+                    bestExactOrLarger == null || cachedSize < bestExactOrLarger.first
+                ) -> {
+                    bestExactOrLarger = cachedSize to image
+                }
+                cachedSize < requestedSize && (
+                    bestSmaller == null || cachedSize > bestSmaller.first
+                ) -> {
+                    bestSmaller = cachedSize to image
+                }
+            }
+        }
+        return bestExactOrLarger?.second ?: bestSmaller?.second
     }
 
     @Synchronized

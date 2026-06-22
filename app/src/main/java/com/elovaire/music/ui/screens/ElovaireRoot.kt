@@ -2473,18 +2473,7 @@ fun ElovaireRoot(
                         easing = ElovaireMotion.RefinedDecelerate,
                     ),
                 ),
-                exit = fadeOut(
-                    animationSpec = ElovaireMotion.standardTween(
-                        durationMillis = 180,
-                        easing = ElovaireMotion.FadeOut,
-                    ),
-                ) + scaleOut(
-                    targetScale = 0.998f,
-                    animationSpec = ElovaireMotion.standardTween(
-                        durationMillis = 180,
-                        easing = ElovaireMotion.RefinedAccelerate,
-                    ),
-                ),
+                exit = ExitTransition.None,
                 label = "NowPlayingOverlayVisibility",
                 modifier = Modifier
                     .fillMaxSize()
@@ -11405,8 +11394,10 @@ private fun NowPlayingScreen(
     }
     val collapseSettleAnimationSpec = remember {
         tween<Float>(
-            durationMillis = 260,
-            easing = FastOutSlowInEasing,
+            durationMillis = 360,
+            easing = androidx.compose.animation.core.Easing { fraction ->
+                1f - LinearOutSlowInEasing.transform(1f - fraction)
+            },
         )
     }
     var interactiveTransitionProgress by remember(liveCurrentSong?.id) { mutableStateOf<Float?>(null) }
