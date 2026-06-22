@@ -57,4 +57,23 @@ class LrcParserTest {
 
         assertEquals(listOf("Visible"), payload.lines.map { it.text })
     }
+
+    @Test
+    fun duplicateTimestampsUseNextDistinctLineForEndTime() {
+        val payload = requireNotNull(
+            parseLrcOrPlain(
+                raw = """
+                    [00:10.00]First
+                    [00:10.00]Echo
+                    [00:12.00]Second
+                """.trimIndent(),
+                providerName = "test",
+                confidence = 90,
+            ),
+        )
+
+        assertTrue(payload.isSynced)
+        assertEquals(listOf(10_000L, 10_000L, 12_000L), payload.lines.map { it.startTimeMs })
+        assertEquals(listOf(11_999L, 11_999L, null), payload.lines.map { it.endTimeMs })
+    }
 }

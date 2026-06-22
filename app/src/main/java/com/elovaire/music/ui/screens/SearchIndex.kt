@@ -187,24 +187,35 @@ internal fun scoreMatch(
 }
 
 internal fun sortRankedSongs(
-    ranked: List<RankedResult<Song>>,
+    ranked: List<RankedResult<SearchableSong>>,
     sortMode: SearchSongSortMode,
 ): List<Song> {
-    val baseComparator = compareByDescending<RankedResult<Song>> { it.score }
+    val baseComparator = compareByDescending<RankedResult<SearchableSong>> { it.score }
     val comparator = when (sortMode) {
         SearchSongSortMode.Title -> baseComparator
-            .thenBy { normalizeSearchText(it.value.title) }
-            .thenBy { normalizeSearchText(it.value.artist) }
-            .thenBy { normalizeSearchText(it.value.album) }
-            .thenBy { it.value.id }
+            .thenBy { it.value.normalizedTitle }
+            .thenBy { it.value.normalizedArtist }
+            .thenBy { it.value.normalizedAlbum }
+            .thenBy { it.value.song.id }
 
         SearchSongSortMode.Artist -> baseComparator
-            .thenBy { normalizeSearchText(it.value.artist) }
-            .thenBy { normalizeSearchText(it.value.title) }
-            .thenBy { normalizeSearchText(it.value.album) }
-            .thenBy { it.value.id }
+            .thenBy { it.value.normalizedArtist }
+            .thenBy { it.value.normalizedTitle }
+            .thenBy { it.value.normalizedAlbum }
+            .thenBy { it.value.song.id }
     }
-    return ranked.sortedWith(comparator).map(RankedResult<Song>::value)
+    return ranked.sortedWith(comparator).map { it.value.song }
+}
+
+internal fun sortRankedAlbums(ranked: List<RankedResult<SearchableAlbum>>): List<Album> {
+    return ranked
+        .sortedWith(
+            compareByDescending<RankedResult<SearchableAlbum>> { it.score }
+                .thenBy { it.value.normalizedArtist }
+                .thenBy { it.value.normalizedTitle }
+                .thenBy { it.value.album.id },
+        )
+        .map { it.value.album }
 }
 
 private fun buildNormalizedComposite(vararg parts: String): String {

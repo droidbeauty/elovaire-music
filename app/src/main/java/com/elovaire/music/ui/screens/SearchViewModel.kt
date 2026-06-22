@@ -241,7 +241,7 @@ internal class SearchViewModel(
                     normalizedComposite = searchable.normalizedComposite,
                 )?.let { score ->
                     RankedResult(
-                        value = searchable.song,
+                        value = searchable,
                         score = score,
                     )
                 }
@@ -261,18 +261,12 @@ internal class SearchViewModel(
                         normalizedComposite = searchable.normalizedComposite,
                     )?.let { score ->
                         RankedResult(
-                            value = searchable.album,
+                            value = searchable,
                             score = score,
                         )
                     }
                 }
-                .sortedWith(
-                    compareByDescending<RankedResult<Album>> { it.score }
-                        .thenBy { normalizeSearchText(it.value.artist) }
-                        .thenBy { normalizeSearchText(it.value.title) }
-                        .thenBy { it.value.id },
-                )
-                .map(RankedResult<Album>::value)
+                .let(::sortRankedAlbums)
                 .take(12)
 
             val matchingArtists = index.artists
@@ -292,7 +286,7 @@ internal class SearchViewModel(
                 .sortedWith(
                     compareByDescending<RankedResult<SearchableArtist>> { it.score }
                         .thenByDescending { it.value.songCount }
-                        .thenBy { normalizeSearchText(it.value.displayName) },
+                        .thenBy { it.value.normalizedName },
                 )
                 .map { rankedArtist ->
                     SearchArtistResult(

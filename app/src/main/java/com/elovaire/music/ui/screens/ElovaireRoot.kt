@@ -299,6 +299,7 @@ import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
+import elovaire.music.droidbeauty.app.ui.motion.elovaireListDropdownReveal
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.SyncElovaireMotionScale
 import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
@@ -791,7 +792,7 @@ private fun Modifier.elovairePressBounce(
         animationSpec = if (pressed) {
             ElovaireMotion.pressDownSpec()
         } else {
-            ElovaireMotion.bounceSpringSpec()
+            ElovaireMotion.chromeReleaseSpec()
         },
         label = label,
     )
@@ -1253,6 +1254,8 @@ fun ElovaireRoot(
     var detailRouteTransitionMode by remember { mutableStateOf(DetailRouteTransitionMode.TileExpand) }
     var nowPlayingTransitionSnapshot by remember { mutableStateOf<NowPlayingTransitionSnapshot?>(null) }
     var isPlayerOverlayVisible by rememberSaveable { mutableStateOf(false) }
+    var compactDockReturningFromPlayer by rememberSaveable { mutableStateOf(false) }
+    var compactDockReturnToken by rememberSaveable { mutableLongStateOf(0L) }
     val openNowPlayingMutex = remember { Mutex() }
     var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
     var browsingOriginRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
@@ -1365,7 +1368,7 @@ fun ElovaireRoot(
     val reserveCompactNowPlayingSpace = playbackState.currentSong != null && !hideCompactNowPlaying
     val canHostCompactNowPlaying = playbackState.currentSong != null
     val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && !isPlayerOverlayVisible
-    val reenteringFromPlayer = false
+    val reenteringFromPlayer = compactDockReturningFromPlayer
     val overscrollFactory = rememberElovaireOverscrollFactory()
     val navHostBlur = 0.dp
     val navHostScrimAlpha = 0f
@@ -1398,6 +1401,7 @@ fun ElovaireRoot(
                 if (container.playbackManager.state.value.currentSong == null || isPlayerOverlayVisible) {
                     return@withLock
                 }
+                compactDockReturningFromPlayer = false
                 nowPlayingTransitionSnapshot = snapshot
                 isPlayerOverlayVisible = true
                 withFrameNanos { }
@@ -1409,11 +1413,18 @@ fun ElovaireRoot(
             }
         }
     }
+    val hidePlayerOverlay: (Boolean) -> Unit = { returnToCompact ->
+        compactDockReturningFromPlayer = returnToCompact && container.playbackManager.state.value.currentSong != null
+        if (compactDockReturningFromPlayer) {
+            compactDockReturnToken += 1L
+        }
+        isPlayerOverlayVisible = false
+    }
     val currentRequestOpenNowPlaying by rememberUpdatedState(requestOpenNowPlaying)
     val openCurrentPlayingAlbum: (Long) -> Unit = { albumId ->
         val sameAlbumAlreadyVisible =
             currentRoute == "$ALBUM_ROUTE/{albumId}" && currentAlbumRouteId == albumId
-        isPlayerOverlayVisible = false
+        hidePlayerOverlay(false)
         if (!sameAlbumAlreadyVisible) {
             albumsById[albumId]?.let { album ->
                 openAlbum(album, ExpandOrigin(), AlbumOpenSource.Player)
@@ -1474,6 +1485,13 @@ fun ElovaireRoot(
     LaunchedEffect(isPlayerOverlayVisible) {
         if (!isPlayerOverlayVisible) {
             nowPlayingTransitionSnapshot = null
+        }
+    }
+    LaunchedEffect(compactDockReturnToken) {
+        if (compactDockReturnToken > 0L) {
+            withFrameNanos { }
+            delay(ElovaireMotion.PlayerFade.toLong().coerceAtLeast(120L))
+            compactDockReturningFromPlayer = false
         }
     }
     LaunchedEffect(currentRoute) {
@@ -2441,17 +2459,46 @@ fun ElovaireRoot(
                 }
             }
             }
-            if (isPlayerOverlayVisible) {
+            ElovaireAnimatedVisibility(
+                visible = isPlayerOverlayVisible,
+                enter = fadeIn(
+                    animationSpec = ElovaireMotion.standardTween(
+                        durationMillis = 220,
+                        easing = ElovaireMotion.FadeIn,
+                    ),
+                ) + scaleIn(
+                    initialScale = 0.995f,
+                    animationSpec = ElovaireMotion.standardTween(
+                        durationMillis = 260,
+                        easing = ElovaireMotion.RefinedDecelerate,
+                    ),
+                ),
+                exit = fadeOut(
+                    animationSpec = ElovaireMotion.standardTween(
+                        durationMillis = 180,
+                        easing = ElovaireMotion.FadeOut,
+                    ),
+                ) + scaleOut(
+                    targetScale = 0.998f,
+                    animationSpec = ElovaireMotion.standardTween(
+                        durationMillis = 180,
+                        easing = ElovaireMotion.RefinedAccelerate,
+                    ),
+                ),
+                label = "NowPlayingOverlayVisibility",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clipToBounds()
+                    .zIndex(20f),
+            ) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .clipToBounds()
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
                             onClick = {},
-                        )
-                        .zIndex(20f),
+                        ),
                 ) {
                     NowPlayingRoute(
                         viewModel = nowPlayingViewModel,
@@ -2459,7 +2506,7 @@ fun ElovaireRoot(
                         enrichedSongsById = songsById,
                         isFavorite = playbackNowPlayingState.currentSong?.id in favoriteSongIdSet,
                         playlists = playlists.filterNot { it.isSystem },
-                        onBack = { isPlayerOverlayVisible = false },
+                        onBack = { hidePlayerOverlay(true) },
                         onOpenCurrentAlbum = openCurrentPlayingAlbum,
                         onToggleFavorite = { songId -> container.preferenceStore.toggleFavoriteSong(songId) },
                         onAddCurrentSongToPlaylist = { playlistId, song ->
@@ -2467,7 +2514,7 @@ fun ElovaireRoot(
                         },
                         onCreatePlaylist = container.preferenceStore::createPlaylist,
                         onOpenEqualizer = {
-                            isPlayerOverlayVisible = false
+                            hidePlayerOverlay(false)
                             navController.navigate(EQUALIZER_ROUTE)
                         },
                         transitionSnapshot = nowPlayingTransitionSnapshot,
@@ -2669,7 +2716,11 @@ private fun StandaloneNowPlayingDock(
         ElovaireAnimatedVisibility(
             visible = visible,
             modifier = modifier,
-            enter = ElovaireMotion.compactBarEnter(),
+            enter = if (suppressEnterAnimation) {
+                ElovaireMotion.compactBarReturnEnter()
+            } else {
+                ElovaireMotion.compactBarEnter()
+            },
             exit = ElovaireMotion.compactBarExit(),
             label = "CompactNowPlayingDockVisibility",
         ) {
@@ -4517,14 +4568,16 @@ private fun AlbumCollectionContent(
                         }
                     }
 
-                    items(sortedAlbums, key = { it.id }) { album ->
+                    itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
                         AlbumGridCard(
                             album = album,
                             modifier = Modifier
                                 .animateItem(
-                                    fadeInSpec = null,
-                                    fadeOutSpec = tween(180),
-                                    placementSpec = tween(180),
+                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                )
+                                .elovaireListDropdownReveal(
+                                    key = album.id,
+                                    index = index,
                                 )
                                 .libraryRemovalAnimation(album.id in removingAlbumIds),
                             selectionMode = selectionModeActive,
@@ -4592,14 +4645,16 @@ private fun AlbumCollectionContent(
                         }
                     }
 
-                    items(sortedAlbums, key = { it.id }) { album ->
+                    itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
                         AlbumGridCard(
                             album = album,
                             modifier = Modifier
                                 .animateItem(
-                                    fadeInSpec = null,
-                                    fadeOutSpec = tween(180),
-                                    placementSpec = tween(180),
+                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                )
+                                .elovaireListDropdownReveal(
+                                    key = album.id,
+                                    index = index,
                                 )
                                 .libraryRemovalAnimation(album.id in removingAlbumIds),
                             selectionMode = selectionModeActive,
@@ -4670,9 +4725,11 @@ private fun AlbumCollectionContent(
                         Box(
                             modifier = Modifier
                                 .animateItem(
-                                    fadeInSpec = null,
-                                    fadeOutSpec = tween(180),
-                                    placementSpec = tween(180),
+                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                )
+                                .elovaireListDropdownReveal(
+                                    key = album.id,
+                                    index = index,
                                 )
                                 .libraryRemovalAnimation(album.id in removingAlbumIds),
                         ) {
@@ -5494,9 +5551,11 @@ private fun SongCollectionScreen(
                 Box(
                     modifier = Modifier
                         .animateItem(
-                            fadeInSpec = null,
-                            fadeOutSpec = tween(180),
-                            placementSpec = tween(180),
+                            placementSpec = ElovaireMotion.listPlacementSpec(),
+                        )
+                        .elovaireListDropdownReveal(
+                            key = song.id,
+                            index = index,
                         )
                         .libraryRemovalAnimation(song.id in removingSongIds),
                 ) {
@@ -6566,12 +6625,14 @@ private fun PlaylistSelectionDialog(
                                         playlist = playlist,
                                         previewSongs = previewSongs,
                                         selected = playlist.id == selectedPlaylistId,
-                                        modifier = Modifier.animateItem(
-                                            placementSpec = spring(
-                                                dampingRatio = 0.76f,
-                                                stiffness = 360f,
+                                        modifier = Modifier
+                                            .animateItem(
+                                                placementSpec = ElovaireMotion.listPlacementSpec(),
+                                            )
+                                            .elovaireListDropdownReveal(
+                                                key = playlist.id,
+                                                index = displayedPlaylists.indexOfFirst { it.id == playlist.id },
                                             ),
-                                        ),
                                         onClick = {
                                             selectedPlaylistId = if (selectedPlaylistId == playlist.id) {
                                                 null
@@ -6586,12 +6647,14 @@ private fun PlaylistSelectionDialog(
                                         InlinePlaylistCreatorRow(
                                             name = draftPlaylistName,
                                             onNameChange = { draftPlaylistName = it },
-                                            modifier = Modifier.animateItem(
-                                                placementSpec = spring(
-                                                    dampingRatio = 0.76f,
-                                                    stiffness = 360f,
+                                            modifier = Modifier
+                                                .animateItem(
+                                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                                )
+                                                .elovaireListDropdownReveal(
+                                                    key = "inline_playlist_creator",
+                                                    index = displayedPlaylists.size,
                                                 ),
-                                            ),
                                             onSave = {
                                                 val trimmedName = draftPlaylistName.trim()
                                                 if (trimmedName.isBlank()) return@InlinePlaylistCreatorRow
@@ -7090,17 +7153,28 @@ private fun SearchScreen(
                                 items = state.allMatchingSongs,
                                 key = { _, song -> song.id },
                             ) { index, song ->
-                                PlaylistSongRow(
-                                    song = song,
-                                    isFavorite = song.id in favoriteSongIds,
-                                    isCurrentSong = song.id == state.currentSongId,
-                                    isPlaybackActive = state.isPlaybackActive,
-                                    onClick = {
-                                        onSongSelected(song, state.allMatchingSongs)
-                                    },
-                                    onToggleFavorite = { onToggleFavorite(song.id) },
-                                    showDivider = index != state.allMatchingSongs.lastIndex,
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .animateItem(
+                                            placementSpec = ElovaireMotion.listPlacementSpec(),
+                                        )
+                                        .elovaireListDropdownReveal(
+                                            key = song.id,
+                                            index = index,
+                                        ),
+                                ) {
+                                    PlaylistSongRow(
+                                        song = song,
+                                        isFavorite = song.id in favoriteSongIds,
+                                        isCurrentSong = song.id == state.currentSongId,
+                                        isPlaybackActive = state.isPlaybackActive,
+                                        onClick = {
+                                            onSongSelected(song, state.allMatchingSongs)
+                                        },
+                                        onToggleFavorite = { onToggleFavorite(song.id) },
+                                        showDivider = index != state.allMatchingSongs.lastIndex,
+                                    )
+                                }
                             }
                         }
                     }
@@ -7287,15 +7361,22 @@ private fun SearchScreen(
                                         )
                                         Column {
                                             state.matchingSongs.forEachIndexed { index, song ->
-                                                HomeRecentSongRow(
-                                                    song = song,
-                                                    isFavorite = song.id in favoriteSongIds,
-                                                    onClick = {
-                                                        onSongSelected(song, state.matchingSongs)
-                                                    },
-                                                    onToggleFavorite = { onToggleFavorite(song.id) },
-                                                    showDivider = index != state.matchingSongs.lastIndex,
-                                                )
+                                                Box(
+                                                    modifier = Modifier.elovaireListDropdownReveal(
+                                                        key = song.id,
+                                                        index = index,
+                                                    ),
+                                                ) {
+                                                    HomeRecentSongRow(
+                                                        song = song,
+                                                        isFavorite = song.id in favoriteSongIds,
+                                                        onClick = {
+                                                            onSongSelected(song, state.matchingSongs)
+                                                        },
+                                                        onToggleFavorite = { onToggleFavorite(song.id) },
+                                                        showDivider = index != state.matchingSongs.lastIndex,
+                                                    )
+                                                }
                                             }
                                         }
                                     }
@@ -9235,9 +9316,11 @@ private fun AlbumScreen(
                     Box(
                         modifier = Modifier
                             .animateItem(
-                                fadeInSpec = null,
-                                fadeOutSpec = tween(180),
-                                placementSpec = tween(180),
+                                placementSpec = ElovaireMotion.listPlacementSpec(),
+                            )
+                            .elovaireListDropdownReveal(
+                                key = song.id,
+                                index = index,
                             )
                             .libraryRemovalAnimation(song.id in removingSongIds),
                     ) {
@@ -9837,16 +9920,15 @@ private fun PlaylistDetailScreen(
                     GroupedListRowContainer(
                         index = index,
                         lastIndex = playlistSongs.lastIndex,
-                        modifier = if (editMode) {
-                            Modifier.animateItem(
-                                placementSpec = spring(
-                                    dampingRatio = 0.52f,
-                                    stiffness = 190f,
-                                ),
+                        modifier = Modifier
+                            .animateItem(
+                                placementSpec = ElovaireMotion.listPlacementSpec(),
                             )
-                        } else {
-                            Modifier
-                        },
+                            .elovaireListDropdownReveal(
+                                key = "${song.id}_$index",
+                                index = index,
+                                enabled = !editMode,
+                            ),
                     ) {
                         PlaylistSongRow(
                             song = song,
@@ -12091,36 +12173,35 @@ private fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter),
-                    enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                    enter = fadeIn(
+                        animationSpec = ElovaireMotion.queueMenuEnterSpec(),
+                        initialAlpha = 0.04f,
+                    ) +
                         scaleIn(
                             initialScale = 0.94f,
                             transformOrigin = TransformOrigin(1f, 1f),
-                            animationSpec = ElovaireMotion.standardTween(
-                                durationMillis = ElovaireMotion.Standard,
-                                easing = FastOutSlowInEasing,
-                            ),
+                            animationSpec = ElovaireMotion.queueMenuEnterSpec(),
                         ) +
                         slideInHorizontally(
                             initialOffsetX = { it / 14 },
-                            animationSpec = ElovaireMotion.standardTween(
-                                durationMillis = ElovaireMotion.Standard,
-                                easing = FastOutSlowInEasing,
-                            ),
+                            animationSpec = ElovaireMotion.queueMenuEnterSpec(),
                         ) +
                         slideInVertically(
-                            initialOffsetY = { it / 14 },
-                            animationSpec = ElovaireMotion.standardTween(
-                                durationMillis = ElovaireMotion.Standard,
-                                easing = FastOutSlowInEasing,
-                            ),
+                            initialOffsetY = { it / 9 },
+                            animationSpec = ElovaireMotion.queueMenuEnterSpec(),
                         ),
-                    exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()) +
+                    exit = fadeOut(
+                        animationSpec = ElovaireMotion.queueMenuExitSpec(),
+                        targetAlpha = 0f,
+                    ) +
                         scaleOut(
                             targetScale = 0.98f,
                             transformOrigin = TransformOrigin(1f, 1f),
-                            animationSpec = ElovaireMotion.standardTween(
-                                durationMillis = ElovaireMotion.Quick,
-                            ),
+                            animationSpec = ElovaireMotion.queueMenuExitSpec(),
+                        ) +
+                        slideOutVertically(
+                            targetOffsetY = { it / 12 },
+                            animationSpec = ElovaireMotion.queueMenuExitSpec(),
                         ),
                 ) {
                     QueueSheet(
@@ -12540,7 +12621,7 @@ private fun QueueSheet(
     val footerExpanded = statusText != null
     val footerHeight by animateDpAsState(
         targetValue = if (footerExpanded) 90.dp else 60.dp,
-        animationSpec = tween(120, easing = FastOutSlowInEasing),
+        animationSpec = ElovaireMotion.queueMenuEnterSpec(),
         label = "queue_footer_height",
     )
     LaunchedEffect(currentIndex, queue.size) {
@@ -12636,17 +12717,28 @@ private fun QueueSheet(
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     itemsIndexed(queue, key = { index, song -> "${song.id}_$index" }) { index, song ->
-                        QueueSongRow(
-                            song = song,
-                            active = index == currentIndex,
-                            tint = tint,
-                            secondaryTint = secondaryTint,
-                            showDivider = false,
-                            onClick = { onSongSelected(index) },
-                            isPlaying = isPlaying,
-                            onAddToPlaylist = { playlistTargetSong = song },
-                            onRemoveFromQueue = { onQueueItemRemoved(index) },
-                        )
+                        Box(
+                            modifier = Modifier
+                                .animateItem(
+                                    placementSpec = ElovaireMotion.listPlacementSpec(),
+                                )
+                                .elovaireListDropdownReveal(
+                                    key = "${song.id}_$index",
+                                    index = index,
+                                ),
+                        ) {
+                            QueueSongRow(
+                                song = song,
+                                active = index == currentIndex,
+                                tint = tint,
+                                secondaryTint = secondaryTint,
+                                showDivider = false,
+                                onClick = { onSongSelected(index) },
+                                isPlaying = isPlaying,
+                                onAddToPlaylist = { playlistTargetSong = song },
+                                onRemoveFromQueue = { onQueueItemRemoved(index) },
+                            )
+                        }
                     }
                 }
             }
@@ -12885,7 +12977,11 @@ private fun QueueSongOverflowMenuButton(
     val motionDurationScale = rememberSystemAnimationScale()
     val buttonScale by animateFloatAsState(
         targetValue = if (pressed) 0.88f else 1f,
-        animationSpec = ElovaireMotion.releaseSpringSpec(),
+        animationSpec = if (pressed) {
+            ElovaireMotion.pressDownSpec()
+        } else {
+            ElovaireMotion.softPressReturnSpec()
+        },
         label = "queue_song_overflow_scale",
     )
     LaunchedEffect(expanded) {
@@ -13047,10 +13143,11 @@ private fun QueueMenuButton(
             active -> 1f
             else -> 0.96f
         },
-        animationSpec = ElovaireMotion.releaseSpringSpec(
-            dampingRatio = 0.82f,
-            stiffness = 520f,
-        ),
+        animationSpec = if (pressed) {
+            ElovaireMotion.pressDownSpec()
+        } else {
+            ElovaireMotion.chromeReleaseSpec()
+        },
         label = "queue_button_scale",
     )
     Box(
@@ -15801,12 +15898,14 @@ private fun LanguageSelectionDialog(
                                 LanguagePickerOptionRow(
                                     language = language,
                                     selected = language == pendingLanguage,
-                                    modifier = Modifier.animateItem(
-                                        placementSpec = spring(
-                                            dampingRatio = 0.76f,
-                                            stiffness = 360f,
+                                    modifier = Modifier
+                                        .animateItem(
+                                            placementSpec = ElovaireMotion.listPlacementSpec(),
+                                        )
+                                        .elovaireListDropdownReveal(
+                                            key = language.name,
+                                            index = languages.indexOf(language),
                                         ),
-                                    ),
                                     onClick = { pendingLanguage = language },
                                 )
                             }
