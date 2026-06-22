@@ -12,6 +12,7 @@ import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -294,19 +295,11 @@ class LibraryRepository(
                     val visibleSongs = snapshot.songs.filterNot { it.id in suppressedSongIds }
                     val scannedSongIds = snapshot.songs.mapTo(hashSetOf(), Song::id)
                     confirmedDeletedSongIds.update { tombstones -> tombstones.filterTo(linkedSetOf()) { it in scannedSongIds } }
+                    val nextContentState = publishLibraryContent(visibleSongs)
                     val visibleSnapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
-                        songs = visibleSongs,
-                        albums = buildAlbumsFromSongs(visibleSongs),
+                        songs = nextContentState.songs,
+                        albums = nextContentState.albums,
                     )
-                    val nextContentState = LibraryContentState(
-                        songs = visibleSnapshot.songs,
-                        albums = visibleSnapshot.albums,
-                        removingSongIds = pendingDeletedSongIds.value,
-                        removingAlbumIds = pendingDeletedAlbumIds.value,
-                    )
-                    if (_contentState.value != nextContentState) {
-                        _contentState.value = nextContentState
-                    }
                     val nextScanState = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
@@ -334,6 +327,7 @@ class LibraryRepository(
                     }
                 }
                 .onFailure { throwable ->
+                    if (throwable is CancellationException) throw throwable
                     _scanState.update {
                         it.copy(
                             isLoading = false,
@@ -448,15 +442,7 @@ class LibraryRepository(
 
         delay(DELETE_EXIT_ANIMATION_MS)
         val remainingSongs = _contentState.value.songs.filterNot { it.id in request.songIds }
-        val updatedState = LibraryContentState(
-            songs = remainingSongs,
-            albums = buildAlbumsFromSongs(remainingSongs),
-            removingSongIds = pendingDeletedSongIds.value,
-            removingAlbumIds = pendingDeletedAlbumIds.value,
-        )
-        if (_contentState.value != updatedState) {
-            _contentState.value = updatedState
-        }
+        val updatedState = publishLibraryContent(remainingSongs)
         withContext(Dispatchers.IO) {
             snapshotStore.save(
                 snapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
@@ -515,13 +501,11 @@ class LibraryRepository(
         val current = _contentState.value
         val updatedSongs = current.songs.map { song -> updatesById[song.id] ?: song }
         if (updatedSongs == current.songs) return
-        val updatedState = LibraryContentState(
+        val updatedState = publishLibraryContent(
             songs = updatedSongs,
-            albums = buildAlbumsFromSongs(updatedSongs),
             removingSongIds = current.removingSongIds,
             removingAlbumIds = current.removingAlbumIds,
         )
-        _contentState.value = updatedState
         withContext(Dispatchers.IO) {
             snapshotStore.save(
                 snapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
@@ -688,6 +672,23 @@ class LibraryRepository(
             if (event == 0) return
             onEventReceived(event, path?.let { File(directory, it) })
         }
+    }
+
+    private fun publishLibraryContent(
+        songs: List<Song>,
+        removingSongIds: Set<Long> = pendingDeletedSongIds.value,
+        removingAlbumIds: Set<Long> = pendingDeletedAlbumIds.value,
+    ): LibraryContentState {
+        val nextState = LibraryContentState(
+            songs = songs,
+            albums = buildAlbumsFromSongs(songs),
+            removingSongIds = removingSongIds,
+            removingAlbumIds = removingAlbumIds,
+        )
+        if (_contentState.value != nextState) {
+            _contentState.value = nextState
+        }
+        return nextState
     }
 
     private companion object {

@@ -67,8 +67,14 @@ internal class SearchViewModel(
         .distinctUntilChanged()
 
     private val searchIndex = libraryRepository.contentState
-        .map { it.toSearchIndex() }
+        .map { content ->
+            SearchLibrarySnapshot(
+                songs = content.songs,
+                albums = content.albums,
+            )
+        }
         .distinctUntilChanged()
+        .map(SearchLibrarySnapshot::toSearchIndex)
         .flowOn(Dispatchers.Default)
 
     private val normalizedQuery = _query
@@ -91,12 +97,10 @@ internal class SearchViewModel(
         .flowOn(Dispatchers.Default)
 
     private val playbackSnapshot = combine(
-        playbackManager.recentPlaybackState,
         playbackManager.nowPlayingState,
         playbackManager.transportState,
-    ) { recentPlayback, nowPlaying, transport ->
+    ) { nowPlaying, transport ->
         PlaybackSearchSnapshot(
-            recentAlbumIds = recentPlayback.recentAlbumIds,
             currentSongId = nowPlaying.currentSong?.id,
             isPlaybackActive = transport.isPlaying,
         )
@@ -213,7 +217,6 @@ internal class SearchViewModel(
         )
 
         data class PlaybackSearchSnapshot(
-            val recentAlbumIds: List<Long>,
             val currentSongId: Long?,
             val isPlaybackActive: Boolean,
         )
@@ -240,57 +243,35 @@ internal class SearchViewModel(
         ): SearchResults {
             if (query.value.isBlank()) return SearchResults()
 
-            val rankedSongs = index.songs.mapNotNull { searchable ->
-                scoreMatch(
-                    query = query,
-                    normalizedTitle = searchable.normalizedTitle,
-                    normalizedArtist = searchable.normalizedArtist,
-                    normalizedAlbum = searchable.normalizedAlbum,
-                    normalizedComposite = searchable.normalizedComposite,
-                )?.let { score ->
-                    RankedResult(
-                        value = searchable,
-                        score = score,
-                    )
-                }
-            }
+            val rankedSongs = index.songs.rankMatching(
+                query = query,
+                normalizedTitle = SearchableSong::normalizedTitle,
+                normalizedArtist = SearchableSong::normalizedArtist,
+                normalizedAlbum = SearchableSong::normalizedAlbum,
+                normalizedComposite = SearchableSong::normalizedComposite,
+            )
             val allMatchingSongs = sortRankedSongs(
                 ranked = rankedSongs,
                 sortMode = sortMode,
             )
 
             val matchingAlbums = index.albums
-                .mapNotNull { searchable ->
-                    scoreMatch(
-                        query = query,
-                        normalizedTitle = searchable.normalizedTitle,
-                        normalizedArtist = searchable.normalizedArtist,
-                        normalizedAlbum = "",
-                        normalizedComposite = searchable.normalizedComposite,
-                    )?.let { score ->
-                        RankedResult(
-                            value = searchable,
-                            score = score,
-                        )
-                    }
-                }
+                .rankMatching(
+                    query = query,
+                    normalizedTitle = SearchableAlbum::normalizedTitle,
+                    normalizedArtist = SearchableAlbum::normalizedArtist,
+                    normalizedComposite = SearchableAlbum::normalizedComposite,
+                )
                 .let(::sortRankedAlbums)
                 .take(12)
 
             val matchingArtists = index.artists
-                .mapNotNull { artist ->
-                    scoreMatch(
-                        query = query,
-                        normalizedTitle = artist.normalizedName,
-                        normalizedArtist = "",
-                        normalizedComposite = artist.normalizedName,
-                    )?.let { score ->
-                        RankedResult(
-                            value = artist,
-                            score = score,
-                        )
-                    }
-                }
+                .rankMatching(
+                    query = query,
+                    normalizedTitle = SearchableArtist::normalizedName,
+                    normalizedArtist = { "" },
+                    normalizedComposite = SearchableArtist::normalizedName,
+                )
                 .sortedWith(
                     compareByDescending<RankedResult<SearchableArtist>> { it.score }
                         .thenByDescending { it.value.songCount }
@@ -318,8 +299,8 @@ internal class SearchViewModel(
             albumPlayCounts: Map<Long, Int>,
             recentAlbumIds: List<Long>,
         ): List<Album> {
-            val recentAlbumIdSet = recentAlbumIds.toSet()
-            val sortableAlbums = albums.map { album ->
+            val recentAlbumIdSet = recentAlbumIds.toHashSet()
+            val candidates = albums.map { album ->
                 SuggestedAlbumCandidate(
                     album = album,
                     playCount = albumPlayCounts[album.id] ?: 0,
@@ -328,7 +309,18 @@ internal class SearchViewModel(
                     normalizedTitle = normalizeSearchText(album.title),
                 )
             }
-            val rarePlayedAlbums = sortableAlbums
+
+            val seen = HashSet<Long>(6)
+            val output = ArrayList<Album>(6)
+
+            fun addIfNeeded(album: Album): Boolean {
+                if (!seen.add(album.id)) return false
+                output += album
+                return output.size == 6
+            }
+
+            candidates
+                .asSequence()
                 .filter { it.playCount > 0 }
                 .sortedWith(
                     compareBy<SuggestedAlbumCandidate> { it.playCount }
@@ -337,8 +329,12 @@ internal class SearchViewModel(
                         .thenBy(SuggestedAlbumCandidate::normalizedTitle),
                 )
                 .map(SuggestedAlbumCandidate::album)
+                .forEach { album ->
+                    if (addIfNeeded(album)) return output
+                }
 
-            val neverPlayedAlbums = sortableAlbums
+            candidates
+                .asSequence()
                 .filter { it.playCount == 0 }
                 .sortedWith(
                     compareBy<SuggestedAlbumCandidate> { if (it.isRecent) 1 else 0 }
@@ -346,21 +342,21 @@ internal class SearchViewModel(
                         .thenBy(SuggestedAlbumCandidate::normalizedTitle),
                 )
                 .map(SuggestedAlbumCandidate::album)
-
-            return buildList {
-                (rarePlayedAlbums + neverPlayedAlbums).forEach { album ->
-                    if (none { it.id == album.id }) add(album)
-                    if (size == 6) return@buildList
+                .forEach { album ->
+                    if (addIfNeeded(album)) return output
                 }
-            }
+
+            return output
         }
 
         fun sanitizeSearchHistory(
             history: List<SearchHistoryEntry>,
             index: SearchIndex,
         ): List<SearchHistoryEntry> {
-            return history.mapNotNull { entry ->
-                when (entry.kind) {
+            val sanitized = ArrayList<SearchHistoryEntry>(history.size)
+            val seenKeys = HashSet<String>(history.size)
+            history.forEach { entry ->
+                val sanitizedEntry = when (entry.kind) {
                     SearchHistoryKind.Album -> {
                         entry.albumId
                             ?.let(index.albumsById::get)
@@ -369,7 +365,7 @@ internal class SearchViewModel(
 
                     SearchHistoryKind.Artist -> {
                         val normalizedArtist = normalizeSearchText(entry.query ?: entry.title)
-                        val artist = index.artistsByNormalizedName[normalizedArtist] ?: return@mapNotNull null
+                        val artist = index.artistsByNormalizedName[normalizedArtist] ?: return@forEach
                         entry.copy(
                             key = "artist:${artist.normalizedName}",
                             title = artist.displayName,
@@ -378,7 +374,11 @@ internal class SearchViewModel(
                         )
                     }
                 }
-            }.distinctBy(SearchHistoryEntry::key)
+                if (sanitizedEntry != null && seenKeys.add(sanitizedEntry.key)) {
+                    sanitized += sanitizedEntry
+                }
+            }
+            return sanitized
         }
 
         fun List<Song>.playbackSourceLabel(fallbackAlbum: String): String {

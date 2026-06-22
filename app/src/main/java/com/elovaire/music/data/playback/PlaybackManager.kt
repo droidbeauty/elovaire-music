@@ -798,13 +798,11 @@ class PlaybackManager(
         updateState()
     }
 
-    fun refreshQueuedLibraryMetadata(updatedSongs: List<Song>) {
+    fun refreshQueuedLibraryMetadataIfNeeded(updatedSongs: List<Song>) {
         val existingState = _state.value
         if (existingState.queue.isEmpty()) return
         val queuedSongIds = existingState.queue.asSequence().mapTo(linkedSetOf(), Song::id)
-        val songsById = updatedSongs.asSequence()
-            .filter { it.id in queuedSongIds }
-            .associateBy(Song::id)
+        val songsById = updatedSongs.associateQueuedSongsById(queuedSongIds)
         if (songsById.isEmpty()) return
         var queueChanged = false
         val refreshedQueue = existingState.queue.map { queuedSong ->
@@ -818,7 +816,10 @@ class PlaybackManager(
         }
         if (!queueChanged) return
         refreshedQueue.forEachIndexed { index, refreshedSong ->
-            if (existingState.queue.getOrNull(index) != refreshedSong && index < player.mediaItemCount) {
+            if (
+                existingState.queue.getOrNull(index)?.playbackMetadataSignature() != refreshedSong.playbackMetadataSignature() &&
+                index < player.mediaItemCount
+            ) {
                 player.replaceMediaItem(index, refreshedSong.toPlaybackMediaItem())
             }
         }
@@ -1766,6 +1767,30 @@ private fun Song.toPlaybackMediaItem(): MediaItem {
                 .build(),
         )
         .build()
+}
+
+private fun Song.playbackMetadataSignature(): Int {
+    var result = id.hashCode()
+    result = 31 * result + title.hashCode()
+    result = 31 * result + artist.hashCode()
+    result = 31 * result + album.hashCode()
+    result = 31 * result + (albumArtist?.hashCode() ?: 0)
+    result = 31 * result + uri.hashCode()
+    result = 31 * result + (artUri?.hashCode() ?: 0)
+    result = 31 * result + fileName.hashCode()
+    return result
+}
+
+private fun List<Song>.associateQueuedSongsById(queuedSongIds: Set<Long>): Map<Long, Song> {
+    if (queuedSongIds.isEmpty()) return emptyMap()
+    val remainingIds = queuedSongIds.toMutableSet()
+    val songsById = LinkedHashMap<Long, Song>(queuedSongIds.size)
+    for (song in this) {
+        if (!remainingIds.remove(song.id)) continue
+        songsById[song.id] = song
+        if (remainingIds.isEmpty()) break
+    }
+    return songsById
 }
 
 private fun Song.inferPlaybackMimeType(): String? {

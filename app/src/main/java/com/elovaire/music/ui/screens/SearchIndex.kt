@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import android.net.Uri
-import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.text.Normalizer
@@ -57,7 +56,22 @@ internal data class NormalizedSearchQuery(
     }
 }
 
-internal fun LibraryContentState.toSearchIndex(): SearchIndex {
+internal data class SearchLibrarySnapshot(
+    val songs: List<Song>,
+    val albums: List<Album>,
+)
+
+internal fun SearchLibrarySnapshot.toSearchIndex(): SearchIndex {
+    return buildSearchIndex(
+        songs = songs,
+        albums = albums,
+    )
+}
+
+internal fun buildSearchIndex(
+    songs: List<Song>,
+    albums: List<Album>,
+): SearchIndex {
     val searchableSongs = songs.map { song ->
         val normalizedTitle = normalizeSearchText(song.title)
         val normalizedArtist = normalizeSearchText(song.artist)
@@ -87,31 +101,7 @@ internal fun LibraryContentState.toSearchIndex(): SearchIndex {
             ),
         )
     }
-    val searchableArtists = songs
-        .filter { it.artist.isNotBlank() }
-        .groupBy { normalizeSearchText(it.artist) }
-        .mapNotNull { (normalizedName, artistSongs) ->
-            if (normalizedName.isBlank()) return@mapNotNull null
-            val displayName = artistSongs
-                .map { it.artist.trim() }
-                .filter { it.isNotBlank() }
-                .groupingBy { it }
-                .eachCount()
-                .maxWithOrNull(compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length })
-                ?.key
-                ?: artistSongs.first().artist.trim()
-            SearchableArtist(
-                displayName = displayName,
-                normalizedName = normalizedName,
-                songCount = artistSongs.size,
-                artUri = artistSongs.firstOrNull { it.artUri != null }?.artUri,
-            )
-        }
-        .sortedWith(
-            compareBy<SearchableArtist> { it.normalizedName }
-                .thenByDescending { it.songCount }
-                .thenBy { it.displayName },
-        )
+    val searchableArtists = buildSearchableArtists(songs)
 
     return SearchIndex(
         songs = searchableSongs,
@@ -120,6 +110,29 @@ internal fun LibraryContentState.toSearchIndex(): SearchIndex {
         albumsById = searchableAlbums.associate { it.album.id to it.album },
         artistsByNormalizedName = searchableArtists.associateBy(SearchableArtist::normalizedName),
     )
+}
+
+internal inline fun <T> Iterable<T>.rankMatching(
+    query: NormalizedSearchQuery,
+    crossinline normalizedTitle: (T) -> String,
+    crossinline normalizedArtist: (T) -> String,
+    crossinline normalizedAlbum: (T) -> String = { "" },
+    crossinline normalizedComposite: (T) -> String,
+): List<RankedResult<T>> {
+    return mapNotNull { item ->
+        scoreMatch(
+            query = query,
+            normalizedTitle = normalizedTitle(item),
+            normalizedArtist = normalizedArtist(item),
+            normalizedAlbum = normalizedAlbum(item),
+            normalizedComposite = normalizedComposite(item),
+        )?.let { score ->
+            RankedResult(
+                value = item,
+                score = score,
+            )
+        }
+    }
 }
 
 internal fun normalizeSearchText(value: String): String {
@@ -214,6 +227,34 @@ internal fun sortRankedAlbums(ranked: List<RankedResult<SearchableAlbum>>): List
 
 private fun buildNormalizedComposite(vararg parts: String): String {
     return parts.filter { it.isNotBlank() }.joinToString(" ")
+}
+
+private fun buildSearchableArtists(songs: List<Song>): List<SearchableArtist> {
+    return songs
+        .filter { it.artist.isNotBlank() }
+        .groupBy { normalizeSearchText(it.artist) }
+        .mapNotNull { (normalizedName, artistSongs) ->
+            if (normalizedName.isBlank()) return@mapNotNull null
+            val displayName = artistSongs
+                .map { it.artist.trim() }
+                .filter { it.isNotBlank() }
+                .groupingBy { it }
+                .eachCount()
+                .maxWithOrNull(compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length })
+                ?.key
+                ?: artistSongs.first().artist.trim()
+            SearchableArtist(
+                displayName = displayName,
+                normalizedName = normalizedName,
+                songCount = artistSongs.size,
+                artUri = artistSongs.firstOrNull { it.artUri != null }?.artUri,
+            )
+        }
+        .sortedWith(
+            compareBy<SearchableArtist> { it.normalizedName }
+                .thenByDescending { it.songCount }
+                .thenBy { it.displayName },
+        )
 }
 
 private val SEARCH_DIACRITICS_REGEX = Regex("\\p{Mn}+")

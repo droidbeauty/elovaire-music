@@ -91,15 +91,11 @@ class AppContainer(
                 .map { it.songs }
                 .distinctUntilChanged()
                 .collect { songs ->
-                    if (playbackManager.hasActiveQueue()) {
-                        playbackManager.refreshQueuedLibraryMetadata(songs)
-                    }
+                    playbackManager.refreshQueuedLibraryMetadataIfNeeded(songs)
                 }
         }
         appScope.launch {
             preferenceStore.gaplessPlaybackEnabled
-                .map { it }
-                .distinctUntilChanged()
                 .collect(playbackManager::setGaplessPlaybackEnabled)
         }
         appScope.launch {
