@@ -299,6 +299,7 @@ import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
 import elovaire.music.droidbeauty.app.ui.interaction.PlayerOverlayHost
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
+import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
@@ -2448,13 +2449,13 @@ fun ElovaireRoot(
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                            onClick = {},
-                        ),
+                        .fillMaxSize(),
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .consumePointersWithoutSemantics(),
+                    )
                     NowPlayingRoute(
                         viewModel = nowPlayingViewModel,
                         playbackManager = container.playbackManager,
@@ -2772,11 +2773,7 @@ private fun UnifiedTopBar(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
+                .consumePointersWithoutSemantics(),
         )
         if (!useSharedBackdrop) {
             FrostedTopBarBackground(
@@ -2863,11 +2860,7 @@ internal fun PinnedBackTopBar(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
+                .consumePointersWithoutSemantics(),
         )
         if (!useSharedBackdrop) {
             FrostedTopBarBackground(
@@ -2956,11 +2949,7 @@ private fun SharedTopBarOverlay(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                ),
+                .consumePointersWithoutSemantics(),
         )
         ElovaireAnimatedContent(
             targetState = spec,
@@ -3278,11 +3267,7 @@ private fun BottomNavigationBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight()
-                .clickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                )
+                .consumePointersWithoutSemantics()
         ) {
             BottomNavigationHazeBackground(
                 darkTheme = darkTheme,
@@ -12091,11 +12076,7 @@ private fun NowPlayingScreen(
                     Box(
                         modifier = Modifier
                             .matchParentSize()
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {},
-                            ),
+                            .consumePointersWithoutSemantics(),
                     )
                 }
 
