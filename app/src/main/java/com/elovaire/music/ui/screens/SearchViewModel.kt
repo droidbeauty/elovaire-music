@@ -1,15 +1,24 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
-import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
+import elovaire.music.droidbeauty.app.domain.search.SearchArtistResult
+import elovaire.music.droidbeauty.app.domain.search.SearchLibrarySnapshot
+import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
+import elovaire.music.droidbeauty.app.domain.search.albumSearchHistoryEntry
+import elovaire.music.droidbeauty.app.domain.search.artistSearchHistoryEntry
+import elovaire.music.droidbeauty.app.domain.search.buildSearchResults
+import elovaire.music.droidbeauty.app.domain.search.buildSuggestedAlbums
+import elovaire.music.droidbeauty.app.domain.search.playbackSourceLabel
+import elovaire.music.droidbeauty.app.domain.search.sanitizeSearchHistory
+import elovaire.music.droidbeauty.app.domain.search.toSearchIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,12 +28,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-
-internal data class SearchArtistResult(
-    val name: String,
-    val songCount: Int,
-    val artUri: Uri?,
-)
 
 internal data class SearchUiState(
     val query: String = "",
@@ -45,7 +48,7 @@ internal data class SearchUiState(
 internal class SearchViewModel(
     libraryRepository: LibraryRepository,
     private val preferenceStore: PreferenceStore,
-    playbackManager: PlaybackManager,
+    playbackReader: PlaybackReader,
 ) : ViewModel() {
     private val _query = MutableStateFlow("")
     private val _showAllSongResults = MutableStateFlow(false)
@@ -97,8 +100,8 @@ internal class SearchViewModel(
         .flowOn(Dispatchers.Default)
 
     private val playbackSnapshot = combine(
-        playbackManager.nowPlayingState,
-        playbackManager.transportState,
+        playbackReader.nowPlayingState,
+        playbackReader.transportState,
     ) { nowPlaying, transport ->
         PlaybackSearchSnapshot(
             currentSongId = nowPlaying.currentSong?.id,
@@ -110,7 +113,7 @@ internal class SearchViewModel(
     private val suggestedAlbums = combine(
         searchIndex,
         preferenceStore.albumPlayCounts,
-        playbackManager.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
+        playbackReader.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
     ) { index, albumPlayCounts, recentAlbumIds ->
         buildSuggestedAlbums(
             albums = index.albums.map(SearchableAlbum::album),
@@ -220,174 +223,5 @@ internal class SearchViewModel(
             val currentSongId: Long?,
             val isPlaybackActive: Boolean,
         )
-
-        data class SearchResults(
-            val allMatchingSongs: List<Song> = emptyList(),
-            val matchingSongs: List<Song> = emptyList(),
-            val matchingAlbums: List<Album> = emptyList(),
-            val matchingArtists: List<SearchArtistResult> = emptyList(),
-        )
-
-        data class SuggestedAlbumCandidate(
-            val album: Album,
-            val playCount: Int,
-            val isRecent: Boolean,
-            val normalizedArtist: String,
-            val normalizedTitle: String,
-        )
-
-        fun buildSearchResults(
-            query: NormalizedSearchQuery,
-            sortMode: SearchSongSortMode,
-            index: SearchIndex,
-        ): SearchResults {
-            if (query.value.isBlank()) return SearchResults()
-
-            val rankedSongs = index.songs.rankMatching(
-                query = query,
-                normalizedTitle = SearchableSong::normalizedTitle,
-                normalizedArtist = SearchableSong::normalizedArtist,
-                normalizedAlbum = SearchableSong::normalizedAlbum,
-                normalizedComposite = SearchableSong::normalizedComposite,
-            )
-            val allMatchingSongs = sortRankedSongs(
-                ranked = rankedSongs,
-                sortMode = sortMode,
-            )
-
-            val matchingAlbums = index.albums
-                .rankMatching(
-                    query = query,
-                    normalizedTitle = SearchableAlbum::normalizedTitle,
-                    normalizedArtist = SearchableAlbum::normalizedArtist,
-                    normalizedComposite = SearchableAlbum::normalizedComposite,
-                )
-                .let(::sortRankedAlbums)
-                .take(12)
-
-            val matchingArtists = index.artists
-                .rankMatching(
-                    query = query,
-                    normalizedTitle = SearchableArtist::normalizedName,
-                    normalizedArtist = { "" },
-                    normalizedComposite = SearchableArtist::normalizedName,
-                )
-                .sortedWith(
-                    compareByDescending<RankedResult<SearchableArtist>> { it.score }
-                        .thenByDescending { it.value.songCount }
-                        .thenBy { it.value.normalizedName },
-                )
-                .map { rankedArtist ->
-                    SearchArtistResult(
-                        name = rankedArtist.value.displayName,
-                        songCount = rankedArtist.value.songCount,
-                        artUri = rankedArtist.value.artUri,
-                    )
-                }
-                .take(6)
-
-            return SearchResults(
-                allMatchingSongs = allMatchingSongs,
-                matchingSongs = allMatchingSongs.take(20),
-                matchingAlbums = matchingAlbums,
-                matchingArtists = matchingArtists,
-            )
-        }
-
-        fun buildSuggestedAlbums(
-            albums: List<Album>,
-            albumPlayCounts: Map<Long, Int>,
-            recentAlbumIds: List<Long>,
-        ): List<Album> {
-            val recentAlbumIdSet = recentAlbumIds.toHashSet()
-            val candidates = albums.map { album ->
-                SuggestedAlbumCandidate(
-                    album = album,
-                    playCount = albumPlayCounts[album.id] ?: 0,
-                    isRecent = album.id in recentAlbumIdSet,
-                    normalizedArtist = normalizeSearchText(album.artist),
-                    normalizedTitle = normalizeSearchText(album.title),
-                )
-            }
-
-            val seen = HashSet<Long>(6)
-            val output = ArrayList<Album>(6)
-
-            fun addIfNeeded(album: Album): Boolean {
-                if (!seen.add(album.id)) return false
-                output += album
-                return output.size == 6
-            }
-
-            candidates
-                .asSequence()
-                .filter { it.playCount > 0 }
-                .sortedWith(
-                    compareBy<SuggestedAlbumCandidate> { it.playCount }
-                        .thenBy { if (it.isRecent) 1 else 0 }
-                        .thenBy(SuggestedAlbumCandidate::normalizedArtist)
-                        .thenBy(SuggestedAlbumCandidate::normalizedTitle),
-                )
-                .map(SuggestedAlbumCandidate::album)
-                .forEach { album ->
-                    if (addIfNeeded(album)) return output
-                }
-
-            candidates
-                .asSequence()
-                .filter { it.playCount == 0 }
-                .sortedWith(
-                    compareBy<SuggestedAlbumCandidate> { if (it.isRecent) 1 else 0 }
-                        .thenBy(SuggestedAlbumCandidate::normalizedArtist)
-                        .thenBy(SuggestedAlbumCandidate::normalizedTitle),
-                )
-                .map(SuggestedAlbumCandidate::album)
-                .forEach { album ->
-                    if (addIfNeeded(album)) return output
-                }
-
-            return output
-        }
-
-        fun sanitizeSearchHistory(
-            history: List<SearchHistoryEntry>,
-            index: SearchIndex,
-        ): List<SearchHistoryEntry> {
-            val sanitized = ArrayList<SearchHistoryEntry>(history.size)
-            val seenKeys = HashSet<String>(history.size)
-            history.forEach { entry ->
-                val sanitizedEntry = when (entry.kind) {
-                    SearchHistoryKind.Album -> {
-                        entry.albumId
-                            ?.let(index.albumsById::get)
-                            ?.let(::albumSearchHistoryEntry)
-                    }
-
-                    SearchHistoryKind.Artist -> {
-                        val normalizedArtist = normalizeSearchText(entry.query ?: entry.title)
-                        val artist = index.artistsByNormalizedName[normalizedArtist] ?: return@forEach
-                        entry.copy(
-                            key = "artist:${artist.normalizedName}",
-                            title = artist.displayName,
-                            artUri = artist.artUri,
-                            query = artist.displayName,
-                        )
-                    }
-                }
-                if (sanitizedEntry != null && seenKeys.add(sanitizedEntry.key)) {
-                    sanitized += sanitizedEntry
-                }
-            }
-            return sanitized
-        }
-
-        fun List<Song>.playbackSourceLabel(fallbackAlbum: String): String {
-            val distinctAlbums = asSequence().map { it.album }.filter { it.isNotBlank() }.distinct().toList()
-            return when {
-                distinctAlbums.size == 1 -> distinctAlbums.first()
-                distinctAlbums.isNotEmpty() -> "Search"
-                else -> fallbackAlbum
-            }
-        }
     }
 }

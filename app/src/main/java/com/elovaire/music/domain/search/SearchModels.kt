@@ -1,8 +1,9 @@
-package elovaire.music.droidbeauty.app.ui.screens
+package elovaire.music.droidbeauty.app.domain.search
 
 import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 import java.text.Normalizer
 import kotlin.math.min
 

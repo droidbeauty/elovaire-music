@@ -1,4 +1,4 @@
-package elovaire.music.droidbeauty.app.ui.screens
+package elovaire.music.droidbeauty.app.domain.search
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull

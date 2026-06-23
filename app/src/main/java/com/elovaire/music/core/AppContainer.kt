@@ -12,28 +12,19 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationControll
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 
 @SuppressLint("UnsafeOptInUsageError")
-@OptIn(kotlinx.coroutines.FlowPreview::class)
 class AppContainer(
     appContext: Context,
 ) {
     private val applicationContext = appContext.applicationContext
     private val appForegroundTracker = AppForegroundTracker(applicationContext as Application)
-    private val appJob = SupervisorJob()
-    private val appScope = CoroutineScope(appJob + Dispatchers.Main.immediate)
+    private val appRuntimeScope = AppRuntimeScope()
+    private val appScope = appRuntimeScope.scope
 
     val preferenceStore = PreferenceStore(applicationContext)
     val appUpdateManager = AppUpdateManager(
@@ -56,7 +47,14 @@ class AppContainer(
         initialLastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
         onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
     )
-    private var playbackNotificationController: PlaybackNotificationController? = null
+    private val notificationControllerHolder = NotificationControllerHolder {
+        PlaybackNotificationController.ensureNotificationChannel(applicationContext)
+        PlaybackNotificationController(
+            context = applicationContext,
+            playbackManager = playbackManager,
+            scope = appScope,
+        )
+    }
     val libraryRepository = LibraryRepository(
         appContext = applicationContext,
         scanner = MediaStoreScanner(applicationContext),
@@ -67,45 +65,43 @@ class AppContainer(
     }
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
+    private val playbackSettingsBridge = PlaybackSettingsBridge(
+        scope = appScope,
+        preferenceStore = preferenceStore,
+        playbackManager = playbackManager,
+        playbackEffectsController = playbackEffectsController,
+    )
+    private val playbackHistoryBridge = PlaybackHistoryBridge(
+        scope = appScope,
+        preferenceStore = preferenceStore,
+        playbackManager = playbackManager,
+    )
+    private val libraryPlaybackBridge = LibraryPlaybackBridge(
+        scope = appScope,
+        libraryRepository = libraryRepository,
+        playbackManager = playbackManager,
+    )
+    private val librarySettingsBridge = LibrarySettingsBridge(
+        scope = appScope,
+        preferenceStore = preferenceStore,
+        libraryRepository = libraryRepository,
+    )
+    private val startupCoordinator = StartupCoordinator(appUpdateManager)
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
 
     init {
-        appScope.launch {
-            preferenceStore.eqSettings.debounce(40L).collect { settings ->
-                playbackEffectsController.applyEffectSettings(settings)
-                if (playbackManager.hasActiveQueue()) {
-                    playbackManager.reevaluateAudioOutputPath()
-                }
-            }
-        }
-        appScope.launch {
-            playbackManager.nowPlayingState
-                .map { it.currentSong?.id to it.currentSong?.albumId }
-                .distinctUntilChanged()
-                .collect { (songId, albumId) ->
-                    preferenceStore.recordPlaybackTransition(songId, albumId)
-                }
-        }
-        appScope.launch {
-            libraryRepository.contentState
-                .map { it.songs }
-                .distinctUntilChanged()
-                .collect { songs ->
-                    playbackManager.refreshQueuedLibraryMetadataIfNeeded(songs)
-                }
-        }
-        appScope.launch {
-            preferenceStore.gaplessPlaybackEnabled
-                .collect(playbackManager::setGaplessPlaybackEnabled)
-        }
-        appScope.launch {
-            preferenceStore.libraryFolderPath
-                .collect(libraryRepository::setPreferredLibraryFolderPath)
-        }
+        playbackSettingsBridge.start()
+        playbackHistoryBridge.start()
+        libraryPlaybackBridge.start()
+        librarySettingsBridge.start()
+        startupCoordinator.start()
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
-        if (!enabled && playbackNotificationController == null) return
+        if (!enabled) {
+            notificationControllerHolder.release()
+            return
+        }
         notificationController().setNotificationsEnabled(enabled)
     }
 
@@ -118,29 +114,21 @@ class AppContainer(
     }
 
     fun scheduleDeferredStartupWork() {
-        appUpdateManager.scheduleStartupMaintenance()
+        startupCoordinator.scheduleDeferredStartupWork()
     }
 
     fun release() {
         openNowPlayingChannel.close()
-        playbackNotificationController?.setNotificationsEnabled(false)
-        playbackNotificationController = null
+        notificationControllerHolder.release()
         appUpdateManager.release()
         lyricsService.release()
         libraryRepository.release()
         playbackManager.release()
         preferenceStore.release()
-        appJob.cancel()
+        appRuntimeScope.close()
     }
 
     private fun notificationController(): PlaybackNotificationController {
-        PlaybackNotificationController.ensureNotificationChannel(applicationContext)
-        return playbackNotificationController ?: PlaybackNotificationController(
-            context = applicationContext,
-            playbackManager = playbackManager,
-            scope = appScope,
-        ).also { controller ->
-            playbackNotificationController = controller
-        }
+        return notificationControllerHolder.get()
     }
 }

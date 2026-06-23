@@ -376,12 +376,6 @@ private data class SongMenuActions(
     val deletePhrase: UiPhrase = UiPhrase.DeleteFromLibrary,
 )
 
-private data class PendingSongDeletion(
-    val songs: List<Song>,
-    val parentDirectories: Set<String> = emptySet(),
-    val filePaths: Set<String> = emptySet(),
-)
-
 internal fun Context.loadAboutScreenModel(): AboutScreenModel {
     val parser = resources.getXml(R.xml.info_screen)
     val sections = mutableListOf<AboutSection>()
@@ -580,12 +574,6 @@ private data class SharedTopBarRegistration(
     val id: Any,
     val spec: SharedTopBarSpec,
 )
-
-private enum class PlayerLayerState {
-    Compact,
-    Expanded,
-    ReturningToCompact,
-}
 
 internal data class AboutScreenModel(
     val sections: List<AboutSection>,
@@ -2482,47 +2470,6 @@ fun ElovaireRoot(
     }
 }
 
-private fun libraryUiStateOf(
-    content: LibraryContentState,
-    scan: LibraryScanState,
-): LibraryUiState {
-    return LibraryUiState(
-        permissionGranted = scan.permissionGranted,
-        isLoading = scan.isLoading,
-        scanProgress = scan.scanProgress,
-        songs = content.songs,
-        albums = content.albums,
-        removingSongIds = content.removingSongIds,
-        removingAlbumIds = content.removingAlbumIds,
-        errorMessage = scan.errorMessage,
-    )
-}
-
-private fun playbackUiStateOf(
-    nowPlaying: PlaybackNowPlayingState,
-    transport: PlaybackTransportState,
-    queue: PlaybackQueueState,
-    volume: PlaybackVolumeState,
-    recent: RecentPlaybackState,
-): PlaybackUiState {
-    return PlaybackUiState(
-        queue = queue.queue,
-        currentIndex = queue.currentIndex,
-        isPlaying = transport.isPlaying,
-        transportShowsPause = transport.transportShowsPause,
-        repeatMode = transport.repeatMode,
-        shuffleEnabled = transport.shuffleEnabled,
-        sourceLabel = nowPlaying.sourceLabel,
-        volume = volume.volume,
-        audioSessionId = nowPlaying.audioSessionId,
-        recentSongIds = recent.recentSongIds,
-        recentAlbumIds = recent.recentAlbumIds,
-        sourcePlaylistId = queue.sourcePlaylistId,
-        lastPlayedCollectionKind = recent.lastPlayedCollectionKind,
-        lastPlayedCollectionId = recent.lastPlayedCollectionId,
-    )
-}
-
 @Composable
 private fun ForceDarkColorScheme(
     content: @Composable () -> Unit,
@@ -2740,7 +2687,7 @@ private fun StandaloneNowPlayingDock(
 }
 
 @Composable
-private fun UnifiedTopBar(
+internal fun UnifiedTopBar(
     title: String,
     showSettings: Boolean,
     @DrawableRes supplementalActionIconResId: Int? = null,
@@ -3701,82 +3648,6 @@ private fun PermissionGate(
                 Button(onClick = onRequestPermission) {
                     Text(copy.firstLaunchPermissionButton)
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun FirstLaunchPermissionLoadingScreen(
-    showLoading: Boolean,
-    onRequestPermission: () -> Unit,
-) {
-    val spinnerColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        InkText
-    } else {
-        Color.White
-    }
-    val motionDurationScale = rememberSystemAnimationScale()
-    val infiniteTransition = rememberInfiniteTransition(label = "first_launch_permission_spinner")
-    val animatedRotationDegrees by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = ElovaireMotion.scaleDurationMillis(1100, motionDurationScale).toInt(),
-                easing = androidx.compose.animation.core.LinearEasing,
-            ),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "first_launch_permission_spinner_rotation",
-    )
-    val rotationDegrees = if (motionDurationScale <= 0f) 0f else animatedRotationDegrees
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
-    ) {
-        UnifiedTopBar(
-            title = "Elovaire",
-            showSettings = false,
-            onOpenMenu = onRequestPermission,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth(),
-        )
-        ElovaireAnimatedVisibility(
-            visible = showLoading,
-            modifier = Modifier.align(Alignment.Center),
-            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-            exit = fadeOut(animationSpec = ElovaireMotion.fadeSlow()),
-            label = "FirstLaunchPermissionSpinnerVisibility",
-        ) {
-            Canvas(
-                modifier = Modifier
-                    .size(46.dp)
-                    .graphicsLayer { rotationZ = rotationDegrees },
-            ) {
-                val stroke = 2.5.dp.toPx()
-                val inset = stroke / 2f + 1.dp.toPx()
-                val arcSize = size.minDimension - inset * 2f
-                drawArc(
-                    color = spinnerColor.copy(alpha = 0.2f),
-                    startAngle = 0f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(arcSize, arcSize),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
-                )
-                drawArc(
-                    color = spinnerColor,
-                    startAngle = -80f,
-                    sweepAngle = 88f,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(arcSize, arcSize),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
-                )
             }
         }
     }

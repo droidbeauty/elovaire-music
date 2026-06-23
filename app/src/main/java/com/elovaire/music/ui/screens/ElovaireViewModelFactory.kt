@@ -15,7 +15,7 @@ internal class ElovaireViewModelFactory(
                 SearchViewModel(
                     libraryRepository = appContainer.libraryRepository,
                     preferenceStore = appContainer.preferenceStore,
-                    playbackManager = appContainer.playbackManager,
+                    playbackReader = appContainer.playbackManager,
                 ) as T
             }
 

@@ -15,9 +15,6 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Album
-import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
-import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
-import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.theme.InkText
@@ -666,28 +663,5 @@ internal fun Rect?.toExpandOrigin(
     return ExpandOrigin(
         xFraction = (centerX / screenWidthPx).coerceIn(0.1f, 0.9f),
         yFraction = (centerY / screenHeightPx).coerceIn(0.1f, 0.9f),
-    )
-}
-
-internal fun albumSearchHistoryEntry(album: Album): SearchHistoryEntry {
-    return SearchHistoryEntry(
-        key = "album:${album.id}",
-        kind = SearchHistoryKind.Album,
-        title = album.title,
-        subtitle = album.artist,
-        artUri = album.artUri,
-        albumId = album.id,
-    )
-}
-
-internal fun artistSearchHistoryEntry(song: Song): SearchHistoryEntry {
-    val normalizedArtist = normalizeSearchText(song.artist)
-    return SearchHistoryEntry(
-        key = "artist:$normalizedArtist",
-        kind = SearchHistoryKind.Artist,
-        title = song.artist.trim(),
-        subtitle = song.album,
-        artUri = song.artUri,
-        query = song.artist.trim(),
     )
 }

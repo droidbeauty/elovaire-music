@@ -80,6 +80,10 @@ class LibraryRepository(
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val contentResolver = appContext.contentResolver
     private val _contentState = MutableStateFlow(LibraryContentState())
+    private val snapshotPublisher = LibrarySnapshotPublisher(
+        publish = { _contentState.value = it },
+        currentState = { _contentState.value },
+    )
     private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
     private var refreshDebounceJob: Job? = null
@@ -185,7 +189,7 @@ class LibraryRepository(
         if (didBootstrapLibrary) return
         didBootstrapLibrary = true
         scope.launch {
-            val cachedSnapshot = withContext(Dispatchers.IO) { snapshotStore.load() }
+                val cachedSnapshot = withContext(Dispatchers.IO) { snapshotStore.load() }
             val cacheMatchesCurrentFilter = cachedSnapshot?.signature?.filterFingerprint == scanner.currentFilterFingerprint()
             if (cachedSnapshot != null && cacheMatchesCurrentFilter) {
                 scanner.primeMetadataCache(cachedSnapshot.snapshot.songs)
@@ -296,10 +300,7 @@ class LibraryRepository(
                     val scannedSongIds = snapshot.songs.mapTo(hashSetOf(), Song::id)
                     confirmedDeletedSongIds.update { tombstones -> tombstones.filterTo(linkedSetOf()) { it in scannedSongIds } }
                     val nextContentState = publishLibraryContent(visibleSongs)
-                    val visibleSnapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
-                        songs = nextContentState.songs,
-                        albums = nextContentState.albums,
-                    )
+                    val visibleSnapshot = snapshotPublisher.snapshotOf(nextContentState)
                     val nextScanState = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
@@ -445,10 +446,7 @@ class LibraryRepository(
         val updatedState = publishLibraryContent(remainingSongs)
         withContext(Dispatchers.IO) {
             snapshotStore.save(
-                snapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
-                    songs = updatedState.songs,
-                    albums = updatedState.albums,
-                ),
+                snapshot = snapshotPublisher.snapshotOf(updatedState),
                 filterFingerprint = scanner.currentFilterFingerprint(),
             )
         }
@@ -508,10 +506,7 @@ class LibraryRepository(
         )
         withContext(Dispatchers.IO) {
             snapshotStore.save(
-                snapshot = elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot(
-                    songs = updatedState.songs,
-                    albums = updatedState.albums,
-                ),
+                snapshot = snapshotPublisher.snapshotOf(updatedState),
                 filterFingerprint = scanner.currentFilterFingerprint(),
             )
         }
@@ -679,16 +674,11 @@ class LibraryRepository(
         removingSongIds: Set<Long> = pendingDeletedSongIds.value,
         removingAlbumIds: Set<Long> = pendingDeletedAlbumIds.value,
     ): LibraryContentState {
-        val nextState = LibraryContentState(
+        return snapshotPublisher.publishSongs(
             songs = songs,
-            albums = buildAlbumsFromSongs(songs),
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
         )
-        if (_contentState.value != nextState) {
-            _contentState.value = nextState
-        }
-        return nextState
     }
 
     private companion object {

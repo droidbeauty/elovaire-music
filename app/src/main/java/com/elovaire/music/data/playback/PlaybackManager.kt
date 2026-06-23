@@ -152,7 +152,7 @@ class PlaybackManager(
         lastPlayedCollectionKind: PlaybackCollectionKind?,
         lastPlayedCollectionId: Long?,
     ) -> Unit = { _, _, _, _ -> },
-) {
+) : PlaybackReader, PlaybackController {
     private val scope = scope
     private val appContext = context.applicationContext
     private val audioProcessorsProvider = audioProcessorsProvider
@@ -244,7 +244,14 @@ class PlaybackManager(
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
     private var hasUsbOutputRoute = false
     private val playbackProgressController = PlaybackProgressController()
-    private var progressUpdateJob: Job? = null
+    private val playbackProgressTicker = PlaybackProgressTicker(
+        scope = scope,
+        intervalMs = PLAYING_PROGRESS_UPDATE_INTERVAL_MS,
+    ) {
+        publishProgressSnapshot()
+        player.isPlaying || playbackProgressController.needsActivePolling()
+    }
+    private val queueMetadataRefresher = PlaybackQueueMetadataRefresher()
     private var pauseFadeJob: Job? = null
     private var externalInterruptionResumeJob: Job? = null
     private val _playerInstanceVersion = MutableStateFlow(0L)
@@ -348,7 +355,7 @@ class PlaybackManager(
         ),
     )
     val state: StateFlow<PlaybackUiState> = _state.asStateFlow()
-    val nowPlayingState: StateFlow<PlaybackNowPlayingState> = state
+    override val nowPlayingState: StateFlow<PlaybackNowPlayingState> = state
         .map { snapshot ->
             PlaybackNowPlayingState(
                 currentSong = snapshot.currentSong,
@@ -366,7 +373,7 @@ class PlaybackManager(
                 audioSessionId = _state.value.audioSessionId,
             ),
         )
-    val transportState: StateFlow<PlaybackTransportState> = state
+    override val transportState: StateFlow<PlaybackTransportState> = state
         .map { snapshot ->
             PlaybackTransportState(
                 isPlaying = snapshot.isPlaying,
@@ -386,7 +393,7 @@ class PlaybackManager(
                 shuffleEnabled = _state.value.shuffleEnabled,
             ),
         )
-    val queueState: StateFlow<PlaybackQueueState> = state
+    override val queueState: StateFlow<PlaybackQueueState> = state
         .map { snapshot ->
             PlaybackQueueState(
                 queue = snapshot.queue,
@@ -404,7 +411,7 @@ class PlaybackManager(
                 sourcePlaylistId = _state.value.sourcePlaylistId,
             ),
         )
-    val volumeState: StateFlow<PlaybackVolumeState> = state
+    override val volumeState: StateFlow<PlaybackVolumeState> = state
         .map { snapshot -> PlaybackVolumeState(volume = snapshot.volume) }
         .distinctUntilChanged()
         .stateIn(
@@ -412,7 +419,7 @@ class PlaybackManager(
             started = SharingStarted.Eagerly,
             initialValue = PlaybackVolumeState(volume = _state.value.volume),
         )
-    val recentPlaybackState: StateFlow<RecentPlaybackState> = state
+    override val recentPlaybackState: StateFlow<RecentPlaybackState> = state
         .map { snapshot ->
             RecentPlaybackState(
                 recentSongIds = snapshot.recentSongIds,
@@ -566,7 +573,7 @@ class PlaybackManager(
         setQueue(album.songs, startIndex, sourceLabel, shuffleEnabled, sourcePlaylistId)
     }
 
-    fun togglePlayback() {
+    override fun togglePlayback() {
         dispatchPlaybackCommand(PlaybackCommand.Toggle, PlaybackCommandOrigin.InApp)
     }
 
@@ -631,7 +638,7 @@ class PlaybackManager(
         updateState()
     }
 
-    fun seekTo(positionMs: Long) {
+    override fun seekTo(positionMs: Long) {
         _progressState.value = playbackProgressController.cancelScrub()
         player.seekTo(positionMs.coerceAtLeast(0L))
         publishProgressSnapshot()
@@ -696,7 +703,7 @@ class PlaybackManager(
         updateState()
     }
 
-    fun skipNext() {
+    override fun skipNext() {
         cancelPauseFade()
         clearInterruptionResumeState()
         if (player.hasNextMediaItem()) {
@@ -707,7 +714,7 @@ class PlaybackManager(
         updateState()
     }
 
-    fun skipPrevious() {
+    override fun skipPrevious() {
         cancelPauseFade()
         clearInterruptionResumeState()
         if (player.currentPosition > PREVIOUS_SEEK_THRESHOLD_MS) {
@@ -803,18 +810,7 @@ class PlaybackManager(
         if (existingState.queue.isEmpty()) return
         val queuedSongIds = existingState.queue.asSequence().mapTo(linkedSetOf(), Song::id)
         val songsById = updatedSongs.associateQueuedSongsById(queuedSongIds)
-        if (songsById.isEmpty()) return
-        var queueChanged = false
-        val refreshedQueue = existingState.queue.map { queuedSong ->
-            val refreshedSong = songsById[queuedSong.id]
-            if (refreshedSong != null && refreshedSong != queuedSong) {
-                queueChanged = true
-                refreshedSong
-            } else {
-                queuedSong
-            }
-        }
-        if (!queueChanged) return
+        val refreshedQueue = queueMetadataRefresher.refreshQueueIfNeeded(existingState.queue, songsById) ?: return
         refreshedQueue.forEachIndexed { index, refreshedSong ->
             if (
                 existingState.queue.getOrNull(index)?.playbackMetadataSignature() != refreshedSong.playbackMetadataSignature() &&
@@ -845,7 +841,7 @@ class PlaybackManager(
 
     fun release() {
         pauseFadeJob?.cancel()
-        progressUpdateJob?.cancel()
+        playbackProgressTicker.release()
         externalInterruptionResumeJob?.cancel()
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         usbDacHardwareVolumeManager.release()
@@ -1030,6 +1026,7 @@ class PlaybackManager(
             transportShowsPause = shouldAutoPlay,
             sourcePlaylistId = sourcePlaylistId,
         )
+        queueMetadataRefresher.onQueueReplaced(songs)
         updateState()
     }
 
@@ -1058,6 +1055,7 @@ class PlaybackManager(
             audioSessionId = 0,
             sourcePlaylistId = null,
         )
+        queueMetadataRefresher.reset()
         _progressState.value = playbackProgressController.clear()
         syncRuntimeObservers()
         syncProgressUpdateLoop()
@@ -1397,26 +1395,10 @@ class PlaybackManager(
     private fun syncProgressUpdateLoop() {
         val shouldPoll = hasActiveQueue() && (player.isPlaying || playbackProgressController.needsActivePolling())
         if (!shouldPoll) {
-            progressUpdateJob?.cancel()
-            progressUpdateJob = null
+            playbackProgressTicker.stop()
             return
         }
-        if (progressUpdateJob?.isActive == true) return
-        progressUpdateJob = scope.launch {
-            try {
-                while (isActive) {
-                    publishProgressSnapshot()
-                    if (!player.isPlaying && !playbackProgressController.needsActivePolling()) {
-                        break
-                    }
-                    delay(PLAYING_PROGRESS_UPDATE_INTERVAL_MS)
-                }
-            } finally {
-                if (progressUpdateJob === this) {
-                    progressUpdateJob = null
-                }
-            }
-        }
+        playbackProgressTicker.start()
     }
 
     private fun shouldAutoResumeAfterUnexpectedIdle(): Boolean {
@@ -1769,7 +1751,7 @@ private fun Song.toPlaybackMediaItem(): MediaItem {
         .build()
 }
 
-private fun Song.playbackMetadataSignature(): Int {
+internal fun Song.playbackMetadataSignature(): Int {
     var result = id.hashCode()
     result = 31 * result + title.hashCode()
     result = 31 * result + artist.hashCode()
