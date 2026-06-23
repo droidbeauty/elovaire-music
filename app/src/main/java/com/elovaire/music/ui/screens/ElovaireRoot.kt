@@ -294,6 +294,12 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
+import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
+import elovaire.music.droidbeauty.app.domain.search.RankedResult
+import elovaire.music.droidbeauty.app.domain.search.normalizeSearchText
+import elovaire.music.droidbeauty.app.domain.search.rankMatching
+import elovaire.music.droidbeauty.app.domain.search.searchAlbumsForPicker
+import elovaire.music.droidbeauty.app.domain.search.searchSongsForPicker
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
@@ -2055,6 +2061,8 @@ fun ElovaireRoot(
                         val equalizerUiState by equalizerViewModel.uiState.collectAsStateWithLifecycle()
                         EqualizerScreen(
                             settings = equalizerUiState.toEqSettings(),
+                            selectedPresetName = equalizerUiState.presetName,
+                            equalizerEnabled = equalizerUiState.enabled,
                             onBack = navController::navigateUp,
                             onBandChanged = equalizerViewModel::updateBand,
                             onBassChanged = equalizerViewModel::updateBass,
@@ -6094,25 +6102,12 @@ private fun SearchQuickPick(
     }
 }
 
-private fun searchMatchesComposite(
-    query: String,
-    fields: List<String>,
-): Boolean {
-    val normalizedQuery = query
-        .trim()
-        .lowercase()
-    if (normalizedQuery.isBlank()) return true
-    val tokens = normalizedQuery
-        .split(Regex("\\s+"))
-        .filter { it.isNotBlank() }
-    if (tokens.isEmpty()) return true
-    val haystack = fields
-        .asSequence()
-        .map { it.trim().lowercase() }
-        .filter { it.isNotBlank() }
-        .joinToString(separator = " ")
-    return tokens.all { token -> haystack.contains(token) }
-}
+private data class SearchableArtistPickerEntry(
+    val artist: ArtistEntry,
+    val songs: List<Song>,
+    val normalizedName: String,
+    val normalizedComposite: String,
+)
 
 @Composable
 private fun SearchHistorySectionHeader(
@@ -8130,7 +8125,7 @@ private fun AnimatedAudioLinesIcon(
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
                 animation = tween(
-                    durationMillis = ElovaireMotion.scaleDurationMillis(1180, motionDurationScale).toInt(),
+                    durationMillis = ElovaireMotion.scaleDurationMillis(1416, motionDurationScale).toInt(),
                     easing = LinearEasing,
                 ),
                 repeatMode = RepeatMode.Restart,
@@ -8361,6 +8356,7 @@ internal fun AddSongsToPlaylistOverlay(
     val candidateSongs = remember(availableSongs, existingSongIds) {
         availableSongs.filterNot { it.id in existingSongIds }
     }
+    val normalizedQuery = remember(query) { NormalizedSearchQuery.from(query) }
     val trimmedQuery = query.trim()
     val albums = remember(candidateSongs) {
         candidateSongs.groupBy { it.albumId }
@@ -8398,23 +8394,54 @@ internal fun AddSongsToPlaylistOverlay(
             }
             .sortedBy { it.first.name.lowercase() }
     }
-    val filteredAlbums = remember(albums, trimmedQuery) {
-        albums.filter { album ->
-            searchMatchesComposite(trimmedQuery, listOf(album.title, album.artist))
+    val filteredAlbums = remember(albums, normalizedQuery) {
+        searchAlbumsForPicker(
+            albums = albums,
+            query = normalizedQuery,
+        )
+    }
+    val filteredArtists = remember(artists, normalizedQuery) {
+        if (normalizedQuery.value.isBlank()) {
+            artists
+        } else {
+            artists
+                .map { (artist, songs) ->
+                    val normalizedName = normalizeSearchText(artist.name)
+                    SearchableArtistPickerEntry(
+                        artist = artist,
+                        songs = songs,
+                        normalizedName = normalizedName,
+                        normalizedComposite = buildString {
+                            append(normalizedName)
+                            songs.firstOrNull()?.album
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let {
+                                    append(' ')
+                                    append(normalizeSearchText(it))
+                                }
+                        },
+                    )
+                }
+                .rankMatching(
+                    query = normalizedQuery,
+                    normalizedTitle = SearchableArtistPickerEntry::normalizedName,
+                    normalizedArtist = { "" },
+                    normalizedComposite = SearchableArtistPickerEntry::normalizedComposite,
+                )
+                .sortedWith(
+                    compareByDescending<RankedResult<SearchableArtistPickerEntry>> { it.score }
+                        .thenBy { it.value.normalizedName }
+                        .thenByDescending { it.value.artist.songCount }
+                        .thenBy { it.value.artist.name },
+                )
+                .map { it.value.artist to it.value.songs }
         }
     }
-    val filteredArtists = remember(artists, trimmedQuery) {
-        artists.filter { (artist, songs) ->
-            searchMatchesComposite(trimmedQuery, buildList {
-                add(artist.name)
-                songs.firstOrNull()?.album?.let(::add)
-            })
-        }
-    }
-    val filteredSongs = remember(candidateSongs, trimmedQuery) {
-        candidateSongs.filter { song ->
-            searchMatchesComposite(trimmedQuery, listOf(song.title, song.artist, song.album))
-        }
+    val filteredSongs = remember(candidateSongs, normalizedQuery) {
+        searchSongsForPicker(
+            songs = candidateSongs,
+            query = normalizedQuery,
+        )
     }
     val selectedAlbum = remember(selectedAlbumId, albums) {
         albums.firstOrNull { it.id == selectedAlbumId }
@@ -8422,14 +8449,17 @@ internal fun AddSongsToPlaylistOverlay(
     val selectedArtistSongs = remember(selectedArtistName, artists) {
         artists.firstOrNull { it.first.name == selectedArtistName }?.second.orEmpty()
     }
-    val filteredAlbumSongs = remember(selectedAlbum) {
-        selectedAlbum?.songs
-            .orEmpty()
+    val filteredAlbumSongs = remember(selectedAlbum, normalizedQuery) {
+        searchSongsForPicker(
+            songs = selectedAlbum?.songs.orEmpty(),
+            query = normalizedQuery,
+        )
     }
-    val filteredArtistSongs = remember(selectedArtistSongs, trimmedQuery) {
-        selectedArtistSongs.filter { song ->
-            searchMatchesComposite(trimmedQuery, listOf(song.title, song.artist, song.album))
-        }
+    val filteredArtistSongs = remember(selectedArtistSongs, normalizedQuery) {
+        searchSongsForPicker(
+            songs = selectedArtistSongs,
+            query = normalizedQuery,
+        )
     }
     val handleBack: () -> Unit = {
         when {
@@ -13165,6 +13195,8 @@ private fun List<Song>.playbackSourceLabel(fallbackAlbum: String, language: AppL
 @Composable
 private fun EqualizerScreen(
     settings: EqSettings,
+    selectedPresetName: String?,
+    equalizerEnabled: Boolean,
     onBack: () -> Unit,
     onBandChanged: (Int, Float) -> Unit,
     onBassChanged: (Float) -> Unit,
@@ -13244,6 +13276,8 @@ private fun EqualizerScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 EqPresetMenu(
                     currentSettings = settings,
+                    selectedPresetName = selectedPresetName,
+                    equalizerEnabled = equalizerEnabled,
                     onApplyPreset = onApplyPreset,
                     onReset = onReset,
                 )
@@ -15270,6 +15304,8 @@ private data class EqPresetDefinition(
 @Composable
 private fun EqPresetMenu(
     currentSettings: EqSettings,
+    selectedPresetName: String?,
+    equalizerEnabled: Boolean,
     onApplyPreset: (String, EqSettings) -> Unit,
     onReset: () -> Unit,
 ) {
@@ -15290,9 +15326,14 @@ private fun EqPresetMenu(
         )
     }
     val horizontalScrollState = rememberScrollState()
-    val activePresetName = remember(currentSettings, presets) {
+    val activePresetName = remember(currentSettings, selectedPresetName, equalizerEnabled, presets) {
+        if (!equalizerEnabled) return@remember null
+        selectedPresetName?.takeIf { selectedName ->
+            presets.any { preset -> preset.name == selectedName }
+        } ?: run {
         val currentBands = currentSettings.normalizedBandValues()
         presets.firstOrNull { preset -> preset.settings.normalizedBandValues() == currentBands }?.name
+        }
     }
 
     Row(

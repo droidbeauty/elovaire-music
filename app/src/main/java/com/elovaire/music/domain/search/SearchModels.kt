@@ -73,35 +73,8 @@ internal fun buildSearchIndex(
     songs: List<Song>,
     albums: List<Album>,
 ): SearchIndex {
-    val searchableSongs = songs.map { song ->
-        val normalizedTitle = normalizeSearchText(song.title)
-        val normalizedArtist = normalizeSearchText(song.artist)
-        val normalizedAlbum = normalizeSearchText(song.album)
-        SearchableSong(
-            song = song,
-            normalizedTitle = normalizedTitle,
-            normalizedArtist = normalizedArtist,
-            normalizedAlbum = normalizedAlbum,
-            normalizedComposite = buildNormalizedComposite(
-                normalizedTitle,
-                normalizedArtist,
-                normalizedAlbum,
-            ),
-        )
-    }
-    val searchableAlbums = albums.map { album ->
-        val normalizedTitle = normalizeSearchText(album.title)
-        val normalizedArtist = normalizeSearchText(album.artist)
-        SearchableAlbum(
-            album = album,
-            normalizedTitle = normalizedTitle,
-            normalizedArtist = normalizedArtist,
-            normalizedComposite = buildNormalizedComposite(
-                normalizedTitle,
-                normalizedArtist,
-            ),
-        )
-    }
+    val searchableSongs = songs.map(Song::toSearchableSong)
+    val searchableAlbums = albums.map(Album::toSearchableAlbum)
     val searchableArtists = buildSearchableArtists(songs)
 
     return SearchIndex(
@@ -226,8 +199,39 @@ internal fun sortRankedAlbums(ranked: List<RankedResult<SearchableAlbum>>): List
         .map { it.value.album }
 }
 
-private fun buildNormalizedComposite(vararg parts: String): String {
+internal fun buildNormalizedComposite(vararg parts: String): String {
     return parts.filter { it.isNotBlank() }.joinToString(" ")
+}
+
+internal fun Song.toSearchableSong(): SearchableSong {
+    val normalizedTitle = normalizeSearchText(title)
+    val normalizedArtist = normalizeSearchText(artist)
+    val normalizedAlbum = normalizeSearchText(album)
+    return SearchableSong(
+        song = this,
+        normalizedTitle = normalizedTitle,
+        normalizedArtist = normalizedArtist,
+        normalizedAlbum = normalizedAlbum,
+        normalizedComposite = buildNormalizedComposite(
+            normalizedTitle,
+            normalizedArtist,
+            normalizedAlbum,
+        ),
+    )
+}
+
+internal fun Album.toSearchableAlbum(): SearchableAlbum {
+    val normalizedTitle = normalizeSearchText(title)
+    val normalizedArtist = normalizeSearchText(artist)
+    return SearchableAlbum(
+        album = this,
+        normalizedTitle = normalizedTitle,
+        normalizedArtist = normalizedArtist,
+        normalizedComposite = buildNormalizedComposite(
+            normalizedTitle,
+            normalizedArtist,
+        ),
+    )
 }
 
 private fun buildSearchableArtists(songs: List<Song>): List<SearchableArtist> {
