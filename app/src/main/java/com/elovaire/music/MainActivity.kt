@@ -34,7 +34,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.data.playback.EXTRA_OPEN_PLAYER_FROM_NOTIFICATION
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
-import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
+import elovaire.music.droidbeauty.app.ui.motion.MotionRuntimeProvider
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRuntime
 import elovaire.music.droidbeauty.app.ui.screens.ElovaireRoot
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
 import elovaire.music.droidbeauty.app.ui.theme.themeBackgroundForMode
@@ -52,6 +53,8 @@ class MainActivity : ComponentActivity() {
         val resetHomeScrollOnColdStart = shouldShowColdStartSplash && isFirstActivityInProcess
         handleNotificationIntent()
         setContent {
+            val motionRuntime = rememberMotionRuntime()
+            MotionRuntimeProvider(runtime = motionRuntime) {
             val themeMode = container.preferenceStore.themeMode.collectAsStateWithLifecycle()
             val textSizePreset = container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
             val systemDark = isSystemInDarkTheme()
@@ -59,7 +62,7 @@ class MainActivity : ComponentActivity() {
             var overlayColor by remember {
                 mutableStateOf(themeBackgroundForMode(themeMode.value, systemDark))
             }
-            val motionDurationScale = rememberSystemAnimationScale()
+            val motionDurationScale = motionRuntime.durationScale
             val themeOverlayAlpha = remember { Animatable(0f) }
             var showSplash by remember { mutableStateOf(shouldShowColdStartSplash) }
             LaunchedEffect(themeMode.value, systemDark) {
@@ -139,6 +142,7 @@ class MainActivity : ComponentActivity() {
                         }
                     }
                 }
+            }
             }
         }
     }

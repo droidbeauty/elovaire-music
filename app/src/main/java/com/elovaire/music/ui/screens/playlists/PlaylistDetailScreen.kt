@@ -77,7 +77,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
-import elovaire.music.droidbeauty.app.ui.motion.elovaireListDropdownReveal
+import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -101,6 +102,7 @@ internal fun PlaylistDetailScreen(
     onRenamePlaylist: (Long, String) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     val songsById = remember(librarySongs) { librarySongs.associateBy { it.id } }
     val detailState = remember(playlist, songsById) {
         buildPlaylistDetailState(playlist, songsById)
@@ -363,9 +365,10 @@ internal fun PlaylistDetailScreen(
                                 .animateItem(
                                     placementSpec = ElovaireMotion.listPlacementSpec(),
                                 )
-                                .elovaireListDropdownReveal(
-                                    key = "${song.id}_$index",
+                                .elovaireListReveal(
+                                    itemKey = "${song.id}_$index",
                                     index = index,
+                                    registry = revealRegistry,
                                     enabled = !editMode,
                                 ),
                         ) {

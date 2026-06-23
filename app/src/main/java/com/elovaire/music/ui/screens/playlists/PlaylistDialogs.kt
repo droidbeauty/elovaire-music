@@ -77,7 +77,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
-import elovaire.music.droidbeauty.app.ui.motion.elovaireListDropdownReveal
+import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -409,6 +410,7 @@ internal fun PlaylistSelectionDialog(
     onPlaylistSelected: (Long) -> Unit,
     onCreatePlaylist: ((String) -> Long)?,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState(title, subtitle, "playlist_picker")
     var draftPlaylistName by rememberSaveable(title, subtitle) { mutableStateOf("") }
@@ -519,9 +521,10 @@ internal fun PlaylistSelectionDialog(
                                         durationMs = row.durationMs,
                                         selected = row.playlist.id == selectedPlaylistId,
                                         modifier = Modifier
-                                            .elovaireListDropdownReveal(
-                                                key = row.playlist.id,
+                                            .elovaireListReveal(
+                                                itemKey = row.playlist.id,
                                                 index = row.index,
+                                                registry = revealRegistry,
                                             ),
                                         onClick = {
                                             selectedPlaylistId = if (selectedPlaylistId == row.playlist.id) null else row.playlist.id
@@ -534,9 +537,10 @@ internal fun PlaylistSelectionDialog(
                                             name = draftPlaylistName,
                                             onNameChange = { draftPlaylistName = it },
                                             modifier = Modifier
-                                                .elovaireListDropdownReveal(
-                                                    key = "inline_playlist_creator",
+                                                .elovaireListReveal(
+                                                    itemKey = "inline_playlist_creator",
                                                     index = displayedRows.size,
+                                                    registry = revealRegistry,
                                                 ),
                                             onSave = {
                                                 val trimmedName = draftPlaylistName.trim()

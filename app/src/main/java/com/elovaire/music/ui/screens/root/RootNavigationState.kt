@@ -20,7 +20,7 @@ import androidx.navigation.NavHostController
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Stable
 internal class RootNavigationState(
@@ -249,53 +249,49 @@ internal fun String?.isAlbumDetailRoute(): Boolean = this == "$ALBUM_ROUTE/{albu
 internal fun resolveForwardEnterTransition(
     transition: NavHostTransitionResolution,
     expandOrigin: ExpandOrigin,
+    motionTransitions: MotionTransitions,
 ): EnterTransition = when {
     transition.targetRoute == PLAYER_ROUTE -> EnterTransition.None
     transition.targetUsesTileExpand -> ElovaireAlbumMotion.forwardEnter(expandOrigin.toTransformOrigin())
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
-        forward = transition.topLevelTransition.isForward,
-    )
+    transition.topLevelTransition.isTopLevelTransition -> motionTransitions.topLevelEnter()
     transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.forwardEnter(expandOrigin.toTransformOrigin())
-    transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardEnter()
-    else -> ElovaireMotion.fullScreenForwardEnter()
+    transition.targetUsesDetailTransition -> motionTransitions.detailForwardEnter()
+    else -> motionTransitions.fullScreenForwardEnter()
 }
 
 internal fun resolveForwardExitTransition(
     transition: NavHostTransitionResolution,
+    motionTransitions: MotionTransitions,
 ): ExitTransition = when {
     transition.targetRoute == PLAYER_ROUTE -> ExitTransition.None
     transition.targetUsesTileExpand -> ElovaireAlbumMotion.forwardExit()
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
-        forward = transition.topLevelTransition.isForward,
-    )
+    transition.topLevelTransition.isTopLevelTransition -> motionTransitions.topLevelExit()
     transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.forwardExit()
-    transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardExit()
-    else -> ElovaireMotion.fullScreenForwardExit()
+    transition.targetUsesDetailTransition -> motionTransitions.detailForwardExit()
+    else -> motionTransitions.fullScreenForwardExit()
 }
 
 internal fun resolvePopEnterTransition(
     transition: NavHostTransitionResolution,
+    motionTransitions: MotionTransitions,
 ): EnterTransition = when {
     transition.initialRoute == PLAYER_ROUTE -> EnterTransition.None
     transition.initialUsesTileExpand -> ElovaireAlbumMotion.backEnter()
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
-        forward = transition.topLevelTransition.isForward,
-    )
+    transition.topLevelTransition.isTopLevelTransition -> motionTransitions.topLevelEnter()
     transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.backEnter()
-    transition.targetUsesDetailTransition -> ElovaireMotion.detailBackEnter()
-    else -> ElovaireMotion.fullScreenBackEnter()
+    transition.targetUsesDetailTransition -> motionTransitions.detailBackEnter()
+    else -> motionTransitions.fullScreenBackEnter()
 }
 
 internal fun resolvePopExitTransition(
     transition: NavHostTransitionResolution,
     expandOrigin: ExpandOrigin,
+    motionTransitions: MotionTransitions,
 ): ExitTransition = when {
     transition.initialRoute == PLAYER_ROUTE -> ExitTransition.None
     transition.initialUsesTileExpand -> ElovaireAlbumMotion.backExit(expandOrigin.toTransformOrigin())
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
-        forward = transition.topLevelTransition.isForward,
-    )
+    transition.topLevelTransition.isTopLevelTransition -> motionTransitions.topLevelExit()
     transition.initialRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.backExit(expandOrigin.toTransformOrigin())
-    transition.initialUsesDetailTransition -> ElovaireMotion.detailBackExit()
-    else -> ElovaireMotion.fullScreenBackExit()
+    transition.initialUsesDetailTransition -> motionTransitions.detailBackExit()
+    else -> motionTransitions.fullScreenBackExit()
 }

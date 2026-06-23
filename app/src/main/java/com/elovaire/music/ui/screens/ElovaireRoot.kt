@@ -305,7 +305,6 @@ import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
-import elovaire.music.droidbeauty.app.ui.interaction.PlayerOverlayHost
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
@@ -313,9 +312,11 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
-import elovaire.music.droidbeauty.app.ui.motion.elovaireListDropdownReveal
+import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
-import elovaire.music.droidbeauty.app.ui.motion.SyncElovaireMotionScale
+import elovaire.music.droidbeauty.app.ui.motion.PlayerOverlayMotionHost
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
@@ -384,7 +385,6 @@ fun ElovaireRoot(
 ) {
     val navController = rememberNavController()
     val context = LocalContext.current
-    SyncElovaireMotionScale()
     val appState = rememberRootAppState(container)
     val derivedState = rememberRootLibraryDerivedState(
         library = appState.library,
@@ -1328,7 +1328,7 @@ fun ElovaireRoot(
                 }
             }
             }
-            PlayerOverlayHost(
+            PlayerOverlayMotionHost(
                 visible = showPlayerOverlay,
                 onExitFinished = {
                     nowPlayingTransitionSnapshot = null
@@ -1448,6 +1448,7 @@ private fun StandaloneNowPlayingDock(
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     val artwork = rememberArtworkBitmap(song.artUri, size = 768)
     val gradient = rememberArtworkGradient(song.artUri).value
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -1460,12 +1461,8 @@ private fun StandaloneNowPlayingDock(
         ElovaireAnimatedVisibility(
             visible = visible,
             modifier = modifier,
-            enter = if (suppressEnterAnimation) {
-                ElovaireMotion.compactBarReturnEnter()
-            } else {
-                ElovaireMotion.compactBarEnter()
-            },
-            exit = ElovaireMotion.compactBarExit(),
+            enter = motionTransitions.compactBarEnter(suppressEnterAnimation),
+            exit = motionTransitions.compactBarExit(),
             label = "CompactNowPlayingDockVisibility",
         ) {
             Box(
@@ -2599,6 +2596,7 @@ private fun AlbumCollectionContent(
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
     onDeleteAlbumFromDevice: (Album) -> Unit,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var selectedAlbumIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
     var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
@@ -2681,9 +2679,10 @@ private fun AlbumCollectionContent(
                                 .animateItem(
                                     placementSpec = ElovaireMotion.listPlacementSpec(),
                                 )
-                                .elovaireListDropdownReveal(
-                                    key = album.id,
+                                .elovaireListReveal(
+                                    itemKey = album.id,
                                     index = index,
+                                    registry = revealRegistry,
                                 )
                                 .libraryRemovalAnimation(album.id in removingAlbumIds),
                             selectionMode = selectionModeActive,
@@ -2758,9 +2757,10 @@ private fun AlbumCollectionContent(
                                 .animateItem(
                                     placementSpec = ElovaireMotion.listPlacementSpec(),
                                 )
-                                .elovaireListDropdownReveal(
-                                    key = album.id,
+                                .elovaireListReveal(
+                                    itemKey = album.id,
                                     index = index,
+                                    registry = revealRegistry,
                                 )
                                 .libraryRemovalAnimation(album.id in removingAlbumIds),
                             selectionMode = selectionModeActive,
@@ -2833,9 +2833,10 @@ private fun AlbumCollectionContent(
                                 .animateItem(
                                     placementSpec = ElovaireMotion.listPlacementSpec(),
                                 )
-                                .elovaireListDropdownReveal(
-                                    key = album.id,
+                                .elovaireListReveal(
+                                    itemKey = album.id,
                                     index = index,
+                                    registry = revealRegistry,
                                 )
                                 .libraryRemovalAnimation(album.id in removingAlbumIds),
                         ) {
@@ -3460,6 +3461,7 @@ private fun SongCollectionScreen(
     onSongSelected: (Song, List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
@@ -3523,9 +3525,10 @@ private fun SongCollectionScreen(
                         .animateItem(
                             placementSpec = ElovaireMotion.listPlacementSpec(),
                         )
-                        .elovaireListDropdownReveal(
-                            key = song.id,
+                        .elovaireListReveal(
+                            itemKey = song.id,
                             index = index,
+                            registry = revealRegistry,
                         )
                         .libraryRemovalAnimation(song.id in removingSongIds),
                 ) {
@@ -4068,6 +4071,7 @@ private fun SearchScreen(
     onClearSearchHistory: () -> Unit,
     onResetSearchUi: () -> Unit,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val copy = searchCopy(language)
     val listState = rememberElovaireLazyListState("search_screen")
@@ -4256,9 +4260,10 @@ private fun SearchScreen(
                                         .animateItem(
                                             placementSpec = ElovaireMotion.listPlacementSpec(),
                                         )
-                                        .elovaireListDropdownReveal(
-                                            key = song.id,
+                                        .elovaireListReveal(
+                                            itemKey = song.id,
                                             index = index,
+                                            registry = revealRegistry,
                                         ),
                                 ) {
                                     PlaylistSongRow(
@@ -4460,9 +4465,10 @@ private fun SearchScreen(
                                         Column {
                                             state.matchingSongs.forEachIndexed { index, song ->
                                                 Box(
-                                                    modifier = Modifier.elovaireListDropdownReveal(
-                                                        key = song.id,
+                                                    modifier = Modifier.elovaireListReveal(
+                                                        itemKey = song.id,
                                                         index = index,
+                                                        registry = revealRegistry,
                                                     ),
                                                 ) {
                                                     HomeRecentSongRow(
@@ -6073,6 +6079,7 @@ private fun AlbumScreen(
     onToggleFavorite: (Long) -> Unit,
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     LaunchedEffect(album?.id) {
         if (album == null) {
             onBack()
@@ -6407,9 +6414,10 @@ private fun AlbumScreen(
                             .animateItem(
                                 placementSpec = ElovaireMotion.listPlacementSpec(),
                             )
-                            .elovaireListDropdownReveal(
-                                key = song.id,
+                            .elovaireListReveal(
+                                itemKey = song.id,
                                 index = index,
+                                registry = revealRegistry,
                             )
                             .libraryRemovalAnimation(song.id in removingSongIds),
                     ) {
@@ -7809,6 +7817,7 @@ internal fun NowPlayingScreen(
     modifier: Modifier = Modifier,
 ) {
     val liveCurrentSong = playerUiState.currentSong
+    val motionTransitions = rememberMotionTransitions()
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
     val playerHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
@@ -8622,36 +8631,8 @@ internal fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter),
-                    enter = fadeIn(
-                        animationSpec = ElovaireMotion.queueMenuEnterSpec(),
-                        initialAlpha = 0.04f,
-                    ) +
-                        scaleIn(
-                            initialScale = 0.94f,
-                            transformOrigin = TransformOrigin(1f, 1f),
-                            animationSpec = ElovaireMotion.queueMenuEnterSpec(),
-                        ) +
-                        slideInHorizontally(
-                            initialOffsetX = { it / 14 },
-                            animationSpec = ElovaireMotion.queueMenuEnterSpec(),
-                        ) +
-                        slideInVertically(
-                            initialOffsetY = { it / 9 },
-                            animationSpec = ElovaireMotion.queueMenuEnterSpec(),
-                        ),
-                    exit = fadeOut(
-                        animationSpec = ElovaireMotion.queueMenuExitSpec(),
-                        targetAlpha = 0f,
-                    ) +
-                        scaleOut(
-                            targetScale = 0.98f,
-                            transformOrigin = TransformOrigin(1f, 1f),
-                            animationSpec = ElovaireMotion.queueMenuExitSpec(),
-                        ) +
-                        slideOutVertically(
-                            targetOffsetY = { it / 12 },
-                            animationSpec = ElovaireMotion.queueMenuExitSpec(),
-                        ),
+                    enter = motionTransitions.queueMenuEnter(),
+                    exit = motionTransitions.queueMenuExit(),
                 ) {
                     QueueSheet(
                         queue = playerUiState.queue,
@@ -9064,6 +9045,7 @@ private fun QueueSheet(
     isPlaying: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("equalizer_screen")
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
@@ -9175,9 +9157,10 @@ private fun QueueSheet(
                                 .animateItem(
                                     placementSpec = ElovaireMotion.listPlacementSpec(),
                                 )
-                                .elovaireListDropdownReveal(
-                                    key = "${song.id}_$index",
+                                .elovaireListReveal(
+                                    itemKey = "${song.id}_$index",
                                     index = index,
+                                    registry = revealRegistry,
                                 ),
                         ) {
                             QueueSongRow(
@@ -12250,6 +12233,7 @@ private fun LanguageSelectionDialog(
     onDismiss: () -> Unit,
     onConfirm: (AppLanguage) -> Unit,
 ) {
+    val revealRegistry = rememberMotionRevealRegistry()
     val listState = rememberElovaireLazyListState("language_picker")
     val copy = remember(selectedLanguage) { rootUiCopy(selectedLanguage) }
     val languages = remember {
@@ -12328,9 +12312,10 @@ private fun LanguageSelectionDialog(
                                         .animateItem(
                                             placementSpec = ElovaireMotion.listPlacementSpec(),
                                         )
-                                        .elovaireListDropdownReveal(
-                                            key = language.name,
+                                        .elovaireListReveal(
+                                            itemKey = language.name,
                                             index = languages.indexOf(language),
+                                            registry = revealRegistry,
                                         ),
                                     onClick = { pendingLanguage = language },
                                 )

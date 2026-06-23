@@ -1,25 +1,11 @@
 package elovaire.music.droidbeauty.app.ui.motion
 
-import android.database.ContentObserver
-import android.os.Handler
-import android.os.Looper
-import android.provider.Settings
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.AnimatedContentScope
-import androidx.compose.animation.AnimatedContentTransitionScope
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.AnimatedVisibilityScope
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.SizeTransform
-import androidx.compose.animation.animateContentSize
-import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.Easing
-import androidx.compose.animation.core.FastOutLinearInEasing
-import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
-import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
@@ -32,47 +18,41 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.TransformOrigin
-import androidx.compose.ui.platform.LocalContext
 import kotlin.math.roundToInt
 
 object ElovaireMotion {
-    private const val QuickBase = 90
-    private const val FastBase = 120
-    private const val StandardBase = 180
-    private const val MediumBase = 210
-    private const val SpaciousBase = 260
-    private const val ScreenBase = 220
-    private const val ScreenFadeBase = 160
-    private const val ScreenSlideBase = 260
-    private const val ScreenExpandBase = 300
-    private const val PlayerScreenBase = 360
-    private const val PlayerFadeBase = 180
+    private const val QuickBase = MotionDuration.Quick
+    private const val FastBase = MotionDuration.Fast
+    private const val StandardBase = MotionDuration.Standard
+    private const val MediumBase = MotionDuration.Medium
+    private const val SpaciousBase = MotionDuration.Spacious
+    private const val ScreenBase = MotionDuration.Screen
+    private const val ScreenFadeBase = MotionDuration.ScreenFade
+    private const val ScreenSlideBase = MotionDuration.ScreenSlide
+    private const val ScreenExpandBase = MotionDuration.ScreenExpand
+    private const val PlayerScreenBase = MotionDuration.Player
+    private const val PlayerFadeBase = MotionDuration.PlayerFade
     private const val ControlsBase = 120
     private const val ChromeResizeBase = 180
-    private const val MicroBase = 80
-    private const val ComponentBase = 190
-    private const val EmphasizedBase = 320
-    private const val TopLevelEnterBase = 190
-    private const val TopLevelExitBase = 150
-    private const val DetailEnterBase = 310
-    private const val DetailExitBase = 240
-    private const val AlbumDetailTransitionBase = 480
-    private const val FullScreenEnterBase = 280
-    private const val FullScreenExitBase = 220
-    private const val QueueMenuEnterBase = 320
-    private const val QueueMenuExitBase = 240
-    private const val ListRevealBase = 260
-    private const val ListPlacementBase = 260
+    private const val MicroBase = MotionDuration.Micro
+    private const val ComponentBase = MotionDuration.Component
+    private const val EmphasizedBase = MotionDuration.Emphasized
+    private const val TopLevelEnterBase = MotionDuration.TopLevelEnter
+    private const val TopLevelExitBase = MotionDuration.TopLevelExit
+    private const val DetailEnterBase = MotionDuration.DetailEnter
+    private const val DetailExitBase = MotionDuration.DetailExit
+    private const val AlbumDetailTransitionBase = MotionDuration.AlbumDetail
+    private const val FullScreenEnterBase = MotionDuration.FullScreenEnter
+    private const val FullScreenExitBase = MotionDuration.FullScreenExit
+    private const val QueueMenuEnterBase = MotionDuration.QueueMenuEnter
+    private const val QueueMenuExitBase = MotionDuration.QueueMenuExit
+    private const val ListRevealBase = MotionDuration.ListReveal
+    private const val ListPlacementBase = MotionDuration.ListPlacement
 
     val Quick: Int get() = scaledDurationMillis(QuickBase)
     val Fast: Int get() = scaledDurationMillis(FastBase)
@@ -91,13 +71,13 @@ object ElovaireMotion {
     val Component: Int get() = scaledDurationMillis(ComponentBase)
     val Emphasized: Int get() = scaledDurationMillis(EmphasizedBase)
 
-    val SoftOut: Easing = FastOutSlowInEasing
-    val FadeIn: Easing = LinearOutSlowInEasing
-    val FadeOut: Easing = FastOutLinearInEasing
-    val EmphasizedDecelerate: Easing = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
-    val EmphasizedAccelerate: Easing = CubicBezierEasing(0.3f, 0f, 0.8f, 0.15f)
-    val RefinedDecelerate: Easing = CubicBezierEasing(0.16f, 1f, 0.3f, 1f)
-    val RefinedAccelerate: Easing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
+    val SoftOut: Easing = MotionEasing.SoftOut
+    val FadeIn: Easing = MotionEasing.FadeIn
+    val FadeOut: Easing = MotionEasing.FadeOut
+    val EmphasizedDecelerate: Easing = MotionEasing.EmphasizedDecelerate
+    val EmphasizedAccelerate: Easing = MotionEasing.EmphasizedAccelerate
+    val RefinedDecelerate: Easing = MotionEasing.RefinedDecelerate
+    val RefinedAccelerate: Easing = MotionEasing.RefinedAccelerate
     val GentleDecelerate: Easing = RefinedDecelerate
     val GentleAccelerate: Easing = RefinedAccelerate
 
@@ -849,115 +829,3 @@ object ElovaireMotion {
         durationScale: Float,
     ): Long = scaleDurationMillis(durationMillis.toLong(), durationScale)
 }
-
-object ElovaireAlbumMotion {
-    fun forwardEnter(transformOrigin: TransformOrigin): EnterTransition =
-        ElovaireMotion.albumDetailForwardEnter(transformOrigin)
-
-    fun forwardExit(): ExitTransition = ElovaireMotion.albumDetailForwardExit()
-
-    fun backEnter(): EnterTransition = ElovaireMotion.albumDetailBackEnter()
-
-    fun backExit(transformOrigin: TransformOrigin): ExitTransition =
-        ElovaireMotion.albumDetailBackExit(transformOrigin)
-}
-
-@Composable
-fun rememberSystemAnimationScale(): Float {
-    val context = LocalContext.current
-    val resolver = context.contentResolver
-    var scale by remember {
-        mutableFloatStateOf(
-            runCatching {
-                Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
-            }.getOrDefault(1f).coerceAtLeast(0f),
-        )
-    }
-    DisposableEffect(resolver) {
-        val observer = object : ContentObserver(Handler(Looper.getMainLooper())) {
-            override fun onChange(selfChange: Boolean) {
-                scale = runCatching {
-                    Settings.Global.getFloat(resolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
-                }.getOrDefault(1f).coerceAtLeast(0f)
-            }
-        }
-        resolver.registerContentObserver(
-            Settings.Global.getUriFor(Settings.Global.ANIMATOR_DURATION_SCALE),
-            false,
-            observer,
-        )
-        onDispose { runCatching { resolver.unregisterContentObserver(observer) } }
-    }
-    return scale
-}
-
-@Composable
-fun SyncElovaireMotionScale() {
-    val scale = rememberSystemAnimationScale()
-    SideEffect {
-        ElovaireMotion.updateSystemDurationScale(scale)
-    }
-}
-
-@Composable
-fun ElovaireAnimatedVisibility(
-    visible: Boolean,
-    modifier: Modifier = Modifier,
-    enter: EnterTransition = ElovaireMotion.standardEnter(),
-    exit: ExitTransition = ElovaireMotion.standardExit(),
-    label: String,
-    content: @Composable AnimatedVisibilityScope.() -> Unit,
-) {
-    AnimatedVisibility(
-        visible = visible,
-        modifier = modifier,
-        enter = enter,
-        exit = exit,
-        label = label,
-        content = content,
-    )
-}
-
-@Composable
-fun <S> ElovaireAnimatedContent(
-    targetState: S,
-    modifier: Modifier = Modifier,
-    transitionSpec: AnimatedContentTransitionScope<S>.() -> ContentTransform = {
-        ElovaireMotion.softContentTransform()
-    },
-    contentAlignment: Alignment = Alignment.TopStart,
-    contentKey: (targetState: S) -> Any? = { it },
-    label: String,
-    content: @Composable AnimatedContentScope.(targetState: S) -> Unit,
-) {
-    AnimatedContent(
-        targetState = targetState,
-        modifier = modifier,
-        transitionSpec = transitionSpec,
-        contentAlignment = contentAlignment,
-        contentKey = contentKey,
-        label = label,
-        content = content,
-    )
-}
-
-@Composable
-fun <S> ElovaireCrossfade(
-    targetState: S,
-    modifier: Modifier = Modifier,
-    animationSpec: FiniteAnimationSpec<Float> = ElovaireMotion.fadeMedium(),
-    label: String,
-    content: @Composable (targetState: S) -> Unit,
-) {
-    androidx.compose.animation.Crossfade(
-        targetState = targetState,
-        modifier = modifier,
-        animationSpec = animationSpec,
-        label = label,
-        content = content,
-    )
-}
-
-fun Modifier.elovaireAnimateContentSize(): Modifier = animateContentSize(
-    animationSpec = ElovaireMotion.sizeSoft(),
-)

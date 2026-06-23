@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.rememberNavController
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 
 @Composable
 internal fun RootNavigationHost(
@@ -13,6 +13,7 @@ internal fun RootNavigationHost(
     modifier: Modifier = Modifier,
     content: NavGraphBuilder.() -> Unit,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     NavHost(
         navController = navState.navController,
         startDestination = HOME_ROUTE,
@@ -27,6 +28,7 @@ internal fun RootNavigationHost(
                     detailRouteTransitionMode = navState.detailRouteTransitionMode,
                 ),
                 expandOrigin = navState.detailExpandOrigin,
+                motionTransitions = motionTransitions,
             )
         },
         exitTransition = {
@@ -38,6 +40,7 @@ internal fun RootNavigationHost(
                     targetFallbackTopLevelRoute = navState.selectedBottomRoute,
                     detailRouteTransitionMode = navState.detailRouteTransitionMode,
                 ),
+                motionTransitions = motionTransitions,
             )
         },
         popEnterTransition = {
@@ -49,6 +52,7 @@ internal fun RootNavigationHost(
                     targetFallbackTopLevelRoute = navState.selectedBottomRoute,
                     detailRouteTransitionMode = navState.detailRouteTransitionMode,
                 ),
+                motionTransitions = motionTransitions,
             )
         },
         popExitTransition = {
@@ -61,6 +65,7 @@ internal fun RootNavigationHost(
                     detailRouteTransitionMode = navState.detailRouteTransitionMode,
                 ),
                 expandOrigin = navState.detailExpandOrigin,
+                motionTransitions = motionTransitions,
             )
         },
         builder = content,
