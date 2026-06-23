@@ -3,6 +3,14 @@ package elovaire.music.droidbeauty.app.data.settings
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
+import elovaire.music.droidbeauty.app.data.playlists.addSongsToPlaylistEntries
+import elovaire.music.droidbeauty.app.data.playlists.createPlaylistEntries
+import elovaire.music.droidbeauty.app.data.playlists.deletePlaylistEntries
+import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
+import elovaire.music.droidbeauty.app.data.playlists.removeSongReferencesFromPlaylists
+import elovaire.music.droidbeauty.app.data.playlists.renamePlaylistEntry
+import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
+import elovaire.music.droidbeauty.app.data.playlists.updatePlaylistSongIdsEntry
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -88,6 +96,7 @@ class PreferenceStore(context: Context) {
     val lastPlayedCollectionId: StateFlow<Long?> = _lastPlayedCollectionId.asStateFlow()
 
     private val _userPlaylists = MutableStateFlow(loadPlaylists())
+    private var nextPlaylistId = loadNextPlaylistId(_userPlaylists.value)
     private val _favoriteSongIds = MutableStateFlow(loadFavoriteSongIds())
     val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
 
@@ -201,25 +210,18 @@ class PreferenceStore(context: Context) {
     }
 
     fun createPlaylist(name: String): Long {
-        val trimmedName = name.trim()
-        if (trimmedName.isBlank()) return -1L
-        val playlist = Playlist(
-            id = System.currentTimeMillis(),
-            name = trimmedName,
-        )
-        persistPlaylists(listOf(playlist) + _userPlaylists.value)
-        return playlist.id
+        val result = createPlaylistEntries(
+            playlists = _userPlaylists.value,
+            name = name,
+            nextPlaylistId = nextPlaylistId,
+        ) ?: return -1L
+        nextPlaylistId = result.nextPlaylistId
+        persistPlaylists(result.playlists, nextPlaylistId = result.nextPlaylistId)
+        return result.createdPlaylist.id
     }
 
     fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
-        if (songIds.isEmpty()) return
-        val updated = _userPlaylists.value.map { playlist ->
-            if (playlist.id != playlistId) {
-                playlist
-            } else {
-                playlist.copy(songIds = (playlist.songIds + songIds).distinct())
-            }
-        }
+        val updated = addSongsToPlaylistEntries(_userPlaylists.value, playlistId, songIds) ?: return
         persistPlaylists(updated)
     }
 
@@ -227,11 +229,7 @@ class PreferenceStore(context: Context) {
         playlistId: Long,
         name: String,
     ) {
-        val trimmedName = name.trim()
-        if (trimmedName.isBlank()) return
-        val updated = _userPlaylists.value.map { playlist ->
-            if (playlist.id != playlistId) playlist else playlist.copy(name = trimmedName)
-        }
+        val updated = renamePlaylistEntry(_userPlaylists.value, playlistId, name) ?: return
         persistPlaylists(updated)
     }
 
@@ -239,16 +237,12 @@ class PreferenceStore(context: Context) {
         playlistId: Long,
         songIds: List<Long>,
     ) {
-        val normalizedIds = songIds.filter { it > 0L }
-        val updated = _userPlaylists.value.map { playlist ->
-            if (playlist.id != playlistId) playlist else playlist.copy(songIds = normalizedIds)
-        }
+        val updated = updatePlaylistSongIdsEntry(_userPlaylists.value, playlistId, songIds) ?: return
         persistPlaylists(updated)
     }
 
     fun deletePlaylists(playlistIds: Set<Long>) {
-        if (playlistIds.isEmpty()) return
-        val updated = _userPlaylists.value.filterNot { it.id in playlistIds }
+        val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds) ?: return
         persistPlaylists(updated)
     }
 
@@ -277,9 +271,7 @@ class PreferenceStore(context: Context) {
     }
 
     fun removeSongReferences(songId: Long) {
-        val updatedPlaylists = _userPlaylists.value.map { playlist ->
-            playlist.copy(songIds = playlist.songIds.filterNot { it == songId })
-        }
+        val updatedPlaylists = removeSongReferencesFromPlaylists(_userPlaylists.value, songId) ?: _userPlaylists.value
         val updatedFavorites = _favoriteSongIds.value.filterNot { it == songId }
         if (_userPlaylists.value == updatedPlaylists && _favoriteSongIds.value == updatedFavorites) return
         persistPlaylistAndFavorites(
@@ -686,10 +678,22 @@ class PreferenceStore(context: Context) {
     }
 
     private fun loadPlaylists(): List<Playlist> {
-        return preferences.getString(KEY_PLAYLISTS, null)
-            ?.split(RECORD_SEPARATOR)
-            ?.mapNotNull { it.deserializePlaylist() }
-            .orEmpty()
+        return deserializePlaylists(preferences.getString(KEY_PLAYLISTS, null))
+    }
+
+    private fun loadNextPlaylistId(playlists: List<Playlist>): Long {
+        val existingIds = playlists.mapTo(mutableSetOf()) { it.id }
+        val persisted = preferences.getLong(KEY_NEXT_PLAYLIST_ID, 0L)
+        val baseline = maxOf(
+            persisted,
+            (existingIds.maxOrNull() ?: 0L) + 1L,
+            System.currentTimeMillis().coerceAtLeast(1L),
+        )
+        var candidate = baseline
+        while (candidate in existingIds || candidate <= 0L) {
+            candidate = if (candidate == Long.MAX_VALUE) 1L else candidate + 1L
+        }
+        return candidate
     }
 
     private fun loadFavoriteSongIds(): List<Long> {
@@ -768,9 +772,13 @@ class PreferenceStore(context: Context) {
         )
     }
 
-    private fun persistPlaylists(playlists: List<Playlist>) {
+    private fun persistPlaylists(
+        playlists: List<Playlist>,
+        nextPlaylistId: Long? = null,
+    ) {
         preferences.edit {
-            putString(KEY_PLAYLISTS, playlists.joinToString(RECORD_SEPARATOR) { it.serialize() })
+            putString(KEY_PLAYLISTS, serializePlaylists(playlists))
+            nextPlaylistId?.let { putLong(KEY_NEXT_PLAYLIST_ID, it) }
         }
         _userPlaylists.value = playlists
         _playlists.value = assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value)
@@ -789,7 +797,7 @@ class PreferenceStore(context: Context) {
         favoriteSongIds: List<Long>,
     ) {
         preferences.edit {
-            putString(KEY_PLAYLISTS, playlists.joinToString(RECORD_SEPARATOR) { it.serialize() })
+            putString(KEY_PLAYLISTS, serializePlaylists(playlists))
             putString(KEY_FAVORITE_SONG_IDS, favoriteSongIds.joinToString(","))
         }
         _userPlaylists.value = playlists
@@ -812,30 +820,6 @@ class PreferenceStore(context: Context) {
             .toMap()
     }
 
-    private fun Playlist.serialize(): String {
-        return listOf(
-            id.toString(),
-            name,
-            songIds.joinToString(","),
-            isSystem.toString(),
-        ).joinToString(FIELD_SEPARATOR)
-    }
-
-    private fun String.deserializePlaylist(): Playlist? {
-        val parts = split(FIELD_SEPARATOR)
-        if (parts.size < 3) return null
-        return Playlist(
-            id = parts[0].toLongOrNull() ?: return null,
-            name = parts[1],
-            songIds = parts[2]
-                .takeIf { it.isNotBlank() }
-                ?.split(",")
-                ?.mapNotNull { it.toLongOrNull() }
-                .orEmpty(),
-            isSystem = parts.getOrNull(3)?.toBooleanStrictOrNull() ?: false,
-        )
-    }
-
     private fun assemblePlaylists(
         userPlaylists: List<Playlist>,
         favoriteSongIds: List<Long>,
@@ -851,6 +835,7 @@ class PreferenceStore(context: Context) {
         const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_SEARCH_HISTORY = "search_history"
         const val KEY_PLAYLISTS = "playlists"
+        const val KEY_NEXT_PLAYLIST_ID = "next_playlist_id"
         const val KEY_FAVORITE_SONG_IDS = "favorite_song_ids"
         const val KEY_ALBUM_PLAY_COUNTS = "album_play_counts"
         const val KEY_SONG_PLAY_COUNTS = "song_play_counts"

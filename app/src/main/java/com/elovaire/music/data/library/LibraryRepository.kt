@@ -114,7 +114,7 @@ class LibraryRepository(
         )
     }.stateIn(
         scope = scope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = LibraryUiState(),
     )
     private var musicDirectoryObserver: RecursiveMusicDirectoryObserver? = null
@@ -269,6 +269,7 @@ class LibraryRepository(
                 pendingTargetedIndexRefreshPaths.toList()
             }
             val shouldEnrichMetadata = enrichMetadata || pendingMetadataEnrichment
+            val progressThrottler = LibraryScanProgressThrottler()
             pendingIndexRefresh = false
             pendingTargetedIndexRefreshPaths.clear()
             pendingMetadataEnrichment = false
@@ -280,13 +281,15 @@ class LibraryRepository(
                         enrichMetadata = shouldEnrichMetadata,
                         onProgress = if (showLoadingIndicator) { current, total ->
                             val progress = if (total <= 0) 1f else (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                            _scanState.update { state ->
-                                state.copy(
-                                    permissionGranted = true,
-                                    isLoading = true,
-                                    scanProgress = progress,
-                                    errorMessage = null,
-                                )
+                            if (progressThrottler.shouldEmit(progress)) {
+                                _scanState.update { state ->
+                                    state.copy(
+                                        permissionGranted = true,
+                                        isLoading = true,
+                                        scanProgress = progress,
+                                        errorMessage = null,
+                                    )
+                                }
                             }
                         } else {
                             null
@@ -535,9 +538,7 @@ class LibraryRepository(
     ) {
         if (!_scanState.value.permissionGranted) return
         if (System.currentTimeMillis() < suppressObserverRefreshUntilMs) return
-        val normalizedChangedPath = changedFilePath
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
+        val normalizedChangedPath = changedFilePath?.normalizedObservedPath()
         if (!forceMediaIndex && normalizedChangedPath != null && shouldCoalesceObservedPath(normalizedChangedPath)) {
             backgroundLibraryDirty = backgroundLibraryDirty || !appForegroundState.value
             return
@@ -617,13 +618,14 @@ class LibraryRepository(
     ) {
         val rootPath: String = rootDirectory.absolutePath
         private val observers = linkedMapOf<String, FileObserver>()
+        private var lastTreeSignature: Int? = null
 
         fun startWatching() {
-            rebuildObservers()
+            rebuildObservers(force = true)
         }
 
         fun rebuildWatchingTree() {
-            rebuildObservers()
+            rebuildObservers(force = false)
         }
 
         fun stopWatching() {
@@ -631,15 +633,26 @@ class LibraryRepository(
             observers.clear()
         }
 
-        private fun rebuildObservers() {
-            stopWatching()
-            if (!rootDirectory.exists() || !rootDirectory.isDirectory) return
-
-            observeDirectory(rootDirectory)
-            rootDirectory.walkTopDown()
+        private fun rebuildObservers(force: Boolean) {
+            if (!rootDirectory.exists() || !rootDirectory.isDirectory) {
+                lastTreeSignature = null
+                stopWatching()
+                return
+            }
+            val nextDirectories = rootDirectory.walkTopDown()
                 .maxDepth(8)
-                .filter { it.isDirectory && it.absolutePath != rootDirectory.absolutePath }
-                .forEach(::observeDirectory)
+                .filter(File::isDirectory)
+                .map(File::getAbsolutePath)
+                .toList()
+            val nextSignature = nextDirectories
+                .sorted()
+                .fold(17) { acc, path -> 31 * acc + path.hashCode() }
+            if (!force && lastTreeSignature == nextSignature) return
+            lastTreeSignature = nextSignature
+            stopWatching()
+            nextDirectories.forEach { path ->
+                observeDirectory(File(path))
+            }
         }
 
         private fun observeDirectory(directory: File) {
@@ -740,5 +753,38 @@ class LibraryRepository(
                 scanProgress = 0f,
             )
         }
+    }
+
+    private fun String.normalizedObservedPath(): String? {
+        return trim()
+            .takeIf { it.isNotBlank() }
+            ?.let(::File)
+            ?.absolutePath
+    }
+}
+
+private class LibraryScanProgressThrottler(
+    private val minStep: Float = 0.01f,
+    private val minIntervalMs: Long = 80L,
+) {
+    private var lastProgress = -1f
+    private var lastEmitMs = 0L
+
+    fun shouldEmit(progress: Float): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        if (progress >= 1f) return true
+        if (lastProgress < 0f) {
+            lastProgress = progress
+            lastEmitMs = now
+            return true
+        }
+        val enoughProgress = progress - lastProgress >= minStep
+        val enoughTime = now - lastEmitMs >= minIntervalMs
+        if (enoughProgress || enoughTime) {
+            lastProgress = progress
+            lastEmitMs = now
+            return true
+        }
+        return false
     }
 }

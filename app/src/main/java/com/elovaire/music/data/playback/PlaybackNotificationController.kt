@@ -37,7 +37,7 @@ internal fun invalidateNotificationArtworkCache(uris: Collection<Uri?>) {
         .map(Uri::toString)
         .filter(String::isNotBlank)
     if (keys.isEmpty()) return
-    NotificationArtworkCache.removeAll(keys)
+    NotificationArtworkCache.removeAllMatchingUris(keys)
 }
 
 @UnstableApi
@@ -48,6 +48,7 @@ class PlaybackNotificationController(
 ) {
     private val pendingArtworkLoads = linkedMapOf<String, Job>()
     private val notificationJobs = mutableListOf<Job>()
+    private var currentArtworkLoadKey: ArtworkLoadKey? = null
 
     init {
         NotificationArtworkCache.ensureRegistered(context.applicationContext)
@@ -148,44 +149,46 @@ class PlaybackNotificationController(
                 .distinctUntilChanged()
                 .collectLatest {
                     val state = playbackManager.state.value
-                if (!notificationsEnabled) return@collectLatest
-                notificationManager.invalidate()
-                when {
-                    state.currentSong == null -> {
-                        pauseHideJob?.cancel()
-                        notificationDismissedWhilePaused = false
-                        updateNotificationPlayer(null)
-                    }
-                    state.isPlaying -> {
-                        pauseHideJob?.cancel()
-                        if (notificationDismissedWhilePaused) {
+                    if (!notificationsEnabled) return@collectLatest
+                    currentArtworkLoadKey = state.currentSong?.artUri?.let(::artworkLoadKey)
+                    trimPendingArtworkLoads(currentArtworkLoadKey)
+                    notificationManager.invalidate()
+                    when {
+                        state.currentSong == null -> {
+                            pauseHideJob?.cancel()
+                            notificationDismissedWhilePaused = false
                             updateNotificationPlayer(null)
-                            return@collectLatest
                         }
-                        updateNotificationPlayer(playbackManager.playerInstance)
-                    }
-                    else -> {
-                        pauseHideJob?.cancel()
-                        if (notificationDismissedWhilePaused) {
-                            updateNotificationPlayer(null)
-                            return@collectLatest
-                        }
-                        updateNotificationPlayer(playbackManager.playerInstance)
-                        pauseHideJob = launch {
-                            delay(PAUSE_NOTIFICATION_TIMEOUT_MS)
-                            val latestState = playbackManager.state.value
-                            if (
-                                notificationsEnabled &&
-                                latestState.currentSong != null &&
-                                !latestState.isPlaying &&
-                                !notificationDismissedWhilePaused
-                            ) {
+                        state.isPlaying -> {
+                            pauseHideJob?.cancel()
+                            if (notificationDismissedWhilePaused) {
                                 updateNotificationPlayer(null)
+                                return@collectLatest
+                            }
+                            updateNotificationPlayer(playbackManager.playerInstance)
+                        }
+                        else -> {
+                            pauseHideJob?.cancel()
+                            if (notificationDismissedWhilePaused) {
+                                updateNotificationPlayer(null)
+                                return@collectLatest
+                            }
+                            updateNotificationPlayer(playbackManager.playerInstance)
+                            pauseHideJob = launch {
+                                delay(PAUSE_NOTIFICATION_TIMEOUT_MS)
+                                val latestState = playbackManager.state.value
+                                if (
+                                    notificationsEnabled &&
+                                    latestState.currentSong != null &&
+                                    !latestState.isPlaying &&
+                                    !notificationDismissedWhilePaused
+                                ) {
+                                    updateNotificationPlayer(null)
+                                }
                             }
                         }
                     }
                 }
-            }
         }
     }
 
@@ -212,6 +215,7 @@ class PlaybackNotificationController(
         notificationJobs.clear()
         pauseHideJob?.cancel()
         pauseHideJob = null
+        currentArtworkLoadKey = null
         pendingArtworkLoads.values.forEach(Job::cancel)
         pendingArtworkLoads.clear()
     }
@@ -255,7 +259,7 @@ class PlaybackNotificationController(
             callback: PlayerNotificationManager.BitmapCallback,
         ): Bitmap? {
             val artworkUri = playbackManager.state.value.currentSong?.artUri ?: return null
-            NotificationArtworkCache[artworkUri.toString()]?.let { return it }
+            NotificationArtworkCache[artworkLoadKey(artworkUri).cacheKey]?.let { return it }
             loadArtworkAsync(artworkUri, callback)
             return null
         }
@@ -301,16 +305,18 @@ class PlaybackNotificationController(
         callback: PlayerNotificationManager.BitmapCallback,
     ) {
         if (!notificationsEnabled) return
-        val cacheKey = uri.toString()
+        val loadKey = artworkLoadKey(uri)
+        val cacheKey = loadKey.cacheKey
         if (pendingArtworkLoads[cacheKey]?.isActive == true) return
         pendingArtworkLoads[cacheKey] = scope.launch(Dispatchers.IO) {
             try {
                 if (!notificationsEnabled) return@launch
-                val bitmap = loadBitmap(context, uri)
+                val bitmap = loadBitmap(context, loadKey)
                 withContext(Dispatchers.Main.immediate) {
                     if (
                         notificationsEnabled &&
                         bitmap != null &&
+                        currentArtworkLoadKey == loadKey &&
                         playbackManager.state.value.currentSong?.artUri == uri
                     ) {
                         callback.onBitmap(bitmap)
@@ -340,25 +346,28 @@ class PlaybackNotificationController(
             )
         }
 
-        private fun loadBitmap(context: Context, uri: Uri): Bitmap? {
-            NotificationArtworkCache[uri.toString()]?.let { return it }
+        private fun loadBitmap(
+            context: Context,
+            key: ArtworkLoadKey,
+        ): Bitmap? {
+            NotificationArtworkCache[key.cacheKey]?.let { return it }
             val bitmap = runCatching {
-                context.contentResolver.loadThumbnail(uri, Size(NOTIFICATION_ARTWORK_SIZE_PX, NOTIFICATION_ARTWORK_SIZE_PX), null)
+                context.contentResolver.loadThumbnail(key.uri, Size(key.targetPx, key.targetPx), null)
             }.getOrNull() ?: runCatching {
                 val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                context.contentResolver.openInputStream(uri)?.use { input ->
+                context.contentResolver.openInputStream(key.uri)?.use { input ->
                     BitmapFactory.decodeStream(input, null, bounds)
                 }
                 val options = BitmapFactory.Options().apply {
                     inPreferredConfig = Bitmap.Config.RGB_565
-                    inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, NOTIFICATION_ARTWORK_SIZE_PX)
+                    inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, key.targetPx)
                 }
-                context.contentResolver.openInputStream(uri)?.use { input ->
+                context.contentResolver.openInputStream(key.uri)?.use { input ->
                     BitmapFactory.decodeStream(input, null, options)
                 }
             }.getOrNull()
             return bitmap?.also { cachedBitmap ->
-                NotificationArtworkCache.put(uri.toString(), cachedBitmap)
+                NotificationArtworkCache.put(key.cacheKey, cachedBitmap)
             }
         }
 
@@ -385,6 +394,29 @@ class PlaybackNotificationController(
         val isPlaying: Boolean,
         val metadataSignature: String?,
     )
+
+    private data class ArtworkLoadKey(
+        val uri: Uri,
+        val targetPx: Int,
+    ) {
+        val cacheKey: String
+            get() = "${uri}|$targetPx"
+    }
+
+    private fun artworkLoadKey(uri: Uri): ArtworkLoadKey {
+        return ArtworkLoadKey(uri = uri, targetPx = NOTIFICATION_ARTWORK_SIZE_PX)
+    }
+
+    private fun trimPendingArtworkLoads(activeKey: ArtworkLoadKey?) {
+        val activeCacheKey = activeKey?.cacheKey
+        val iterator = pendingArtworkLoads.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.key == activeCacheKey) continue
+            entry.value.cancel()
+            iterator.remove()
+        }
+    }
 
 }
 
@@ -432,8 +464,12 @@ private object NotificationArtworkCache {
         cache.put(key, bitmap)
     }
 
-    fun removeAll(keys: Collection<String>) {
-        keys.forEach(cache::remove)
+    fun removeAllMatchingUris(uris: Collection<String>) {
+        if (uris.isEmpty()) return
+        val keysToRemove = cache.snapshot().keys.filter { key ->
+            uris.any { uri -> key == uri || key.startsWith("$uri|") }
+        }
+        keysToRemove.forEach(cache::remove)
     }
 
     @Suppress("DEPRECATION")

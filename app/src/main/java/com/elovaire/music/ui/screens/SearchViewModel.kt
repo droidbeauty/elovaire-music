@@ -20,12 +20,14 @@ import elovaire.music.droidbeauty.app.domain.search.playbackSourceLabel
 import elovaire.music.droidbeauty.app.domain.search.sanitizeSearchHistory
 import elovaire.music.droidbeauty.app.domain.search.toSearchIndex
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -85,17 +87,25 @@ internal class SearchViewModel(
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val searchResults = combine(
         normalizedQuery,
         _searchSongSortMode,
         searchIndex,
     ) { query, sortMode, index ->
-        buildSearchResults(
+        SearchRequest(
             query = query,
             sortMode = sortMode,
             index = index,
         )
     }
+        .mapLatest { request ->
+            buildSearchResults(
+                query = request.query,
+                sortMode = request.sortMode,
+                index = request.index,
+            )
+        }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
 
@@ -222,6 +232,12 @@ internal class SearchViewModel(
         data class PlaybackSearchSnapshot(
             val currentSongId: Long?,
             val isPlaybackActive: Boolean,
+        )
+
+        data class SearchRequest(
+            val query: NormalizedSearchQuery,
+            val sortMode: SearchSongSortMode,
+            val index: elovaire.music.droidbeauty.app.domain.search.SearchIndex,
         )
     }
 }

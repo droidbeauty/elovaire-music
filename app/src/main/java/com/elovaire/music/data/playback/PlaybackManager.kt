@@ -254,8 +254,10 @@ class PlaybackManager(
     private val queueMetadataRefresher = PlaybackQueueMetadataRefresher()
     private var pauseFadeJob: Job? = null
     private var externalInterruptionResumeJob: Job? = null
+    private var statePublishScheduled = false
     private val _playerInstanceVersion = MutableStateFlow(0L)
     val playerInstanceVersion: StateFlow<Long> = _playerInstanceVersion.asStateFlow()
+    private val uiSharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L)
     private val audioPathReevaluationRunnable = Runnable {
         val reason = pendingAudioPathReason ?: "unspecified"
         pendingAudioPathReason = null
@@ -269,7 +271,7 @@ class PlaybackManager(
         ) {
             resetUnexpectedIdleRecoveryGuard()
             scheduleAudioPathReevaluation("media-item-transition", AUDIO_PATH_REEVALUATION_DELAY_MS)
-            updateState()
+            scheduleStatePublish()
         }
 
         override fun onPositionDiscontinuity(
@@ -277,7 +279,7 @@ class PlaybackManager(
             newPosition: Player.PositionInfo,
             reason: Int,
         ) {
-            updateState()
+            scheduleStatePublish()
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
@@ -294,7 +296,7 @@ class PlaybackManager(
                 if (playbackState != Player.STATE_IDLE) {
                     resetUnexpectedIdleRecoveryGuard()
                 }
-                updateState()
+                scheduleStatePublish()
             }
         }
 
@@ -305,12 +307,12 @@ class PlaybackManager(
             if (_state.value.queue.isNotEmpty() && !isStoppingQueue && !isRecoveringPlayback) {
                 recoverUnexpectedIdleState(shouldAutoPlay = shouldAutoResumeAfterUnexpectedIdle())
             } else {
-                updateState()
+                scheduleStatePublish()
             }
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
-            updateState()
+            scheduleStatePublish()
         }
     }
     private val playerAnalyticsListener = object : AnalyticsListener {
@@ -329,7 +331,7 @@ class PlaybackManager(
             audioSinkError: Exception,
         ) {
             player.volume = effectivePlayerGain()
-            updateState()
+            scheduleStatePublish()
         }
     }
     private val systemVolumeObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -366,7 +368,7 @@ class PlaybackManager(
         .distinctUntilChanged()
         .stateIn(
             scope = scope,
-            started = SharingStarted.Eagerly,
+            started = uiSharing,
             initialValue = PlaybackNowPlayingState(
                 currentSong = _state.value.currentSong,
                 sourceLabel = _state.value.sourceLabel,
@@ -385,7 +387,7 @@ class PlaybackManager(
         .distinctUntilChanged()
         .stateIn(
             scope = scope,
-            started = SharingStarted.Eagerly,
+            started = uiSharing,
             initialValue = PlaybackTransportState(
                 isPlaying = _state.value.isPlaying,
                 transportShowsPause = _state.value.transportShowsPause,
@@ -404,7 +406,7 @@ class PlaybackManager(
         .distinctUntilChanged()
         .stateIn(
             scope = scope,
-            started = SharingStarted.Eagerly,
+            started = uiSharing,
             initialValue = PlaybackQueueState(
                 queue = _state.value.queue,
                 currentIndex = _state.value.currentIndex,
@@ -416,7 +418,7 @@ class PlaybackManager(
         .distinctUntilChanged()
         .stateIn(
             scope = scope,
-            started = SharingStarted.Eagerly,
+            started = uiSharing,
             initialValue = PlaybackVolumeState(volume = _state.value.volume),
         )
     override val recentPlaybackState: StateFlow<RecentPlaybackState> = state
@@ -431,7 +433,7 @@ class PlaybackManager(
         .distinctUntilChanged()
         .stateIn(
             scope = scope,
-            started = SharingStarted.Eagerly,
+            started = uiSharing,
             initialValue = RecentPlaybackState(
                 recentSongIds = _state.value.recentSongIds,
                 recentAlbumIds = _state.value.recentAlbumIds,
@@ -807,9 +809,10 @@ class PlaybackManager(
 
     fun refreshQueuedLibraryMetadataIfNeeded(updatedSongs: List<Song>) {
         val existingState = _state.value
-        if (existingState.queue.isEmpty()) return
+        if (existingState.queue.isEmpty() || updatedSongs.isEmpty()) return
         val queuedSongIds = existingState.queue.asSequence().mapTo(linkedSetOf(), Song::id)
         val songsById = updatedSongs.associateQueuedSongsById(queuedSongIds)
+        if (songsById.isEmpty()) return
         val refreshedQueue = queueMetadataRefresher.refreshQueueIfNeeded(existingState.queue, songsById) ?: return
         refreshedQueue.forEachIndexed { index, refreshedSong ->
             if (
@@ -1122,8 +1125,7 @@ class PlaybackManager(
             lastPlayedCollectionKind = lastPlayedCollectionKind,
             lastPlayedCollectionId = lastPlayedCollectionId,
         )
-        if (updatedState != existingState) {
-            _state.value = updatedState
+        if (publishPlaybackState(updatedState, existingState)) {
             if (
                 updatedState.recentSongIds != existingState.recentSongIds ||
                 updatedState.recentAlbumIds != existingState.recentAlbumIds ||
@@ -1140,6 +1142,15 @@ class PlaybackManager(
         }
         syncRuntimeObservers()
         publishProgressSnapshot()
+    }
+
+    private fun publishPlaybackState(
+        nextState: PlaybackUiState,
+        currentState: PlaybackUiState = _state.value,
+    ): Boolean {
+        if (nextState == currentState) return false
+        _state.value = nextState
+        return true
     }
 
     private fun handleUnsupportedPlaybackFormat(error: PlaybackException): Boolean {
@@ -1393,12 +1404,24 @@ class PlaybackManager(
     }
 
     private fun syncProgressUpdateLoop() {
-        val shouldPoll = hasActiveQueue() && (player.isPlaying || playbackProgressController.needsActivePolling())
+        val shouldPoll = hasActiveQueue() && (
+            playbackProgressController.needsActivePolling() ||
+                player.isPlaying
+            )
         if (!shouldPoll) {
             playbackProgressTicker.stop()
             return
         }
         playbackProgressTicker.start()
+    }
+
+    private fun scheduleStatePublish() {
+        if (statePublishScheduled) return
+        statePublishScheduled = true
+        playbackHandler.post {
+            statePublishScheduled = false
+            updateState()
+        }
     }
 
     private fun shouldAutoResumeAfterUnexpectedIdle(): Boolean {

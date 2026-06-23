@@ -7,6 +7,7 @@ import android.media.MediaScannerConnection
 import android.net.Uri
 import android.os.Build
 import android.os.Environment
+import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
@@ -123,6 +124,7 @@ class MediaStoreScanner(
         val songs = mutableListOf<Song>()
         val refreshedMetadataCache = mutableMapOf<Long, CachedSongMetadata>()
         val genreCache = mutableMapOf<Long, String?>()
+        val progressThrottler = ScannerProgressThrottler()
         val projection = buildProjection()
         val selection = buildSelection()
         val orderBy = buildOrderBy()
@@ -136,7 +138,7 @@ class MediaStoreScanner(
             orderBy,
         )?.use { cursor ->
             totalRows = cursor.count.coerceAtLeast(0)
-            onProgress?.invoke(0, totalRows)
+            emitProgress(onProgress, progressThrottler, 0, totalRows)
             val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
             val albumIdIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
             val titleIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
@@ -216,7 +218,7 @@ class MediaStoreScanner(
                     is AudioFileFilterDecision.Exclude -> {
                         logFilteredOutCandidate(candidate, decision.reason)
                         if (processedRows == totalRows || processedRows % 24 == 0) {
-                            onProgress?.invoke(processedRows, totalRows)
+                            emitProgress(onProgress, progressThrottler, processedRows, totalRows)
                         }
                         continue
                     }
@@ -224,6 +226,7 @@ class MediaStoreScanner(
                 val cachedMetadata = metadataCache[id]
                     ?.takeIf {
                         it.fileName == fileName &&
+                            (it.filePath == null || filePath == null || it.filePath == filePath) &&
                             it.dateAddedSeconds == dateAddedSeconds &&
                             it.dateModifiedSeconds == dateModifiedSeconds &&
                             (!enrichMetadata || it.isEnriched)
@@ -292,15 +295,15 @@ class MediaStoreScanner(
                     albumArtist = songMetadata.albumArtist,
                 )
                 if (processedRows == totalRows || processedRows % 24 == 0) {
-                    onProgress?.invoke(processedRows, totalRows)
+                    emitProgress(onProgress, progressThrottler, processedRows, totalRows)
                 }
             }
         }
 
         if (totalRows == 0) {
-            onProgress?.invoke(1, 1)
+            emitProgress(onProgress, progressThrottler, 1, 1)
         } else {
-            onProgress?.invoke(totalRows, totalRows)
+            emitProgress(onProgress, progressThrottler, totalRows, totalRows)
         }
 
         metadataCache.clear()
@@ -851,6 +854,20 @@ class MediaStoreScanner(
         return "$artistColumn COLLATE NOCASE ASC, $albumColumn COLLATE NOCASE ASC"
     }
 
+    private fun emitProgress(
+        onProgress: ((current: Int, total: Int) -> Unit)?,
+        throttler: ScannerProgressThrottler,
+        current: Int,
+        total: Int,
+    ) {
+        if (onProgress == null) return
+        val safeTotal = total.coerceAtLeast(1)
+        val progress = (current.toFloat() / safeTotal.toFloat()).coerceIn(0f, 1f)
+        if (throttler.shouldEmit(progress)) {
+            onProgress(current, total)
+        }
+    }
+
     internal companion object {
         private const val TAG = "LibraryAudioFilter"
         val ALBUM_ART_URI: Uri = Uri.parse("content://media/external/audio/albumart")
@@ -913,6 +930,32 @@ private data class CachedSongMetadata(
     val isEnriched: Boolean,
     val metadata: SongMetadata,
 )
+
+private class ScannerProgressThrottler(
+    private val minStep: Float = 0.01f,
+    private val minIntervalMs: Long = 80L,
+) {
+    private var lastProgress = -1f
+    private var lastEmitMs = 0L
+
+    fun shouldEmit(progress: Float): Boolean {
+        val now = SystemClock.elapsedRealtime()
+        if (progress >= 1f) return true
+        if (lastProgress < 0f) {
+            lastProgress = progress
+            lastEmitMs = now
+            return true
+        }
+        val enoughProgress = progress - lastProgress >= minStep
+        val enoughTime = now - lastEmitMs >= minIntervalMs
+        if (enoughProgress || enoughTime) {
+            lastProgress = progress
+            lastEmitMs = now
+            return true
+        }
+        return false
+    }
+}
 
 private data class SongMetadata(
     val title: String?,

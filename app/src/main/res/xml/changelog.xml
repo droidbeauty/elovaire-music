@@ -6,9 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.2.1">
-        <item>CPU and memory usage optimizations focused especially on Android 16 and 17 devices</item>
-        <item>Fine-tuned core structure of the app</item>
+    <release version="2.2.2">
+        <item>Enhanced support for OGG audio format</item>
+        <item>Improvements to playlist creation and editing framework</item>
+        <item>Decentralizing some features at the core to optimize structure</item>
         <item>Bug fixes</item>
     </release>
 </changelog>
