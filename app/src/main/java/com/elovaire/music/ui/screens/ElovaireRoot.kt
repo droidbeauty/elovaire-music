@@ -372,478 +372,8 @@ import kotlinx.coroutines.withTimeoutOrNull
 
 internal val aboutLogoImageCache = java.util.concurrent.ConcurrentHashMap<String, androidx.compose.ui.graphics.ImageBitmap>()
 
-internal data class SongMenuActions(
-    val playlists: List<Playlist> = emptyList(),
-    val songsById: Map<Long, Song> = emptyMap(),
-    val onAddToPlaylist: (playlistId: Long, song: Song) -> Unit = { _, _ -> },
-    val onCreatePlaylist: (String) -> Long = { -1L },
-    val onAddToQueue: (Song) -> Unit = {},
-    val onGoToAlbum: (Song) -> Unit = {},
-    val onDeleteFromLibrary: (Song) -> Unit = {},
-    val deletePhrase: UiPhrase = UiPhrase.DeleteFromLibrary,
-)
-
-internal val LocalSongMenuActions = compositionLocalOf { SongMenuActions() }
-
-private val LocalChromeHazeState = compositionLocalOf<HazeState?> { null }
-private val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
-private val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
-private val LocalSharedTopBarController = compositionLocalOf<SharedTopBarController?> { null }
-private val LocalRenderSharedTopBarContent = compositionLocalOf { false }
-private val LocalSharedBackIconPainter = compositionLocalOf<Painter?> { null }
-private val LocalSharedTopMenuIconPainter = compositionLocalOf<Painter?> { null }
-
-internal data class TopBarActionSpec(
-    @DrawableRes val iconResId: Int,
-    val contentDescription: String,
-    val onClick: () -> Unit,
-)
-
-private fun String?.isAlbumDetailRoute(): Boolean = this == "$ALBUM_ROUTE/{albumId}"
-
-private fun resolveForwardEnterTransition(
-    transition: NavHostTransitionResolution,
-    expandOrigin: ExpandOrigin,
-): EnterTransition = when {
-    transition.targetRoute == PLAYER_ROUTE -> EnterTransition.None
-    transition.targetUsesTileExpand -> ElovaireAlbumMotion.forwardEnter(expandOrigin.toTransformOrigin())
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
-        forward = transition.topLevelTransition.isForward,
-    )
-    transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.forwardEnter(expandOrigin.toTransformOrigin())
-    transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardEnter()
-    else -> ElovaireMotion.fullScreenForwardEnter()
-}
-
-private fun resolveForwardExitTransition(
-    transition: NavHostTransitionResolution,
-): ExitTransition = when {
-    transition.targetRoute == PLAYER_ROUTE -> ExitTransition.None
-    transition.targetUsesTileExpand -> ElovaireAlbumMotion.forwardExit()
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
-        forward = transition.topLevelTransition.isForward,
-    )
-    transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.forwardExit()
-    transition.targetUsesDetailTransition -> ElovaireMotion.detailForwardExit()
-    else -> ElovaireMotion.fullScreenForwardExit()
-}
-
-private fun resolvePopEnterTransition(
-    transition: NavHostTransitionResolution,
-): EnterTransition = when {
-    transition.initialRoute == PLAYER_ROUTE -> EnterTransition.None
-    transition.initialUsesTileExpand -> ElovaireAlbumMotion.backEnter()
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelEnter(
-        forward = transition.topLevelTransition.isForward,
-    )
-    transition.targetRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.backEnter()
-    transition.targetUsesDetailTransition -> ElovaireMotion.detailBackEnter()
-    else -> ElovaireMotion.fullScreenBackEnter()
-}
-
-private fun resolvePopExitTransition(
-    transition: NavHostTransitionResolution,
-    expandOrigin: ExpandOrigin,
-): ExitTransition = when {
-    transition.initialRoute == PLAYER_ROUTE -> ExitTransition.None
-    transition.initialUsesTileExpand -> ElovaireAlbumMotion.backExit(expandOrigin.toTransformOrigin())
-    transition.topLevelTransition.isTopLevelTransition -> ElovaireMotion.topLevelExit(
-        forward = transition.topLevelTransition.isForward,
-    )
-    transition.initialRoute.isAlbumDetailRoute() -> ElovaireAlbumMotion.backExit(expandOrigin.toTransformOrigin())
-    transition.initialUsesDetailTransition -> ElovaireMotion.detailBackExit()
-    else -> ElovaireMotion.fullScreenBackExit()
-}
-
-private sealed interface SharedTopBarSpec {
-    data class Unified(
-        val title: String,
-        val showSettings: Boolean,
-        @DrawableRes val supplementalActionIconResId: Int? = null,
-        val supplementalActionContentDescription: String? = null,
-        val onSupplementalAction: (() -> Unit)? = null,
-        val onOpenMenu: () -> Unit,
-    ) : SharedTopBarSpec
-
-    data class Back(
-        val title: String,
-        val onBack: () -> Unit,
-        val centeredTitle: Boolean = false,
-    ) : SharedTopBarSpec
-
-    data class Detail(
-        val title: String,
-        val subtitle: String?,
-        val onBack: () -> Unit,
-        val actions: List<TopBarActionSpec> = emptyList(),
-    ) : SharedTopBarSpec
-}
-
-private fun SharedTopBarSpec.visualSignature(): String {
-    return when (this) {
-        is SharedTopBarSpec.Unified -> "unified|$showSettings|${supplementalActionIconResId ?: 0}|${supplementalActionContentDescription.orEmpty()}"
-        is SharedTopBarSpec.Back -> "back|$title|$centeredTitle"
-        is SharedTopBarSpec.Detail -> "detail|$title|${subtitle.orEmpty()}|${actions.joinToString { "${it.iconResId}:${it.contentDescription}" }}"
-    }
-}
-
-private data class SharedTopBarRegistration(
-    val id: Any,
-    val spec: SharedTopBarSpec,
-)
-
-private class SharedTopBarController {
-    var registration by mutableStateOf<SharedTopBarRegistration?>(null)
-}
-
-@Composable
-private fun statusBarInsetDp(): Dp {
-    val density = LocalDensity.current
-    return with(density) { WindowInsets.statusBars.getTop(this).toDp() }
-}
-
-@Composable
-internal fun navigationBarInsetDp(): Dp {
-    val density = LocalDensity.current
-    return with(density) { WindowInsets.navigationBars.getBottom(this).toDp() }
-}
-
-@Composable
-private fun buttonNavigationScrollBoost(): Dp {
-    val navigationInset = navigationBarInsetDp()
-    return if (navigationInset >= 28.dp) {
-        (navigationInset - 16.dp).coerceAtLeast(0.dp)
-    } else {
-        0.dp
-    }
-}
-
-@Composable
-internal fun screenContainerSizePx(): androidx.compose.ui.unit.IntSize {
-    return LocalWindowInfo.current.containerSize
-}
-
-@Composable
-private fun topBarOccupiedHeight(): Dp = statusBarInsetDp() + ElovaireSpacing.topBarContentHeight
-
-@Composable
-internal fun detailTopBarOccupiedHeight(): Dp = statusBarInsetDp() + ElovaireSpacing.detailTopBarContentHeight
-
-@Composable
-private fun sharedTopBarOccupiedHeight(): Dp =
-    statusBarInsetDp() + maxOf(ElovaireSpacing.topBarContentHeight, ElovaireSpacing.detailTopBarContentHeight)
-
-@Composable
-private fun bottomNavigationOccupiedHeight(): Dp {
-    return navigationBarInsetDp() + ElovaireSpacing.bottomNavigationBodyHeight
-}
-
-@Composable
-private fun blurSurfaceOverlayColor(): Color = MaterialTheme.colorScheme.surface
-
-@Composable
-internal fun blurSurfaceBorderColor(): Color {
-    return if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-        Color.White.copy(alpha = 0.12f)
-    } else {
-        InkText.copy(alpha = 0.08f)
-    }
-}
-
-@Composable
-private fun Modifier.horizontalGestureSafe(): Modifier {
-    return this.systemGestureExclusion()
-}
-
-@Composable
-internal fun rememberElovaireLazyListState(vararg inputs: Any?): LazyListState {
-    val cacheKey = remember(*inputs) {
-        inputs.joinToString(separator = "|") { it?.toString().orEmpty() }
-    }
-    val cachedPosition = remember(cacheKey) {
-        lazyListPositionCache[cacheKey] ?: (0 to 0)
-    }
-    val state = rememberSaveable(cacheKey, saver = LazyListState.Saver) {
-        LazyListState(
-            firstVisibleItemIndex = cachedPosition.first,
-            firstVisibleItemScrollOffset = cachedPosition.second,
-        )
-    }
-    LaunchedEffect(state, cacheKey) {
-        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
-            .distinctUntilChanged()
-            .collect { position ->
-                lazyListPositionCache[cacheKey] = position
-            }
-    }
-    return state
-}
-
-private fun querySongFilePaths(
-    context: Context,
-    songs: List<Song>,
-): Set<String> {
-    val contentResolver = context.contentResolver
-    return songs.asSequence()
-        .mapNotNull { song -> contentResolver.queryMediaStoreFilePath(context, song.uri) }
-        .toSet()
-}
-
-@SuppressLint("NewApi")
-private fun createWriteRequestIntentSender(
-    context: Context,
-    uris: List<Uri>,
-): IntentSenderRequest {
-    return IntentSenderRequest.Builder(
-        MediaStore.createWriteRequest(
-            context.contentResolver,
-            uris,
-        ).intentSender,
-    ).build()
-}
-
-private fun cleanupEmptyDirectories(paths: Set<String>) {
-    paths.asSequence()
-        .map(::File)
-        .filter { file -> file.exists() && file.isDirectory }
-        .sortedByDescending { file -> file.absolutePath.length }
-        .forEach { directory ->
-            runCatching {
-                if (directory.listFiles().isNullOrEmpty()) {
-                    directory.delete()
-                }
-            }
-        }
-}
-
 private fun Set<Long>.toggleSelection(id: Long): Set<Long> {
     return if (id in this) this - id else this + id
-}
-
-private fun clearTopLevelScrollPositionMemory(route: String) {
-    val prefixes = topLevelScrollCachePrefixes[route].orEmpty()
-    if (prefixes.isEmpty()) return
-    lazyListPositionCache.keys.removeIf { cacheKey ->
-        prefixes.any { prefix -> cacheKey.contains(prefix) }
-    }
-    lazyGridPositionCache.keys.removeIf { cacheKey ->
-        prefixes.any { prefix -> cacheKey.contains(prefix) }
-    }
-    scrollPositionCache.keys.removeIf { cacheKey ->
-        prefixes.any { prefix -> cacheKey.contains(prefix) }
-    }
-}
-
-@Composable
-internal fun rememberElovaireLazyGridState(vararg inputs: Any?): LazyGridState {
-    val cacheKey = remember(*inputs) {
-        inputs.joinToString(separator = "|") { it?.toString().orEmpty() }
-    }
-    val cachedPosition = remember(cacheKey) {
-        lazyGridPositionCache[cacheKey] ?: (0 to 0)
-    }
-    val state = rememberSaveable(cacheKey, saver = LazyGridState.Saver) {
-        LazyGridState(
-            firstVisibleItemIndex = cachedPosition.first,
-            firstVisibleItemScrollOffset = cachedPosition.second,
-        )
-    }
-    LaunchedEffect(state, cacheKey) {
-        snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
-            .distinctUntilChanged()
-            .collect { position ->
-                lazyGridPositionCache[cacheKey] = position
-            }
-    }
-    return state
-}
-
-@Composable
-private fun rememberElovaireScrollState(vararg inputs: Any?): androidx.compose.foundation.ScrollState {
-    val cacheKey = remember(*inputs) {
-        inputs.joinToString(separator = "|") { it?.toString().orEmpty() }
-    }
-    val cachedPosition = remember(cacheKey) { scrollPositionCache[cacheKey] ?: 0 }
-    val state = rememberScrollState(cachedPosition)
-    LaunchedEffect(state, cacheKey) {
-        snapshotFlow { state.value }
-            .distinctUntilChanged()
-            .collect { value ->
-                scrollPositionCache[cacheKey] = value
-            }
-    }
-    return state
-}
-
-@OptIn(ExperimentalHazeApi::class)
-@Composable
-internal fun DynamicBackdropSurface(
-    modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(0.dp),
-    overlayAlpha: Float = 0.7f,
-    borderColor: Color? = null,
-    showTopEdgeLine: Boolean = false,
-    showBottomEdgeLine: Boolean = false,
-    content: @Composable BoxScope.() -> Unit = {},
-) {
-    val hazeState = LocalChromeHazeState.current
-    val overlayColor = blurSurfaceOverlayColor()
-
-    Box(
-        modifier = modifier.clip(shape),
-    ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hazeState != null) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .hazeEffect(hazeState) {
-                        blurRadius = 30.dp
-                        backgroundColor = overlayColor.copy(alpha = overlayAlpha)
-                        tints = listOf(HazeTint(overlayColor.copy(alpha = overlayAlpha)))
-                        noiseFactor = 0.015f
-                    },
-            )
-        }
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(overlayColor.copy(alpha = overlayAlpha)),
-        )
-        if (borderColor != null) {
-            Box(
-                modifier = Modifier
-                    .matchParentSize()
-                    .border(1.dp, borderColor, shape),
-            )
-        }
-        if (showTopEdgeLine) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(blurSurfaceBorderColor()),
-            )
-        }
-        if (showBottomEdgeLine) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(blurSurfaceBorderColor()),
-            )
-        }
-        content()
-    }
-}
-
-@Composable
-private fun ProgressiveChromeBackdrop(
-    darkTheme: Boolean,
-    edge: ProgressiveChromeEdge,
-    modifier: Modifier = Modifier,
-    overlayAlpha: Float? = null,
-    flatOverlay: Boolean = false,
-    showEdgeLine: Boolean = true,
-) {
-    DynamicBackdropSurface(
-        modifier = modifier,
-        overlayAlpha = overlayAlpha ?: 0.7f,
-        showTopEdgeLine = edge == ProgressiveChromeEdge.Bottom && showEdgeLine,
-        showBottomEdgeLine = edge == ProgressiveChromeEdge.Top && showEdgeLine,
-    )
-}
-
-@OptIn(ExperimentalHazeApi::class)
-@Composable
-private fun ChromeHazeLayer(
-    darkTheme: Boolean,
-    edge: ProgressiveChromeEdge,
-    modifier: Modifier = Modifier,
-    overlayAlpha: Float? = null,
-    flatOverlay: Boolean = false,
-    showEdgeLine: Boolean = true,
-) {
-    ProgressiveChromeBackdrop(
-        darkTheme = darkTheme,
-        edge = edge,
-        overlayAlpha = overlayAlpha,
-        flatOverlay = flatOverlay,
-        showEdgeLine = showEdgeLine,
-        modifier = modifier,
-    )
-}
-
-@OptIn(ExperimentalHazeApi::class)
-@Composable
-private fun FrostedTopBarBackground(
-    darkTheme: Boolean,
-    modifier: Modifier = Modifier,
-    edge: ProgressiveChromeEdge = ProgressiveChromeEdge.Top,
-    overlayAlpha: Float? = null,
-    flatOverlay: Boolean = false,
-    showEdgeLine: Boolean = true,
-) {
-    ChromeHazeLayer(
-        darkTheme = darkTheme,
-        edge = edge,
-        overlayAlpha = overlayAlpha,
-        flatOverlay = flatOverlay,
-        showEdgeLine = showEdgeLine,
-        modifier = modifier,
-    )
-}
-
-@Composable
-private fun RegisterSharedTopBar(spec: SharedTopBarSpec) {
-    val controller = LocalSharedTopBarController.current ?: return
-    val registrationId = remember { Any() }
-    SideEffect {
-        controller.registration = SharedTopBarRegistration(
-            id = registrationId,
-            spec = spec,
-        )
-    }
-    DisposableEffect(controller, registrationId) {
-        onDispose {
-            if (controller.registration?.id == registrationId) {
-                controller.registration = null
-            }
-        }
-    }
-}
-
-@OptIn(ExperimentalHazeApi::class)
-private fun Modifier.playerFrostedSurface(
-    tint: Color,
-): Modifier = composed {
-    val hazeState = LocalPlayerHazeState.current
-    if (hazeState == null) {
-        this
-    } else {
-        val tintIsDark = tint.luminance() < 0.44f
-        hazeEffect(hazeState) {
-            progressive = HazeProgressive.LinearGradient(
-                startIntensity = 0.9f,
-                endIntensity = 0.42f,
-                preferPerformance = true,
-            )
-            blurRadius = 28.dp
-            backgroundColor = tint.copy(alpha = if (tintIsDark) 0.18f else 0.14f)
-            tints = listOf(
-                HazeTint(tint.copy(alpha = if (tintIsDark) 0.28f else 0.2f)),
-                HazeTint(
-                    if (tintIsDark) {
-                        Color.Black.copy(alpha = 0.14f)
-                    } else {
-                        Color.White.copy(alpha = 0.16f)
-                    },
-                ),
-            )
-            noiseFactor = 0.04f
-        }
-    }
 }
 
 @OptIn(ExperimentalHazeApi::class)
@@ -855,245 +385,46 @@ fun ElovaireRoot(
     val navController = rememberNavController()
     val context = LocalContext.current
     SyncElovaireMotionScale()
-    val libraryContentState by container.libraryRepository.contentState.collectAsStateWithLifecycle()
-    val libraryScanState by container.libraryRepository.scanState.collectAsStateWithLifecycle()
-    val playbackNowPlayingState by container.playbackManager.nowPlayingState.collectAsStateWithLifecycle()
-    val playbackTransportState by container.playbackManager.transportState.collectAsStateWithLifecycle()
-    val playbackQueueState by container.playbackManager.queueState.collectAsStateWithLifecycle()
-    val playbackVolumeState by container.playbackManager.volumeState.collectAsStateWithLifecycle()
-    val recentPlaybackState by container.playbackManager.recentPlaybackState.collectAsStateWithLifecycle()
-    val eqSettings by container.preferenceStore.eqSettings.collectAsStateWithLifecycle()
-    val themeMode by container.preferenceStore.themeMode.collectAsStateWithLifecycle()
-    val textSizePreset by container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
-    val appLanguage by container.preferenceStore.appLanguage.collectAsStateWithLifecycle()
-    val playlists by container.preferenceStore.playlists.collectAsStateWithLifecycle()
-    val favoriteSongIds by container.preferenceStore.favoriteSongIds.collectAsStateWithLifecycle()
-    val favoriteSongIdSet = remember(favoriteSongIds) { favoriteSongIds.toHashSet() }
-    val albumPlayCounts by container.preferenceStore.albumPlayCounts.collectAsStateWithLifecycle()
-    val songPlayCounts by container.preferenceStore.songPlayCounts.collectAsStateWithLifecycle()
-    val albumCollectionLayoutModeName by container.preferenceStore.albumCollectionLayoutMode.collectAsStateWithLifecycle()
-    val songCollectionGridEnabled by container.preferenceStore.songCollectionGridEnabled.collectAsStateWithLifecycle()
-    val albumCollectionSortModeName by container.preferenceStore.albumCollectionSortMode.collectAsStateWithLifecycle()
-    val songCollectionSortModeName by container.preferenceStore.songCollectionSortMode.collectAsStateWithLifecycle()
-    val appUpdateState by container.appUpdateManager.uiState.collectAsStateWithLifecycle()
-    LaunchedEffect(appUpdateState.transientStatus) {
-        if (appUpdateState.transientStatus != null) {
+    val appState = rememberRootAppState(container)
+    val derivedState = rememberRootLibraryDerivedState(
+        library = appState.library,
+        playback = appState.playback,
+        playlists = appState.playlists,
+        songPlayCounts = appState.songPlayCounts,
+    )
+    val permissionController = rememberRootPermissionController(
+        container = container,
+        libraryState = appState.library,
+    )
+    val deleteController = rememberRootDeleteController(container)
+    LaunchedEffect(appState.appUpdateState.transientStatus) {
+        if (appState.appUpdateState.transientStatus != null) {
             delay(2_500L)
             container.appUpdateManager.clearTransientStatus()
         }
     }
-    val albumCollectionLayoutMode = albumCollectionLayoutModeName.toAlbumLayoutMode()
+    val albumCollectionLayoutMode = appState.albumCollectionLayoutModeName.toAlbumLayoutMode()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
     val rootScope = rememberCoroutineScope()
     val viewModelFactory = remember(container) { ElovaireViewModelFactory(container) }
     val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
     val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
-    val libraryState = remember(libraryContentState, libraryScanState) {
-        libraryUiStateOf(libraryContentState, libraryScanState)
-    }
-    val playbackState = remember(
-        playbackNowPlayingState,
-        playbackTransportState,
-        playbackQueueState,
-        playbackVolumeState,
-        recentPlaybackState,
-    ) {
-        playbackUiStateOf(
-            nowPlaying = playbackNowPlayingState,
-            transport = playbackTransportState,
-            queue = playbackQueueState,
-            volume = playbackVolumeState,
-            recent = recentPlaybackState,
-        )
-    }
-    var hasPermission by remember { mutableStateOf(context.hasAudioReadPermission()) }
-    var hasNotificationPermission by remember { mutableStateOf(context.hasNotificationPostingPermission()) }
-    var hasRequestedAudioPermission by rememberSaveable { mutableStateOf(false) }
-    var hasRequestedNotificationPermission by rememberSaveable { mutableStateOf(false) }
-    var firstLaunchPermissionExperienceActive by rememberSaveable {
-        mutableStateOf(!hasPermission)
-    }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    var playFirstLaunchHomeReveal by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var pendingSongDeletion by remember { mutableStateOf<PendingSongDeletion?>(null) }
-    val songsById = remember(libraryState.songs) { libraryState.songs.associateBy { it.id } }
-    val songsByAlbumId = remember(libraryState.songs) { libraryState.songs.groupBy { it.albumId } }
-    val albumsById = remember(libraryState.albums) { libraryState.albums.associateBy { it.id } }
+    val libraryState = appState.library
+    val playbackState = appState.playback
+    val songsById = derivedState.songsById
+    val songsByAlbumId = derivedState.songsByAlbumId
+    val albumsById = derivedState.albumsById
+    val playlistsById = derivedState.playlistsById
+    val recentlyAddedAlbums = derivedState.recentlyAddedAlbums
+    val recentAlbums = derivedState.recentAlbums
+    val favoriteAlbums = derivedState.favoriteAlbums
+    val lastPlayedAlbum = derivedState.lastPlayedAlbum
+    val lastPlayedPlaylist = derivedState.lastPlayedPlaylist
 
-    val recentlyAddedAlbums = remember(libraryState.albums) {
-        recentlyAddedAlbumsFor(libraryState)
-    }
-    val recentAlbums = remember(libraryState.albums, playbackState.recentAlbumIds) {
-        recentAlbumsFor(libraryState, playbackState)
-    }
-    val playlistsById = remember(playlists) { playlists.associateBy { it.id } }
-    val lastPlayedPlaylist = remember(
-        playlistsById,
-        playbackState.lastPlayedCollectionKind,
-        playbackState.lastPlayedCollectionId,
-    ) {
-        if (playbackState.lastPlayedCollectionKind == PlaybackCollectionKind.Playlist) {
-            playbackState.lastPlayedCollectionId?.let(playlistsById::get)
-        } else {
-            null
-        }
-    }
-    val lastPlayedAlbum = remember(
-        albumsById,
-        recentAlbums,
-        playbackState.lastPlayedCollectionKind,
-        playbackState.lastPlayedCollectionId,
-    ) {
-        when (playbackState.lastPlayedCollectionKind) {
-            PlaybackCollectionKind.Album -> playbackState.lastPlayedCollectionId?.let(albumsById::get)
-            PlaybackCollectionKind.Playlist -> null
-            null -> recentAlbums.firstOrNull()
-        } ?: recentAlbums.firstOrNull()
-    }
-    val favoriteAlbums = remember(libraryState.albums, songPlayCounts, recentAlbums, recentlyAddedAlbums) {
-        favoriteAlbumsFor(
-            libraryState = libraryState,
-            songPlayCounts = songPlayCounts,
-            recentAlbums = recentAlbums,
-            recentlyAddedAlbums = recentlyAddedAlbums,
-        )
-    }
-
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        hasNotificationPermission = granted
-        container.setNotificationsEnabled(granted)
-    }
-    val permissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        hasPermission = granted
-        container.libraryRepository.onPermissionChanged(granted)
-        if (
-            granted &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            !hasNotificationPermission &&
-            !hasRequestedNotificationPermission
-        ) {
-            hasRequestedNotificationPermission = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-    suspend fun completeSongDeletion(
-        songs: List<Song>,
-        parentDirectories: Set<String>,
-        filePaths: Set<String>,
-    ) {
-        invalidateArtworkCaches(songs.flatMap { listOf(it.artUri, it.uri) })
-        val deleteResult = container.libraryRepository.refreshAfterDelete(
-            LibraryDeleteRequest(
-                songIds = songs.mapTo(linkedSetOf(), Song::id),
-                albumIds = songs.mapTo(linkedSetOf(), Song::albumId),
-                uris = songs.mapTo(linkedSetOf(), Song::uri),
-                filePaths = filePaths,
-            ),
-        )
-        withContext(Dispatchers.IO) {
-            cleanupEmptyDirectories(parentDirectories)
-        }
-        container.playbackManager.removeSongsFromQueue(deleteResult.deletedSongIds)
-        deleteResult.deletedSongIds.forEach(container.preferenceStore::removeSongReferences)
-    }
-    val deleteSongLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult(),
-    ) { result ->
-        val pendingDeletion = pendingSongDeletion ?: return@rememberLauncherForActivityResult
-        pendingSongDeletion = null
-        if (result.resultCode == Activity.RESULT_OK) {
-            rootScope.launch {
-                completeSongDeletion(
-                    songs = pendingDeletion.songs,
-                    parentDirectories = pendingDeletion.parentDirectories,
-                    filePaths = pendingDeletion.filePaths,
-                )
-            }
-        }
-    }
-
-    LaunchedEffect(hasPermission, hasNotificationPermission) {
-        container.libraryRepository.onPermissionChanged(hasPermission)
-        if (!hasPermission && !hasRequestedAudioPermission) {
-            hasRequestedAudioPermission = true
-            permissionLauncher.launch(requiredAudioPermission())
-        } else if (
-            hasPermission &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            !hasNotificationPermission &&
-            !hasRequestedNotificationPermission
-        ) {
-            hasRequestedNotificationPermission = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
-
-    LaunchedEffect(hasNotificationPermission) {
-        container.setNotificationsEnabled(hasNotificationPermission)
-    }
-
-    DisposableEffect(lifecycleOwner, context) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) {
-                val refreshedAudioPermission = context.hasAudioReadPermission()
-                val refreshedNotificationPermission = context.hasNotificationPostingPermission()
-                if (hasPermission != refreshedAudioPermission) {
-                    hasPermission = refreshedAudioPermission
-                    container.libraryRepository.onPermissionChanged(refreshedAudioPermission)
-                }
-                if (hasNotificationPermission != refreshedNotificationPermission) {
-                    hasNotificationPermission = refreshedNotificationPermission
-                    container.setNotificationsEnabled(refreshedNotificationPermission)
-                }
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    val showFirstLaunchPermissionOverlay =
-        firstLaunchPermissionExperienceActive &&
-            (
-                !hasPermission ||
-                    libraryState.isLoading ||
-                    (
-                        libraryState.songs.isEmpty() &&
-                            libraryState.albums.isEmpty() &&
-                            libraryState.errorMessage == null &&
-                            !playFirstLaunchHomeReveal
-                        )
-                )
-
-    LaunchedEffect(
-        firstLaunchPermissionExperienceActive,
-        hasPermission,
-        libraryState.isLoading,
-        libraryState.songs.size,
-        libraryState.albums.size,
-        libraryState.errorMessage,
-    ) {
-        if (
-            firstLaunchPermissionExperienceActive &&
-            hasPermission &&
-            !libraryState.isLoading &&
-            (libraryState.songs.isNotEmpty() || libraryState.albums.isNotEmpty() || libraryState.errorMessage != null)
-        ) {
-            playFirstLaunchHomeReveal = true
-        }
-    }
-
-    if (!hasPermission) {
+    if (!permissionController.state.hasAudioPermission) {
         FirstLaunchPermissionLoadingScreen(
             showLoading = true,
-            onRequestPermission = { permissionLauncher.launch(requiredAudioPermission()) },
+            onRequestPermission = permissionController::requestAudioPermission,
         )
         return
     }
@@ -1102,14 +433,13 @@ fun ElovaireRoot(
 
     val topLevelDestinations = DefaultTopLevelDestinations
 
+    val navigationState = rememberRootNavigationState(navController)
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val currentConcreteRoute = currentBackStackEntry?.concreteNavigationRoute() ?: currentRoute
     var previousMotionRoute by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(currentConcreteRoute) {
-        if (BuildConfig.DEBUG && previousMotionRoute != currentConcreteRoute) {
-            Log.d("ElovaireMotion", "Route ${previousMotionRoute.orEmpty()} -> ${currentConcreteRoute.orEmpty()}")
-        }
+        navigationState.logRouteTransition(previousMotionRoute, currentConcreteRoute)
         previousMotionRoute = currentConcreteRoute
     }
     val currentAlbumRouteId = currentBackStackEntry?.arguments?.let { arguments ->
@@ -1119,111 +449,24 @@ fun ElovaireRoot(
             else -> null
         }
     }
-    var detailExpandOrigin by remember { mutableStateOf(ExpandOrigin()) }
-    var detailRouteTransitionMode by remember { mutableStateOf(DetailRouteTransitionMode.TileExpand) }
     var nowPlayingTransitionSnapshot by remember { mutableStateOf<NowPlayingTransitionSnapshot?>(null) }
     var playerLayerStateName by rememberSaveable { mutableStateOf(PlayerLayerState.Compact.name) }
     val playerLayerState = remember(playerLayerStateName) { PlayerLayerState.valueOf(playerLayerStateName) }
     val openNowPlayingMutex = remember { Mutex() }
     var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
-    var browsingOriginRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
-    var selectedBottomRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
-    var lastHomeTabRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
-    var lastLibraryTabRoute by rememberSaveable { mutableStateOf(ALBUMS_ROUTE) }
-    var lastPlaylistsTabRoute by rememberSaveable { mutableStateOf(PLAYLISTS_ROUTE) }
-    var lastSearchTabRoute by rememberSaveable { mutableStateOf(SEARCH_ROUTE) }
-    val routeOwnerOverrides = remember { mutableStateMapOf<String, String>() }
     var searchFieldFocused by rememberSaveable { mutableStateOf(false) }
-    var homeScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
-    var libraryScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
-    var playlistsScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
-    var searchScrollRequestVersion by rememberSaveable { mutableLongStateOf(0L) }
     val openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit = { album, origin, source ->
-        if (BuildConfig.DEBUG) {
-            Log.d("ElovaireMotion", "Album transition ${source.name} -> AlbumDetail(${album.id})")
-        }
-        detailExpandOrigin = origin
-        detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-        navController.navigate("$ALBUM_ROUTE/${album.id}")
+        navigationState.openAlbum(album, origin, source)
     }
     val showTopLevelChrome = currentRoute in TopLevelRoutes
     val showBottomNavigation = currentRoute in BottomNavigationRoutes
     LaunchedEffect(currentRoute) {
-        if (currentRoute in TopLevelRoutes) {
-            browsingOriginRoute = currentRoute.orEmpty()
-            selectedBottomRoute = currentRoute.orEmpty()
-        }
+        navigationState.syncTopLevelSelection(currentRoute)
     }
-    LaunchedEffect(currentBackStackEntry, browsingOriginRoute, currentConcreteRoute) {
-        val concreteRoute = currentBackStackEntry?.elovaireConcreteRoute() ?: return@LaunchedEffect
-        val normalizedConcreteRoute = concreteRoute.normalizedNavigationRoute()
-        val ownerRoute = when (concreteRoute.normalizedNavigationRoute()) {
-            HOME_ROUTE -> HOME_ROUTE
-            SEARCH_ROUTE -> SEARCH_ROUTE
-            ALBUMS_ROUTE -> ALBUMS_ROUTE
-            PLAYLISTS_ROUTE -> PLAYLISTS_ROUTE
-            "$LIBRARY_COLLECTION_ROUTE/{kind}",
-            "$GENRE_ROUTE/{genre}",
-            "$ARTIST_ROUTE/{artistName}",
-            -> ALBUMS_ROUTE
-
-            "$PLAYLIST_ROUTE/{playlistId}" -> PLAYLISTS_ROUTE
-            "$ALBUM_ROUTE/{albumId}" -> {
-                routeOwnerOverrides[concreteRoute]
-                    ?: navController.previousBackStackEntry?.concreteNavigationRoute()?.let(routeOwnerOverrides::get)
-                    ?: topLevelOwnerRoute(
-                        navController.previousBackStackEntry?.destination?.route,
-                        browsingOriginRoute,
-                    )
-                    ?: browsingOriginRoute.takeIf { it in TopLevelRoutes }
-                    ?: selectedBottomRoute
-            }
-
-            else -> topLevelOwnerRoute(currentRoute, browsingOriginRoute) ?: selectedBottomRoute
-        }
-        if (ownerRoute in TopLevelRoutes) {
-            routeOwnerOverrides[concreteRoute] = ownerRoute
-        }
-        if (concreteRoute in setOf(PLAYER_ROUTE, SETTINGS_ROUTE, EQUALIZER_ROUTE, CHANGELOG_ROUTE, ABOUT_ROUTE)) {
-            return@LaunchedEffect
-        }
-        if (normalizedConcreteRoute == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}") {
-            return@LaunchedEffect
-        }
-        if (normalizedConcreteRoute in setOf("$ALBUM_ROUTE/{albumId}", "$PLAYLIST_ROUTE/{playlistId}")) {
-            return@LaunchedEffect
-        }
-        when (ownerRoute) {
-            HOME_ROUTE -> lastHomeTabRoute = concreteRoute
-            ALBUMS_ROUTE -> lastLibraryTabRoute = concreteRoute
-            PLAYLISTS_ROUTE -> lastPlaylistsTabRoute = concreteRoute
-            SEARCH_ROUTE -> lastSearchTabRoute = concreteRoute
-        }
+    LaunchedEffect(currentBackStackEntry, currentRoute, currentConcreteRoute, navigationState.browsingOriginRoute) {
+        navigationState.syncRouteOwnership(currentBackStackEntry, currentRoute)
     }
-    val activeBottomRoute = routeOwnerOverrides[currentConcreteRoute]
-        ?: topLevelOwnerRoute(currentRoute, browsingOriginRoute)
-        ?: selectedBottomRoute
-    val resetTopLevelTabState: (String) -> Unit = { route ->
-        clearTopLevelScrollPositionMemory(route)
-        when (route) {
-            HOME_ROUTE -> {
-                lastHomeTabRoute = HOME_ROUTE
-                homeScrollRequestVersion += 1L
-            }
-            ALBUMS_ROUTE -> {
-                lastLibraryTabRoute = ALBUMS_ROUTE
-                libraryScrollRequestVersion += 1L
-            }
-            PLAYLISTS_ROUTE -> {
-                lastPlaylistsTabRoute = PLAYLISTS_ROUTE
-                playlistsScrollRequestVersion += 1L
-            }
-            SEARCH_ROUTE -> {
-                lastSearchTabRoute = SEARCH_ROUTE
-                searchScrollRequestVersion += 1L
-            }
-        }
-    }
+    val activeBottomRoute = navigationState.activeBottomRoute(currentConcreteRoute, currentRoute)
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val hideCompactNowPlayingRoutes = setOf(
         CHANGELOG_ROUTE,
@@ -1235,7 +478,7 @@ fun ElovaireRoot(
         currentRoute in hideCompactNowPlayingRoutes
     val reserveCompactNowPlayingSpace = playbackState.currentSong != null && !hideCompactNowPlaying
     val canHostCompactNowPlaying = playbackState.currentSong != null
-    val showPlayerOverlay = playerLayerState == PlayerLayerState.Expanded && playbackNowPlayingState.currentSong != null
+    val showPlayerOverlay = playerLayerState == PlayerLayerState.Expanded && playbackState.currentSong != null
     val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && playerLayerState != PlayerLayerState.Expanded
     val reenteringFromPlayer = playerLayerState == PlayerLayerState.ReturningToCompact
     val overscrollFactory = rememberElovaireOverscrollFactory()
@@ -1291,8 +534,8 @@ fun ElovaireRoot(
             albumsById[albumId]?.let { album ->
                 openAlbum(album, ExpandOrigin(), AlbumOpenSource.Player)
             } ?: run {
-                detailExpandOrigin = ExpandOrigin()
-                detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
+                navigationState.detailExpandOrigin = ExpandOrigin()
+                navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
                 navController.navigate("$ALBUM_ROUTE/$albumId")
             }
         }
@@ -1325,7 +568,7 @@ fun ElovaireRoot(
     val sharedTopBarSpec = sharedTopBarController.registration?.spec
         ?: if (showTopLevelChrome) {
             SharedTopBarSpec.Unified(
-                title = topBarTitle(currentRoute, appLanguage),
+                title = topBarTitle(currentRoute, appState.appLanguage),
                 showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
                 supplementalActionIconResId = if (showPlaylistCreateAction) R.drawable.ic_lucide_plus else null,
                 supplementalActionContentDescription = if (showPlaylistCreateAction) "Create playlist" else null,
@@ -1344,8 +587,8 @@ fun ElovaireRoot(
             currentRequestOpenNowPlaying(null)
         }
     }
-    LaunchedEffect(playbackNowPlayingState.currentSong?.id) {
-        if (playbackNowPlayingState.currentSong == null) {
+    LaunchedEffect(playbackState.currentSong?.id) {
+        if (playbackState.currentSong == null) {
             playerLayerStateName = PlayerLayerState.Compact.name
             nowPlayingTransitionSnapshot = null
         }
@@ -1368,89 +611,16 @@ fun ElovaireRoot(
         controller.isAppearanceLightNavigationBars = usesLightSystemBarIcons
     }
 
-    val deleteSongsFromDevice = remember(context, rootScope, deleteSongLauncher) {
-        { songs: List<Song> ->
-            val uniqueSongs = songs.distinctBy { it.id }
-            if (uniqueSongs.isNotEmpty()) {
-                rootScope.launch {
-                    val filePaths = querySongFilePaths(context, uniqueSongs)
-                    val parentDirectories = filePaths.mapNotNullTo(linkedSetOf()) { path ->
-                        File(path).parentFile?.absolutePath
-                    }
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        pendingSongDeletion = PendingSongDeletion(
-                            songs = uniqueSongs,
-                            parentDirectories = parentDirectories,
-                            filePaths = filePaths,
-                        )
-                        deleteSongLauncher.launch(
-                            IntentSenderRequest.Builder(
-                                MediaStore.createDeleteRequest(
-                                    context.contentResolver,
-                                    uniqueSongs.map(Song::uri),
-                                ).intentSender,
-                            ).build(),
-                        )
-                    } else {
-                        runCatching {
-                            withContext(Dispatchers.IO) {
-                                uniqueSongs.forEach { song ->
-                                    context.contentResolver.delete(song.uri, null, null)
-                                }
-                            }
-                        }.onSuccess {
-                            completeSongDeletion(
-                                songs = uniqueSongs,
-                                parentDirectories = parentDirectories,
-                                filePaths = filePaths,
-                            )
-                        }.onFailure { throwable ->
-                            val intentSender = when {
-                                throwable is RecoverableSecurityException -> {
-                                    throwable.userAction.actionIntent.intentSender
-                                }
-                                else -> null
-                            }
-                            if (intentSender != null) {
-                                pendingSongDeletion = PendingSongDeletion(
-                                    songs = uniqueSongs,
-                                    parentDirectories = parentDirectories,
-                                    filePaths = filePaths,
-                                )
-                                deleteSongLauncher.launch(
-                                    IntentSenderRequest.Builder(intentSender).build(),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-    val songMenuActions = remember(playlists, songsById, deleteSongsFromDevice) {
-        SongMenuActions(
-            playlists = playlists.filterNot { it.isSystem },
-            songsById = songsById,
-            onAddToPlaylist = { playlistId, song ->
-                container.preferenceStore.addSongsToPlaylist(playlistId, listOf(song.id))
-            },
-            onCreatePlaylist = container.preferenceStore::createPlaylist,
-            onAddToQueue = { song ->
-                container.playbackManager.enqueueSong(song)
-            },
-            onGoToAlbum = { song ->
-                val album = albumsById[song.albumId]
-                if (album != null) {
-                    openAlbum(album, ExpandOrigin(), AlbumOpenSource.LibraryAlbums)
-                } else if (song.albumId > 0L) {
-                    navController.navigate("$ALBUM_ROUTE/${song.albumId}")
-                }
-            },
-            onDeleteFromLibrary = { song ->
-                deleteSongsFromDevice(listOf(song))
-            },
-        )
-    }
+    val songMenuActions = rememberRootSongMenuActions(
+        playlists = appState.playlists,
+        songsById = songsById,
+        albumsById = albumsById,
+        playbackManager = container.playbackManager,
+        preferenceStore = container.preferenceStore,
+        onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
+        openAlbum = openAlbum,
+        navigateToAlbumId = { albumId -> navController.navigate("$ALBUM_ROUTE/$albumId") },
+    )
     val createPlaylistAndAddSongs = remember(container.preferenceStore) {
         { name: String, songIds: List<Long> ->
             val createdId = container.preferenceStore.createPlaylist(name)
@@ -1460,11 +630,6 @@ fun ElovaireRoot(
             createdId
         }
     }
-    val deleteAlbumFromDevice = remember(deleteSongsFromDevice) {
-        { album: Album ->
-            deleteSongsFromDevice(album.songs)
-        }
-    }
 
     CompositionLocalProvider(
         LocalOverscrollFactory provides overscrollFactory,
@@ -1472,7 +637,7 @@ fun ElovaireRoot(
         LocalChromeHazeState provides chromeHazeState,
         LocalSharedBackIconPainter provides sharedBackIconPainter,
         LocalSharedTopMenuIconPainter provides sharedTopMenuIconPainter,
-        LocalAppLanguage provides appLanguage,
+        LocalAppLanguage provides appState.appLanguage,
     ) {
         Box(
             modifier = Modifier
@@ -1512,59 +677,12 @@ fun ElovaireRoot(
                             .fillMaxSize()
                             .hazeSource(chromeHazeState),
                     ) {
-                    NavHost(
-                        navController = navController,
-                        startDestination = HOME_ROUTE,
+                    RootNavigationHost(
+                        navState = navigationState,
                         modifier = Modifier
                             .fillMaxSize()
                             .blur(navHostBlur),
-                        enterTransition = {
-                            resolveForwardEnterTransition(
-                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                                    initialRoute = initialState.destination.route,
-                                    targetRoute = targetState.destination.route,
-                                    initialFallbackTopLevelRoute = browsingOriginRoute,
-                                    targetFallbackTopLevelRoute = selectedBottomRoute,
-                                    detailRouteTransitionMode = detailRouteTransitionMode,
-                                ),
-                                expandOrigin = detailExpandOrigin,
-                            )
-                        },
-                        exitTransition = {
-                            resolveForwardExitTransition(
-                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                                    initialRoute = initialState.destination.route,
-                                    targetRoute = targetState.destination.route,
-                                    initialFallbackTopLevelRoute = browsingOriginRoute,
-                                    targetFallbackTopLevelRoute = selectedBottomRoute,
-                                    detailRouteTransitionMode = detailRouteTransitionMode,
-                                ),
-                            )
-                        },
-                        popEnterTransition = {
-                            resolvePopEnterTransition(
-                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                                    initialRoute = initialState.destination.route,
-                                    targetRoute = targetState.destination.route,
-                                    initialFallbackTopLevelRoute = browsingOriginRoute,
-                                    targetFallbackTopLevelRoute = selectedBottomRoute,
-                                    detailRouteTransitionMode = detailRouteTransitionMode,
-                                ),
-                            )
-                        },
-                        popExitTransition = {
-                            resolvePopExitTransition(
-                                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                                    initialRoute = initialState.destination.route,
-                                    targetRoute = targetState.destination.route,
-                                    initialFallbackTopLevelRoute = browsingOriginRoute,
-                                    targetFallbackTopLevelRoute = selectedBottomRoute,
-                                    detailRouteTransitionMode = detailRouteTransitionMode,
-                                ),
-                                expandOrigin = detailExpandOrigin,
-                            )
-                        },
-                ) {
+                    ) {
                     composable(HOME_ROUTE) {
                         val recentSongs = remember(songsById, playbackState.recentSongIds) {
                             playbackState.recentSongIds.mapNotNull(songsById::get).take(5)
@@ -1579,22 +697,19 @@ fun ElovaireRoot(
                             playbackState = playbackState,
                             isLibraryLoading = libraryState.isLoading,
                             libraryScanProgress = libraryState.scanProgress,
-                            favoriteSongIds = favoriteSongIdSet,
+                            favoriteSongIds = appState.favoriteSongIds,
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = homeScrollRequestVersion,
+                            scrollToTopRequestVersion = navigationState.homeScrollRequestVersion,
                             resetScrollOnColdStart = resetHomeScrollOnColdStart,
-                            playInitialReveal = playFirstLaunchHomeReveal,
-                            onInitialRevealFinished = {
-                                playFirstLaunchHomeReveal = false
-                                firstLaunchPermissionExperienceActive = false
-                            },
+                            playInitialReveal = permissionController.state.playFirstLaunchHomeReveal,
+                            onInitialRevealFinished = permissionController::onInitialRevealFinished,
                             onAlbumSelected = { album, origin ->
                                 openAlbum(album, origin, AlbumOpenSource.HomeSection)
                             },
                             onPlaylistSelected = { playlist ->
-                                detailExpandOrigin = ExpandOrigin()
-                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
+                                navigationState.detailExpandOrigin = ExpandOrigin()
+                                navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
                                 navController.navigate("$PLAYLIST_ROUTE/${playlist.id}")
                             },
                             onPlayAlbum = { album ->
@@ -1652,7 +767,7 @@ fun ElovaireRoot(
                             libraryState = libraryState,
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = libraryScrollRequestVersion,
+                            scrollToTopRequestVersion = navigationState.libraryScrollRequestVersion,
                             onOpenCollection = { kind ->
                                 navController.navigate("$LIBRARY_COLLECTION_ROUTE/${kind.name}")
                             },
@@ -1664,17 +779,17 @@ fun ElovaireRoot(
 
                     composable(PLAYLISTS_ROUTE) {
                         PlaylistsScreen(
-                            playlists = playlists,
+                            playlists = appState.playlists,
                             libraryState = libraryState,
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = playlistsScrollRequestVersion,
+                            scrollToTopRequestVersion = navigationState.playlistsScrollRequestVersion,
                             onRequestCreatePlaylist = { showPlaylistCreateDialog = true },
                             onRenamePlaylist = container.preferenceStore::renamePlaylist,
                             onDeletePlaylists = container.preferenceStore::deletePlaylists,
                             onOpenPlaylist = { playlist, origin ->
-                                detailExpandOrigin = origin
-                                detailRouteTransitionMode = DetailRouteTransitionMode.Standard
+                                navigationState.detailExpandOrigin = origin
+                                navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
                                 navController.navigate("$PLAYLIST_ROUTE/${playlist.id}")
                             },
                         )
@@ -1684,10 +799,10 @@ fun ElovaireRoot(
                         SearchRoute(
                             viewModel = searchViewModel,
                             libraryState = libraryState,
-                            favoriteSongIds = favoriteSongIdSet,
+                            favoriteSongIds = appState.favoriteSongIds,
                             topPadding = topContentPadding,
                             bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = searchScrollRequestVersion,
+                            scrollToTopRequestVersion = navigationState.searchScrollRequestVersion,
                             isSearchFieldFocused = searchFieldFocused,
                             onSearchFieldFocusedChange = { searchFieldFocused = it },
                             onSearchQueryActiveChanged = { isSearchQueryActive = it },
@@ -1714,11 +829,11 @@ fun ElovaireRoot(
                         arguments = listOf(navArgument("playlistId") { type = NavType.LongType }),
                     ) { backStackEntry ->
                         val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
-                        val playlist = playlists.firstOrNull { it.id == playlistId }
+                        val playlist = appState.playlists.firstOrNull { it.id == playlistId }
                         PlaylistDetailScreen(
                             playlist = playlist,
                             librarySongs = libraryState.songs,
-                            favoriteSongIds = favoriteSongIdSet,
+                            favoriteSongIds = appState.favoriteSongIds,
                             currentSongId = playbackState.currentSong?.id,
                             isCurrentSongPlaying = isPlaybackActuallyPlaying,
                             bottomPadding = detailBottomPadding,
@@ -1752,7 +867,7 @@ fun ElovaireRoot(
                                     collection = queue,
                                     sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
                                         fallbackAlbum = song.album,
-                                        language = appLanguage,
+                                        language = appState.appLanguage,
                                     ),
                                     sourcePlaylistId = playlist?.id,
                                 )
@@ -1783,11 +898,11 @@ fun ElovaireRoot(
                         AlbumScreen(
                             album = album,
                             removingSongIds = libraryState.removingSongIds,
-                            favoriteSongIds = favoriteSongIdSet,
+                            favoriteSongIds = appState.favoriteSongIds,
                             currentSongId = playbackState.currentSong?.id,
                             isCurrentSongPlaying = isPlaybackActuallyPlaying,
                             bottomPadding = detailBottomPadding,
-                            collapsedTopBarTitle = detailFallbackTitle(previousRoute, appLanguage),
+                            collapsedTopBarTitle = detailFallbackTitle(previousRoute, appState.appLanguage),
                             onBack = navController::navigateUp,
                             onOpenTagEditor = { selectedAlbum ->
                                 navController.navigate("$ALBUM_TAG_EDITOR_ROUTE/${selectedAlbum.id}")
@@ -1812,13 +927,13 @@ fun ElovaireRoot(
                                 )
                                 requestOpenNowPlaying(null)
                             },
-                            playlists = playlists,
+                            playlists = appState.playlists,
                             onAddSongsToPlaylist = { playlistId, songIds ->
                                 container.preferenceStore.addSongsToPlaylist(playlistId, songIds)
                             },
                             onCreatePlaylist = container.preferenceStore::createPlaylist,
                             playlistSongsById = songsById,
-                            onDeleteSongsFromDevice = deleteSongsFromDevice,
+                            onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
                             onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
                             onSetAlbumFavorite = { songIds, favorite ->
                                 container.preferenceStore.setFavoriteSongs(songIds, favorite)
@@ -1831,89 +946,12 @@ fun ElovaireRoot(
                         arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
                     ) { backStackEntry ->
                         val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
-                        val tagEditorViewModel: AlbumTagEditorViewModel = viewModel(
-                            viewModelStoreOwner = backStackEntry,
-                            key = "album_tag_editor_$albumId",
-                            factory = viewModelFactory,
-                        )
-                        val tagEditorState by tagEditorViewModel.uiState.collectAsStateWithLifecycle()
-                        var pendingWriteRequest by remember(albumId) {
-                            mutableStateOf<elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest?>(null)
-                        }
-
-                        val albumTagWriteLauncher = rememberLauncherForActivityResult(
-                            contract = ActivityResultContracts.StartIntentSenderForResult(),
-                        ) { result ->
-                            val pendingRequest = pendingWriteRequest ?: return@rememberLauncherForActivityResult
-                            pendingWriteRequest = null
-                            tagEditorViewModel.onWritePermissionResult(
-                                granted = result.resultCode == Activity.RESULT_OK,
-                                request = pendingRequest,
-                            )
-                        }
-
-                        val coverArtPickerLauncher = rememberLauncherForActivityResult(
-                            contract = ActivityResultContracts.OpenDocument(),
-                        ) { uri ->
-                            tagEditorViewModel.onPickedCoverArt(uri)
-                        }
-
-                        LaunchedEffect(albumId) {
-                            tagEditorViewModel.loadAlbum(albumId)
-                        }
-
-                        LaunchedEffect(tagEditorViewModel) {
-                            tagEditorViewModel.events.collect { event ->
-                                when (event) {
-                                    is AlbumTagEditorEvent.RequestWritePermission -> {
-                                        pendingWriteRequest = event.request
-                                        if (event.uris.isNotEmpty()) {
-                                            albumTagWriteLauncher.launch(
-                                                createWriteRequestIntentSender(
-                                                    context = context,
-                                                    uris = event.uris,
-                                                ),
-                                            )
-                                        } else {
-                                            tagEditorViewModel.onWritePermissionResult(
-                                                granted = true,
-                                                request = event.request,
-                                            )
-                                        }
-                                    }
-
-                                    is AlbumTagEditorEvent.RequestRecoverableWritePermission -> {
-                                        pendingWriteRequest = event.request
-                                        albumTagWriteLauncher.launch(
-                                            IntentSenderRequest.Builder(event.intentSender).build(),
-                                        )
-                                    }
-
-                                    AlbumTagEditorEvent.SaveSucceeded -> {
-                                        navController.navigateUp()
-                                    }
-
-                                    is AlbumTagEditorEvent.SavePartiallySucceeded -> Unit
-                                }
-                            }
-                        }
-
-                        AlbumTagEditorScreen(
-                            state = tagEditorState,
-                            appLanguage = appLanguage,
+                        AlbumTagEditorRouteHost(
+                            albumId = albumId,
+                            backStackEntry = backStackEntry,
+                            viewModelFactory = viewModelFactory,
+                            appLanguage = appState.appLanguage,
                             onBack = navController::navigateUp,
-                            onSave = tagEditorViewModel::requestSave,
-                            onAutoMatch = tagEditorViewModel::matchOnline,
-                            onPickCoverArt = {
-                                coverArtPickerLauncher.launch(arrayOf("image/*"))
-                            },
-                            onAlbumTitleChange = tagEditorViewModel::onAlbumTitleChange,
-                            onAlbumArtistChange = tagEditorViewModel::onAlbumArtistChange,
-                            onReleaseYearChange = tagEditorViewModel::onReleaseYearChange,
-                            onTrackTitleChange = tagEditorViewModel::onTrackTitleChange,
-                            onTrackArtistChange = tagEditorViewModel::onTrackArtistChange,
-                            onTrackNumberChange = tagEditorViewModel::onTrackNumberChange,
-                            onDiscNumberChange = tagEditorViewModel::onDiscNumberChange,
                         )
                     }
 
@@ -1927,13 +965,13 @@ fun ElovaireRoot(
                         LibraryCollectionScreen(
                             kind = kind,
                             libraryState = libraryState,
-                            playlists = playlists,
-                            songPlayCounts = songPlayCounts,
-                            favoriteSongIds = favoriteSongIdSet,
+                            playlists = appState.playlists,
+                            songPlayCounts = appState.songPlayCounts,
+                            favoriteSongIds = appState.favoriteSongIds,
                             albumCollectionLayoutMode = albumCollectionLayoutMode,
-                            songCollectionLayoutMode = if (songCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
-                            albumSortMode = albumCollectionSortModeName.toAlbumSortMode(),
-                            songSortMode = songCollectionSortModeName.toSongSortMode(),
+                            songCollectionLayoutMode = if (appState.songCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
+                            albumSortMode = appState.albumCollectionSortModeName.toAlbumSortMode(),
+                            songSortMode = appState.songCollectionSortModeName.toSongSortMode(),
                             currentSongId = playbackState.currentSong?.id,
                             isCurrentSongPlaying = isPlaybackActuallyPlaying,
                             bottomPadding = detailBottomPadding,
@@ -1949,11 +987,11 @@ fun ElovaireRoot(
                                     song = song,
                                     collection = queue,
                                     sourceLabel = if (kind == LibraryCollectionKind.Songs) {
-                                        localizedAllSongsSource(appLanguage)
+                                        localizedAllSongsSource(appState.appLanguage)
                                     } else {
                                         queue.playbackSourceLabel(
                                             fallbackAlbum = song.album,
-                                            language = appLanguage,
+                                            language = appState.appLanguage,
                                         )
                                     },
                                 )
@@ -1971,7 +1009,7 @@ fun ElovaireRoot(
                             onSetAlbumFavorite = { songIds, favorite ->
                                 container.preferenceStore.setFavoriteSongs(songIds, favorite)
                             },
-                            onDeleteAlbumFromDevice = deleteAlbumFromDevice,
+                            onDeleteAlbumFromDevice = deleteController::deleteAlbumFromDevice,
                             onAlbumCollectionLayoutModeChanged = { mode ->
                                 container.preferenceStore.setAlbumCollectionLayoutMode(mode.name)
                             },
@@ -2001,9 +1039,9 @@ fun ElovaireRoot(
                         GenreAlbumsScreen(
                             genre = genre,
                             libraryState = libraryState,
-                            playlists = playlists,
+                            playlists = appState.playlists,
                             layoutMode = albumCollectionLayoutMode,
-                            sortMode = albumCollectionSortModeName.toAlbumSortMode(),
+                            sortMode = appState.albumCollectionSortModeName.toAlbumSortMode(),
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onLayoutModeChanged = { mode ->
@@ -2023,11 +1061,11 @@ fun ElovaireRoot(
                             },
                             onCreatePlaylist = container.preferenceStore::createPlaylist,
                             playlistSongsById = songsById,
-                            favoriteSongIds = favoriteSongIdSet,
+                            favoriteSongIds = appState.favoriteSongIds,
                             onSetAlbumFavorite = { songIds, favorite ->
                                 container.preferenceStore.setFavoriteSongs(songIds, favorite)
                             },
-                            onDeleteAlbumFromDevice = deleteAlbumFromDevice,
+                            onDeleteAlbumFromDevice = deleteController::deleteAlbumFromDevice,
                         )
                     }
 
@@ -2039,8 +1077,8 @@ fun ElovaireRoot(
                         ArtistDetailScreen(
                             artistName = artistName,
                             libraryState = libraryState,
-                            songPlayCounts = songPlayCounts,
-                            favoriteSongIds = favoriteSongIdSet,
+                            songPlayCounts = appState.songPlayCounts,
+                            favoriteSongIds = appState.favoriteSongIds,
                             currentSongId = playbackState.currentSong?.id,
                             isCurrentSongPlaying = isPlaybackActuallyPlaying,
                             bottomPadding = detailBottomPadding,
@@ -2080,10 +1118,10 @@ fun ElovaireRoot(
 
                     composable(SETTINGS_ROUTE) {
                         SettingsScreen(
-                            themeMode = themeMode,
-                            textSizePreset = textSizePreset,
-                            appLanguage = appLanguage,
-                            eqSettings = eqSettings,
+                            themeMode = appState.themeMode,
+                            textSizePreset = appState.textSizePreset,
+                            appLanguage = appState.appLanguage,
+                            eqSettings = appState.eqSettings,
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onThemeModeSelected = container.preferenceStore::setThemeMode,
@@ -2197,21 +1235,21 @@ fun ElovaireRoot(
                                 top = topBarHeight + 8.dp,
                             ),
                         visible = (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
-                            (appUpdateState.availableRelease != null || appUpdateState.transientStatus != null),
+                            (appState.appUpdateState.availableRelease != null || appState.appUpdateState.transientStatus != null),
                         enter = ElovaireMotion.bannerEnter(),
                         exit = ElovaireMotion.bannerExit(),
                         label = "UpdateBannerVisibility",
                     ) {
                         when {
-                            appUpdateState.availableRelease != null -> {
+                            appState.appUpdateState.availableRelease != null -> {
                                 UpdateAvailableBanner(
-                                    release = requireNotNull(appUpdateState.availableRelease),
-                                    uiState = appUpdateState,
+                                    release = requireNotNull(appState.appUpdateState.availableRelease),
+                                    uiState = appState.appUpdateState,
                                     onDismiss = container.appUpdateManager::dismissAvailableUpdate,
                                     onUpdate = container.appUpdateManager::startUpdate,
                                 )
                             }
-                            appUpdateState.transientStatus == AppUpdateTransientStatus.UpToDate -> {
+                            appState.appUpdateState.transientStatus == AppUpdateTransientStatus.UpToDate -> {
                                 UpdateStatusBanner(
                                     text = rootUiCopy(LocalAppLanguage.current).appUpToDate,
                                     iconResId = R.drawable.ic_lucide_check,
@@ -2220,7 +1258,7 @@ fun ElovaireRoot(
                         }
                     }
                     ElovaireAnimatedVisibility(
-                        visible = showFirstLaunchPermissionOverlay,
+                        visible = permissionController.state.showFirstLaunchPermissionOverlay,
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(9f),
@@ -2230,12 +1268,12 @@ fun ElovaireRoot(
                     ) {
                         FirstLaunchPermissionLoadingScreen(
                             showLoading = true,
-                            onRequestPermission = { permissionLauncher.launch(requiredAudioPermission()) },
+                            onRequestPermission = permissionController::requestAudioPermission,
                         )
                     }
                 }
                 if (canHostCompactNowPlaying) {
-                    playbackNowPlayingState.currentSong?.let {
+                    playbackState.currentSong?.let {
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
@@ -2250,7 +1288,7 @@ fun ElovaireRoot(
                             CompactNowPlayingDockHost(
                                 viewModel = nowPlayingViewModel,
                                 song = it,
-                                transportShowsPause = playbackTransportState.transportShowsPause,
+                                transportShowsPause = playbackState.transportShowsPause,
                                 visible = showGlobalNowPlaying,
                                 suppressEnterAnimation = reenteringFromPlayer,
                                 onOpenPlayer = requestOpenNowPlaying,
@@ -2279,34 +1317,11 @@ fun ElovaireRoot(
                         destinations = topLevelDestinations,
                         onNavigate = { route ->
                             val currentTopLevelRoute = activeBottomRoute
-                            browsingOriginRoute = route
-                            selectedBottomRoute = route
-                            routeOwnerOverrides[route] = route
-                            if (route == currentTopLevelRoute) {
-                                if (currentRoute != route) {
-                                    val poppedToTabRoot = navController.popBackStack(route, inclusive = false)
-                                    if (!poppedToTabRoot) {
-                                        navController.navigate(route) {
-                                            launchSingleTop = true
-                                            restoreState = true
-                                            popUpTo(navController.graph.findStartDestination().id) {
-                                                saveState = true
-                                            }
-                                        }
-                                    }
-                                    resetTopLevelTabState(route)
-                                } else {
-                                    resetTopLevelTabState(route)
-                                }
-                            } else {
-                                navController.navigate(route) {
-                                    launchSingleTop = true
-                                    restoreState = true
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                }
-                            }
+                            navigationState.navigateBottomTab(
+                                route = route,
+                                activeBottomRoute = currentTopLevelRoute,
+                                currentRoute = currentRoute,
+                            )
                         },
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -2335,12 +1350,12 @@ fun ElovaireRoot(
                             .matchParentSize()
                             .consumePointersWithoutSemantics(),
                     )
-                    NowPlayingRoute(
+                    NowPlayingRouteHost(
                         viewModel = nowPlayingViewModel,
                         playbackManager = container.playbackManager,
                         enrichedSongsById = songsById,
-                        isFavorite = playbackNowPlayingState.currentSong?.id in favoriteSongIdSet,
-                        playlists = playlists.filterNot { it.isSystem },
+                        isFavorite = playbackState.currentSong?.id in appState.favoriteSongIds,
+                        playlists = appState.playlists.filterNot { it.isSystem },
                         onBack = { hidePlayerOverlay(true) },
                         onOpenCurrentAlbum = openCurrentPlayingAlbum,
                         onToggleFavorite = { songId -> container.preferenceStore.toggleFavoriteSong(songId) },
@@ -2362,7 +1377,7 @@ fun ElovaireRoot(
 }
 
 @Composable
-private fun ForceDarkColorScheme(
+internal fun ForceDarkColorScheme(
     content: @Composable () -> Unit,
 ) {
     MaterialTheme(
@@ -2371,83 +1386,6 @@ private fun ForceDarkColorScheme(
         shapes = MaterialTheme.shapes,
         content = content,
     )
-}
-
-@Composable
-private fun NowPlayingRoute(
-    viewModel: NowPlayingViewModel,
-    playbackManager: PlaybackManager,
-    enrichedSongsById: Map<Long, Song>,
-    isFavorite: Boolean,
-    playlists: List<Playlist>,
-    onBack: () -> Unit,
-    onOpenCurrentAlbum: (Long) -> Unit,
-    onToggleFavorite: (Long) -> Unit,
-    onAddCurrentSongToPlaylist: (Long, Song) -> Unit,
-    onCreatePlaylist: (String) -> Long,
-    onOpenEqualizer: () -> Unit,
-    transitionSnapshot: NowPlayingTransitionSnapshot?,
-    modifier: Modifier = Modifier,
-) {
-    val playerUiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
-    val lyricsEditorUiState by viewModel.lyricsEditorUiState.collectAsStateWithLifecycle()
-    val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
-    val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
-    val lyricsWriteLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartIntentSenderForResult(),
-    ) { result ->
-        viewModel.onLyricsWritePermissionResult(result.resultCode == Activity.RESULT_OK)
-    }
-    LaunchedEffect(viewModel) {
-        viewModel.lyricsEditorEvents.collect { event ->
-            when (event) {
-                is LyricsEditorEvent.RequestWritePermission -> {
-                    lyricsWriteLauncher.launch(
-                        IntentSenderRequest.Builder(event.request.intentSender).build(),
-                    )
-                }
-            }
-        }
-    }
-    DisposableEffect(viewModel) {
-        onDispose {
-            viewModel.setLyricsVisible(false)
-        }
-    }
-    ForceDarkColorScheme {
-        NowPlayingScreen(
-            playbackManager = playbackManager,
-            playerUiState = playerUiState,
-            enrichedSongsById = enrichedSongsById,
-            isFavorite = isFavorite,
-            playlists = playlists,
-            lyricsUiState = lyricsUiState,
-            lyricsEditorUiState = lyricsEditorUiState,
-            activeLyricsLineIndex = activeLyricsLineIndex,
-            playbackProgress = playbackProgress,
-            onLyricsVisibilityChanged = viewModel::setLyricsVisible,
-            onSaveLyrics = viewModel::requestSaveLyrics,
-            onClearLyricsEditorError = viewModel::clearLyricsEditorError,
-            onBack = onBack,
-            onOpenCurrentAlbum = onOpenCurrentAlbum,
-            onTogglePlayback = viewModel::togglePlayback,
-            onSkipPrevious = viewModel::skipPrevious,
-            onSkipNext = viewModel::skipNext,
-            onCycleRepeatMode = viewModel::cycleRepeatMode,
-            onToggleShuffle = viewModel::toggleShuffle,
-            onToggleFavorite = onToggleFavorite,
-            onAddCurrentSongToPlaylist = onAddCurrentSongToPlaylist,
-            onCreatePlaylist = onCreatePlaylist,
-            onQueueItemSelected = viewModel::playQueueIndex,
-            onQueueItemRemoved = viewModel::removeQueueIndex,
-            onOpenEqualizer = onOpenEqualizer,
-            onToggleGaplessPlayback = viewModel::toggleGaplessPlayback,
-            onVolumeChanged = viewModel::setVolume,
-            transitionSnapshot = transitionSnapshot,
-            modifier = modifier,
-        )
-    }
 }
 
 @Composable
@@ -2574,512 +1512,6 @@ private fun StandaloneNowPlayingDock(
                 )
             }
         }
-    }
-}
-
-@Composable
-internal fun UnifiedTopBar(
-    title: String,
-    showSettings: Boolean,
-    @DrawableRes supplementalActionIconResId: Int? = null,
-    supplementalActionContentDescription: String? = null,
-    onSupplementalAction: (() -> Unit)? = null,
-    onOpenMenu: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val useSharedBackdrop = LocalUseSharedTopBarBackdrop.current
-    if (useSharedBackdrop && !LocalRenderSharedTopBarContent.current) {
-        RegisterSharedTopBar(
-            SharedTopBarSpec.Unified(
-                title = title,
-                showSettings = showSettings,
-                supplementalActionIconResId = supplementalActionIconResId,
-                supplementalActionContentDescription = supplementalActionContentDescription,
-                onSupplementalAction = onSupplementalAction,
-                onOpenMenu = onOpenMenu,
-            ),
-        )
-        return
-    }
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .zIndex(if (useSharedBackdrop) 8f else 0f)
-            .background(Color.Transparent),
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .consumePointersWithoutSemantics(),
-        )
-        if (!useSharedBackdrop) {
-            FrostedTopBarBackground(
-                darkTheme = darkTheme,
-                modifier = Modifier.matchParentSize(),
-            )
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .statusBarsPadding()
-                .padding(start = 20.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Box(
-                modifier = Modifier
-                    .zIndex(1f)
-                    .weight(1f)
-                    .height(40.dp),
-                contentAlignment = Alignment.CenterStart,
-            ) {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                )
-            }
-            if (showSettings) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    if (supplementalActionIconResId != null && onSupplementalAction != null) {
-                        HeaderIconButton(
-                            iconResId = supplementalActionIconResId,
-                            contentDescription = supplementalActionContentDescription ?: "Action",
-                            showBackground = false,
-                            onClick = onSupplementalAction,
-                            modifier = Modifier.zIndex(1f),
-                        )
-                    }
-                    HeaderIconButton(
-                        iconResId = R.drawable.ic_lucide_menu,
-                        contentDescription = "Menu",
-                        showBackground = false,
-                        onClick = onOpenMenu,
-                        modifier = Modifier.zIndex(1f),
-                    )
-                }
-            } else {
-                SpacerTile(modifier = Modifier.size(40.dp))
-            }
-        }
-    }
-}
-
-@Composable
-internal fun PinnedBackTopBar(
-    title: String,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-    centeredTitle: Boolean = false,
-) {
-    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val useSharedBackdrop = LocalUseSharedTopBarBackdrop.current
-    if (useSharedBackdrop && !LocalRenderSharedTopBarContent.current) {
-        RegisterSharedTopBar(
-            SharedTopBarSpec.Back(
-                title = title,
-                onBack = onBack,
-                centeredTitle = centeredTitle,
-            ),
-        )
-        return
-    }
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .zIndex(if (useSharedBackdrop) 8f else 0f)
-            .background(Color.Transparent),
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .consumePointersWithoutSemantics(),
-        )
-        if (!useSharedBackdrop) {
-            FrostedTopBarBackground(
-                darkTheme = darkTheme,
-                modifier = Modifier.matchParentSize(),
-            )
-        }
-        if (centeredTitle) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
-                    .height(40.dp),
-            ) {
-                HeaderIconButton(
-                    iconResId = R.drawable.ic_lucide_chevron_left,
-                    contentDescription = "Back",
-                    showBackground = false,
-                    onClick = onBack,
-                    modifier = Modifier
-                        .align(Alignment.CenterStart)
-                        .zIndex(1f),
-                )
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .zIndex(1f)
-                        .padding(horizontal = 64.dp),
-                )
-            }
-        } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                HeaderIconButton(
-                    iconResId = R.drawable.ic_lucide_chevron_left,
-                    contentDescription = "Back",
-                    showBackground = false,
-                    onClick = onBack,
-                    modifier = Modifier.zIndex(1f),
-                )
-                Box(
-                    modifier = Modifier
-                        .zIndex(1f)
-                        .weight(1f)
-                        .height(40.dp),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun SharedTopBarOverlay(
-    spec: SharedTopBarSpec,
-    modifier: Modifier = Modifier,
-) {
-    val language = LocalAppLanguage.current
-    val copy = remember(language) { rootUiCopy(language) }
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .background(Color.Transparent),
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .consumePointersWithoutSemantics(),
-        )
-        ElovaireAnimatedContent(
-            targetState = spec,
-            transitionSpec = {
-                when {
-                    initialState is SharedTopBarSpec.Unified && targetState !is SharedTopBarSpec.Unified -> {
-                        ElovaireMotion.sharedTopBarForwardTransform()
-                    }
-
-                    initialState !is SharedTopBarSpec.Unified && targetState is SharedTopBarSpec.Unified -> {
-                        ElovaireMotion.sharedTopBarBackTransform()
-                    }
-
-                    else -> ElovaireMotion.sharedTopBarTransform()
-                }
-            },
-            contentKey = { it.visualSignature() },
-            label = "SharedTopBarOverlayContent",
-        ) { currentSpec ->
-            when (currentSpec) {
-                is SharedTopBarSpec.Unified -> {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(start = 20.dp, end = 16.dp, top = 3.dp, bottom = 13.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(40.dp),
-                            contentAlignment = Alignment.CenterStart,
-                        ) {
-                            ElovaireAnimatedContent(
-                                targetState = currentSpec.title,
-                                transitionSpec = {
-                                    ElovaireMotion.sharedTopBarTransform()
-                                },
-                                label = "SharedTopBarUnifiedTitle",
-                            ) { currentTitle ->
-                                Text(
-                                    text = currentTitle,
-                                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    maxLines = 1,
-                                )
-                            }
-                        }
-                        if (currentSpec.showSettings) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                if (currentSpec.supplementalActionIconResId != null && currentSpec.onSupplementalAction != null) {
-                                    HeaderIconButton(
-                                        iconResId = currentSpec.supplementalActionIconResId,
-                                        contentDescription = currentSpec.supplementalActionContentDescription ?: "Action",
-                                        showBackground = false,
-                                        onClick = currentSpec.onSupplementalAction,
-                                    )
-                                }
-                                HeaderIconButton(
-                                    iconResId = R.drawable.ic_lucide_menu,
-                                    contentDescription = "Menu",
-                                    showBackground = false,
-                                    onClick = currentSpec.onOpenMenu,
-                                )
-                            }
-                        } else {
-                            SpacerTile(modifier = Modifier.size(40.dp))
-                        }
-                    }
-                }
-
-                is SharedTopBarSpec.Back -> {
-                    if (currentSpec.centeredTitle) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .statusBarsPadding()
-                                .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
-                                .height(40.dp),
-                        ) {
-                            HeaderIconButton(
-                                iconResId = R.drawable.ic_lucide_chevron_left,
-                                contentDescription = "Back",
-                                showBackground = false,
-                                onClick = currentSpec.onBack,
-                                modifier = Modifier.align(Alignment.CenterStart),
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .align(Alignment.Center)
-                                    .padding(horizontal = 64.dp),
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                ElovaireAnimatedContent(
-                                    targetState = currentSpec.title,
-                                    transitionSpec = {
-                                        ElovaireMotion.sharedTopBarTransform()
-                                    },
-                                    label = "SharedTopBarBackCenteredTitle",
-                                ) { currentTitle ->
-                                    Text(
-                                        text = currentTitle,
-                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                        textAlign = TextAlign.Center,
-                                    )
-                                }
-                            }
-                        }
-                    } else {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .statusBarsPadding()
-                                .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            HeaderIconButton(
-                                iconResId = R.drawable.ic_lucide_chevron_left,
-                                contentDescription = "Back",
-                                showBackground = false,
-                                onClick = currentSpec.onBack,
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .height(40.dp),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                ElovaireAnimatedContent(
-                                    targetState = currentSpec.title,
-                                    transitionSpec = {
-                                        ElovaireMotion.sharedTopBarTransform()
-                                    },
-                                    label = "SharedTopBarBackTitle",
-                                ) { currentTitle ->
-                                    Text(
-                                        text = currentTitle,
-                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-
-                is SharedTopBarSpec.Detail -> {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        HeaderIconButton(
-                            iconResId = R.drawable.ic_lucide_chevron_left,
-                            contentDescription = "Back",
-                            showBackground = false,
-                            onClick = currentSpec.onBack,
-                        )
-                        if (currentSpec.subtitle.isNullOrBlank()) {
-                            Box(
-                                modifier = Modifier.weight(1f),
-                                contentAlignment = Alignment.CenterStart,
-                            ) {
-                                ElovaireAnimatedContent(
-                                    targetState = currentSpec.title,
-                                    transitionSpec = { ElovaireMotion.titleSwapTransform() },
-                                    label = "SharedTopBarDetailTitleOnly",
-                                ) { currentTitle ->
-                                    Text(
-                                        text = currentTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                            }
-                        } else {
-                            Column(
-                                modifier = Modifier.weight(1f),
-                                verticalArrangement = Arrangement.spacedBy(2.dp),
-                            ) {
-                                ElovaireAnimatedContent(
-                                    targetState = currentSpec.title,
-                                    transitionSpec = { ElovaireMotion.titleSwapTransform() },
-                                    label = "SharedTopBarDetailTitleWithSubtitle",
-                                ) { currentTitle ->
-                                    Text(
-                                        text = currentTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Ellipsis,
-                                    )
-                                }
-                                Text(
-                                    text = currentSpec.subtitle,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                        if (currentSpec.actions.isNotEmpty()) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                currentSpec.actions.forEach { action ->
-                                    HeaderIconButton(
-                                        iconResId = action.iconResId,
-                                        contentDescription = action.contentDescription,
-                                        showBackground = false,
-                                        onClick = action.onClick,
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeaderIconButton(
-    iconResId: Int,
-    contentDescription: String,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    showBackground: Boolean = true,
-    tint: Color = MaterialTheme.colorScheme.onSurface,
-    onClick: () -> Unit,
-) {
-    val interactionSource = rememberElovaireInteractionSource()
-    val sharedBackPainter = LocalSharedBackIconPainter.current
-    val sharedTopMenuPainter = LocalSharedTopMenuIconPainter.current
-    val iconPainter = when {
-        iconResId == R.drawable.ic_lucide_chevron_left && sharedBackPainter != null -> sharedBackPainter
-        iconResId == R.drawable.ic_lucide_menu && sharedTopMenuPainter != null -> sharedTopMenuPainter
-        else -> painterResource(id = iconResId)
-    }
-    Box(
-        modifier = modifier
-            .size(40.dp)
-            .elovairePressScale(
-                enabled = enabled,
-                pressedScale = 0.88f,
-                animationSpec = ElovaireMotion.chromeReleaseSpec(),
-                interactionSource = interactionSource,
-                label = "${contentDescription}_header_scale",
-            )
-            .clip(CircleShape)
-            .background(
-                if (showBackground) {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(
-                        alpha = if (enabled) 0.58f else 0.32f,
-                    )
-                } else {
-                    Color.Transparent
-                }
-            )
-            .clickable(
-                enabled = enabled,
-                interactionSource = interactionSource,
-                indication = null,
-                onClick = onClick,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = iconPainter,
-            contentDescription = contentDescription,
-            tint = tint.copy(alpha = if (enabled) 1f else 0.35f),
-            modifier = Modifier.size(20.dp),
-        )
     }
 }
 
@@ -9345,7 +7777,7 @@ private fun AddSongsToPlaylistDialog(
 }
 
 @Composable
-private fun NowPlayingScreen(
+internal fun NowPlayingScreen(
     playbackManager: PlaybackManager,
     playerUiState: PlayerUiState,
     enrichedSongsById: Map<Long, Song>,
@@ -16206,7 +14638,7 @@ private fun ControlButton(
     }
 }
 
-private fun recentlyAddedAlbumsFor(
+internal fun recentlyAddedAlbumsFor(
     libraryState: LibraryUiState,
 ): List<Album> {
     return libraryState.albums
@@ -16216,7 +14648,7 @@ private fun recentlyAddedAlbumsFor(
         .take(4)
 }
 
-private fun recentAlbumsFor(
+internal fun recentAlbumsFor(
     libraryState: LibraryUiState,
     playbackState: PlaybackUiState,
 ): List<Album> {
@@ -16225,7 +14657,7 @@ private fun recentAlbumsFor(
     return played.take(6)
 }
 
-private fun favoriteAlbumsFor(
+internal fun favoriteAlbumsFor(
     libraryState: LibraryUiState,
     songPlayCounts: Map<Long, Int>,
     recentAlbums: List<Album>,
