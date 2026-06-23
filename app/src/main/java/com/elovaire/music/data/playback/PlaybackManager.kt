@@ -228,7 +228,6 @@ class PlaybackManager(
             }
         }
     }
-    private var lastRecordedSongId: Long? = null
     private var hasAudioFocus = false
     private var isPauseTransitioningToStopped = false
     private var isManualPausePending = false
@@ -237,8 +236,6 @@ class PlaybackManager(
     private var pendingResumeAfterExternalInterruption = false
     private var isStoppingQueue = false
     private var isRecoveringPlayback = false
-    private var lastKnownQueueIndex = -1
-    private var lastKnownPositionMs = 0L
     private val failedPlaybackSongIds = mutableSetOf<Long>()
     private var unexpectedIdleRecoveryCount = 0
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
@@ -252,6 +249,11 @@ class PlaybackManager(
         player.isPlaying || playbackProgressController.needsActivePolling()
     }
     private val queueMetadataRefresher = PlaybackQueueMetadataRefresher()
+    private val stateReducer = PlaybackStateReducer(
+        playerProvider = { player },
+        currentDisplayedVolume = ::currentDisplayedVolumeFraction,
+        onRecentPlaybackChanged = onRecentPlaybackChanged,
+    )
     private var pauseFadeJob: Job? = null
     private var externalInterruptionResumeJob: Job? = null
     private var statePublishScheduled = false
@@ -466,6 +468,45 @@ class PlaybackManager(
             ),
         )
         .build()
+    private val playerSwitcher = PlaybackPlayerSwitcher(
+        createPlayer = ::createPlayer,
+        attachPlayerObservers = ::attachPlayerObservers,
+        detachPlayerObservers = ::detachPlayerObservers,
+        onPlayerReplaced = { replacementPlayer ->
+            player = replacementPlayer
+            commandGatewayPlayer = PlaybackCommandPlayer(replacementPlayer)
+            mediaSession.setPlayer(commandGatewayPlayer)
+            _playerInstanceVersion.value += 1L
+        },
+        applyPreferredAudioDevice = ::applyPreferredAudioDeviceIfNeeded,
+        targetPlayerOutputGain = ::targetPlayerOutputGain,
+    )
+    private val queueController = PlaybackQueueController(
+        playerProvider = { player },
+        stateProvider = { _state.value },
+        publishState = { _state.value = it },
+        updateState = ::updateState,
+        requestAudioFocus = ::requestAudioFocus,
+        effectivePlayerGain = ::effectivePlayerGain,
+        cancelPauseFade = ::cancelPauseFade,
+        clearInterruptionResumeState = ::clearInterruptionResumeState,
+        recordManualPlaybackStart = ::recordManualPlaybackStart,
+        stopAndClearQueue = ::stopAndClearQueue,
+        resetAudioPathState = {
+            _playbackFormatFailure.value = null
+            isManualPausePending = false
+            isPauseTransitioningToStopped = false
+            bitPerfectUsbManager.clearPlaybackFormat()
+            lastAppliedAudioPathDecisionKey = null
+        },
+        resetUnexpectedIdleRecoveryGuard = ::resetUnexpectedIdleRecoveryGuard,
+        onQueueReplaced = queueMetadataRefresher::onQueueReplaced,
+        queueMetadataRefresher = queueMetadataRefresher,
+        resolveCurrentQueueIndex = stateReducer::resolveCurrentQueueIndex,
+        scheduleAudioPathReevaluation = ::scheduleAudioPathReevaluation,
+        requestFormatFailureReset = { _playbackFormatFailure.value = null },
+        clearFailedPlaybackSongIds = failedPlaybackSongIds::clear,
+    )
 
     init {
         bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
@@ -730,111 +771,23 @@ class PlaybackManager(
     }
 
     fun playQueueIndex(index: Int) {
-        if (index !in _state.value.queue.indices) return
-        cancelPauseFade()
-        recordManualPlaybackStart()
-        clearInterruptionResumeState()
-        player.seekToDefaultPosition(index)
-        if (requestAudioFocus()) {
-            player.volume = effectivePlayerGain()
-            player.playWhenReady = true
-            player.play()
-        }
-        updateState()
+        queueController.playQueueIndex(index)
     }
 
     fun enqueueSong(song: Song) {
-        val existingQueue = _state.value.queue
-        if (existingQueue.isEmpty() || player.mediaItemCount == 0) {
-            playSong(song = song, collection = listOf(song), sourceLabel = song.album)
-            return
-        }
-        player.addMediaItem(song.toPlaybackMediaItem())
-        _state.value = _state.value.copy(queue = existingQueue + song)
-        updateState()
+        queueController.enqueueSong(song)
     }
 
     fun removeQueueIndex(index: Int) {
-        val existingQueue = _state.value.queue
-        if (index !in existingQueue.indices) return
-        if (existingQueue.size == 1) {
-            stopAndClearQueue()
-            return
-        }
-        cancelPauseFade()
-        clearInterruptionResumeState()
-        val currentIndex = resolveCurrentQueueIndex(_state.value).takeIf { it in existingQueue.indices } ?: _state.value.currentIndex
-        val shouldKeepPlaying = _state.value.transportShowsPause || player.isPlaying || player.playWhenReady
-        val updatedQueue = existingQueue.toMutableList().apply { removeAt(index) }
-        player.removeMediaItem(index)
-        val fallbackIndex = when {
-            index < currentIndex -> currentIndex - 1
-            currentIndex >= updatedQueue.size -> updatedQueue.lastIndex
-            else -> currentIndex
-        }.coerceIn(0, updatedQueue.lastIndex)
-        _state.value = _state.value.copy(
-            queue = updatedQueue,
-            currentIndex = fallbackIndex,
-            transportShowsPause = shouldKeepPlaying,
-        )
-        if (shouldKeepPlaying && requestAudioFocus()) {
-            player.volume = effectivePlayerGain()
-            player.playWhenReady = true
-            if (!player.isPlaying) {
-                player.play()
-            }
-        }
-        updateState()
+        queueController.removeQueueIndex(index)
     }
 
     fun removeSongsFromQueue(songIds: Set<Long>) {
-        if (songIds.isEmpty()) return
-        val existingQueue = _state.value.queue
-        val indicesToRemove = existingQueue.indices.filter { existingQueue[it].id in songIds }
-        if (indicesToRemove.isEmpty()) return
-        if (indicesToRemove.size == existingQueue.size) {
-            stopAndClearQueue()
-            return
-        }
-        cancelPauseFade()
-        clearInterruptionResumeState()
-        indicesToRemove.asReversed().forEach(player::removeMediaItem)
-        val updatedQueue = existingQueue.filterNot { it.id in songIds }
-        _state.value = _state.value.copy(
-            queue = updatedQueue,
-            currentIndex = player.currentMediaItemIndex.coerceIn(0, updatedQueue.lastIndex),
-        )
-        updateState()
+        queueController.removeSongsFromQueue(songIds)
     }
 
     fun refreshQueuedLibraryMetadataIfNeeded(updatedSongs: List<Song>) {
-        val existingState = _state.value
-        if (existingState.queue.isEmpty() || updatedSongs.isEmpty()) return
-        val queuedSongIds = existingState.queue.asSequence().mapTo(linkedSetOf(), Song::id)
-        val songsById = updatedSongs.associateQueuedSongsById(queuedSongIds)
-        if (songsById.isEmpty()) return
-        val refreshedQueue = queueMetadataRefresher.refreshQueueIfNeeded(existingState.queue, songsById) ?: return
-        refreshedQueue.forEachIndexed { index, refreshedSong ->
-            if (
-                existingState.queue.getOrNull(index)?.playbackMetadataSignature() != refreshedSong.playbackMetadataSignature() &&
-                index < player.mediaItemCount
-            ) {
-                player.replaceMediaItem(index, refreshedSong.toPlaybackMediaItem())
-            }
-        }
-        val currentIndex = resolveCurrentQueueIndex(existingState)
-        val previousCurrentSong = existingState.queue.getOrNull(currentIndex)
-        val refreshedCurrentSong = refreshedQueue.getOrNull(currentIndex)
-        val refreshedSourceLabel = when {
-            existingState.sourcePlaylistId != null -> existingState.sourceLabel
-            existingState.sourceLabel == previousCurrentSong?.album -> refreshedCurrentSong?.album
-            else -> existingState.sourceLabel
-        }
-        _state.value = existingState.copy(
-            queue = refreshedQueue,
-            sourceLabel = refreshedSourceLabel,
-        )
-        updateState()
+        queueController.refreshQueuedLibraryMetadataIfNeeded(updatedSongs)
     }
 
     fun setGaplessPlaybackEnabled(enabled: Boolean) {
@@ -954,35 +907,16 @@ class PlaybackManager(
             val previousPlayer = player
             val playbackSnapshot = PlaybackSnapshot.from(previousPlayer)
             val queueSnapshot = _state.value.queue
-            detachPlayerObservers(previousPlayer)
             logDebug("rebuild direct=$useDirectPlayback reason=$reason position=${playbackSnapshot.positionMs} index=${playbackSnapshot.currentIndex}")
-
-            val replacementPlayer = createPlayer(enableSignalProcessing = !useDirectPlayback)
-            attachPlayerObservers(replacementPlayer)
-            replacementPlayer.repeatMode = previousPlayer.repeatMode
-            replacementPlayer.shuffleModeEnabled = previousPlayer.shuffleModeEnabled
-            if (queueSnapshot.isNotEmpty()) {
-                replacementPlayer.setMediaItems(
-                    queueSnapshot.map(Song::toPlaybackMediaItem),
-                    playbackSnapshot.currentIndex.coerceIn(0, queueSnapshot.lastIndex),
-                    playbackSnapshot.positionMs,
-                )
-                replacementPlayer.prepare()
-                replacementPlayer.playWhenReady = playbackSnapshot.playWhenReady
-                if (playbackSnapshot.playWhenReady) {
-                    replacementPlayer.play()
-                }
-            }
-            player = replacementPlayer
-            commandGatewayPlayer = PlaybackCommandPlayer(replacementPlayer)
+            playerSwitcher.switchPlayerAudioPath(
+                currentPlayer = previousPlayer,
+                queueSnapshot = queueSnapshot,
+                useDirectPlayback = useDirectPlayback,
+                playbackSnapshot = playbackSnapshot,
+            )
             isDirectPlaybackActive = useDirectPlayback
-            mediaSession.setPlayer(commandGatewayPlayer)
             lastAppliedPreferredDeviceKey = null
-            applyPreferredAudioDeviceIfNeeded(force = true)
             lastAppliedAudioPathDecisionKey = decisionKey
-            replacementPlayer.volume = targetPlayerOutputGain()
-            _playerInstanceVersion.value += 1L
-            previousPlayer.release()
         } finally {
             isSwitchingAudioPath = false
         }
@@ -995,42 +929,14 @@ class PlaybackManager(
         shuffleEnabled: Boolean,
         sourcePlaylistId: Long?,
     ) {
-        if (songs.isEmpty()) return
-        failedPlaybackSongIds.clear()
-        _playbackFormatFailure.value = null
-        cancelPauseFade()
-        isManualPausePending = false
-        isPauseTransitioningToStopped = false
-        clearInterruptionResumeState()
-        bitPerfectUsbManager.clearPlaybackFormat()
-        lastAppliedAudioPathDecisionKey = null
-        scheduleAudioPathReevaluation("set-queue", AUDIO_PATH_REEVALUATION_DELAY_MS)
-        resetUnexpectedIdleRecoveryGuard()
-
-        val mediaItems = songs.map { song ->
-            song.toPlaybackMediaItem()
-        }
-
-        player.setMediaItems(mediaItems, startIndex, 0L)
-        player.shuffleModeEnabled = shuffleEnabled
-        player.prepare()
-        val shouldAutoPlay = requestAudioFocus()
-        if (shouldAutoPlay) {
-            player.volume = effectivePlayerGain()
-            player.playWhenReady = true
-            player.play()
-        } else {
-            player.playWhenReady = false
-        }
-        _state.value = _state.value.copy(
-            queue = songs,
-            currentIndex = startIndex.coerceIn(songs.indices),
+        queueController.setQueue(
+            songs = songs,
+            startIndex = startIndex,
             sourceLabel = sourceLabel,
-            transportShowsPause = shouldAutoPlay,
+            shuffleEnabled = shuffleEnabled,
             sourcePlaylistId = sourcePlaylistId,
+            audioPathDelayMs = AUDIO_PATH_REEVALUATION_DELAY_MS,
         )
-        queueMetadataRefresher.onQueueReplaced(songs)
-        updateState()
     }
 
     private fun stopAndClearQueue() {
@@ -1047,7 +953,7 @@ class PlaybackManager(
         isManualPausePending = false
         isPauseTransitioningToStopped = false
         abandonAudioFocus()
-        lastRecordedSongId = null
+        stateReducer.clearCurrentSongTracking()
         failedPlaybackSongIds.clear()
         _state.value = _state.value.copy(
             queue = emptyList(),
@@ -1068,77 +974,18 @@ class PlaybackManager(
 
     private fun updateState() {
         val existingState = _state.value
-        val currentIndex = resolveCurrentQueueIndex(existingState)
+        val currentIndex = stateReducer.resolveCurrentQueueIndex(existingState)
         val currentSong = existingState.queue.getOrNull(currentIndex)
         if (currentSong != null && (player.isPlaying || player.playWhenReady)) {
             resetUnexpectedIdleRecoveryGuard()
         }
-        if (currentIndex >= 0) {
-            lastKnownQueueIndex = currentIndex
-            lastKnownPositionMs = player.currentPosition.coerceAtLeast(0L)
-        }
-        val hasNewSong = currentSong != null && currentSong.id != lastRecordedSongId
-        val recentSongIds = if (hasNewSong) {
-            lastRecordedSongId = currentSong.id
-            pushRecentId(currentSong.id, existingState.recentSongIds)
-        } else {
-            existingState.recentSongIds
-        }
-        val recentAlbumIds = if (hasNewSong) {
-            pushRecentId(currentSong.albumId, existingState.recentAlbumIds)
-        } else {
-            existingState.recentAlbumIds
-        }
-        val lastPlayedCollectionKind = if (hasNewSong) {
-            if (existingState.sourcePlaylistId != null) {
-                PlaybackCollectionKind.Playlist
-            } else {
-                PlaybackCollectionKind.Album
-            }
-        } else {
-            existingState.lastPlayedCollectionKind
-        }
-        val lastPlayedCollectionId = if (hasNewSong) {
-            existingState.sourcePlaylistId ?: currentSong.albumId
-        } else {
-            existingState.lastPlayedCollectionId
-        }
-
-        if (currentSong == null) {
-            lastRecordedSongId = null
-        }
         userVolume = currentEffectiveVolumeFraction()
-
-        val updatedState = existingState.copy(
-            currentIndex = currentIndex,
-            isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
-            transportShowsPause = !isPauseTransitioningToStopped &&
-                currentSong != null &&
-                player.playWhenReady,
-            repeatMode = player.repeatMode.toPlaybackRepeatMode(),
-            shuffleEnabled = player.shuffleModeEnabled,
-            sourceLabel = existingState.sourceLabel ?: currentSong?.album,
-            volume = currentDisplayedVolumeFraction(),
-            audioSessionId = player.audioSessionId.takeIf { it > 0 } ?: 0,
-            recentSongIds = recentSongIds,
-            recentAlbumIds = recentAlbumIds,
-            lastPlayedCollectionKind = lastPlayedCollectionKind,
-            lastPlayedCollectionId = lastPlayedCollectionId,
+        val updatedState = stateReducer.reduce(
+            existingState = existingState,
+            isPauseTransitioningToStopped = isPauseTransitioningToStopped,
         )
         if (publishPlaybackState(updatedState, existingState)) {
-            if (
-                updatedState.recentSongIds != existingState.recentSongIds ||
-                updatedState.recentAlbumIds != existingState.recentAlbumIds ||
-                updatedState.lastPlayedCollectionKind != existingState.lastPlayedCollectionKind ||
-                updatedState.lastPlayedCollectionId != existingState.lastPlayedCollectionId
-            ) {
-                onRecentPlaybackChanged(
-                    updatedState.recentSongIds,
-                    updatedState.recentAlbumIds,
-                    updatedState.lastPlayedCollectionKind,
-                    updatedState.lastPlayedCollectionId,
-                )
-            }
+            stateReducer.notifyRecentPlaybackChanged(updatedState, existingState)
         }
         syncRuntimeObservers()
         publishProgressSnapshot()
@@ -1331,11 +1178,12 @@ class PlaybackManager(
             enterSafeStoppedStateAfterRecoveryFailure(snapshot)
             return
         }
-        val recoverIndex = lastKnownQueueIndex
+        val recoverIndex = stateReducer.lastKnownQueueIndex
+            .takeIf { it >= 0 }
             .takeIf { it in snapshot.queue.indices }
             ?: snapshot.currentIndex.takeIf { it in snapshot.queue.indices }
             ?: 0
-        val recoverPosition = lastKnownPositionMs.coerceAtLeast(0L)
+        val recoverPosition = stateReducer.lastKnownPositionMs.coerceAtLeast(0L)
         bitPerfectUsbManager.clearPlaybackFormat()
         lastAppliedAudioPathDecisionKey = null
         scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
@@ -1694,31 +1542,8 @@ class PlaybackManager(
             ?.toUsbAudioDeviceDescriptor()
     }
 
-    private fun pushRecentId(
-        id: Long,
-        existing: List<Long>,
-    ): List<Long> {
-        return buildList {
-            add(id)
-            existing.asSequence()
-            .filter { it != id }
-                .take(MAX_HISTORY_ITEMS - 1)
-                .forEach(::add)
-        }
-    }
-
     private fun resolveCurrentQueueIndex(existingState: PlaybackUiState): Int {
-        val playerIndex = player.currentMediaItemIndex.takeIf { it >= 0 }
-        if (playerIndex != null) return playerIndex
-
-        val playerMediaId = player.currentMediaItem?.mediaId?.toLongOrNull()
-        if (playerMediaId != null) {
-            val matchedQueueIndex = existingState.queue.indexOfFirst { it.id == playerMediaId }
-            if (matchedQueueIndex >= 0) return matchedQueueIndex
-        }
-
-        val fallbackIndex = existingState.currentIndex
-        return fallbackIndex.takeIf { it in existingState.queue.indices } ?: -1
+        return stateReducer.resolveCurrentQueueIndex(existingState)
     }
 
     private companion object {
@@ -1726,7 +1551,6 @@ class PlaybackManager(
         const val PAUSE_FADE_STEP_COUNT = 20
         const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
-        const val MAX_HISTORY_ITEMS = 12
         const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
         const val EXTERNAL_INTERRUPTION_FAST_WATCH_MS = 10_000L
@@ -1757,7 +1581,7 @@ private data class AudioPathDecisionKey(
     val preferredDeviceKey: PreferredAudioDeviceKey?,
 )
 
-private fun Song.toPlaybackMediaItem(): MediaItem {
+internal fun Song.toPlaybackMediaItem(): MediaItem {
     return MediaItem.Builder()
         .setMediaId(id.toString())
         .setUri(uri)
@@ -1786,18 +1610,6 @@ internal fun Song.playbackMetadataSignature(): Int {
     return result
 }
 
-private fun List<Song>.associateQueuedSongsById(queuedSongIds: Set<Long>): Map<Long, Song> {
-    if (queuedSongIds.isEmpty()) return emptyMap()
-    val remainingIds = queuedSongIds.toMutableSet()
-    val songsById = LinkedHashMap<Long, Song>(queuedSongIds.size)
-    for (song in this) {
-        if (!remainingIds.remove(song.id)) continue
-        songsById[song.id] = song
-        if (remainingIds.isEmpty()) break
-    }
-    return songsById
-}
-
 private fun Song.inferPlaybackMimeType(): String? {
     return AudioFormatPolicy.playbackMimeType(fileName)
 }
@@ -1818,7 +1630,7 @@ private fun Array<out AudioDeviceInfo>.hasUsbOutputDeviceChange(): Boolean {
     }
 }
 
-private data class PlaybackSnapshot(
+internal data class PlaybackSnapshot(
     val currentIndex: Int,
     val positionMs: Long,
     val playWhenReady: Boolean,
@@ -1850,7 +1662,7 @@ private fun AudioDeviceInfo.toUsbAudioDeviceDescriptor(): UsbAudioDeviceDescript
     )
 }
 
-private fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
+internal fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
     return when (this) {
         Player.REPEAT_MODE_ONE -> PlaybackRepeatMode.One
         Player.REPEAT_MODE_ALL -> PlaybackRepeatMode.All

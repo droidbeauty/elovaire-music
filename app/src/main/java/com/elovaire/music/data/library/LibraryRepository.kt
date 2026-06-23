@@ -1,17 +1,10 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
-import android.database.ContentObserver
 import android.net.Uri
-import android.os.Build
-import android.os.FileObserver
-import android.os.Handler
-import android.os.Looper
 import android.os.SystemClock
-import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
-import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -78,7 +71,6 @@ class LibraryRepository(
     private val appForegroundState: StateFlow<Boolean>,
 ) {
     private val snapshotStore = LibrarySnapshotStore(appContext)
-    private val contentResolver = appContext.contentResolver
     private val _contentState = MutableStateFlow(LibraryContentState())
     private val snapshotPublisher = LibrarySnapshotPublisher(
         publish = { _contentState.value = it },
@@ -87,14 +79,11 @@ class LibraryRepository(
     private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
     private var refreshDebounceJob: Job? = null
-    private var observerRebuildJob: Job? = null
     private var pendingRefresh = false
     private var pendingIndexRefresh = false
     private val pendingTargetedIndexRefreshPaths = linkedSetOf<String>()
     private var pendingMetadataEnrichment = false
-    private var suppressObserverRefreshUntilMs = 0L
     private var backgroundLibraryDirty = false
-    private val recentObservedPaths = linkedMapOf<String, Long>()
     private val pendingDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
     private val pendingDeletedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
     private val confirmedDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
@@ -117,8 +106,12 @@ class LibraryRepository(
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = LibraryUiState(),
     )
-    private var musicDirectoryObserver: RecursiveMusicDirectoryObserver? = null
-    private var mediaObserverRegistered = false
+    private val observerController = LibraryObserverController(
+        appContext = appContext,
+        scanner = scanner,
+        scope = scope,
+        onObservedRefresh = ::scheduleMediaRefresh,
+    )
 
     init {
         scope.launch {
@@ -135,26 +128,12 @@ class LibraryRepository(
         }
     }
 
-    private val mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
-        override fun onChange(selfChange: Boolean) {
-            scheduleMediaRefresh()
-        }
-
-        override fun onChange(
-            selfChange: Boolean,
-            uri: android.net.Uri?,
-        ) {
-            scheduleMediaRefresh()
-        }
-    }
-
     fun onPermissionChanged(granted: Boolean) {
         _scanState.update { current ->
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
         }
         if (granted) {
-            ensureMediaObserverRegistered()
-            ensureMusicDirectoryObserver()
+            observerController.ensureRegistered()
             bootstrapLibrary()
         } else {
             didBootstrapLibrary = false
@@ -165,24 +144,6 @@ class LibraryRepository(
     fun release() {
         didBootstrapLibrary = false
         releaseObserversAndJobs(clearPermissionState = true)
-    }
-
-    private fun ensureMediaObserverRegistered() {
-        if (mediaObserverRegistered) return
-        contentResolver.registerContentObserver(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            true,
-            mediaObserver,
-        )
-        mediaObserverRegistered = true
-    }
-
-    private fun unregisterMediaObserver() {
-        if (!mediaObserverRegistered) return
-        runCatching {
-            contentResolver.unregisterContentObserver(mediaObserver)
-        }
-        mediaObserverRegistered = false
     }
 
     private fun bootstrapLibrary() {
@@ -436,7 +397,7 @@ class LibraryRepository(
         }
         markDeletingSongs(request.songIds)
         markDeletingAlbums(fullyDeletedAlbumIds)
-        suppressObserverRefreshUntilMs = System.currentTimeMillis() + DELETE_OBSERVER_SUPPRESSION_MS
+        observerController.setSuppressRefreshUntil(System.currentTimeMillis() + DELETE_OBSERVER_SUPPRESSION_MS)
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         pendingIndexRefresh = false
@@ -523,7 +484,7 @@ class LibraryRepository(
         val changed = scanner.setPreferredLibraryFolderPath(path)
         if (!changed) return
         if (_scanState.value.permissionGranted) {
-            ensureMusicDirectoryObserver(forceRebuild = true)
+            observerController.ensureMusicDirectoryObserver(forceRebuild = true)
             refresh(
                 forceMediaIndex = true,
                 enrichMetadata = false,
@@ -537,15 +498,9 @@ class LibraryRepository(
         changedFilePath: String? = null,
     ) {
         if (!_scanState.value.permissionGranted) return
-        if (System.currentTimeMillis() < suppressObserverRefreshUntilMs) return
-        val normalizedChangedPath = changedFilePath?.normalizedObservedPath()
-        if (!forceMediaIndex && normalizedChangedPath != null && shouldCoalesceObservedPath(normalizedChangedPath)) {
-            backgroundLibraryDirty = backgroundLibraryDirty || !appForegroundState.value
-            return
-        }
         pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
         if (!forceMediaIndex) {
-            normalizedChangedPath?.let(pendingTargetedIndexRefreshPaths::add)
+            changedFilePath?.let(pendingTargetedIndexRefreshPaths::add)
         }
         if (!appForegroundState.value) {
             backgroundLibraryDirty = true
@@ -560,125 +515,6 @@ class LibraryRepository(
                 enrichMetadata = false,
                 showLoadingIndicator = false,
             )
-        }
-    }
-
-    private fun ensureMusicDirectoryObserver(forceRebuild: Boolean = false) {
-        val musicDirectory = scanner.musicDirectory()
-        if (!forceRebuild && musicDirectoryObserver?.rootPath == musicDirectory.absolutePath) return
-        musicDirectoryObserver?.stopWatching()
-        musicDirectoryObserver = createMusicDirectoryObserver()?.also { it.startWatching() }
-    }
-
-    private fun requestMusicDirectoryObserverRebuild() {
-        observerRebuildJob?.cancel()
-        observerRebuildJob = scope.launch {
-            delay(AUTO_REFRESH_DEBOUNCE_MS)
-            observerRebuildJob = null
-            val observer = musicDirectoryObserver
-            if (observer != null) {
-                observer.rebuildWatchingTree()
-            } else {
-                ensureMusicDirectoryObserver(forceRebuild = true)
-            }
-        }
-    }
-
-    private fun shouldCoalesceObservedPath(path: String): Boolean {
-        val nowMs = SystemClock.elapsedRealtime()
-        recentObservedPaths.entries.removeIf { (_, observedAtMs) ->
-            nowMs - observedAtMs > OBSERVED_PATH_COALESCE_WINDOW_MS
-        }
-        val lastObservedAtMs = recentObservedPaths[path]
-        recentObservedPaths[path] = nowMs
-        return lastObservedAtMs != null && nowMs - lastObservedAtMs < OBSERVED_PATH_COALESCE_WINDOW_MS
-    }
-
-    private fun createMusicDirectoryObserver(): RecursiveMusicDirectoryObserver? {
-        val musicDirectory = scanner.musicDirectory()
-        if (!musicDirectory.exists() || !musicDirectory.isDirectory) return null
-
-        return RecursiveMusicDirectoryObserver(musicDirectory) { event, changedFile ->
-            if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
-                requestMusicDirectoryObserverRebuild()
-            }
-            val requiresFullMediaIndexRefresh = event and FULL_INDEX_REFRESH_EVENT_MASK != 0
-            if (changedFile == null || changedFile.isDirectory || isSupportedAudioExtension(changedFile.extension)) {
-                scheduleMediaRefresh(
-                    forceMediaIndex = requiresFullMediaIndexRefresh,
-                    changedFilePath = if (requiresFullMediaIndexRefresh) null else changedFile?.absolutePath,
-                )
-            }
-        }
-    }
-
-    private inner class RecursiveMusicDirectoryObserver(
-        private val rootDirectory: File,
-        private val onEventReceived: (event: Int, changedFile: File?) -> Unit,
-    ) {
-        val rootPath: String = rootDirectory.absolutePath
-        private val observers = linkedMapOf<String, FileObserver>()
-        private var lastTreeSignature: Int? = null
-
-        fun startWatching() {
-            rebuildObservers(force = true)
-        }
-
-        fun rebuildWatchingTree() {
-            rebuildObservers(force = false)
-        }
-
-        fun stopWatching() {
-            observers.values.forEach(FileObserver::stopWatching)
-            observers.clear()
-        }
-
-        private fun rebuildObservers(force: Boolean) {
-            if (!rootDirectory.exists() || !rootDirectory.isDirectory) {
-                lastTreeSignature = null
-                stopWatching()
-                return
-            }
-            val nextDirectories = rootDirectory.walkTopDown()
-                .maxDepth(8)
-                .filter(File::isDirectory)
-                .map(File::getAbsolutePath)
-                .toList()
-            val nextSignature = nextDirectories
-                .sorted()
-                .fold(17) { acc, path -> 31 * acc + path.hashCode() }
-            if (!force && lastTreeSignature == nextSignature) return
-            lastTreeSignature = nextSignature
-            stopWatching()
-            nextDirectories.forEach { path ->
-                observeDirectory(File(path))
-            }
-        }
-
-        private fun observeDirectory(directory: File) {
-            val observer = createObserver(directory)
-            observer.startWatching()
-            observers[directory.absolutePath] = observer
-        }
-
-        private fun createObserver(directory: File): FileObserver {
-            return object : FileObserver(directory, OBSERVER_MASK) {
-                override fun onEvent(
-                    event: Int,
-                    path: String?,
-                ) {
-                    dispatchDirectoryEvent(directory, event, path)
-                }
-            }
-        }
-
-        private fun dispatchDirectoryEvent(
-            directory: File,
-            event: Int,
-            path: String?,
-        ) {
-            if (event == 0) return
-            onEventReceived(event, path?.let { File(directory, it) })
         }
     }
 
@@ -699,28 +535,6 @@ class LibraryRepository(
         const val DELETE_EXIT_ANIMATION_MS = 190L
         const val DELETE_CONFIRMATION_DELAY_MS = 500L
         const val DELETE_OBSERVER_SUPPRESSION_MS = 1_200L
-        const val OBSERVED_PATH_COALESCE_WINDOW_MS = 900L
-        const val OBSERVER_MASK =
-            FileObserver.CREATE or
-                FileObserver.CLOSE_WRITE or
-                FileObserver.MOVED_TO or
-                FileObserver.DELETE or
-                FileObserver.MOVED_FROM or
-                FileObserver.DELETE_SELF or
-                FileObserver.MODIFY or
-                FileObserver.MOVE_SELF
-        const val DIRECTORY_STRUCTURE_CHANGE_MASK =
-            FileObserver.CREATE or
-                FileObserver.MOVED_TO or
-                FileObserver.DELETE or
-                FileObserver.MOVED_FROM or
-                FileObserver.DELETE_SELF or
-                FileObserver.MOVE_SELF
-        const val FULL_INDEX_REFRESH_EVENT_MASK =
-            FileObserver.DELETE or
-                FileObserver.MOVED_FROM or
-                FileObserver.DELETE_SELF or
-                FileObserver.MOVE_SELF
     }
 
     private fun releaseObserversAndJobs(clearPermissionState: Boolean) {
@@ -728,24 +542,18 @@ class LibraryRepository(
         scanJob = null
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
-        observerRebuildJob?.cancel()
-        observerRebuildJob = null
         pendingRefresh = false
         pendingIndexRefresh = false
         pendingTargetedIndexRefreshPaths.clear()
         pendingMetadataEnrichment = false
-        suppressObserverRefreshUntilMs = 0L
         backgroundLibraryDirty = false
-        recentObservedPaths.clear()
         pendingDeletedSongIds.value = emptySet()
         pendingDeletedAlbumIds.value = emptySet()
         confirmedDeletedSongIds.value = emptySet()
         _contentState.update { current ->
             current.copy(removingSongIds = emptySet(), removingAlbumIds = emptySet())
         }
-        musicDirectoryObserver?.stopWatching()
-        musicDirectoryObserver = null
-        unregisterMediaObserver()
+        observerController.release()
         if (clearPermissionState) {
             _scanState.value = _scanState.value.copy(
                 permissionGranted = false,
@@ -755,12 +563,6 @@ class LibraryRepository(
         }
     }
 
-    private fun String.normalizedObservedPath(): String? {
-        return trim()
-            .takeIf { it.isNotBlank() }
-            ?.let(::File)
-            ?.absolutePath
-    }
 }
 
 private class LibraryScanProgressThrottler(

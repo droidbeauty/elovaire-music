@@ -138,7 +138,7 @@ class PlaylistHelpersTest {
 
         assertEquals(
             listOf(
-                Playlist(id = 1L, name = "Road Trip Mix", songIds = listOf(5L, 2L), isSystem = false),
+                Playlist(id = 1L, name = "Road \u001F Trip \u001E Mix", songIds = listOf(5L, 2L), isSystem = false),
                 Playlist(id = 2L, name = "Late Night \uD83C\uDF19", songIds = listOf(9L, 1L), isSystem = false),
             ),
             deserialized,
