@@ -67,7 +67,7 @@ internal class LibraryAudioFileFilter(
             if (AudioFormatPolicy.playbackSupport(detectedFormat) == PlaybackSupport.Unsupported) {
                 return AudioFileFilterDecision.Exclude("No compatible audio decoder")
             }
-        } else if (normalizedExtension in CONTAINER_VALIDATION_REQUIRED_EXTENSIONS) {
+        } else if (normalizedExtension in AudioFormatPolicy.validationRequiredExtensions) {
             return AudioFileFilterDecision.Exclude("Container could not be validated")
         }
 
@@ -177,7 +177,6 @@ internal class LibraryAudioFileFilter(
 
     private companion object {
         private const val MIN_MUSIC_DURATION_MS = 45_000L
-        private val CONTAINER_VALIDATION_REQUIRED_EXTENSIONS = setOf("mp4", "mka", "3gp", "amr")
         private val VOICE_CONTAINER_EXTENSIONS = setOf("amr", "3gp")
 
         private val ExcludedPathFragments = listOf(

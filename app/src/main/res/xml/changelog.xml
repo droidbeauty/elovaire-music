@@ -7,8 +7,9 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.2.2">
-        <item>Enhanced support for OGG audio format</item>
+        <item>Enhanced support for OGG and ALAC audio formats</item>
         <item>Improvements to playlist creation and editing framework</item>
+        <item>Unified search accuracy across all places where search feature is present</item>
         <item>Decentralizing some features at the core to optimize structure</item>
         <item>Bug fixes</item>
     </release>

@@ -190,7 +190,7 @@ class MediaStoreScanner(
                 val rawArtist = cursor.getString(artistIndex).orUnknown("Unknown Artist")
                 val rawAlbum = cursor.getString(albumIndex).orUnknown("Unknown Album")
                 val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-                val detectedFormat = if (enrichMetadata || extension in CONTAINER_VALIDATION_REQUIRED_EXTENSIONS) {
+                val detectedFormat = if (enrichMetadata || extension in AudioFormatPolicy.validationRequiredExtensions) {
                     audioFormatDetector.detect(songUri, fileName, mimeType)
                 } else {
                     fastDetectedFormat(
@@ -379,7 +379,7 @@ class MediaStoreScanner(
                     extension = fileName.substringAfterLast('.', ""),
                     isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
                     detectedFormat = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-                        .takeIf { it in CONTAINER_VALIDATION_REQUIRED_EXTENSIONS }
+                        .takeIf { it in AudioFormatPolicy.validationRequiredExtensions }
                         ?.let {
                             audioFormatDetector.detect(
                                 uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idIndex)),
@@ -887,7 +887,6 @@ class MediaStoreScanner(
             option = RegexOption.IGNORE_CASE,
         )
         val STORAGE_ROOT_REGEX = Regex("""^/storage/[^/]+(?:/[^/]+)?/""")
-        private val CONTAINER_VALIDATION_REQUIRED_EXTENSIONS = setOf("mp4", "mka", "3gp", "amr")
     }
 
     @Suppress("InlinedApi")

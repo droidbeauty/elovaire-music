@@ -15,8 +15,9 @@ internal object AudioQualityFormatter {
         val sampleRateText = sampleRate?.takeIf { it > 0 }?.let(::formatSampleRate)
         val codec = codecMimeType.orEmpty().lowercase(Locale.ROOT)
         val lossless = container == AudioContainerFormat.Flac ||
+            container == AudioContainerFormat.OggFlac ||
             container == AudioContainerFormat.Wav ||
-            codec in setOf("audio/flac", "audio/raw")
+            codec in setOf("audio/flac", "audio/raw", "audio/alac")
         return when {
             lossless && bitDepth != null && bitDepth in 8..64 && sampleRateText != null -> "$bitDepth/$sampleRateText"
             !lossless && bitrate != null && bitrate in 8_000..10_000_000 && sampleRateText != null ->
