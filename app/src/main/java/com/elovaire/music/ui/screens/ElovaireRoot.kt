@@ -296,6 +296,11 @@ import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
+import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
+import elovaire.music.droidbeauty.app.ui.interaction.PlayerOverlayHost
+import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
+import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
@@ -575,6 +580,12 @@ private data class SharedTopBarRegistration(
     val spec: SharedTopBarSpec,
 )
 
+private enum class PlayerLayerState {
+    Compact,
+    Expanded,
+    ReturningToCompact,
+}
+
 internal data class AboutScreenModel(
     val sections: List<AboutSection>,
 )
@@ -780,26 +791,6 @@ private fun rememberElovaireScrollState(vararg inputs: Any?): androidx.compose.f
     return state
 }
 
-@Composable
-private fun Modifier.elovairePressBounce(
-    interactionSource: MutableInteractionSource,
-    label: String,
-    pressedScale: Float = 0.9f,
-    releaseAnimationSpec: AnimationSpec<Float> = ElovaireMotion.chromeReleaseSpec(),
-): Modifier {
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) pressedScale else 1f,
-        animationSpec = if (pressed) {
-            ElovaireMotion.pressDownSpec()
-        } else {
-            releaseAnimationSpec
-        },
-        label = label,
-    )
-    return this.scale(scale)
-}
-
 @OptIn(ExperimentalHazeApi::class)
 @Composable
 internal fun DynamicBackdropSurface(
@@ -924,14 +915,7 @@ private fun FrostedTopBarBackground(
 private fun RegisterSharedTopBar(spec: SharedTopBarSpec) {
     val controller = LocalSharedTopBarController.current ?: return
     val registrationId = remember { Any() }
-    val specSignature = remember(spec) {
-        when (spec) {
-            is SharedTopBarSpec.Unified -> "unified|${spec.showSettings}|${spec.supplementalActionIconResId ?: 0}|${spec.supplementalActionContentDescription.orEmpty()}"
-            is SharedTopBarSpec.Back -> "back|${spec.title}|${spec.centeredTitle}"
-            is SharedTopBarSpec.Detail -> "detail|${spec.title}|${spec.subtitle.orEmpty()}|${spec.actions.joinToString { "${it.iconResId}:${it.contentDescription}" }}"
-        }
-    }
-    LaunchedEffect(controller, registrationId, specSignature, spec) {
+    SideEffect {
         controller.registration = SharedTopBarRegistration(
             id = registrationId,
             spec = spec,
@@ -1254,9 +1238,8 @@ fun ElovaireRoot(
     var detailExpandOrigin by remember { mutableStateOf(ExpandOrigin()) }
     var detailRouteTransitionMode by remember { mutableStateOf(DetailRouteTransitionMode.TileExpand) }
     var nowPlayingTransitionSnapshot by remember { mutableStateOf<NowPlayingTransitionSnapshot?>(null) }
-    var isPlayerOverlayVisible by rememberSaveable { mutableStateOf(false) }
-    var compactDockReturningFromPlayer by rememberSaveable { mutableStateOf(false) }
-    var compactDockReturnToken by rememberSaveable { mutableLongStateOf(0L) }
+    var playerLayerStateName by rememberSaveable { mutableStateOf(PlayerLayerState.Compact.name) }
+    val playerLayerState = remember(playerLayerStateName) { PlayerLayerState.valueOf(playerLayerStateName) }
     val openNowPlayingMutex = remember { Mutex() }
     var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
     var browsingOriginRoute by rememberSaveable { mutableStateOf(HOME_ROUTE) }
@@ -1368,9 +1351,9 @@ fun ElovaireRoot(
         currentRoute in hideCompactNowPlayingRoutes
     val reserveCompactNowPlayingSpace = playbackState.currentSong != null && !hideCompactNowPlaying
     val canHostCompactNowPlaying = playbackState.currentSong != null
-    val showPlayerOverlay = isPlayerOverlayVisible && playbackNowPlayingState.currentSong != null
-    val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && !isPlayerOverlayVisible
-    val reenteringFromPlayer = compactDockReturningFromPlayer
+    val showPlayerOverlay = playerLayerState == PlayerLayerState.Expanded && playbackNowPlayingState.currentSong != null
+    val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && playerLayerState != PlayerLayerState.Expanded
+    val reenteringFromPlayer = playerLayerState == PlayerLayerState.ReturningToCompact
     val overscrollFactory = rememberElovaireOverscrollFactory()
     val navHostBlur = 0.dp
     val navHostScrimAlpha = 0f
@@ -1400,27 +1383,20 @@ fun ElovaireRoot(
     val requestOpenNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit = { snapshot ->
         rootScope.launch {
             openNowPlayingMutex.withLock {
-                if (container.playbackManager.state.value.currentSong == null || isPlayerOverlayVisible) {
+                if (container.playbackManager.state.value.currentSong == null || playerLayerState == PlayerLayerState.Expanded) {
                     return@withLock
                 }
-                compactDockReturningFromPlayer = false
+                playerLayerStateName = PlayerLayerState.Expanded.name
                 nowPlayingTransitionSnapshot = snapshot
-                isPlayerOverlayVisible = true
-                withFrameNanos { }
-                if (!isPlayerOverlayVisible && container.playbackManager.state.value.currentSong != null) {
-                    nowPlayingTransitionSnapshot = snapshot
-                    isPlayerOverlayVisible = true
-                    withFrameNanos { }
-                }
             }
         }
     }
     val hidePlayerOverlay: (Boolean) -> Unit = { returnToCompact ->
-        compactDockReturningFromPlayer = returnToCompact && container.playbackManager.state.value.currentSong != null
-        if (compactDockReturningFromPlayer) {
-            compactDockReturnToken += 1L
+        playerLayerStateName = if (returnToCompact && container.playbackManager.state.value.currentSong != null) {
+            PlayerLayerState.ReturningToCompact.name
+        } else {
+            PlayerLayerState.Compact.name
         }
-        isPlayerOverlayVisible = false
     }
     val currentRequestOpenNowPlaying by rememberUpdatedState(requestOpenNowPlaying)
     val openCurrentPlayingAlbum: (Long) -> Unit = { albumId ->
@@ -1484,16 +1460,10 @@ fun ElovaireRoot(
             currentRequestOpenNowPlaying(null)
         }
     }
-    LaunchedEffect(isPlayerOverlayVisible) {
-        if (!isPlayerOverlayVisible) {
+    LaunchedEffect(playbackNowPlayingState.currentSong?.id) {
+        if (playbackNowPlayingState.currentSong == null) {
+            playerLayerStateName = PlayerLayerState.Compact.name
             nowPlayingTransitionSnapshot = null
-        }
-    }
-    LaunchedEffect(compactDockReturnToken) {
-        if (compactDockReturnToken > 0L) {
-            withFrameNanos { }
-            delay(ElovaireMotion.PlayerFade.toLong().coerceAtLeast(120L))
-            compactDockReturningFromPlayer = false
         }
     }
     LaunchedEffect(currentRoute) {
@@ -2399,6 +2369,8 @@ fun ElovaireRoot(
                         ) {
                             CompactNowPlayingDockHost(
                                 viewModel = nowPlayingViewModel,
+                                song = it,
+                                transportShowsPause = playbackTransportState.transportShowsPause,
                                 visible = showGlobalNowPlaying,
                                 suppressEnterAnimation = reenteringFromPlayer,
                                 onOpenPlayer = requestOpenNowPlaying,
@@ -2461,22 +2433,14 @@ fun ElovaireRoot(
                 }
             }
             }
-            ElovaireAnimatedVisibility(
+            PlayerOverlayHost(
                 visible = showPlayerOverlay,
-                enter = fadeIn(
-                    animationSpec = ElovaireMotion.standardTween(
-                        durationMillis = 220,
-                        easing = ElovaireMotion.FadeIn,
-                    ),
-                ) + scaleIn(
-                    initialScale = 0.995f,
-                    animationSpec = ElovaireMotion.standardTween(
-                        durationMillis = 260,
-                        easing = ElovaireMotion.RefinedDecelerate,
-                    ),
-                ),
-                exit = ExitTransition.None,
-                label = "NowPlayingOverlayVisibility",
+                onExitFinished = {
+                    nowPlayingTransitionSnapshot = null
+                    if (playerLayerState == PlayerLayerState.ReturningToCompact) {
+                        playerLayerStateName = PlayerLayerState.Compact.name
+                    }
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .clipToBounds()
@@ -2650,28 +2614,40 @@ private fun NowPlayingRoute(
 @Composable
 private fun CompactNowPlayingDockHost(
     viewModel: NowPlayingViewModel,
+    song: Song,
+    transportShowsPause: Boolean,
     visible: Boolean,
     suppressEnterAnimation: Boolean,
     onOpenPlayer: (NowPlayingTransitionSnapshot?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val playbackState by viewModel.miniPlayerUiState.collectAsStateWithLifecycle()
-    val song = playbackState.currentSong ?: return
-    val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
-    val transportShowsPause = remember(playbackState.currentSong?.id, playbackState.transportShowsPause, song.id) {
-        playbackState.currentSong?.id == song.id && playbackState.transportShowsPause
-    }
-    val progress = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs) {
-        if (playbackProgress.durationMs > 0L) {
-            (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+    var keepProgressActive by remember(song.id) { mutableStateOf(visible) }
+    var lastProgress by remember(song.id) { mutableFloatStateOf(0f) }
+
+    LaunchedEffect(visible, song.id) {
+        if (visible) {
+            keepProgressActive = true
         } else {
-            0f
+            delay(ElovaireMotion.Standard.toLong().coerceAtLeast(120L))
+            keepProgressActive = false
         }
     }
+
+    if (keepProgressActive) {
+        val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
+        LaunchedEffect(playbackProgress.displayPositionMs, playbackProgress.durationMs, song.id) {
+            lastProgress = if (playbackProgress.durationMs > 0L) {
+                (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+            } else {
+                0f
+            }
+        }
+    }
+
     StandaloneNowPlayingDock(
         song = song,
         isPlaying = transportShowsPause,
-        progress = progress,
+        progress = lastProgress,
         visible = visible,
         suppressEnterAnimation = suppressEnterAnimation,
         onOpenPlayer = onOpenPlayer,
@@ -3235,8 +3211,7 @@ private fun HeaderIconButton(
     tint: Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     val sharedBackPainter = LocalSharedBackIconPainter.current
     val sharedTopMenuPainter = LocalSharedTopMenuIconPainter.current
     val iconPainter = when {
@@ -3244,22 +3219,16 @@ private fun HeaderIconButton(
         iconResId == R.drawable.ic_lucide_menu && sharedTopMenuPainter != null -> sharedTopMenuPainter
         else -> painterResource(id = iconResId)
     }
-    val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.88f else 1f,
-        animationSpec = if (pressed && enabled) {
-            ElovaireMotion.pressDownSpec()
-        } else {
-            ElovaireMotion.releaseSpringSpec(
-                dampingRatio = 0.72f,
-                stiffness = 420f,
-            )
-        },
-        label = "${contentDescription}_header_scale",
-    )
     Box(
         modifier = modifier
             .size(40.dp)
-            .scale(scale)
+            .elovairePressScale(
+                enabled = enabled,
+                pressedScale = 0.88f,
+                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                interactionSource = interactionSource,
+                label = "${contentDescription}_header_scale",
+            )
             .clip(CircleShape)
             .background(
                 if (showBackground) {
@@ -3334,6 +3303,7 @@ private fun BottomNavigationBar(
                         iconResId = destination.iconResId,
                         contentDescription = destination.contentDescription,
                         baseTint = iconColor,
+                        suppressEnterAnimation = suppressEnterAnimation,
                         selected = currentRoute == destination.route,
                         onClick = { onNavigate(destination.route) },
                     )
@@ -3364,11 +3334,11 @@ private fun BottomNavigationItemButton(
     iconResId: Int,
     contentDescription: String,
     baseTint: Color,
+    suppressEnterAnimation: Boolean,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     val selectionTransition = updateTransition(
         targetState = selected,
         label = "BottomNavItemSelection",
@@ -3383,46 +3353,29 @@ private fun BottomNavigationItemButton(
             baseTint.copy(alpha = 0.5f)
         }
     }
-    val pressScale = remember { Animatable(1f) }
-    LaunchedEffect(pressed) {
-        if (pressed) {
-            pressScale.animateTo(
-                targetValue = 0.88f,
-                animationSpec = ElovaireMotion.pressDownSpec(),
-            )
-        } else {
-            pressScale.animateTo(
-                targetValue = 1f,
-                animationSpec = ElovaireMotion.releaseSpringSpec(
-                    dampingRatio = 0.78f,
-                    stiffness = 520f,
-                ),
-            )
-        }
-    }
     val baseIconScale by selectionTransition.animateFloat(
         transitionSpec = {
-            ElovaireMotion.releaseSpringSpec<Float>(
-            dampingRatio = 0.8f,
-            stiffness = 540f,
-            )
+            if (suppressEnterAnimation) {
+                tween(durationMillis = 0)
+            } else {
+                ElovaireMotion.releaseSpringSpec<Float>(
+                    dampingRatio = 0.8f,
+                    stiffness = 540f,
+                )
+            }
         },
         label = "BottomNavItemBaseIconScale",
     ) { isSelected -> if (isSelected) 1.14f else 1f }
-    val buttonTranslateY by animateDpAsState(
-        targetValue = if (pressed) 1.dp else 0.dp,
-        animationSpec = ElovaireMotion.releaseSpringSpec(
-            dampingRatio = 0.82f,
-            stiffness = 560f,
-        ),
-        label = "bottom_nav_button_translate",
-    )
 
     Box(
         modifier = Modifier
             .size(56.dp)
-            .offset { IntOffset(x = 0, y = buttonTranslateY.roundToPx()) }
-            .scale(pressScale.value)
+            .elovairePressScale(
+                pressedScale = 0.88f,
+                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                interactionSource = interactionSource,
+                label = "${contentDescription}_bottom_nav_scale",
+            )
             .clip(RoundedCornerShape(ElovaireRadii.tile))
             .clickable(
                 interactionSource = interactionSource,
@@ -3487,18 +3440,7 @@ private fun NowPlayingBar(
         animationSpec = ElovaireMotion.colorFadeSpec(),
         label = "MiniPlayerControlBackground",
     )
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val buttonScale by animateFloatAsState(
-        targetValue = if (pressed) 0.9f else 1f,
-        animationSpec = ElovaireMotion.releaseSpringSpec(
-            dampingRatio = 0.58f,
-            stiffness = 420f,
-        ),
-        label = "MiniPlayerPlayButtonScale",
-    )
-    val density = LocalDensity.current
-    val swipeThresholdPx = with(density) { 52.dp.toPx() }
+    val interactionSource = rememberElovaireInteractionSource()
     var dragOffsetX by remember(song.id) { mutableFloatStateOf(0f) }
     var barBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     var artworkBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
@@ -3520,28 +3462,6 @@ private fun NowPlayingBar(
                 width = 1.dp,
                 color = Color.White.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) 0.08f else 0.05f),
                 shape = RoundedCornerShape(ElovaireRadii.card),
-            )
-            .clickable(
-                enabled = visible,
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    val validSnapshot = if (
-                        barBounds != null &&
-                        artworkBounds != null &&
-                        barBounds!!.isValidTransitionBounds &&
-                        artworkBounds!!.isValidTransitionBounds
-                    ) {
-                        NowPlayingTransitionSnapshot(
-                            songId = song.id,
-                            barBounds = barBounds!!,
-                            artworkBounds = artworkBounds!!,
-                        )
-                    } else {
-                        null
-                    }
-                    onOpenPlayer(validSnapshot)
-                },
             ),
     ) {
         Row(
@@ -3555,29 +3475,39 @@ private fun NowPlayingBar(
                 modifier = Modifier
                     .weight(1f)
                     .graphicsLayer { translationX = animatedDragOffsetX * 0.18f }
-                    .then(
-                        if (visible) {
-                            Modifier.pointerInput(song.id) {
-                                detectHorizontalDragGestures(
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        dragOffsetX = (dragOffsetX + dragAmount).coerceIn(-160f, 160f)
-                                    },
-                                    onDragEnd = {
-                                        when {
-                                            dragOffsetX <= -swipeThresholdPx -> onSkipNext()
-                                            dragOffsetX >= swipeThresholdPx -> onSkipPrevious()
-                                        }
-                                        dragOffsetX = 0f
-                                    },
-                                    onDragCancel = {
-                                        dragOffsetX = 0f
-                                    },
-                                )
-                            }
-                        } else {
-                            Modifier
-                        }
+                    .compactBarGestures(
+                        enabled = visible,
+                        actions = CompactBarGestureActions(
+                            onTap = {
+                                val validSnapshot = if (
+                                    barBounds != null &&
+                                    artworkBounds != null &&
+                                    barBounds!!.isValidTransitionBounds &&
+                                    artworkBounds!!.isValidTransitionBounds
+                                ) {
+                                    NowPlayingTransitionSnapshot(
+                                        songId = song.id,
+                                        barBounds = barBounds!!,
+                                        artworkBounds = artworkBounds!!,
+                                    )
+                                } else {
+                                    null
+                                }
+                                onOpenPlayer(validSnapshot)
+                            },
+                            onSwipePrevious = {
+                                onSkipPrevious()
+                            },
+                            onSwipeNext = {
+                                onSkipNext()
+                            },
+                            onDragDelta = { delta ->
+                                dragOffsetX = (dragOffsetX + delta).coerceIn(-160f, 160f)
+                            },
+                            onGestureFinished = {
+                                dragOffsetX = 0f
+                            },
+                        ),
                     ),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -3620,7 +3550,13 @@ private fun NowPlayingBar(
             Box(
                 modifier = Modifier
                     .size(42.dp)
-                    .scale(buttonScale)
+                    .elovairePressScale(
+                        enabled = visible,
+                        pressedScale = 0.9f,
+                        animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                        interactionSource = interactionSource,
+                        label = "MiniPlayerPlayButtonScale",
+                    )
                     .clip(CircleShape)
                     .background(compactControlBackground)
                     .clickable(
@@ -12967,18 +12903,8 @@ private fun QueueSongOverflowMenuButton(
     val language = LocalAppLanguage.current
     var expanded by remember { mutableStateOf(false) }
     var shouldRenderMenu by remember { mutableStateOf(false) }
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     val motionDurationScale = rememberSystemAnimationScale()
-    val buttonScale by animateFloatAsState(
-        targetValue = if (pressed) 0.88f else 1f,
-        animationSpec = if (pressed) {
-            ElovaireMotion.pressDownSpec()
-        } else {
-            ElovaireMotion.softPressReturnSpec()
-        },
-        label = "queue_song_overflow_scale",
-    )
     LaunchedEffect(expanded) {
         if (expanded) {
             shouldRenderMenu = true
@@ -12992,7 +12918,12 @@ private fun QueueSongOverflowMenuButton(
         Box(
             modifier = Modifier
                 .size(24.dp)
-                .scale(buttonScale)
+                .elovairePressScale(
+                    pressedScale = 0.88f,
+                    animationSpec = ElovaireMotion.softPressReturnSpec(),
+                    interactionSource = interactionSource,
+                    label = "queue_song_overflow_scale",
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -13066,17 +12997,16 @@ private fun PlayerTransportButton(
     iconSize: Dp,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val buttonScale by animateFloatAsState(
-        targetValue = if (pressed) 0.9f else 1f,
-        animationSpec = ElovaireMotion.releaseSpringSpec(),
-        label = "${contentDescription}_transport_scale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
     Box(
         modifier = Modifier
             .size(72.dp)
-            .scale(buttonScale)
+            .elovairePressScale(
+                pressedScale = 0.9f,
+                animationSpec = ElovaireMotion.softPressReturnSpec(),
+                interactionSource = interactionSource,
+                label = "${contentDescription}_transport_scale",
+            )
             .clip(CircleShape)
             .clickable(
                 interactionSource = interactionSource,
@@ -13125,30 +13055,21 @@ private fun QueueMenuButton(
     active: Boolean,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     val backgroundAlpha by animateFloatAsState(
         targetValue = if (active) 0.2f else 0f,
         animationSpec = ElovaireMotion.contentFadeInSpec(),
         label = "queue_button_alpha",
     )
-    val buttonScale by animateFloatAsState(
-        targetValue = when {
-            pressed -> 0.9f
-            active -> 1f
-            else -> 0.96f
-        },
-        animationSpec = if (pressed) {
-            ElovaireMotion.pressDownSpec()
-        } else {
-            ElovaireMotion.chromeReleaseSpec()
-        },
-        label = "queue_button_scale",
-    )
     Box(
         modifier = Modifier
             .size(40.dp)
-            .scale(buttonScale)
+            .elovairePressScale(
+                pressedScale = 0.9f,
+                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                interactionSource = interactionSource,
+                label = "queue_button_scale",
+            )
             .clip(CircleShape)
             .playerFrostedSurface(tint = tint)
             .background(tint.copy(alpha = backgroundAlpha))
@@ -15579,8 +15500,10 @@ private fun SettingsScreen(
                         ) {
                             val interactionSource = remember { MutableInteractionSource() }
                             Surface(
-                                modifier = Modifier.elovairePressBounce(
+                                modifier = Modifier.elovairePressScale(
                                     interactionSource = interactionSource,
+                                    pressedScale = 0.9f,
+                                    animationSpec = ElovaireMotion.chromeReleaseSpec(),
                                     label = "settings_equalizer_button_scale",
                                 ),
                                 shape = RoundedCornerShape(ElovaireRadii.pill),
@@ -15766,8 +15689,10 @@ private fun LanguagePickerRow(
         Box {
             val interactionSource = remember { MutableInteractionSource() }
             Surface(
-                modifier = Modifier.elovairePressBounce(
+                modifier = Modifier.elovairePressScale(
                     interactionSource = interactionSource,
+                    pressedScale = 0.9f,
+                    animationSpec = ElovaireMotion.chromeReleaseSpec(),
                     label = "settings_language_button_scale",
                 ),
                 shape = RoundedCornerShape(ElovaireRadii.pill),
@@ -16566,8 +16491,10 @@ private fun SettingActionRow(
         }
         Spacer(modifier = Modifier.width(18.dp))
         Surface(
-            modifier = Modifier.elovairePressBounce(
+            modifier = Modifier.elovairePressScale(
                 interactionSource = interactionSource,
+                pressedScale = 0.9f,
+                animationSpec = ElovaireMotion.chromeReleaseSpec(),
                 label = "${actionLabel}_setting_action_scale",
             ),
             shape = RoundedCornerShape(ElovaireRadii.pill),
@@ -17429,11 +17356,11 @@ private fun EqPresetPill(
     }
     val interactionSource = remember { MutableInteractionSource() }
     Surface(
-        modifier = Modifier.elovairePressBounce(
+        modifier = Modifier.elovairePressScale(
             interactionSource = interactionSource,
-            label = "${label}_eq_preset_scale",
             pressedScale = 0.96f,
-            releaseAnimationSpec = ElovaireMotion.bounceSpringSpec(),
+            animationSpec = ElovaireMotion.bounceSpringSpec(),
+            label = "${label}_eq_preset_scale",
         ),
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = backgroundColor,

@@ -74,6 +74,8 @@ import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
+import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -534,17 +536,17 @@ private fun EditorTopBarIconButton(
     enabled: Boolean = true,
     loading: Boolean = false,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.88f else 1f,
-        animationSpec = if (pressed && enabled) ElovaireMotion.pressDownSpec() else ElovaireMotion.releaseSpringSpec(),
-        label = "editorTopBarActionScale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
     Box(
         modifier = Modifier
             .size(40.dp)
-            .scale(scale)
+            .elovairePressScale(
+                enabled = enabled && !loading,
+                pressedScale = 0.88f,
+                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                interactionSource = interactionSource,
+                label = "editorTopBarActionScale",
+            )
             .clickable(
                 enabled = enabled && !loading,
                 interactionSource = interactionSource,
@@ -578,15 +580,15 @@ private fun AccentPillButton(
     enabled: Boolean = true,
     loading: Boolean = false,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.94f else 1f,
-        animationSpec = if (pressed && enabled) ElovaireMotion.pressDownSpec() else ElovaireMotion.releaseSpringSpec(),
-        label = "tagEditorPillScale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
     Surface(
-        modifier = Modifier.scale(scale),
+        modifier = Modifier.elovairePressScale(
+            enabled = enabled && !loading,
+            pressedScale = 0.94f,
+            animationSpec = ElovaireMotion.releaseSpringSpec(),
+            interactionSource = interactionSource,
+            label = "tagEditorPillScale",
+        ),
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = RoseAccent.copy(alpha = if (enabled) 1f else 0.55f),
         onClick = onClick,

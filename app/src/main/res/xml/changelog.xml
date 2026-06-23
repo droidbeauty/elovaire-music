@@ -7,7 +7,6 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.2.1">
-        <item></item>
         <item>CPU and memory usage optimizations focused especially on Android 16 and 17 devices</item>
         <item>Fine-tuned core structure of the app</item>
         <item>Bug fixes</item>
