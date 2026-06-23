@@ -4,7 +4,6 @@ import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -24,9 +23,10 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
-import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
+import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
+import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 
 @Composable
@@ -39,21 +39,22 @@ internal fun FirstLaunchPermissionLoadingScreen(
     } else {
         Color.White
     }
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
     val infiniteTransition = rememberInfiniteTransition(label = "first_launch_permission_spinner")
     val animatedRotationDegrees by infiniteTransition.animateFloat(
         initialValue = 0f,
         targetValue = 360f,
         animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = ElovaireMotion.scaleDurationMillis(1100, motionDurationScale).toInt(),
+            animation = motionSpecs.tween(
+                durationMillis = 1_100,
                 easing = androidx.compose.animation.core.LinearEasing,
             ),
             repeatMode = RepeatMode.Restart,
         ),
         label = "first_launch_permission_spinner_rotation",
     )
-    val rotationDegrees = if (motionDurationScale <= 0f) 0f else animatedRotationDegrees
+    val rotationDegrees = if (motionRuntime.reduceMotion) 0f else animatedRotationDegrees
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -70,8 +71,18 @@ internal fun FirstLaunchPermissionLoadingScreen(
         ElovaireAnimatedVisibility(
             visible = showLoading,
             modifier = Modifier.align(Alignment.Center),
-            enter = androidx.compose.animation.fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
-            exit = androidx.compose.animation.fadeOut(animationSpec = ElovaireMotion.fadeSlow()),
+            enter = androidx.compose.animation.fadeIn(
+                animationSpec = motionSpecs.tween(
+                    durationMillis = 160,
+                    easing = MotionEasing.FadeIn,
+                ),
+            ),
+            exit = androidx.compose.animation.fadeOut(
+                animationSpec = motionSpecs.tween(
+                    durationMillis = 260,
+                    easing = MotionEasing.FadeIn,
+                ),
+            ),
             label = "FirstLaunchPermissionSpinnerVisibility",
         ) {
             Canvas(

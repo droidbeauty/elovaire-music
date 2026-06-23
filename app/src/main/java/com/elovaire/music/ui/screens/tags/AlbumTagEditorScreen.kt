@@ -77,7 +77,7 @@ import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
-import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
@@ -704,14 +704,11 @@ private fun BoxScope.TagEditorFastScrollbarTrack(
     val colors = MaterialTheme.colorScheme
     val trackColor = colors.fastScrollbarTrackColor()
     val thumbColor = colors.fastScrollbarThumbColor()
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionSpecs = rememberMotionSpecs()
     val animatedScrollFraction by androidx.compose.animation.core.animateFloatAsState(
         targetValue = if (isDragging) dragFraction.coerceIn(0f, 1f) else scrollFraction.coerceIn(0f, 1f),
-        animationSpec = androidx.compose.animation.core.tween(
-            durationMillis = ElovaireMotion.scaleDurationMillis(
-                durationMillis = if (isDragging) 50 else 90,
-                durationScale = motionDurationScale,
-            ).toInt(),
+        animationSpec = motionSpecs.tween(
+            durationMillis = if (isDragging) 50 else 90,
         ),
         label = "tag_editor_fast_scrollbar_fraction",
     )

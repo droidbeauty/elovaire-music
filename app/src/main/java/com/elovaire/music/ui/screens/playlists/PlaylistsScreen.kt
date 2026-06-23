@@ -52,6 +52,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 
 @Composable
@@ -66,6 +67,7 @@ internal fun PlaylistsScreen(
     onDeletePlaylists: (Set<Long>) -> Unit,
     onOpenPlaylist: (Playlist, ExpandOrigin) -> Unit,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     var playlistBeingRenamed by remember { mutableStateOf<Playlist?>(null) }
     var selectedPlaylistIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
     val playlistRows = remember(playlists, libraryState.songs) {
@@ -163,8 +165,8 @@ internal fun PlaylistsScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .zIndex(3f),
-            enter = ElovaireMotion.verticalRevealEnter(),
-            exit = ElovaireMotion.verticalRevealExit(),
+            enter = motionTransitions.verticalRevealEnter(),
+            exit = motionTransitions.verticalRevealExit(),
         ) {
             TopBarDualActionMenu(
                 topBarHeight = topPadding,

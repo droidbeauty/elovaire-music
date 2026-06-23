@@ -38,8 +38,6 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.LinearOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.fadeIn
@@ -314,10 +312,12 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.PlayerOverlayMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
-import elovaire.music.droidbeauty.app.ui.motion.rememberSystemAnimationScale
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
@@ -384,6 +384,7 @@ fun ElovaireRoot(
     resetHomeScrollOnColdStart: Boolean = false,
 ) {
     val navController = rememberNavController()
+    val rootMotionTransitions = rememberMotionTransitions()
     val context = LocalContext.current
     val appState = rememberRootAppState(container)
     val derivedState = rememberRootLibraryDerivedState(
@@ -1205,8 +1206,8 @@ fun ElovaireRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(11f),
-                        enter = ElovaireMotion.bottomSheetEnter(),
-                        exit = ElovaireMotion.bottomSheetExit(),
+                        enter = rootMotionTransitions.bottomSheetEnter(),
+                        exit = rootMotionTransitions.bottomSheetExit(),
                         label = "ChangelogSheetOverlay",
                     ) {
                         ChangelogBottomSheetOverlay(
@@ -1236,8 +1237,8 @@ fun ElovaireRoot(
                             ),
                         visible = (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
                             (appState.appUpdateState.availableRelease != null || appState.appUpdateState.transientStatus != null),
-                        enter = ElovaireMotion.bannerEnter(),
-                        exit = ElovaireMotion.bannerExit(),
+                        enter = rootMotionTransitions.bannerEnter(),
+                        exit = rootMotionTransitions.bannerExit(),
                         label = "UpdateBannerVisibility",
                     ) {
                         when {
@@ -1262,8 +1263,8 @@ fun ElovaireRoot(
                         modifier = Modifier
                             .fillMaxSize()
                             .zIndex(9f),
-                        enter = ElovaireMotion.overlayFadeEnter(initialAlpha = 0.82f),
-                        exit = ElovaireMotion.overlayFadeExit(targetAlpha = 0.96f),
+                        enter = rootMotionTransitions.overlayFadeEnter(initialAlpha = 0.82f),
+                        exit = rootMotionTransitions.overlayFadeExit(targetAlpha = 0.96f),
                         label = "FirstLaunchPermissionOverlayVisibility",
                     ) {
                         FirstLaunchPermissionLoadingScreen(
@@ -1306,9 +1307,9 @@ fun ElovaireRoot(
                     enter = if (reenteringFromPlayer) {
                         EnterTransition.None
                     } else {
-                        ElovaireMotion.bottomBarEnter()
+                        rootMotionTransitions.bottomBarEnter()
                     },
-                    exit = ElovaireMotion.bottomBarExit(),
+                    exit = rootMotionTransitions.bottomBarExit(),
                     label = "BottomNavigationVisibility",
                 ) {
                     BottomNavigationBar(
@@ -1590,6 +1591,7 @@ private fun BottomNavigationItemButton(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val interactionSource = rememberElovaireInteractionSource()
     val selectionTransition = updateTransition(
         targetState = selected,
@@ -1608,7 +1610,7 @@ private fun BottomNavigationItemButton(
     val baseIconScale by selectionTransition.animateFloat(
         transitionSpec = {
             if (suppressEnterAnimation) {
-                tween(durationMillis = 0)
+                motionSpecs.tween(durationMillis = 0)
             } else {
                 ElovaireMotion.releaseSpringSpec<Float>(
                     dampingRatio = 0.8f,
@@ -2002,7 +2004,7 @@ private fun HomeScreen(
     val listState = rememberElovaireLazyListState("home_screen")
     val language = LocalAppLanguage.current
     val homeCopy = remember(language) { homeCopy(language) }
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
     var revealModules by rememberSaveable(playInitialReveal) { mutableStateOf(!playInitialReveal) }
     LaunchedEffect(resetScrollOnColdStart) {
         if (resetScrollOnColdStart) {
@@ -2020,9 +2022,9 @@ private fun HomeScreen(
     LaunchedEffect(playInitialReveal) {
         if (playInitialReveal) {
             revealModules = false
-            delay(ElovaireMotion.scaleDurationMillis(70L, motionDurationScale))
+            delay(motionRuntime.duration(70L))
             revealModules = true
-            delay(ElovaireMotion.scaleDurationMillis(520L, motionDurationScale))
+            delay(motionRuntime.duration(520L))
             onInitialRevealFinished()
         } else {
             revealModules = true
@@ -2557,14 +2559,15 @@ private fun LastPlayedPlaylistModule(
 
 @Composable
 private fun Modifier.libraryRemovalAnimation(isRemoving: Boolean): Modifier {
+    val motionSpecs = rememberMotionSpecs()
     val alpha by animateFloatAsState(
         targetValue = if (isRemoving) 0f else 1f,
-        animationSpec = tween(if (isRemoving) 180 else 120),
+        animationSpec = motionSpecs.tween(if (isRemoving) MotionDuration.Standard else MotionDuration.Fast),
         label = "library_item_removal_alpha",
     )
     val scale by animateFloatAsState(
         targetValue = if (isRemoving) 0.96f else 1f,
-        animationSpec = tween(if (isRemoving) 180 else 120),
+        animationSpec = motionSpecs.tween(if (isRemoving) MotionDuration.Standard else MotionDuration.Fast),
         label = "library_item_removal_scale",
     )
     return graphicsLayer {
@@ -2597,6 +2600,7 @@ private fun AlbumCollectionContent(
     onDeleteAlbumFromDevice: (Album) -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
+    val motionTransitions = rememberMotionTransitions()
     var showSortOptions by rememberSaveable { mutableStateOf(false) }
     var selectedAlbumIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
     var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
@@ -2897,8 +2901,8 @@ private fun AlbumCollectionContent(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .zIndex(3f),
-            enter = ElovaireMotion.verticalRevealEnter(),
-            exit = ElovaireMotion.verticalRevealExit(),
+            enter = motionTransitions.verticalRevealEnter(),
+            exit = motionTransitions.verticalRevealExit(),
         ) {
             TopBarSelectionMenu(
                 topBarHeight = topPadding,
@@ -3110,6 +3114,7 @@ private fun AlbumSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (AlbumSortMode) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Surface(
             onClick = onToggleExpanded,
@@ -3143,14 +3148,14 @@ private fun AlbumSortControl(
 
         AnimatedVisibility(
             visible = expanded,
-            enter = fadeIn(animationSpec = tween(ElovaireMotion.Quick)) +
+            enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
                 slideInVertically(
-                    animationSpec = tween(ElovaireMotion.Quick),
+                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
                     initialOffsetY = { -it / 4 },
                 ),
-            exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick)) +
+            exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
                 slideOutVertically(
-                    animationSpec = tween(ElovaireMotion.Quick),
+                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
                     targetOffsetY = { -it / 4 },
                 ),
         ) {
@@ -3572,6 +3577,7 @@ private fun SongSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (SongSortMode) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Surface(
             onClick = onToggleExpanded,
@@ -3605,14 +3611,14 @@ private fun SongSortControl(
 
         AnimatedVisibility(
             visible = expanded,
-            enter = fadeIn(animationSpec = tween(ElovaireMotion.Quick)) +
+            enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
                 slideInVertically(
-                    animationSpec = tween(ElovaireMotion.Quick),
+                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
                     initialOffsetY = { -it / 4 },
                 ),
-            exit = fadeOut(animationSpec = tween(ElovaireMotion.Quick)) +
+            exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
                 slideOutVertically(
-                    animationSpec = tween(ElovaireMotion.Quick),
+                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
                     targetOffsetY = { -it / 4 },
                 ),
         ) {
@@ -4855,6 +4861,7 @@ private fun ToggleIconChip(
     contentDescription: String,
     onClick: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val contentColor by animateColorAsState(
@@ -4863,7 +4870,7 @@ private fun ToggleIconChip(
         } else {
             readableMutedIconColor()
         },
-        animationSpec = tween(ElovaireMotion.Quick),
+        animationSpec = motionSpecs.tween(MotionDuration.Quick),
         label = "toggle_chip_content",
     )
     val scale by animateFloatAsState(
@@ -5619,6 +5626,7 @@ private fun HomeRecentSongRow(
     onToggleFavorite: () -> Unit,
     showDivider: Boolean,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     Column {
         Row(
             modifier = Modifier
@@ -5641,8 +5649,8 @@ private fun HomeRecentSongRow(
                 )
                 androidx.compose.animation.AnimatedVisibility(
                     visible = isCurrentSong && isPlaybackActive,
-                    enter = fadeIn(animationSpec = tween(60)),
-                    exit = fadeOut(animationSpec = tween(60)),
+                    enter = fadeIn(animationSpec = motionSpecs.tween(60)),
+                    exit = fadeOut(animationSpec = motionSpecs.tween(60)),
                 ) {
                     PlaybackActiveArtworkOverlay(
                         uri = song.artUri,
@@ -6080,6 +6088,7 @@ private fun AlbumScreen(
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
+    val motionTransitions = rememberMotionTransitions()
     LaunchedEffect(album?.id) {
         if (album == null) {
             onBack()
@@ -6494,8 +6503,8 @@ private fun AlbumScreen(
                 .fillMaxWidth()
                 .align(Alignment.TopCenter)
                 .zIndex(3f),
-            enter = ElovaireMotion.verticalRevealEnter(),
-            exit = ElovaireMotion.verticalRevealExit(),
+            enter = motionTransitions.verticalRevealEnter(),
+            exit = motionTransitions.verticalRevealExit(),
         ) {
             TopBarSelectionMenu(
                 topBarHeight = detailTopPadding,
@@ -6557,15 +6566,16 @@ private fun AnimatedAudioLinesIcon(
     animate: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
-    val motionDurationScale = rememberSystemAnimationScale()
-    val phase = if (animate && motionDurationScale > 0f) {
+    val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
+    val phase = if (animate && !motionRuntime.reduceMotion) {
         val infiniteTransition = rememberInfiniteTransition(label = "audio_lines_phase")
         val animatedPhase by infiniteTransition.animateFloat(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(
-                    durationMillis = ElovaireMotion.scaleDurationMillis(1416, motionDurationScale).toInt(),
+                animation = motionSpecs.tween(
+                    durationMillis = 1_416,
                     easing = LinearEasing,
                 ),
                 repeatMode = RepeatMode.Restart,
@@ -6779,6 +6789,7 @@ internal fun AddSongsToPlaylistOverlay(
     onDismiss: () -> Unit,
     onAddSongs: (List<Long>) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     var selectedTab by rememberSaveable { mutableStateOf(PlaylistPickerTab.Songs) }
     var query by rememberSaveable { mutableStateOf("") }
     var selectedSongIds by rememberSaveable { mutableStateOf(listOf<Long>()) }
@@ -7103,13 +7114,13 @@ internal fun AddSongsToPlaylistOverlay(
                     transitionSpec = {
                         val forward = targetState > initialState
                         (fadeIn(
-                            animationSpec = tween(
+                            animationSpec = motionSpecs.tween(
                                 durationMillis = 120,
                                 easing = LinearOutSlowInEasing,
                             ),
                             initialAlpha = 0.86f,
                         ) + slideInHorizontally(
-                            animationSpec = tween(
+                            animationSpec = motionSpecs.tween(
                                 durationMillis = 160,
                                 easing = FastOutSlowInEasing,
                             ),
@@ -7118,13 +7129,13 @@ internal fun AddSongsToPlaylistOverlay(
                                 if (forward) offset else -offset
                             },
                         )) togetherWith (fadeOut(
-                            animationSpec = tween(
+                            animationSpec = motionSpecs.tween(
                                 durationMillis = 50,
                                 easing = FastOutLinearInEasing,
                             ),
                             targetAlpha = 0.9f,
                         ) + slideOutHorizontally(
-                            animationSpec = tween(
+                            animationSpec = motionSpecs.tween(
                                 durationMillis = 110,
                                 easing = FastOutSlowInEasing,
                             ),
@@ -7818,6 +7829,7 @@ internal fun NowPlayingScreen(
 ) {
     val liveCurrentSong = playerUiState.currentSong
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
     val playerHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
@@ -7857,20 +7869,16 @@ internal fun NowPlayingScreen(
             },
         )
     }
-    val expandSettleAnimationSpec = remember {
-        tween<Float>(
-            durationMillis = 360,
-            easing = LinearOutSlowInEasing,
-        )
-    }
-    val collapseSettleAnimationSpec = remember {
-        tween<Float>(
-            durationMillis = 360,
-            easing = androidx.compose.animation.core.Easing { fraction ->
-                1f - LinearOutSlowInEasing.transform(1f - fraction)
-            },
-        )
-    }
+    val expandSettleAnimationSpec = motionSpecs.tween<Float>(
+        durationMillis = 360,
+        easing = LinearOutSlowInEasing,
+    )
+    val collapseSettleAnimationSpec = motionSpecs.tween<Float>(
+        durationMillis = 360,
+        easing = androidx.compose.animation.core.Easing { fraction ->
+            1f - LinearOutSlowInEasing.transform(1f - fraction)
+        },
+    )
     var interactiveTransitionProgress by remember(liveCurrentSong?.id) { mutableStateOf<Float?>(null) }
     var dismissAnimationRunning by remember(liveCurrentSong?.id) { mutableStateOf(false) }
     val effectiveTransitionProgress = interactiveTransitionProgress ?: transitionProgress.value
@@ -7884,22 +7892,22 @@ internal fun NowPlayingScreen(
     }
     val tintColor by animateColorAsState(
         targetValue = adaptivePalette.tintColor,
-        animationSpec = tween(320, easing = LinearOutSlowInEasing),
+        animationSpec = motionSpecs.tween(320, easing = LinearOutSlowInEasing),
         label = "player_tint_color",
     )
     val baseSurface by animateColorAsState(
         targetValue = adaptivePalette.backdropBase,
-        animationSpec = tween(320, easing = LinearOutSlowInEasing),
+        animationSpec = motionSpecs.tween(320, easing = LinearOutSlowInEasing),
         label = "player_backdrop_base",
     )
     val contentColor by animateColorAsState(
         targetValue = adaptivePalette.contentColor,
-        animationSpec = tween(260, easing = LinearOutSlowInEasing),
+        animationSpec = motionSpecs.tween(260, easing = LinearOutSlowInEasing),
         label = "player_content_color",
     )
     val secondaryContentColor by animateColorAsState(
         targetValue = adaptivePalette.secondaryContentColor,
-        animationSpec = tween(260, easing = LinearOutSlowInEasing),
+        animationSpec = motionSpecs.tween(260, easing = LinearOutSlowInEasing),
         label = "player_secondary_content_color",
     )
     val currentSong = liveCurrentSong
@@ -8183,17 +8191,17 @@ internal fun NowPlayingScreen(
             }
             val favoriteAlpha by animateFloatAsState(
                 targetValue = if (showQueueSheet) 0f else 1f,
-                animationSpec = tween(80),
+                animationSpec = motionSpecs.tween(80),
                 label = "queue_favorite_alpha",
             )
             val transportAlpha by animateFloatAsState(
                 targetValue = if (showQueueSheet) 0f else 1f,
-                animationSpec = tween(80),
+                animationSpec = motionSpecs.tween(80),
                 label = "queue_transport_alpha",
             )
             val animatedArtworkCornerRadius by animateDpAsState(
                 targetValue = if (showQueueSheet) 10.dp else ElovaireRadii.module,
-                animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                 label = "queue_artwork_corner_radius",
             )
             fun Modifier.nowPlayingDismissGesture(): Modifier = pointerInput(currentSong.id) {
@@ -8294,7 +8302,7 @@ internal fun NowPlayingScreen(
                         val compactArtworkWidth = maxWidth * 0.38f
                         val animatedArtworkWidth by animateDpAsState(
                             targetValue = if (showQueueSheet) compactArtworkWidth else expandedArtworkWidth,
-                            animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                            animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                             label = "queue_artwork_width",
                         )
                         val compactContentStart = compactArtworkWidth + 18.dp
@@ -9305,6 +9313,7 @@ private fun QueueSongRow(
     onAddToPlaylist: () -> Unit,
     onRemoveFromQueue: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     Column(
         modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -9337,8 +9346,8 @@ private fun QueueSongRow(
                 )
                 androidx.compose.animation.AnimatedVisibility(
                     visible = active && isPlaying,
-                    enter = fadeIn(animationSpec = tween(60)),
-                    exit = fadeOut(animationSpec = tween(60)),
+                    enter = fadeIn(animationSpec = motionSpecs.tween(60)),
+                    exit = fadeOut(animationSpec = motionSpecs.tween(60)),
                 ) {
                     PlaybackActiveArtworkOverlay(
                         uri = song.artUri,
@@ -9409,12 +9418,12 @@ private fun QueueSongOverflowMenuButton(
     var expanded by remember { mutableStateOf(false) }
     var shouldRenderMenu by remember { mutableStateOf(false) }
     val interactionSource = rememberElovaireInteractionSource()
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
     LaunchedEffect(expanded) {
         if (expanded) {
             shouldRenderMenu = true
         } else if (shouldRenderMenu) {
-            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
+            delay(motionRuntime.duration(180L))
             shouldRenderMenu = false
         }
     }
@@ -9606,13 +9615,13 @@ private fun FavoriteSongButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
         if (previousFavoriteState != isFavorite) {
             shouldBounce = true
-            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
+            delay(motionRuntime.duration(180L))
             shouldBounce = false
             previousFavoriteState = isFavorite
         }
@@ -9812,13 +9821,13 @@ internal fun InlineFavoriteSongButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
         if (previousFavoriteState != isFavorite) {
             shouldBounce = true
-            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
+            delay(motionRuntime.duration(180L))
             shouldBounce = false
             previousFavoriteState = isFavorite
         }
@@ -9925,6 +9934,7 @@ private fun OverflowContextMenuPopup(
     onDismissRequest: () -> Unit,
     content: @Composable () -> Unit,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     Popup(
         popupPositionProvider = OverflowContextMenuPositionProvider,
         onDismissRequest = onDismissRequest,
@@ -9932,8 +9942,8 @@ private fun OverflowContextMenuPopup(
     ) {
         androidx.compose.animation.AnimatedVisibility(
             visible = expanded,
-            enter = ElovaireMotion.contextMenuEnter(),
-            exit = ElovaireMotion.contextMenuExit(),
+            enter = motionTransitions.contextMenuEnter(),
+            exit = motionTransitions.contextMenuExit(),
             label = "OverflowContextMenuVisibility",
         ) {
             content()
@@ -9956,12 +9966,13 @@ private fun AlbumOverflowMenuButton(
     var expanded by remember(album.id) { mutableStateOf(false) }
     var shouldRenderMenu by remember(album.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(album.id) { mutableStateOf(false) }
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val buttonScale by animateFloatAsState(
         targetValue = if (pressed) 0.86f else 1f,
-        animationSpec = spring(
+        animationSpec = motionSpecs.spring(
             dampingRatio = 0.6f,
             stiffness = 380f,
         ),
@@ -9972,7 +9983,7 @@ private fun AlbumOverflowMenuButton(
         if (expanded) {
             shouldRenderMenu = true
         } else if (shouldRenderMenu) {
-            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
+            delay(motionRuntime.duration(180L))
             shouldRenderMenu = false
         }
     }
@@ -10067,12 +10078,13 @@ internal fun SongOverflowMenuButton(
     var expanded by remember(song.id) { mutableStateOf(false) }
     var shouldRenderMenu by remember(song.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(song.id) { mutableStateOf(false) }
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val buttonScale by animateFloatAsState(
         targetValue = if (pressed) 0.86f else 1f,
-        animationSpec = spring(
+        animationSpec = motionSpecs.spring(
             dampingRatio = 0.6f,
             stiffness = 380f,
         ),
@@ -10082,7 +10094,7 @@ internal fun SongOverflowMenuButton(
         if (expanded) {
             shouldRenderMenu = true
         } else if (shouldRenderMenu) {
-            delay(ElovaireMotion.scaleDurationMillis(180L, motionDurationScale))
+            delay(motionRuntime.duration(180L))
             shouldRenderMenu = false
         }
     }
@@ -10206,6 +10218,7 @@ private fun TopBarContextMenuOverlay(
     onOpenChangelog: () -> Unit,
     onOpenAbout: () -> Unit,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     val language = LocalAppLanguage.current
     val settingsCopy = remember(language) { settingsCopy(language) }
     BackHandler(enabled = expanded, onBack = onDismiss)
@@ -10215,8 +10228,8 @@ private fun TopBarContextMenuOverlay(
         ElovaireAnimatedVisibility(
             visible = expanded,
             modifier = Modifier.fillMaxSize(),
-            enter = ElovaireMotion.overlayFadeEnter(initialAlpha = 0.86f),
-            exit = ElovaireMotion.overlayFadeExit(),
+            enter = motionTransitions.overlayFadeEnter(initialAlpha = 0.86f),
+            exit = motionTransitions.overlayFadeExit(),
             label = "TopBarContextMenuScrim",
         ) {
             Box(
@@ -10235,8 +10248,8 @@ private fun TopBarContextMenuOverlay(
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
                 .padding(top = 6.dp, end = 10.dp),
-            enter = ElovaireMotion.contextMenuEnter(),
-            exit = ElovaireMotion.contextMenuExit(),
+            enter = motionTransitions.contextMenuEnter(),
+            exit = motionTransitions.contextMenuExit(),
             label = "TopBarContextMenuVisibility",
         ) {
             FrostedContextMenuSurface(
@@ -10338,6 +10351,8 @@ private fun LyricsOverlay(
     onSaveLyrics: (String) -> Unit,
     onClearLyricsEditorError: () -> Unit,
 ) {
+    val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     val language = LocalAppLanguage.current
     val copy = remember(language) { rootUiCopy(language) }
     val focusManager = LocalFocusManager.current
@@ -10358,16 +10373,16 @@ private fun LyricsOverlay(
     }
     val backgroundReveal by animateFloatAsState(
         targetValue = if (overlayEntered) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = ElovaireMotion.ScreenExpand,
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.ScreenExpand,
             easing = FastOutSlowInEasing,
         ),
         label = "lyrics_background_reveal",
     )
     val headerReveal by animateFloatAsState(
         targetValue = if (overlayEntered) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = ElovaireMotion.Standard,
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Standard,
             delayMillis = 30,
             easing = LinearOutSlowInEasing,
         ),
@@ -10375,8 +10390,8 @@ private fun LyricsOverlay(
     )
     val dividerReveal by animateFloatAsState(
         targetValue = if (overlayEntered) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = ElovaireMotion.Standard,
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Standard,
             delayMillis = 65,
             easing = LinearOutSlowInEasing,
         ),
@@ -10384,8 +10399,8 @@ private fun LyricsOverlay(
     )
     val contentReveal by animateFloatAsState(
         targetValue = if (overlayEntered) 1f else 0f,
-        animationSpec = tween(
-            durationMillis = ElovaireMotion.Screen,
+        animationSpec = motionSpecs.tween(
+            durationMillis = MotionDuration.Screen,
             delayMillis = 95,
             easing = FastOutSlowInEasing,
         ),
@@ -10529,8 +10544,8 @@ private fun LyricsOverlay(
                     }
                     ElovaireAnimatedVisibility(
                         visible = isEditingLyrics || lyricsUiState is LyricsUiState.Ready,
-                        enter = ElovaireMotion.contextMenuEnter(),
-                        exit = ElovaireMotion.contextMenuExit(),
+                        enter = motionTransitions.contextMenuEnter(),
+                        exit = motionTransitions.contextMenuExit(),
                         label = "lyrics_edit_action_visibility",
                     ) {
                         LyricsEditorActionButton(
@@ -10587,16 +10602,16 @@ private fun LyricsOverlay(
                     AnimatedContent(
                         targetState = isEditingLyrics,
                         transitionSpec = {
-                            fadeIn(animationSpec = tween(ElovaireMotion.Standard, easing = LinearOutSlowInEasing)) +
+                            fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = LinearOutSlowInEasing)) +
                                 slideInVertically(
-                                    animationSpec = tween(ElovaireMotion.ScreenExpand, easing = FastOutSlowInEasing),
+                                    animationSpec = motionSpecs.tween(MotionDuration.ScreenExpand, easing = FastOutSlowInEasing),
                                     initialOffsetY = { it / 12 },
                                 ) +
                                 expandVertically(
                                     expandFrom = Alignment.Top,
-                                    animationSpec = tween(ElovaireMotion.ScreenExpand, easing = FastOutSlowInEasing),
+                                    animationSpec = motionSpecs.tween(MotionDuration.ScreenExpand, easing = FastOutSlowInEasing),
                                 ) togetherWith
-                                fadeOut(animationSpec = tween(ElovaireMotion.Quick, easing = FastOutLinearInEasing))
+                                fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick, easing = FastOutLinearInEasing))
                         },
                         contentKey = { it },
                         label = "lyrics_editor_state",
@@ -10723,8 +10738,8 @@ private fun LyricsOverlay(
             }
             ElovaireAnimatedVisibility(
                 visible = !isEditingLyrics,
-                enter = ElovaireMotion.standardEnter(),
-                exit = ElovaireMotion.standardExit(),
+                enter = motionTransitions.standardEnter(),
+                exit = motionTransitions.standardExit(),
                 label = "hide_lyrics_action_visibility",
             ) {
                 Box(modifier = Modifier.matchParentSize()) {
@@ -10890,6 +10905,7 @@ private fun LyricsReadyContent(
     onSeekTo: (Long) -> Unit,
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val resolvedActiveLyricLineIndex = remember(
         payload,
         activeLyricLineIndex,
@@ -10952,7 +10968,7 @@ private fun LyricsReadyContent(
             val isActive = payload.isSynced && index == resolvedActiveLyricLineIndex
             val lineFontSize by animateFloatAsState(
                 targetValue = if (isActive) 24f else 22f,
-                animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                 label = "lyrics_line_font_$index",
             )
             val lineColor by animateColorAsState(
@@ -10960,7 +10976,7 @@ private fun LyricsReadyContent(
                     isActive -> contentColor.copy(alpha = 1f)
                     else -> contentColor.copy(alpha = 0.7f)
                 },
-                animationSpec = tween(ElovaireMotion.Standard, easing = FastOutSlowInEasing),
+                animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                 label = "lyrics_line_color_$index",
             )
             Text(
@@ -11013,10 +11029,11 @@ private fun PlayerSecondaryActionButton(
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     var transientHighlight by remember { mutableStateOf(false) }
-    val motionDurationScale = rememberSystemAnimationScale()
+    val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
     val backgroundAlpha by animateFloatAsState(
         targetValue = if (showBackground || transientHighlight) 0.2f else 0f,
-        animationSpec = tween(ElovaireMotion.Standard),
+        animationSpec = motionSpecs.tween(MotionDuration.Standard),
         label = "${label}_button_alpha",
     )
     val buttonScale by animateFloatAsState(
@@ -11025,7 +11042,7 @@ private fun PlayerSecondaryActionButton(
             showBackground -> 1f
             else -> 0.96f
         },
-        animationSpec = spring(
+        animationSpec = motionSpecs.spring(
             dampingRatio = 0.72f,
             stiffness = 340f,
         ),
@@ -11070,7 +11087,7 @@ private fun PlayerSecondaryActionButton(
     }
     LaunchedEffect(transientHighlight) {
         if (transientHighlight) {
-            delay(ElovaireMotion.scaleDurationMillis(220L, motionDurationScale))
+            delay(motionRuntime.duration(220L))
             transientHighlight = false
         }
     }
@@ -11157,9 +11174,10 @@ private fun VolumeControlBar(
     onVolumeChanged: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val animatedVolume by animateFloatAsState(
         targetValue = volume.coerceIn(0f, 1f),
-        animationSpec = spring(
+        animationSpec = motionSpecs.spring(
             dampingRatio = 0.8f,
             stiffness = 360f,
         ),
@@ -11412,6 +11430,7 @@ private fun BoxScope.FastScrollbarTrack(
 ) {
     if (totalItems <= visibleItemsCount) return
 
+    val motionSpecs = rememberMotionSpecs()
     val scope = rememberCoroutineScope()
     var isDragging by remember { mutableStateOf(false) }
     var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
@@ -11427,14 +11446,10 @@ private fun BoxScope.FastScrollbarTrack(
     } else {
         InkText.copy(alpha = 0.72f)
     }
-    val motionDurationScale = rememberSystemAnimationScale()
     val animatedScrollFraction by animateFloatAsState(
         targetValue = if (isDragging) dragFraction.coerceIn(0f, 1f) else scrollFraction.coerceIn(0f, 1f),
-        animationSpec = tween(
-            durationMillis = ElovaireMotion.scaleDurationMillis(
-                durationMillis = if (isDragging) 50 else 90,
-                durationScale = motionDurationScale,
-            ).toInt(),
+        animationSpec = motionSpecs.tween(
+            durationMillis = if (isDragging) 50 else 90,
         ),
         label = "fast_scrollbar_fraction",
     )
@@ -12366,6 +12381,7 @@ private fun LanguagePickerOptionRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val highlightColor by animateColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -12410,13 +12426,13 @@ private fun LanguagePickerOptionRow(
                 )
                 androidx.compose.animation.AnimatedVisibility(
                     visible = selected,
-                    enter = fadeIn(animationSpec = tween(40)) + scaleIn(
+                    enter = fadeIn(animationSpec = motionSpecs.tween(40)) + scaleIn(
                         initialScale = 0.8f,
                         animationSpec = ElovaireMotion.releaseSpringSpec(),
                     ),
-                    exit = fadeOut(animationSpec = tween(20)) + scaleOut(
+                    exit = fadeOut(animationSpec = motionSpecs.tween(20)) + scaleOut(
                         targetScale = 0.8f,
-                        animationSpec = tween(20),
+                        animationSpec = motionSpecs.tween(20),
                     ),
                     label = "language_picker_check",
                 ) {
@@ -12599,6 +12615,7 @@ private fun TextSizeStepper(
     onPresetSelected: (TextSizePreset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val presets = TextSizePreset.entries
     val currentSelectedPreset by rememberUpdatedState(selectedPreset)
     val currentOnPresetSelected by rememberUpdatedState(onPresetSelected)
@@ -12653,9 +12670,9 @@ private fun TextSizeStepper(
                     ((if (isDragging) dragCenterPx else selectedCenterPx) - (knobSizePx / 2f)).toDp()
                 },
                 animationSpec = if (isDragging) {
-                    tween(durationMillis = 60)
+                    motionSpecs.tween(durationMillis = 60)
                 } else {
-                    spring(
+                    motionSpecs.spring(
                         dampingRatio = 0.82f,
                         stiffness = 480f,
                     )
@@ -12777,6 +12794,7 @@ private fun ReverbStepSlider(
     onValueChange: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val steps = remember { (0..500 step 50).toList() }
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val selectedValue = steps.minByOrNull { kotlin.math.abs(it - valueMs.coerceIn(0, 500)) } ?: 0
@@ -12827,9 +12845,9 @@ private fun ReverbStepSlider(
                 ((if (isDragging) dragCenterPx else selectedCenterPx) - (knobSizePx / 2f)).toDp()
             },
             animationSpec = if (isDragging) {
-                tween(durationMillis = 60)
+                motionSpecs.tween(durationMillis = 60)
             } else {
-                spring(
+                motionSpecs.spring(
                     dampingRatio = 0.82f,
                     stiffness = 480f,
                 )
@@ -13013,6 +13031,7 @@ private fun MonoPlaybackToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val knobColor = if (checked) {
         Color.White
     } else if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
@@ -13026,12 +13045,12 @@ private fun MonoPlaybackToggle(
         } else {
             MaterialTheme.colorScheme.onSurface.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 0.16f else 0.2f)
         },
-        animationSpec = tween(60),
+        animationSpec = motionSpecs.tween(60),
         label = "mono_toggle_track",
     )
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 18.dp else 2.dp,
-        animationSpec = spring(dampingRatio = 0.82f, stiffness = 420f),
+        animationSpec = motionSpecs.spring(dampingRatio = 0.82f, stiffness = 420f),
         label = "mono_toggle_thumb_offset",
     )
     Surface(
@@ -13062,6 +13081,7 @@ private fun ThemeModeSegmentedPicker(
     onModeSelected: (ThemeMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
     val options = listOf(ThemeMode.Light, ThemeMode.Dark, ThemeMode.System)
@@ -13083,7 +13103,7 @@ private fun ThemeModeSegmentedPicker(
         val segmentWidth = maxWidth / options.size
         val indicatorOffset by animateDpAsState(
             targetValue = segmentWidth * selectedIndex,
-            animationSpec = spring(
+            animationSpec = motionSpecs.spring(
                 dampingRatio = 0.82f,
                 stiffness = 420f,
             ),
@@ -13165,13 +13185,14 @@ private fun DigitalSoundKnob(
     modifier: Modifier = Modifier,
     onValueChange: (Float) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     var dragValue by remember(value) { mutableFloatStateOf(value.coerceIn(0f, 1f)) }
     LaunchedEffect(value) {
         dragValue = value.coerceIn(0f, 1f)
     }
     val animatedValue by animateFloatAsState(
         targetValue = dragValue,
-        animationSpec = tween(ElovaireMotion.Standard),
+        animationSpec = motionSpecs.tween(MotionDuration.Standard),
         label = "${title}_sound_knob",
     )
     val glowColor = Color(0xFF61F6A2)
@@ -13403,6 +13424,7 @@ private fun EqToneKnob(
     modifier: Modifier = Modifier,
     onValueChange: (Float) -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val safeRange = remember(valueRange) {
         if (valueRange.endInclusive > valueRange.start) valueRange else 0f..1f
     }
@@ -13416,7 +13438,7 @@ private fun EqToneKnob(
     }
     val animatedFraction by animateFloatAsState(
         targetValue = dragFraction,
-        animationSpec = tween(ElovaireMotion.Standard),
+        animationSpec = motionSpecs.tween(MotionDuration.Standard),
         label = "${title}_eq_tone_knob",
     )
     val tickIdleColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f)
@@ -13885,13 +13907,14 @@ private fun EqResponseGraph(
     onBandChanged: (Int, Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val eqGraphConfig = remember { EqualizerDspConfig() }
     val graphPointCount = EqualizerDspModel.BAND_COUNT
     val animatedBandValues = List(graphPointCount) { index ->
         val target = settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
         val animated by animateFloatAsState(
             targetValue = target,
-            animationSpec = tween(120, easing = FastOutSlowInEasing),
+            animationSpec = motionSpecs.tween(120, easing = FastOutSlowInEasing),
             label = "eq_band_$index",
         )
         animated
@@ -14054,13 +14077,14 @@ private fun EqMiniResponseGraph(
     settings: EqSettings,
     modifier: Modifier = Modifier,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val eqGraphConfig = remember { EqualizerDspConfig() }
     val graphPointCount = EqualizerDspModel.BAND_COUNT
     val animatedBandValues = List(graphPointCount) { index ->
         val target = settings.bands.getOrElse(index) { 0f }.coerceIn(-1f, 1f)
         val animated by animateFloatAsState(
             targetValue = target,
-            animationSpec = tween(160, easing = FastOutSlowInEasing),
+            animationSpec = motionSpecs.tween(160, easing = FastOutSlowInEasing),
             label = "eq_mini_band_$index",
         )
         animated
@@ -14319,6 +14343,7 @@ private fun ThinContinuousSlider(
     knobSize: Dp = 20.dp,
     modifier: Modifier = Modifier,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val coercedValue = value.coerceIn(valueRange.start, valueRange.endInclusive)
     val fraction = ((coercedValue - valueRange.start) / (valueRange.endInclusive - valueRange.start))
@@ -14349,12 +14374,12 @@ private fun ThinContinuousSlider(
         val trackWidth = with(density) { trackWidthPx.toDp() }
         val activeWidth by animateDpAsState(
             targetValue = trackWidth * fraction,
-            animationSpec = tween(durationMillis = 70),
+            animationSpec = motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_fill",
         )
         val knobOffset by animateDpAsState(
             targetValue = with(density) { (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp() },
-            animationSpec = tween(durationMillis = 70),
+            animationSpec = motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_knob",
         )
 

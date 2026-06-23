@@ -4,8 +4,10 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -13,12 +15,187 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
 
 @Stable
 class MotionTransitions internal constructor(
     private val specs: MotionSpecs,
 ) {
+    fun overlayFadeEnter(initialAlpha: Float = 0.78f): EnterTransition = fadeIn(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Standard,
+            easing = MotionEasing.FadeIn,
+        ),
+        initialAlpha = initialAlpha,
+    )
+
+    fun overlayFadeExit(targetAlpha: Float = 0.92f): ExitTransition = fadeOut(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.FadeOut,
+        ),
+        targetAlpha = targetAlpha,
+    )
+
+    fun bottomSheetEnter(): EnterTransition = overlayFadeEnter(initialAlpha = 0.74f) +
+        slideInVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Emphasized,
+                easing = MotionEasing.RefinedDecelerate,
+            ),
+            initialOffsetY = { it / 5 },
+        ) +
+        expandVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Emphasized,
+                easing = MotionEasing.RefinedDecelerate,
+            ),
+            expandFrom = Alignment.Bottom,
+        )
+
+    fun bottomSheetExit(): ExitTransition = overlayFadeExit(targetAlpha = 0.9f) +
+        slideOutVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Fast,
+                easing = MotionEasing.RefinedAccelerate,
+            ),
+            targetOffsetY = { it / 8 },
+        ) +
+        shrinkVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Fast,
+                easing = MotionEasing.RefinedAccelerate,
+            ),
+            shrinkTowards = Alignment.Bottom,
+        )
+
+    fun bannerEnter(): EnterTransition = overlayFadeEnter(initialAlpha = 0.82f) +
+        slideInVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Screen,
+                easing = MotionEasing.RefinedDecelerate,
+            ),
+            initialOffsetY = { -(it / 2) },
+        )
+
+    fun bannerExit(): ExitTransition = overlayFadeExit(targetAlpha = 0.94f) +
+        slideOutVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Standard,
+                easing = MotionEasing.RefinedAccelerate,
+            ),
+            targetOffsetY = { -(it / 3) },
+        )
+
+    fun bottomBarEnter(): EnterTransition = overlayFadeEnter(initialAlpha = 0.82f) +
+        slideInVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Standard,
+                easing = MotionEasing.RefinedDecelerate,
+            ),
+            initialOffsetY = { it / 2 },
+        )
+
+    fun bottomBarExit(): ExitTransition = overlayFadeExit(targetAlpha = 0.94f) +
+        slideOutVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Quick,
+                easing = MotionEasing.RefinedAccelerate,
+            ),
+            targetOffsetY = { it / 2 },
+        )
+
+    fun verticalRevealEnter(): EnterTransition = fadeIn(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.FadeIn,
+        ),
+    ) + expandVertically(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Standard,
+            easing = MotionEasing.RefinedDecelerate,
+        ),
+    )
+
+    fun verticalRevealExit(): ExitTransition = fadeOut(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Quick,
+            easing = MotionEasing.FadeOut,
+        ),
+    ) + shrinkVertically(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Component,
+            easing = MotionEasing.RefinedAccelerate,
+        ),
+    )
+
+    fun contextMenuEnter(
+        origin: TransformOrigin = TransformOrigin(1f, 0f),
+    ): EnterTransition = fadeIn(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Component,
+            easing = MotionEasing.FadeIn,
+        ),
+        initialAlpha = 0.72f,
+    ) + scaleIn(
+        initialScale = 0.96f,
+        transformOrigin = origin,
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Standard,
+            easing = MotionEasing.RefinedDecelerate,
+        ),
+    ) + slideInVertically(
+        initialOffsetY = { -it / 6 },
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Standard,
+            easing = MotionEasing.RefinedDecelerate,
+        ),
+    )
+
+    fun contextMenuExit(
+        origin: TransformOrigin = TransformOrigin(1f, 0f),
+    ): ExitTransition = fadeOut(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.FadeOut,
+        ),
+        targetAlpha = 0.92f,
+    ) + scaleOut(
+        targetScale = 0.985f,
+        transformOrigin = origin,
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.RefinedAccelerate,
+        ),
+    )
+
+    fun standardEnter(): EnterTransition = fadeIn(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.ScreenFade,
+            easing = MotionEasing.FadeIn,
+        ),
+    ) + slideInVertically(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.ScreenSlide,
+            easing = MotionEasing.SoftOut,
+        ),
+        initialOffsetY = { it / 8 },
+    )
+
+    fun standardExit(): ExitTransition = fadeOut(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Quick,
+            easing = MotionEasing.FadeOut,
+        ),
+    ) + slideOutVertically(
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.SoftOut,
+        ),
+        targetOffsetY = { it / 10 },
+    )
+
     fun playerOverlayEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(
             durationMillis = MotionDuration.Screen,

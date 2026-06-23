@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.motion
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -17,7 +18,7 @@ class MotionSpecs internal constructor(
         durationMillis: Int = MotionDuration.Standard,
         delayMillis: Int = 0,
         easing: Easing = MotionEasing.SoftOut,
-    ): FiniteAnimationSpec<T> = tween(
+    ): TweenSpec<T> = tween(
         durationMillis = runtime.duration(durationMillis),
         delayMillis = runtime.delay(delayMillis),
         easing = easing,

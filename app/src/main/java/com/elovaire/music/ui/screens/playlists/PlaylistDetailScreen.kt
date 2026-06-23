@@ -5,8 +5,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -79,6 +77,8 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -103,6 +103,7 @@ internal fun PlaylistDetailScreen(
     onToggleFavorite: (Long) -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
+    val motionTransitions = rememberMotionTransitions()
     val songsById = remember(librarySongs) { librarySongs.associateBy { it.id } }
     val detailState = remember(playlist, songsById) {
         buildPlaylistDetailState(playlist, songsById)
@@ -485,8 +486,8 @@ internal fun PlaylistDetailScreen(
                     .fillMaxWidth()
                     .align(Alignment.TopCenter)
                     .zIndex(3f),
-                enter = ElovaireMotion.verticalRevealEnter(),
-                exit = ElovaireMotion.verticalRevealExit(),
+                enter = motionTransitions.verticalRevealEnter(),
+                exit = motionTransitions.verticalRevealExit(),
             ) {
                 TopBarDualActionMenu(
                     topBarHeight = detailTopPadding,
@@ -558,6 +559,7 @@ internal fun PlaylistSongRow(
     showOverflowMenu: Boolean = false,
     showDivider: Boolean,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val density = androidx.compose.ui.platform.LocalDensity.current
     val reorderStepPx = remember(density) { with(density) { 18.dp.toPx() } }
     var reorderDragAccumulator by remember(song.id, editMode) { mutableFloatStateOf(0f) }
@@ -580,7 +582,7 @@ internal fun PlaylistSongRow(
     val rowScale by animateFloatAsState(
         targetValue = if (isDragged) 1.018f else 1f,
         animationSpec = if (isDragged) {
-            spring(
+            motionSpecs.spring(
                 dampingRatio = 0.5f,
                 stiffness = 210f,
             )
@@ -591,7 +593,7 @@ internal fun PlaylistSongRow(
     )
     val rowTranslationY by animateFloatAsState(
         targetValue = if (isDragged) visualDragOffsetY else 0f,
-        animationSpec = spring(
+        animationSpec = motionSpecs.spring(
             dampingRatio = 0.42f,
             stiffness = 250f,
         ),
@@ -702,8 +704,8 @@ internal fun PlaylistSongRow(
                 )
                 androidx.compose.animation.AnimatedVisibility(
                     visible = isCurrentSong && isPlaybackActive,
-                    enter = fadeIn(animationSpec = tween(60)),
-                    exit = fadeOut(animationSpec = tween(60)),
+                    enter = fadeIn(animationSpec = motionSpecs.tween(60)),
+                    exit = fadeOut(animationSpec = motionSpecs.tween(60)),
                 ) {
                     PlaybackActiveArtworkOverlay(
                         uri = song.artUri,

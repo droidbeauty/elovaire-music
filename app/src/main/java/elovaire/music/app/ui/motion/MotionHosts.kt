@@ -63,8 +63,8 @@ fun PlayerOverlayMotionHost(
 fun ElovaireAnimatedVisibility(
     visible: Boolean,
     modifier: Modifier = Modifier,
-    enter: EnterTransition = ElovaireMotion.standardEnter(),
-    exit: ExitTransition = ElovaireMotion.standardExit(),
+    enter: EnterTransition,
+    exit: ExitTransition,
     label: String,
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
