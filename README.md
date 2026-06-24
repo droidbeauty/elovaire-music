@@ -27,7 +27,7 @@
 </p>
 
 <p align="center">
-  <b>Your local music library, present like art that it is</b>
+  <b>Your local music library, presented like art that it is</b>
 </p>
 
 <p align="center">
@@ -42,7 +42,9 @@ Elovaire turns listening to music into elegant experience - as it should be
 
 It gives your albums, artists and favorite songs an organized place. Intuitive UI feels calm, delivering classy visuals. Artwork is treated as essential part of the experience, the now-playing screen feels spacious so you can listen without interruptions. No ads, no random notifications. Your music under your control
 
-Efficient architecture supports all features across devices running Android 10 through 17. Browse by songs, albums, artists, genres and playlists. Instantly search even through large collection of music, open lyrics when you feel like a superstar, and shape playback with built-in audio controls
+Browse by songs, albums, artists, genres and playlists. Instantly search even through large collection of music, open lyrics when you feel like a superstar, and shape playback with built-in audio controls
+
+#### Efficient architecture supports all features across devices running Android 10 through 17
 
 ## Highlights
 
@@ -77,7 +79,6 @@ Efficient architecture supports all features across devices running Android 10 t
 - Fast search with recent history and expandable song results
 - Favorites, play counts and recent playback awareness
 - Folder-aware library scanning with auto refresh handling
-- Support for common local audio containers and codecs through Android Media3 and platform decoders, including MP3, AAC/M4A, FLAC, WAV, Ogg, Opus, AMR, 3GP, MP4 and MKA, with some additional formats depending on device decoder support
 
 ### Playback
 
@@ -86,12 +87,22 @@ Efficient architecture supports all features across devices running Android 10 t
 - Playback recovery handling for unexpected idle/player states
 - USB DAC and direct-output awareness for cleaner output paths where supported by the device
 
-### Lyrics
+Supported audio format handling is based on Android Media3/ExoPlayer, Android platform decoders and Elovaire's own container validation. Bit depth applies to lossless or PCM sources; lossy codecs do not expose a meaningful playback bit depth. Bitrate support is stream and device dependent unless the codec defines a fixed mode range.
 
-- Support for manually added lyrics - stored in song metadata
-- Local embedded lyrics and sidecar lyric-file lookup
-- Online lookup fallbacks when local lyrics are unavailable
-- Lyrics overlay designed to stay close to the listening experience without taking over the app
+| Format | Extensions | Supported codec/container handling | Bit depth support | Bitrate support |
+| --- | --- | --- | --- | --- |
+| MP3 | `.mp3` | MPEG audio playback through platform decoder support | Not applicable for lossy MP3 | CBR/VBR MP3 streams, commonly up to 320 kbps |
+| AAC / ADTS | `.aac` | Raw AAC/ADTS audio where supported by the device | Not applicable for lossy AAC | Codec/profile dependent AAC bitrates |
+| MP4 audio | `.m4a`, `.mp4`, `.m4b` | Audio-only MP4-family containers, including AAC and supported ALAC where the device decoder is available | AAC: not applicable; ALAC: source lossless bit depth where supported by the device | AAC lossy bitrate or ALAC lossless stream bitrate, metadata/device dependent |
+| FLAC | `.flac` | Native FLAC playback | Lossless source bit depth, typically 16-bit or 24-bit when accepted by the platform decoder | Lossless stream bitrate, metadata dependent |
+| WAV | `.wav` | WAV/PCM-style audio accepted by the platform decoder | PCM source bit depth where supported by the device | Uncompressed PCM rate based on sample rate, bit depth and channels |
+| Ogg Vorbis | `.ogg`, `.oga` | Ogg container with Vorbis audio | Not applicable for lossy Vorbis | Vorbis CBR/VBR stream bitrate |
+| Ogg Opus | `.ogg`, `.oga` | Ogg container with Opus audio | Not applicable for lossy Opus | Opus stream bitrate, codec/device dependent |
+| Ogg FLAC | `.ogg`, `.oga` | Ogg container with FLAC audio where validated and supported | Lossless source bit depth where supported by the device | Lossless stream bitrate, metadata dependent |
+| Opus | `.opus` | Standalone Opus audio where supported by the platform decoder | Not applicable for lossy Opus | Opus stream bitrate, codec/device dependent |
+| AMR | `.amr` | AMR audio for supported voice recordings | Not applicable for AMR speech codec | AMR-NB/WB fixed mode bitrates, device dependent |
+| 3GP audio | `.3gp` | Audio-only 3GP containers; video-containing files are excluded | Codec dependent; usually not applicable for AMR/AAC | Contained audio codec bitrate, metadata/device dependent |
+| Matroska audio | `.mka` | Audio-only Matroska containers; video-containing files are excluded | Codec dependent, for example FLAC source bit depth when supported | Contained audio codec bitrate, metadata/device dependent |
 
 ### Audio controls
 
