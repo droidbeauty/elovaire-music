@@ -23,6 +23,7 @@ class PlaybackKeepAliveService : Service() {
     ): Int {
         when (intent?.action) {
             ACTION_START -> {
+                removeForegroundNotificationOnDestroy = true
                 val notification = intent.getParcelableExtraCompat<Notification>(EXTRA_NOTIFICATION)
                 val notificationId = intent.getIntExtra(
                     EXTRA_NOTIFICATION_ID,
@@ -53,6 +54,14 @@ class PlaybackKeepAliveService : Service() {
             }
 
             ACTION_STOP -> {
+                removeForegroundNotificationOnDestroy = true
+                stopSelf()
+            }
+
+            ACTION_DEMOTE -> {
+                removeForegroundNotificationOnDestroy = false
+                stopForegroundKeepingNotification()
+                clearRunningState()
                 stopSelf()
             }
         }
@@ -63,13 +72,25 @@ class PlaybackKeepAliveService : Service() {
 
     override fun onDestroy() {
         clearRunningState()
-        stopForeground(STOP_FOREGROUND_REMOVE)
+        if (removeForegroundNotificationOnDestroy) {
+            stopForeground(STOP_FOREGROUND_REMOVE)
+        }
         super.onDestroy()
+    }
+
+    private fun stopForegroundKeepingNotification() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            stopForeground(STOP_FOREGROUND_DETACH)
+        } else {
+            @Suppress("DEPRECATION")
+            stopForeground(false)
+        }
     }
 
     companion object {
         private const val ACTION_START = "elovaire.music.droidbeauty.app.action.PLAYBACK_SERVICE_START"
         private const val ACTION_STOP = "elovaire.music.droidbeauty.app.action.PLAYBACK_SERVICE_STOP"
+        private const val ACTION_DEMOTE = "elovaire.music.droidbeauty.app.action.PLAYBACK_SERVICE_DEMOTE"
         private const val EXTRA_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.PLAYBACK_NOTIFICATION"
         private const val EXTRA_NOTIFICATION_ID = "elovaire.music.droidbeauty.app.extra.PLAYBACK_NOTIFICATION_ID"
 
@@ -92,12 +113,27 @@ class PlaybackKeepAliveService : Service() {
         }
 
         fun stop(context: Context) {
+            removeForegroundNotificationOnDestroy = true
             clearRunningState()
             context.stopService(Intent(context, PlaybackKeepAliveService::class.java))
         }
 
+        fun demote(context: Context) {
+            if (runningNotificationId == null) return
+            val intent = Intent(context, PlaybackKeepAliveService::class.java).apply {
+                action = ACTION_DEMOTE
+            }
+            runCatching {
+                context.startService(intent)
+            }.onFailure { throwable ->
+                logStartFailure("Unable to demote playback foreground service", throwable)
+            }
+        }
+
         @Volatile
         private var runningNotificationId: Int? = null
+        @Volatile
+        private var removeForegroundNotificationOnDestroy = true
 
         private fun isRunningFor(notificationId: Int): Boolean {
             return runningNotificationId == notificationId

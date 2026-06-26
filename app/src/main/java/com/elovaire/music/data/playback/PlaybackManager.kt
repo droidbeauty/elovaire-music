@@ -1340,8 +1340,7 @@ class PlaybackManager(
                 if (
                     _state.value.queue.isEmpty() ||
                     isManualPausePending ||
-                    player.isPlaying ||
-                    player.playWhenReady
+                    player.isPlaying
                 ) {
                     clearInterruptionResumeState()
                     break

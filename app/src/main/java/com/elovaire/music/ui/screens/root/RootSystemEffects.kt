@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import android.Manifest
 import android.app.Activity
-import android.content.Context
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -23,18 +22,15 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.core.hasNotificationPostingPermission
-import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
-import elovaire.music.droidbeauty.app.data.library.LibraryDeleteRequest
+import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
+import elovaire.music.droidbeauty.app.data.library.DeviceDeletePlan
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.mediaStoreDeleteRequest
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
-import java.io.File
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 internal data class RootPermissionState(
     val hasAudioPermission: Boolean,
@@ -203,30 +199,6 @@ internal fun rememberRootPermissionController(
     }
 }
 
-internal fun querySongFilePaths(
-    context: Context,
-    songs: List<Song>,
-): Set<String> {
-    val contentResolver = context.contentResolver
-    return songs.asSequence()
-        .mapNotNull { song -> contentResolver.queryMediaStoreFilePath(context, song.uri) }
-        .toSet()
-}
-
-internal fun cleanupEmptyDirectories(paths: Set<String>) {
-    paths.asSequence()
-        .map(::File)
-        .filter { file -> file.exists() && file.isDirectory }
-        .sortedByDescending { file -> file.absolutePath.length }
-        .forEach { directory ->
-            runCatching {
-                if (directory.listFiles().isNullOrEmpty()) {
-                    directory.delete()
-                }
-            }
-        }
-}
-
 internal class RootDeleteController internal constructor(
     private val deleteSongsAction: (List<Song>) -> Unit,
     private val deleteAlbumAction: (Album) -> Unit,
@@ -242,28 +214,16 @@ internal fun rememberRootDeleteController(
 ): RootDeleteController {
     val context = LocalContext.current
     val rootScope = androidx.compose.runtime.rememberCoroutineScope()
-    var pendingSongDeletion by remember { mutableStateOf<PendingSongDeletion?>(null) }
-
-    suspend fun completeSongDeletion(
-        songs: List<Song>,
-        parentDirectories: Set<String>,
-        filePaths: Set<String>,
-    ) {
-        invalidateArtworkCaches(songs.flatMap { listOf(it.artUri, it.uri) })
-        val deleteResult = container.libraryRepository.refreshAfterDelete(
-            LibraryDeleteRequest(
-                songIds = songs.mapTo(linkedSetOf(), Song::id),
-                albumIds = songs.mapTo(linkedSetOf(), Song::albumId),
-                uris = songs.mapTo(linkedSetOf(), Song::uri),
-                filePaths = filePaths,
-            ),
+    val deleteCoordinator = remember(container, context) {
+        DeviceDeleteCoordinator(
+            context = context,
+            libraryRepository = container.libraryRepository,
+            playbackManager = container.playbackManager,
+            preferenceStore = container.preferenceStore,
+            invalidateArtwork = ::invalidateArtworkCaches,
         )
-        withContext(Dispatchers.IO) {
-            cleanupEmptyDirectories(parentDirectories)
-        }
-        container.playbackManager.removeSongsFromQueue(deleteResult.deletedSongIds)
-        deleteResult.deletedSongIds.forEach(container.preferenceStore::removeSongReferences)
     }
+    var pendingSongDeletion by remember { mutableStateOf<DeviceDeletePlan?>(null) }
 
     val deleteSongLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
@@ -272,58 +232,29 @@ internal fun rememberRootDeleteController(
         pendingSongDeletion = null
         if (result.resultCode == Activity.RESULT_OK) {
             rootScope.launch {
-                completeSongDeletion(
-                    songs = pendingDeletion.songs,
-                    parentDirectories = pendingDeletion.parentDirectories,
-                    filePaths = pendingDeletion.filePaths,
-                )
+                deleteCoordinator.completeDelete(pendingDeletion)
             }
         }
     }
 
     val deleteSongsCallback: (List<Song>) -> Unit = deleteSongsCallback@{ songs ->
-        val uniqueSongs = songs.distinctBy(Song::id)
-        if (uniqueSongs.isEmpty()) return@deleteSongsCallback
         rootScope.launch {
-            val (filePaths, parentDirectories) = withContext(Dispatchers.IO) {
-                val paths = querySongFilePaths(context, uniqueSongs)
-                paths to paths.mapNotNullTo(linkedSetOf()) { path ->
-                    File(path).parentFile?.absolutePath
-                }
-            }
+            val deletePlan = deleteCoordinator.prepareSongDeletePlan(songs) ?: return@launch
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                pendingSongDeletion = PendingSongDeletion(
-                    songs = uniqueSongs,
-                    parentDirectories = parentDirectories,
-                    filePaths = filePaths,
-                )
+                pendingSongDeletion = deletePlan
                 deleteSongLauncher.launch(
-                    mediaStoreDeleteRequest(context, uniqueSongs.map(Song::uri)),
+                    mediaStoreDeleteRequest(context, deletePlan.uris),
                 )
             } else {
-                runCatching {
-                    withContext(Dispatchers.IO) {
-                        uniqueSongs.forEach { song ->
-                            context.contentResolver.delete(song.uri, null, null)
-                        }
-                    }
-                }.onSuccess {
-                    completeSongDeletion(
-                        songs = uniqueSongs,
-                        parentDirectories = parentDirectories,
-                        filePaths = filePaths,
-                    )
+                deleteCoordinator.performLegacyDelete(deletePlan).onSuccess {
+                    deleteCoordinator.completeDelete(deletePlan)
                 }.onFailure { throwable ->
                     val intentSender = when (throwable) {
                         is android.app.RecoverableSecurityException -> throwable.userAction.actionIntent.intentSender
                         else -> null
                     }
                     if (intentSender != null) {
-                        pendingSongDeletion = PendingSongDeletion(
-                            songs = uniqueSongs,
-                            parentDirectories = parentDirectories,
-                            filePaths = filePaths,
-                        )
+                        pendingSongDeletion = deletePlan
                         deleteSongLauncher.launch(
                             IntentSenderRequest.Builder(intentSender).build(),
                         )

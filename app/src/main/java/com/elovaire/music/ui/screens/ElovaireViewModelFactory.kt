@@ -2,41 +2,41 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
-import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.ElovaireViewModelDependencies
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
 
 internal class ElovaireViewModelFactory(
-    private val appContainer: AppContainer,
+    private val dependencies: ElovaireViewModelDependencies,
 ) : ViewModelProvider.Factory {
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
                 SearchViewModel(
-                    libraryRepository = appContainer.libraryRepository,
-                    preferenceStore = appContainer.preferenceStore,
-                    playbackReader = appContainer.playbackManager,
+                    libraryRepository = dependencies.libraryRepository,
+                    preferenceStore = dependencies.preferenceStore,
+                    playbackReader = dependencies.playbackManager,
                 ) as T
             }
 
             modelClass.isAssignableFrom(NowPlayingViewModel::class.java) -> {
                 NowPlayingViewModel(
-                    playbackManager = appContainer.playbackManager,
-                    preferenceStore = appContainer.preferenceStore,
-                    lyricsService = appContainer.lyricsService,
+                    playbackManager = dependencies.playbackManager,
+                    preferenceStore = dependencies.preferenceStore,
+                    lyricsService = dependencies.lyricsService,
                 ) as T
             }
 
             modelClass.isAssignableFrom(EqualizerViewModel::class.java) -> {
                 EqualizerViewModel(
-                    preferenceStore = appContainer.preferenceStore,
+                    preferenceStore = dependencies.preferenceStore,
                 ) as T
             }
 
             modelClass.isAssignableFrom(AlbumTagEditorViewModel::class.java) -> {
                 AlbumTagEditorViewModel(
-                    libraryRepository = appContainer.libraryRepository,
-                    tagEditorService = appContainer.albumTagEditorService,
+                    libraryRepository = dependencies.libraryRepository,
+                    tagEditorService = dependencies.albumTagEditorService,
                 ) as T
             }
 

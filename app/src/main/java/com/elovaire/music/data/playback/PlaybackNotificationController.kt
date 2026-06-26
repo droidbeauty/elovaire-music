@@ -74,7 +74,7 @@ class PlaybackNotificationController(
                     if (ongoing && state.transportShowsPause && state.currentSong != null) {
                         PlaybackKeepAliveService.start(context, notificationId, notification)
                     } else {
-                        PlaybackKeepAliveService.stop(context)
+                        PlaybackKeepAliveService.demote(context)
                     }
                 }
 

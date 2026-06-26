@@ -24,12 +24,6 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 
-internal data class PendingSongDeletion(
-    val songs: List<Song>,
-    val parentDirectories: Set<String> = emptySet(),
-    val filePaths: Set<String> = emptySet(),
-)
-
 internal enum class PlayerLayerState {
     Compact,
     Expanded,

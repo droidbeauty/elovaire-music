@@ -390,7 +390,7 @@ fun ElovaireRoot(
     val albumCollectionLayoutMode = appState.albumCollectionLayoutModeName.toAlbumLayoutMode()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
     val rootScope = rememberCoroutineScope()
-    val viewModelFactory = remember(container) { ElovaireViewModelFactory(container) }
+    val viewModelFactory = remember(container) { ElovaireViewModelFactory(container.viewModelDependencies) }
     val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
     val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
     val libraryState = appState.library

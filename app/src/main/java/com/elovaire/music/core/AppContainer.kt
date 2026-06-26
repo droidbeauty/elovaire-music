@@ -3,15 +3,7 @@ package elovaire.music.droidbeauty.app.core
 import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
-import elovaire.music.droidbeauty.app.data.library.LibraryRepository
-import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
-import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
-import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
-import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -26,27 +18,25 @@ class AppContainer(
     private val appRuntimeScope = AppRuntimeScope()
     private val appScope = appRuntimeScope.scope
 
-    val preferenceStore = PreferenceStore(applicationContext)
-    val appUpdateManager = AppUpdateManager(
-        context = applicationContext,
-        scope = appScope,
-        preferenceStore = preferenceStore,
+    private val services = AppServices(
+        applicationContext = applicationContext,
+        appScope = appScope,
         appForegroundState = appForegroundTracker.isForeground,
     )
-    val lyricsService = LyricsService(applicationContext)
-    internal val albumTagEditorService = AlbumTagEditorService(applicationContext)
-    private val playbackEffectsController = PlaybackEffectsController()
-    val playbackManager = PlaybackManager(
-        context = applicationContext,
-        scope = appScope,
-        audioProcessorsProvider = playbackEffectsController::audioProcessors,
-        hasSignalAlteringEffects = playbackEffectsController::hasSignalAlteringEffects,
-        initialRecentSongIds = preferenceStore.recentSongIds.value,
-        initialRecentAlbumIds = preferenceStore.recentAlbumIds.value,
-        initialLastPlayedCollectionKind = preferenceStore.lastPlayedCollectionKind.value,
-        initialLastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
-        onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
-    )
+    private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)
+    val preferenceStore get() = services.preferenceStore
+    val appUpdateManager get() = services.appUpdateManager
+    val lyricsService get() = services.lyricsService
+    internal val albumTagEditorService get() = services.albumTagEditorService
+    val playbackManager get() = services.playbackManager
+    val libraryRepository get() = services.libraryRepository
+    internal val viewModelDependencies: ElovaireViewModelDependencies = object : ElovaireViewModelDependencies {
+        override val libraryRepository get() = services.libraryRepository
+        override val preferenceStore get() = services.preferenceStore
+        override val playbackManager get() = services.playbackManager
+        override val lyricsService get() = services.lyricsService
+        override val albumTagEditorService get() = services.albumTagEditorService
+    }
     private val notificationControllerHolder = NotificationControllerHolder {
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
         PlaybackNotificationController(
@@ -55,46 +45,12 @@ class AppContainer(
             scope = appScope,
         )
     }
-    val libraryRepository = LibraryRepository(
-        appContext = applicationContext,
-        scanner = MediaStoreScanner(applicationContext),
-        scope = appScope,
-        appForegroundState = appForegroundTracker.isForeground,
-    ).also { repository ->
-        repository.setPreferredLibraryFolderPath(preferenceStore.libraryFolderPath.value)
-    }
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
-    private val playbackSettingsBridge = PlaybackSettingsBridge(
-        scope = appScope,
-        preferenceStore = preferenceStore,
-        playbackManager = playbackManager,
-        playbackEffectsController = playbackEffectsController,
-    )
-    private val playbackHistoryBridge = PlaybackHistoryBridge(
-        scope = appScope,
-        preferenceStore = preferenceStore,
-        playbackManager = playbackManager,
-    )
-    private val libraryPlaybackBridge = LibraryPlaybackBridge(
-        scope = appScope,
-        libraryRepository = libraryRepository,
-        playbackManager = playbackManager,
-    )
-    private val librarySettingsBridge = LibrarySettingsBridge(
-        scope = appScope,
-        preferenceStore = preferenceStore,
-        libraryRepository = libraryRepository,
-    )
-    private val startupCoordinator = StartupCoordinator(appUpdateManager)
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
 
     init {
-        playbackSettingsBridge.start()
-        playbackHistoryBridge.start()
-        libraryPlaybackBridge.start()
-        librarySettingsBridge.start()
-        startupCoordinator.start()
+        bridgeCoordinator.start()
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
@@ -114,17 +70,13 @@ class AppContainer(
     }
 
     fun scheduleDeferredStartupWork() {
-        startupCoordinator.scheduleDeferredStartupWork()
+        bridgeCoordinator.scheduleDeferredStartupWork()
     }
 
     fun release() {
         openNowPlayingChannel.close()
         notificationControllerHolder.release()
-        appUpdateManager.release()
-        lyricsService.release()
-        libraryRepository.release()
-        playbackManager.release()
-        preferenceStore.release()
+        services.release()
         appRuntimeScope.close()
     }
 

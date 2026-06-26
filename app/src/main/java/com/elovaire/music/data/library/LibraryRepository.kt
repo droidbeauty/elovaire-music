@@ -79,14 +79,9 @@ class LibraryRepository(
     private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
     private var refreshDebounceJob: Job? = null
-    private var pendingRefresh = false
-    private var pendingIndexRefresh = false
-    private val pendingTargetedIndexRefreshPaths = linkedSetOf<String>()
-    private var pendingMetadataEnrichment = false
+    private val refreshRequests = LibraryRefreshRequests()
     private var backgroundLibraryDirty = false
-    private val pendingDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
-    private val pendingDeletedAlbumIds = MutableStateFlow<Set<Long>>(emptySet())
-    private val confirmedDeletedSongIds = MutableStateFlow<Set<Long>>(emptySet())
+    private val deletionMarkers = LibraryDeletionMarkers()
     private var didBootstrapLibrary = false
     val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
@@ -119,7 +114,7 @@ class LibraryRepository(
                 if (isForeground && backgroundLibraryDirty && _scanState.value.permissionGranted) {
                     backgroundLibraryDirty = false
                     refresh(
-                        forceMediaIndex = pendingIndexRefresh,
+                        forceMediaIndex = false,
                         enrichMetadata = false,
                         showLoadingIndicator = false,
                     )
@@ -164,8 +159,8 @@ class LibraryRepository(
                 val cachedContent = LibraryContentState(
                     songs = cachedSnapshot.snapshot.songs,
                     albums = cachedSnapshot.snapshot.albums,
-                    removingSongIds = pendingDeletedSongIds.value,
-                    removingAlbumIds = pendingDeletedAlbumIds.value,
+                    removingSongIds = deletionMarkers.pendingSongIds.value,
+                    removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
                 )
                 if (_contentState.value != cachedContent) {
                     _contentState.value = cachedContent
@@ -209,9 +204,10 @@ class LibraryRepository(
     ) {
         if (!_scanState.value.permissionGranted) return
         if (scanJob?.isActive == true) {
-            pendingRefresh = true
-            pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
-            pendingMetadataEnrichment = pendingMetadataEnrichment || enrichMetadata
+            refreshRequests.markPending(
+                forceMediaIndex = forceMediaIndex,
+                enrichMetadata = enrichMetadata,
+            )
             return
         }
 
@@ -223,23 +219,17 @@ class LibraryRepository(
             _scanState.update { it.copy(errorMessage = null) }
         }
         scanJob = scope.launch {
-            val shouldRefreshIndex = forceMediaIndex || pendingIndexRefresh
-            val targetedRefreshPaths = if (shouldRefreshIndex) {
-                emptyList()
-            } else {
-                pendingTargetedIndexRefreshPaths.toList()
-            }
-            val shouldEnrichMetadata = enrichMetadata || pendingMetadataEnrichment
+            val refreshRequest = refreshRequests.takeForScan(
+                forceMediaIndex = forceMediaIndex,
+                enrichMetadata = enrichMetadata,
+            )
             val progressThrottler = LibraryScanProgressThrottler()
-            pendingIndexRefresh = false
-            pendingTargetedIndexRefreshPaths.clear()
-            pendingMetadataEnrichment = false
             runCatching {
                 withContext(Dispatchers.IO) {
                     scanner.scan(
-                        refreshMediaIndex = shouldRefreshIndex,
-                        refreshMediaPaths = targetedRefreshPaths,
-                        enrichMetadata = shouldEnrichMetadata,
+                        refreshMediaIndex = refreshRequest.forceMediaIndex,
+                        refreshMediaPaths = refreshRequest.targetedPaths,
+                        enrichMetadata = refreshRequest.enrichMetadata,
                         onProgress = if (showLoadingIndicator) { current, total ->
                             val progress = if (total <= 0) 1f else (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
                             if (progressThrottler.shouldEmit(progress)) {
@@ -259,10 +249,10 @@ class LibraryRepository(
                 }
             }
                 .onSuccess { snapshot ->
-                    val suppressedSongIds = pendingDeletedSongIds.value + confirmedDeletedSongIds.value
+                    val suppressedSongIds = deletionMarkers.suppressingSongIds()
                     val visibleSongs = snapshot.songs.filterNot { it.id in suppressedSongIds }
                     val scannedSongIds = snapshot.songs.mapTo(hashSetOf(), Song::id)
-                    confirmedDeletedSongIds.update { tombstones -> tombstones.filterTo(linkedSetOf()) { it in scannedSongIds } }
+                    deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
                     val nextContentState = publishLibraryContent(visibleSongs)
                     val visibleSnapshot = snapshotPublisher.snapshotOf(nextContentState)
                     val nextScanState = LibraryScanState(
@@ -286,9 +276,8 @@ class LibraryRepository(
                             song.genre.isBlank() ||
                             song.genre == "Unknown Genre"
                     }
-                    if (!shouldEnrichMetadata && snapshotNeedsMetadata) {
-                        pendingRefresh = true
-                        pendingMetadataEnrichment = true
+                    if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
+                        refreshRequests.markPending(enrichMetadata = true)
                     }
                 }
                 .onFailure { throwable ->
@@ -300,18 +289,15 @@ class LibraryRepository(
                             errorMessage = throwable.message ?: "Unable to scan local music.",
                         )
                     }
-                }
+            }
 
             scanJob = null
-            if (pendingRefresh && _scanState.value.permissionGranted) {
-                val shouldRefreshIndexAgain = pendingIndexRefresh
-                val shouldEnrichMetadataAgain = pendingMetadataEnrichment
-                pendingRefresh = false
-                pendingIndexRefresh = false
-                pendingMetadataEnrichment = false
+            val pendingRequest = refreshRequests.takePendingAfterScan()
+            if (pendingRequest != null && _scanState.value.permissionGranted) {
+                refreshRequests.prepareImmediate(pendingRequest)
                 refresh(
-                    forceMediaIndex = shouldRefreshIndexAgain,
-                    enrichMetadata = shouldEnrichMetadataAgain,
+                    forceMediaIndex = pendingRequest.forceMediaIndex,
+                    enrichMetadata = pendingRequest.enrichMetadata,
                     showLoadingIndicator = false,
                 )
             }
@@ -345,10 +331,12 @@ class LibraryRepository(
         if (enrichMetadata) {
             scanner.invalidateMetadataCacheForPaths(normalizedPaths)
         }
-        pendingTargetedIndexRefreshPaths.addAll(normalizedPaths)
-        pendingMetadataEnrichment = pendingMetadataEnrichment || enrichMetadata
+        refreshRequests.addTargetedPaths(
+            paths = normalizedPaths,
+            enrichMetadata = enrichMetadata,
+        )
         if (scanJob?.isActive == true) {
-            pendingRefresh = true
+            refreshRequests.markPending(enrichMetadata = enrichMetadata)
             return
         }
         refreshDebounceJob?.cancel()
@@ -362,25 +350,25 @@ class LibraryRepository(
 
     fun markDeletingSongs(songIds: Collection<Long>) {
         if (songIds.isEmpty()) return
-        pendingDeletedSongIds.update { it + songIds }
+        deletionMarkers.markSongs(songIds)
         publishPendingDeletionState()
     }
 
     fun markDeletingAlbums(albumIds: Collection<Long>) {
         if (albumIds.isEmpty()) return
-        pendingDeletedAlbumIds.update { it + albumIds }
+        deletionMarkers.markAlbums(albumIds)
         publishPendingDeletionState()
     }
 
     fun clearPendingDeletedSongs(songIds: Collection<Long>) {
         if (songIds.isEmpty()) return
-        pendingDeletedSongIds.update { it - songIds.toSet() }
+        deletionMarkers.clearSongs(songIds)
         publishPendingDeletionState()
     }
 
     fun clearPendingDeletedAlbums(albumIds: Collection<Long>) {
         if (albumIds.isEmpty()) return
-        pendingDeletedAlbumIds.update { it - albumIds.toSet() }
+        deletionMarkers.clearAlbums(albumIds)
         publishPendingDeletionState()
     }
 
@@ -400,8 +388,7 @@ class LibraryRepository(
         observerController.setSuppressRefreshUntil(System.currentTimeMillis() + DELETE_OBSERVER_SUPPRESSION_MS)
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
-        pendingIndexRefresh = false
-        pendingTargetedIndexRefreshPaths.clear()
+        refreshRequests.clearIndexRefresh()
         scanner.invalidateMetadataCacheForSongIds(request.songIds)
         scanner.invalidateMetadataCacheForPaths(request.filePaths)
 
@@ -420,7 +407,7 @@ class LibraryRepository(
             scanner.findExistingSongIds(request.songIds)
         }
         val deletedSongIds = request.songIds - stillPresent
-        confirmedDeletedSongIds.update { it + deletedSongIds }
+        deletionMarkers.confirmDeletedSongs(deletedSongIds)
         clearPendingDeletedSongs(request.songIds)
         clearPendingDeletedAlbums(fullyDeletedAlbumIds)
         if (stillPresent.isNotEmpty()) {
@@ -451,8 +438,8 @@ class LibraryRepository(
     private fun publishPendingDeletionState() {
         _contentState.update { current ->
             current.copy(
-                removingSongIds = pendingDeletedSongIds.value,
-                removingAlbumIds = pendingDeletedAlbumIds.value,
+                removingSongIds = deletionMarkers.pendingSongIds.value,
+                removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
             )
         }
     }
@@ -498,10 +485,10 @@ class LibraryRepository(
         changedFilePath: String? = null,
     ) {
         if (!_scanState.value.permissionGranted) return
-        pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
-        if (!forceMediaIndex) {
-            changedFilePath?.let(pendingTargetedIndexRefreshPaths::add)
-        }
+        refreshRequests.markIndexRefresh(
+            forceMediaIndex = forceMediaIndex,
+            targetedPath = changedFilePath,
+        )
         if (!appForegroundState.value) {
             backgroundLibraryDirty = true
             return
@@ -511,7 +498,7 @@ class LibraryRepository(
             delay(AUTO_REFRESH_DEBOUNCE_MS)
             refreshDebounceJob = null
             refresh(
-                forceMediaIndex = pendingIndexRefresh,
+                forceMediaIndex = false,
                 enrichMetadata = false,
                 showLoadingIndicator = false,
             )
@@ -520,8 +507,8 @@ class LibraryRepository(
 
     private fun publishLibraryContent(
         songs: List<Song>,
-        removingSongIds: Set<Long> = pendingDeletedSongIds.value,
-        removingAlbumIds: Set<Long> = pendingDeletedAlbumIds.value,
+        removingSongIds: Set<Long> = deletionMarkers.pendingSongIds.value,
+        removingAlbumIds: Set<Long> = deletionMarkers.pendingAlbumIds.value,
     ): LibraryContentState {
         return snapshotPublisher.publishSongs(
             songs = songs,
@@ -542,14 +529,9 @@ class LibraryRepository(
         scanJob = null
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
-        pendingRefresh = false
-        pendingIndexRefresh = false
-        pendingTargetedIndexRefreshPaths.clear()
-        pendingMetadataEnrichment = false
+        refreshRequests.clear()
         backgroundLibraryDirty = false
-        pendingDeletedSongIds.value = emptySet()
-        pendingDeletedAlbumIds.value = emptySet()
-        confirmedDeletedSongIds.value = emptySet()
+        deletionMarkers.clear()
         _contentState.update { current ->
             current.copy(removingSongIds = emptySet(), removingAlbumIds = emptySet())
         }
