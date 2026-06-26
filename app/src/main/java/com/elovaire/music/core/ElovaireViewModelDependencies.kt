@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
+import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 
 internal interface ElovaireViewModelDependencies {
     val libraryRepository: LibraryRepository
@@ -12,4 +13,5 @@ internal interface ElovaireViewModelDependencies {
     val playbackManager: PlaybackManager
     val lyricsService: LyricsService
     val albumTagEditorService: AlbumTagEditorService
+    val appUpdateManager: AppUpdateManager
 }

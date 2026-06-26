@@ -11,6 +11,10 @@ internal class ElovaireViewModelFactory(
     @Suppress("UNCHECKED_CAST")
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
+            modelClass.isAssignableFrom(RootViewModel::class.java) -> {
+                RootViewModel(dependencies) as T
+            }
+
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
                 SearchViewModel(
                     libraryRepository = dependencies.libraryRepository,

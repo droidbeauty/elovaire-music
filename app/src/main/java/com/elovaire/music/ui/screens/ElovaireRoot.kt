@@ -369,7 +369,9 @@ fun ElovaireRoot(
     val navController = rememberNavController()
     val rootMotionTransitions = rememberMotionTransitions()
     val context = LocalContext.current
-    val appState = rememberRootAppState(container)
+    val viewModelFactory = remember(container) { ElovaireViewModelFactory(container.viewModelDependencies) }
+    val rootViewModel: RootViewModel = viewModel(factory = viewModelFactory)
+    val appState by rootViewModel.appState.collectAsStateWithLifecycle()
     val derivedState = rememberRootLibraryDerivedState(
         library = appState.library,
         playback = appState.playback,
@@ -390,7 +392,6 @@ fun ElovaireRoot(
     val albumCollectionLayoutMode = appState.albumCollectionLayoutModeName.toAlbumLayoutMode()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
     val rootScope = rememberCoroutineScope()
-    val viewModelFactory = remember(container) { ElovaireViewModelFactory(container.viewModelDependencies) }
     val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
     val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
     val libraryState = appState.library
@@ -1377,100 +1378,6 @@ internal fun ForceDarkColorScheme(
         shapes = MaterialTheme.shapes,
         content = content,
     )
-}
-
-@Composable
-private fun FrostedChrome(
-    modifier: Modifier = Modifier,
-    shape: RoundedCornerShape,
-    content: @Composable () -> Unit,
-) {
-    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val baseTint = if (darkTheme) {
-        MaterialTheme.colorScheme.surface.copy(alpha = 0.78f)
-    } else {
-        Color.White.copy(alpha = 0.82f)
-    }
-    val softTint = if (darkTheme) {
-        Color.White.copy(alpha = 0.06f)
-    } else {
-        Color.Black.copy(alpha = 0.04f)
-    }
-    Box(
-        modifier = modifier
-            .clip(shape)
-    ) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .graphicsLayer { alpha = 0.99f }
-                .blur(70.dp)
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            softTint,
-                            baseTint.copy(alpha = 0.18f),
-                            softTint.copy(alpha = 0.76f),
-                        ),
-                    ),
-                ),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(baseTint),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .border(
-                    width = 1.dp,
-                    color = if (darkTheme) Color.White.copy(alpha = 0.08f) else Color.Black.copy(alpha = 0.05f),
-                    shape = shape,
-                ),
-        )
-        content()
-    }
-}
-
-@Composable
-private fun PermissionGate(
-    onRequestPermission: () -> Unit,
-) {
-    val language = LocalAppLanguage.current
-    val copy = remember(language) { rootUiCopy(language) }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surface.copy(alpha = 0.92f),
-            shape = RoundedCornerShape(ElovaireRadii.dialog),
-            tonalElevation = 8.dp,
-            shadowElevation = 18.dp,
-        ) {
-            Column(
-                modifier = Modifier.padding(28.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = copy.firstLaunchPermissionTitle,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(30f)),
-                )
-                Text(
-                    text = copy.firstLaunchPermissionMessage,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Button(onClick = onRequestPermission) {
-                    Text(copy.firstLaunchPermissionButton)
-                }
-            }
-        }
-    }
 }
 
 @Composable
@@ -6988,94 +6895,6 @@ private fun SelectableAlbumPickerRow(
             DividerLine()
         }
     }
-}
-
-@Composable
-private fun AddSongsToPlaylistDialog(
-    availableSongs: List<Song>,
-    existingSongIds: Set<Long>,
-    onDismiss: () -> Unit,
-    onAddSongs: (List<Long>) -> Unit,
-) {
-    val candidates = remember(availableSongs, existingSongIds) {
-        availableSongs.filterNot { it.id in existingSongIds }.take(24)
-    }
-    val selectedSongIds = remember { mutableStateOf(setOf<Long>()) }
-    val listState = rememberLazyListState()
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(rootUiCopy(LocalAppLanguage.current).addSongsTitle) },
-        text = {
-            LazyColumn(
-                state = listState,
-                overscrollEffect = null,
-                modifier = Modifier
-                    .height(320.dp)
-                    .ensureSingleItemRubberBand(listState),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                items(candidates, key = { it.id }) { song ->
-                    Surface(
-                        onClick = {
-                            selectedSongIds.value = if (song.id in selectedSongIds.value) {
-                                selectedSongIds.value - song.id
-                            } else {
-                                selectedSongIds.value + song.id
-                            }
-                        },
-                        shape = RoundedCornerShape(ElovaireRadii.tile),
-                        color = if (song.id in selectedSongIds.value) {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
-                        } else {
-                            MaterialTheme.colorScheme.surface
-                        },
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            ArtworkImage(
-                                uri = song.artUri,
-                                title = song.title,
-                                modifier = Modifier.size(42.dp),
-                                cornerRadius = ElovaireRadii.artworkSmall,
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = song.title,
-                                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                                    maxLines = 1,
-                                )
-                                Text(
-                                    text = song.artist,
-                                    style = MaterialTheme.typography.labelLarge,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onAddSongs(selectedSongIds.value.toList()) },
-                enabled = selectedSongIds.value.isNotEmpty(),
-            ) {
-                Text(uiPhrase(LocalAppLanguage.current, UiPhrase.AddToPlaylist))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(uiPhrase(LocalAppLanguage.current, UiPhrase.Cancel))
-            }
-        },
-    )
 }
 
 @Composable

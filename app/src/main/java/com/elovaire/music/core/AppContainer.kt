@@ -36,6 +36,7 @@ class AppContainer(
         override val playbackManager get() = services.playbackManager
         override val lyricsService get() = services.lyricsService
         override val albumTagEditorService get() = services.albumTagEditorService
+        override val appUpdateManager get() = services.appUpdateManager
     }
     private val notificationControllerHolder = NotificationControllerHolder {
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
