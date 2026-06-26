@@ -1,7 +1,9 @@
 package elovaire.music.droidbeauty.app.core
 
+import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
 
+@UnstableApi
 internal class NotificationControllerHolder(
     private val factory: () -> PlaybackNotificationController,
 ) {

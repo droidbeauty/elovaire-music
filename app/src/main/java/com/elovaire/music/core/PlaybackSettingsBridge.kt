@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.core
 
+import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
@@ -9,6 +10,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
 
+@UnstableApi
 @OptIn(FlowPreview::class)
 internal class PlaybackSettingsBridge(
     private val scope: CoroutineScope,

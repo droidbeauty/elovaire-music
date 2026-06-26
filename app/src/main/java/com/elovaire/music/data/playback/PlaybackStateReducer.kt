@@ -1,8 +1,10 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.domain.model.Song
 
+@UnstableApi
 internal class PlaybackStateReducer(
     private val playerProvider: () -> Player,
     private val currentDisplayedVolume: () -> Float,
