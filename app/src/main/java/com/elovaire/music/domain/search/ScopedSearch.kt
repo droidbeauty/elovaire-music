@@ -11,6 +11,13 @@ internal data class SearchablePlaylist(
     val normalizedComposite: String,
 )
 
+private data class SearchablePickerArtist<T>(
+    val value: T,
+    val normalizedName: String,
+    val normalizedComposite: String,
+    val songCount: Int,
+)
+
 internal fun searchSongsForPicker(
     songs: List<Song>,
     rawQuery: String,
@@ -112,4 +119,43 @@ internal fun searchPlaylists(
                 .thenBy { it.value.playlist.id },
         )
         .map { it.value.playlist }
+}
+
+internal fun <T> searchArtistsForPicker(
+    artists: List<T>,
+    query: NormalizedSearchQuery,
+    name: (T) -> String,
+    songs: (T) -> List<Song>,
+    songCount: (T) -> Int,
+): List<T> {
+    if (query.value.isBlank()) return artists
+
+    return artists
+        .map { artist ->
+            val artistSongs = songs(artist)
+            val normalizedName = normalizeSearchText(name(artist))
+            val normalizedComposite = buildNormalizedComposite(
+                normalizedName,
+                artistSongs.firstOrNull()?.album.orEmpty().let(::normalizeSearchText),
+            )
+            SearchablePickerArtist(
+                value = artist,
+                normalizedName = normalizedName,
+                normalizedComposite = normalizedComposite,
+                songCount = songCount(artist),
+            )
+        }
+        .rankMatching(
+            query = query,
+            normalizedTitle = { it.normalizedName },
+            normalizedArtist = { "" },
+            normalizedComposite = { it.normalizedComposite },
+        )
+        .sortedWith(
+            compareByDescending<RankedResult<SearchablePickerArtist<T>>> { it.score }
+                .thenBy { it.value.normalizedName }
+                .thenByDescending { it.value.songCount }
+                .thenBy { name(it.value.value) },
+        )
+        .map { it.value.value }
 }

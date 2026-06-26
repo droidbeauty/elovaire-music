@@ -293,10 +293,8 @@ import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
-import elovaire.music.droidbeauty.app.domain.search.RankedResult
-import elovaire.music.droidbeauty.app.domain.search.normalizeSearchText
-import elovaire.music.droidbeauty.app.domain.search.rankMatching
 import elovaire.music.droidbeauty.app.domain.search.searchAlbumsForPicker
+import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchSongsForPicker
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
@@ -4546,13 +4544,6 @@ private fun SearchQuickPick(
     }
 }
 
-private data class SearchableArtistPickerEntry(
-    val artist: ArtistEntry,
-    val songs: List<Song>,
-    val normalizedName: String,
-    val normalizedComposite: String,
-)
-
 @Composable
 private fun SearchHistorySectionHeader(
     showClearAction: Boolean,
@@ -6852,41 +6843,13 @@ internal fun AddSongsToPlaylistOverlay(
         )
     }
     val filteredArtists = remember(artists, normalizedQuery) {
-        if (normalizedQuery.value.isBlank()) {
-            artists
-        } else {
-            artists
-                .map { (artist, songs) ->
-                    val normalizedName = normalizeSearchText(artist.name)
-                    SearchableArtistPickerEntry(
-                        artist = artist,
-                        songs = songs,
-                        normalizedName = normalizedName,
-                        normalizedComposite = buildString {
-                            append(normalizedName)
-                            songs.firstOrNull()?.album
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let {
-                                    append(' ')
-                                    append(normalizeSearchText(it))
-                                }
-                        },
-                    )
-                }
-                .rankMatching(
-                    query = normalizedQuery,
-                    normalizedTitle = SearchableArtistPickerEntry::normalizedName,
-                    normalizedArtist = { "" },
-                    normalizedComposite = SearchableArtistPickerEntry::normalizedComposite,
-                )
-                .sortedWith(
-                    compareByDescending<RankedResult<SearchableArtistPickerEntry>> { it.score }
-                        .thenBy { it.value.normalizedName }
-                        .thenByDescending { it.value.artist.songCount }
-                        .thenBy { it.value.artist.name },
-                )
-                .map { it.value.artist to it.value.songs }
-        }
+        searchArtistsForPicker(
+            artists = artists,
+            query = normalizedQuery,
+            name = { it.first.name },
+            songs = { it.second },
+            songCount = { it.first.songCount },
+        )
     }
     val filteredSongs = remember(candidateSongs, normalizedQuery) {
         searchSongsForPicker(

@@ -88,6 +88,24 @@ class ScopedSearchTest {
         assertEquals(listOf(1L), result.map(Playlist::id))
     }
 
+    @Test
+    fun searchArtistsForPicker_matchesArtistAndAlbumTokens() {
+        val artists = listOf(
+            "Miles Davis" to listOf(song(id = 1L, title = "So What", artist = "Miles Davis", album = "Kind of Blue")),
+            "John Coltrane" to listOf(song(id = 2L, title = "Blue Train", artist = "John Coltrane", album = "Blue Train")),
+        )
+
+        val result = searchArtistsForPicker(
+            artists = artists,
+            query = NormalizedSearchQuery.from("miles blue"),
+            name = { it.first },
+            songs = { it.second },
+            songCount = { it.second.size },
+        )
+
+        assertEquals(listOf("Miles Davis"), result.map { it.first })
+    }
+
     private fun song(
         id: Long,
         title: String,

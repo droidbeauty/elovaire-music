@@ -4,10 +4,7 @@ import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
-import android.media.MediaMetadataRetriever
 import android.util.LruCache
-import android.util.Size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Box
@@ -41,6 +38,10 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import android.net.Uri
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
+import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
+import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
+import elovaire.music.droidbeauty.app.data.artwork.normalizeArtworkRequestSize
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.ui.res.painterResource
@@ -157,7 +158,12 @@ fun rememberArtworkBitmap(
 ): State<ImageBitmap?> {
     val context = LocalContext.current
     val normalizedSize = normalizeArtworkRequestSize(size)
-    val cacheKey = rememberCacheKey(uri, normalizedSize)
+    val requestKey = artworkRequestKey(
+        uri = uri,
+        targetPx = normalizedSize,
+        purpose = artworkPurposeForSize(normalizedSize),
+    )
+    val cacheKey = requestKey?.cacheKey.orEmpty()
     val uriKey = uri?.toString().orEmpty()
     ArtworkMemoryCache.ensureRegistered(context.applicationContext)
     val cachedImage = ArtworkMemoryCache.image(cacheKey)
@@ -174,7 +180,7 @@ fun rememberArtworkBitmap(
         }
         value = value ?: ArtworkMemoryCache.bestImageForUri(uriKey, normalizedSize)
         val loaded = withContext(Dispatchers.IO) {
-            loadBitmap(context, uri, normalizedSize)?.asImageBitmap()?.also { bitmap ->
+            loadArtworkBitmap(context, uri, normalizedSize)?.asImageBitmap()?.also { bitmap ->
                 ArtworkMemoryCache.putImage(cacheKey, bitmap)
             }
         }
@@ -189,7 +195,7 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
     val context = LocalContext.current
     val fallbackColor = MaterialTheme.colorScheme.primary
     val foundation = MaterialTheme.colorScheme.background
-    val cacheKey = rememberGradientCacheKey(uri)
+    val cacheKey = rememberGradientCacheKey(uri, 512)
     ArtworkMemoryCache.ensureRegistered(context.applicationContext)
     return produceState(
         initialValue = ArtworkMemoryCache.gradient(cacheKey) ?: defaultArtworkGradient(fallbackColor, foundation),
@@ -201,7 +207,7 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
             return@produceState
         }
         value = withContext(Dispatchers.IO) {
-            val bitmap = loadBitmap(context, uri, 512)
+            val bitmap = loadArtworkBitmap(context, uri, 512)
             (bitmap?.let { paletteFromBitmap(it, foundation) } ?: defaultArtworkGradient(fallbackColor, foundation)).also { gradient ->
                 ArtworkMemoryCache.putGradient(cacheKey, gradient)
             }
@@ -219,110 +225,19 @@ internal fun invalidateArtworkCaches(uris: Collection<Uri?>) {
     ArtworkMemoryCache.removeMatching(keys)
 }
 
-private fun rememberCacheKey(
+private fun rememberGradientCacheKey(
     uri: Uri?,
     size: Int,
 ): String {
-    return "${uri?.toString().orEmpty()}#$size"
+    return artworkRequestKey(
+        uri = uri,
+        targetPx = size,
+        purpose = ArtworkPurpose.UiLarge,
+    )?.let { "${it.cacheKey}|gradient" }.orEmpty()
 }
 
-private fun rememberGradientCacheKey(uri: Uri?): String {
-    return "${uri?.toString().orEmpty()}#gradient"
-}
-
-private fun normalizeArtworkRequestSize(size: Int): Int {
-    val requested = size.coerceAtLeast(1)
-    return when {
-        requested <= 96 -> 96
-        requested <= 160 -> 160
-        requested <= 256 -> 256
-        requested <= 384 -> 384
-        requested <= 512 -> 512
-        requested <= 768 -> 768
-        else -> 1024
-    }
-}
-
-private fun loadBitmap(
-    context: Context,
-    uri: Uri?,
-    size: Int,
-): Bitmap? {
-    if (uri == null) return null
-
-    runCatching {
-        context.contentResolver.loadThumbnail(uri, Size(size, size), null)
-    }.getOrNull()?.let { return it }
-
-    decodeBitmapStream(context, uri, size)?.let { return it }
-
-    return decodeEmbeddedArtwork(context, uri, size)
-}
-
-private fun decodeBitmapStream(
-    context: Context,
-    uri: Uri,
-    targetSize: Int,
-): Bitmap? {
-    return runCatching {
-        val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            BitmapFactory.decodeStream(inputStream, null, options)
-        }
-        val sampledOptions = BitmapFactory.Options().apply {
-            inPreferredConfig = Bitmap.Config.RGB_565
-            inSampleSize = calculateInSampleSize(
-                outWidth = options.outWidth,
-                outHeight = options.outHeight,
-                targetSize = targetSize,
-            )
-        }
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
-            BitmapFactory.decodeStream(inputStream, null, sampledOptions)
-        }
-    }.getOrNull()
-}
-
-private fun decodeEmbeddedArtwork(
-    context: Context,
-    uri: Uri,
-    targetSize: Int,
-): Bitmap? {
-    return runCatching {
-        val retriever = MediaMetadataRetriever()
-        try {
-            retriever.setDataSource(context, uri)
-            val bytes = retriever.embeddedPicture ?: return null
-            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            val sampledOptions = BitmapFactory.Options().apply {
-                inPreferredConfig = Bitmap.Config.RGB_565
-                inSampleSize = calculateInSampleSize(
-                    outWidth = bounds.outWidth,
-                    outHeight = bounds.outHeight,
-                    targetSize = targetSize,
-                )
-            }
-            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
-        } finally {
-            runCatching { retriever.release() }
-        }
-    }.getOrNull()
-}
-
-private fun calculateInSampleSize(
-    outWidth: Int,
-    outHeight: Int,
-    targetSize: Int,
-): Int {
-    if (outWidth <= 0 || outHeight <= 0 || targetSize <= 0) return 1
-    var sampleSize = 1
-    var halfWidth = outWidth / 2
-    var halfHeight = outHeight / 2
-    while (halfWidth / sampleSize >= targetSize && halfHeight / sampleSize >= targetSize) {
-        sampleSize *= 2
-    }
-    return sampleSize.coerceAtLeast(1)
+private fun artworkPurposeForSize(size: Int): ArtworkPurpose {
+    return if (size <= 256) ArtworkPurpose.UiGrid else ArtworkPurpose.UiLarge
 }
 
 private fun paletteFromBitmap(
@@ -407,13 +322,13 @@ private object ArtworkMemoryCache {
         requestedSize: Int,
     ): ImageBitmap? {
         if (uriKey.isBlank()) return null
-        val prefix = "$uriKey#"
+        val prefix = "$uriKey|"
         val snapshot = images.snapshot()
         var bestExactOrLarger: Pair<Int, ImageBitmap>? = null
         var bestSmaller: Pair<Int, ImageBitmap>? = null
         snapshot.forEach { (key, image) ->
             if (!key.startsWith(prefix)) return@forEach
-            val cachedSize = key.substringAfterLast('#', "").toIntOrNull() ?: return@forEach
+            val cachedSize = key.split('|').getOrNull(1)?.toIntOrNull() ?: return@forEach
             when {
                 cachedSize >= requestedSize && (
                     bestExactOrLarger == null || cachedSize < bestExactOrLarger.first
@@ -466,12 +381,12 @@ private object ArtworkMemoryCache {
         val iterator = gradients.entries.iterator()
         while (iterator.hasNext()) {
             val entry = iterator.next()
-            if (uriKeys.any { uriKey -> entry.key.startsWith("$uriKey#") }) {
+            if (uriKeys.any { uriKey -> entry.key.startsWith("$uriKey|") }) {
                 iterator.remove()
             }
         }
         images.snapshot().keys
-            .filter { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey#") } }
+            .filter { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
             .forEach(images::remove)
     }
 

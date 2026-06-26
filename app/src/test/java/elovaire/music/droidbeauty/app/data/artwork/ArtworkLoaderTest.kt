@@ -1,0 +1,27 @@
+package elovaire.music.droidbeauty.app.data.artwork
+
+import android.net.TestUri
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
+import org.junit.Test
+
+class ArtworkLoaderTest {
+    @Test
+    fun artworkRequestKey_normalizesSizeAndSeparatesPurpose() {
+        val uri = TestUri("content://artwork/1")
+        val uiKey = artworkRequestKey(uri, 240, ArtworkPurpose.UiLarge)
+        val notificationKey = artworkRequestKey(uri, 240, ArtworkPurpose.Notification)
+
+        requireNotNull(uiKey)
+        requireNotNull(notificationKey)
+        assertEquals(256, uiKey.targetPx)
+        assertNotEquals(uiKey.cacheKey, notificationKey.cacheKey)
+    }
+
+    @Test
+    fun normalizeArtworkRequestSize_usesBoundedBuckets() {
+        assertEquals(96, normalizeArtworkRequestSize(1))
+        assertEquals(256, normalizeArtworkRequestSize(240))
+        assertEquals(1024, normalizeArtworkRequestSize(2048))
+    }
+}

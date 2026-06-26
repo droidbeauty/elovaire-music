@@ -11,6 +11,7 @@
         <item>Improvements to technical playlist framework</item>
         <item>Unified search accuracy across all places where search feature is present</item>
         <item>Decentralizing some features at the core to optimize structure</item>
+        <item>App dependecies upgraded to the latest stable versions</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

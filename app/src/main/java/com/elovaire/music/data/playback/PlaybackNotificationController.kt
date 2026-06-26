@@ -6,10 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.LruCache
-import android.util.Size
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.NotificationUtil
@@ -17,6 +15,10 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerNotificationManager
 import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
+import elovaire.music.droidbeauty.app.data.artwork.ArtworkRequestKey
+import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
+import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,7 +50,7 @@ class PlaybackNotificationController(
 ) {
     private val pendingArtworkLoads = linkedMapOf<String, Job>()
     private val notificationJobs = mutableListOf<Job>()
-    private var currentArtworkLoadKey: ArtworkLoadKey? = null
+    private var currentArtworkLoadKey: ArtworkRequestKey? = null
 
     init {
         NotificationArtworkCache.ensureRegistered(context.applicationContext)
@@ -259,7 +261,8 @@ class PlaybackNotificationController(
             callback: PlayerNotificationManager.BitmapCallback,
         ): Bitmap? {
             val artworkUri = playbackManager.state.value.currentSong?.artUri ?: return null
-            NotificationArtworkCache[artworkLoadKey(artworkUri).cacheKey]?.let { return it }
+            val artworkKey = artworkLoadKey(artworkUri)
+            NotificationArtworkCache[artworkKey.cacheKey]?.let { return it }
             loadArtworkAsync(artworkUri, callback)
             return null
         }
@@ -348,42 +351,13 @@ class PlaybackNotificationController(
 
         private fun loadBitmap(
             context: Context,
-            key: ArtworkLoadKey,
+            key: ArtworkRequestKey,
         ): Bitmap? {
             NotificationArtworkCache[key.cacheKey]?.let { return it }
-            val bitmap = runCatching {
-                context.contentResolver.loadThumbnail(key.uri, Size(key.targetPx, key.targetPx), null)
-            }.getOrNull() ?: runCatching {
-                val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-                context.contentResolver.openInputStream(key.uri)?.use { input ->
-                    BitmapFactory.decodeStream(input, null, bounds)
-                }
-                val options = BitmapFactory.Options().apply {
-                    inPreferredConfig = Bitmap.Config.RGB_565
-                    inSampleSize = calculateInSampleSize(bounds.outWidth, bounds.outHeight, key.targetPx)
-                }
-                context.contentResolver.openInputStream(key.uri)?.use { input ->
-                    BitmapFactory.decodeStream(input, null, options)
-                }
-            }.getOrNull()
+            val bitmap = loadArtworkBitmap(context, key)
             return bitmap?.also { cachedBitmap ->
                 NotificationArtworkCache.put(key.cacheKey, cachedBitmap)
             }
-        }
-
-        private fun calculateInSampleSize(
-            width: Int,
-            height: Int,
-            targetSize: Int,
-        ): Int {
-            if (width <= 0 || height <= 0 || targetSize <= 0) return 1
-            var sampleSize = 1
-            var halfWidth = width / 2
-            var halfHeight = height / 2
-            while (halfWidth / sampleSize >= targetSize && halfHeight / sampleSize >= targetSize) {
-                sampleSize *= 2
-            }
-            return sampleSize.coerceAtLeast(1)
         }
 
         private const val NOTIFICATION_ARTWORK_SIZE_PX = 256
@@ -395,19 +369,17 @@ class PlaybackNotificationController(
         val metadataSignature: String?,
     )
 
-    private data class ArtworkLoadKey(
-        val uri: Uri,
-        val targetPx: Int,
-    ) {
-        val cacheKey: String
-            get() = "${uri}|$targetPx"
+    private fun artworkLoadKey(uri: Uri): ArtworkRequestKey {
+        return requireNotNull(
+            artworkRequestKey(
+                uri = uri,
+                targetPx = NOTIFICATION_ARTWORK_SIZE_PX,
+                purpose = ArtworkPurpose.Notification,
+            ),
+        )
     }
 
-    private fun artworkLoadKey(uri: Uri): ArtworkLoadKey {
-        return ArtworkLoadKey(uri = uri, targetPx = NOTIFICATION_ARTWORK_SIZE_PX)
-    }
-
-    private fun trimPendingArtworkLoads(activeKey: ArtworkLoadKey?) {
+    private fun trimPendingArtworkLoads(activeKey: ArtworkRequestKey?) {
         val activeCacheKey = activeKey?.cacheKey
         val iterator = pendingArtworkLoads.entries.iterator()
         while (iterator.hasNext()) {
