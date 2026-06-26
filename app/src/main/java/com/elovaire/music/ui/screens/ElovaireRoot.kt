@@ -1,24 +1,13 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.RecoverableSecurityException
 import android.content.Context
-import android.content.Intent
-import android.graphics.BitmapFactory
-import android.graphics.Shader
 import android.net.Uri
 import android.os.Build
-import android.provider.MediaStore
 import android.util.Log
-import android.util.Xml
-import java.io.File
 import androidx.annotation.DrawableRes
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
@@ -250,14 +239,9 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.core.AppContainer
-import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
-import elovaire.music.droidbeauty.app.core.hasNotificationPostingPermission
-import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
-import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
-import elovaire.music.droidbeauty.app.data.library.LibraryDeleteRequest
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
@@ -543,7 +527,7 @@ fun ElovaireRoot(
             } ?: run {
                 navigationState.detailExpandOrigin = ExpandOrigin()
                 navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-                navController.navigate("$ALBUM_ROUTE/$albumId")
+                navController.navigate(Routes.album(albumId))
             }
         }
     }
@@ -626,7 +610,7 @@ fun ElovaireRoot(
         preferenceStore = container.preferenceStore,
         onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
         openAlbum = openAlbum,
-        navigateToAlbumId = { albumId -> navController.navigate("$ALBUM_ROUTE/$albumId") },
+        navigateToAlbumId = { albumId -> navController.navigate(Routes.album(albumId)) },
     )
     val createPlaylistAndAddSongs = remember(container.preferenceStore) {
         { name: String, songIds: List<Long> ->
@@ -717,7 +701,7 @@ fun ElovaireRoot(
                             onPlaylistSelected = { playlist ->
                                 navigationState.detailExpandOrigin = ExpandOrigin()
                                 navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
-                                navController.navigate("$PLAYLIST_ROUTE/${playlist.id}")
+                                navController.navigate(Routes.playlist(playlist.id))
                             },
                             onPlayAlbum = { album ->
                                 container.playbackManager.playAlbum(album)
@@ -776,7 +760,7 @@ fun ElovaireRoot(
                             bottomPadding = bottomContentPadding,
                             scrollToTopRequestVersion = navigationState.libraryScrollRequestVersion,
                             onOpenCollection = { kind ->
-                                navController.navigate("$LIBRARY_COLLECTION_ROUTE/${kind.name}")
+                                navController.navigate(Routes.libraryCollection(kind))
                             },
                             onAlbumSelected = { album, origin ->
                                 openAlbum(album, origin, AlbumOpenSource.LibraryAlbums)
@@ -797,7 +781,7 @@ fun ElovaireRoot(
                             onOpenPlaylist = { playlist, origin ->
                                 navigationState.detailExpandOrigin = origin
                                 navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
-                                navController.navigate("$PLAYLIST_ROUTE/${playlist.id}")
+                                navController.navigate(Routes.playlist(playlist.id))
                             },
                         )
                     }
@@ -825,7 +809,7 @@ fun ElovaireRoot(
                                 openAlbum(album, origin, AlbumOpenSource.SearchResults)
                             },
                             onArtistSelected = { artistName ->
-                                navController.navigate("$ARTIST_ROUTE/${Uri.encode(artistName)}")
+                                navController.navigate(Routes.artist(artistName))
                             },
                             onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
                         )
@@ -912,7 +896,7 @@ fun ElovaireRoot(
                             collapsedTopBarTitle = detailFallbackTitle(previousRoute, appState.appLanguage),
                             onBack = navController::navigateUp,
                             onOpenTagEditor = { selectedAlbum ->
-                                navController.navigate("$ALBUM_TAG_EDITOR_ROUTE/${selectedAlbum.id}")
+                                navController.navigate(Routes.tagEditor(selectedAlbum.id))
                             },
                             onPlayAlbum = { selectedAlbum ->
                                 container.playbackManager.playAlbum(
@@ -1030,10 +1014,10 @@ fun ElovaireRoot(
                                 container.preferenceStore.setSongCollectionSortMode(mode.name)
                             },
                             onGenreSelected = { genre ->
-                                navController.navigate("$GENRE_ROUTE/${Uri.encode(genre)}")
+                                navController.navigate(Routes.genre(genre))
                             },
                             onArtistSelected = { artistName ->
-                                navController.navigate("$ARTIST_ROUTE/${Uri.encode(artistName)}")
+                                navController.navigate(Routes.artist(artistName))
                             },
                         )
                     }

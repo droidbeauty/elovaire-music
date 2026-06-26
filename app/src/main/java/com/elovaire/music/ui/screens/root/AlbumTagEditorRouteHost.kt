@@ -15,6 +15,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorEvent
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
@@ -66,7 +67,7 @@ internal fun AlbumTagEditorRouteHost(
                     pendingWriteRequest = event.request
                     if (event.uris.isNotEmpty()) {
                         albumTagWriteLauncher.launch(
-                            createWriteRequestIntentSender(
+                            mediaStoreWriteRequest(
                                 context = context,
                                 uris = event.uris,
                             ),

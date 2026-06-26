@@ -6,7 +6,6 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableLongState
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -22,7 +21,6 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
-@Stable
 internal class RootNavigationState(
     val navController: NavHostController,
     browsingOriginRouteState: MutableState<String>,
@@ -183,7 +181,7 @@ internal class RootNavigationState(
         }
         detailExpandOrigin = origin
         detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-        navController.navigate("$ALBUM_ROUTE/${album.id}")
+        navController.navigate(Routes.album(album.id))
     }
 }
 

@@ -36,6 +36,16 @@ internal const val ALBUM_TAG_EDITOR_ROUTE = "album_tag_editor"
 internal const val LIBRARY_COLLECTION_ROUTE = "library_collection"
 internal const val GENRE_ROUTE = "genre"
 internal const val ARTIST_ROUTE = "artist"
+
+internal object Routes {
+    fun album(albumId: Long): String = "$ALBUM_ROUTE/$albumId"
+    fun playlist(playlistId: Long): String = "$PLAYLIST_ROUTE/$playlistId"
+    fun artist(artistName: String): String = "$ARTIST_ROUTE/${Uri.encode(artistName)}"
+    fun genre(genre: String): String = "$GENRE_ROUTE/${Uri.encode(genre)}"
+    fun libraryCollection(kind: LibraryCollectionKind): String = "$LIBRARY_COLLECTION_ROUTE/${kind.name}"
+    fun tagEditor(albumId: Long): String = "$ALBUM_TAG_EDITOR_ROUTE/$albumId"
+}
+
 internal val TopLevelRoutes = setOf(
     HOME_ROUTE,
     ALBUMS_ROUTE,
@@ -541,11 +551,11 @@ internal fun String?.normalizedNavigationRoute(): String? {
 
 internal fun androidx.navigation.NavBackStackEntry.elovaireConcreteRoute(): String? {
     return when (destination.route) {
-        "$ALBUM_ROUTE/{albumId}" -> "$ALBUM_ROUTE/${arguments?.getLong("albumId") ?: return null}"
-        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> "$ALBUM_TAG_EDITOR_ROUTE/${arguments?.getLong("albumId") ?: return null}"
-        "$PLAYLIST_ROUTE/{playlistId}" -> "$PLAYLIST_ROUTE/${arguments?.getLong("playlistId") ?: return null}"
-        "$GENRE_ROUTE/{genre}" -> "$GENRE_ROUTE/${Uri.encode(arguments?.getString("genre") ?: return null)}"
-        "$ARTIST_ROUTE/{artistName}" -> "$ARTIST_ROUTE/${Uri.encode(arguments?.getString("artistName") ?: return null)}"
+        "$ALBUM_ROUTE/{albumId}" -> Routes.album(arguments?.getLong("albumId") ?: return null)
+        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> Routes.tagEditor(arguments?.getLong("albumId") ?: return null)
+        "$PLAYLIST_ROUTE/{playlistId}" -> Routes.playlist(arguments?.getLong("playlistId") ?: return null)
+        "$GENRE_ROUTE/{genre}" -> Routes.genre(arguments?.getString("genre") ?: return null)
+        "$ARTIST_ROUTE/{artistName}" -> Routes.artist(arguments?.getString("artistName") ?: return null)
         "$LIBRARY_COLLECTION_ROUTE/{kind}" -> "$LIBRARY_COLLECTION_ROUTE/${arguments?.getString("kind") ?: return null}"
         else -> destination.route
     }
@@ -560,12 +570,12 @@ internal fun androidx.navigation.NavBackStackEntry.concreteNavigationRoute(): St
     val route = destination.route ?: return null
     val args = arguments
     return when (route) {
-        "$ALBUM_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it > 0L }?.let { "$ALBUM_ROUTE/$it" }
-        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it > 0L }?.let { "$ALBUM_TAG_EDITOR_ROUTE/$it" }
-        "$PLAYLIST_ROUTE/{playlistId}" -> args?.getLong("playlistId")?.takeIf { it > 0L }?.let { "$PLAYLIST_ROUTE/$it" }
+        "$ALBUM_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it > 0L }?.let(Routes::album)
+        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it > 0L }?.let(Routes::tagEditor)
+        "$PLAYLIST_ROUTE/{playlistId}" -> args?.getLong("playlistId")?.takeIf { it > 0L }?.let(Routes::playlist)
         "$LIBRARY_COLLECTION_ROUTE/{kind}" -> args?.getString("kind")?.let { "$LIBRARY_COLLECTION_ROUTE/$it" }
-        "$GENRE_ROUTE/{genre}" -> args?.getString("genre")?.let { "$GENRE_ROUTE/${Uri.encode(it)}" }
-        "$ARTIST_ROUTE/{artistName}" -> args?.getString("artistName")?.let { "$ARTIST_ROUTE/${Uri.encode(it)}" }
+        "$GENRE_ROUTE/{genre}" -> args?.getString("genre")?.let(Routes::genre)
+        "$ARTIST_ROUTE/{artistName}" -> args?.getString("artistName")?.let(Routes::artist)
         else -> route
     }
 }

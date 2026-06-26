@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -42,7 +41,6 @@ internal fun String?.toPlayerLayerStateOrDefault(): PlayerLayerState {
         ?: PlayerLayerState.Compact
 }
 
-@Stable
 internal data class RootAppState(
     val library: LibraryUiState,
     val playback: PlaybackUiState,
@@ -61,7 +59,6 @@ internal data class RootAppState(
     val appUpdateState: AppUpdateUiState,
 )
 
-@Stable
 internal data class RootLibraryDerivedState(
     val songsById: Map<Long, Song>,
     val songsByAlbumId: Map<Long, List<Song>>,

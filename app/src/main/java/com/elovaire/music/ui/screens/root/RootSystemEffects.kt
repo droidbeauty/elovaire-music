@@ -5,14 +5,12 @@ import android.app.Activity
 import android.content.Context
 import android.net.Uri
 import android.os.Build
-import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,13 +29,13 @@ import elovaire.music.droidbeauty.app.data.library.LibraryDeleteRequest
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.platform.mediaStoreDeleteRequest
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-@Stable
 internal data class RootPermissionState(
     val hasAudioPermission: Boolean,
     val hasNotificationPermission: Boolean,
@@ -46,7 +44,6 @@ internal data class RootPermissionState(
     val showFirstLaunchPermissionOverlay: Boolean,
 )
 
-@Stable
 internal class RootPermissionController internal constructor(
     val state: RootPermissionState,
     private val requestAudioPermissionAction: () -> Unit,
@@ -216,19 +213,6 @@ internal fun querySongFilePaths(
         .toSet()
 }
 
-@Suppress("NewApi")
-internal fun createWriteRequestIntentSender(
-    context: Context,
-    uris: List<Uri>,
-): IntentSenderRequest {
-    return IntentSenderRequest.Builder(
-        MediaStore.createWriteRequest(
-            context.contentResolver,
-            uris,
-        ).intentSender,
-    ).build()
-}
-
 internal fun cleanupEmptyDirectories(paths: Set<String>) {
     paths.asSequence()
         .map(::File)
@@ -243,7 +227,6 @@ internal fun cleanupEmptyDirectories(paths: Set<String>) {
         }
 }
 
-@Stable
 internal class RootDeleteController internal constructor(
     private val deleteSongsAction: (List<Song>) -> Unit,
     private val deleteAlbumAction: (Album) -> Unit,
@@ -302,9 +285,11 @@ internal fun rememberRootDeleteController(
         val uniqueSongs = songs.distinctBy(Song::id)
         if (uniqueSongs.isEmpty()) return@deleteSongsCallback
         rootScope.launch {
-            val filePaths = querySongFilePaths(context, uniqueSongs)
-            val parentDirectories = filePaths.mapNotNullTo(linkedSetOf()) { path ->
-                File(path).parentFile?.absolutePath
+            val (filePaths, parentDirectories) = withContext(Dispatchers.IO) {
+                val paths = querySongFilePaths(context, uniqueSongs)
+                paths to paths.mapNotNullTo(linkedSetOf()) { path ->
+                    File(path).parentFile?.absolutePath
+                }
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
                 pendingSongDeletion = PendingSongDeletion(
@@ -313,12 +298,7 @@ internal fun rememberRootDeleteController(
                     filePaths = filePaths,
                 )
                 deleteSongLauncher.launch(
-                    IntentSenderRequest.Builder(
-                        MediaStore.createDeleteRequest(
-                            context.contentResolver,
-                            uniqueSongs.map(Song::uri),
-                        ).intentSender,
-                    ).build(),
+                    mediaStoreDeleteRequest(context, uniqueSongs.map(Song::uri)),
                 )
             } else {
                 runCatching {
