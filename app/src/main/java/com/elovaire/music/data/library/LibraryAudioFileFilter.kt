@@ -67,7 +67,7 @@ internal class LibraryAudioFileFilter(
             if (AudioFormatPolicy.playbackSupport(detectedFormat) == PlaybackSupport.Unsupported) {
                 return AudioFileFilterDecision.Exclude("No compatible audio decoder")
             }
-        } else if (normalizedExtension in AudioFormatPolicy.validationRequiredExtensions) {
+        } else if (AudioFormatPolicy.requiresContainerValidation(normalizedExtension)) {
             return AudioFileFilterDecision.Exclude("Container could not be validated")
         }
 

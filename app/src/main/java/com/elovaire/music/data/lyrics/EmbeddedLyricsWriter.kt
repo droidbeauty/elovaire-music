@@ -6,13 +6,13 @@ import android.content.ContentResolver
 import android.content.Context
 import android.os.Build
 import android.provider.MediaStore
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
@@ -26,6 +26,7 @@ internal sealed interface EmbeddedLyricsWriteResult {
 internal class EmbeddedLyricsWriter(context: Context) {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
+    private val audioFormatDetector = AudioFormatDetector(appContext)
 
     fun createWritePermissionRequest(song: Song): PendingIntent? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
@@ -36,9 +37,10 @@ internal class EmbeddedLyricsWriter(context: Context) {
 
     fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
         val lyrics = rawLyrics.trim()
-        val extension = song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        val capability = AudioFormatPolicy.capabilityForExtension(extension)
-        if (capability?.tagWriteSupport != TagWriteSupport.Safe) {
+        val detectedFormat = song.fileName
+            .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
+            ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
+        if (AudioFormatPolicy.embeddedLyricsWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
             return EmbeddedLyricsWriteResult.Failure("This audio format cannot store lyrics safely.")
         }
 

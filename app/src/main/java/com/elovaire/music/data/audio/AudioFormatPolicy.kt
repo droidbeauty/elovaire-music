@@ -84,6 +84,17 @@ internal object AudioFormatPolicy {
         "amr",
     )
 
+    fun requiresContainerValidation(extension: String?): Boolean {
+        return extension.orEmpty().trim().lowercase(Locale.ROOT) in validationRequiredExtensions
+    }
+
+    fun shouldDetectContainer(
+        extension: String?,
+        enrichMetadata: Boolean,
+    ): Boolean {
+        return enrichMetadata || requiresContainerValidation(extension)
+    }
+
     fun capabilityForExtension(extension: String?): AudioFormatCapability? {
         val normalized = extension.orEmpty().trim().lowercase(Locale.ROOT)
         return capabilities.firstOrNull { normalized in it.extensions }
@@ -109,7 +120,8 @@ internal object AudioFormatPolicy {
                 "audio/opus" -> AudioContainerFormat.OggOpus
                 "audio/flac" -> AudioContainerFormat.OggFlac
                 "audio/vorbis", "audio/ogg" -> AudioContainerFormat.OggVorbis
-                else -> AudioContainerFormat.OggVorbis
+                "" -> AudioContainerFormat.OggVorbis
+                else -> AudioContainerFormat.Unknown
             }
         }
         return when (ext) {
@@ -164,6 +176,51 @@ internal object AudioFormatPolicy {
         if (!isCodecAllowed(detected.container, detected.codecMimeType)) return PlaybackSupport.Unsupported
         if (detected.decoderAvailable == false) return PlaybackSupport.Unsupported
         return capabilityFor(detected.container)?.playbackSupport ?: PlaybackSupport.Unsupported
+    }
+
+    fun tagWriteSupport(
+        detected: DetectedAudioFormat?,
+        fileName: String,
+    ): TagWriteSupport {
+        val base = capabilityForFileName(fileName) ?: return TagWriteSupport.Unsupported
+        if (base.tagWriteSupport != TagWriteSupport.Safe) return base.tagWriteSupport
+        if (detected == null || !detected.detectionSucceeded) return base.tagWriteSupport
+        return when (detected.container) {
+            AudioContainerFormat.Mp3,
+            AudioContainerFormat.Flac,
+            -> TagWriteSupport.Safe
+
+            AudioContainerFormat.Mp4Audio -> when (detected.codecMimeType.orEmpty().lowercase(Locale.ROOT)) {
+                "audio/mp4a-latm",
+                "audio/aac",
+                "audio/alac",
+                "audio/mpeg",
+                -> TagWriteSupport.Safe
+
+                else -> TagWriteSupport.Partial
+            }
+
+            else -> TagWriteSupport.Unsupported
+        }
+    }
+
+    fun embeddedLyricsWriteSupport(
+        detected: DetectedAudioFormat?,
+        fileName: String,
+    ): TagWriteSupport {
+        return if (tagWriteSupport(detected, fileName) == TagWriteSupport.Safe) {
+            TagWriteSupport.Safe
+        } else {
+            TagWriteSupport.Unsupported
+        }
+    }
+
+    fun canEmbedArtwork(
+        detected: DetectedAudioFormat?,
+        fileName: String,
+    ): Boolean {
+        return capabilityForFileName(fileName)?.canEmbedArtwork == true &&
+            tagWriteSupport(detected, fileName) == TagWriteSupport.Safe
     }
 
     private fun isCodecAllowed(container: AudioContainerFormat, codecMimeType: String?): Boolean {

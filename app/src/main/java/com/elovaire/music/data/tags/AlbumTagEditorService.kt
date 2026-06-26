@@ -8,6 +8,7 @@ import android.net.Uri
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
@@ -94,6 +95,7 @@ internal class AlbumTagEditorService(
 ) {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
+    private val audioFormatDetector = AudioFormatDetector(appContext)
     private val matchCache = TagMatchCache(appContext)
     private val albumMatcher = FingerprintAlbumTagMatcher(
         fingerprintProvider = AndroidChromaprintFingerprintProvider(appContext, matchCache),
@@ -168,9 +170,11 @@ internal class AlbumTagEditorService(
             )
         }
         request.album.songs.forEach { song ->
-            val extension = song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-            val capability = AudioFormatPolicy.capabilityForExtension(extension)
-            if (capability?.tagWriteSupport != TagWriteSupport.Safe) {
+            val detectedFormat = song.fileName
+                .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
+                ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
+            if (AudioFormatPolicy.tagWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
+                val capability = AudioFormatPolicy.capabilityForFileName(song.fileName)
                 logDebug("Skipped unsafe tag write for ${song.fileName}: ${capability?.notes ?: "unknown format"}")
                 failures += TagEditFailure(
                     songId = song.id,
@@ -179,7 +183,7 @@ internal class AlbumTagEditorService(
                 )
                 return@forEach
             }
-            if (coverArtBytes != null && !capability.canEmbedArtwork) {
+            if (coverArtBytes != null && !AudioFormatPolicy.canEmbedArtwork(detectedFormat, song.fileName)) {
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,

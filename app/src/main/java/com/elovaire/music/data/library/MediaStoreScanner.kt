@@ -190,7 +190,7 @@ class MediaStoreScanner(
                 val rawArtist = cursor.getString(artistIndex).orUnknown("Unknown Artist")
                 val rawAlbum = cursor.getString(albumIndex).orUnknown("Unknown Album")
                 val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-                val detectedFormat = if (enrichMetadata || extension in AudioFormatPolicy.validationRequiredExtensions) {
+                val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(extension, enrichMetadata)) {
                     audioFormatDetector.detect(songUri, fileName, mimeType)
                 } else {
                     fastDetectedFormat(
@@ -379,7 +379,7 @@ class MediaStoreScanner(
                     extension = fileName.substringAfterLast('.', ""),
                     isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
                     detectedFormat = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-                        .takeIf { it in AudioFormatPolicy.validationRequiredExtensions }
+                        .takeIf(AudioFormatPolicy::requiresContainerValidation)
                         ?.let {
                             audioFormatDetector.detect(
                                 uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, cursor.getLong(idIndex)),

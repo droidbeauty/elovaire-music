@@ -6,12 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.2.2">
-        <item>Enhanced support for OGG and ALAC audio formats</item>
-        <item>Improvements to technical playlist framework</item>
-        <item>Unified search accuracy across all places where search feature is present</item>
-        <item>Decentralizing some features at the core to optimize structure</item>
-        <item>App dependecies upgraded to the latest stable versions</item>
+    <release version="2.2.3">
+        <item>Improvements to technical playback framework</item>
+        <item>API optimizations</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

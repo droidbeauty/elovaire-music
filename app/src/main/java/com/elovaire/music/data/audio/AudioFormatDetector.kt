@@ -24,6 +24,7 @@ internal data class DetectedAudioFormat(
 
 internal class AudioFormatDetector(context: Context) {
     private val appContext = context.applicationContext
+    private val decoderAvailabilityCache = mutableMapOf<String, Boolean>()
 
     fun detect(uri: Uri, fileName: String, mediaStoreMimeType: String?): DetectedAudioFormat {
         val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
@@ -76,12 +77,16 @@ internal class AudioFormatDetector(context: Context) {
         }
     }
 
+    @Synchronized
     private fun hasDecoder(mimeType: String): Boolean {
-        return runCatching {
-            MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codecInfo ->
-                !codecInfo.isEncoder && codecInfo.supportedTypes.any { it.equals(mimeType, true) }
-            }
-        }.getOrDefault(false)
+        val key = mimeType.lowercase(Locale.ROOT)
+        return decoderAvailabilityCache.getOrPut(key) {
+            runCatching {
+                MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codecInfo ->
+                    !codecInfo.isEncoder && codecInfo.supportedTypes.any { it.equals(key, true) }
+                }
+            }.getOrDefault(false)
+        }
     }
 
     private fun MediaFormat.integerOrNull(key: String): Int? {
