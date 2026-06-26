@@ -4,8 +4,8 @@ import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.TweenSpec
-import androidx.compose.animation.core.spring
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.spring as composeSpring
+import androidx.compose.animation.core.tween as composeTween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -18,7 +18,7 @@ class MotionSpecs internal constructor(
         durationMillis: Int = MotionDuration.Standard,
         delayMillis: Int = 0,
         easing: Easing = MotionEasing.SoftOut,
-    ): TweenSpec<T> = tween(
+    ): TweenSpec<T> = composeTween(
         durationMillis = runtime.duration(durationMillis),
         delayMillis = runtime.delay(delayMillis),
         easing = easing,
@@ -29,7 +29,7 @@ class MotionSpecs internal constructor(
         stiffness: Float = 520f,
     ): FiniteAnimationSpec<T> {
         if (runtime.reduceMotion) return tween(durationMillis = 0)
-        return spring(
+        return composeSpring(
             dampingRatio = dampingRatio,
             stiffness = (stiffness / (runtime.durationScale * runtime.durationScale))
                 .coerceIn(25f, 10_000f),
