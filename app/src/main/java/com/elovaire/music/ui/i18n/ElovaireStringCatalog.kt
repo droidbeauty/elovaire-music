@@ -156,7 +156,7 @@ internal data class RootUiCopy(
 
 internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
     AppLanguage.Polish -> RootUiCopy(
-        firstLaunchPermissionTitle = "Muzyka offline zasługuje na dostęp do Twojej biblioteki",
+        firstLaunchPermissionTitle = "Muzyka offline wymaga dostępu do Twojej biblioteki",
         firstLaunchPermissionMessage = "Elovaire skanuje folder Muzyka na urządzeniu, aby znaleźć lokalne albumy, okładki i kolejki utworów",
         firstLaunchPermissionButton = "Zezwól na dostęp do biblioteki audio",
         appName = "Elovaire",
@@ -169,8 +169,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         createPlaylistButton = "Utwórz playlistę",
         tapToCreateNewPlaylist = "Stuknij, aby utworzyć nową playlistę",
         playlistNamePlaceholder = "Nazwa playlisty",
-        clearPlaylistName = "Wyczyść nazwę playlisty",
-        noSongsInPlaylistYet = "W tej playliście nie ma jeszcze utworów",
+        clearPlaylistName = "Wyczyść nazwę listy",
+        noSongsInPlaylistYet = "W tej liście nie ma jeszcze utworów",
         searchLibrary = "Szukaj w bibliotece",
         addSongsTitle = "Dodaj utwory",
         loadingLyrics = "Ładowanie tekstu…",
