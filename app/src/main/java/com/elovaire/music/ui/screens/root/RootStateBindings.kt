@@ -37,6 +37,11 @@ internal enum class PlayerLayerState {
     ReturningToCompact,
 }
 
+internal fun String?.toPlayerLayerStateOrDefault(): PlayerLayerState {
+    return PlayerLayerState.entries.firstOrNull { it.name == this }
+        ?: PlayerLayerState.Compact
+}
+
 @Stable
 internal data class RootAppState(
     val library: LibraryUiState,

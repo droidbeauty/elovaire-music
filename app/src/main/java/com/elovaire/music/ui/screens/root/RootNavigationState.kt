@@ -197,10 +197,10 @@ internal fun rememberRootNavigationState(
     val lastLibraryTabRoute = rememberSaveable { mutableStateOf(ALBUMS_ROUTE) }
     val lastPlaylistsTabRoute = rememberSaveable { mutableStateOf(PLAYLISTS_ROUTE) }
     val lastSearchTabRoute = rememberSaveable { mutableStateOf(SEARCH_ROUTE) }
-    val homeScrollRequestVersion = rememberSaveable { mutableLongStateOf(0L) }
-    val libraryScrollRequestVersion = rememberSaveable { mutableLongStateOf(0L) }
-    val playlistsScrollRequestVersion = rememberSaveable { mutableLongStateOf(0L) }
-    val searchScrollRequestVersion = rememberSaveable { mutableLongStateOf(0L) }
+    val homeScrollRequestVersion = remember { mutableLongStateOf(0L) }
+    val libraryScrollRequestVersion = remember { mutableLongStateOf(0L) }
+    val playlistsScrollRequestVersion = remember { mutableLongStateOf(0L) }
+    val searchScrollRequestVersion = remember { mutableLongStateOf(0L) }
     return remember(
         navController,
         browsingOriginRoute,

@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
@@ -27,6 +28,8 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -180,20 +183,22 @@ internal class NowPlayingViewModel(
             initialValue = LyricsUiState.Hidden,
         )
 
-    val activeLyricsLineIndex: StateFlow<Int> = combine(
-        lyricsUiState,
-        playbackManager.progressState,
-    ) { lyricsState, progressState ->
-        (lyricsState as? LyricsUiState.Ready)
-            ?.payload
-            ?.takeIf { it.isSynced }
-            ?.currentLineIndexAtFast(
-                positionMs = progressState.displayPositionMs,
-                timingOffsetMs = 0L,
-                switchGraceMs = LYRICS_SWITCH_GRACE_MS,
-            )
-            ?: -1
-    }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    val activeLyricsLineIndex: StateFlow<Int> = lyricsUiState
+        .flatMapLatest { lyricsState ->
+            val payload = (lyricsState as? LyricsUiState.Ready)?.payload
+            if (payload == null || !payload.isSynced) {
+                flowOf(-1)
+            } else {
+                playbackManager.progressState.map { progressState ->
+                    payload.currentLineIndexAtFast(
+                        positionMs = progressState.displayPositionMs,
+                        timingOffsetMs = 0L,
+                        switchGraceMs = LYRICS_SWITCH_GRACE_MS,
+                    ) ?: -1
+                }
+            }
+        }
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
@@ -234,11 +239,30 @@ internal class NowPlayingViewModel(
                     request.queue.getOrNull(request.currentIndex - 1)?.let(lyricsService::prefetchLyrics)
                 }
         }
+        viewModelScope.launch {
+            combine(
+                lyricsVisible,
+                lyricsUiState,
+            ) { visible, state ->
+                visible && (state as? LyricsUiState.Ready)?.payload?.isSynced == true
+            }
+                .distinctUntilChanged()
+                .collect { active ->
+                    playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.SyncedLyrics, active)
+                }
+        }
     }
 
     fun setLyricsVisible(visible: Boolean) {
         logLyrics("visibility=$visible song=${playbackManager.nowPlayingState.value.currentSong?.id}")
         lyricsVisible.value = visible
+    }
+
+    fun setProgressConsumerActive(
+        consumer: PlaybackProgressConsumer,
+        active: Boolean,
+    ) {
+        playbackManager.setProgressConsumerActive(consumer, active)
     }
 
     fun requestSaveLyrics(rawLyrics: String) {
@@ -347,6 +371,12 @@ internal class NowPlayingViewModel(
     }
 
     fun progressState(): StateFlow<PlaybackProgressState> = playbackManager.progressState
+
+    override fun onCleared() {
+        playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.NowPlaying, false)
+        playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.CompactDock, false)
+        playbackManager.setProgressConsumerActive(PlaybackProgressConsumer.SyncedLyrics, false)
+    }
 
     private data class LyricsRequest(
         val visible: Boolean,

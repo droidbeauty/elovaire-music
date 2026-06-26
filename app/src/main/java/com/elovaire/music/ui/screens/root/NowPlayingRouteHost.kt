@@ -11,6 +11,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 
@@ -49,6 +50,12 @@ internal fun NowPlayingRouteHost(
                     )
                 }
             }
+        }
+    }
+    DisposableEffect(viewModel) {
+        viewModel.setProgressConsumerActive(PlaybackProgressConsumer.NowPlaying, true)
+        onDispose {
+            viewModel.setProgressConsumerActive(PlaybackProgressConsumer.NowPlaying, false)
         }
     }
     DisposableEffect(viewModel) {

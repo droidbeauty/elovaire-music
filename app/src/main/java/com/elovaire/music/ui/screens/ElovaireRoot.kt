@@ -272,6 +272,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNowPlayingState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
+import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackTransportState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
@@ -450,7 +451,14 @@ fun ElovaireRoot(
     }
     var nowPlayingTransitionSnapshot by remember { mutableStateOf<NowPlayingTransitionSnapshot?>(null) }
     var playerLayerStateName by rememberSaveable { mutableStateOf(PlayerLayerState.Compact.name) }
-    val playerLayerState = remember(playerLayerStateName) { PlayerLayerState.valueOf(playerLayerStateName) }
+    val playerLayerState = remember(playerLayerStateName) {
+        playerLayerStateName.toPlayerLayerStateOrDefault()
+    }
+    LaunchedEffect(playerLayerState.name) {
+        if (playerLayerStateName != playerLayerState.name) {
+            playerLayerStateName = playerLayerState.name
+        }
+    }
     val openNowPlayingMutex = remember { Mutex() }
     var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
     var searchFieldFocused by rememberSaveable { mutableStateOf(false) }
@@ -1406,6 +1414,12 @@ private fun CompactNowPlayingDockHost(
         } else {
             delay(ElovaireMotion.Standard.toLong().coerceAtLeast(120L))
             keepProgressActive = false
+        }
+    }
+    DisposableEffect(viewModel, keepProgressActive) {
+        viewModel.setProgressConsumerActive(PlaybackProgressConsumer.CompactDock, keepProgressActive)
+        onDispose {
+            viewModel.setProgressConsumerActive(PlaybackProgressConsumer.CompactDock, false)
         }
     }
 
@@ -6786,7 +6800,7 @@ internal fun AddSongsToPlaylistOverlay(
     var selectedSongIds by rememberSaveable { mutableStateOf(listOf<Long>()) }
     var selectedAlbumId by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedArtistName by rememberSaveable { mutableStateOf<String?>(null) }
-    var listResetVersion by rememberSaveable { mutableLongStateOf(0L) }
+    var listResetVersion by remember { mutableLongStateOf(0L) }
     val selectedSongIdSet = remember(selectedSongIds) { selectedSongIds.toSet() }
     val listState = rememberElovaireLazyListState(
         "playlist_add_songs_overlay",

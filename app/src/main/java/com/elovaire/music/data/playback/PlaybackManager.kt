@@ -241,12 +241,13 @@ class PlaybackManager(
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
     private var hasUsbOutputRoute = false
     private val playbackProgressController = PlaybackProgressController()
+    private val progressDemandController = PlaybackProgressDemandController()
     private val playbackProgressTicker = PlaybackProgressTicker(
         scope = scope,
         intervalMs = PLAYING_PROGRESS_UPDATE_INTERVAL_MS,
     ) {
         publishProgressSnapshot()
-        player.isPlaying || playbackProgressController.needsActivePolling()
+        shouldPollProgress()
     }
     private val queueMetadataRefresher = PlaybackQueueMetadataRefresher()
     private val stateReducer = PlaybackStateReducer(
@@ -482,30 +483,49 @@ class PlaybackManager(
         targetPlayerOutputGain = ::targetPlayerOutputGain,
     )
     private val queueController = PlaybackQueueController(
-        playerProvider = { player },
-        stateProvider = { _state.value },
-        publishState = { _state.value = it },
-        updateState = ::updateState,
-        requestAudioFocus = ::requestAudioFocus,
-        effectivePlayerGain = ::effectivePlayerGain,
-        cancelPauseFade = ::cancelPauseFade,
-        clearInterruptionResumeState = ::clearInterruptionResumeState,
-        recordManualPlaybackStart = ::recordManualPlaybackStart,
-        stopAndClearQueue = ::stopAndClearQueue,
-        resetAudioPathState = {
-            _playbackFormatFailure.value = null
-            isManualPausePending = false
-            isPauseTransitioningToStopped = false
-            bitPerfectUsbManager.clearPlaybackFormat()
-            lastAppliedAudioPathDecisionKey = null
+        runtime = object : PlaybackQueueRuntime {
+            override val player: Player
+                get() = this@PlaybackManager.player
+            override val state: PlaybackUiState
+                get() = _state.value
+
+            override fun publishState(state: PlaybackUiState) {
+                _state.value = state
+            }
+
+            override fun updateState() = this@PlaybackManager.updateState()
+            override fun requestAudioFocus(): Boolean = this@PlaybackManager.requestAudioFocus()
+            override fun effectivePlayerGain(): Float = this@PlaybackManager.effectivePlayerGain()
+            override fun cancelPauseFade(resetVolume: Boolean) = this@PlaybackManager.cancelPauseFade(resetVolume)
+            override fun clearInterruptionResumeState() = this@PlaybackManager.clearInterruptionResumeState()
+            override fun recordManualPlaybackStart() = this@PlaybackManager.recordManualPlaybackStart()
+            override fun stopAndClearQueue() = this@PlaybackManager.stopAndClearQueue()
+
+            override fun resetAudioPathState() {
+                _playbackFormatFailure.value = null
+                isManualPausePending = false
+                isPauseTransitioningToStopped = false
+                bitPerfectUsbManager.clearPlaybackFormat()
+                lastAppliedAudioPathDecisionKey = null
+            }
+
+            override fun resetUnexpectedIdleRecoveryGuard() = this@PlaybackManager.resetUnexpectedIdleRecoveryGuard()
+            override fun onQueueReplaced(songs: List<Song>) = queueMetadataRefresher.onQueueReplaced(songs)
+            override fun resolveCurrentQueueIndex(state: PlaybackUiState): Int =
+                stateReducer.resolveCurrentQueueIndex(state)
+
+            override fun scheduleAudioPathReevaluation(reason: String, delayMs: Long) =
+                this@PlaybackManager.scheduleAudioPathReevaluation(reason, delayMs)
+
+            override fun requestFormatFailureReset() {
+                _playbackFormatFailure.value = null
+            }
+
+            override fun clearFailedPlaybackSongIds() {
+                failedPlaybackSongIds.clear()
+            }
         },
-        resetUnexpectedIdleRecoveryGuard = ::resetUnexpectedIdleRecoveryGuard,
-        onQueueReplaced = queueMetadataRefresher::onQueueReplaced,
         queueMetadataRefresher = queueMetadataRefresher,
-        resolveCurrentQueueIndex = stateReducer::resolveCurrentQueueIndex,
-        scheduleAudioPathReevaluation = ::scheduleAudioPathReevaluation,
-        requestFormatFailureReset = { _playbackFormatFailure.value = null },
-        clearFailedPlaybackSongIds = failedPlaybackSongIds::clear,
     )
 
     init {
@@ -530,6 +550,18 @@ class PlaybackManager(
 
     fun hasActiveQueue(): Boolean {
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
+    }
+
+    internal fun setProgressConsumerActive(
+        consumer: PlaybackProgressConsumer,
+        active: Boolean,
+    ) {
+        if (progressDemandController.setActive(consumer, active)) {
+            if (active) {
+                publishProgressSnapshot(force = true)
+            }
+            syncProgressUpdateLoop()
+        }
     }
 
     fun playSong(
@@ -683,12 +715,14 @@ class PlaybackManager(
 
     override fun seekTo(positionMs: Long) {
         _progressState.value = playbackProgressController.cancelScrub()
+        progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         player.seekTo(positionMs.coerceAtLeast(0L))
-        publishProgressSnapshot()
+        publishProgressSnapshot(force = true)
         updateState()
     }
 
     fun beginScrub() {
+        progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, true)
         _progressState.value = playbackProgressController.beginScrub()
         syncProgressUpdateLoop()
     }
@@ -701,11 +735,13 @@ class PlaybackManager(
         val result = playbackProgressController.finishScrub(positionMs)
         _progressState.value = result.state
         result.seekPositionMs?.let(player::seekTo)
+        progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         syncProgressUpdateLoop()
     }
 
     fun cancelScrub() {
         _progressState.value = playbackProgressController.cancelScrub()
+        progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         syncProgressUpdateLoop()
     }
 
@@ -797,6 +833,7 @@ class PlaybackManager(
 
     fun release() {
         pauseFadeJob?.cancel()
+        progressDemandController.clear()
         playbackProgressTicker.release()
         externalInterruptionResumeJob?.cancel()
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
@@ -1026,7 +1063,7 @@ class PlaybackManager(
         return true
     }
 
-    private fun publishProgressSnapshot() {
+    private fun publishProgressSnapshot(force: Boolean = false) {
         val updatedProgress = playbackProgressController.onPlayerSnapshot(
             mediaId = currentSong()?.id,
             positionMs = player.currentPosition.coerceAtLeast(0L),
@@ -1034,7 +1071,7 @@ class PlaybackManager(
             bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
             isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
         )
-        if (updatedProgress != _progressState.value) {
+        if (force || updatedProgress != _progressState.value) {
             _progressState.value = updatedProgress
         }
         syncProgressUpdateLoop()
@@ -1189,7 +1226,7 @@ class PlaybackManager(
         scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
         isRecoveringPlayback = true
         scope.launch {
-            val mediaItems = snapshot.queue.map { song ->
+            val mediaItems = snapshot.queue.mapTo(ArrayList(snapshot.queue.size)) { song ->
                 song.toPlaybackMediaItem()
             }
             player.setMediaItems(mediaItems, recoverIndex, recoverPosition)
@@ -1252,15 +1289,18 @@ class PlaybackManager(
     }
 
     private fun syncProgressUpdateLoop() {
-        val shouldPoll = hasActiveQueue() && (
-            playbackProgressController.needsActivePolling() ||
-                player.isPlaying
-            )
-        if (!shouldPoll) {
+        if (!shouldPollProgress()) {
             playbackProgressTicker.stop()
             return
         }
         playbackProgressTicker.start()
+    }
+
+    private fun shouldPollProgress(): Boolean {
+        return hasActiveQueue() && (
+            playbackProgressController.needsActivePolling() ||
+                (player.isPlaying && progressDemandController.hasAnyDemand())
+            )
     }
 
     private fun scheduleStatePublish() {
