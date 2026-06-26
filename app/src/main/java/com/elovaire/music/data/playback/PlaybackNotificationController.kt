@@ -1,13 +1,10 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.app.PendingIntent
-import android.content.ComponentCallbacks2
 import android.content.Context
 import android.content.Intent
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
-import android.util.LruCache
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.NotificationUtil
@@ -15,12 +12,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerNotificationManager
 import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.R
-import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
-import elovaire.music.droidbeauty.app.data.artwork.ArtworkRequestKey
-import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
-import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
@@ -28,8 +20,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.withContext
 
 const val EXTRA_OPEN_PLAYER_FROM_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.OPEN_PLAYER_FROM_NOTIFICATION"
 
@@ -39,7 +29,7 @@ internal fun invalidateNotificationArtworkCache(uris: Collection<Uri?>) {
         .map(Uri::toString)
         .filter(String::isNotBlank)
     if (keys.isEmpty()) return
-    NotificationArtworkCache.removeAllMatchingUris(keys)
+    removeNotificationArtworkForUris(keys)
 }
 
 @UnstableApi
@@ -48,13 +38,8 @@ class PlaybackNotificationController(
     private val playbackManager: PlaybackManager,
     private val scope: CoroutineScope,
 ) {
-    private val pendingArtworkLoads = linkedMapOf<String, Job>()
     private val notificationJobs = mutableListOf<Job>()
-    private var currentArtworkLoadKey: ArtworkRequestKey? = null
-
-    init {
-        NotificationArtworkCache.ensureRegistered(context.applicationContext)
-    }
+    private val artworkLoader = NotificationArtworkLoader(context, scope)
 
     private val notificationManager = PlayerNotificationManager.Builder(
         context,
@@ -140,20 +125,16 @@ class PlaybackNotificationController(
                 playbackManager.nowPlayingState,
                 playbackManager.transportState,
             ) { nowPlaying, transport ->
-                    NotificationVisibilityState(
-                        songId = nowPlaying.currentSong?.id,
+                    notificationRenderStateOf(
+                        song = nowPlaying.currentSong,
                         isPlaying = transport.isPlaying,
-                        metadataSignature = nowPlaying.currentSong?.let { song ->
-                            "${song.title}\u0000${song.artist}\u0000${song.album}\u0000${song.artUri}"
-                        },
                     )
                 }
                 .distinctUntilChanged()
-                .collectLatest {
+                .collectLatest { renderState ->
                     val state = playbackManager.state.value
                     if (!notificationsEnabled) return@collectLatest
-                    currentArtworkLoadKey = state.currentSong?.artUri?.let(::artworkLoadKey)
-                    trimPendingArtworkLoads(currentArtworkLoadKey)
+                    artworkLoader.setCurrentArtUri(renderState.artUri)
                     notificationManager.invalidate()
                     when {
                         state.currentSong == null -> {
@@ -217,9 +198,7 @@ class PlaybackNotificationController(
         notificationJobs.clear()
         pauseHideJob?.cancel()
         pauseHideJob = null
-        currentArtworkLoadKey = null
-        pendingArtworkLoads.values.forEach(Job::cancel)
-        pendingArtworkLoads.clear()
+        artworkLoader.clear()
     }
 
     private fun shouldShowNotification(currentState: PlaybackUiState): Boolean {
@@ -261,9 +240,18 @@ class PlaybackNotificationController(
             callback: PlayerNotificationManager.BitmapCallback,
         ): Bitmap? {
             val artworkUri = playbackManager.state.value.currentSong?.artUri ?: return null
-            val artworkKey = artworkLoadKey(artworkUri)
-            NotificationArtworkCache[artworkKey.cacheKey]?.let { return it }
-            loadArtworkAsync(artworkUri, callback)
+            artworkLoader.cachedBitmap(artworkUri)?.let { return it }
+            if (notificationsEnabled) {
+                artworkLoader.loadAsync(
+                    uri = artworkUri,
+                    isStillCurrent = { key ->
+                        notificationsEnabled &&
+                            artworkLoader.isCurrent(key) &&
+                            playbackManager.state.value.currentSong?.artUri == artworkUri
+                    },
+                    callback = callback,
+                )
+            }
             return null
         }
     }
@@ -303,36 +291,6 @@ class PlaybackNotificationController(
         }
     }
 
-    private fun loadArtworkAsync(
-        uri: Uri,
-        callback: PlayerNotificationManager.BitmapCallback,
-    ) {
-        if (!notificationsEnabled) return
-        val loadKey = artworkLoadKey(uri)
-        val cacheKey = loadKey.cacheKey
-        if (pendingArtworkLoads[cacheKey]?.isActive == true) return
-        pendingArtworkLoads[cacheKey] = scope.launch(Dispatchers.IO) {
-            try {
-                if (!notificationsEnabled) return@launch
-                val bitmap = loadBitmap(context, loadKey)
-                withContext(Dispatchers.Main.immediate) {
-                    if (
-                        notificationsEnabled &&
-                        bitmap != null &&
-                        currentArtworkLoadKey == loadKey &&
-                        playbackManager.state.value.currentSong?.artUri == uri
-                    ) {
-                        callback.onBitmap(bitmap)
-                    }
-                }
-            } finally {
-                withContext(NonCancellable + Dispatchers.Main.immediate) {
-                    pendingArtworkLoads.remove(cacheKey)
-                }
-            }
-        }
-    }
-
     companion object {
         internal const val NOTIFICATION_CHANNEL_ID = "elovaire_playback"
         internal const val NOTIFICATION_ID = 1001
@@ -349,108 +307,6 @@ class PlaybackNotificationController(
             )
         }
 
-        private fun loadBitmap(
-            context: Context,
-            key: ArtworkRequestKey,
-        ): Bitmap? {
-            NotificationArtworkCache[key.cacheKey]?.let { return it }
-            val bitmap = loadArtworkBitmap(context, key)
-            return bitmap?.also { cachedBitmap ->
-                NotificationArtworkCache.put(key.cacheKey, cachedBitmap)
-            }
-        }
-
-        private const val NOTIFICATION_ARTWORK_SIZE_PX = 256
     }
 
-    private data class NotificationVisibilityState(
-        val songId: Long?,
-        val isPlaying: Boolean,
-        val metadataSignature: String?,
-    )
-
-    private fun artworkLoadKey(uri: Uri): ArtworkRequestKey {
-        return requireNotNull(
-            artworkRequestKey(
-                uri = uri,
-                targetPx = NOTIFICATION_ARTWORK_SIZE_PX,
-                purpose = ArtworkPurpose.Notification,
-            ),
-        )
-    }
-
-    private fun trimPendingArtworkLoads(activeKey: ArtworkRequestKey?) {
-        val activeCacheKey = activeKey?.cacheKey
-        val iterator = pendingArtworkLoads.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (entry.key == activeCacheKey) continue
-            entry.value.cancel()
-            iterator.remove()
-        }
-    }
-
-}
-
-private object NotificationArtworkCache {
-    private val maxCacheBytes = (Runtime.getRuntime().maxMemory() / 16L)
-        .coerceAtMost(256L * 256L * 2L * 12L)
-        .coerceAtLeast(2L * 1024L * 1024L)
-        .toInt()
-    private var callbacksRegistered = false
-
-    private val cache = object : LruCache<String, Bitmap>(maxCacheBytes) {
-        override fun sizeOf(
-            key: String,
-            value: Bitmap,
-        ): Int {
-            return value.allocationByteCount
-        }
-    }
-
-    @Synchronized
-    fun ensureRegistered(appContext: Context) {
-        if (callbacksRegistered) return
-        appContext.registerComponentCallbacks(object : ComponentCallbacks2 {
-            override fun onConfigurationChanged(newConfig: Configuration) = Unit
-
-            @Deprecated("Deprecated Android callback")
-            @Suppress("DEPRECATION")
-            override fun onLowMemory() {
-                trim(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
-            }
-
-            override fun onTrimMemory(level: Int) {
-                trim(level)
-            }
-        })
-        callbacksRegistered = true
-    }
-
-    operator fun get(key: String): Bitmap? = cache.get(key)
-
-    fun put(
-        key: String,
-        bitmap: Bitmap,
-    ) {
-        cache.put(key, bitmap)
-    }
-
-    fun removeAllMatchingUris(uris: Collection<String>) {
-        if (uris.isEmpty()) return
-        val keysToRemove = cache.snapshot().keys.filter { key ->
-            uris.any { uri -> key == uri || key.startsWith("$uri|") }
-        }
-        keysToRemove.forEach(cache::remove)
-    }
-
-    @Suppress("DEPRECATION")
-    @Synchronized
-    private fun trim(level: Int) {
-        when {
-            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
-                level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> cache.evictAll()
-            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
-        }
-    }
 }

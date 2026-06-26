@@ -1,104 +1,86 @@
 package elovaire.music.droidbeauty.app.data.library
 
 internal data class LibraryRefreshRequest(
-    val forceMediaIndex: Boolean,
-    val enrichMetadata: Boolean,
-    val targetedPaths: List<String>,
-)
+    val forceMediaIndex: Boolean = false,
+    val enrichMetadata: Boolean = false,
+    val targetedPaths: List<String> = emptyList(),
+) {
+    fun mergedWith(other: LibraryRefreshRequest): LibraryRefreshRequest {
+        val force = forceMediaIndex || other.forceMediaIndex
+        return LibraryRefreshRequest(
+            forceMediaIndex = force,
+            enrichMetadata = enrichMetadata || other.enrichMetadata,
+            targetedPaths = if (force) {
+                emptyList()
+            } else {
+                (targetedPaths + other.targetedPaths)
+                    .asSequence()
+                    .map(String::trim)
+                    .filter(String::isNotBlank)
+                    .distinct()
+                    .toList()
+            },
+        )
+    }
+
+    fun normalized(): LibraryRefreshRequest {
+        return copy(
+            targetedPaths = if (forceMediaIndex) {
+                emptyList()
+            } else {
+                targetedPaths
+                    .asSequence()
+                    .map(String::trim)
+                    .filter(String::isNotBlank)
+                    .distinct()
+                    .toList()
+            },
+        )
+    }
+}
 
 internal class LibraryRefreshRequests {
-    var pendingRefresh = false
-        private set
+    private var pending: LibraryRefreshRequest? = null
 
-    private var pendingIndexRefresh = false
-    private var pendingMetadataEnrichment = false
-    private val pendingTargetedPaths = linkedSetOf<String>()
+    fun enqueue(request: LibraryRefreshRequest) {
+        val normalized = request.normalized()
+        pending = pending?.mergedWith(normalized) ?: normalized
+    }
 
-    fun markPending(
+    fun enqueue(
         forceMediaIndex: Boolean = false,
         enrichMetadata: Boolean = false,
         targetedPaths: Collection<String> = emptyList(),
     ) {
-        pendingRefresh = true
-        pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
-        pendingMetadataEnrichment = pendingMetadataEnrichment || enrichMetadata
-        if (forceMediaIndex) {
-            pendingTargetedPaths.clear()
-        } else {
-            pendingTargetedPaths.addAll(targetedPaths)
-        }
-    }
-
-    fun markIndexRefresh(
-        forceMediaIndex: Boolean,
-        targetedPath: String? = null,
-    ) {
-        pendingIndexRefresh = pendingIndexRefresh || forceMediaIndex
-        if (forceMediaIndex) {
-            pendingTargetedPaths.clear()
-        } else {
-            targetedPath?.let(pendingTargetedPaths::add)
-        }
-    }
-
-    fun addTargetedPaths(
-        paths: Collection<String>,
-        enrichMetadata: Boolean,
-    ) {
-        pendingTargetedPaths.addAll(paths)
-        pendingMetadataEnrichment = pendingMetadataEnrichment || enrichMetadata
-    }
-
-    fun prepareImmediate(request: LibraryRefreshRequest) {
-        pendingIndexRefresh = pendingIndexRefresh || request.forceMediaIndex
-        pendingMetadataEnrichment = pendingMetadataEnrichment || request.enrichMetadata
-        if (request.forceMediaIndex) {
-            pendingTargetedPaths.clear()
-        } else {
-            pendingTargetedPaths.addAll(request.targetedPaths)
-        }
-    }
-
-    fun takeForScan(
-        forceMediaIndex: Boolean,
-        enrichMetadata: Boolean,
-    ): LibraryRefreshRequest {
-        val shouldRefreshIndex = forceMediaIndex || pendingIndexRefresh
-        val targeted = if (shouldRefreshIndex) emptyList() else pendingTargetedPaths.toList()
-        val shouldEnrich = enrichMetadata || pendingMetadataEnrichment
-        pendingIndexRefresh = false
-        pendingMetadataEnrichment = false
-        pendingTargetedPaths.clear()
-        return LibraryRefreshRequest(
-            forceMediaIndex = shouldRefreshIndex,
-            enrichMetadata = shouldEnrich,
-            targetedPaths = targeted,
+        enqueue(
+            LibraryRefreshRequest(
+                forceMediaIndex = forceMediaIndex,
+                enrichMetadata = enrichMetadata,
+                targetedPaths = targetedPaths.toList(),
+            ),
         )
+    }
+
+    fun takeForImmediateScan(request: LibraryRefreshRequest): LibraryRefreshRequest {
+        val merged = pending?.let(request::mergedWith) ?: request
+        pending = null
+        return merged.normalized()
     }
 
     fun takePendingAfterScan(): LibraryRefreshRequest? {
-        if (!pendingRefresh) return null
-        pendingRefresh = false
-        val request = LibraryRefreshRequest(
-            forceMediaIndex = pendingIndexRefresh,
-            enrichMetadata = pendingMetadataEnrichment,
-            targetedPaths = pendingTargetedPaths.toList(),
-        )
-        pendingIndexRefresh = false
-        pendingMetadataEnrichment = false
-        pendingTargetedPaths.clear()
-        return request
+        val next = pending?.normalized()
+        pending = null
+        return next
     }
 
     fun clearIndexRefresh() {
-        pendingIndexRefresh = false
-        pendingTargetedPaths.clear()
+        pending = pending?.copy(
+            forceMediaIndex = false,
+            targetedPaths = emptyList(),
+        )?.takeIf { it.enrichMetadata }
     }
 
     fun clear() {
-        pendingRefresh = false
-        pendingIndexRefresh = false
-        pendingMetadataEnrichment = false
-        pendingTargetedPaths.clear()
+        pending = null
     }
 }

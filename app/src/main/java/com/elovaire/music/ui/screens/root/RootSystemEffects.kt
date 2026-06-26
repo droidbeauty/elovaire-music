@@ -74,18 +74,34 @@ internal fun rememberRootPermissionController(
     var playFirstLaunchHomeReveal by rememberSaveable {
         mutableStateOf(false)
     }
+    var syncedAudioPermission by remember { mutableStateOf<Boolean?>(null) }
+    var syncedNotificationPermission by remember { mutableStateOf<Boolean?>(null) }
+
+    fun syncAudioPermission(granted: Boolean) {
+        hasPermission = granted
+        if (syncedAudioPermission != granted) {
+            syncedAudioPermission = granted
+            container.libraryRepository.onPermissionChanged(granted)
+        }
+    }
+
+    fun syncNotificationPermission(granted: Boolean) {
+        hasNotificationPermission = granted
+        if (syncedNotificationPermission != granted) {
+            syncedNotificationPermission = granted
+            container.setNotificationsEnabled(granted)
+        }
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        hasNotificationPermission = granted
-        container.setNotificationsEnabled(granted)
+        syncNotificationPermission(granted)
     }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        hasPermission = granted
-        container.libraryRepository.onPermissionChanged(granted)
+        syncAudioPermission(granted)
         if (
             granted &&
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -98,7 +114,8 @@ internal fun rememberRootPermissionController(
     }
 
     LaunchedEffect(hasPermission, hasNotificationPermission) {
-        container.libraryRepository.onPermissionChanged(hasPermission)
+        syncAudioPermission(hasPermission)
+        syncNotificationPermission(hasNotificationPermission)
         if (!hasPermission && !hasRequestedAudioPermission) {
             hasRequestedAudioPermission = true
             permissionLauncher.launch(requiredAudioPermission())
@@ -113,22 +130,19 @@ internal fun rememberRootPermissionController(
         }
     }
 
-    LaunchedEffect(hasNotificationPermission) {
-        container.setNotificationsEnabled(hasNotificationPermission)
-    }
-
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val refreshedAudioPermission = context.hasAudioReadPermission()
                 val refreshedNotificationPermission = context.hasNotificationPostingPermission()
-                if (hasPermission != refreshedAudioPermission) {
-                    hasPermission = refreshedAudioPermission
-                    container.libraryRepository.onPermissionChanged(refreshedAudioPermission)
+                if (hasPermission != refreshedAudioPermission || syncedAudioPermission != refreshedAudioPermission) {
+                    syncAudioPermission(refreshedAudioPermission)
                 }
-                if (hasNotificationPermission != refreshedNotificationPermission) {
-                    hasNotificationPermission = refreshedNotificationPermission
-                    container.setNotificationsEnabled(refreshedNotificationPermission)
+                if (
+                    hasNotificationPermission != refreshedNotificationPermission ||
+                    syncedNotificationPermission != refreshedNotificationPermission
+                ) {
+                    syncNotificationPermission(refreshedNotificationPermission)
                 }
             }
         }

@@ -613,15 +613,14 @@ fun ElovaireRoot(
         openAlbum = openAlbum,
         navigateToAlbumId = { albumId -> navController.navigate(Routes.album(albumId)) },
     )
-    val createPlaylistAndAddSongs = remember(container.preferenceStore) {
-        { name: String, songIds: List<Long> ->
-            val createdId = container.preferenceStore.createPlaylist(name)
-            if (createdId > 0L && songIds.isNotEmpty()) {
-                container.preferenceStore.addSongsToPlaylist(createdId, songIds)
-            }
-            createdId
-        }
-    }
+    val playbackActions = rememberRootPlaybackActions(
+        container = container,
+        appLanguage = appState.appLanguage,
+        songsByAlbumId = songsByAlbumId,
+        albumsById = albumsById,
+        openNowPlaying = requestOpenNowPlaying,
+    )
+    val playlistActions = rememberRootPlaylistActions(container)
 
     CompositionLocalProvider(
         LocalOverscrollFactory provides overscrollFactory,
@@ -704,53 +703,15 @@ fun ElovaireRoot(
                                 navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
                                 navController.navigate(Routes.playlist(playlist.id))
                             },
-                            onPlayAlbum = { album ->
-                                container.playbackManager.playAlbum(album)
-                            },
+                            onPlayAlbum = { album -> playbackActions.playAlbum(album) },
                             onPlayPlaylist = { playlist, songs ->
-                                songs.firstOrNull()?.let { firstSong ->
-                                    container.playbackManager.playSong(
-                                        song = firstSong,
-                                        collection = songs,
-                                        sourceLabel = playlist.name,
-                                        sourcePlaylistId = playlist.id,
-                                    )
-                                    requestOpenNowPlaying(null)
-                                }
+                                playbackActions.playPlaylist(playlist, songs)
                             },
                             onShufflePlaylist = { playlist, songs ->
-                                val shuffledSongs = songs.shuffled()
-                                shuffledSongs.firstOrNull()?.let { firstSong ->
-                                    container.playbackManager.playSong(
-                                        song = firstSong,
-                                        collection = shuffledSongs,
-                                        sourceLabel = playlist.name,
-                                        sourcePlaylistId = playlist.id,
-                                    )
-                                    requestOpenNowPlaying(null)
-                                }
+                                playbackActions.playPlaylist(playlist, songs, shuffle = true)
                             },
-                            onSongSelected = { song ->
-                                val sourceAlbum = albumsById[song.albumId]
-                                if (sourceAlbum != null) {
-                                    container.playbackManager.playAlbum(
-                                        album = sourceAlbum,
-                                        startSongId = song.id,
-                                        sourceLabel = sourceAlbum.title,
-                                    )
-                                } else {
-                                    val albumSongs = songsByAlbumId[song.albumId].orEmpty()
-                                    container.playbackManager.playSong(
-                                        song = song,
-                                        collection = albumSongs.ifEmpty { listOf(song) },
-                                        sourceLabel = song.album,
-                                    )
-                                }
-                                requestOpenNowPlaying(null)
-                            },
-                            onToggleFavorite = { songId ->
-                                container.preferenceStore.toggleFavoriteSong(songId)
-                            },
+                            onSongSelected = playbackActions::playSongFromAlbumOrSingle,
+                            onToggleFavorite = playlistActions::toggleFavorite,
                         )
                     }
 
@@ -799,12 +760,11 @@ fun ElovaireRoot(
                             onSearchFieldFocusedChange = { searchFieldFocused = it },
                             onSearchQueryActiveChanged = { isSearchQueryActive = it },
                             onPlaySong = { song, queue ->
-                                container.playbackManager.playSong(
+                                playbackActions.playSongQueue(
                                     song = song,
-                                    collection = queue,
+                                    queue = queue,
                                     sourceLabel = searchViewModel.playbackSourceLabelFor(queue, song.album),
                                 )
-                                requestOpenNowPlaying(null)
                             },
                             onAlbumSelected = { album, origin ->
                                 openAlbum(album, origin, AlbumOpenSource.SearchResults)
@@ -812,7 +772,7 @@ fun ElovaireRoot(
                             onArtistSelected = { artistName ->
                                 navController.navigate(Routes.artist(artistName))
                             },
-                            onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
+                            onToggleFavorite = playlistActions::toggleFavorite,
                         )
                     }
 
@@ -832,44 +792,41 @@ fun ElovaireRoot(
                             onBack = navController::navigateUp,
                             onPlayPlaylist = { songs, sourceLabel ->
                                 songs.firstOrNull()?.let { firstSong ->
-                                    container.playbackManager.playSong(
+                                    playbackActions.playSongQueue(
                                         song = firstSong,
-                                        collection = songs,
+                                        queue = songs,
                                         sourceLabel = sourceLabel,
                                         sourcePlaylistId = playlist?.id,
                                     )
-                                    requestOpenNowPlaying(null)
                                 }
                             },
                             onShufflePlaylist = { songs, sourceLabel ->
                                 val shuffledSongs = songs.shuffled()
                                 shuffledSongs.firstOrNull()?.let { firstSong ->
-                                    container.playbackManager.playSong(
+                                    playbackActions.playSongQueue(
                                         song = firstSong,
-                                        collection = shuffledSongs,
+                                        queue = shuffledSongs,
                                         sourceLabel = sourceLabel,
                                         sourcePlaylistId = playlist?.id,
                                     )
-                                    requestOpenNowPlaying(null)
                                 }
                             },
                             onSongSelected = { song, queue ->
-                                container.playbackManager.playSong(
+                                playbackActions.playSongQueue(
                                     song = song,
-                                    collection = queue,
+                                    queue = queue,
                                     sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
                                         fallbackAlbum = song.album,
                                         language = appState.appLanguage,
                                     ),
                                     sourcePlaylistId = playlist?.id,
                                 )
-                                requestOpenNowPlaying(null)
                             },
                             onUpdateSongOrder = { songIds ->
                                 container.preferenceStore.updatePlaylistSongIds(playlistId, songIds)
                             },
                             onRenamePlaylist = container.preferenceStore::renamePlaylist,
-                            onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
+                            onToggleFavorite = playlistActions::toggleFavorite,
                         )
                     }
 
@@ -900,36 +857,25 @@ fun ElovaireRoot(
                                 navController.navigate(Routes.tagEditor(selectedAlbum.id))
                             },
                             onPlayAlbum = { selectedAlbum ->
-                                container.playbackManager.playAlbum(
-                                    album = selectedAlbum,
-                                    shuffleEnabled = false,
-                                )
+                                playbackActions.playAlbum(selectedAlbum)
                             },
                             onShuffleAlbum = { selectedAlbum ->
-                                container.playbackManager.playAlbum(
-                                    album = selectedAlbum,
-                                    shuffleEnabled = true,
-                                )
+                                playbackActions.playAlbum(selectedAlbum, shuffle = true)
                             },
                             onSongSelected = { selectedSong, songs ->
-                                container.playbackManager.playSong(
+                                playbackActions.playSongQueue(
                                     song = selectedSong,
-                                    collection = songs,
+                                    queue = songs,
                                     sourceLabel = album?.title ?: selectedSong.album,
                                 )
-                                requestOpenNowPlaying(null)
                             },
                             playlists = appState.playlists,
-                            onAddSongsToPlaylist = { playlistId, songIds ->
-                                container.preferenceStore.addSongsToPlaylist(playlistId, songIds)
-                            },
-                            onCreatePlaylist = container.preferenceStore::createPlaylist,
+                            onAddSongsToPlaylist = playlistActions::addSongsToPlaylist,
+                            onCreatePlaylist = playlistActions::createPlaylist,
                             playlistSongsById = songsById,
                             onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
-                            onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
-                            onSetAlbumFavorite = { songIds, favorite ->
-                                container.preferenceStore.setFavoriteSongs(songIds, favorite)
-                            },
+                            onToggleFavorite = playlistActions::toggleFavorite,
+                            onSetAlbumFavorite = playlistActions::setSongsFavorite,
                         )
                     }
 
@@ -975,32 +921,17 @@ fun ElovaireRoot(
                                 album.songs.forEach(container.playbackManager::enqueueSong)
                             },
                             onSongSelected = { song, queue ->
-                                container.playbackManager.playSong(
-                                    song = song,
-                                    collection = queue,
-                                    sourceLabel = if (kind == LibraryCollectionKind.Songs) {
-                                        localizedAllSongsSource(appState.appLanguage)
-                                    } else {
-                                        queue.playbackSourceLabel(
-                                            fallbackAlbum = song.album,
-                                            language = appState.appLanguage,
-                                        )
-                                    },
-                                )
-                                requestOpenNowPlaying(null)
+                                if (kind == LibraryCollectionKind.Songs) {
+                                    playbackActions.playAllSongs(song, queue)
+                                } else {
+                                    playbackActions.playSongQueue(song, queue)
+                                }
                             },
-                            onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
-                            onAddAlbumToPlaylist = { playlistId, album ->
-                                container.preferenceStore.addSongsToPlaylist(
-                                    playlistId,
-                                    album.songs.map(Song::id),
-                                )
-                            },
-                            onCreatePlaylist = container.preferenceStore::createPlaylist,
+                            onToggleFavorite = playlistActions::toggleFavorite,
+                            onAddAlbumToPlaylist = playlistActions::addAlbumToPlaylist,
+                            onCreatePlaylist = playlistActions::createPlaylist,
                             playlistSongsById = songsById,
-                            onSetAlbumFavorite = { songIds, favorite ->
-                                container.preferenceStore.setFavoriteSongs(songIds, favorite)
-                            },
+                            onSetAlbumFavorite = playlistActions::setSongsFavorite,
                             onDeleteAlbumFromDevice = deleteController::deleteAlbumFromDevice,
                             onAlbumCollectionLayoutModeChanged = { mode ->
                                 container.preferenceStore.setAlbumCollectionLayoutMode(mode.name)
@@ -1048,15 +979,11 @@ fun ElovaireRoot(
                             onAddAlbumToQueue = { album ->
                                 album.songs.forEach(container.playbackManager::enqueueSong)
                             },
-                            onAddAlbumToPlaylist = { playlistId, album ->
-                                container.preferenceStore.addSongsToPlaylist(playlistId, album.songs.map(Song::id))
-                            },
-                            onCreatePlaylist = container.preferenceStore::createPlaylist,
+                            onAddAlbumToPlaylist = playlistActions::addAlbumToPlaylist,
+                            onCreatePlaylist = playlistActions::createPlaylist,
                             playlistSongsById = songsById,
                             favoriteSongIds = appState.favoriteSongIds,
-                            onSetAlbumFavorite = { songIds, favorite ->
-                                container.preferenceStore.setFavoriteSongs(songIds, favorite)
-                            },
+                            onSetAlbumFavorite = playlistActions::setSongsFavorite,
                             onDeleteAlbumFromDevice = deleteController::deleteAlbumFromDevice,
                         )
                     }
@@ -1076,13 +1003,12 @@ fun ElovaireRoot(
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onSongSelected = { song, queue ->
-                                container.playbackManager.playSong(song, queue, sourceLabel = artistName)
-                                requestOpenNowPlaying(null)
+                                playbackActions.playSongQueue(song, queue, sourceLabel = artistName)
                             },
                             onAlbumSelected = { album, origin ->
                                 openAlbum(album, origin, AlbumOpenSource.ArtistDetail)
                             },
-                            onToggleFavorite = container.preferenceStore::toggleFavoriteSong,
+                            onToggleFavorite = playlistActions::toggleFavorite,
                         )
                     }
 
@@ -1350,11 +1276,11 @@ fun ElovaireRoot(
                         playlists = appState.playlists.filterNot { it.isSystem },
                         onBack = { hidePlayerOverlay(true) },
                         onOpenCurrentAlbum = openCurrentPlayingAlbum,
-                        onToggleFavorite = { songId -> container.preferenceStore.toggleFavoriteSong(songId) },
+                        onToggleFavorite = playlistActions::toggleFavorite,
                         onAddCurrentSongToPlaylist = { playlistId, song ->
-                            container.preferenceStore.addSongsToPlaylist(playlistId, listOf(song.id))
+                            playlistActions.addSongsToPlaylist(playlistId, listOf(song.id))
                         },
-                        onCreatePlaylist = container.preferenceStore::createPlaylist,
+                        onCreatePlaylist = playlistActions::createPlaylist,
                         onOpenEqualizer = {
                             hidePlayerOverlay(false)
                             navController.navigate(EQUALIZER_ROUTE)
@@ -10714,14 +10640,6 @@ private fun repeatModeIconRes(repeatMode: PlaybackRepeatMode): Int {
         PlaybackRepeatMode.One -> R.drawable.ic_lucide_repeat_1
         PlaybackRepeatMode.All -> R.drawable.ic_lucide_repeat
     }
-}
-
-private fun List<Song>.playbackSourceLabel(fallbackAlbum: String, language: AppLanguage): String {
-    val distinctAlbums = asSequence().map { it.album }.filter { it.isNotBlank() }.distinct().toList()
-    return when {
-        distinctAlbums.size == 1 -> distinctAlbums.first()
-        else -> localizedAllSongsSource(language)
-    }.ifBlank { fallbackAlbum }
 }
 
 @Composable

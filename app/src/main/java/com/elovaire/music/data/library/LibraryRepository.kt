@@ -203,14 +203,21 @@ class LibraryRepository(
         showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
     ) {
         if (!_scanState.value.permissionGranted) return
+        val request = LibraryRefreshRequest(
+            forceMediaIndex = forceMediaIndex,
+            enrichMetadata = enrichMetadata,
+        )
         if (scanJob?.isActive == true) {
-            refreshRequests.markPending(
-                forceMediaIndex = forceMediaIndex,
-                enrichMetadata = enrichMetadata,
-            )
+            refreshRequests.enqueue(request)
             return
         }
+        startRefresh(request, showLoadingIndicator)
+    }
 
+    private fun startRefresh(
+        request: LibraryRefreshRequest,
+        showLoadingIndicator: Boolean,
+    ) {
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         if (showLoadingIndicator) {
@@ -219,10 +226,7 @@ class LibraryRepository(
             _scanState.update { it.copy(errorMessage = null) }
         }
         scanJob = scope.launch {
-            val refreshRequest = refreshRequests.takeForScan(
-                forceMediaIndex = forceMediaIndex,
-                enrichMetadata = enrichMetadata,
-            )
+            val refreshRequest = refreshRequests.takeForImmediateScan(request)
             val progressThrottler = LibraryScanProgressThrottler()
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -277,7 +281,7 @@ class LibraryRepository(
                             song.genre == "Unknown Genre"
                     }
                     if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
-                        refreshRequests.markPending(enrichMetadata = true)
+                        refreshRequests.enqueue(enrichMetadata = true)
                     }
                 }
                 .onFailure { throwable ->
@@ -294,12 +298,7 @@ class LibraryRepository(
             scanJob = null
             val pendingRequest = refreshRequests.takePendingAfterScan()
             if (pendingRequest != null && _scanState.value.permissionGranted) {
-                refreshRequests.prepareImmediate(pendingRequest)
-                refresh(
-                    forceMediaIndex = pendingRequest.forceMediaIndex,
-                    enrichMetadata = pendingRequest.enrichMetadata,
-                    showLoadingIndicator = false,
-                )
+                startRefresh(pendingRequest, showLoadingIndicator = false)
             }
         }
     }
@@ -331,21 +330,17 @@ class LibraryRepository(
         if (enrichMetadata) {
             scanner.invalidateMetadataCacheForPaths(normalizedPaths)
         }
-        refreshRequests.addTargetedPaths(
-            paths = normalizedPaths,
+        val request = LibraryRefreshRequest(
             enrichMetadata = enrichMetadata,
+            targetedPaths = normalizedPaths,
         )
         if (scanJob?.isActive == true) {
-            refreshRequests.markPending(enrichMetadata = enrichMetadata)
+            refreshRequests.enqueue(request)
             return
         }
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
-        refresh(
-            forceMediaIndex = false,
-            enrichMetadata = enrichMetadata,
-            showLoadingIndicator = false,
-        )
+        startRefresh(request, showLoadingIndicator = false)
     }
 
     fun markDeletingSongs(songIds: Collection<Long>) {
@@ -485,9 +480,9 @@ class LibraryRepository(
         changedFilePath: String? = null,
     ) {
         if (!_scanState.value.permissionGranted) return
-        refreshRequests.markIndexRefresh(
+        refreshRequests.enqueue(
             forceMediaIndex = forceMediaIndex,
-            targetedPath = changedFilePath,
+            targetedPaths = listOfNotNull(changedFilePath),
         )
         if (!appForegroundState.value) {
             backgroundLibraryDirty = true

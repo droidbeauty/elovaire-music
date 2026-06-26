@@ -1,10 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
@@ -104,86 +101,6 @@ internal fun playbackUiStateOf(
         lastPlayedCollectionKind = recent.lastPlayedCollectionKind,
         lastPlayedCollectionId = recent.lastPlayedCollectionId,
     )
-}
-
-@Composable
-internal fun rememberRootAppState(container: AppContainer): RootAppState {
-    val libraryContentState by container.libraryRepository.contentState.collectAsStateWithLifecycle()
-    val libraryScanState by container.libraryRepository.scanState.collectAsStateWithLifecycle()
-    val playbackNowPlayingState by container.playbackManager.nowPlayingState.collectAsStateWithLifecycle()
-    val playbackTransportState by container.playbackManager.transportState.collectAsStateWithLifecycle()
-    val playbackQueueState by container.playbackManager.queueState.collectAsStateWithLifecycle()
-    val playbackVolumeState by container.playbackManager.volumeState.collectAsStateWithLifecycle()
-    val recentPlaybackState by container.playbackManager.recentPlaybackState.collectAsStateWithLifecycle()
-    val eqSettings by container.preferenceStore.eqSettings.collectAsStateWithLifecycle()
-    val themeMode by container.preferenceStore.themeMode.collectAsStateWithLifecycle()
-    val textSizePreset by container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
-    val appLanguage by container.preferenceStore.appLanguage.collectAsStateWithLifecycle()
-    val playlists by container.preferenceStore.playlists.collectAsStateWithLifecycle()
-    val favoriteSongIds by container.preferenceStore.favoriteSongIds.collectAsStateWithLifecycle()
-    val albumPlayCounts by container.preferenceStore.albumPlayCounts.collectAsStateWithLifecycle()
-    val songPlayCounts by container.preferenceStore.songPlayCounts.collectAsStateWithLifecycle()
-    val albumCollectionLayoutModeName by container.preferenceStore.albumCollectionLayoutMode.collectAsStateWithLifecycle()
-    val songCollectionGridEnabled by container.preferenceStore.songCollectionGridEnabled.collectAsStateWithLifecycle()
-    val albumCollectionSortModeName by container.preferenceStore.albumCollectionSortMode.collectAsStateWithLifecycle()
-    val songCollectionSortModeName by container.preferenceStore.songCollectionSortMode.collectAsStateWithLifecycle()
-    val appUpdateState by container.appUpdateManager.uiState.collectAsStateWithLifecycle()
-
-    val library = remember(libraryContentState, libraryScanState) {
-        libraryUiStateOf(libraryContentState, libraryScanState)
-    }
-    val playback = remember(
-        playbackNowPlayingState,
-        playbackTransportState,
-        playbackQueueState,
-        playbackVolumeState,
-        recentPlaybackState,
-    ) {
-        playbackUiStateOf(
-            nowPlaying = playbackNowPlayingState,
-            transport = playbackTransportState,
-            queue = playbackQueueState,
-            volume = playbackVolumeState,
-            recent = recentPlaybackState,
-        )
-    }
-    val favoriteSongIdSet = remember(favoriteSongIds) { favoriteSongIds.toHashSet() }
-
-    return remember(
-        library,
-        playback,
-        eqSettings,
-        themeMode,
-        textSizePreset,
-        appLanguage,
-        playlists,
-        favoriteSongIdSet,
-        albumPlayCounts,
-        songPlayCounts,
-        albumCollectionLayoutModeName,
-        songCollectionGridEnabled,
-        albumCollectionSortModeName,
-        songCollectionSortModeName,
-        appUpdateState,
-    ) {
-        RootAppState(
-            library = library,
-            playback = playback,
-            eqSettings = eqSettings,
-            themeMode = themeMode,
-            textSizePreset = textSizePreset,
-            appLanguage = appLanguage,
-            playlists = playlists,
-            favoriteSongIds = favoriteSongIdSet,
-            albumPlayCounts = albumPlayCounts,
-            songPlayCounts = songPlayCounts,
-            albumCollectionLayoutModeName = albumCollectionLayoutModeName,
-            songCollectionGridEnabled = songCollectionGridEnabled,
-            albumCollectionSortModeName = albumCollectionSortModeName,
-            songCollectionSortModeName = songCollectionSortModeName,
-            appUpdateState = appUpdateState,
-        )
-    }
 }
 
 @Composable
