@@ -10,6 +10,7 @@
         <item>Fixed no timeout bug for the notification area player</item>
         <item>Improvements to technical playback framework</item>
         <item>API optimizations</item>
+        <item>General code cleanup</item>
         <item>Bug fixes</item>
     </release>
 </changelog>
