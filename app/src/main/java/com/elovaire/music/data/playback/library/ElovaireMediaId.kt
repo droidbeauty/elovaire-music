@@ -6,6 +6,8 @@ internal sealed interface ElovaireMediaId {
     val value: String
 
     data object Root : ElovaireMediaId { override val value = "elovaire:root" }
+    data object PermissionRequired : ElovaireMediaId { override val value = "elovaire:info:permission_required" }
+    data object EmptyLibrary : ElovaireMediaId { override val value = "elovaire:info:empty_library" }
     data object Songs : ElovaireMediaId { override val value = "elovaire:songs" }
     data object Albums : ElovaireMediaId { override val value = "elovaire:albums" }
     data object Artists : ElovaireMediaId { override val value = "elovaire:artists" }
@@ -30,6 +32,8 @@ internal object ElovaireMediaIds {
 
     fun parse(value: String?): ElovaireMediaId? = when {
         value == ElovaireMediaId.Root.value -> ElovaireMediaId.Root
+        value == ElovaireMediaId.PermissionRequired.value -> ElovaireMediaId.PermissionRequired
+        value == ElovaireMediaId.EmptyLibrary.value -> ElovaireMediaId.EmptyLibrary
         value == ElovaireMediaId.Songs.value -> ElovaireMediaId.Songs
         value == ElovaireMediaId.Albums.value -> ElovaireMediaId.Albums
         value == ElovaireMediaId.Artists.value -> ElovaireMediaId.Artists

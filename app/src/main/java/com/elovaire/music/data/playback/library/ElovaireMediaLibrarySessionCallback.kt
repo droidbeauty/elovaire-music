@@ -88,6 +88,7 @@ internal class ElovaireMediaLibrarySessionCallback(
                 song = resolved.startSong,
                 collection = resolved.queue,
                 sourceLabel = resolved.sourceLabel,
+                shuffleEnabled = playbackManager.state.value.shuffleEnabled,
                 sourcePlaylistId = resolved.sourcePlaylistId,
             )
             return Futures.immediateFuture(

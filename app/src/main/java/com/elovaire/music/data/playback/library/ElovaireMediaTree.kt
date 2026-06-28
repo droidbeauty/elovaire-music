@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
+import elovaire.music.droidbeauty.app.domain.search.normalizeSearchText
 import elovaire.music.droidbeauty.app.domain.search.searchAlbumsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchPlaylists
@@ -16,26 +17,41 @@ internal class ElovaireMediaTree(
     private val libraryRepository: LibraryRepository,
     private val preferenceStore: PreferenceStore,
 ) {
-    fun rootChildren(): List<MediaItem> = listOf(
-        ElovaireMediaItems.songsRoot(),
-        ElovaireMediaItems.albumsRoot(),
-        ElovaireMediaItems.artistsRoot(),
-        ElovaireMediaItems.genresRoot(),
-        ElovaireMediaItems.playlistsRoot(),
-        ElovaireMediaItems.favoritesRoot(),
-        ElovaireMediaItems.recentlyAddedRoot(),
-    )
+    fun rootChildren(): List<MediaItem> {
+        val snapshot = snapshot()
+        return when {
+            !snapshot.permissionGranted -> listOf(ElovaireMediaItems.permissionRequiredInfo())
+            snapshot.songs.isEmpty() -> listOf(ElovaireMediaItems.emptyLibraryInfo())
+            else -> listOf(
+                ElovaireMediaItems.recentlyAddedRoot(),
+                ElovaireMediaItems.favoritesRoot(),
+                ElovaireMediaItems.albumsRoot(),
+                ElovaireMediaItems.artistsRoot(),
+                ElovaireMediaItems.playlistsRoot(),
+                ElovaireMediaItems.songsRoot(),
+            )
+        }
+    }
 
     fun childrenOf(id: ElovaireMediaId): List<MediaItem> {
         val snapshot = snapshot()
+        if (!snapshot.permissionGranted) {
+            return if (id == ElovaireMediaId.Root) listOf(ElovaireMediaItems.permissionRequiredInfo()) else emptyList()
+        }
+        if (snapshot.songs.isEmpty()) {
+            return if (id == ElovaireMediaId.Root) listOf(ElovaireMediaItems.emptyLibraryInfo()) else emptyList()
+        }
         return when (id) {
             ElovaireMediaId.Root -> rootChildren()
+            ElovaireMediaId.PermissionRequired,
+            ElovaireMediaId.EmptyLibrary,
+            -> emptyList()
             ElovaireMediaId.Songs -> snapshot.songs.sortedSongsByTitle().map(ElovaireMediaItems::song)
             ElovaireMediaId.Albums -> snapshot.albums.sortedAlbumsByTitle().map(ElovaireMediaItems::album)
             ElovaireMediaId.Artists -> snapshot.artistNames().map(ElovaireMediaItems::artist)
             ElovaireMediaId.Genres -> snapshot.genreNames().map(ElovaireMediaItems::genre)
             ElovaireMediaId.Playlists -> snapshot.playlists
-                .filter { it.songIds.isNotEmpty() || it.isSystem }
+                .filter { it.songIds.isNotEmpty() }
                 .sortedBy { it.name.lowercase() }
                 .map(ElovaireMediaItems::playlist)
             ElovaireMediaId.Favorites -> snapshot.favoriteSongs().sortedSongsByTitle().map(ElovaireMediaItems::song)
@@ -46,9 +62,11 @@ internal class ElovaireMediaTree(
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Artist -> snapshot.songs
                 .filter { it.artist.equals(ElovaireMediaIds.decodeName(id.encodedName), ignoreCase = true) }
+                .sortedSongsForContext()
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Genre -> snapshot.songs
                 .filter { it.genre.equals(ElovaireMediaIds.decodeName(id.encodedName), ignoreCase = true) }
+                .sortedSongsForContext()
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Playlist -> snapshot.playlistSongs(id.playlistId).map(ElovaireMediaItems::song)
         }
@@ -59,6 +77,8 @@ internal class ElovaireMediaTree(
         val snapshot = snapshot()
         return when (parsed) {
             ElovaireMediaId.Root -> ElovaireMediaItems.root()
+            ElovaireMediaId.PermissionRequired -> ElovaireMediaItems.permissionRequiredInfo()
+            ElovaireMediaId.EmptyLibrary -> ElovaireMediaItems.emptyLibraryInfo()
             ElovaireMediaId.Songs -> ElovaireMediaItems.songsRoot()
             ElovaireMediaId.Albums -> ElovaireMediaItems.albumsRoot()
             ElovaireMediaId.Artists -> ElovaireMediaItems.artistsRoot()
@@ -80,13 +100,19 @@ internal class ElovaireMediaTree(
     fun resolvePlayableQueue(mediaId: String): ResolvedPlayableQueue? {
         val parsed = ElovaireMediaIds.parse(mediaId) ?: return null
         val snapshot = snapshot()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
         return when (parsed) {
             ElovaireMediaId.Songs -> snapshot.songs.sortedSongsByTitle().toQueue("Songs")
             ElovaireMediaId.Favorites -> snapshot.favoriteSongs().sortedSongsByTitle().toQueue("Favorites")
             ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().toQueue("Recently added")
             is ElovaireMediaId.Song -> {
                 val song = snapshot.songs.firstOrNull { it.id == parsed.songId } ?: return null
-                ResolvedPlayableQueue(song, snapshot.songs.sortedSongsByTitle(), song.album, null)
+                val album = snapshot.albums.firstOrNull { it.id == song.albumId }
+                if (album != null) {
+                    ResolvedPlayableQueue(song, album.songs, album.title, null)
+                } else {
+                    ResolvedPlayableQueue(song, snapshot.songs.sortedSongsByTitle(), song.album, null)
+                }
             }
             is ElovaireMediaId.Album -> {
                 val album = snapshot.albums.firstOrNull { it.id == parsed.albumId } ?: return null
@@ -94,16 +120,24 @@ internal class ElovaireMediaTree(
             }
             is ElovaireMediaId.Artist -> {
                 val artist = ElovaireMediaIds.decodeName(parsed.encodedName)
-                snapshot.songs.filter { it.artist.equals(artist, ignoreCase = true) }.toQueue(artist)
+                snapshot.songs
+                    .filter { it.artist.equals(artist, ignoreCase = true) }
+                    .sortedSongsForContext()
+                    .toQueue(artist)
             }
             is ElovaireMediaId.Genre -> {
                 val genre = ElovaireMediaIds.decodeName(parsed.encodedName)
-                snapshot.songs.filter { it.genre.equals(genre, ignoreCase = true) }.toQueue(genre)
+                snapshot.songs
+                    .filter { it.genre.equals(genre, ignoreCase = true) }
+                    .sortedSongsForContext()
+                    .toQueue(genre)
             }
             is ElovaireMediaId.Playlist -> {
                 val playlist = snapshot.playlists.firstOrNull { it.id == parsed.playlistId } ?: return null
                 snapshot.playlistSongs(playlist.id).toQueue(playlist.name, playlist.id)
             }
+            ElovaireMediaId.PermissionRequired,
+            ElovaireMediaId.EmptyLibrary,
             ElovaireMediaId.Root,
             ElovaireMediaId.Albums,
             ElovaireMediaId.Artists,
@@ -117,26 +151,57 @@ internal class ElovaireMediaTree(
         val normalizedQuery = NormalizedSearchQuery.from(query)
         if (normalizedQuery.value.isBlank()) return emptyList()
         val snapshot = snapshot()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return emptyList()
         val artistRows = snapshot.artistNames().map { name ->
             NamedSongs(name = name, songs = snapshot.songs.filter { it.artist.equals(name, ignoreCase = true) })
         }
-        return buildList {
-            searchSongsForPicker(snapshot.songs, normalizedQuery).take(limit).forEach { add(ElovaireMediaItems.song(it)) }
-            searchAlbumsForPicker(snapshot.albums, normalizedQuery).take(remaining(limit)).forEach { add(ElovaireMediaItems.album(it)) }
-            searchArtistsForPicker(
-                artists = artistRows,
-                query = normalizedQuery,
-                name = NamedSongs::name,
-                songs = NamedSongs::songs,
-                songCount = { it.songs.size },
-            ).take(remaining(limit)).forEach { add(ElovaireMediaItems.artist(it.name)) }
-            searchPlaylists(snapshot.playlists, normalizedQuery).take(remaining(limit)).forEach { add(ElovaireMediaItems.playlist(it)) }
-        }.take(limit)
+        val genreRows = snapshot.genreNames().map { name ->
+            NamedSongs(name = name, songs = snapshot.songs.filter { it.genre.equals(name, ignoreCase = true) })
+        }
+        val exactAndStrongTitleSongs = snapshot.songs
+            .filter {
+                val normalizedTitle = normalizeSearchText(it.title)
+                normalizedTitle == normalizedQuery.value || normalizedTitle.startsWith(normalizedQuery.value)
+            }
+            .sortedSongsByTitle()
+        val broaderSongs = searchSongsForPicker(snapshot.songs, normalizedQuery)
+        return mutableListOf<MediaItem>().apply {
+            addDistinctItems(exactAndStrongTitleSongs, limit, ElovaireMediaItems::song)
+            addDistinctItems(searchAlbumsForPicker(snapshot.albums, normalizedQuery), limit, ElovaireMediaItems::album)
+            addDistinctItems(
+                searchArtistsForPicker(
+                    artists = artistRows,
+                    query = normalizedQuery,
+                    name = NamedSongs::name,
+                    songs = NamedSongs::songs,
+                    songCount = { it.songs.size },
+                ),
+                limit,
+            ) { ElovaireMediaItems.artist(it.name) }
+            addDistinctItems(
+                searchPlaylists(snapshot.playlists.filter { it.songIds.isNotEmpty() }, normalizedQuery),
+                limit,
+                ElovaireMediaItems::playlist,
+            )
+            addDistinctItems(
+                searchArtistsForPicker(
+                    artists = genreRows,
+                    query = normalizedQuery,
+                    name = NamedSongs::name,
+                    songs = NamedSongs::songs,
+                    songCount = { it.songs.size },
+                ),
+                limit,
+            ) { ElovaireMediaItems.genre(it.name) }
+            addDistinctItems(broaderSongs, limit, ElovaireMediaItems::song)
+        }
     }
 
     private fun snapshot(): MediaTreeSnapshot {
         val content = libraryRepository.contentState.value
+        val scan = libraryRepository.scanState.value
         return MediaTreeSnapshot(
+            permissionGranted = scan.permissionGranted,
             songs = content.songs,
             albums = content.albums,
             playlists = preferenceStore.playlists.value,
@@ -153,10 +218,36 @@ internal class ElovaireMediaTree(
     }
 
     private fun List<Song>.sortedSongsByTitle(): List<Song> = sortedBy { it.title.lowercase() }
+    private fun List<Song>.sortedSongsForContext(): List<Song> = sortedWith(
+        compareBy<Song>(
+            { it.album.lowercase() },
+            { it.discNumber },
+            { it.trackNumber },
+            { it.title.lowercase() },
+            { it.id },
+        ),
+    )
     private fun List<Album>.sortedAlbumsByTitle(): List<Album> = sortedBy { it.title.lowercase() }
-    private fun List<MediaItem>.remaining(limit: Int): Int = (limit - size).coerceAtLeast(0)
+
+    private fun MutableList<MediaItem>.addDistinct(item: MediaItem) {
+        if (none { it.mediaId == item.mediaId }) {
+            add(item)
+        }
+    }
+
+    private inline fun <T> MutableList<MediaItem>.addDistinctItems(
+        items: List<T>,
+        limit: Int,
+        itemFactory: (T) -> MediaItem,
+    ) {
+        for (item in items) {
+            if (size >= limit) return
+            addDistinct(itemFactory(item))
+        }
+    }
 
     private data class MediaTreeSnapshot(
+        val permissionGranted: Boolean,
         val songs: List<Song>,
         val albums: List<Album>,
         val playlists: List<Playlist>,
