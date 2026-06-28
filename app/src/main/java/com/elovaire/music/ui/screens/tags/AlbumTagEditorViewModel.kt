@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 import android.app.RecoverableSecurityException
 import android.content.IntentSender
 import android.net.Uri
-import android.os.Build
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
@@ -215,16 +214,12 @@ internal class AlbumTagEditorViewModel(
     fun requestSave() {
         val request = _uiState.value.toAlbumTagEditRequest() ?: return
         viewModelScope.launch {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                _events.emit(
-                    AlbumTagEditorEvent.RequestWritePermission(
-                        request = request,
-                        uris = request.album.songs.map { it.uri },
-                    ),
-                )
-            } else {
-                performSave(request)
-            }
+            _events.emit(
+                AlbumTagEditorEvent.RequestWritePermission(
+                    request = request,
+                    uris = request.album.songs.map { it.uri },
+                ),
+            )
         }
     }
 

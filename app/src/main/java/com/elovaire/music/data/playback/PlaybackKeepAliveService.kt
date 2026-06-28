@@ -79,12 +79,7 @@ class PlaybackKeepAliveService : Service() {
     }
 
     private fun stopForegroundKeepingNotification() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-            stopForeground(STOP_FOREGROUND_DETACH)
-        } else {
-            @Suppress("DEPRECATION")
-            stopForeground(false)
-        }
+        stopForeground(STOP_FOREGROUND_DETACH)
     }
 
     companion object {

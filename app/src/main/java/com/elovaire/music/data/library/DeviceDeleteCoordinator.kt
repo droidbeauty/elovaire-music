@@ -40,16 +40,6 @@ internal class DeviceDeleteCoordinator(
         }
     }
 
-    suspend fun performLegacyDelete(plan: DeviceDeletePlan): Result<Unit> {
-        return runCatching {
-            withContext(Dispatchers.IO) {
-                plan.songs.forEach { song ->
-                    context.contentResolver.delete(song.uri, null, null)
-                }
-            }
-        }
-    }
-
     suspend fun completeDelete(plan: DeviceDeletePlan) {
         invalidateArtwork(plan.songs.flatMap { listOf(it.artUri, it.uri) })
         val deleteResult = libraryRepository.refreshAfterDelete(

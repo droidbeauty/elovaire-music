@@ -5,7 +5,6 @@ import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.result.IntentSenderRequest
 
-@Suppress("NewApi")
 internal fun mediaStoreWriteRequest(
     context: Context,
     uris: Collection<Uri>,
@@ -15,7 +14,6 @@ internal fun mediaStoreWriteRequest(
     ).build()
 }
 
-@Suppress("NewApi")
 internal fun mediaStoreDeleteRequest(
     context: Context,
     uris: Collection<Uri>,

@@ -5,7 +5,6 @@ import android.app.Activity
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -254,27 +253,10 @@ internal fun rememberRootDeleteController(
     val deleteSongsCallback: (List<Song>) -> Unit = deleteSongsCallback@{ songs ->
         rootScope.launch {
             val deletePlan = deleteCoordinator.prepareSongDeletePlan(songs) ?: return@launch
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                pendingSongDeletion = deletePlan
-                deleteSongLauncher.launch(
-                    mediaStoreDeleteRequest(context, deletePlan.uris),
-                )
-            } else {
-                deleteCoordinator.performLegacyDelete(deletePlan).onSuccess {
-                    deleteCoordinator.completeDelete(deletePlan)
-                }.onFailure { throwable ->
-                    val intentSender = when (throwable) {
-                        is android.app.RecoverableSecurityException -> throwable.userAction.actionIntent.intentSender
-                        else -> null
-                    }
-                    if (intentSender != null) {
-                        pendingSongDeletion = deletePlan
-                        deleteSongLauncher.launch(
-                            IntentSenderRequest.Builder(intentSender).build(),
-                        )
-                    }
-                }
-            }
+            pendingSongDeletion = deletePlan
+            deleteSongLauncher.launch(
+                mediaStoreDeleteRequest(context, deletePlan.uris),
+            )
         }
     }
 

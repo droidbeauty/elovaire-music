@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.app.RecoverableSecurityException
 import android.content.ContentResolver
 import android.content.Context
-import android.os.Build
 import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
@@ -29,7 +28,6 @@ internal class EmbeddedLyricsWriter(context: Context) {
     private val audioFormatDetector = AudioFormatDetector(appContext)
 
     fun createWritePermissionRequest(song: Song): PendingIntent? {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
         return runCatching {
             MediaStore.createWriteRequest(contentResolver, listOf(song.uri))
         }.getOrNull()

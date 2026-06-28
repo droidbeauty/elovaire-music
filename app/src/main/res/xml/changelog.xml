@@ -6,11 +6,13 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.2.4">
-        <item>Changed app identification to media player via MediaLibraryService API</item>
-        <item>Added ability to set the app as default music player on some devices</item>
-        <item>Technical tweaks to EQ framework</item>
-        <item>Fixed bugs in smart autopause feature</item>
-        <item>Animation quality tweaks</item>
+    <release version="2.3">
+        <item>Minimum SDK upgraded to level 30 (Android 11)</item>
+        <item>Added customizable library folders support with dedicated UI in settings</item>
+        <item>Added full Android Auto integration</item>
+        <item>Fixed many UI inconsistencies across pop-up menus, EQ screen and other places</item>
+        <item>Refined bit-perfect playback framework</item>
+        <item>General code cleanup</item>
+        <item>Fixed bugs in the OTA update flow</item>
     </release>
 </changelog>

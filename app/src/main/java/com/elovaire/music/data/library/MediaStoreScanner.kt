@@ -787,10 +787,8 @@ class MediaStoreScanner(
     private fun queryGenre(songId: Long): String? {
         val volumeNames = buildList {
             add("external")
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                add(MediaStore.VOLUME_EXTERNAL)
-                add(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-            }
+            add(MediaStore.VOLUME_EXTERNAL)
+            add(MediaStore.VOLUME_EXTERNAL_PRIMARY)
         }.distinct()
 
         return volumeNames.firstNotNullOfOrNull { volumeName ->
