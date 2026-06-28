@@ -59,6 +59,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.privacySafetyCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
@@ -369,6 +370,58 @@ internal fun AboutScreen(
         }
         PinnedBackTopBar(
             title = uiPhrase(language, UiPhrase.About),
+            onBack = onBack,
+            modifier = Modifier.align(Alignment.TopCenter),
+        )
+    }
+}
+
+@Composable
+internal fun PrivacySafetyScreen(
+    onBack: () -> Unit,
+    bottomPadding: Dp,
+) {
+    val language = LocalAppLanguage.current
+    val copy = remember(language) { privacySafetyCopy(language) }
+    val listState = rememberElovaireLazyListState("privacy_safety_screen")
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                end = 18.dp,
+                top = detailTopBarOccupiedHeight() + ElovaireSpacing.topBarToFirstContentGap,
+                bottom = bottomPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            item {
+                ModuleCard {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
+                        copy.points.forEach { point ->
+                            Text(
+                                text = point,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        PinnedBackTopBar(
+            title = copy.title,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )

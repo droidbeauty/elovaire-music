@@ -62,6 +62,9 @@ class PreferenceStore(context: Context) {
     private val _gaplessPlaybackEnabled = MutableStateFlow(loadGaplessPlaybackEnabled())
     val gaplessPlaybackEnabled: StateFlow<Boolean> = _gaplessPlaybackEnabled.asStateFlow()
 
+    private val _onlineLyricsLookupEnabled = MutableStateFlow(loadOnlineLyricsLookupEnabled())
+    val onlineLyricsLookupEnabled: StateFlow<Boolean> = _onlineLyricsLookupEnabled.asStateFlow()
+
     private val _albumCollectionLayoutMode = MutableStateFlow(loadAlbumCollectionLayoutMode())
     val albumCollectionLayoutMode: StateFlow<String> = _albumCollectionLayoutMode.asStateFlow()
 
@@ -375,6 +378,14 @@ class PreferenceStore(context: Context) {
         _gaplessPlaybackEnabled.value = enabled
     }
 
+    fun setOnlineLyricsLookupEnabled(enabled: Boolean) {
+        if (_onlineLyricsLookupEnabled.value == enabled) return
+        preferences.edit {
+            putBoolean(KEY_ONLINE_LYRICS_LOOKUP_ENABLED, enabled)
+        }
+        _onlineLyricsLookupEnabled.value = enabled
+    }
+
     fun setAlbumCollectionLayoutMode(mode: String) {
         val normalizedMode = mode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE }
         if (_albumCollectionLayoutMode.value == normalizedMode) return
@@ -631,6 +642,10 @@ class PreferenceStore(context: Context) {
 
     private fun loadGaplessPlaybackEnabled(): Boolean {
         return preferences.getBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, false)
+    }
+
+    private fun loadOnlineLyricsLookupEnabled(): Boolean {
+        return preferences.getBoolean(KEY_ONLINE_LYRICS_LOOKUP_ENABLED, false)
     }
 
     private fun loadAlbumCollectionLayoutMode(): String {
@@ -901,6 +916,7 @@ class PreferenceStore(context: Context) {
         const val KEY_LAST_PLAYED_COLLECTION_ID = "last_played_collection_id"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
+        const val KEY_ONLINE_LYRICS_LOOKUP_ENABLED = "online_lyrics_lookup_enabled"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
         const val KEY_ALBUM_COLLECTION_LAYOUT_MODE = "album_collection_layout_mode"
         const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"

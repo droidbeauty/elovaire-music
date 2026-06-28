@@ -15,6 +15,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -22,6 +23,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 internal class LyricsRepository(
     appContext: Context,
+    private val onlineLookupEnabled: StateFlow<Boolean>,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val applicationContext = appContext.applicationContext
@@ -63,6 +65,7 @@ internal class LyricsRepository(
     }
 
     fun prefetchLyrics(song: Song) {
+        if (!onlineLookupEnabled.value) return
         val identity = song.toLyricsIdentity()
         val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = false)
         if (cachedResult is LyricsResult.Found || inFlightRequests.keys.any { it.identityPart() == identity.normalizedLookupKey }) {
@@ -118,7 +121,7 @@ internal class LyricsRepository(
                 resolveLyrics(song, lookupMode)
             }.getOrElse { throwable ->
                 if (throwable is CancellationException) throw throwable
-                logDebug("lyrics lookup failed for ${identity.artist} - ${identity.title}", throwable)
+                logDebug("lyrics lookup failed song=${song.id}", throwable)
                 LyricsLookupOutcome(
                     result = LyricsResult.Timeout,
                     cacheTtlMs = CACHE_TTL_TIMEOUT_MS,
@@ -167,6 +170,14 @@ internal class LyricsRepository(
         logDebug("local song=${song.id} result=${local?.payload?.let { if (it.isSynced) "synced" else "plain" } ?: "none"}")
         if (local != null) {
             return@coroutineScope local.toLookupOutcome()
+        }
+
+        if (!onlineLookupEnabled.value) {
+            return@coroutineScope LyricsLookupOutcome(
+                result = LyricsResult.NotFound,
+                cacheTtlMs = null,
+                state = LyricsLookupState.NotFound,
+            )
         }
 
         if (!isNetworkAvailable()) {

@@ -6,6 +6,7 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -13,11 +14,13 @@ import kotlinx.coroutines.withContext
 
 class LyricsService(
     context: Context,
+    onlineLookupEnabled: StateFlow<Boolean>,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val embeddedLyricsWriter = EmbeddedLyricsWriter(context.applicationContext)
     private val repository = LyricsRepository(
         appContext = context.applicationContext,
+        onlineLookupEnabled = onlineLookupEnabled,
         ioDispatcher = ioDispatcher,
     )
 

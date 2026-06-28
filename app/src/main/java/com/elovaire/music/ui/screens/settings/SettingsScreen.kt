@@ -85,6 +85,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.privacySafetyCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
@@ -104,6 +105,7 @@ internal fun SettingsScreen(
     textSizePreset: TextSizePreset,
     appLanguage: AppLanguage,
     eqSettings: EqSettings,
+    onlineLyricsLookupEnabled: Boolean,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onThemeModeSelected: (ThemeMode) -> Unit,
@@ -113,15 +115,19 @@ internal fun SettingsScreen(
     onMidrangeChanged: (Float) -> Unit,
     onTrebleChanged: (Float) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
+    onOnlineLyricsLookupChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
+    onOpenPrivacySafety: () -> Unit,
     onOpenChangelog: () -> Unit,
     onScanLibrary: () -> Unit,
+    showUpdateChecks: Boolean,
     onCheckForUpdates: () -> Unit,
 ) {
     val listState = rememberElovaireLazyListState("settings_screen")
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
+    val privacyCopy = remember(appLanguage) { privacySafetyCopy(appLanguage) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -320,6 +326,23 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
+                        SettingNavigationRow(
+                            title = privacyCopy.title,
+                            subtitle = privacyCopy.subtitle,
+                            onClick = onOpenPrivacySafety,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                        )
+                        SettingToggleRow(
+                            title = privacyCopy.onlineLyricsTitle,
+                            subtitle = privacyCopy.onlineLyricsSubtitle,
+                            enabled = onlineLyricsLookupEnabled,
+                            onEnabledChanged = onOnlineLyricsLookupChanged,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                        )
                         SettingActionRow(
                             title = copy.scanLibrary,
                             subtitle = copy.scanLibrarySubtitle,
@@ -329,15 +352,17 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
-                        SettingActionRow(
-                            title = copy.checkUpdates,
-                            subtitle = copy.checkUpdatesSubtitle,
-                            actionLabel = copy.check,
-                            onAction = onCheckForUpdates,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
+                        if (showUpdateChecks) {
+                            SettingActionRow(
+                                title = copy.checkUpdates,
+                                subtitle = copy.checkUpdatesSubtitle,
+                                actionLabel = copy.check,
+                                onAction = onCheckForUpdates,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 2.dp),
+                            )
+                        }
                     }
                 }
             }

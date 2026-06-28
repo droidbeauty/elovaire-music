@@ -67,17 +67,20 @@ class AppUpdateManager(
     private var pendingInstallApk: File? = null
 
     init {
-        scope.launch {
-            appForegroundState.collect { isForeground ->
-                if (isForeground && pendingAutomaticStartupCheck) {
-                    pendingAutomaticStartupCheck = false
-                    checkForUpdates()
+        if (BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) {
+            scope.launch {
+                appForegroundState.collect { isForeground ->
+                    if (isForeground && pendingAutomaticStartupCheck) {
+                        pendingAutomaticStartupCheck = false
+                        checkForUpdates()
+                    }
                 }
             }
         }
     }
 
     fun checkForUpdates(force: Boolean = false) {
+        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (checkJob?.isActive == true || _uiState.value.isDownloading || _uiState.value.isInstalling) return
     
         val automaticCheckStartedAtMs = if (!force) {
@@ -125,12 +128,14 @@ class AppUpdateManager(
     }
 
     fun dismissAvailableUpdate() {
+        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         val version = _uiState.value.availableRelease?.versionName ?: return
         preferenceStore.setDismissedUpdateVersion(version)
         _uiState.update { it.copy(availableRelease = null, errorMessage = null) }
     }
 
     fun startUpdate() {
+        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         val release = _uiState.value.availableRelease ?: return
         if (downloadJob?.isActive == true) return
         downloadJob = scope.launch {
@@ -224,6 +229,7 @@ class AppUpdateManager(
     }
 
     fun clearInstallState() {
+        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         _uiState.update {
             it.copy(
                 isDownloading = false,
@@ -236,6 +242,7 @@ class AppUpdateManager(
     }
 
     fun clearTransientStatus() {
+        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         _uiState.update { state ->
             if (state.transientStatus == null) state else state.copy(transientStatus = null)
         }
@@ -257,6 +264,7 @@ class AppUpdateManager(
     }
 
     fun scheduleStartupMaintenance() {
+        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (startupMaintenanceScheduled) return
         startupMaintenanceScheduled = true
         startupCleanupJob = scope.launch(Dispatchers.IO) {

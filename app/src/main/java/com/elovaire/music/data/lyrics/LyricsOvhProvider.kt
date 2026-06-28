@@ -95,7 +95,7 @@ internal class LyricsOvhProvider : LyricsProvider {
             connection.readTimeout = READ_TIMEOUT_MS
             connection.setRequestProperty(
                 "User-Agent",
-                "Elovaire/${BuildConfig.VERSION_NAME} (Android; Offline Music Player)",
+                "Elovaire/${BuildConfig.VERSION_NAME} (Android; Music Player)",
             )
             connection.setRequestProperty("Accept", "application/json")
             val code = connection.responseCode
@@ -103,7 +103,7 @@ internal class LyricsOvhProvider : LyricsProvider {
             connection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
         }.getOrElse { throwable ->
             if (BuildConfig.DEBUG) {
-                Log.d(TAG, "lyrics.ovh request failed for $url", throwable)
+                Log.d(TAG, "lyrics.ovh request failed", throwable)
             }
             null
         }.also {

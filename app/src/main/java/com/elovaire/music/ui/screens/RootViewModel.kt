@@ -26,6 +26,7 @@ internal data class RootPreferenceState(
     val songCollectionGridEnabled: Boolean,
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
+    val onlineLyricsLookupEnabled: Boolean,
 )
 
 internal class RootViewModel(
@@ -68,8 +69,9 @@ internal class RootViewModel(
         combine(
             dependencies.preferenceStore.albumCollectionSortMode,
             dependencies.preferenceStore.songCollectionSortMode,
-        ) { albumSort, songSort ->
-            albumSort to songSort
+            dependencies.preferenceStore.onlineLyricsLookupEnabled,
+        ) { albumSort, songSort, onlineLyrics ->
+            PartialRootPreferenceStateC(albumSort, songSort, onlineLyrics)
         },
     ) { a, b, sorts ->
         RootPreferenceState(
@@ -83,8 +85,9 @@ internal class RootViewModel(
             songPlayCounts = b.songPlayCounts,
             albumCollectionLayoutModeName = b.albumCollectionLayoutModeName,
             songCollectionGridEnabled = b.songCollectionGridEnabled,
-            albumCollectionSortModeName = sorts.first,
-            songCollectionSortModeName = sorts.second,
+            albumCollectionSortModeName = sorts.albumCollectionSortModeName,
+            songCollectionSortModeName = sorts.songCollectionSortModeName,
+            onlineLyricsLookupEnabled = sorts.onlineLyricsLookupEnabled,
         )
     }
 
@@ -109,6 +112,7 @@ internal class RootViewModel(
             songCollectionGridEnabled = prefs.songCollectionGridEnabled,
             albumCollectionSortModeName = prefs.albumCollectionSortModeName,
             songCollectionSortModeName = prefs.songCollectionSortModeName,
+            onlineLyricsLookupEnabled = prefs.onlineLyricsLookupEnabled,
             appUpdateState = update,
         )
     }.stateIn(
@@ -138,6 +142,7 @@ internal class RootViewModel(
             songCollectionGridEnabled = dependencies.preferenceStore.songCollectionGridEnabled.value,
             albumCollectionSortModeName = dependencies.preferenceStore.albumCollectionSortMode.value,
             songCollectionSortModeName = dependencies.preferenceStore.songCollectionSortMode.value,
+            onlineLyricsLookupEnabled = dependencies.preferenceStore.onlineLyricsLookupEnabled.value,
             appUpdateState = dependencies.appUpdateManager.uiState.value,
         ),
     )
@@ -157,4 +162,10 @@ private data class PartialRootPreferenceStateB(
     val songPlayCounts: Map<Long, Int>,
     val albumCollectionLayoutModeName: String,
     val songCollectionGridEnabled: Boolean,
+)
+
+private data class PartialRootPreferenceStateC(
+    val albumCollectionSortModeName: String,
+    val songCollectionSortModeName: String,
+    val onlineLyricsLookupEnabled: Boolean,
 )

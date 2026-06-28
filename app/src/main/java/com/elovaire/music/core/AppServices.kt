@@ -28,7 +28,10 @@ internal class AppServices(
         preferenceStore = preferenceStore,
         appForegroundState = appForegroundState,
     )
-    val lyricsService = LyricsService(applicationContext)
+    val lyricsService = LyricsService(
+        context = applicationContext,
+        onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
+    )
     val albumTagEditorService = AlbumTagEditorService(applicationContext)
     val playbackEffectsController = PlaybackEffectsController()
     val playbackManager = PlaybackManager(

@@ -47,6 +47,7 @@ internal data class RootAppState(
     val songCollectionGridEnabled: Boolean,
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
+    val onlineLyricsLookupEnabled: Boolean,
     val appUpdateState: AppUpdateUiState,
 )
 

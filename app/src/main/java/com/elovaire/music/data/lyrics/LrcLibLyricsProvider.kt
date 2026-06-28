@@ -264,7 +264,7 @@ private class DefaultLrcLibApi : LrcLibApi {
             } catch (throwable: Throwable) {
                 if (!shouldRetry(throwable) || attempt == NETWORK_RETRY_ATTEMPTS - 1) {
                     if (BuildConfig.DEBUG) {
-                        Log.d(TAG, "lrclib request failed for $url", throwable)
+                        Log.d(TAG, "lrclib request failed", throwable)
                     }
                     return null
                 }
@@ -316,7 +316,7 @@ private class DefaultLrcLibApi : LrcLibApi {
             readTimeout = READ_TIMEOUT_MS
             setRequestProperty(
                 "User-Agent",
-                "Elovaire/${BuildConfig.VERSION_NAME} (Android; Offline Music Player)",
+                "Elovaire/${BuildConfig.VERSION_NAME} (Android; Music Player)",
             )
             setRequestProperty("Accept", "application/json")
             val responseCode = responseCode

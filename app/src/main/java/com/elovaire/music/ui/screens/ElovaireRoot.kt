@@ -390,7 +390,7 @@ fun ElovaireRoot(
     )
     val deleteController = rememberRootDeleteController(container)
     LaunchedEffect(appState.appUpdateState.transientStatus) {
-        if (appState.appUpdateState.transientStatus != null) {
+        if (BuildConfig.ENABLE_GITHUB_UPDATE_FLOW && appState.appUpdateState.transientStatus != null) {
             delay(2_500L)
             container.appUpdateManager.clearTransientStatus()
         }
@@ -469,6 +469,7 @@ fun ElovaireRoot(
     val hideCompactNowPlayingRoutes = setOf(
         SETTINGS_ROUTE,
         LIBRARY_FOLDERS_ROUTE,
+        PRIVACY_SAFETY_ROUTE,
         CHANGELOG_ROUTE,
         EQUALIZER_ROUTE,
         "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
@@ -1048,6 +1049,7 @@ fun ElovaireRoot(
                             textSizePreset = appState.textSizePreset,
                             appLanguage = appState.appLanguage,
                             eqSettings = appState.eqSettings,
+                            onlineLyricsLookupEnabled = appState.onlineLyricsLookupEnabled,
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onThemeModeSelected = container.preferenceStore::setThemeMode,
@@ -1057,8 +1059,10 @@ fun ElovaireRoot(
                             onMidrangeChanged = container.preferenceStore::updateMidrange,
                             onTrebleChanged = container.preferenceStore::updateTreble,
                             onMonoPlaybackChanged = container.preferenceStore::updateMonoPlaybackEnabled,
+                            onOnlineLyricsLookupChanged = container.preferenceStore::setOnlineLyricsLookupEnabled,
                             onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
                             onOpenLibraryFolders = { navController.navigate(LIBRARY_FOLDERS_ROUTE) },
+                            onOpenPrivacySafety = { navController.navigate(PRIVACY_SAFETY_ROUTE) },
                             onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
                             onScanLibrary = {
                                 container.libraryRepository.refresh(
@@ -1067,6 +1071,7 @@ fun ElovaireRoot(
                                     showLoadingIndicator = true,
                                 )
                             },
+                            showUpdateChecks = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
                             onCheckForUpdates = {
                                 container.appUpdateManager.checkForUpdates(force = true)
                             },
@@ -1094,6 +1099,13 @@ fun ElovaireRoot(
                                     showLoadingIndicator = true,
                                 )
                             },
+                        )
+                    }
+
+                    composable(PRIVACY_SAFETY_ROUTE) {
+                        PrivacySafetyScreen(
+                            onBack = navController::navigateUp,
+                            bottomPadding = detailBottomPadding,
                         )
                     }
 
@@ -1185,7 +1197,8 @@ fun ElovaireRoot(
                                 end = 16.dp,
                                 top = topBarHeight + 8.dp,
                             ),
-                        visible = (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
+                        visible = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW &&
+                            (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
                             (appState.appUpdateState.availableRelease != null || appState.appUpdateState.transientStatus != null),
                         enter = rootMotionTransitions.bannerEnter(),
                         exit = rootMotionTransitions.bannerExit(),

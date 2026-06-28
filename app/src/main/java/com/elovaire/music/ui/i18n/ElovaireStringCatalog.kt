@@ -1760,6 +1760,31 @@ internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (l
     AppLanguage.English -> SettingsLanguageCopy("Settings", "Appearance", "Theme", "Text size", "Language", "Currently used: ${language.nativeName}", "Sound", "Bass boost", "Spaciousness", "Equalizer", "Enable mono", "Switches stereo playback to mono", "Other settings", "Scan library", "Refresh indexing in search for new media", "Scan", "Check for updates", "Check if there's new version available", "Check", "Changelog", "Designed with passion for music and great design")
 }
 
+internal data class PrivacySafetyCopy(
+    val title: String,
+    val subtitle: String,
+    val onlineLyricsTitle: String,
+    val onlineLyricsSubtitle: String,
+    val points: List<String>,
+)
+
+internal fun privacySafetyCopy(language: AppLanguage): PrivacySafetyCopy = PrivacySafetyCopy(
+    title = "Privacy & safety",
+    subtitle = "How Elovaire handles music, lyrics, and updates",
+    onlineLyricsTitle = "Online lyrics lookup",
+    onlineLyricsSubtitle = "Search online providers when local lyrics are unavailable",
+    points = listOf(
+        "Elovaire reads your selected audio folders so it can build your music library.",
+        "Your library, playlists, favorites, settings, and playback history are stored on your device.",
+        "Online lyrics lookup may send song title, artist, album, and duration to lyrics providers when enabled or used.",
+        "Update checks contact GitHub in this build and may download an APK if you choose to update.",
+        "Elovaire does not need an account.",
+        "Elovaire does not use ads.",
+        "Elovaire does not sell personal data.",
+        "Removing a library folder from Elovaire does not delete files from your device.",
+    ),
+)
+
 internal data class LibraryFoldersCopy(
     val title: String,
     val subtitle: String,
