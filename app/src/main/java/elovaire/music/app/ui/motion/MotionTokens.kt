@@ -19,6 +19,7 @@ object MotionDuration {
     const val Player = 360
     const val PlayerFade = 180
     const val Component = 190
+    const val ChromeResize = 180
     const val Emphasized = 320
     const val TopLevelEnter = 190
     const val TopLevelExit = 150

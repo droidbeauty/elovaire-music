@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app
 
+import android.content.Intent
 import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -32,6 +33,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.data.playback.EXTRA_OPEN_PLAYER_FROM_NOTIFICATION
+import elovaire.music.droidbeauty.app.data.playback.ExternalAudioIntentHandler
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.MotionRuntimeProvider
@@ -51,7 +53,9 @@ class MainActivity : ComponentActivity() {
         val shouldShowColdStartSplash = savedInstanceState == null
         val isFirstActivityInProcess = container.consumeColdStartHomeReset()
         val resetHomeScrollOnColdStart = shouldShowColdStartSplash && isFirstActivityInProcess
-        handleNotificationIntent()
+        if (savedInstanceState == null) {
+            handleIncomingIntent(intent)
+        }
         setContent {
             val motionRuntime = rememberMotionRuntime()
             MotionRuntimeProvider(runtime = motionRuntime) {
@@ -147,10 +151,10 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    override fun onNewIntent(intent: android.content.Intent) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        handleNotificationIntent()
+        handleIncomingIntent(intent)
     }
 
     override fun onResume() {
@@ -158,10 +162,32 @@ class MainActivity : ComponentActivity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
     }
 
-    private fun handleNotificationIntent() {
+    private fun handleIncomingIntent(intent: Intent?) {
+        handleNotificationIntent(intent)
+        handleExternalAudioIntent(intent)
+    }
+
+    private fun handleNotificationIntent(intent: Intent?) {
         if (intent?.getBooleanExtra(EXTRA_OPEN_PLAYER_FROM_NOTIFICATION, false) == true) {
             (application as ElovaireApp).container.requestOpenNowPlaying()
-            intent?.removeExtra(EXTRA_OPEN_PLAYER_FROM_NOTIFICATION)
+            intent.removeExtra(EXTRA_OPEN_PLAYER_FROM_NOTIFICATION)
         }
+    }
+
+    private fun handleExternalAudioIntent(intent: Intent?) {
+        val app = application as ElovaireApp
+        val song = ExternalAudioIntentHandler.buildSong(this, intent) ?: return
+        app.container.playbackManager.playSong(
+            song = song,
+            collection = listOf(song),
+            sourceLabel = "External audio",
+        )
+        app.container.requestOpenNowPlaying()
+        setIntent(
+            Intent(this, MainActivity::class.java).apply {
+                action = Intent.ACTION_MAIN
+                addCategory(Intent.CATEGORY_LAUNCHER)
+            },
+        )
     }
 }

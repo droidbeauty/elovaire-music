@@ -6,11 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.2.3">
-        <item>Fixed no timeout bug for the notification area player</item>
-        <item>Improvements to technical playback framework</item>
-        <item>API optimizations</item>
-        <item>General code cleanup</item>
-        <item>Bug fixes</item>
+    <release version="2.2.4">
+        <item>Changed app identification to media player</item>
+        <item>Added ability to set the app as default music player on some devices</item>
+        <item>Technical tweaks to EQ framework</item>
+        <item>Fixed bugs in smart autopause feature</item>
     </release>
 </changelog>

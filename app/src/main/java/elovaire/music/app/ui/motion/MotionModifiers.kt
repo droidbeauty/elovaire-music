@@ -24,9 +24,11 @@ fun Modifier.elovairePressScaleMotion(
     scale(scale)
 }
 
-fun Modifier.elovaireAnimateContentSize(): Modifier = animateContentSize(
-    animationSpec = ElovaireMotion.sizeSoft(),
-)
+@Composable
+fun Modifier.elovaireAnimateContentSize(): Modifier {
+    val specs = rememberMotionSpecs()
+    return animateContentSize(animationSpec = specs.contentSize())
+}
 
 @Composable
 fun Modifier.elovaireChromePressScale(pressed: Boolean): Modifier {

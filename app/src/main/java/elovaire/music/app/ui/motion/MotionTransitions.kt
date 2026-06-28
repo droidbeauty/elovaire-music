@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.ui.motion
 
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
@@ -12,6 +14,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -22,6 +25,36 @@ import androidx.compose.ui.graphics.TransformOrigin
 class MotionTransitions internal constructor(
     private val specs: MotionSpecs,
 ) {
+    private fun fadeSlideVerticalEnter(
+        fadeDuration: Int,
+        slideDuration: Int,
+        initialAlpha: Float,
+        initialOffsetY: (Int) -> Int,
+        fadeEasing: Easing = MotionEasing.FadeIn,
+        slideEasing: Easing = MotionEasing.RefinedDecelerate,
+    ): EnterTransition = fadeIn(
+        animationSpec = specs.tween(fadeDuration, easing = fadeEasing),
+        initialAlpha = initialAlpha,
+    ) + slideInVertically(
+        animationSpec = specs.tween(slideDuration, easing = slideEasing),
+        initialOffsetY = initialOffsetY,
+    )
+
+    private fun fadeSlideVerticalExit(
+        fadeDuration: Int,
+        slideDuration: Int,
+        targetAlpha: Float = 0f,
+        targetOffsetY: (Int) -> Int,
+        fadeEasing: Easing = MotionEasing.FadeOut,
+        slideEasing: Easing = MotionEasing.RefinedAccelerate,
+    ): ExitTransition = fadeOut(
+        animationSpec = specs.tween(fadeDuration, easing = fadeEasing),
+        targetAlpha = targetAlpha,
+    ) + slideOutVertically(
+        animationSpec = specs.tween(slideDuration, easing = slideEasing),
+        targetOffsetY = targetOffsetY,
+    )
+
     fun overlayFadeEnter(initialAlpha: Float = 0.78f): EnterTransition = fadeIn(
         animationSpec = specs.tween(
             durationMillis = MotionDuration.Standard,
@@ -70,41 +103,33 @@ class MotionTransitions internal constructor(
             shrinkTowards = Alignment.Bottom,
         )
 
-    fun bannerEnter(): EnterTransition = overlayFadeEnter(initialAlpha = 0.82f) +
-        slideInVertically(
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Screen,
-                easing = MotionEasing.RefinedDecelerate,
-            ),
-            initialOffsetY = { -(it / 2) },
-        )
+    fun bannerEnter(): EnterTransition = fadeSlideVerticalEnter(
+        fadeDuration = MotionDuration.Standard,
+        slideDuration = MotionDuration.Screen,
+        initialAlpha = 0.82f,
+        initialOffsetY = { -(it / 2) },
+    )
 
-    fun bannerExit(): ExitTransition = overlayFadeExit(targetAlpha = 0.94f) +
-        slideOutVertically(
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Standard,
-                easing = MotionEasing.RefinedAccelerate,
-            ),
-            targetOffsetY = { -(it / 3) },
-        )
+    fun bannerExit(): ExitTransition = fadeSlideVerticalExit(
+        fadeDuration = MotionDuration.Fast,
+        slideDuration = MotionDuration.Standard,
+        targetAlpha = 0.94f,
+        targetOffsetY = { -(it / 3) },
+    )
 
-    fun bottomBarEnter(): EnterTransition = overlayFadeEnter(initialAlpha = 0.82f) +
-        slideInVertically(
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Standard,
-                easing = MotionEasing.RefinedDecelerate,
-            ),
-            initialOffsetY = { it / 2 },
-        )
+    fun bottomBarEnter(): EnterTransition = fadeSlideVerticalEnter(
+        fadeDuration = MotionDuration.Standard,
+        slideDuration = MotionDuration.Standard,
+        initialAlpha = 0.82f,
+        initialOffsetY = { it / 2 },
+    )
 
-    fun bottomBarExit(): ExitTransition = overlayFadeExit(targetAlpha = 0.94f) +
-        slideOutVertically(
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Quick,
-                easing = MotionEasing.RefinedAccelerate,
-            ),
-            targetOffsetY = { it / 2 },
-        )
+    fun bottomBarExit(): ExitTransition = fadeSlideVerticalExit(
+        fadeDuration = MotionDuration.Fast,
+        slideDuration = MotionDuration.Quick,
+        targetAlpha = 0.94f,
+        targetOffsetY = { it / 2 },
+    )
 
     fun verticalRevealEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(
@@ -170,30 +195,19 @@ class MotionTransitions internal constructor(
         ),
     )
 
-    fun standardEnter(): EnterTransition = fadeIn(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.ScreenFade,
-            easing = MotionEasing.FadeIn,
-        ),
-    ) + slideInVertically(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.ScreenSlide,
-            easing = MotionEasing.SoftOut,
-        ),
+    fun standardEnter(): EnterTransition = fadeSlideVerticalEnter(
+        fadeDuration = MotionDuration.ScreenFade,
+        slideDuration = MotionDuration.ScreenSlide,
+        initialAlpha = 0f,
         initialOffsetY = { it / 8 },
+        slideEasing = MotionEasing.SoftOut,
     )
 
-    fun standardExit(): ExitTransition = fadeOut(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Quick,
-            easing = MotionEasing.FadeOut,
-        ),
-    ) + slideOutVertically(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Fast,
-            easing = MotionEasing.SoftOut,
-        ),
+    fun standardExit(): ExitTransition = fadeSlideVerticalExit(
+        fadeDuration = MotionDuration.Quick,
+        slideDuration = MotionDuration.Fast,
         targetOffsetY = { it / 10 },
+        slideEasing = MotionEasing.SoftOut,
     )
 
     fun playerOverlayEnter(): EnterTransition = fadeIn(
@@ -232,34 +246,31 @@ class MotionTransitions internal constructor(
                 initialAlpha = 0.01f,
             )
         }
-        return fadeIn(
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Emphasized,
-                easing = MotionEasing.FadeIn,
-            ),
+        return fadeSlideVerticalEnter(
+            fadeDuration = MotionDuration.Emphasized,
+            slideDuration = MotionDuration.Emphasized,
             initialAlpha = 0.68f,
-        ) + slideInVertically(
             initialOffsetY = { it / 8 },
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Emphasized,
-                easing = MotionEasing.RefinedDecelerate,
-            ),
         )
     }
 
-    fun compactBarExit(): ExitTransition = fadeOut(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Standard,
-            easing = MotionEasing.FadeOut,
-        ),
+    fun compactBarExit(): ExitTransition = fadeSlideVerticalExit(
+        fadeDuration = MotionDuration.Standard,
+        slideDuration = MotionDuration.Standard,
         targetAlpha = 0.92f,
-    ) + slideOutVertically(
         targetOffsetY = { it / 12 },
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Standard,
-            easing = MotionEasing.RefinedAccelerate,
-        ),
     )
+
+    fun softContentTransform(): ContentTransform =
+        (fadeIn(animationSpec = specs.fadeIn(MotionDuration.Standard)) +
+            slideInVertically(
+                animationSpec = specs.refinedEnter(MotionDuration.Standard),
+                initialOffsetY = { -it / 10 },
+            )) togetherWith fadeOut(animationSpec = specs.fadeOut(MotionDuration.Quick))
+
+    fun quickContentSwapTransform(): ContentTransform =
+        fadeIn(animationSpec = specs.fadeIn(MotionDuration.Component)) togetherWith
+            fadeOut(animationSpec = specs.fadeOut(MotionDuration.Fast))
 
     fun queueMenuEnter(
         origin: TransformOrigin = TransformOrigin(1f, 1f),

@@ -31,9 +31,60 @@ class MotionSpecs internal constructor(
         if (runtime.reduceMotion) return tween(durationMillis = 0)
         return composeSpring(
             dampingRatio = dampingRatio,
-            stiffness = (stiffness / (runtime.durationScale * runtime.durationScale))
-                .coerceIn(25f, 10_000f),
+            stiffness = scaledSpringStiffness(stiffness),
         )
+    }
+
+    private fun scaledSpringStiffness(stiffness: Float): Float {
+        return (stiffness / (runtime.durationScale * runtime.durationScale))
+            .coerceIn(25f, 10_000f)
+    }
+
+    fun <T> fadeIn(
+        durationMillis: Int = MotionDuration.ScreenFade,
+        delayMillis: Int = 0,
+    ): FiniteAnimationSpec<T> = tween(
+        durationMillis = durationMillis,
+        delayMillis = delayMillis,
+        easing = MotionEasing.FadeIn,
+    )
+
+    fun <T> fadeOut(
+        durationMillis: Int = MotionDuration.Quick,
+    ): FiniteAnimationSpec<T> = tween(
+        durationMillis = durationMillis,
+        easing = MotionEasing.FadeOut,
+    )
+
+    fun <T> refinedEnter(
+        durationMillis: Int,
+        delayMillis: Int = 0,
+    ): FiniteAnimationSpec<T> = tween(
+        durationMillis = durationMillis,
+        delayMillis = delayMillis,
+        easing = MotionEasing.RefinedDecelerate,
+    )
+
+    fun <T> refinedExit(
+        durationMillis: Int,
+    ): FiniteAnimationSpec<T> = tween(
+        durationMillis = durationMillis,
+        easing = MotionEasing.RefinedAccelerate,
+    )
+
+    fun <T> contentSize(): FiniteAnimationSpec<T> = tween(
+        durationMillis = MotionDuration.ChromeResize,
+        easing = MotionEasing.RefinedDecelerate,
+    )
+
+    fun <T> listReveal(delayMillis: Int = 0): FiniteAnimationSpec<T> = tween(
+        durationMillis = MotionDuration.ListReveal,
+        delayMillis = delayMillis,
+        easing = MotionEasing.RefinedDecelerate,
+    )
+
+    fun listRevealDelay(index: Int): Int {
+        return runtime.delay((index.coerceAtLeast(0) * 14).coerceAtMost(90))
     }
 
     fun <T> pressDown(): FiniteAnimationSpec<T> = tween(

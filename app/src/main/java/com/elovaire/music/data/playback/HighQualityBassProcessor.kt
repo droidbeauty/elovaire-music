@@ -14,35 +14,43 @@ import kotlin.math.sqrt
 internal data class HighQualityBassConfig(
     val enabled: Boolean = true,
     val amountNormalized: Float = 0f,
-    val highPassFrequencyHz: Float = 24f,
-    val shelfFrequencyHz: Float = 82f,
-    val shelfSlope: Float = 0.74f,
-    val maxShelfBoostDb: Float = 8.6f,
-    val punchCenterHz: Float = 64f,
-    val punchQ: Float = 0.82f,
-    val maxPunchDb: Float = 2.35f,
-    val mudTrimCenterHz: Float = 255f,
-    val mudTrimQ: Float = 0.78f,
-    val maxMudTrimDb: Float = 0.48f,
-    val dynamicControlThreshold: Float = 0.26f,
-    val maxDynamicReductionDb: Float = 1.65f,
+    val highPassFrequencyHz: Float = 20f,
+    val shelfFrequencyHz: Float = 76f,
+    val shelfSlope: Float = 0.82f,
+    val maxShelfBoostDb: Float = 7.2f,
+    val bodyCenterHz: Float = 118f,
+    val bodyQ: Float = 0.72f,
+    val maxBodyDb: Float = 2.4f,
+    val punchCenterHz: Float = 62f,
+    val punchQ: Float = 0.92f,
+    val maxPunchDb: Float = 1.55f,
+    val mudTrimCenterHz: Float = 285f,
+    val mudTrimQ: Float = 0.62f,
+    val maxMudTrimDb: Float = 0.22f,
+    val detectorLowPassFrequencyHz: Float = 165f,
+    val dynamicControlThreshold: Float = 0.42f,
+    val maxDynamicReductionDb: Float = 0.85f,
     val smoothingTimeMs: Int = 90,
 ) {
     fun sanitized(): HighQualityBassConfig {
         return copy(
             amountNormalized = amountNormalized.coerceIn(0f, 1f),
-            highPassFrequencyHz = highPassFrequencyHz.coerceIn(18f, 32f),
-            shelfFrequencyHz = shelfFrequencyHz.coerceIn(65f, 110f),
-            shelfSlope = shelfSlope.coerceIn(0.5f, 1.05f),
-            maxShelfBoostDb = maxShelfBoostDb.coerceIn(0f, 9f),
+            highPassFrequencyHz = highPassFrequencyHz.coerceIn(16f, 28f),
+            shelfFrequencyHz = shelfFrequencyHz.coerceIn(58f, 105f),
+            shelfSlope = shelfSlope.coerceIn(0.55f, 1.1f),
+            maxShelfBoostDb = maxShelfBoostDb.coerceIn(0f, 8.2f),
+            bodyCenterHz = bodyCenterHz.coerceIn(90f, 150f),
+            bodyQ = bodyQ.coerceIn(0.45f, 1.05f),
+            maxBodyDb = maxBodyDb.coerceIn(0f, 3.2f),
             punchCenterHz = punchCenterHz.coerceIn(45f, 78f),
-            punchQ = punchQ.coerceIn(0.55f, 1.25f),
-            maxPunchDb = maxPunchDb.coerceIn(0f, 2.7f),
-            mudTrimCenterHz = mudTrimCenterHz.coerceIn(170f, 300f),
-            mudTrimQ = mudTrimQ.coerceIn(0.55f, 1.25f),
-            maxMudTrimDb = maxMudTrimDb.coerceIn(0f, 1.8f),
-            dynamicControlThreshold = dynamicControlThreshold.coerceIn(0.08f, 0.45f),
-            maxDynamicReductionDb = maxDynamicReductionDb.coerceIn(0f, 4f),
+            punchQ = punchQ.coerceIn(0.55f, 1.35f),
+            maxPunchDb = maxPunchDb.coerceIn(0f, 2.2f),
+            mudTrimCenterHz = mudTrimCenterHz.coerceIn(210f, 380f),
+            mudTrimQ = mudTrimQ.coerceIn(0.4f, 1.0f),
+            maxMudTrimDb = maxMudTrimDb.coerceIn(0f, 0.7f),
+            detectorLowPassFrequencyHz = detectorLowPassFrequencyHz.coerceIn(110f, 220f),
+            dynamicControlThreshold = dynamicControlThreshold.coerceIn(0.18f, 0.65f),
+            maxDynamicReductionDb = maxDynamicReductionDb.coerceIn(0f, 2.0f),
             smoothingTimeMs = smoothingTimeMs.coerceIn(45, 160),
         )
     }
@@ -51,6 +59,7 @@ internal data class HighQualityBassConfig(
 internal data class HighQualityBassCurve(
     val amount: Float,
     val shelfDb: Float,
+    val bodyDb: Float,
     val punchDb: Float,
     val mudTrimDb: Float,
     val automaticHeadroomDb: Float,
@@ -58,6 +67,7 @@ internal data class HighQualityBassCurve(
     val isBypassed: Boolean
         get() = amount <= 0.0005f &&
             abs(shelfDb) <= 0.0005f &&
+            abs(bodyDb) <= 0.0005f &&
             abs(punchDb) <= 0.0005f &&
             abs(mudTrimDb) <= 0.0005f &&
             abs(automaticHeadroomDb) <= 0.0005f
@@ -65,6 +75,7 @@ internal data class HighQualityBassCurve(
 
 internal data class HighQualityBassResponse(
     val shelfDb: Float,
+    val bodyDb: Float,
     val punchDb: Float,
     val mudTrimDb: Float,
     val highPassDb: Float,
@@ -86,20 +97,24 @@ internal object HighQualityBassProcessorModel {
             return HighQualityBassCurve(
                 amount = 0f,
                 shelfDb = 0f,
+                bodyDb = 0f,
                 punchDb = 0f,
                 mudTrimDb = 0f,
                 automaticHeadroomDb = 0f,
             )
         }
 
-        val shelfCurve = amount.toDouble().pow(1.22).toFloat()
-        val punchCurve = amount.toDouble().pow(1.72).toFloat()
-        val mudCurve = amount.toDouble().pow(1.9).toFloat()
+        val shelfCurve = amount.toDouble().pow(1.12).toFloat()
+        val bodyCurve = amount.toDouble().pow(1.28).toFloat()
+        val punchCurve = amount.toDouble().pow(1.62).toFloat()
+        val mudCurve = amount.toDouble().pow(2.35).toFloat()
         val shelfDb = safeConfig.maxShelfBoostDb * shelfCurve
+        val bodyDb = safeConfig.maxBodyDb * bodyCurve
         val punchDb = safeConfig.maxPunchDb * punchCurve
         val mudTrimDb = -(safeConfig.maxMudTrimDb * mudCurve)
         val automaticHeadroomDb = automaticHeadroomDb(
             shelfDb = shelfDb,
+            bodyDb = bodyDb,
             punchDb = punchDb,
             lowBandEqBoostSafetyDb = lowBandEqBoostSafetyDb,
             trebleBoostDb = trebleBoostDb,
@@ -108,6 +123,7 @@ internal object HighQualityBassProcessorModel {
         return HighQualityBassCurve(
             amount = amount,
             shelfDb = shelfDb,
+            bodyDb = bodyDb,
             punchDb = punchDb,
             mudTrimDb = mudTrimDb,
             automaticHeadroomDb = automaticHeadroomDb,
@@ -116,17 +132,19 @@ internal object HighQualityBassProcessorModel {
 
     fun automaticHeadroomDb(
         shelfDb: Float,
+        bodyDb: Float,
         punchDb: Float,
         lowBandEqBoostSafetyDb: Float = 0f,
         trebleBoostDb: Float = 0f,
         spaciousnessAmount: Float = 0f,
     ): Float {
-        val bassSafety = (shelfDb.coerceAtLeast(0f) * 0.65f) +
-            (punchDb.coerceAtLeast(0f) * 0.5f)
-        val eqSafety = lowBandEqBoostSafetyDb.coerceAtLeast(0f) * 0.42f
-        val trebleSafety = trebleBoostDb.coerceAtLeast(0f) * 0.08f
-        val spatialSafety = spaciousnessAmount.coerceIn(0f, 1f) * 0.35f
-        return -(bassSafety + eqSafety + trebleSafety + spatialSafety).coerceIn(0f, 12f)
+        val bassSafety = (shelfDb.coerceAtLeast(0f) * 0.08f) +
+            (bodyDb.coerceAtLeast(0f) * 0.06f) +
+            (punchDb.coerceAtLeast(0f) * 0.03f)
+        val eqSafety = lowBandEqBoostSafetyDb.coerceAtLeast(0f) * 0.22f
+        val trebleSafety = trebleBoostDb.coerceAtLeast(0f) * 0.06f
+        val spatialSafety = spaciousnessAmount.coerceIn(0f, 1f) * 0.22f
+        return -(bassSafety + eqSafety + trebleSafety + spatialSafety).coerceIn(0f, 3.2f)
     }
 
     fun dynamicReductionDb(
@@ -162,6 +180,7 @@ internal object HighQualityBassProcessorModel {
         if (curve.isBypassed) {
             return HighQualityBassResponse(
                 shelfDb = 0f,
+                bodyDb = 0f,
                 punchDb = 0f,
                 mudTrimDb = 0f,
                 highPassDb = 0f,
@@ -188,6 +207,12 @@ internal object HighQualityBassProcessorModel {
             q = safeConfig.punchQ,
             gainDb = curve.punchDb,
         )
+        val body = bellResponseDb(
+            frequencyHz = safeFrequency,
+            centerFrequencyHz = safeConfig.bodyCenterHz,
+            q = safeConfig.bodyQ,
+            gainDb = curve.bodyDb,
+        )
         val mud = bellResponseDb(
             frequencyHz = safeFrequency,
             centerFrequencyHz = safeConfig.mudTrimCenterHz,
@@ -196,11 +221,12 @@ internal object HighQualityBassProcessorModel {
         )
         return HighQualityBassResponse(
             shelfDb = shelf,
+            bodyDb = body,
             punchDb = punch,
             mudTrimDb = mud,
             highPassDb = highPass,
             automaticHeadroomDb = curve.automaticHeadroomDb,
-            totalDb = highPass + shelf + punch + mud + curve.automaticHeadroomDb,
+            totalDb = highPass + shelf + body + punch + mud + curve.automaticHeadroomDb,
         )
     }
 

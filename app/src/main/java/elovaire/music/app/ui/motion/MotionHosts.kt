@@ -15,6 +15,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 
 @Composable
 fun MotionVisibilityHost(
@@ -26,7 +28,10 @@ fun MotionVisibilityHost(
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
     val state = remember { MutableTransitionState(false) }
-    state.targetState = visible
+    val currentOnExitFinished by rememberUpdatedState(onExitFinished)
+    LaunchedEffect(visible) {
+        state.targetState = visible
+    }
     AnimatedVisibility(
         visibleState = state,
         modifier = modifier,
@@ -36,7 +41,7 @@ fun MotionVisibilityHost(
     )
     LaunchedEffect(state.currentState, state.targetState, state.isIdle) {
         if (state.isIdle && !state.currentState && !state.targetState) {
-            onExitFinished?.invoke()
+            currentOnExitFinished?.invoke()
         }
     }
 }
@@ -82,9 +87,7 @@ fun ElovaireAnimatedVisibility(
 fun <S> ElovaireAnimatedContent(
     targetState: S,
     modifier: Modifier = Modifier,
-    transitionSpec: AnimatedContentTransitionScope<S>.() -> ContentTransform = {
-        ElovaireMotion.softContentTransform()
-    },
+    transitionSpec: AnimatedContentTransitionScope<S>.() -> ContentTransform,
     contentAlignment: Alignment = Alignment.TopStart,
     contentKey: (targetState: S) -> Any? = { it },
     label: String,
@@ -102,17 +105,39 @@ fun <S> ElovaireAnimatedContent(
 }
 
 @Composable
+fun <S> ElovaireAnimatedContent(
+    targetState: S,
+    modifier: Modifier = Modifier,
+    contentAlignment: Alignment = Alignment.TopStart,
+    contentKey: (targetState: S) -> Any? = { it },
+    label: String,
+    content: @Composable AnimatedContentScope.(targetState: S) -> Unit,
+) {
+    val transitions = rememberMotionTransitions()
+    ElovaireAnimatedContent(
+        targetState = targetState,
+        modifier = modifier,
+        transitionSpec = { transitions.softContentTransform() },
+        contentAlignment = contentAlignment,
+        contentKey = contentKey,
+        label = label,
+        content = content,
+    )
+}
+
+@Composable
 fun <S> ElovaireCrossfade(
     targetState: S,
     modifier: Modifier = Modifier,
-    animationSpec: FiniteAnimationSpec<Float> = ElovaireMotion.fadeMedium(),
+    animationSpec: FiniteAnimationSpec<Float>? = null,
     label: String,
     content: @Composable (targetState: S) -> Unit,
 ) {
+    val specs = rememberMotionSpecs()
     androidx.compose.animation.Crossfade(
         targetState = targetState,
         modifier = modifier,
-        animationSpec = animationSpec,
+        animationSpec = animationSpec ?: specs.fadeIn(),
         label = label,
         content = content,
     )

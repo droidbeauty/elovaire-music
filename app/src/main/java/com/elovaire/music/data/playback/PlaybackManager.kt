@@ -79,6 +79,33 @@ enum class PlaybackCommandOrigin {
     BecomingNoisy,
 }
 
+private enum class InterruptionResumeReason {
+    None,
+    TransientFocusLoss,
+    PermanentLossWithActiveExternalMedia,
+}
+
+private data class InterruptionResumeState(
+    val shouldResume: Boolean = false,
+    val reason: InterruptionResumeReason = InterruptionResumeReason.None,
+    val startedAtElapsedMs: Long = 0L,
+    val resumeAttempts: Int = 0,
+) {
+    val isActive: Boolean get() = shouldResume
+}
+
+private enum class PauseFadeReason {
+    Manual,
+    AudioInterruption,
+    BecomingNoisy,
+}
+
+private enum class ResumeFadeReason {
+    Manual,
+    AudioInterruption,
+    Recovery,
+}
+
 data class PlaybackUiState(
     val queue: List<Song> = emptyList(),
     val currentIndex: Int = -1,
@@ -234,6 +261,7 @@ class PlaybackManager(
     private var shouldResumeAfterTransientFocusLoss = false
     private var pausedForAudioFocusLoss = false
     private var pendingResumeAfterExternalInterruption = false
+    private var interruptionResumeState = InterruptionResumeState()
     private var isStoppingQueue = false
     private var isRecoveringPlayback = false
     private val failedPlaybackSongIds = mutableSetOf<Long>()
@@ -257,6 +285,7 @@ class PlaybackManager(
     )
     private var pauseFadeJob: Job? = null
     private var externalInterruptionResumeJob: Job? = null
+    private var pendingAutoResumeRetryJob: Job? = null
     private var statePublishScheduled = false
     private val _playerInstanceVersion = MutableStateFlow(0L)
     val playerInstanceVersion: StateFlow<Long> = _playerInstanceVersion.asStateFlow()
@@ -456,6 +485,8 @@ class PlaybackManager(
         get() = mediaSession.token
     val platformMediaSessionToken
         get() = mediaSession.platformToken
+    internal val mediaSessionForExternalControllers: MediaSession
+        get() = mediaSession
     private val mediaSession = MediaSession.Builder(context, commandGatewayPlayer)
         .setSessionActivity(
             PendingIntent.getActivity(
@@ -673,14 +704,20 @@ class PlaybackManager(
         }
         when (resolvedCommand) {
             PlaybackCommand.Play -> {
-                clearInterruptionResumeState()
+                if (origin != PlaybackCommandOrigin.AudioInterruption) {
+                    clearInterruptionResumeState()
+                }
                 cancelPauseFade()
                 isManualPausePending = false
                 isPauseTransitioningToStopped = false
                 if (origin == PlaybackCommandOrigin.InApp || origin == PlaybackCommandOrigin.ExternalController) {
                     recordManualPlaybackStart()
                 }
-                resumePlayback()
+                if (origin == PlaybackCommandOrigin.AudioInterruption) {
+                    startPlaybackAfterInterruptionWithFadeIn()
+                } else {
+                    resumePlayback()
+                }
             }
 
             PlaybackCommand.Pause -> {
@@ -688,18 +725,19 @@ class PlaybackManager(
                     clearInterruptionResumeState()
                 }
                 if (origin != PlaybackCommandOrigin.InApp) {
-                    cancelPauseFade(resetVolume = false)
                     isManualPausePending = false
                     isPauseTransitioningToStopped = true
-                    player.pause()
-                    player.volume = effectivePlayerGain()
-                    if (origin == PlaybackCommandOrigin.ExternalController || origin == PlaybackCommandOrigin.BecomingNoisy) {
-                        abandonAudioFocus()
-                    }
+                    beginPauseFadeOut(
+                        if (origin == PlaybackCommandOrigin.BecomingNoisy) {
+                            PauseFadeReason.BecomingNoisy
+                        } else {
+                            PauseFadeReason.AudioInterruption
+                        },
+                    )
                 } else if (!isManualPausePending && (player.isPlaying || player.playWhenReady)) {
                     isPauseTransitioningToStopped = true
                     isManualPausePending = true
-                    beginManualPauseFadeOut()
+                    beginPauseFadeOut(PauseFadeReason.Manual)
                 } else if (!player.isPlaying && !player.playWhenReady) {
                     cancelPauseFade(resetVolume = false)
                     isManualPausePending = false
@@ -1078,25 +1116,94 @@ class PlaybackManager(
     }
 
     private fun resumePlayback() {
-        cancelPauseFade()
-        isManualPausePending = false
-        pausedForAudioFocusLoss = false
-        pendingResumeAfterExternalInterruption = false
         externalInterruptionResumeJob?.cancel()
-        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
-        refreshUsbAudioOutputState()
-        scheduleAudioPathReevaluation("resume-playback")
-        if (!requestAudioFocus()) return
-        isPauseTransitioningToStopped = false
-        shouldResumeAfterTransientFocusLoss = false
-        player.volume = targetPlayerOutputGain()
-        player.play()
+        if (!interruptionResumeState.isActive) {
+            pendingAutoResumeRetryJob?.cancel()
+            pendingAutoResumeRetryJob = null
+        }
+        startPlaybackWithFadeIn(ResumeFadeReason.Manual)
     }
 
-    private fun beginManualPauseFadeOut() {
-        if (isDirectPlaybackActive) {
+    private fun startPlaybackAfterInterruptionWithFadeIn() {
+        startPlaybackWithFadeIn(ResumeFadeReason.AudioInterruption)
+    }
+
+    private fun startPlaybackWithFadeIn(reason: ResumeFadeReason) {
+        if (!requestAudioFocus()) {
+            if (reason == ResumeFadeReason.AudioInterruption) {
+                scheduleAutoResumeRetry("fade-in-focus-failed")
+            }
+            return
+        }
+
+        cancelPauseFade(resetVolume = false)
+        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
+        refreshUsbAudioOutputState()
+        scheduleAudioPathReevaluation(
+            when (reason) {
+                ResumeFadeReason.Manual -> "resume-playback"
+                ResumeFadeReason.AudioInterruption -> "resume-after-interruption"
+                ResumeFadeReason.Recovery -> "resume-recovery"
+            },
+        )
+        isPauseTransitioningToStopped = false
+        isManualPausePending = false
+
+        val targetGain = effectivePlayerGain()
+        if (!supportsSoftwarePlaybackFade()) {
+            player.volume = targetGain
+            player.play()
+            if (reason == ResumeFadeReason.AudioInterruption) {
+                clearInterruptionResumeState()
+            } else {
+                shouldResumeAfterTransientFocusLoss = false
+                pausedForAudioFocusLoss = false
+                pendingResumeAfterExternalInterruption = false
+            }
+            updateState()
+            return
+        }
+
+        player.volume = 0f
+        player.play()
+        updateState()
+
+        pauseFadeJob?.cancel()
+        pauseFadeJob = scope.launch {
+            repeat(PAUSE_FADE_STEP_COUNT) { step ->
+                if (!isActive) return@launch
+                val progress = (step + 1).toFloat() / PAUSE_FADE_STEP_COUNT.toFloat()
+                player.volume = lerp(
+                    start = 0f,
+                    stop = targetGain,
+                    fraction = progress,
+                )
+                delay(PAUSE_FADE_STEP_DURATION_MS)
+            }
+            player.volume = targetGain
+            pauseFadeJob = null
+            if (reason == ResumeFadeReason.AudioInterruption) {
+                clearInterruptionResumeState()
+            } else {
+                shouldResumeAfterTransientFocusLoss = false
+                pausedForAudioFocusLoss = false
+                pendingResumeAfterExternalInterruption = false
+            }
+            updateState()
+        }
+    }
+
+    private fun beginPauseFadeOut(reason: PauseFadeReason) {
+        if (!supportsSoftwarePlaybackFade()) {
             player.pause()
-            abandonAudioFocus()
+            if (reason == PauseFadeReason.Manual || reason == PauseFadeReason.BecomingNoisy) {
+                abandonAudioFocus()
+            }
+            if (reason == PauseFadeReason.Manual) {
+                isManualPausePending = false
+            }
+            isPauseTransitioningToStopped = false
+            player.volume = targetPlayerOutputGain()
             updateState()
             return
         }
@@ -1116,7 +1223,13 @@ class PlaybackManager(
                 }
             }
             player.pause()
-            abandonAudioFocus()
+            if (reason == PauseFadeReason.Manual || reason == PauseFadeReason.BecomingNoisy) {
+                abandonAudioFocus()
+            }
+            if (reason == PauseFadeReason.Manual) {
+                isManualPausePending = false
+            }
+            isPauseTransitioningToStopped = true
             pauseFadeJob = null
             updateState()
         }
@@ -1128,6 +1241,10 @@ class PlaybackManager(
         if (resetVolume) {
             player.volume = targetPlayerOutputGain()
         }
+    }
+
+    private fun supportsSoftwarePlaybackFade(): Boolean {
+        return !isDirectPlaybackActive && !usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()
     }
 
     private fun requestAudioFocus(): Boolean {
@@ -1147,65 +1264,60 @@ class PlaybackManager(
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
                 hasAudioFocus = true
-                val shouldResume = pausedForAudioFocusLoss &&
-                    shouldResumeAfterTransientFocusLoss &&
-                    _state.value.queue.isNotEmpty() &&
-                    !isManualPausePending
-                pendingResumeAfterExternalInterruption = false
-                externalInterruptionResumeJob?.cancel()
-                if (shouldResume) {
-                    dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.AudioInterruption)
+                pendingAutoResumeRetryJob?.cancel()
+                pendingAutoResumeRetryJob = null
+                if (shouldKeepInterruptionResumeIntent()) {
+                    scope.launch {
+                        delay(AUTO_RESUME_SETTLE_DELAY_MS)
+                        attemptAutoResumeAfterInterruption("focus-gain")
+                    }
                 } else {
-                    pausedForAudioFocusLoss = false
+                    clearInterruptionResumeState()
                     player.volume = effectivePlayerGain()
                     updateState()
                 }
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                cancelPauseFade(resetVolume = false)
-                shouldResumeAfterTransientFocusLoss =
-                    (player.isPlaying || player.playWhenReady || _state.value.transportShowsPause) &&
-                        _state.value.queue.isNotEmpty()
-                pausedForAudioFocusLoss = shouldResumeAfterTransientFocusLoss
-                pendingResumeAfterExternalInterruption = shouldResumeAfterTransientFocusLoss &&
-                    hasActiveExternalMediaPlayback()
-                scheduleExternalInterruptionResumeWatch()
-                isManualPausePending = false
-                isPauseTransitioningToStopped = true
-                dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.AudioInterruption)
+                handleTransientFocusLoss()
             }
 
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                cancelPauseFade(resetVolume = false)
-                shouldResumeAfterTransientFocusLoss =
-                    (player.isPlaying || player.playWhenReady || _state.value.transportShowsPause) &&
-                        _state.value.queue.isNotEmpty()
-                pausedForAudioFocusLoss = shouldResumeAfterTransientFocusLoss
-                pendingResumeAfterExternalInterruption = shouldResumeAfterTransientFocusLoss &&
-                    hasActiveExternalMediaPlayback()
-                scheduleExternalInterruptionResumeWatch()
-                isManualPausePending = false
-                isPauseTransitioningToStopped = true
-                dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.AudioInterruption)
+                handleTransientFocusLoss()
             }
 
             AudioManager.AUDIOFOCUS_LOSS -> {
-                cancelPauseFade(resetVolume = false)
-                val shouldResumeWhenInterruptionEnds =
-                    (player.isPlaying || player.playWhenReady || _state.value.transportShowsPause) &&
-                        _state.value.queue.isNotEmpty() &&
-                        hasActiveExternalMediaPlayback()
-                shouldResumeAfterTransientFocusLoss = shouldResumeWhenInterruptionEnds
-                pausedForAudioFocusLoss = shouldResumeWhenInterruptionEnds
-                pendingResumeAfterExternalInterruption = shouldResumeWhenInterruptionEnds
-                scheduleExternalInterruptionResumeWatch()
+                val wasAudiblyPlaying = player.isPlaying ||
+                    player.playWhenReady ||
+                    _state.value.transportShowsPause
+                val looksLikeExternalMediaInterruption = wasAudiblyPlaying &&
+                    _state.value.queue.isNotEmpty() &&
+                    hasActiveExternalMediaPlayback()
+                if (looksLikeExternalMediaInterruption) {
+                    markInterruptedForResume(InterruptionResumeReason.PermanentLossWithActiveExternalMedia)
+                    scheduleExternalInterruptionResumeWatch()
+                } else {
+                    clearInterruptionResumeState()
+                }
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
-                dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.AudioInterruption)
+                beginPauseFadeOut(PauseFadeReason.AudioInterruption)
                 abandonAudioFocus()
             }
         }
+    }
+
+    private fun handleTransientFocusLoss() {
+        val wasAudiblyPlaying = player.isPlaying ||
+            player.playWhenReady ||
+            _state.value.transportShowsPause
+        if (wasAudiblyPlaying && _state.value.queue.isNotEmpty()) {
+            markInterruptedForResume(InterruptionResumeReason.TransientFocusLoss)
+        }
+        isManualPausePending = false
+        isPauseTransitioningToStopped = true
+        beginPauseFadeOut(PauseFadeReason.AudioInterruption)
+        scheduleExternalInterruptionResumeWatch()
     }
 
     private fun recoverUnexpectedIdleState(shouldAutoPlay: Boolean) {
@@ -1323,15 +1435,84 @@ class PlaybackManager(
         shouldResumeAfterTransientFocusLoss = false
         pausedForAudioFocusLoss = false
         pendingResumeAfterExternalInterruption = false
+        interruptionResumeState = InterruptionResumeState()
         externalInterruptionResumeJob?.cancel()
         externalInterruptionResumeJob = null
+        pendingAutoResumeRetryJob?.cancel()
+        pendingAutoResumeRetryJob = null
+    }
+
+    private fun markInterruptedForResume(reason: InterruptionResumeReason) {
+        if (_state.value.queue.isEmpty()) return
+        interruptionResumeState = InterruptionResumeState(
+            shouldResume = true,
+            reason = reason,
+            startedAtElapsedMs = SystemClock.elapsedRealtime(),
+            resumeAttempts = 0,
+        )
+        shouldResumeAfterTransientFocusLoss = true
+        pausedForAudioFocusLoss = true
+        pendingResumeAfterExternalInterruption =
+            reason != InterruptionResumeReason.TransientFocusLoss || hasActiveExternalMediaPlayback()
+    }
+
+    private fun shouldKeepInterruptionResumeIntent(): Boolean {
+        val state = interruptionResumeState
+        if (!state.shouldResume) return false
+        if (_state.value.queue.isEmpty()) return false
+        if (isManualPausePending || isStoppingQueue) return false
+        val elapsedMs = SystemClock.elapsedRealtime() - state.startedAtElapsedMs
+        return elapsedMs <= EXTERNAL_INTERRUPTION_MAX_WATCH_MS
+    }
+
+    private fun attemptAutoResumeAfterInterruption(trigger: String) {
+        if (!shouldKeepInterruptionResumeIntent()) {
+            clearInterruptionResumeState()
+            return
+        }
+        if (player.isPlaying || player.playWhenReady) {
+            clearInterruptionResumeState()
+            updateState()
+            return
+        }
+        if (hasActiveExternalMediaPlayback()) {
+            scheduleExternalInterruptionResumeWatch()
+            return
+        }
+        if (!requestAudioFocus()) {
+            scheduleAutoResumeRetry(trigger)
+            return
+        }
+        startPlaybackAfterInterruptionWithFadeIn()
+    }
+
+    private fun scheduleAutoResumeRetry(trigger: String) {
+        if (!shouldKeepInterruptionResumeIntent()) {
+            clearInterruptionResumeState()
+            return
+        }
+        val attempts = interruptionResumeState.resumeAttempts + 1
+        interruptionResumeState = interruptionResumeState.copy(resumeAttempts = attempts)
+        if (attempts > MAX_AUTO_RESUME_FOCUS_ATTEMPTS) {
+            clearInterruptionResumeState()
+            updateState()
+            return
+        }
+        pendingAutoResumeRetryJob?.cancel()
+        pendingAutoResumeRetryJob = scope.launch {
+            delay(AUTO_RESUME_FOCUS_RETRY_DELAY_MS)
+            if (shouldKeepInterruptionResumeIntent()) {
+                attemptAutoResumeAfterInterruption("$trigger-retry")
+            }
+        }
     }
 
     private fun scheduleExternalInterruptionResumeWatch() {
-        if (!pendingResumeAfterExternalInterruption || externalInterruptionResumeJob?.isActive == true) return
+        if (!shouldKeepInterruptionResumeIntent() || externalInterruptionResumeJob?.isActive == true) return
         externalInterruptionResumeJob = scope.launch {
             val startedAtMs = SystemClock.elapsedRealtime()
-            while (isActive && pendingResumeAfterExternalInterruption) {
+            var quietConfirmations = 0
+            while (isActive && shouldKeepInterruptionResumeIntent()) {
                 val elapsedMs = SystemClock.elapsedRealtime() - startedAtMs
                 if (elapsedMs >= EXTERNAL_INTERRUPTION_MAX_WATCH_MS) {
                     clearInterruptionResumeState()
@@ -1345,9 +1526,14 @@ class PlaybackManager(
                     clearInterruptionResumeState()
                     break
                 }
-                if (!hasActiveExternalMediaPlayback()) {
-                    dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.AudioInterruption)
-                    break
+                if (hasActiveExternalMediaPlayback()) {
+                    quietConfirmations = 0
+                } else {
+                    quietConfirmations += 1
+                    if (quietConfirmations >= EXTERNAL_INTERRUPTION_QUIET_CONFIRMATIONS) {
+                        attemptAutoResumeAfterInterruption("external-watch")
+                        break
+                    }
                 }
                 delay(
                     if (elapsedMs < EXTERNAL_INTERRUPTION_FAST_WATCH_MS) {
@@ -1596,6 +1782,10 @@ class PlaybackManager(
         const val EXTERNAL_INTERRUPTION_MAX_WATCH_MS = 5 * 60_000L
         const val EXTERNAL_INTERRUPTION_FAST_DELAY_MS = 500L
         const val EXTERNAL_INTERRUPTION_BACKOFF_DELAY_MS = 3_000L
+        const val EXTERNAL_INTERRUPTION_QUIET_CONFIRMATIONS = 2
+        const val MAX_AUTO_RESUME_FOCUS_ATTEMPTS = 12
+        const val AUTO_RESUME_FOCUS_RETRY_DELAY_MS = 350L
+        const val AUTO_RESUME_SETTLE_DELAY_MS = 180L
         const val MAX_UNEXPECTED_IDLE_RECOVERY_ATTEMPTS = 3
         const val UNEXPECTED_IDLE_RECOVERY_WINDOW_MS = 10_000L
         const val TAG = "PlaybackManager"

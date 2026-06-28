@@ -1,15 +1,16 @@
 package elovaire.music.droidbeauty.app.ui.motion
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDp
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.updateTransition
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
@@ -28,12 +29,24 @@ class MotionRevealRegistry {
     }
 
     fun retainKeys(keys: Set<Any>) {
+        if (revealedKeys.isEmpty()) return
         revealedKeys.keys.retainAll(keys)
+    }
+
+    fun clear() {
+        revealedKeys.clear()
     }
 }
 
 @Composable
 fun rememberMotionRevealRegistry(): MotionRevealRegistry = remember { MotionRevealRegistry() }
+
+@Composable
+fun MotionRevealRegistry.RetainVisibleKeys(keys: Set<Any>) {
+    LaunchedEffect(this, keys) {
+        retainKeys(keys)
+    }
+}
 
 fun Modifier.elovaireListReveal(
     itemKey: Any,
@@ -51,25 +64,27 @@ fun Modifier.elovaireListReveal(
         started = true
         registry.markRevealed(itemKey)
     }
-    val delay = (index.coerceAtLeast(0) * 14).coerceAtMost(90)
-    val alpha by animateFloatAsState(
-        targetValue = if (started) 1f else 0f,
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.ListReveal,
-            delayMillis = delay,
-            easing = MotionEasing.FadeIn,
-        ),
+    val delay = specs.listRevealDelay(index)
+    val transition = updateTransition(
+        targetState = started,
+        label = "elovaireListRevealTransition",
+    )
+    val alpha by transition.animateFloat(
+        transitionSpec = {
+            specs.tween(
+                durationMillis = MotionDuration.ListReveal,
+                delayMillis = delay,
+                easing = MotionEasing.FadeIn,
+            )
+        },
         label = "elovaireListRevealAlpha",
-    )
-    val offset by animateDpAsState(
-        targetValue = if (started) 0.dp else (-8).dp,
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.ListReveal,
-            delayMillis = delay,
-            easing = MotionEasing.RefinedDecelerate,
-        ),
-        label = "elovaireListRevealOffset",
-    )
+    ) { visible -> if (visible) 1f else 0f }
+    val offset by transition.animateDp(
+        transitionSpec = {
+            specs.listReveal(delayMillis = delay)
+        },
+        label = "elovaireListRevealOffsetY",
+    ) { visible -> if (visible) 0.dp else (-8).dp }
     graphicsLayer {
         this.alpha = alpha
         translationY = with(density) { offset.toPx() }
