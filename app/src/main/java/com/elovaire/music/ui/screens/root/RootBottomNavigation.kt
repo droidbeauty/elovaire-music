@@ -58,12 +58,13 @@ internal fun BottomNavigationBar(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight()
-                .consumePointersWithoutSemantics(),
+                .fillMaxHeight(),
         ) {
             BottomNavigationHazeBackground(
                 darkTheme = darkTheme,
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier
+                    .matchParentSize()
+                    .consumePointersWithoutSemantics(),
             )
 
             Row(
