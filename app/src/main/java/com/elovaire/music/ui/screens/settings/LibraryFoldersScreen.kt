@@ -9,6 +9,7 @@ import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -48,14 +50,20 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
+import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
+import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
+import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 
 @Composable
 internal fun LibraryFoldersScreen(
     appLanguage: AppLanguage,
     folders: List<LibraryFolderSelection>,
+    songs: List<Song>,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onAddFolder: (Uri) -> Unit,
@@ -65,6 +73,9 @@ internal fun LibraryFoldersScreen(
     val context = LocalContext.current
     val copy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
     val listState = rememberElovaireLazyListState("library_folders_screen")
+    val songCountsByFolder = remember(folders, songs) {
+        folders.associateWith { folder -> songs.countInFolder(folder) }
+    }
     var editMode by rememberSaveable { mutableStateOf(false) }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
@@ -90,23 +101,16 @@ internal fun LibraryFoldersScreen(
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
-                top = topBarOccupiedHeight() + 18.dp,
+                top = topBarOccupiedHeight() + 60.dp,
                 end = 18.dp,
                 bottom = bottomPadding + buttonNavigationScrollBoost(),
             ),
         ) {
             item {
-                Text(
-                    text = copy.removalSafety,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                    modifier = Modifier.padding(bottom = 18.dp),
-                )
-            }
-            item {
                 LibraryFolderListRow(
                     title = copy.addFolder,
                     subtitle = copy.subtitle,
+                    songCountLabel = null,
                     iconResId = R.drawable.ic_lucide_plus,
                     onClick = { folderPicker.launch(null) },
                 )
@@ -144,10 +148,12 @@ internal fun LibraryFoldersScreen(
                     LibraryFolderListRow(
                         title = folder.displayName,
                         subtitle = if (unavailable) copy.unavailableSubtitle else folder.path,
+                        songCountLabel = localizedCountLabel(songCountsByFolder[folder] ?: 0, "song", appLanguage),
                         trailingLabel = if (unavailable) copy.unavailable else null,
                         showRemove = editMode,
                         iconResId = R.drawable.ic_lucide_library,
                         onClick = {},
+                        onLongClick = { editMode = true },
                         onRemove = {
                             folder.uri?.let { uri ->
                                 runCatching {
@@ -163,8 +169,28 @@ internal fun LibraryFoldersScreen(
                 }
             }
         }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(
+                    start = 18.dp,
+                    top = topBarOccupiedHeight(),
+                    end = 18.dp,
+                )
+                .height(60.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = copy.removalSafety,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         PinnedBackTopBar(
-            title = copy.title,
+            title = "Library",
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -179,9 +205,12 @@ internal fun LibraryFoldersScreen(
             TextButton(onClick = { editMode = !editMode }) {
                 Text(if (editMode) copy.done else copy.edit)
             }
-            TextButton(onClick = onRefresh) {
-                Text(copy.refresh)
-            }
+            HeaderIconButton(
+                iconResId = R.drawable.ic_lucide_refresh_cw,
+                contentDescription = copy.refresh,
+                showBackground = false,
+                onClick = onRefresh,
+            )
         }
     }
 }
@@ -190,8 +219,10 @@ internal fun LibraryFoldersScreen(
 private fun LibraryFolderListRow(
     title: String,
     subtitle: String,
+    songCountLabel: String?,
     @DrawableRes iconResId: Int,
     onClick: () -> Unit,
+    onLongClick: () -> Unit = {},
     trailingLabel: String? = null,
     showRemove: Boolean = false,
     onRemove: () -> Unit = {},
@@ -201,10 +232,11 @@ private fun LibraryFolderListRow(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(ElovaireRadii.card))
-            .clickable(
+            .combinedClickable(
                 interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
+                onLongClick = onLongClick,
             )
             .padding(vertical = 15.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -222,7 +254,10 @@ private fun LibraryFolderListRow(
         ) {
             Text(
                 text = title,
-                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontSize = elovaireScaledSp(16f),
+                    fontWeight = FontWeight.SemiBold,
+                ),
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
@@ -232,6 +267,13 @@ private fun LibraryFolderListRow(
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
+            songCountLabel?.let { label ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
         }
         trailingLabel?.let { label ->
             Text(
@@ -244,7 +286,12 @@ private fun LibraryFolderListRow(
             HeaderIconButton(
                 iconResId = R.drawable.ic_lucide_x,
                 contentDescription = "Remove",
-                showBackground = false,
+                showBackground = true,
+                tint = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(DestructiveRed.copy(alpha = 0.5f)),
                 onClick = onRemove,
             )
         }
@@ -255,6 +302,15 @@ private fun LibraryFolderListRow(
             .height(1.dp)
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
     )
+}
+
+private fun List<Song>.countInFolder(folder: LibraryFolderSelection): Int {
+    val folderPath = LibraryFolderSelectionResolver.normalizedPathKey(folder.path)
+    if (folderPath.isBlank()) return 0
+    return count { song ->
+        val songPath = song.libraryPath?.let(LibraryFolderSelectionResolver::normalizedPathKey) ?: return@count false
+        songPath == folderPath || songPath.startsWith("$folderPath/")
+    }
 }
 
 private fun LibraryFolderSelection.isAvailable(context: Context): Boolean {

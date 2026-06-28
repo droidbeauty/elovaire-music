@@ -71,7 +71,7 @@ class MediaStoreScanner(
             )
             metadataCache[song.id] = CachedSongMetadata(
                 fileName = song.fileName,
-                filePath = null,
+                filePath = song.libraryPath,
                 dateAddedSeconds = song.dateAddedSeconds,
                 dateModifiedSeconds = song.dateModifiedSeconds,
                 isEnriched = song.metadataResolved,
@@ -289,6 +289,7 @@ class MediaStoreScanner(
                     discNumber = songMetadata.discNumber ?: normalizeDiscNumber(rawTrack),
                     dateAddedSeconds = dateAddedSeconds,
                     dateModifiedSeconds = dateModifiedSeconds,
+                    libraryPath = filePath,
                     uri = songUri,
                     artUri = albumArtworkUri(albumId),
                     metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,

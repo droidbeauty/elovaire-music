@@ -467,6 +467,8 @@ fun ElovaireRoot(
     val activeBottomRoute = navigationState.activeBottomRoute(currentConcreteRoute, currentRoute)
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     val hideCompactNowPlayingRoutes = setOf(
+        SETTINGS_ROUTE,
+        LIBRARY_FOLDERS_ROUTE,
         CHANGELOG_ROUTE,
         EQUALIZER_ROUTE,
         "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
@@ -1076,6 +1078,7 @@ fun ElovaireRoot(
                         LibraryFoldersScreen(
                             appLanguage = appState.appLanguage,
                             folders = libraryFolders,
+                            songs = libraryState.songs,
                             bottomPadding = detailBottomPadding,
                             onBack = navController::navigateUp,
                             onAddFolder = { uri ->

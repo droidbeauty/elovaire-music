@@ -66,6 +66,7 @@ internal class LibrarySnapshotStore(
                             dateAddedSeconds = songJson.optLong("dateAddedSeconds"),
                             dateModifiedSeconds = songJson.optLong("dateModifiedSeconds")
                                 .takeIf { it > 0L },
+                            libraryPath = songJson.optString("libraryPath").takeIf { it.isNotBlank() },
                             uri = Uri.parse(songJson.optString("uri")),
                             artUri = songJson.optString("artUri").takeIf { it.isNotBlank() }?.let(Uri::parse),
                             metadataResolved = songJson.optBoolean("metadataResolved", false),
@@ -127,6 +128,7 @@ internal class LibrarySnapshotStore(
                                     put("discNumber", song.discNumber)
                                     put("dateAddedSeconds", song.dateAddedSeconds)
                                     put("dateModifiedSeconds", song.dateModifiedSeconds ?: 0L)
+                                    put("libraryPath", song.libraryPath.orEmpty())
                                     put("uri", song.uri.toString())
                                     put("artUri", song.artUri?.toString().orEmpty())
                                     put("metadataResolved", song.metadataResolved)
