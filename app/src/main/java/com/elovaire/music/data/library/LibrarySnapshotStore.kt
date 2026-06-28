@@ -18,6 +18,7 @@ internal data class LibrarySignature(
 internal data class CachedLibrarySnapshot(
     val snapshot: LibrarySnapshot,
     val signature: LibrarySignature,
+    val syncState: LibraryMediaStoreSyncState?,
 )
 
 internal class LibrarySnapshotStore(
@@ -42,6 +43,7 @@ internal class LibrarySnapshotStore(
                 idChecksum = root.optLong("idChecksum", 0L),
                 filterFingerprint = root.optString("filterFingerprint"),
             )
+            val syncState = root.optJSONObject("mediaStoreSyncState")?.toLibraryMediaStoreSyncState()
             val songs = buildList {
                 val songsArray = root.optJSONArray("songs") ?: JSONArray()
                 repeat(songsArray.length()) { index ->
@@ -85,6 +87,7 @@ internal class LibrarySnapshotStore(
                     albums = buildAlbumsFromSongs(songs),
                 ),
                 signature = if (songs.size == signature.songCount) signature else filteredSignature,
+                syncState = syncState,
             )
         }.getOrNull()
     }
@@ -92,6 +95,7 @@ internal class LibrarySnapshotStore(
     fun save(
         snapshot: LibrarySnapshot,
         filterFingerprint: String,
+        syncState: LibraryMediaStoreSyncState? = null,
     ) {
         runCatching {
             val songs = snapshot.songs.filter(::isSupportedLibrarySong)
@@ -105,6 +109,7 @@ internal class LibrarySnapshotStore(
                 put("newestDateAddedSeconds", signature.newestDateAddedSeconds)
                 put("idChecksum", signature.idChecksum)
                 put("filterFingerprint", signature.filterFingerprint)
+                syncState?.let { put("mediaStoreSyncState", it.toJson()) }
                 put(
                     "songs",
                     JSONArray().apply {
@@ -154,6 +159,47 @@ internal class LibrarySnapshotStore(
         const val SNAPSHOT_FILE_NAME = "library_snapshot_v6.json"
         const val SNAPSHOT_VERSION = 6
     }
+}
+
+private fun LibraryMediaStoreSyncState.toJson(): JSONObject {
+    return JSONObject().apply {
+        put("filterFingerprint", filterFingerprint)
+        put(
+            "volumes",
+            JSONArray().apply {
+                volumes.forEach { volume ->
+                    put(
+                        JSONObject().apply {
+                            put("volumeName", volume.volumeName)
+                            put("version", volume.version)
+                            put("generation", volume.generation)
+                        },
+                    )
+                }
+            },
+        )
+    }
+}
+
+private fun JSONObject.toLibraryMediaStoreSyncState(): LibraryMediaStoreSyncState {
+    val volumesArray = optJSONArray("volumes") ?: JSONArray()
+    return LibraryMediaStoreSyncState(
+        filterFingerprint = optString("filterFingerprint"),
+        volumes = buildList {
+            repeat(volumesArray.length()) { index ->
+                val volume = volumesArray.optJSONObject(index) ?: return@repeat
+                val volumeName = volume.optString("volumeName").takeIf { it.isNotBlank() } ?: return@repeat
+                val version = volume.optString("version").takeIf { it.isNotBlank() } ?: return@repeat
+                add(
+                    LibraryMediaStoreVolumeSyncState(
+                        volumeName = volumeName,
+                        version = version,
+                        generation = volume.optLong("generation", -1L),
+                    ),
+                )
+            }
+        },
+    )
 }
 
 internal fun signatureFromSongs(

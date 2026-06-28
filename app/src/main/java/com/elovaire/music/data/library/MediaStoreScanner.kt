@@ -41,6 +41,22 @@ class MediaStoreScanner(
         return scanRoots.filterFingerprint(FILTER_FINGERPRINT_VERSION)
     }
 
+    internal fun currentSyncState(): LibraryMediaStoreSyncState? {
+        return runCatching {
+            val volumeName = MediaStore.VOLUME_EXTERNAL
+            LibraryMediaStoreSyncState(
+                filterFingerprint = currentFilterFingerprint(),
+                volumes = listOf(
+                    LibraryMediaStoreVolumeSyncState(
+                        volumeName = volumeName,
+                        version = MediaStore.getVersion(context, volumeName),
+                        generation = MediaStore.getGeneration(context, volumeName),
+                    ),
+                ),
+            )
+        }.getOrNull()
+    }
+
     fun primeMetadataCache(
         songs: List<Song>,
     ) {
@@ -241,50 +257,6 @@ class MediaStoreScanner(
         return LibrarySnapshot(
             songs = songs.sortedByDescending { it.dateAddedSeconds },
             albums = buildAlbumsFromSongs(songs),
-        )
-    }
-
-    internal fun currentSignature(): LibrarySignature {
-        var songCount = 0
-        var newestDateAddedSeconds = 0L
-        var idChecksum = 0L
-        val audioFileFilter = buildAudioFileFilter()
-        context.contentResolver.query(
-            MediaStoreAudioQuery.collectionUri,
-            MediaStoreAudioQuery.projection,
-            MediaStoreAudioQuery.selection,
-            null,
-            null,
-        )?.use { cursor ->
-            val rowMapper = MediaStoreAudioRowMapper(context, cursor)
-            while (cursor.moveToNext()) {
-                val row = rowMapper.row(cursor)
-                val detectedFormat = row.extension
-                    .takeIf(AudioFormatPolicy::requiresContainerValidation)
-                    ?.let {
-                        audioFormatDetector.detect(
-                            uri = row.uri,
-                            fileName = row.fileName,
-                            mediaStoreMimeType = row.mimeType,
-                        )
-                    }
-                if (audioFileFilter.evaluate(row.toAudioScanCandidate(detectedFormat)) is AudioFileFilterDecision.Exclude) {
-                    continue
-                }
-                songCount += 1
-                newestDateAddedSeconds = maxOf(newestDateAddedSeconds, row.dateAddedSeconds)
-                idChecksum = idChecksum xor songSignatureChecksum(
-                    id = row.id,
-                    dateAddedSeconds = row.dateAddedSeconds,
-                    dateModifiedSeconds = row.dateModifiedSeconds ?: 0L,
-                )
-            }
-        }
-        return LibrarySignature(
-            songCount = songCount,
-            newestDateAddedSeconds = newestDateAddedSeconds,
-            idChecksum = idChecksum,
-            filterFingerprint = currentFilterFingerprint(),
         )
     }
 

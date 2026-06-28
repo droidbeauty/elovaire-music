@@ -173,8 +173,9 @@ class LibraryRepository(
                 if (_scanState.value != cachedScanState) {
                     _scanState.value = cachedScanState
                 }
-                val currentSignature = withContext(Dispatchers.IO) { scanner.currentSignature() }
-                if (currentSignature != cachedSnapshot.signature) {
+                val currentSyncState = withContext(Dispatchers.IO) { scanner.currentSyncState() }
+                val syncDecision = decideLibrarySync(cachedSnapshot.syncState, currentSyncState)
+                if (syncDecision != LibrarySyncDecision.ReuseCached) {
                     refresh(
                         forceMediaIndex = false,
                         enrichMetadata = false,
@@ -271,6 +272,7 @@ class LibraryRepository(
                         snapshotStore.save(
                             snapshot = visibleSnapshot,
                             filterFingerprint = scanner.currentFilterFingerprint(),
+                            syncState = scanner.currentSyncState(),
                         )
                     }
                     val snapshotNeedsMetadata = visibleSnapshot.songs.any { song ->
@@ -394,6 +396,7 @@ class LibraryRepository(
             snapshotStore.save(
                 snapshot = snapshotPublisher.snapshotOf(updatedState),
                 filterFingerprint = scanner.currentFilterFingerprint(),
+                syncState = scanner.currentSyncState(),
             )
         }
 
@@ -454,6 +457,7 @@ class LibraryRepository(
             snapshotStore.save(
                 snapshot = snapshotPublisher.snapshotOf(updatedState),
                 filterFingerprint = scanner.currentFilterFingerprint(),
+                syncState = scanner.currentSyncState(),
             )
         }
     }
