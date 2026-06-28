@@ -23,6 +23,8 @@ import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
+import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
+import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -72,11 +74,8 @@ class PreferenceStore(context: Context) {
     private val _songCollectionSortMode = MutableStateFlow(loadSongCollectionSortMode())
     val songCollectionSortMode: StateFlow<String> = _songCollectionSortMode.asStateFlow()
 
-    private val _libraryFolderUri = MutableStateFlow(loadLibraryFolderUri())
-    val libraryFolderUri: StateFlow<Uri?> = _libraryFolderUri.asStateFlow()
-
-    private val _libraryFolderPath = MutableStateFlow(loadLibraryFolderPath())
-    val libraryFolderPath: StateFlow<String> = _libraryFolderPath.asStateFlow()
+    private val _libraryFolders = MutableStateFlow(loadLibraryFolders())
+    val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
     private val _dismissedUpdateVersion = MutableStateFlow(loadDismissedUpdateVersion())
     val dismissedUpdateVersion: StateFlow<String?> = _dismissedUpdateVersion.asStateFlow()
 
@@ -411,23 +410,33 @@ class PreferenceStore(context: Context) {
         _songCollectionSortMode.value = normalizedSortMode
     }
 
-    fun setLibraryFolder(
-        uri: Uri?,
-        path: String,
-    ) {
-        val normalizedPath = path.trim()
-        val normalizedUri = uri?.toString()
-        if (_libraryFolderUri.value?.toString() == normalizedUri && _libraryFolderPath.value == normalizedPath) return
+    fun addLibraryFolder(selection: LibraryFolderSelection) {
+        setLibraryFolders(_libraryFolders.value + selection)
+    }
+
+    fun removeLibraryFolder(selection: LibraryFolderSelection) {
+        val targetUri = selection.uri?.toString()
+        val targetPath = LibraryFolderSelectionResolver.normalizedPathKey(selection.path)
+        setLibraryFolders(
+            _libraryFolders.value.filterNot { current ->
+                current.uri?.toString() == targetUri &&
+                    LibraryFolderSelectionResolver.normalizedPathKey(current.path) == targetPath
+            },
+        )
+    }
+
+    fun setLibraryFolders(selections: List<LibraryFolderSelection>) {
+        val normalized = LibraryFolderSelectionResolver.normalize(selections)
+        if (_libraryFolders.value == normalized) return
         preferences.edit {
-            if (uri != null) {
-                putString(KEY_LIBRARY_FOLDER_URI, normalizedUri)
-            } else {
-                remove(KEY_LIBRARY_FOLDER_URI)
-            }
-            putString(KEY_LIBRARY_FOLDER_PATH, normalizedPath)
+            putString(KEY_LIBRARY_FOLDERS, normalized.joinToString(RECORD_SEPARATOR) { it.serialize() })
         }
-        _libraryFolderUri.value = uri
-        _libraryFolderPath.value = normalizedPath
+        _libraryFolders.value = normalized
+    }
+
+    fun restoreDefaultLibraryFolderIfEmpty() {
+        if (_libraryFolders.value.isNotEmpty()) return
+        setLibraryFolders(listOf(LibraryFolderSelectionResolver.defaultMusicFolder()))
     }
 
     fun setDismissedUpdateVersion(versionName: String?) {
@@ -654,14 +663,38 @@ class PreferenceStore(context: Context) {
         )?.trim().takeUnless { it.isNullOrBlank() } ?: DEFAULT_SONG_COLLECTION_SORT_MODE
     }
 
-    private fun loadLibraryFolderUri(): Uri? {
-        return preferences.getString(KEY_LIBRARY_FOLDER_URI, null)
+    private fun loadLibraryFolders(): List<LibraryFolderSelection> {
+        val stored = preferences.getString(KEY_LIBRARY_FOLDERS, null)
+        if (stored != null) {
+            return stored
+                .takeIf { it.isNotBlank() }
+                ?.split(RECORD_SEPARATOR)
+                ?.mapNotNull { it.deserializeLibraryFolderSelection() }
+                ?.let(LibraryFolderSelectionResolver::normalize)
+                .orEmpty()
+        }
+        val migratedPath = preferences.getString(KEY_LIBRARY_FOLDER_PATH, null)
+            ?.trim()
+            ?.takeIf { it.isNotBlank() }
+        val migratedUri = preferences.getString(KEY_LIBRARY_FOLDER_URI, null)
+            ?.trim()
             ?.takeIf { it.isNotBlank() }
             ?.let(Uri::parse)
-    }
-
-    private fun loadLibraryFolderPath(): String {
-        return preferences.getString(KEY_LIBRARY_FOLDER_PATH, null).orEmpty()
+        val migrated = if (migratedPath != null || migratedUri != null) {
+            LibraryFolderSelection(
+                uri = migratedUri,
+                path = migratedPath ?: migratedUri.toString(),
+                displayName = migratedPath?.substringAfterLast('/')?.takeIf { it.isNotBlank() } ?: "Library folder",
+                isDefaultMusicFolder = false,
+            )
+        } else {
+            LibraryFolderSelectionResolver.defaultMusicFolder()
+        }
+        val normalized = LibraryFolderSelectionResolver.normalize(listOf(migrated))
+        preferences.edit {
+            putString(KEY_LIBRARY_FOLDERS, normalized.joinToString(RECORD_SEPARATOR) { it.serialize() })
+        }
+        return normalized
     }
 
     private fun loadDismissedUpdateVersion(): String? {
@@ -755,6 +788,29 @@ class PreferenceStore(context: Context) {
             albumId?.toString().orEmpty(),
             query.orEmpty(),
         ).joinToString(FIELD_SEPARATOR)
+    }
+
+    private fun LibraryFolderSelection.serialize(): String {
+        return listOf(
+            uri?.toString().orEmpty(),
+            path,
+            displayName,
+            isDefaultMusicFolder.toString(),
+        ).joinToString(FIELD_SEPARATOR)
+    }
+
+    private fun String.deserializeLibraryFolderSelection(): LibraryFolderSelection? {
+        val parts = split(FIELD_SEPARATOR)
+        if (parts.size < 4) return null
+        val path = parts[1].trim()
+        val uri = parts[0].takeIf { it.isNotBlank() }?.let(Uri::parse)
+        if (path.isBlank() && uri == null) return null
+        return LibraryFolderSelection(
+            uri = uri,
+            path = path.ifBlank { uri.toString() },
+            displayName = parts[2].trim().ifBlank { "Library folder" },
+            isDefaultMusicFolder = parts[3].toBooleanStrictOrNull() == true,
+        )
     }
 
     private fun String.deserializeSearchHistoryEntry(): SearchHistoryEntry? {
@@ -852,6 +908,7 @@ class PreferenceStore(context: Context) {
         const val KEY_SONG_COLLECTION_SORT_MODE = "song_collection_sort_mode"
         const val KEY_LIBRARY_FOLDER_URI = "library_folder_uri"
         const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
+        const val KEY_LIBRARY_FOLDERS = "library_folders"
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
         const val KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS = "last_automatic_update_check_at_ms"
         const val KEY_BANDS = "eq_bands"

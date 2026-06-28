@@ -13,8 +13,8 @@ internal class LibrarySettingsBridge(
 ) {
     fun start() {
         scope.launch {
-            preferenceStore.libraryFolderPath
-                .collect(libraryRepository::setPreferredLibraryFolderPath)
+            preferenceStore.libraryFolders
+                .collect(libraryRepository::setLibraryFolders)
         }
     }
 }

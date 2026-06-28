@@ -48,7 +48,7 @@ internal class AppServices(
         scope = appScope,
         appForegroundState = appForegroundState,
     ).also { repository ->
-        repository.setPreferredLibraryFolderPath(preferenceStore.libraryFolderPath.value)
+        repository.setLibraryFolders(preferenceStore.libraryFolders.value)
     }
     private val mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore)
     private val mediaLibraryCallback = ElovaireMediaLibrarySessionCallback(

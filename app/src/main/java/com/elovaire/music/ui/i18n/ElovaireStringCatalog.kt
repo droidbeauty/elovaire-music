@@ -1760,6 +1760,34 @@ internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (l
     AppLanguage.English -> SettingsLanguageCopy("Settings", "Appearance", "Theme", "Text size", "Language", "Currently used: ${language.nativeName}", "Sound", "Bass boost", "Spaciousness", "Equalizer", "Enable mono", "Switches stereo playback to mono", "Other settings", "Scan library", "Refresh indexing in search for new media", "Scan", "Check for updates", "Check if there's new version available", "Check", "Changelog", "Designed with passion for music and great design")
 }
 
+internal data class LibraryFoldersCopy(
+    val title: String,
+    val subtitle: String,
+    val addFolder: String,
+    val edit: String,
+    val done: String,
+    val refresh: String,
+    val noFoldersTitle: String,
+    val noFoldersMessage: String,
+    val unavailable: String,
+    val unavailableSubtitle: String,
+    val removalSafety: String,
+)
+
+internal fun libraryFoldersCopy(language: AppLanguage): LibraryFoldersCopy = LibraryFoldersCopy(
+    title = "Library folders",
+    subtitle = "Choose folders scanned for music",
+    addFolder = "Add folder",
+    edit = "Edit",
+    done = "Done",
+    refresh = "Refresh",
+    noFoldersTitle = "No library folders selected",
+    noFoldersMessage = "Add a folder to make music appear in your library.",
+    unavailable = "Unavailable",
+    unavailableSubtitle = "Folder access is unavailable",
+    removalSafety = "Removing a folder only removes it from Elovaire's library scan. Your audio files stay on your device.",
+)
+
 internal enum class UiPhrase {
     About,
     AddToPlaylist,

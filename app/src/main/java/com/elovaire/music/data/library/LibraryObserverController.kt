@@ -21,7 +21,7 @@ internal class LibraryObserverController(
 ) {
     private val contentResolver = appContext.contentResolver
     private var mediaObserverRegistered = false
-    private var musicDirectoryObserver: RecursiveMusicDirectoryObserver? = null
+    private var libraryFolderObservers: List<RecursiveMusicDirectoryObserver> = emptyList()
     private var observerRebuildJob: Job? = null
     private val recentObservedPaths = linkedMapOf<String, Long>()
     private var suppressObserverRefreshUntilMs = 0L
@@ -41,7 +41,7 @@ internal class LibraryObserverController(
 
     fun ensureRegistered(forceRebuildDirectoryObserver: Boolean = false) {
         ensureMediaObserverRegistered()
-        ensureMusicDirectoryObserver(forceRebuild = forceRebuildDirectoryObserver)
+        ensureLibraryFolderObservers(forceRebuild = forceRebuildDirectoryObserver)
     }
 
     fun release() {
@@ -49,8 +49,8 @@ internal class LibraryObserverController(
         observerRebuildJob = null
         recentObservedPaths.clear()
         suppressObserverRefreshUntilMs = 0L
-        musicDirectoryObserver?.stopWatching()
-        musicDirectoryObserver = null
+        libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
+        libraryFolderObservers = emptyList()
         unregisterMediaObserver()
     }
 
@@ -81,11 +81,13 @@ internal class LibraryObserverController(
         mediaObserverRegistered = false
     }
 
-    fun ensureMusicDirectoryObserver(forceRebuild: Boolean = false) {
-        val musicDirectory = scanner.musicDirectory()
-        if (!forceRebuild && musicDirectoryObserver?.rootPath == musicDirectory.absolutePath) return
-        musicDirectoryObserver?.stopWatching()
-        musicDirectoryObserver = createMusicDirectoryObserver()?.also { it.startWatching() }
+    fun ensureLibraryFolderObservers(forceRebuild: Boolean = false) {
+        val roots = scanner.scanRoots()
+        val rootPaths = roots.map(File::getAbsolutePath)
+        if (!forceRebuild && libraryFolderObservers.map(RecursiveMusicDirectoryObserver::rootPath) == rootPaths) return
+        libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
+        libraryFolderObservers = roots.mapNotNull(::createMusicDirectoryObserver)
+            .also { observers -> observers.forEach(RecursiveMusicDirectoryObserver::startWatching) }
     }
 
     private fun requestMusicDirectoryObserverRebuild() {
@@ -93,11 +95,10 @@ internal class LibraryObserverController(
         observerRebuildJob = scope.launch {
             delay(AUTO_REFRESH_DEBOUNCE_MS)
             observerRebuildJob = null
-            val observer = musicDirectoryObserver
-            if (observer != null) {
-                observer.rebuildWatchingTree()
+            if (libraryFolderObservers.isNotEmpty()) {
+                libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::rebuildWatchingTree)
             } else {
-                ensureMusicDirectoryObserver(forceRebuild = true)
+                ensureLibraryFolderObservers(forceRebuild = true)
             }
         }
     }
@@ -112,11 +113,10 @@ internal class LibraryObserverController(
         return lastObservedAtMs != null && nowMs - lastObservedAtMs < OBSERVED_PATH_COALESCE_WINDOW_MS
     }
 
-    private fun createMusicDirectoryObserver(): RecursiveMusicDirectoryObserver? {
-        val musicDirectory = scanner.musicDirectory()
-        if (!musicDirectory.exists() || !musicDirectory.isDirectory) return null
+    private fun createMusicDirectoryObserver(rootDirectory: File): RecursiveMusicDirectoryObserver? {
+        if (!rootDirectory.exists() || !rootDirectory.isDirectory) return null
 
-        return RecursiveMusicDirectoryObserver(musicDirectory) { event, changedFile ->
+        return RecursiveMusicDirectoryObserver(rootDirectory) { event, changedFile ->
             if (System.currentTimeMillis() < suppressObserverRefreshUntilMs) return@RecursiveMusicDirectoryObserver
             if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
                 requestMusicDirectoryObserverRebuild()

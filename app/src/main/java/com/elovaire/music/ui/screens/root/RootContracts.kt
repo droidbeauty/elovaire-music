@@ -29,6 +29,7 @@ internal const val SEARCH_ROUTE = "search"
 internal const val PLAYER_ROUTE = "player"
 internal const val EQUALIZER_ROUTE = "equalizer"
 internal const val SETTINGS_ROUTE = "settings"
+internal const val LIBRARY_FOLDERS_ROUTE = "library_folders"
 internal const val CHANGELOG_ROUTE = "changelog"
 internal const val ABOUT_ROUTE = "about"
 internal const val ALBUM_ROUTE = "album"
@@ -157,6 +158,7 @@ internal object ElovaireNavigationTransitions {
             -> 0
 
             SETTINGS_ROUTE,
+            LIBRARY_FOLDERS_ROUTE,
             EQUALIZER_ROUTE,
             CHANGELOG_ROUTE,
             ABOUT_ROUTE,

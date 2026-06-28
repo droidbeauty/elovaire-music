@@ -31,25 +31,23 @@ class MediaStoreScanner(
     private val metadataCache = mutableMapOf<Long, CachedSongMetadata>()
     private val audioFormatDetector = AudioFormatDetector(context)
     private val embeddedTagMetadataReader = EmbeddedTagMetadataReader()
-    private var preferredLibraryFolderPath: String? = null
+    private var selectedLibraryFolders: List<LibraryFolderSelection> = listOf(LibraryFolderSelectionResolver.defaultMusicFolder())
 
-    fun setPreferredLibraryFolderPath(path: String?): Boolean {
-        val cleanedPath = path
-            ?.trim()
-            ?.ifBlank { null }
-            ?.replace('\\', '/')
-            ?.trimEnd('/')
-        if (normalizeAbsolutePath(preferredLibraryFolderPath.orEmpty()) == normalizeAbsolutePath(cleanedPath.orEmpty())) {
+    fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean {
+        val normalized = LibraryFolderSelectionResolver.normalize(selections)
+        if (selectedLibraryFolders == normalized) {
             return false
         }
-        preferredLibraryFolderPath = cleanedPath
+        selectedLibraryFolders = normalized
         return true
     }
 
     fun currentFilterFingerprint(): String {
         return listOf(
             FILTER_FINGERPRINT_VERSION.toString(),
-            normalizeAbsolutePath(preferredLibraryFolderPath.orEmpty()).orEmpty(),
+            selectedLibraryFolders.joinToString("|") { selection ->
+                listOf(selection.uri?.toString().orEmpty(), normalizeAbsolutePath(selection.path)).joinToString("@")
+            },
         ).joinToString("::")
     }
 
@@ -85,6 +83,8 @@ class MediaStoreScanner(
     fun clearMetadataCache() {
         metadataCache.clear()
     }
+
+    fun scanRoots(): List<File> = buildScanRoots()
 
     fun invalidateMetadataCacheForPaths(paths: Collection<String>) {
         val normalizedPaths = paths.asSequence()
@@ -559,41 +559,16 @@ class MediaStoreScanner(
     }
 
     private fun buildScanRoots(): List<File> {
-        val roots = linkedSetOf<File>()
-        roots += musicDirectory()
-        roots += discoverSecondaryMusicDirectories()
-        preferredLibraryFolderPath
-            ?.let(::File)
-            ?.takeIf { it.exists() && it.isDirectory }
-            ?.let(roots::add)
-        return roots.toList()
+        return LibraryFolderSelectionResolver.accessibleFileRoots(selectedLibraryFolders)
     }
 
     private fun buildAudioFileFilter(): LibraryAudioFileFilter {
         return LibraryAudioFileFilter(
-            preferredMusicFolderPath = preferredLibraryFolderPath,
-            preferredRelativeRoots = buildPreferredRelativeLibraryRoots(),
+            selectedRelativeRoots = LibraryFolderSelectionResolver.relativeRoots(selectedLibraryFolders),
             libraryRootPaths = buildScanRoots()
                 .map { normalizeAbsolutePath(it.absolutePath) }
                 .toSet(),
         )
-    }
-
-    private fun discoverSecondaryMusicDirectories(): List<File> {
-        return context
-            .getExternalFilesDirs(null)
-            .orEmpty()
-            .mapNotNull { appSpecificDir ->
-                appSpecificDir
-                    ?.parentFile
-                    ?.parentFile
-                    ?.parentFile
-                    ?.parentFile
-                    ?.resolve(Environment.DIRECTORY_MUSIC)
-                    ?.takeIf { it.exists() && it.isDirectory }
-            }
-            .distinctBy { it.absolutePath }
-            .filterNot { it.absolutePath == musicDirectory().absolutePath }
     }
 
     private fun albumArtworkUri(albumId: Long): Uri? {
@@ -620,36 +595,12 @@ class MediaStoreScanner(
         return parsedDiscNumber.coerceAtLeast(1)
     }
 
-    private fun buildPreferredRelativeLibraryRoots(): Set<String> {
-        val preferredRoot = preferredLibraryFolderPath
-            ?.let(::File)
-            ?.takeIf { it.exists() && it.isDirectory }
-            ?: return emptySet()
-        return setOfNotNull(
-            sharedStorageRelativePath(preferredRoot.absolutePath)
-                ?.let(::normalizeRelativePath)
-                ?.takeIf { it.isNotBlank() },
-        )
-    }
-
-    private fun normalizeRelativePath(path: String): String {
-        return path.trim().trim('/').replace("//", "/")
-    }
-
     private fun normalizeAbsolutePath(path: String): String {
         return path
             .trim()
             .replace('\\', '/')
             .trimEnd('/')
             .lowercase(Locale.ROOT)
-    }
-
-    private fun sharedStorageRelativePath(path: String): String? {
-        val normalizedPath = path.trim().trimEnd('/').replace("//", "/")
-        return STORAGE_ROOT_REGEX
-            .replace("$normalizedPath/", "")
-            .trim('/')
-            .ifBlank { null }
     }
 
     private fun logFilteredOutCandidate(

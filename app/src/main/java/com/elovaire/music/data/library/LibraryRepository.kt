@@ -462,11 +462,11 @@ class LibraryRepository(
 
     fun defaultMediaFolderPath(): String = scanner.musicDirectory().absolutePath
 
-    fun setPreferredLibraryFolderPath(path: String?) {
-        val changed = scanner.setPreferredLibraryFolderPath(path)
+    fun setLibraryFolders(selections: List<LibraryFolderSelection>) {
+        val changed = scanner.setLibraryFolders(selections)
         if (!changed) return
         if (_scanState.value.permissionGranted) {
-            observerController.ensureMusicDirectoryObserver(forceRebuild = true)
+            observerController.ensureLibraryFolderObservers(forceRebuild = true)
             refresh(
                 forceMediaIndex = true,
                 enrichMetadata = false,

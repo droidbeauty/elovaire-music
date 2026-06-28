@@ -31,8 +31,7 @@ internal sealed interface AudioFileFilterDecision {
 }
 
 internal class LibraryAudioFileFilter(
-    private val preferredMusicFolderPath: String?,
-    private val preferredRelativeRoots: Set<String>,
+    private val selectedRelativeRoots: Set<String>,
     private val libraryRootPaths: Set<String>,
 ) {
     fun evaluate(candidate: AudioScanCandidate): AudioFileFilterDecision {
@@ -47,13 +46,16 @@ internal class LibraryAudioFileFilter(
 
         val normalizedAbsolutePath = candidate.absolutePath.normalizeAbsolutePath()
         val normalizedRelativePath = candidate.relativePath.normalizeRelativePath()
-        val insidePreferredFolder = isInsidePreferredFolder(
+        val insideSelectedFolder = isInsideSelectedFolder(
             normalizedAbsolutePath = normalizedAbsolutePath,
             normalizedRelativePath = normalizedRelativePath,
         )
+        if (!insideSelectedFolder) {
+            return AudioFileFilterDecision.Exclude("Outside selected library folders")
+        }
         val capability = AudioFormatPolicy.capabilityForExtension(normalizedExtension)
             ?: return AudioFileFilterDecision.Exclude("Unsupported format")
-        if (!insidePreferredFolder && normalizedExtension in VOICE_CONTAINER_EXTENSIONS) {
+        if (normalizedExtension in VOICE_CONTAINER_EXTENSIONS) {
             return AudioFileFilterDecision.Exclude("Voice-oriented format outside preferred music folder")
         }
         val detectedFormat = candidate.detectedFormat
@@ -75,7 +77,7 @@ internal class LibraryAudioFileFilter(
             return AudioFileFilterDecision.Exclude("Invalid duration")
         }
 
-        if (!insidePreferredFolder && candidate.durationMs < MIN_MUSIC_DURATION_MS) {
+        if (candidate.durationMs < MIN_MUSIC_DURATION_MS) {
             return AudioFileFilterDecision.Exclude("Too short")
         }
 
@@ -83,21 +85,20 @@ internal class LibraryAudioFileFilter(
             normalizedRelativePath = normalizedRelativePath,
             normalizedAbsolutePath = normalizedAbsolutePath,
         )
-        if (!insidePreferredFolder && ExcludedPathFragments.any(combinedPath::contains)) {
+        if (ExcludedPathFragments.any(combinedPath::contains)) {
             return AudioFileFilterDecision.Exclude("Excluded path")
         }
 
-        if (!insidePreferredFolder && matchesExcludedName(candidate)) {
+        if (matchesExcludedName(candidate)) {
             return AudioFileFilterDecision.Exclude("Excluded name")
         }
 
-        if (!insidePreferredFolder && candidate.isMusic == false && !isInsideLibraryRoot(normalizedAbsolutePath)) {
+        if (candidate.isMusic == false && !isInsideLibraryRoot(normalizedAbsolutePath)) {
             return AudioFileFilterDecision.Exclude("MediaStore says non-music")
         }
 
         if (
             capability.playbackSupport == PlaybackSupport.PlatformDependent &&
-            !insidePreferredFolder &&
             candidate.isMusic != true
         ) {
             return AudioFileFilterDecision.Exclude("Platform-dependent non-music audio")
@@ -106,18 +107,13 @@ internal class LibraryAudioFileFilter(
         return AudioFileFilterDecision.Include
     }
 
-    private fun isInsidePreferredFolder(
+    private fun isInsideSelectedFolder(
         normalizedAbsolutePath: String?,
         normalizedRelativePath: String?,
     ): Boolean {
-        val preferredPath = preferredMusicFolderPath.normalizeAbsolutePath()
-        if (preferredPath != null && normalizedAbsolutePath != null) {
-            if (normalizedAbsolutePath == preferredPath || normalizedAbsolutePath.startsWith("$preferredPath/")) {
-                return true
-            }
-        }
+        if (isInsideLibraryRoot(normalizedAbsolutePath)) return true
         if (normalizedRelativePath != null) {
-            return preferredRelativeRoots.any { preferredRoot ->
+            return selectedRelativeRoots.any { preferredRoot ->
                 normalizedRelativePath == preferredRoot || normalizedRelativePath.startsWith("$preferredRoot/")
             }
         }
