@@ -7,10 +7,10 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.2.4">
-        <item>Changed app identification to media player</item>
+        <item>Changed app identification to media player via MediaLibraryService API</item>
         <item>Added ability to set the app as default music player on some devices</item>
-        <item>Performed full MediaLibraryService API migration</item>
         <item>Technical tweaks to EQ framework</item>
         <item>Fixed bugs in smart autopause feature</item>
+        <item>Animation quality tweaks</item>
     </release>
 </changelog>
