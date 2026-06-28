@@ -33,11 +33,12 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
-import androidx.media3.session.MediaSession
+import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryCallbackRouter
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
@@ -485,9 +486,10 @@ class PlaybackManager(
         get() = mediaSession.token
     val platformMediaSessionToken
         get() = mediaSession.platformToken
-    internal val mediaSessionForExternalControllers: MediaSession
+    internal val mediaLibrarySession: MediaLibrarySession
         get() = mediaSession
-    private val mediaSession = MediaSession.Builder(context, commandGatewayPlayer)
+    private val mediaLibraryCallbackRouter = MediaLibraryCallbackRouter()
+    private val mediaSession = MediaLibrarySession.Builder(context, commandGatewayPlayer, mediaLibraryCallbackRouter)
         .setSessionActivity(
             PendingIntent.getActivity(
                 context,
@@ -500,6 +502,10 @@ class PlaybackManager(
             ),
         )
         .build()
+    internal fun setMediaLibrarySessionCallback(callback: MediaLibrarySession.Callback) {
+        mediaLibraryCallbackRouter.setDelegate(callback)
+    }
+
     private val playerSwitcher = PlaybackPlayerSwitcher(
         createPlayer = ::createPlayer,
         attachPlayerObservers = ::attachPlayerObservers,
