@@ -537,15 +537,11 @@ class MediaStoreScanner(
     }
 
     private fun extractRetrieverDiscNumber(retriever: MediaMetadataRetriever): Int? {
-        return runCatching {
-            val keyField = MediaMetadataRetriever::class.java.getField("METADATA_KEY_DISC_NUMBER")
-            val key = keyField.getInt(null)
-            retriever.extractMetadata(key)
-                ?.substringBefore('/')
-                ?.trim()
-                ?.toIntOrNull()
-                ?.takeIf { it > 0 }
-        }.getOrNull()
+        return retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER)
+            ?.substringBefore('/')
+            ?.trim()
+            ?.toIntOrNull()
+            ?.takeIf { it > 0 }
     }
 
     private fun estimateBitrateBitsPerSecond(

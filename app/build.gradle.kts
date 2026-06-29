@@ -100,6 +100,17 @@ android {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
     }
+
+    lint {
+        abortOnError = true
+        checkReleaseBuilds = true
+        error += setOf(
+            "PrivateApi",
+            "BlockedPrivateApi",
+            "SoonBlockedPrivateApi",
+            "DiscouragedPrivateApi",
+        )
+    }
 }
 
 androidComponents {
@@ -184,4 +195,37 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.3.0")
     androidTestImplementation("androidx.test:runner:1.7.0")
+}
+
+val checkHiddenApiUsage = tasks.register<HiddenApiUsageCheckTask>("checkHiddenApiUsage") {
+    sourceFiles.from(
+        fileTree("src/main/java") {
+            include("**/*.kt", "**/*.java")
+        },
+        fileTree("src/main/cpp") {
+            include("**/*.cpp", "**/*.h", "**/*.c", "**/*.cc", "**/*.hpp")
+        },
+    )
+    riskyPatterns.set(
+        listOf(
+            "com.android.internal",
+            "android.os.SystemProperties",
+            "VMRuntime",
+            "sun.misc.Unsafe",
+            "setAccessible",
+            "getDeclaredMethod",
+            "getDeclaredField",
+            "GetMethodID",
+            "GetFieldID",
+            "FindClass",
+            "RegisterNatives",
+            "dlopen",
+            "dlsym",
+            "__system_property_get",
+        ),
+    )
+}
+
+tasks.named("check") {
+    dependsOn(checkHiddenApiUsage)
 }
