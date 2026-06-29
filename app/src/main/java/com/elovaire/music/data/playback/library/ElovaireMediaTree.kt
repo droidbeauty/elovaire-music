@@ -27,9 +27,10 @@ internal class ElovaireMediaTree(
                 ElovaireMediaItems.favoritesRoot(),
                 ElovaireMediaItems.albumsRoot(),
                 ElovaireMediaItems.artistsRoot(),
+                ElovaireMediaItems.genresRoot().takeIf { snapshot.hasUsefulGenres() },
                 ElovaireMediaItems.playlistsRoot(),
                 ElovaireMediaItems.songsRoot(),
-            )
+            ).filterNotNull()
         }
     }
 
@@ -46,9 +47,24 @@ internal class ElovaireMediaTree(
             ElovaireMediaId.PermissionRequired,
             ElovaireMediaId.EmptyLibrary,
             -> emptyList()
-            ElovaireMediaId.Songs -> snapshot.songs.sortedSongsByTitle().map(ElovaireMediaItems::song)
-            ElovaireMediaId.Albums -> snapshot.albums.sortedAlbumsByTitle().map(ElovaireMediaItems::album)
-            ElovaireMediaId.Artists -> snapshot.artistNames().map(ElovaireMediaItems::artist)
+            ElovaireMediaId.Songs -> bucketIfLarge(
+                parent = BUCKET_PARENT_SONGS,
+                rows = snapshot.songs.sortedSongsByTitle(),
+                label = Song::title,
+                item = ElovaireMediaItems::song,
+            )
+            ElovaireMediaId.Albums -> bucketIfLarge(
+                parent = BUCKET_PARENT_ALBUMS,
+                rows = snapshot.albums.sortedAlbumsByTitle(),
+                label = Album::title,
+                item = ElovaireMediaItems::album,
+            )
+            ElovaireMediaId.Artists -> bucketIfLarge(
+                parent = BUCKET_PARENT_ARTISTS,
+                rows = snapshot.artistNames(),
+                label = { it },
+                item = ElovaireMediaItems::artist,
+            )
             ElovaireMediaId.Genres -> snapshot.genreNames().map(ElovaireMediaItems::genre)
             ElovaireMediaId.Playlists -> snapshot.playlists
                 .filter { it.songIds.isNotEmpty() }
@@ -69,6 +85,7 @@ internal class ElovaireMediaTree(
                 .sortedSongsForContext()
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Playlist -> snapshot.playlistSongs(id.playlistId).map(ElovaireMediaItems::song)
+            is ElovaireMediaId.Bucket -> bucketChildren(id, snapshot)
         }
     }
 
@@ -94,6 +111,7 @@ internal class ElovaireMediaTree(
             is ElovaireMediaId.Genre -> ElovaireMediaItems.genre(ElovaireMediaIds.decodeName(parsed.encodedName))
             is ElovaireMediaId.Playlist -> snapshot.playlists.firstOrNull { it.id == parsed.playlistId }
                 ?.let(ElovaireMediaItems::playlist)
+            is ElovaireMediaId.Bucket -> ElovaireMediaItems.bucket(parsed.parent, parsed.key)
         }
     }
 
@@ -136,6 +154,7 @@ internal class ElovaireMediaTree(
                 val playlist = snapshot.playlists.firstOrNull { it.id == parsed.playlistId } ?: return null
                 snapshot.playlistSongs(playlist.id).toQueue(playlist.name, playlist.id)
             }
+            is ElovaireMediaId.Bucket -> bucketQueue(parsed, snapshot)
             ElovaireMediaId.PermissionRequired,
             ElovaireMediaId.EmptyLibrary,
             ElovaireMediaId.Root,
@@ -149,9 +168,11 @@ internal class ElovaireMediaTree(
 
     fun search(query: String, limit: Int = SEARCH_RESULT_LIMIT): List<MediaItem> {
         val normalizedQuery = NormalizedSearchQuery.from(query)
-        if (normalizedQuery.value.isBlank()) return emptyList()
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return emptyList()
+        if (normalizedQuery.value.isBlank()) {
+            return defaultQueue(snapshot)?.queue.orEmpty().take(limit).map(ElovaireMediaItems::song)
+        }
         val artistRows = snapshot.artistNames().map { name ->
             NamedSongs(name = name, songs = snapshot.songs.filter { it.artist.equals(name, ignoreCase = true) })
         }
@@ -197,6 +218,21 @@ internal class ElovaireMediaTree(
         }
     }
 
+    fun resolveSearchQueue(query: String): ResolvedPlayableQueue? {
+        val snapshot = snapshot()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
+        val normalizedQuery = NormalizedSearchQuery.from(query)
+        if (normalizedQuery.value.isBlank()) return defaultQueue(snapshot)
+        search(query, limit = 1).firstOrNull()?.let { return resolvePlayableQueue(it.mediaId) }
+        return null
+    }
+
+    fun defaultPlayableQueue(): ResolvedPlayableQueue? {
+        val snapshot = snapshot()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
+        return defaultQueue(snapshot)
+    }
+
     private fun snapshot(): MediaTreeSnapshot {
         val content = libraryRepository.contentState.value
         val scan = libraryRepository.scanState.value
@@ -228,6 +264,64 @@ internal class ElovaireMediaTree(
         ),
     )
     private fun List<Album>.sortedAlbumsByTitle(): List<Album> = sortedBy { it.title.lowercase() }
+
+    private fun bucketChildren(
+        id: ElovaireMediaId.Bucket,
+        snapshot: MediaTreeSnapshot,
+    ): List<MediaItem> {
+        return when (id.parent) {
+            BUCKET_PARENT_SONGS -> snapshot.songs
+                .sortedSongsByTitle()
+                .filter { bucketKey(it.title) == id.key }
+                .map(ElovaireMediaItems::song)
+            BUCKET_PARENT_ALBUMS -> snapshot.albums
+                .sortedAlbumsByTitle()
+                .filter { bucketKey(it.title) == id.key }
+                .map(ElovaireMediaItems::album)
+            BUCKET_PARENT_ARTISTS -> snapshot.artistNames()
+                .filter { bucketKey(it) == id.key }
+                .map(ElovaireMediaItems::artist)
+            else -> emptyList()
+        }
+    }
+
+    private fun bucketQueue(
+        id: ElovaireMediaId.Bucket,
+        snapshot: MediaTreeSnapshot,
+    ): ResolvedPlayableQueue? {
+        return when (id.parent) {
+            BUCKET_PARENT_SONGS -> snapshot.songs
+                .sortedSongsByTitle()
+                .filter { bucketKey(it.title) == id.key }
+                .toQueue("Songs ${id.key}")
+            else -> null
+        }
+    }
+
+    private inline fun <T> bucketIfLarge(
+        parent: String,
+        rows: List<T>,
+        crossinline label: (T) -> String,
+        item: (T) -> MediaItem,
+    ): List<MediaItem> {
+        if (rows.size <= DIRECT_BROWSE_LIMIT) return rows.map(item)
+        return rows
+            .map { bucketKey(label(it)) }
+            .distinct()
+            .sortedWith(compareBy<String> { if (it == SYMBOL_BUCKET) "ZZ" else it })
+            .map { ElovaireMediaItems.bucket(parent, it) }
+    }
+
+    private fun bucketKey(label: String): String {
+        val first = label.trim().firstOrNull()?.uppercaseChar() ?: return SYMBOL_BUCKET
+        return if (first in 'A'..'Z') first.toString() else SYMBOL_BUCKET
+    }
+
+    private fun defaultQueue(snapshot: MediaTreeSnapshot): ResolvedPlayableQueue? {
+        return snapshot.favoriteSongs().sortedSongsByTitle().toQueue("Favorites")
+            ?: snapshot.recentlyAddedSongs().toQueue("Recently added")
+            ?: snapshot.songs.sortedSongsByTitle().toQueue("Songs")
+    }
 
     private fun MutableList<MediaItem>.addDistinct(item: MediaItem) {
         if (none { it.mediaId == item.mediaId }) {
@@ -263,6 +357,7 @@ internal class ElovaireMediaTree(
             .map { it.genre.ifBlank { UNKNOWN_GENRE } }
             .distinct()
             .sortedBy(String::lowercase)
+        fun hasUsefulGenres(): Boolean = songs.any { it.genre.isNotBlank() }
         fun playlistSongs(playlistId: Long): List<Song> {
             val playlist = playlists.firstOrNull { it.id == playlistId } ?: return emptyList()
             val songsById = songs.associateBy(Song::id)
@@ -277,6 +372,11 @@ internal class ElovaireMediaTree(
 
     private companion object {
         const val SEARCH_RESULT_LIMIT = 50
+        const val DIRECT_BROWSE_LIMIT = 100
+        const val BUCKET_PARENT_SONGS = "songs"
+        const val BUCKET_PARENT_ALBUMS = "albums"
+        const val BUCKET_PARENT_ARTISTS = "artists"
+        const val SYMBOL_BUCKET = "#"
         const val UNKNOWN_ARTIST = "Unknown Artist"
         const val UNKNOWN_GENRE = "Unknown Genre"
     }

@@ -35,7 +35,10 @@ internal class ElovaireMediaLibrarySessionCallback(
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val parsed = ElovaireMediaIds.parse(parentId)
-            ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+            ?: return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
+        if (page < 0 || pageSize < 0) {
+            return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
+        }
         return Futures.immediateFuture(
             LibraryResult.ofItemList(pageItems(mediaTree.childrenOf(parsed), page, pageSize), params),
         )
@@ -47,7 +50,7 @@ internal class ElovaireMediaLibrarySessionCallback(
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
         val item = mediaTree.item(mediaId)
-            ?: return Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+            ?: return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         return Futures.immediateFuture(LibraryResult.ofItem(item, null))
     }
 
@@ -68,6 +71,9 @@ internal class ElovaireMediaLibrarySessionCallback(
         pageSize: Int,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
+        if (page < 0 || pageSize < 0) {
+            return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
+        }
         return Futures.immediateFuture(
             LibraryResult.ofItemList(pageItems(mediaTree.search(query), page, pageSize), params),
         )
@@ -81,7 +87,13 @@ internal class ElovaireMediaLibrarySessionCallback(
         startPositionMs: Long,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val requested = mediaItems.getOrNull(startIndex.coerceAtLeast(0)) ?: mediaItems.firstOrNull()
-        val resolved = requested?.let { mediaTree.resolvePlayableQueue(it.mediaId) }
+        val resolved = requested?.let {
+            mediaTree.resolvePlayableQueue(it.mediaId)
+                ?: it.requestMetadata.searchQuery?.let(mediaTree::resolveSearchQueue)
+                ?: mediaTree.defaultPlayableQueue().takeIf { _ ->
+                    it.mediaId.isBlank() && it.requestMetadata.searchQuery.isNullOrBlank()
+                }
+        } ?: mediaTree.defaultPlayableQueue().takeIf { requested == null }
         if (resolved != null) {
             val resolvedStartIndex = resolved.queue.indexOfFirst { it.id == resolved.startSong.id }.coerceAtLeast(0)
             playbackManager.playSong(
@@ -109,6 +121,10 @@ internal class ElovaireMediaLibrarySessionCallback(
         val from = page * pageSize
         if (from >= items.size) return emptyList()
         return items.subList(from, (from + pageSize).coerceAtMost(items.size))
+    }
+
+    private fun invalidMediaIdError(): SessionError {
+        return SessionError(SessionError.ERROR_BAD_VALUE, "This item is no longer available.")
     }
 }
 

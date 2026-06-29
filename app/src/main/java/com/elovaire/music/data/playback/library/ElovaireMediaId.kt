@@ -20,6 +20,9 @@ internal sealed interface ElovaireMediaId {
     data class Artist(val encodedName: String) : ElovaireMediaId { override val value = "elovaire:artist:$encodedName" }
     data class Genre(val encodedName: String) : ElovaireMediaId { override val value = "elovaire:genre:$encodedName" }
     data class Playlist(val playlistId: Long) : ElovaireMediaId { override val value = "elovaire:playlist:$playlistId" }
+    data class Bucket(val parent: String, val key: String) : ElovaireMediaId {
+        override val value = "elovaire:bucket:$parent:${Uri.encode(key)}"
+    }
 }
 
 internal object ElovaireMediaIds {
@@ -28,6 +31,7 @@ internal object ElovaireMediaIds {
     fun artist(name: String): String = ElovaireMediaId.Artist(Uri.encode(name)).value
     fun genre(name: String): String = ElovaireMediaId.Genre(Uri.encode(name)).value
     fun playlist(id: Long): String = ElovaireMediaId.Playlist(id).value
+    fun bucket(parent: String, key: String): String = ElovaireMediaId.Bucket(parent, key).value
     fun decodeName(encoded: String): String = Uri.decode(encoded).orEmpty()
 
     fun parse(value: String?): ElovaireMediaId? = when {
@@ -51,6 +55,12 @@ internal object ElovaireMediaIds {
             ElovaireMediaId.Genre(value.removePrefix(GENRE_PREFIX))
         value?.startsWith(PLAYLIST_PREFIX) == true ->
             value.removePrefix(PLAYLIST_PREFIX).toLongOrNull()?.let(ElovaireMediaId::Playlist)
+        value?.startsWith(BUCKET_PREFIX) == true -> {
+            val parts = value.removePrefix(BUCKET_PREFIX).split(':', limit = 2)
+            val parent = parts.getOrNull(0).orEmpty()
+            val key = parts.getOrNull(1)?.let(::decodeName).orEmpty()
+            if (parent.isNotBlank() && key.isNotBlank()) ElovaireMediaId.Bucket(parent, key) else null
+        }
         else -> null
     }
 
@@ -59,4 +69,5 @@ internal object ElovaireMediaIds {
     private const val ARTIST_PREFIX = "elovaire:artist:"
     private const val GENRE_PREFIX = "elovaire:genre:"
     private const val PLAYLIST_PREFIX = "elovaire:playlist:"
+    private const val BUCKET_PREFIX = "elovaire:bucket:"
 }

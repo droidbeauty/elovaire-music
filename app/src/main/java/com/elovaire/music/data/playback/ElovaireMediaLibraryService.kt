@@ -17,4 +17,12 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
             .playbackManager
             .mediaLibrarySession
     }
+
+    override fun onTaskRemoved(rootIntent: android.content.Intent?) {
+        val playbackManager = (application as ElovaireApp).container.playbackManager
+        if (!playbackManager.state.value.transportShowsPause) {
+            stopSelf()
+        }
+        super.onTaskRemoved(rootIntent)
+    }
 }
