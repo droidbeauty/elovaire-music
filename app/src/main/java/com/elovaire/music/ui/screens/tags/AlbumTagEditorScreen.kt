@@ -99,6 +99,7 @@ internal fun AlbumTagEditorScreen(
     onAlbumTitleChange: (String) -> Unit,
     onAlbumArtistChange: (String) -> Unit,
     onReleaseYearChange: (String) -> Unit,
+    onGenreChange: (String) -> Unit,
     onTrackTitleChange: (Long, String) -> Unit,
     onTrackArtistChange: (Long, String) -> Unit,
     onTrackNumberChange: (Long, String) -> Unit,
@@ -217,14 +218,26 @@ internal fun AlbumTagEditorScreen(
                                 label = { Text(copy.albumArtist) },
                                 singleLine = true,
                             )
-                            OutlinedTextField(
-                                value = state.releaseYear,
-                                onValueChange = onReleaseYearChange,
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                label = { Text(copy.releaseYear) },
-                                singleLine = true,
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                            )
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            ) {
+                                OutlinedTextField(
+                                    value = state.releaseYear,
+                                    onValueChange = onReleaseYearChange,
+                                    modifier = Modifier.weight(1f),
+                                    label = { Text(copy.releaseYear) },
+                                    singleLine = true,
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                )
+                                OutlinedTextField(
+                                    value = state.genre,
+                                    onValueChange = onGenreChange,
+                                    modifier = Modifier.weight(1f),
+                                    label = { Text(copy.genre) },
+                                    singleLine = true,
+                                )
+                            }
                         }
                     }
 
@@ -283,26 +296,36 @@ internal fun AlbumTagEditorScreen(
             itemsIndexed(state.tracks, key = { _, track -> track.songId }) { index, track ->
                 Surface(
                     shape = RoundedCornerShape(ElovaireRadii.card),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.28f),
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.34f),
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                            .padding(18.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text(
-                                text = "${copy.track} ${index + 1}",
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
                             Surface(
-                                shape = RoundedCornerShape(12.dp),
+                                shape = RoundedCornerShape(ElovaireRadii.pill),
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                            ) {
+                                Text(
+                                    text = "${index + 1}",
+                                    style = MaterialTheme.typography.labelLarge.copy(
+                                        fontSize = elovaireScaledSp(12f),
+                                        fontWeight = FontWeight.SemiBold,
+                                    ),
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.78f),
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                )
+                            }
+                            Surface(
+                                modifier = Modifier.weight(1f),
+                                shape = RoundedCornerShape(ElovaireRadii.pill),
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
                             ) {
                                 Text(
@@ -311,7 +334,7 @@ internal fun AlbumTagEditorScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp),
                                 )
                             }
                         }
@@ -811,6 +834,7 @@ private data class AlbumTagEditorCopy(
     val albumTitle: String,
     val albumArtist: String,
     val releaseYear: String,
+    val genre: String,
     val changeCover: String,
     val changeCoverHint: String,
     val autoMatchTitle: String,
@@ -826,13 +850,13 @@ private data class AlbumTagEditorCopy(
 
 private fun tagEditorCopy(language: AppLanguage): AlbumTagEditorCopy {
     return when (language) {
-        AppLanguage.Polish -> AlbumTagEditorCopy("Edytuj tagi", "Nie znaleziono albumu.", "Tagi albumu", "Tytuł albumu", "Artysta albumu", "Rok wydania", "Zmień okładkę", "Dotknij, aby wybrać nową okładkę albumu.", "Dopasowanie online", "Wyszukaj metadane albumu i utworów online.", "Znajdź online", "Utwory", "Utwór", "Tytuł utworu", "Artysta utworu", "Numer ścieżki", "Numer dysku")
-        AppLanguage.Slovak -> AlbumTagEditorCopy("Upraviť tagy", "Album sa nenašiel.", "Tagy albumu", "Názov albumu", "Interpret albumu", "Rok vydania", "Zmeniť obal", "Ťuknutím vyberte nový obal albumu.", "Online zhoda", "Nájdite online metadáta albumu a skladieb.", "Nájsť online", "Skladby", "Skladba", "Názov skladby", "Interpret skladby", "Číslo stopy", "Číslo disku")
-        AppLanguage.Croatian -> AlbumTagEditorCopy("Uredi tagove", "Album nije pronađen.", "Tagovi albuma", "Naslov albuma", "Izvođač albuma", "Godina izdanja", "Promijeni omot", "Dodirnite za odabir novog omota albuma.", "Online podudaranje", "Pronađi online metapodatke albuma i pjesama.", "Pronađi online", "Pjesme", "Pjesma", "Naslov pjesme", "Izvođač pjesme", "Broj pjesme", "Broj diska")
-        AppLanguage.Korean -> AlbumTagEditorCopy("태그 편집", "앨범을 찾을 수 없습니다.", "앨범 태그", "앨범 제목", "앨범 아티스트", "발매 연도", "커버 변경", "탭하여 새 앨범 아트를 선택하세요.", "온라인 매칭", "앨범과 곡 메타데이터를 온라인에서 찾습니다.", "온라인에서 찾기", "곡", "트랙", "곡 제목", "곡 아티스트", "트랙 번호", "디스크 번호")
-        AppLanguage.Malay -> AlbumTagEditorCopy("Edit tag", "Album tidak ditemui.", "Tag album", "Tajuk album", "Artis album", "Tahun keluaran", "Tukar kulit", "Ketik untuk memilih karya seni album baharu.", "Padanan dalam talian", "Cari metadata album dan lagu dalam talian.", "Cari dalam talian", "Lagu", "Runut", "Tajuk lagu", "Artis lagu", "Nombor runut", "Nombor cakera")
-        AppLanguage.Bengali -> AlbumTagEditorCopy("ট্যাগ সম্পাদনা", "অ্যালবাম পাওয়া যায়নি।", "অ্যালবাম ট্যাগ", "অ্যালবামের শিরোনাম", "অ্যালবাম শিল্পী", "প্রকাশের বছর", "কভার বদলান", "নতুন অ্যালবাম আর্ট বেছে নিতে ট্যাপ করুন।", "অনলাইন মিল", "অনলাইনে অ্যালবাম ও গানের মেটাডেটা খুঁজুন।", "অনলাইনে খুঁজুন", "গান", "ট্র্যাক", "গানের শিরোনাম", "গানের শিল্পী", "ট্র্যাক নম্বর", "ডিস্ক নম্বর")
-        AppLanguage.Urdu -> AlbumTagEditorCopy("ٹیگز میں ترمیم کریں", "البم نہیں ملا۔", "البم ٹیگز", "البم کا عنوان", "البم آرٹسٹ", "اجرا کا سال", "کور تبدیل کریں", "نیا البم آرٹ منتخب کرنے کے لیے ٹیپ کریں۔", "آن لائن مطابقت", "البم اور گانوں کی میٹا ڈیٹا آن لائن تلاش کریں۔", "آن لائن تلاش کریں", "گانے", "ٹریک", "گانے کا عنوان", "گانے کا آرٹسٹ", "ٹریک نمبر", "ڈسک نمبر")
-        else -> AlbumTagEditorCopy("Edit tags", "Album not found.", "Album tags", "Album title", "Album artist", "Release year", "Change cover", "Tap to choose new album artwork.", "Online match", "Find album and track metadata online.", "Find online", "Songs", "Track", "Song title", "Song artist", "Track number", "Disc number")
+        AppLanguage.Polish -> AlbumTagEditorCopy("Edytuj tagi", "Nie znaleziono albumu", "Tagi albumu", "Tytuł albumu", "Artysta albumu", "Rok wydania", "Gatunek", "Zmień okładkę", "Dotknij, aby wybrać nową okładkę albumu", "Dopasowanie online", "Wyszukaj metadane albumu i utworów online", "Znajdź online", "Utwory", "Utwór", "Tytuł utworu", "Artysta utworu", "Numer ścieżki", "Numer dysku")
+        AppLanguage.Slovak -> AlbumTagEditorCopy("Upraviť tagy", "Album sa nenašiel", "Tagy albumu", "Názov albumu", "Interpret albumu", "Rok vydania", "Žáner", "Zmeniť obal", "Ťuknutím vyberte nový obal albumu", "Online zhoda", "Nájdite online metadáta albumu a skladieb", "Nájsť online", "Skladby", "Skladba", "Názov skladby", "Interpret skladby", "Číslo stopy", "Číslo disku")
+        AppLanguage.Croatian -> AlbumTagEditorCopy("Uredi tagove", "Album nije pronađen", "Tagovi albuma", "Naslov albuma", "Izvođač albuma", "Godina izdanja", "Žanr", "Promijeni omot", "Dodirnite za odabir novog omota albuma", "Online podudaranje", "Pronađi online metapodatke albuma i pjesama", "Pronađi online", "Pjesme", "Pjesma", "Naslov pjesme", "Izvođač pjesme", "Broj pjesme", "Broj diska")
+        AppLanguage.Korean -> AlbumTagEditorCopy("태그 편집", "앨범을 찾을 수 없습니다", "앨범 태그", "앨범 제목", "앨범 아티스트", "발매 연도", "장르", "커버 변경", "탭하여 새 앨범 아트를 선택하세요", "온라인 매칭", "앨범과 곡 메타데이터를 온라인에서 찾습니다", "온라인에서 찾기", "곡", "트랙", "곡 제목", "곡 아티스트", "트랙 번호", "디스크 번호")
+        AppLanguage.Malay -> AlbumTagEditorCopy("Edit tag", "Album tidak ditemui", "Tag album", "Tajuk album", "Artis album", "Tahun keluaran", "Genre", "Tukar kulit", "Ketik untuk memilih karya seni album baharu", "Padanan dalam talian", "Cari metadata album dan lagu dalam talian", "Cari dalam talian", "Lagu", "Runut", "Tajuk lagu", "Artis lagu", "Nombor runut", "Nombor cakera")
+        AppLanguage.Bengali -> AlbumTagEditorCopy("ট্যাগ সম্পাদনা", "অ্যালবাম পাওয়া যায়নি", "অ্যালবাম ট্যাগ", "অ্যালবামের শিরোনাম", "অ্যালবাম শিল্পী", "প্রকাশের বছর", "ধরন", "কভার বদলান", "নতুন অ্যালবাম আর্ট বেছে নিতে ট্যাপ করুন", "অনলাইন মিল", "অনলাইনে অ্যালবাম ও গানের মেটাডেটা খুঁজুন", "অনলাইনে খুঁজুন", "গান", "ট্র্যাক", "গানের শিরোনাম", "গানের শিল্পী", "ট্র্যাক নম্বর", "ডিস্ক নম্বর")
+        AppLanguage.Urdu -> AlbumTagEditorCopy("ٹیگز میں ترمیم کریں", "البم نہیں ملا", "البم ٹیگز", "البم کا عنوان", "البم آرٹسٹ", "اجرا کا سال", "صنف", "کور تبدیل کریں", "نیا البم آرٹ منتخب کرنے کے لیے ٹیپ کریں", "آن لائن مطابقت", "البم اور گانوں کی میٹا ڈیٹا آن لائن تلاش کریں", "آن لائن تلاش کریں", "گانے", "ٹریک", "گانے کا عنوان", "گانے کا آرٹسٹ", "ٹریک نمبر", "ڈسک نمبر")
+        else -> AlbumTagEditorCopy("Edit tags", "Album not found", "Album tags", "Album title", "Album artist", "Release year", "Genre", "Change cover", "Tap to choose new album artwork", "Online match", "Find album and track metadata online", "Find online", "Songs", "Track", "Song title", "Song artist", "Track number", "Disc number")
     }
 }

@@ -43,7 +43,7 @@ internal class RootRouteActions(
         origin: ExpandOrigin = ExpandOrigin(),
     ) {
         navigationState.detailExpandOrigin = origin
-        navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
+        navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
         navController.navigate(Routes.playlist(playlistId))
     }
 

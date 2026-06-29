@@ -122,6 +122,14 @@ internal class AlbumTagEditorViewModel(
         ).recalculateFlags()
     }
 
+    fun onGenreChange(value: String) {
+        _uiState.value = _uiState.value.copy(
+            genre = value,
+            statusMessage = null,
+            saveFailures = emptyList(),
+        ).recalculateFlags()
+    }
+
     fun onTrackTitleChange(songId: Long, value: String) {
         _uiState.value = _uiState.value.copy(
             tracks = _uiState.value.tracks.map { track ->

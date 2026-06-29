@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import androidx.activity.compose.BackHandler
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -80,6 +81,9 @@ internal fun LibraryFoldersScreen(
         folders.associateWith { folder -> songs.countInFolder(folder) }
     }
     var editMode by rememberSaveable { mutableStateOf(false) }
+    BackHandler(enabled = editMode) {
+        editMode = false
+    }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
         runCatching {
@@ -183,7 +187,7 @@ internal fun LibraryFoldersScreen(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                text = copy.removalSafety,
+                text = copy.removalSafety.trimEnd('.'),
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                 textAlign = TextAlign.Center,

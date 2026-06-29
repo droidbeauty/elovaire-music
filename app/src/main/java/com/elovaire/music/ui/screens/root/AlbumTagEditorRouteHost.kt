@@ -108,6 +108,7 @@ internal fun AlbumTagEditorRouteHost(
         onAlbumTitleChange = tagEditorViewModel::onAlbumTitleChange,
         onAlbumArtistChange = tagEditorViewModel::onAlbumArtistChange,
         onReleaseYearChange = tagEditorViewModel::onReleaseYearChange,
+        onGenreChange = tagEditorViewModel::onGenreChange,
         onTrackTitleChange = tagEditorViewModel::onTrackTitleChange,
         onTrackArtistChange = tagEditorViewModel::onTrackArtistChange,
         onTrackNumberChange = tagEditorViewModel::onTrackNumberChange,

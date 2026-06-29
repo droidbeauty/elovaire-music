@@ -15,6 +15,7 @@ internal data class AlbumTagEditorUiState(
     val albumTitle: String = "",
     val albumArtist: String = "",
     val releaseYear: String = "",
+    val genre: String = "",
     val yearClearedExplicitly: Boolean = false,
     val tracks: List<EditableTrackTagState> = emptyList(),
     val selectedArtworkUri: Uri? = null,
@@ -54,12 +55,14 @@ internal data class TagEditFailureUi(
 
 internal fun Album.toTagEditorUiState(): AlbumTagEditorUiState {
     val releaseYear = songs.firstNotNullOfOrNull { it.releaseYear }?.toString().orEmpty()
+    val genre = songs.firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty()
     return AlbumTagEditorUiState(
         albumId = id,
         originalAlbum = this,
         albumTitle = title,
         albumArtist = artist,
         releaseYear = releaseYear,
+        genre = genre,
         yearClearedExplicitly = false,
         tracks = songs.mapIndexed { index, song ->
             EditableTrackTagState(
@@ -94,6 +97,7 @@ internal fun AlbumTagEditorUiState.toAlbumTagEditRequest(): AlbumTagEditRequest?
             releaseYear.trim() == album.songs.firstNotNullOfOrNull { it.releaseYear }?.toString().orEmpty() -> TagFieldEdit.Unchanged
             else -> releaseYear.toIntOrNull()?.let(TagFieldEdit<Int>::Value) ?: TagFieldEdit.Unchanged
         },
+        genre = genre.toTextEdit(album.songs.firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty()),
         coverArtUri = selectedArtworkUri?.takeIf { selected ->
             selected.toString() != album.artUri?.toString()
         },
@@ -155,6 +159,7 @@ private fun AlbumTagEditorUiState.computeHasUnsavedChanges(): Boolean {
     if (albumTitle.trim() != album.title.trim()) return true
     if (albumArtist.trim() != album.artist.trim()) return true
     if (releaseYear.trim() != album.songs.firstNotNullOfOrNull { it.releaseYear }?.toString().orEmpty().trim()) return true
+    if (genre.trim() != album.songs.firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty().trim()) return true
     val originalTracks = album.songs.associateBy { it.id }
     return tracks.withIndex().any { (index, track) ->
         val original = originalTracks[track.songId] ?: return@any true

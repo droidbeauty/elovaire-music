@@ -404,10 +404,10 @@ internal fun PrivacySafetyScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            itemsIndexed(copy.sections, key = { index, section -> "${section.title}_$index" }) { _, section ->
+            itemsIndexed(copy.sections, key = { index, section -> "${section.title}_$index" }) { index, section ->
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
                         text = section.title,
@@ -419,9 +419,18 @@ internal fun PrivacySafetyScreen(
                     )
                     Text(
                         text = section.body,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Normal),
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
+                    if (index != copy.sections.lastIndex) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp)
+                                .height(1.dp)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
+                        )
+                    }
                 }
             }
         }

@@ -40,7 +40,6 @@ internal class RootPlaybackActions internal constructor(
             sourceLabel = playlist.name,
             sourcePlaylistId = playlist.id,
         )
-        openNowPlaying(null)
     }
 
     fun playSongFromAlbumOrSingle(song: Song) {
@@ -59,7 +58,6 @@ internal class RootPlaybackActions internal constructor(
                 sourceLabel = song.album,
             )
         }
-        openNowPlaying(null)
     }
 
     fun playSongQueue(
@@ -77,7 +75,6 @@ internal class RootPlaybackActions internal constructor(
             ),
             sourcePlaylistId = sourcePlaylistId,
         )
-        openNowPlaying(null)
     }
 
     fun playAllSongs(
@@ -89,7 +86,6 @@ internal class RootPlaybackActions internal constructor(
             collection = queue,
             sourceLabel = localizedAllSongsSource(languageProvider()),
         )
-        openNowPlaying(null)
     }
 }
 
