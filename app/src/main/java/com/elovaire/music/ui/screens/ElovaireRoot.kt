@@ -14,7 +14,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.AnimationSpec
@@ -226,13 +225,9 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
-import androidx.navigation.NavType
 import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import androidx.navigation.navArgument
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
@@ -242,11 +237,9 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.core.AppContainer
-import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
-import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
@@ -269,7 +262,6 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.update.AppReleaseInfo
-import elovaire.music.droidbeauty.app.data.update.AppUpdateTransientStatus
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -302,7 +294,6 @@ import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
-import elovaire.music.droidbeauty.app.ui.motion.PlayerOverlayMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
@@ -630,6 +621,28 @@ fun ElovaireRoot(
         openNowPlaying = requestOpenNowPlaying,
     )
     val playlistActions = rememberRootPlaylistActions(container)
+    val routeState = rootRouteStateOf(
+        appState = appState,
+        derivedState = derivedState,
+        albumCollectionLayoutMode = albumCollectionLayoutMode,
+        resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
+        playFirstLaunchHomeReveal = permissionController.state.playFirstLaunchHomeReveal,
+        searchFieldFocused = searchFieldFocused,
+    )
+    val routeActions = rememberRootRouteActions(
+        context = context,
+        container = container,
+        navController = navController,
+        navigationState = navigationState,
+        playbackActions = playbackActions,
+        playlistActions = playlistActions,
+        deleteController = deleteController,
+        onRequestCreatePlaylist = { showPlaylistCreateDialog = true },
+        onInitialRevealFinished = permissionController::onInitialRevealFinished,
+        onSearchFieldFocusedChange = { searchFieldFocused = it },
+        onSearchQueryActiveChanged = { isSearchQueryActive = it },
+        openAlbum = openAlbum,
+    )
 
     CompositionLocalProvider(
         LocalOverscrollFactory provides overscrollFactory,
@@ -666,6 +679,11 @@ fun ElovaireRoot(
                 bottomNavHeight +
                     (if (reserveCompactNowPlayingSpace) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
                     ElovaireSpacing.scrollTailPadding
+            val routePadding = RootRoutePadding(
+                topContent = topContentPadding,
+                bottomContent = bottomContentPadding,
+                detailBottom = detailBottomPadding,
+            )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 CompositionLocalProvider(
@@ -677,452 +695,18 @@ fun ElovaireRoot(
                             .fillMaxSize()
                             .hazeSource(chromeHazeState),
                     ) {
-                    RootNavigationHost(
+                    RootRouteGraph(
                         navState = navigationState,
+                        routeState = routeState,
+                        routeActions = routeActions,
+                        padding = routePadding,
+                        searchViewModel = searchViewModel,
+                        viewModelFactory = viewModelFactory,
+                        changelogReleases = changelogReleases,
                         modifier = Modifier
                             .fillMaxSize()
                             .blur(navHostBlur),
-                    ) {
-                    composable(HOME_ROUTE) {
-                        val recentSongs = remember(songsById, playbackState.recentSongIds) {
-                            playbackState.recentSongIds.mapNotNull(songsById::get).take(5)
-                        }
-                        HomeScreen(
-                            lastPlayedAlbum = lastPlayedAlbum,
-                            lastPlayedPlaylist = lastPlayedPlaylist,
-                            songsById = songsById,
-                            recentlyAddedAlbums = recentlyAddedAlbums,
-                            recentSongs = recentSongs,
-                            favoriteAlbums = favoriteAlbums,
-                            playbackState = playbackState,
-                            isLibraryLoading = libraryState.isLoading,
-                            libraryScanProgress = libraryState.scanProgress,
-                            favoriteSongIds = appState.favoriteSongIds,
-                            topPadding = topContentPadding,
-                            bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = navigationState.homeScrollRequestVersion,
-                            resetScrollOnColdStart = resetHomeScrollOnColdStart,
-                            playInitialReveal = permissionController.state.playFirstLaunchHomeReveal,
-                            onInitialRevealFinished = permissionController::onInitialRevealFinished,
-                            onAlbumSelected = { album, origin ->
-                                openAlbum(album, origin, AlbumOpenSource.HomeSection)
-                            },
-                            onPlaylistSelected = { playlist ->
-                                navigationState.detailExpandOrigin = ExpandOrigin()
-                                navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
-                                navController.navigate(Routes.playlist(playlist.id))
-                            },
-                            onPlayAlbum = { album -> playbackActions.playAlbum(album) },
-                            onPlayPlaylist = { playlist, songs ->
-                                playbackActions.playPlaylist(playlist, songs)
-                            },
-                            onShufflePlaylist = { playlist, songs ->
-                                playbackActions.playPlaylist(playlist, songs, shuffle = true)
-                            },
-                            onSongSelected = playbackActions::playSongFromAlbumOrSingle,
-                            onToggleFavorite = playlistActions::toggleFavorite,
-                        )
-                    }
-
-                    composable(ALBUMS_ROUTE) {
-                        LibraryHubScreen(
-                            libraryState = libraryState,
-                            topPadding = topContentPadding,
-                            bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = navigationState.libraryScrollRequestVersion,
-                            onOpenCollection = { kind ->
-                                navController.navigate(Routes.libraryCollection(kind))
-                            },
-                            onAlbumSelected = { album, origin ->
-                                openAlbum(album, origin, AlbumOpenSource.LibraryAlbums)
-                            },
-                        )
-                    }
-
-                    composable(PLAYLISTS_ROUTE) {
-                        PlaylistsScreen(
-                            playlists = appState.playlists,
-                            libraryState = libraryState,
-                            topPadding = topContentPadding,
-                            bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = navigationState.playlistsScrollRequestVersion,
-                            onRequestCreatePlaylist = { showPlaylistCreateDialog = true },
-                            onRenamePlaylist = container.preferenceStore::renamePlaylist,
-                            onDeletePlaylists = container.preferenceStore::deletePlaylists,
-                            onOpenPlaylist = { playlist, origin ->
-                                navigationState.detailExpandOrigin = origin
-                                navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.Standard
-                                navController.navigate(Routes.playlist(playlist.id))
-                            },
-                        )
-                    }
-
-                    composable(SEARCH_ROUTE) {
-                        SearchRoute(
-                            viewModel = searchViewModel,
-                            libraryState = libraryState,
-                            favoriteSongIds = appState.favoriteSongIds,
-                            topPadding = topContentPadding,
-                            bottomPadding = bottomContentPadding,
-                            scrollToTopRequestVersion = navigationState.searchScrollRequestVersion,
-                            isSearchFieldFocused = searchFieldFocused,
-                            onSearchFieldFocusedChange = { searchFieldFocused = it },
-                            onSearchQueryActiveChanged = { isSearchQueryActive = it },
-                            onPlaySong = { song, queue ->
-                                playbackActions.playSongQueue(
-                                    song = song,
-                                    queue = queue,
-                                    sourceLabel = searchViewModel.playbackSourceLabelFor(queue, song.album),
-                                )
-                            },
-                            onAlbumSelected = { album, origin ->
-                                openAlbum(album, origin, AlbumOpenSource.SearchResults)
-                            },
-                            onArtistSelected = { artistName ->
-                                navController.navigate(Routes.artist(artistName))
-                            },
-                            onToggleFavorite = playlistActions::toggleFavorite,
-                        )
-                    }
-
-                    composable(
-                        route = "$PLAYLIST_ROUTE/{playlistId}",
-                        arguments = listOf(navArgument("playlistId") { type = NavType.LongType }),
-                    ) { backStackEntry ->
-                        val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
-                        val playlist = appState.playlists.firstOrNull { it.id == playlistId }
-                        PlaylistDetailScreen(
-                            playlist = playlist,
-                            librarySongs = libraryState.songs,
-                            favoriteSongIds = appState.favoriteSongIds,
-                            currentSongId = playbackState.currentSong?.id,
-                            isCurrentSongPlaying = isPlaybackActuallyPlaying,
-                            bottomPadding = detailBottomPadding,
-                            onBack = navController::navigateUp,
-                            onPlayPlaylist = { songs, sourceLabel ->
-                                songs.firstOrNull()?.let { firstSong ->
-                                    playbackActions.playSongQueue(
-                                        song = firstSong,
-                                        queue = songs,
-                                        sourceLabel = sourceLabel,
-                                        sourcePlaylistId = playlist?.id,
-                                    )
-                                }
-                            },
-                            onShufflePlaylist = { songs, sourceLabel ->
-                                val shuffledSongs = songs.shuffled()
-                                shuffledSongs.firstOrNull()?.let { firstSong ->
-                                    playbackActions.playSongQueue(
-                                        song = firstSong,
-                                        queue = shuffledSongs,
-                                        sourceLabel = sourceLabel,
-                                        sourcePlaylistId = playlist?.id,
-                                    )
-                                }
-                            },
-                            onSongSelected = { song, queue ->
-                                playbackActions.playSongQueue(
-                                    song = song,
-                                    queue = queue,
-                                    sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
-                                        fallbackAlbum = song.album,
-                                        language = appState.appLanguage,
-                                    ),
-                                    sourcePlaylistId = playlist?.id,
-                                )
-                            },
-                            onUpdateSongOrder = { songIds ->
-                                container.preferenceStore.updatePlaylistSongIds(playlistId, songIds)
-                            },
-                            onRenamePlaylist = container.preferenceStore::renamePlaylist,
-                            onToggleFavorite = playlistActions::toggleFavorite,
-                        )
-                    }
-
-                    composable(
-                        route = "$ALBUM_ROUTE/{albumId}",
-                        arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
-                    ) { backStackEntry ->
-                        val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
-                        var routedAlbumSongIds by remember(albumId) { mutableStateOf<Set<Long>>(emptySet()) }
-                        val album = libraryState.albums.firstOrNull { it.id == albumId }
-                            ?: libraryState.albums.firstOrNull { candidate ->
-                                routedAlbumSongIds.isNotEmpty() && candidate.songs.any { it.id in routedAlbumSongIds }
-                            }
-                        LaunchedEffect(album?.id) {
-                            album?.songs?.mapTo(linkedSetOf(), Song::id)?.let { routedAlbumSongIds = it }
-                        }
-                        val previousRoute = navController.previousBackStackEntry?.destination?.route
-                        AlbumScreen(
-                            album = album,
-                            removingSongIds = libraryState.removingSongIds,
-                            favoriteSongIds = appState.favoriteSongIds,
-                            currentSongId = playbackState.currentSong?.id,
-                            isCurrentSongPlaying = isPlaybackActuallyPlaying,
-                            bottomPadding = detailBottomPadding,
-                            collapsedTopBarTitle = detailFallbackTitle(previousRoute, appState.appLanguage),
-                            onBack = navController::navigateUp,
-                            onOpenTagEditor = { selectedAlbum ->
-                                navController.navigate(Routes.tagEditor(selectedAlbum.id))
-                            },
-                            onPlayAlbum = { selectedAlbum ->
-                                playbackActions.playAlbum(selectedAlbum)
-                            },
-                            onShuffleAlbum = { selectedAlbum ->
-                                playbackActions.playAlbum(selectedAlbum, shuffle = true)
-                            },
-                            onSongSelected = { selectedSong, songs ->
-                                playbackActions.playSongQueue(
-                                    song = selectedSong,
-                                    queue = songs,
-                                    sourceLabel = album?.title ?: selectedSong.album,
-                                )
-                            },
-                            playlists = appState.playlists,
-                            onAddSongsToPlaylist = playlistActions::addSongsToPlaylist,
-                            onCreatePlaylist = playlistActions::createPlaylist,
-                            playlistSongsById = songsById,
-                            onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
-                            onToggleFavorite = playlistActions::toggleFavorite,
-                            onSetAlbumFavorite = playlistActions::setSongsFavorite,
-                        )
-                    }
-
-                    composable(
-                        route = "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
-                        arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
-                    ) { backStackEntry ->
-                        val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
-                        AlbumTagEditorRouteHost(
-                            albumId = albumId,
-                            backStackEntry = backStackEntry,
-                            viewModelFactory = viewModelFactory,
-                            appLanguage = appState.appLanguage,
-                            onBack = navController::navigateUp,
-                        )
-                    }
-
-                    composable(
-                        route = "$LIBRARY_COLLECTION_ROUTE/{kind}",
-                        arguments = listOf(navArgument("kind") { type = NavType.StringType }),
-                    ) { backStackEntry ->
-                        val kindArg = backStackEntry.arguments?.getString("kind")
-                        val kind = kindArg?.let { runCatching { LibraryCollectionKind.valueOf(it) }.getOrNull() }
-                            ?: LibraryCollectionKind.Albums
-                        LibraryCollectionScreen(
-                            kind = kind,
-                            libraryState = libraryState,
-                            playlists = appState.playlists,
-                            songPlayCounts = appState.songPlayCounts,
-                            favoriteSongIds = appState.favoriteSongIds,
-                            albumCollectionLayoutMode = albumCollectionLayoutMode,
-                            songCollectionLayoutMode = if (appState.songCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
-                            albumSortMode = appState.albumCollectionSortModeName.toAlbumSortMode(),
-                            songSortMode = appState.songCollectionSortModeName.toSongSortMode(),
-                            currentSongId = playbackState.currentSong?.id,
-                            isCurrentSongPlaying = isPlaybackActuallyPlaying,
-                            bottomPadding = detailBottomPadding,
-                            onBack = navController::navigateUp,
-                            onAlbumSelected = { album, origin ->
-                                openAlbum(album, origin, AlbumOpenSource.LibraryAlbums)
-                            },
-                            onAddAlbumToQueue = { album ->
-                                album.songs.forEach(container.playbackManager::enqueueSong)
-                            },
-                            onSongSelected = { song, queue ->
-                                if (kind == LibraryCollectionKind.Songs) {
-                                    playbackActions.playAllSongs(song, queue)
-                                } else {
-                                    playbackActions.playSongQueue(song, queue)
-                                }
-                            },
-                            onToggleFavorite = playlistActions::toggleFavorite,
-                            onAddAlbumToPlaylist = playlistActions::addAlbumToPlaylist,
-                            onCreatePlaylist = playlistActions::createPlaylist,
-                            playlistSongsById = songsById,
-                            onSetAlbumFavorite = playlistActions::setSongsFavorite,
-                            onDeleteAlbumFromDevice = deleteController::deleteAlbumFromDevice,
-                            onAlbumCollectionLayoutModeChanged = { mode ->
-                                container.preferenceStore.setAlbumCollectionLayoutMode(mode.name)
-                            },
-                            onSongCollectionLayoutModeChanged = { mode ->
-                                container.preferenceStore.setSongCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
-                            },
-                            onAlbumSortModeChanged = { mode ->
-                                container.preferenceStore.setAlbumCollectionSortMode(mode.name)
-                            },
-                            onSongSortModeChanged = { mode ->
-                                container.preferenceStore.setSongCollectionSortMode(mode.name)
-                            },
-                            onGenreSelected = { genre ->
-                                navController.navigate(Routes.genre(genre))
-                            },
-                            onArtistSelected = { artistName ->
-                                navController.navigate(Routes.artist(artistName))
-                            },
-                        )
-                    }
-
-                    composable(
-                        route = "$GENRE_ROUTE/{genre}",
-                        arguments = listOf(navArgument("genre") { type = NavType.StringType }),
-                    ) { backStackEntry ->
-                        val genre = backStackEntry.arguments?.getString("genre")?.let(Uri::decode).orEmpty()
-                        GenreAlbumsScreen(
-                            genre = genre,
-                            libraryState = libraryState,
-                            playlists = appState.playlists,
-                            layoutMode = albumCollectionLayoutMode,
-                            sortMode = appState.albumCollectionSortModeName.toAlbumSortMode(),
-                            bottomPadding = detailBottomPadding,
-                            onBack = navController::navigateUp,
-                            onLayoutModeChanged = { mode ->
-                                container.preferenceStore.setAlbumCollectionLayoutMode(mode.name)
-                            },
-                            onSortModeChanged = { mode ->
-                                container.preferenceStore.setAlbumCollectionSortMode(mode.name)
-                            },
-                            onAlbumSelected = { album, origin ->
-                                openAlbum(album, origin, AlbumOpenSource.GenreDetail)
-                            },
-                            onAddAlbumToQueue = { album ->
-                                album.songs.forEach(container.playbackManager::enqueueSong)
-                            },
-                            onAddAlbumToPlaylist = playlistActions::addAlbumToPlaylist,
-                            onCreatePlaylist = playlistActions::createPlaylist,
-                            playlistSongsById = songsById,
-                            favoriteSongIds = appState.favoriteSongIds,
-                            onSetAlbumFavorite = playlistActions::setSongsFavorite,
-                            onDeleteAlbumFromDevice = deleteController::deleteAlbumFromDevice,
-                        )
-                    }
-
-                    composable(
-                        route = "$ARTIST_ROUTE/{artistName}",
-                        arguments = listOf(navArgument("artistName") { type = NavType.StringType }),
-                    ) { backStackEntry ->
-                        val artistName = backStackEntry.arguments?.getString("artistName")?.let(Uri::decode).orEmpty()
-                        ArtistDetailScreen(
-                            artistName = artistName,
-                            libraryState = libraryState,
-                            songPlayCounts = appState.songPlayCounts,
-                            favoriteSongIds = appState.favoriteSongIds,
-                            currentSongId = playbackState.currentSong?.id,
-                            isCurrentSongPlaying = isPlaybackActuallyPlaying,
-                            bottomPadding = detailBottomPadding,
-                            onBack = navController::navigateUp,
-                            onSongSelected = { song, queue ->
-                                playbackActions.playSongQueue(song, queue, sourceLabel = artistName)
-                            },
-                            onAlbumSelected = { album, origin ->
-                                openAlbum(album, origin, AlbumOpenSource.ArtistDetail)
-                            },
-                            onToggleFavorite = playlistActions::toggleFavorite,
-                        )
-                    }
-
-                    composable(EQUALIZER_ROUTE) {
-                        val equalizerViewModel: EqualizerViewModel = viewModel(factory = viewModelFactory)
-                        val equalizerUiState by equalizerViewModel.uiState.collectAsStateWithLifecycle()
-                        EqualizerScreen(
-                            settings = equalizerUiState.toEqSettings(),
-                            selectedPresetName = equalizerUiState.presetName,
-                            equalizerEnabled = equalizerUiState.enabled,
-                            onBack = navController::navigateUp,
-                            onBandChanged = equalizerViewModel::updateBand,
-                            onBassChanged = equalizerViewModel::updateBass,
-                            onMidrangeChanged = equalizerViewModel::updateMidrange,
-                            onTrebleChanged = equalizerViewModel::updateTreble,
-                            onSpaciousnessChanged = equalizerViewModel::updateSpaciousness,
-                            onSpaciousnessModeChanged = equalizerViewModel::updateSpaciousnessMode,
-                            onReverbDurationChanged = equalizerViewModel::updateReverbDuration,
-                            onReverbProfileChanged = equalizerViewModel::updateReverbProfile,
-                            onResetReverb = equalizerViewModel::resetReverb,
-                            onApplyPreset = equalizerViewModel::applyPreset,
-                            onReset = equalizerViewModel::resetEffects,
-                        )
-                    }
-
-                    composable(SETTINGS_ROUTE) {
-                        SettingsScreen(
-                            themeMode = appState.themeMode,
-                            textSizePreset = appState.textSizePreset,
-                            appLanguage = appState.appLanguage,
-                            eqSettings = appState.eqSettings,
-                            onlineLyricsLookupEnabled = appState.onlineLyricsLookupEnabled,
-                            bottomPadding = detailBottomPadding,
-                            onBack = navController::navigateUp,
-                            onThemeModeSelected = container.preferenceStore::setThemeMode,
-                            onTextSizePresetSelected = container.preferenceStore::setTextSizePreset,
-                            onAppLanguageSelected = container.preferenceStore::setAppLanguage,
-                            onBassChanged = container.preferenceStore::updateBass,
-                            onMidrangeChanged = container.preferenceStore::updateMidrange,
-                            onTrebleChanged = container.preferenceStore::updateTreble,
-                            onMonoPlaybackChanged = container.preferenceStore::updateMonoPlaybackEnabled,
-                            onOnlineLyricsLookupChanged = container.preferenceStore::setOnlineLyricsLookupEnabled,
-                            onOpenEqualizer = { navController.navigate(EQUALIZER_ROUTE) },
-                            onOpenLibraryFolders = { navController.navigate(LIBRARY_FOLDERS_ROUTE) },
-                            onOpenPrivacySafety = { navController.navigate(PRIVACY_SAFETY_ROUTE) },
-                            onOpenChangelog = { navController.navigate(CHANGELOG_ROUTE) },
-                            onScanLibrary = {
-                                container.libraryRepository.refresh(
-                                    forceMediaIndex = true,
-                                    enrichMetadata = true,
-                                    showLoadingIndicator = true,
-                                )
-                            },
-                            showUpdateChecks = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
-                            onCheckForUpdates = {
-                                container.appUpdateManager.checkForUpdates(force = true)
-                            },
-                        )
-                    }
-
-                    composable(LIBRARY_FOLDERS_ROUTE) {
-                        val libraryFolders by container.preferenceStore.libraryFolders.collectAsStateWithLifecycle()
-                        LibraryFoldersScreen(
-                            appLanguage = appState.appLanguage,
-                            folders = libraryFolders,
-                            songs = libraryState.songs,
-                            bottomPadding = detailBottomPadding,
-                            onBack = navController::navigateUp,
-                            onAddFolder = { uri ->
-                                container.preferenceStore.addLibraryFolder(
-                                    LibraryFolderSelectionResolver.fromTreeUri(context, uri),
-                                )
-                            },
-                            onRemoveFolder = container.preferenceStore::removeLibraryFolder,
-                            onRefresh = {
-                                container.libraryRepository.refresh(
-                                    forceMediaIndex = true,
-                                    enrichMetadata = true,
-                                    showLoadingIndicator = true,
-                                )
-                            },
-                        )
-                    }
-
-                    composable(PRIVACY_SAFETY_ROUTE) {
-                        PrivacySafetyScreen(
-                            onBack = navController::navigateUp,
-                            bottomPadding = detailBottomPadding,
-                        )
-                    }
-
-                    composable(CHANGELOG_ROUTE) {
-                        ChangelogScreen(
-                            releases = changelogReleases,
-                            onBack = navController::navigateUp,
-                        )
-                    }
-
-                    composable(ABOUT_ROUTE) {
-                        AboutScreen(
-                            onBack = navController::navigateUp,
-                            bottomPadding = detailBottomPadding,
-                        )
-                    }
-                }
+                    )
                     if (navHostScrimAlpha > 0f) {
                         Box(
                             modifier = Modifier
@@ -1131,211 +715,77 @@ fun ElovaireRoot(
                         )
                     }
                     }
-                    if (showSharedTopBarBackdrop && sharedTopBarSpec != null) {
-                        FrostedTopBarBackground(
-                            darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .fillMaxWidth()
-                                .height(sharedTopBarHeight)
-                                .zIndex(7f),
-                        )
-                    }
-                    if (sharedTopBarSpec != null) {
-                        CompositionLocalProvider(LocalRenderSharedTopBarContent provides true) {
-                            SharedTopBarOverlay(
-                                spec = sharedTopBarSpec,
-                                modifier = Modifier
-                                    .align(Alignment.TopCenter)
-                                    .fillMaxWidth()
-                                    .zIndex(9f),
-                            )
-                        }
-                    }
-                    TopBarContextMenuOverlay(
-                        expanded = showTopBarMenu,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(10f),
-                        onDismiss = { showTopBarMenu = false },
+                    RootChromeHost(
+                        sharedTopBarSpec = sharedTopBarSpec,
+                        showSharedTopBarBackdrop = showSharedTopBarBackdrop,
+                        sharedTopBarHeight = sharedTopBarHeight,
+                        canHostCompactNowPlaying = canHostCompactNowPlaying,
+                        playbackState = playbackState,
+                        nowPlayingViewModel = nowPlayingViewModel,
+                        showGlobalNowPlaying = showGlobalNowPlaying,
+                        reenteringFromPlayer = reenteringFromPlayer,
+                        showBottomNavigation = showBottomNavigation,
+                        bottomNavHeight = bottomNavHeight,
+                        activeBottomRoute = activeBottomRoute,
+                        currentRoute = currentRoute,
+                        navigationState = navigationState,
+                        topLevelDestinations = topLevelDestinations,
+                        motionTransitions = rootMotionTransitions,
+                        onOpenPlayer = requestOpenNowPlaying,
+                    )
+                    RootOverlayHost(
+                        showTopBarMenu = showTopBarMenu,
+                        onDismissTopBarMenu = { showTopBarMenu = false },
                         onOpenSettings = openSettingsFromMenu,
                         onOpenEqualizer = openEqualizerFromMenu,
                         onOpenChangelog = openChangelogSheetFromMenu,
                         onOpenAbout = openAboutFromMenu,
+                        showChangelogSheet = showChangelogSheet,
+                        changelogReleases = changelogReleases,
+                        onDismissChangelogSheet = { showChangelogSheet = false },
+                        showPlaylistCreateDialog = showPlaylistCreateDialog,
+                        onDismissPlaylistCreateDialog = { showPlaylistCreateDialog = false },
+                        onCreatePlaylist = playlistActions::createPlaylist,
+                        showTopLevelChrome = showTopLevelChrome,
+                        currentRoute = currentRoute,
+                        topBarHeight = topBarHeight,
+                        appUpdateState = appState.appUpdateState,
+                        onDismissUpdate = container.appUpdateManager::dismissAvailableUpdate,
+                        onStartUpdate = container.appUpdateManager::startUpdate,
+                        permissionState = permissionController.state,
+                        onRequestAudioPermission = permissionController::requestAudioPermission,
+                        motionTransitions = rootMotionTransitions,
                     )
-                    ElovaireAnimatedVisibility(
-                        visible = showChangelogSheet,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(11f),
-                        enter = rootMotionTransitions.bottomSheetEnter(),
-                        exit = rootMotionTransitions.bottomSheetExit(),
-                        label = "ChangelogSheetOverlay",
-                    ) {
-                        ChangelogBottomSheetOverlay(
-                            releases = changelogReleases,
-                            onDismiss = { showChangelogSheet = false },
-                        )
-                    }
-                    if (showPlaylistCreateDialog) {
-                        PlaylistNameDialog(
-                            onDismiss = { showPlaylistCreateDialog = false },
-                            onConfirm = { name ->
-                                val createdId = container.preferenceStore.createPlaylist(name)
-                                if (createdId > 0L) {
-                                    showPlaylistCreateDialog = false
-                                }
-                            },
-                        )
-                    }
-                    ElovaireAnimatedVisibility(
-                        modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .zIndex(7f)
-                            .padding(
-                                start = 16.dp,
-                                end = 16.dp,
-                                top = topBarHeight + 8.dp,
-                            ),
-                        visible = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW &&
-                            (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
-                            (appState.appUpdateState.availableRelease != null || appState.appUpdateState.transientStatus != null),
-                        enter = rootMotionTransitions.bannerEnter(),
-                        exit = rootMotionTransitions.bannerExit(),
-                        label = "UpdateBannerVisibility",
-                    ) {
-                        when {
-                            appState.appUpdateState.availableRelease != null -> {
-                                UpdateAvailableBanner(
-                                    release = requireNotNull(appState.appUpdateState.availableRelease),
-                                    uiState = appState.appUpdateState,
-                                    onDismiss = container.appUpdateManager::dismissAvailableUpdate,
-                                    onUpdate = container.appUpdateManager::startUpdate,
-                                )
-                            }
-                            appState.appUpdateState.transientStatus == AppUpdateTransientStatus.UpToDate -> {
-                                UpdateStatusBanner(
-                                    text = rootUiCopy(LocalAppLanguage.current).appUpToDate,
-                                    iconResId = R.drawable.ic_lucide_check,
-                                )
-                            }
-                        }
-                    }
-                    ElovaireAnimatedVisibility(
-                        visible = permissionController.state.showFirstLaunchPermissionOverlay,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .zIndex(9f),
-                        enter = rootMotionTransitions.overlayFadeEnter(initialAlpha = 0.82f),
-                        exit = rootMotionTransitions.overlayFadeExit(targetAlpha = 0.96f),
-                        label = "FirstLaunchPermissionOverlayVisibility",
-                    ) {
-                        FirstLaunchPermissionLoadingScreen(
-                            showLoading = true,
-                            onRequestPermission = permissionController::requestAudioPermission,
-                        )
-                    }
-                }
-                if (canHostCompactNowPlaying) {
-                    playbackState.currentSong?.let {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .zIndex(7f)
-                                .padding(
-                                    start = 16.dp,
-                                    end = 16.dp,
-                                    bottom = if (showBottomNavigation) bottomNavHeight + 8.dp else navigationBarInsetDp() + 10.dp,
-                                ),
-                            contentAlignment = Alignment.BottomCenter,
-                        ) {
-                            CompactNowPlayingDockHost(
-                                viewModel = nowPlayingViewModel,
-                                song = it,
-                                transportShowsPause = playbackState.transportShowsPause,
-                                visible = showGlobalNowPlaying,
-                                suppressEnterAnimation = reenteringFromPlayer,
-                                onOpenPlayer = requestOpenNowPlaying,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                        }
-                    }
-                }
-                ElovaireAnimatedVisibility(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .zIndex(8f)
-                        .fillMaxWidth(),
-                    visible = showBottomNavigation,
-                    enter = if (reenteringFromPlayer) {
-                        EnterTransition.None
-                    } else {
-                        rootMotionTransitions.bottomBarEnter()
-                    },
-                    exit = rootMotionTransitions.bottomBarExit(),
-                    label = "BottomNavigationVisibility",
-                ) {
-                    BottomNavigationBar(
-                        currentRoute = activeBottomRoute,
-                        suppressEnterAnimation = reenteringFromPlayer,
-                        destinations = topLevelDestinations,
-                        onNavigate = { route ->
-                            val currentTopLevelRoute = activeBottomRoute
-                            navigationState.navigateBottomTab(
-                                route = route,
-                                activeBottomRoute = currentTopLevelRoute,
-                                currentRoute = currentRoute,
-                            )
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
             }
             }
-            PlayerOverlayMotionHost(
+            }
+            RootPlayerLayerHost(
                 visible = showPlayerOverlay,
+                playerLayerState = playerLayerState,
                 onExitFinished = {
                     nowPlayingTransitionSnapshot = null
-                    if (playerLayerState == PlayerLayerState.ReturningToCompact) {
-                        playerLayerStateName = PlayerLayerState.Compact.name
-                    }
                 },
+                onReturnToCompactFinished = { playerLayerStateName = PlayerLayerState.Compact.name },
+                nowPlayingViewModel = nowPlayingViewModel,
+                playbackManager = container.playbackManager,
+                songsById = songsById,
+                isCurrentSongFavorite = playbackState.currentSong?.id in appState.favoriteSongIds,
+                playlists = appState.playlists.filterNot { it.isSystem },
+                onBack = { hidePlayerOverlay(true) },
+                onOpenCurrentAlbum = openCurrentPlayingAlbum,
+                onToggleFavorite = playlistActions::toggleFavorite,
+                onAddCurrentSongToPlaylist = { playlistId, song ->
+                    playlistActions.addSongsToPlaylist(playlistId, listOf(song.id))
+                },
+                onCreatePlaylist = playlistActions::createPlaylist,
+                onOpenEqualizer = {
+                    hidePlayerOverlay(false)
+                    navController.navigate(EQUALIZER_ROUTE)
+                },
+                transitionSnapshot = nowPlayingTransitionSnapshot,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .clipToBounds()
-                    .zIndex(20f),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize(),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .matchParentSize()
-                            .consumePointersWithoutSemantics(),
-                    )
-                    NowPlayingRouteHost(
-                        viewModel = nowPlayingViewModel,
-                        playbackManager = container.playbackManager,
-                        enrichedSongsById = songsById,
-                        isFavorite = playbackState.currentSong?.id in appState.favoriteSongIds,
-                        playlists = appState.playlists.filterNot { it.isSystem },
-                        onBack = { hidePlayerOverlay(true) },
-                        onOpenCurrentAlbum = openCurrentPlayingAlbum,
-                        onToggleFavorite = playlistActions::toggleFavorite,
-                        onAddCurrentSongToPlaylist = { playlistId, song ->
-                            playlistActions.addSongsToPlaylist(playlistId, listOf(song.id))
-                        },
-                        onCreatePlaylist = playlistActions::createPlaylist,
-                        onOpenEqualizer = {
-                            hidePlayerOverlay(false)
-                            navController.navigate(EQUALIZER_ROUTE)
-                        },
-                        transitionSnapshot = nowPlayingTransitionSnapshot,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
+                    .fillMaxSize(),
+            )
         }
     }
 }
@@ -1353,7 +803,7 @@ internal fun ForceDarkColorScheme(
 }
 
 @Composable
-private fun HomeScreen(
+internal fun HomeScreen(
     lastPlayedAlbum: Album?,
     lastPlayedPlaylist: Playlist?,
     songsById: Map<Long, Song>,
@@ -2591,7 +2041,7 @@ private fun AlbumSortControl(
 }
 
 @Composable
-private fun LibraryHubScreen(
+internal fun LibraryHubScreen(
     libraryState: LibraryUiState,
     topPadding: Dp,
     bottomPadding: Dp,
@@ -2748,7 +2198,7 @@ private fun LibraryHubRow(
 }
 
 @Composable
-private fun LibraryCollectionScreen(
+internal fun LibraryCollectionScreen(
     kind: LibraryCollectionKind,
     libraryState: LibraryUiState,
     playlists: List<Playlist>,
@@ -3184,7 +2634,7 @@ private fun GenreCollectionScreen(
 }
 
 @Composable
-private fun GenreAlbumsScreen(
+internal fun GenreAlbumsScreen(
     genre: String,
     libraryState: LibraryUiState,
     playlists: List<Playlist>,
@@ -3243,7 +2693,7 @@ private fun GenreAlbumsScreen(
 }
 
 @Composable
-private fun ArtistDetailScreen(
+internal fun ArtistDetailScreen(
     artistName: String,
     libraryState: LibraryUiState,
     songPlayCounts: Map<Long, Int>,
@@ -3397,7 +2847,7 @@ private fun ArtistAlbumGallery(
 }
 
 @Composable
-private fun SearchRoute(
+internal fun SearchRoute(
     viewModel: SearchViewModel,
     libraryState: LibraryUiState,
     favoriteSongIds: Set<Long>,
@@ -5449,7 +4899,7 @@ private fun PlaylistLaneCard(
 }
 
 @Composable
-private fun AlbumScreen(
+internal fun AlbumScreen(
     album: Album?,
     removingSongIds: Set<Long>,
     favoriteSongIds: Set<Long>,
@@ -9296,7 +8746,7 @@ private fun FrostedContextMenuSurface(
 }
 
 @Composable
-private fun TopBarContextMenuOverlay(
+internal fun TopBarContextMenuOverlay(
     expanded: Boolean,
     modifier: Modifier = Modifier,
     onDismiss: () -> Unit,
