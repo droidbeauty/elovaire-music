@@ -14,4 +14,5 @@ internal interface ElovaireViewModelDependencies {
     val lyricsService: LyricsService
     val albumTagEditorService: AlbumTagEditorService
     val appUpdateManager: AppUpdateManager
+    val backgroundWorkPolicy: AppBackgroundWorkPolicy
 }

@@ -41,6 +41,7 @@ internal class ElovaireViewModelFactory(
                 AlbumTagEditorViewModel(
                     libraryRepository = dependencies.libraryRepository,
                     tagEditorService = dependencies.albumTagEditorService,
+                    backgroundWorkPolicy = dependencies.backgroundWorkPolicy,
                 ) as T
             }
 

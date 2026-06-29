@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library
 import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
+import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
@@ -64,11 +65,11 @@ data class LibraryDeleteFailure(
     val reason: String,
 )
 
-class LibraryRepository(
+class LibraryRepository internal constructor(
     appContext: Context,
     private val scanner: MediaStoreScanner,
     private val scope: CoroutineScope,
-    private val appForegroundState: StateFlow<Boolean>,
+    private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
@@ -110,7 +111,8 @@ class LibraryRepository(
 
     init {
         scope.launch {
-            appForegroundState.collect { isForeground ->
+            backgroundWorkPolicy.isForeground.collect { isForeground ->
+                updateObserverRegistration()
                 if (isForeground && backgroundLibraryDirty && _scanState.value.permissionGranted) {
                     backgroundLibraryDirty = false
                     refresh(
@@ -128,7 +130,7 @@ class LibraryRepository(
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
         }
         if (granted) {
-            observerController.ensureRegistered()
+            updateObserverRegistration()
             bootstrapLibrary()
         } else {
             didBootstrapLibrary = false
@@ -470,7 +472,9 @@ class LibraryRepository(
         val changed = scanner.setLibraryFolders(selections)
         if (!changed) return
         if (_scanState.value.permissionGranted) {
-            observerController.ensureLibraryFolderObservers(forceRebuild = true)
+            if (backgroundWorkPolicy.shouldKeepRecursiveLibraryObservers(permissionGranted = true)) {
+                observerController.ensureLibraryFolderObservers(forceRebuild = true)
+            }
             refresh(
                 forceMediaIndex = true,
                 enrichMetadata = false,
@@ -488,7 +492,7 @@ class LibraryRepository(
             forceMediaIndex = forceMediaIndex,
             targetedPaths = listOfNotNull(changedFilePath),
         )
-        if (!appForegroundState.value) {
+        if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
             backgroundLibraryDirty = true
             return
         }
@@ -502,6 +506,17 @@ class LibraryRepository(
                 showLoadingIndicator = false,
             )
         }
+    }
+
+    private fun updateObserverRegistration() {
+        val permissionGranted = _scanState.value.permissionGranted
+        if (!backgroundWorkPolicy.shouldKeepMediaStoreObserver(permissionGranted)) {
+            observerController.release()
+            return
+        }
+        observerController.ensureRegistered(
+            enableDirectoryObservers = backgroundWorkPolicy.shouldKeepRecursiveLibraryObservers(permissionGranted),
+        )
     }
 
     private fun publishLibraryContent(

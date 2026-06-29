@@ -15,13 +15,14 @@ class AppContainer(
 ) {
     private val applicationContext = appContext.applicationContext
     private val appForegroundTracker = AppForegroundTracker(applicationContext as Application)
+    private val backgroundWorkPolicy = AppBackgroundWorkPolicy(appForegroundTracker.isForeground)
     private val appRuntimeScope = AppRuntimeScope()
     private val appScope = appRuntimeScope.scope
 
     private val services = AppServices(
         applicationContext = applicationContext,
         appScope = appScope,
-        appForegroundState = appForegroundTracker.isForeground,
+        backgroundWorkPolicy = backgroundWorkPolicy,
     )
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)
     val preferenceStore get() = services.preferenceStore
@@ -37,6 +38,7 @@ class AppContainer(
         override val lyricsService get() = services.lyricsService
         override val albumTagEditorService get() = services.albumTagEditorService
         override val appUpdateManager get() = services.appUpdateManager
+        override val backgroundWorkPolicy get() = this@AppContainer.backgroundWorkPolicy
     }
     private val notificationControllerHolder = NotificationControllerHolder {
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
@@ -78,6 +80,7 @@ class AppContainer(
         openNowPlayingChannel.close()
         notificationControllerHolder.release()
         services.release()
+        appForegroundTracker.close()
         appRuntimeScope.close()
     }
 

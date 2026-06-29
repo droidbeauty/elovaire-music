@@ -39,9 +39,16 @@ internal class LibraryObserverController(
         }
     }
 
-    fun ensureRegistered(forceRebuildDirectoryObserver: Boolean = false) {
+    fun ensureRegistered(
+        enableDirectoryObservers: Boolean,
+        forceRebuildDirectoryObserver: Boolean = false,
+    ) {
         ensureMediaObserverRegistered()
-        ensureLibraryFolderObservers(forceRebuild = forceRebuildDirectoryObserver)
+        if (enableDirectoryObservers) {
+            ensureLibraryFolderObservers(forceRebuild = forceRebuildDirectoryObserver)
+        } else {
+            releaseLibraryFolderObservers()
+        }
     }
 
     fun release() {
@@ -49,8 +56,7 @@ internal class LibraryObserverController(
         observerRebuildJob = null
         recentObservedPaths.clear()
         suppressObserverRefreshUntilMs = 0L
-        libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
-        libraryFolderObservers = emptyList()
+        releaseLibraryFolderObservers()
         unregisterMediaObserver()
     }
 
@@ -85,9 +91,16 @@ internal class LibraryObserverController(
         val roots = scanner.scanRoots()
         val rootPaths = roots.map(File::getAbsolutePath)
         if (!forceRebuild && libraryFolderObservers.map(RecursiveMusicDirectoryObserver::rootPath) == rootPaths) return
-        libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
+        releaseLibraryFolderObservers()
         libraryFolderObservers = roots.mapNotNull(::createMusicDirectoryObserver)
             .also { observers -> observers.forEach(RecursiveMusicDirectoryObserver::startWatching) }
+    }
+
+    fun releaseLibraryFolderObservers() {
+        observerRebuildJob?.cancel()
+        observerRebuildJob = null
+        libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
+        libraryFolderObservers = emptyList()
     }
 
     private fun requestMusicDirectoryObserverRebuild() {

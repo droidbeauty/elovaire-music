@@ -3,13 +3,15 @@ package elovaire.music.droidbeauty.app.core
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import java.io.Closeable
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal class AppForegroundTracker(
     application: Application,
-) : Application.ActivityLifecycleCallbacks {
+) : Application.ActivityLifecycleCallbacks, Closeable {
+    private val application = application
     private val _isForeground = MutableStateFlow(false)
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
     private var startedCount = 0
@@ -47,4 +49,8 @@ internal class AppForegroundTracker(
     ) = Unit
 
     override fun onActivityDestroyed(activity: Activity) = Unit
+
+    override fun close() {
+        application.unregisterActivityLifecycleCallbacks(this)
+    }
 }

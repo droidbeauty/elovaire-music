@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
+import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -12,15 +13,17 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
-class LyricsService(
+class LyricsService internal constructor(
     context: Context,
     onlineLookupEnabled: StateFlow<Boolean>,
+    backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val embeddedLyricsWriter = EmbeddedLyricsWriter(context.applicationContext)
     private val repository = LyricsRepository(
         appContext = context.applicationContext,
         onlineLookupEnabled = onlineLookupEnabled,
+        backgroundWorkPolicy = backgroundWorkPolicy,
         ioDispatcher = ioDispatcher,
     )
 

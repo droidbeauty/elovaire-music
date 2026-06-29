@@ -5,6 +5,8 @@ import android.content.IntentSender
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
+import elovaire.music.droidbeauty.app.core.AppWorkKind
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtworkCache
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
@@ -12,7 +14,9 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
 import elovaire.music.droidbeauty.app.data.tags.OnlineTagMatchOutcome
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -45,6 +49,7 @@ internal sealed interface AlbumTagEditorEvent {
 internal class AlbumTagEditorViewModel(
     private val libraryRepository: LibraryRepository,
     private val tagEditorService: AlbumTagEditorService,
+    private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) : ViewModel() {
     private val albumId = MutableStateFlow<Long?>(null)
     private val _uiState = MutableStateFlow(AlbumTagEditorUiState())
@@ -52,6 +57,7 @@ internal class AlbumTagEditorViewModel(
 
     private val _events = MutableSharedFlow<AlbumTagEditorEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<AlbumTagEditorEvent> = _events.asSharedFlow()
+    private var matchJob: Job? = null
 
     init {
         viewModelScope.launch {
@@ -73,6 +79,13 @@ internal class AlbumTagEditorViewModel(
                     return@collectLatest
                 }
                 _uiState.value = album.toTagEditorUiState()
+            }
+        }
+        viewModelScope.launch {
+            backgroundWorkPolicy.isForeground.collect { isForeground ->
+                if (!isForeground) {
+                    matchJob?.cancel()
+                }
             }
         }
     }
@@ -170,17 +183,20 @@ internal class AlbumTagEditorViewModel(
         val currentState = _uiState.value
         val album = currentState.originalAlbum ?: return
         if (currentState.isMatchingOnline || currentState.isSaving) return
-        viewModelScope.launch {
+        if (!backgroundWorkPolicy.canStart(AppWorkKind.UserInitiatedShortWork, userInitiated = true)) return
+        matchJob = viewModelScope.launch {
             _uiState.value = currentState.copy(
                 isMatchingOnline = true,
                 statusMessage = null,
                 saveFailures = emptyList(),
             ).recalculateFlags()
-            val outcome = withContext(Dispatchers.IO) {
-                runCatching { tagEditorService.findBestOnlineMatch(album) }
-                    .getOrElse { throwable ->
-                        OnlineTagMatchOutcome.Failed(throwable.message ?: "Online matching failed.")
-                    }
+            val outcome = try {
+                withContext(Dispatchers.IO) {
+                    tagEditorService.findBestOnlineMatch(album)
+                }
+            } catch (throwable: Throwable) {
+                if (throwable is CancellationException) throw throwable
+                OnlineTagMatchOutcome.Failed(throwable.message ?: "Online matching failed.")
             }
             _uiState.value = when (outcome) {
                 is OnlineTagMatchOutcome.Success -> {
@@ -207,6 +223,15 @@ internal class AlbumTagEditorViewModel(
                     isMatchingOnline = false,
                     statusMessage = outcome.reason,
                 ).recalculateFlags()
+            }
+        }.also { job ->
+            job.invokeOnCompletion { throwable ->
+                if (throwable is CancellationException) {
+                    _uiState.value = _uiState.value.copy(isMatchingOnline = false).recalculateFlags()
+                }
+                if (matchJob === job) {
+                    matchJob = null
+                }
             }
         }
     }

@@ -13,24 +13,24 @@ import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.StateFlow
 
 @SuppressLint("UnsafeOptInUsageError")
 internal class AppServices(
     applicationContext: Context,
     appScope: CoroutineScope,
-    appForegroundState: StateFlow<Boolean>,
+    backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
     val preferenceStore = PreferenceStore(applicationContext)
     val appUpdateManager = AppUpdateManager(
         context = applicationContext,
         scope = appScope,
         preferenceStore = preferenceStore,
-        appForegroundState = appForegroundState,
+        backgroundWorkPolicy = backgroundWorkPolicy,
     )
     val lyricsService = LyricsService(
         context = applicationContext,
         onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
+        backgroundWorkPolicy = backgroundWorkPolicy,
     )
     val albumTagEditorService = AlbumTagEditorService(applicationContext)
     val playbackEffectsController = PlaybackEffectsController()
@@ -49,7 +49,7 @@ internal class AppServices(
         appContext = applicationContext,
         scanner = MediaStoreScanner(applicationContext),
         scope = appScope,
-        appForegroundState = appForegroundState,
+        backgroundWorkPolicy = backgroundWorkPolicy,
     ).also { repository ->
         repository.setLibraryFolders(preferenceStore.libraryFolders.value)
     }

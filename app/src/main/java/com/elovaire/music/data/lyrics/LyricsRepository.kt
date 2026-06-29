@@ -5,6 +5,7 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -24,6 +25,7 @@ import java.util.concurrent.ConcurrentHashMap
 internal class LyricsRepository(
     appContext: Context,
     private val onlineLookupEnabled: StateFlow<Boolean>,
+    private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val applicationContext = appContext.applicationContext
@@ -34,6 +36,16 @@ internal class LyricsRepository(
     private val serviceScope = CoroutineScope(SupervisorJob() + ioDispatcher)
     private val inFlightRequests = ConcurrentHashMap<String, Deferred<LyricsLookupOutcome>>()
     private val memoryPositiveCache = ConcurrentHashMap<String, LyricsCacheEntry>()
+
+    init {
+        serviceScope.launch {
+            backgroundWorkPolicy.isForeground.collect { isForeground ->
+                if (!isForeground) {
+                    cancelObsoleteRequests(emptyList())
+                }
+            }
+        }
+    }
 
     fun cachedLyrics(
         song: Song,
@@ -65,6 +77,7 @@ internal class LyricsRepository(
     }
 
     fun prefetchLyrics(song: Song) {
+        if (!backgroundWorkPolicy.shouldStartLyricsPrefetch()) return
         if (!onlineLookupEnabled.value) return
         if (!isNetworkSuitableForPrefetch()) return
         val identity = song.toLyricsIdentity()

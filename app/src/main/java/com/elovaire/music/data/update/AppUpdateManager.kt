@@ -7,10 +7,13 @@ import android.os.Build
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
+import elovaire.music.droidbeauty.app.core.AppWorkKind
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -49,11 +52,11 @@ enum class AppUpdateTransientStatus {
     UpToDate,
 }
 
-class AppUpdateManager(
+class AppUpdateManager internal constructor(
     private val context: Context,
     private val scope: CoroutineScope,
     private val preferenceStore: PreferenceStore,
-    private val appForegroundState: StateFlow<Boolean>,
+    private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
     private val appContext = context.applicationContext
     private val _uiState = MutableStateFlow(AppUpdateUiState())
@@ -69,10 +72,12 @@ class AppUpdateManager(
     init {
         if (BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) {
             scope.launch {
-                appForegroundState.collect { isForeground ->
+                backgroundWorkPolicy.isForeground.collect { isForeground ->
                     if (isForeground && pendingAutomaticStartupCheck) {
                         pendingAutomaticStartupCheck = false
                         checkForUpdates()
+                    } else if (!isForeground) {
+                        cancelForegroundBoundUpdateWork()
                     }
                 }
             }
@@ -81,6 +86,10 @@ class AppUpdateManager(
 
     fun checkForUpdates(force: Boolean = false) {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
+        if (!backgroundWorkPolicy.canStart(AppWorkKind.ForegroundOnlyMaintenance, userInitiated = force)) {
+            if (!force) pendingAutomaticStartupCheck = true
+            return
+        }
         if (checkJob?.isActive == true || _uiState.value.isDownloading || _uiState.value.isInstalling) return
     
         val automaticCheckStartedAtMs = if (!force) {
@@ -104,6 +113,9 @@ class AppUpdateManager(
             val latestReleaseResult = runCatching {
                 withContext(Dispatchers.IO) { fetchLatestRelease(installedVersion) }
             }
+            latestReleaseResult.exceptionOrNull()?.let { throwable ->
+                if (throwable is CancellationException) throw throwable
+            }
             if (automaticCheckStartedAtMs != null && latestReleaseResult.isSuccess) {
                 preferenceStore.setLastAutomaticUpdateCheckAtMs(automaticCheckStartedAtMs)
             }
@@ -123,7 +135,12 @@ class AppUpdateManager(
                 )
             }
         }.also { job ->
-            job.invokeOnCompletion { checkJob = null }
+            job.invokeOnCompletion { throwable ->
+                checkJob = null
+                if (throwable is CancellationException) {
+                    _uiState.update { it.copy(isChecking = false) }
+                }
+            }
         }
     }
 
@@ -136,6 +153,7 @@ class AppUpdateManager(
 
     fun startUpdate() {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
+        if (!backgroundWorkPolicy.canStart(AppWorkKind.UserInitiatedLongTransfer, userInitiated = true)) return
         val release = _uiState.value.availableRelease ?: return
         if (downloadJob?.isActive == true) return
         downloadJob = scope.launch {
@@ -180,6 +198,7 @@ class AppUpdateManager(
                     downloadReleaseApk(release)
                 }
             }.getOrElse { throwable ->
+                if (throwable is CancellationException) throw throwable
                 _uiState.update {
                     it.copy(
                         isDownloading = false,
@@ -224,6 +243,22 @@ class AppUpdateManager(
                     downloadProgress = null,
                     errorMessage = null,
                 )
+            }
+        }.also { job ->
+            job.invokeOnCompletion { throwable ->
+                downloadJob = null
+                if (throwable is CancellationException && _uiState.value.isDownloading) {
+                    clearDownloadedInstallers()
+                    _uiState.update {
+                        it.copy(
+                            isDownloading = false,
+                            isInstalling = false,
+                            installPermissionRequired = false,
+                            downloadProgress = null,
+                            errorMessage = null,
+                        )
+                    }
+                }
             }
         }
     }
@@ -272,7 +307,7 @@ class AppUpdateManager(
         }
         startupUpdateCheckJob = scope.launch {
             kotlinx.coroutines.delay(STARTUP_UPDATE_CHECK_DELAY_MS)
-            if (appForegroundState.value) {
+            if (backgroundWorkPolicy.shouldStartAutomaticUpdateCheck()) {
                 checkForUpdates()
             } else {
                 pendingAutomaticStartupCheck = true
@@ -289,6 +324,25 @@ class AppUpdateManager(
         startupCleanupJob = null
         startupUpdateCheckJob?.cancel()
         startupUpdateCheckJob = null
+    }
+
+    private fun cancelForegroundBoundUpdateWork() {
+        checkJob?.cancel()
+        checkJob = null
+        if (_uiState.value.isDownloading) {
+            downloadJob?.cancel()
+            downloadJob = null
+            clearDownloadedInstallers()
+            _uiState.update {
+                it.copy(
+                    isDownloading = false,
+                    isInstalling = false,
+                    installPermissionRequired = false,
+                    downloadProgress = null,
+                    errorMessage = null,
+                )
+            }
+        }
     }
 
     private fun fetchLatestRelease(installedVersion: String): AppReleaseInfo? {
