@@ -1672,11 +1672,16 @@ class PlaybackManager(
     }
 
     private fun currentDisplayedVolumeFraction(): Float {
-        return if (hasUsbOutputRoute) {
-            currentSystemVolumeFraction().quantizedVolume()
-        } else {
-            currentEffectiveVolumeFraction()
+        if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
+            return usbDacHardwareVolumeManager.currentHardwareVolume() ?: userVolume
         }
+        if (isDirectPlaybackActive) {
+            return currentSystemVolumeFraction().quantizedVolume()
+        }
+        if (usesFixedVolumeOutput()) {
+            return userVolume
+        }
+        return currentEffectiveVolumeFraction()
     }
 
     private fun shouldBypassSystemStreamVolume(): Boolean {
@@ -1832,8 +1837,11 @@ private fun AudioDeviceInfo.toUsbAudioDeviceDescriptor(): UsbAudioDeviceDescript
         type = type,
         isSink = isSink,
         productName = productName?.toString(),
+        address = address.takeIf { it.isNotBlank() },
         sampleRates = sampleRates.copyOf(),
         encodings = encodings.copyOf(),
+        channelCounts = channelCounts.copyOf(),
+        channelMasks = channelMasks.copyOf(),
     )
 }
 

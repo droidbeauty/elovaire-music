@@ -82,11 +82,38 @@ internal class UsbDacHardwareVolumeManager(
 
     fun refreshConnectedDevice() {
         val selectedAudioDevice = currentAudioDeviceDescriptor
-        val usbDevice = selectedAudioDevice?.let(::findUsbAudioDeviceForDescriptor)
-        if (selectedAudioDevice == null || usbDevice == null) {
+        if (selectedAudioDevice == null) {
             clearCurrentDevice()
             publishStatus("no-external-dac")
             return
+        }
+        val usbMatch = findUsbAudioDeviceForDescriptor(selectedAudioDevice)
+        val usbDevice = when (usbMatch) {
+            is RoutedUsbDacMatch.Matched -> usbMatch.device
+            is RoutedUsbDacMatch.Failed -> when (usbMatch.result) {
+                is UsbDacMatchResult.Matched -> {
+                    clearCurrentDevice()
+                    controller.onHardwareVolumeUnavailable("Unable to match routed USB DAC")
+                    publishStatus("unmatched-routed-dac")
+                    return
+                }
+
+                is UsbDacMatchResult.Ambiguous -> {
+                    clearCurrentDevice()
+                    controller.onHardwareVolumeUnavailable("Unable to uniquely match routed USB DAC")
+                    publishStatus("ambiguous-routed-dac")
+                    return
+                }
+
+                UsbDacMatchResult.NoCandidates,
+                UsbDacMatchResult.NoConfidentMatch,
+                -> {
+                    clearCurrentDevice()
+                    controller.onHardwareVolumeUnavailable("Unable to match routed USB DAC")
+                    publishStatus("unmatched-routed-dac")
+                    return
+                }
+            }
         }
         val identity = usbDevice.toIdentity()
         val cacheKey = identity.reliableCacheKey()
@@ -252,26 +279,25 @@ internal class UsbDacHardwareVolumeManager(
                 null
             }
             controller.onHardwareVolumeSupported(resolvedCapability, currentRaw)
-            val stored = restoreStoredVolumeIfSafe(resolvedCapability, currentRaw != null)
+            val storedCandidate = resolveStoredVolumeCandidate(resolvedCapability, currentRaw != null)
             logDebug(
                 "event=detect identity=${identity.persistenceKey()} api=${Build.VERSION.SDK_INT} supported=${resolvedCapability.canWriteVolume} " +
                     "min=${resolvedCapability.range.minRaw} max=${resolvedCapability.range.maxRaw} res=${resolvedCapability.range.stepRaw} " +
-                    "master=${resolvedCapability.usesMasterChannel} currentRaw=${currentRaw ?: Int.MIN_VALUE} stored=${stored ?: -1f}",
+                    "master=${resolvedCapability.usesMasterChannel} currentRaw=${currentRaw ?: Int.MIN_VALUE} storedCandidate=${storedCandidate ?: -1f}",
             )
             publishStatus("supported")
         }
     }
 
-    private fun restoreStoredVolumeIfSafe(
+    private fun resolveStoredVolumeCandidate(
         capability: UsbDacHardwareVolumeCapability,
         currentReadable: Boolean,
     ): Float? {
-        val stored = lookupStoredVolume(capability.identity)
-        return if (UsbDacHardwareVolumeMath.shouldAutoRestoreStoredVolume(capability.identity, currentReadable, stored)) {
-            stored
-        } else {
-            null
-        }
+        return UsbDacHardwareVolumeMath.resolveStoredVolumeCandidate(
+            identity = capability.identity,
+            currentVolumeReadable = currentReadable,
+            storedNormalizedVolume = lookupStoredVolume(capability.identity),
+        )
     }
 
     private fun performVolumeWrite(
@@ -391,20 +417,29 @@ internal class UsbDacHardwareVolumeManager(
 
     private fun findUsbAudioDeviceForDescriptor(
         descriptor: UsbAudioDeviceDescriptor,
-    ): UsbDevice? {
+    ): RoutedUsbDacMatch {
         val usbAudioDevices = usbManager
             ?.getDeviceList()
             ?.values
             ?.filter(::isUsbAudioDevice)
             .orEmpty()
-        if (usbAudioDevices.isEmpty()) return null
-        if (usbAudioDevices.size == 1) return usbAudioDevices.first()
+        if (usbAudioDevices.isEmpty()) return RoutedUsbDacMatch.Failed(UsbDacMatchResult.NoCandidates)
+        val candidates = usbAudioDevices.map { usbDevice ->
+            usbDevice.toMatchCandidate()
+        }
+        val matchResult = UsbDacDeviceMatcher.match(descriptor, candidates)
+        return when (matchResult) {
+            is UsbDacMatchResult.Matched -> {
+                val matchedDevice = usbAudioDevices.firstOrNull { it.deviceId == matchResult.deviceId }
+                if (matchedDevice != null) {
+                    RoutedUsbDacMatch.Matched(matchedDevice)
+                } else {
+                    RoutedUsbDacMatch.Failed(matchResult)
+                }
+            }
 
-        val productName = descriptor.productName?.trim().orEmpty()
-        return usbAudioDevices.firstOrNull { usbDevice ->
-            val usbName = usbDevice.productName.orEmpty().trim()
-            productName.isNotBlank() && usbName.equals(productName, ignoreCase = true)
-        } ?: usbAudioDevices.first()
+            else -> RoutedUsbDacMatch.Failed(matchResult)
+        }
     }
 
     private fun isUsbAudioDevice(device: UsbDevice): Boolean {
@@ -471,6 +506,21 @@ internal class UsbDacHardwareVolumeManager(
         return persistenceKey().takeIf { isReliable }
     }
 
+    private fun UsbDevice.toMatchCandidate(): UsbDacMatchCandidate {
+        val audioInterfaceCount = (0 until interfaceCount).count { index ->
+            getInterface(index).interfaceClass == UsbConstants.USB_CLASS_AUDIO
+        }
+        return UsbDacMatchCandidate(
+            deviceId = deviceId,
+            deviceName = deviceName.orEmpty(),
+            productName = productName,
+            manufacturerName = manufacturerName,
+            vendorId = vendorId,
+            productId = productId,
+            audioInterfaceCount = audioInterfaceCount,
+        )
+    }
+
     private fun logDebug(message: String) {
         if (!BuildConfig.DEBUG) return
         Log.d(TAG, message)
@@ -499,4 +549,10 @@ internal class UsbDacHardwareVolumeManager(
         const val USB_CONTROL_TIMEOUT_MS = 1_000
         const val DEFAULT_NORMALIZED_STEP = 0.05f
     }
+}
+
+private sealed interface RoutedUsbDacMatch {
+    data class Matched(val device: UsbDevice) : RoutedUsbDacMatch
+
+    data class Failed(val result: UsbDacMatchResult) : RoutedUsbDacMatch
 }

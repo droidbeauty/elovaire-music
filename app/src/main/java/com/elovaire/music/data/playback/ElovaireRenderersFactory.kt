@@ -20,7 +20,9 @@ internal class ElovaireRenderersFactory(
         return DefaultAudioSink.Builder(context)
             .setAudioProcessors(audioProcessors)
             .setEnableFloatOutput(enableFloatOutput)
-            .setEnableAudioOutputPlaybackParameters(enableAudioOutputPlaybackParameters)
+            .setEnableAudioOutputPlaybackParameters(
+                enableAudioOutputPlaybackParameters && audioProcessors.isNotEmpty(),
+            )
             .build()
     }
 }

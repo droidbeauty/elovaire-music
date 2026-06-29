@@ -168,14 +168,18 @@ internal class BitPerfectUsbManager(
             updateStatus(earlyDecision)
             return
         }
+        val directEvaluationKey = evaluationKey ?: run {
+            updateStatus(earlyDecision.copy(state = BitPerfectPlaybackState.FormatUnsupported))
+            return
+        }
 
         val cached = cachedEvaluation
-        if (cached?.key == evaluationKey) {
+        if (cached?.key == directEvaluationKey) {
             updateStatus(cached.status)
             return
         }
 
-        val platformAudioFormat = trackConfig?.toPlatformAudioFormat() ?: run {
+        val platformAudioFormat = trackConfig.toPlatformAudioFormat() ?: run {
             updateStatus(earlyDecision.copy(state = BitPerfectPlaybackState.FormatUnsupported))
             return
         }
@@ -191,7 +195,7 @@ internal class BitPerfectUsbManager(
             supportClassification = supportClassification,
             directPlaybackSupport = support,
         )
-        cachedEvaluation = CachedDirectPlaybackEvaluation(evaluationKey, evaluatedStatus)
+        cachedEvaluation = CachedDirectPlaybackEvaluation(directEvaluationKey, evaluatedStatus)
         updateStatus(evaluatedStatus)
     }
 

@@ -20,12 +20,14 @@ class BitPerfectPlaybackInternalsTest {
             tunneling = false,
             offload = false,
         ).toEvaluationKey(
+            routeFingerprintHash = 99,
             routeDeviceId = 17,
             routeType = 11,
             effectsActive = false,
         )
 
         requireNotNull(key)
+        assertEquals(99, key.routeFingerprintHash)
         assertEquals(17, key.routeDeviceId)
         assertEquals(11, key.routeType)
         assertEquals(96_000, key.sampleRate)
@@ -44,6 +46,7 @@ class BitPerfectPlaybackInternalsTest {
             tunneling = false,
             offload = false,
         ).toEvaluationKey(
+            routeFingerprintHash = 44,
             routeDeviceId = 7,
             routeType = 22,
             effectsActive = false,
@@ -97,16 +100,22 @@ class BitPerfectPlaybackInternalsTest {
             type = 11,
             isSink = true,
             productName = "DAC",
+            address = "usb:1,2",
             sampleRates = intArrayOf(48_000, 96_000),
             encodings = intArrayOf(AudioFormat.ENCODING_PCM_16BIT, AudioFormat.ENCODING_PCM_FLOAT),
+            channelCounts = intArrayOf(2, 6),
+            channelMasks = intArrayOf(AudioFormat.CHANNEL_OUT_STEREO, AudioFormat.CHANNEL_OUT_5POINT1),
         )
         val second = UsbAudioDeviceDescriptor(
             id = 9,
             type = 11,
             isSink = true,
             productName = "DAC",
+            address = "usb:1,2",
             sampleRates = intArrayOf(96_000, 48_000),
             encodings = intArrayOf(AudioFormat.ENCODING_PCM_FLOAT, AudioFormat.ENCODING_PCM_16BIT),
+            channelCounts = intArrayOf(6, 2),
+            channelMasks = intArrayOf(AudioFormat.CHANNEL_OUT_5POINT1, AudioFormat.CHANNEL_OUT_STEREO),
         )
 
         assertNotSame(first.sampleRates, second.sampleRates)
