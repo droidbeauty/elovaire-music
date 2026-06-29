@@ -43,16 +43,20 @@ class MediaStoreScanner(
 
     internal fun currentSyncState(): LibraryMediaStoreSyncState? {
         return runCatching {
-            val volumeName = MediaStore.VOLUME_EXTERNAL
-            LibraryMediaStoreSyncState(
-                filterFingerprint = currentFilterFingerprint(),
-                volumes = listOf(
+            val volumes = MediaStore.getExternalVolumeNames(context)
+                .sorted()
+                .mapNotNull { volumeName ->
+                    val version = MediaStore.getVersion(context, volumeName)
                     LibraryMediaStoreVolumeSyncState(
                         volumeName = volumeName,
-                        version = MediaStore.getVersion(context, volumeName),
+                        version = version,
                         generation = MediaStore.getGeneration(context, volumeName),
-                    ),
-                ),
+                    )
+                }
+            if (volumes.isEmpty()) return@runCatching null
+            LibraryMediaStoreSyncState(
+                filterFingerprint = currentFilterFingerprint(),
+                volumes = volumes,
             )
         }.getOrNull()
     }

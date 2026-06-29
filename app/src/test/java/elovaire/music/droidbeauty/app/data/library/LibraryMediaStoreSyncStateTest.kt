@@ -12,9 +12,17 @@ class LibraryMediaStoreSyncStateTest {
     }
 
     @Test
-    fun decideLibrarySync_requiresFullScanWhenGenerationChanges() {
+    fun decideLibrarySync_usesIncrementalScanWhenGenerationAdvances() {
         val cached = syncState(generation = 10L)
         val current = syncState(generation = 11L)
+
+        assertEquals(LibrarySyncDecision.IncrementalScan, decideLibrarySync(cached, current))
+    }
+
+    @Test
+    fun decideLibrarySync_requiresFullScanWhenGenerationGoesBackwards() {
+        val cached = syncState(generation = 11L)
+        val current = syncState(generation = 10L)
 
         assertEquals(LibrarySyncDecision.FullScan, decideLibrarySync(cached, current))
     }

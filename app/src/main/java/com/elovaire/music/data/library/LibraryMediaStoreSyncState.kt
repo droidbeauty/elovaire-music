@@ -13,6 +13,7 @@ internal data class LibraryMediaStoreSyncState(
 
 internal sealed interface LibrarySyncDecision {
     data object ReuseCached : LibrarySyncDecision
+    data object IncrementalScan : LibrarySyncDecision
     data object FullScan : LibrarySyncDecision
 }
 
@@ -28,7 +29,8 @@ internal fun decideLibrarySync(
     current.volumes.forEach { currentVolume ->
         val cachedVolume = cachedByVolume[currentVolume.volumeName] ?: return LibrarySyncDecision.FullScan
         if (cachedVolume.version != currentVolume.version) return LibrarySyncDecision.FullScan
-        if (cachedVolume.generation != currentVolume.generation) return LibrarySyncDecision.FullScan
+        if (currentVolume.generation < cachedVolume.generation) return LibrarySyncDecision.FullScan
+        if (currentVolume.generation > cachedVolume.generation) return LibrarySyncDecision.IncrementalScan
     }
     return LibrarySyncDecision.ReuseCached
 }

@@ -66,6 +66,7 @@ internal class LyricsRepository(
 
     fun prefetchLyrics(song: Song) {
         if (!onlineLookupEnabled.value) return
+        if (!isNetworkSuitableForPrefetch()) return
         val identity = song.toLyricsIdentity()
         val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = false)
         if (cachedResult is LyricsResult.Found || inFlightRequests.keys.any { it.identityPart() == identity.normalizedLookupKey }) {
@@ -282,7 +283,17 @@ internal class LyricsRepository(
         val connectivityManager = applicationContext.getSystemService(ConnectivityManager::class.java) ?: return false
         val network = connectivityManager.activeNetwork ?: return false
         val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
+
+    private fun isNetworkSuitableForPrefetch(): Boolean {
+        val connectivityManager = applicationContext.getSystemService(ConnectivityManager::class.java) ?: return false
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) &&
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
     private fun logDebug(
