@@ -434,6 +434,11 @@ internal fun SettingsScreen(
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
+        FastScrollbar(
+            state = listState,
+            topInset = topBarOccupiedHeight() + 8.dp,
+            bottomInset = bottomPadding + buttonNavigationScrollBoost(),
+        )
     }
 }
 

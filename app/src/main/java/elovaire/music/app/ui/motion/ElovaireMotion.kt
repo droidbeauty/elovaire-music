@@ -716,29 +716,29 @@ object ElovaireMotion {
         initialAlpha = 0.04f,
     ) +
         scaleIn(
-            animationSpec = scaledTween(
-                durationMillis = AlbumDetailTransitionBase,
-                easing = RefinedDecelerate,
+            animationSpec = scaledSpring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
             ),
-            initialScale = 0.82f,
+            initialScale = 0.86f,
             transformOrigin = transformOrigin,
         ) +
         slideInHorizontally(
-            animationSpec = scaledTween(
-                durationMillis = AlbumDetailTransitionBase,
-                easing = RefinedDecelerate,
+            animationSpec = scaledSpring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessLow,
             ),
             initialOffsetX = { fullWidth ->
-                ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+                ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.18f).roundToInt()
             },
         ) +
         slideInVertically(
-            animationSpec = scaledTween(
-                durationMillis = AlbumDetailTransitionBase,
-                easing = RefinedDecelerate,
+            animationSpec = scaledSpring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessLow,
             ),
             initialOffsetY = { fullHeight ->
-                ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+                ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.18f).roundToInt()
             },
         )
 
@@ -782,29 +782,29 @@ object ElovaireMotion {
         targetAlpha = 0f,
     ) +
         scaleOut(
-            animationSpec = scaledTween(
-                durationMillis = AlbumDetailTransitionBase,
-                easing = RefinedAccelerate,
+            animationSpec = scaledSpring(
+                dampingRatio = Spring.DampingRatioMediumBouncy,
+                stiffness = Spring.StiffnessMediumLow,
             ),
-            targetScale = 0.88f,
+            targetScale = 0.86f,
             transformOrigin = transformOrigin,
         ) +
         slideOutHorizontally(
-            animationSpec = scaledTween(
-                durationMillis = AlbumDetailTransitionBase,
-                easing = RefinedAccelerate,
+            animationSpec = scaledSpring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessLow,
             ),
             targetOffsetX = { fullWidth ->
-                ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+                ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.18f).roundToInt()
             },
         ) +
         slideOutVertically(
-            animationSpec = scaledTween(
-                durationMillis = AlbumDetailTransitionBase,
-                easing = RefinedAccelerate,
+            animationSpec = scaledSpring(
+                dampingRatio = Spring.DampingRatioNoBouncy,
+                stiffness = Spring.StiffnessLow,
             ),
             targetOffsetY = { fullHeight ->
-                ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+                ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.18f).roundToInt()
             },
         )
 

@@ -3665,7 +3665,7 @@ private fun LibraryModeToggle(
     layoutMode: AlbumLayoutMode,
     onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
 ) {
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ToggleIconChip(
             iconResId = R.drawable.ic_lucide_list,
             selected = layoutMode == AlbumLayoutMode.Compact,
@@ -3701,7 +3701,7 @@ private fun ToggleIconChip(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.onSurface
         } else {
-            readableMutedIconColor()
+            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
         },
         animationSpec = motionSpecs.tween(MotionDuration.Quick),
         label = "toggle_chip_content",

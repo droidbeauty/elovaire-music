@@ -138,7 +138,7 @@ internal fun EqualizerScreen(
                     start = 18.dp,
                     top = topBarOccupiedHeight() + 8.dp,
                     end = 18.dp,
-                    bottom = 16.dp,
+                    bottom = 20.dp,
                 ),
         ) {
             Column {
@@ -324,7 +324,7 @@ internal fun EqualizerScreen(
         FastScrollbar(
             state = listState,
             topInset = topBarOccupiedHeight() + 390.dp,
-            bottomInset = navigationBarInsetDp() + 16.dp,
+            bottomInset = navigationBarInsetDp() + 20.dp,
         )
         PinnedBackTopBar(
             title = copy.equalizer,

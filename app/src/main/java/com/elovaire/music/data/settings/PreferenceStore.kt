@@ -36,9 +36,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class PreferenceStore(context: Context) : RootSettingsReader {
+class PreferenceStore(context: Context) :
+    RootSettingsReader,
+    AppearanceSettingsWriter,
+    LibrarySettingsWriter,
+    PlaybackSettingsWriter,
+    PlaylistStore,
+    FavoritesStore,
+    UpdatePreferencesStore {
     private val appContext = context.applicationContext
-    private val preferences = appContext.getSharedPreferences("elovaire_preferences", Context.MODE_PRIVATE)
+    private val preferences = PreferenceStorage(appContext).preferences
+    private val updatePreferencesStore = UpdatePreferencesStoreImpl(preferences)
     private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var playbackHistoryPersistJob: Job? = null
     private var eqPersistJob: Job? = null
@@ -78,9 +86,8 @@ class PreferenceStore(context: Context) : RootSettingsReader {
     override val songCollectionSortMode: StateFlow<String> = _songCollectionSortMode.asStateFlow()
 
     private val _libraryFolders = MutableStateFlow(loadLibraryFolders())
-    val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
-    private val _dismissedUpdateVersion = MutableStateFlow(loadDismissedUpdateVersion())
-    val dismissedUpdateVersion: StateFlow<String?> = _dismissedUpdateVersion.asStateFlow()
+    override val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
+    override val dismissedUpdateVersion: StateFlow<String?> = updatePreferencesStore.dismissedUpdateVersion
 
     private val _searchHistory = MutableStateFlow(loadSearchHistory())
     val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
@@ -105,7 +112,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
     private val _playlists = MutableStateFlow(assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value))
     override val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
 
-    fun setThemeMode(themeMode: ThemeMode) {
+    override fun setThemeMode(themeMode: ThemeMode) {
         if (_themeMode.value == themeMode) return
         preferences.edit {
             putString(KEY_THEME_MODE, themeMode.name)
@@ -113,7 +120,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _themeMode.value = themeMode
     }
 
-    fun setTextSizePreset(textSizePreset: TextSizePreset) {
+    override fun setTextSizePreset(textSizePreset: TextSizePreset) {
         if (_textSizePreset.value == textSizePreset) return
         preferences.edit {
             putString(KEY_TEXT_SIZE_PRESET, textSizePreset.name)
@@ -121,7 +128,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _textSizePreset.value = textSizePreset
     }
 
-    fun setAppLanguage(language: AppLanguage) {
+    override fun setAppLanguage(language: AppLanguage) {
         if (_appLanguage.value == language) return
         preferences.edit {
             putString(KEY_APP_LANGUAGE, language.name)
@@ -211,7 +218,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         schedulePlaybackHistoryPersistence()
     }
 
-    fun createPlaylist(name: String): Long {
+    override fun createPlaylist(name: String): Long {
         val result = createPlaylistEntries(
             playlists = _userPlaylists.value,
             name = name,
@@ -222,12 +229,12 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         return result.createdPlaylist.id
     }
 
-    fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
+    override fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
         val updated = addSongsToPlaylistEntries(_userPlaylists.value, playlistId, songIds) ?: return
         persistPlaylists(updated)
     }
 
-    fun renamePlaylist(
+    override fun renamePlaylist(
         playlistId: Long,
         name: String,
     ) {
@@ -235,7 +242,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         persistPlaylists(updated)
     }
 
-    fun updatePlaylistSongIds(
+    override fun updatePlaylistSongIds(
         playlistId: Long,
         songIds: List<Long>,
     ) {
@@ -243,12 +250,12 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         persistPlaylists(updated)
     }
 
-    fun deletePlaylists(playlistIds: Set<Long>) {
+    override fun deletePlaylists(playlistIds: Set<Long>) {
         val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds) ?: return
         persistPlaylists(updated)
     }
 
-    fun toggleFavoriteSong(songId: Long) {
+    override fun toggleFavoriteSong(songId: Long) {
         val updated = if (songId in _favoriteSongIds.value) {
             _favoriteSongIds.value.filterNot { it == songId }
         } else {
@@ -257,7 +264,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         persistFavoriteSongIds(updated)
     }
 
-    fun setFavoriteSongs(
+    override fun setFavoriteSongs(
         songIds: List<Long>,
         favorite: Boolean,
     ) {
@@ -272,7 +279,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         persistFavoriteSongIds(updated)
     }
 
-    fun removeSongReferences(songId: Long) {
+    override fun removeSongReferences(songId: Long) {
         val updatedPlaylists = removeSongReferencesFromPlaylists(_userPlaylists.value, songId) ?: _userPlaylists.value
         val updatedFavorites = _favoriteSongIds.value.filterNot { it == songId }
         if (_userPlaylists.value == updatedPlaylists && _favoriteSongIds.value == updatedFavorites) return
@@ -361,7 +368,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         persistEqSettings(EqSettings())
     }
 
-    fun setPlaybackVolume(value: Float) {
+    override fun setPlaybackVolume(value: Float) {
         val volume = value.coerceIn(0f, 1f)
         if (_playbackVolume.value == volume) return
         preferences.edit {
@@ -370,7 +377,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _playbackVolume.value = volume
     }
 
-    fun setGaplessPlaybackEnabled(enabled: Boolean) {
+    override fun setGaplessPlaybackEnabled(enabled: Boolean) {
         if (_gaplessPlaybackEnabled.value == enabled) return
         preferences.edit {
             putBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, enabled)
@@ -386,7 +393,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _onlineLyricsLookupEnabled.value = enabled
     }
 
-    fun setAlbumCollectionLayoutMode(mode: String) {
+    override fun setAlbumCollectionLayoutMode(mode: String) {
         val normalizedMode = mode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE }
         if (_albumCollectionLayoutMode.value == normalizedMode) return
         preferences.edit {
@@ -395,7 +402,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _albumCollectionLayoutMode.value = normalizedMode
     }
 
-    fun setSongCollectionGridEnabled(enabled: Boolean) {
+    override fun setSongCollectionGridEnabled(enabled: Boolean) {
         if (_songCollectionGridEnabled.value == enabled) return
         preferences.edit {
             putBoolean(KEY_SONG_COLLECTION_GRID_ENABLED, enabled)
@@ -403,7 +410,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _songCollectionGridEnabled.value = enabled
     }
 
-    fun setAlbumCollectionSortMode(sortMode: String) {
+    override fun setAlbumCollectionSortMode(sortMode: String) {
         val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_SORT_MODE }
         if (_albumCollectionSortMode.value == normalizedSortMode) return
         preferences.edit {
@@ -412,7 +419,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _albumCollectionSortMode.value = normalizedSortMode
     }
 
-    fun setSongCollectionSortMode(sortMode: String) {
+    override fun setSongCollectionSortMode(sortMode: String) {
         val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_SONG_COLLECTION_SORT_MODE }
         if (_songCollectionSortMode.value == normalizedSortMode) return
         preferences.edit {
@@ -421,11 +428,11 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _songCollectionSortMode.value = normalizedSortMode
     }
 
-    fun addLibraryFolder(selection: LibraryFolderSelection) {
+    override fun addLibraryFolder(selection: LibraryFolderSelection) {
         setLibraryFolders(_libraryFolders.value + selection)
     }
 
-    fun removeLibraryFolder(selection: LibraryFolderSelection) {
+    override fun removeLibraryFolder(selection: LibraryFolderSelection) {
         val targetUri = selection.uri?.toString()
         val targetPath = LibraryFolderSelectionResolver.normalizedPathKey(selection.path)
         setLibraryFolders(
@@ -436,7 +443,7 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         )
     }
 
-    fun setLibraryFolders(selections: List<LibraryFolderSelection>) {
+    override fun setLibraryFolders(selections: List<LibraryFolderSelection>) {
         val normalized = LibraryFolderSelectionResolver.normalize(selections)
         if (_libraryFolders.value == normalized) return
         preferences.edit {
@@ -445,34 +452,21 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         _libraryFolders.value = normalized
     }
 
-    fun restoreDefaultLibraryFolderIfEmpty() {
+    override fun restoreDefaultLibraryFolderIfEmpty() {
         if (_libraryFolders.value.isNotEmpty()) return
         setLibraryFolders(listOf(LibraryFolderSelectionResolver.defaultMusicFolder()))
     }
 
-    fun setDismissedUpdateVersion(versionName: String?) {
-        val normalizedVersion = versionName?.trim()?.takeIf { it.isNotBlank() }
-        if (_dismissedUpdateVersion.value == normalizedVersion) return
-        preferences.edit {
-            if (normalizedVersion == null) {
-                remove(KEY_DISMISSED_UPDATE_VERSION)
-            } else {
-                putString(KEY_DISMISSED_UPDATE_VERSION, normalizedVersion)
-            }
-        }
-        _dismissedUpdateVersion.value = normalizedVersion
+    override fun setDismissedUpdateVersion(versionName: String?) {
+        updatePreferencesStore.setDismissedUpdateVersion(versionName)
     }
 
-    fun lastAutomaticUpdateCheckAtMs(): Long {
-        return preferences.getLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, 0L).coerceAtLeast(0L)
+    override fun lastAutomaticUpdateCheckAtMs(): Long {
+        return updatePreferencesStore.lastAutomaticUpdateCheckAtMs()
     }
 
-    fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long) {
-        val normalizedTimestamp = timestampMs.coerceAtLeast(0L)
-        if (lastAutomaticUpdateCheckAtMs() == normalizedTimestamp) return
-        preferences.edit {
-            putLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, normalizedTimestamp)
-        }
+    override fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long) {
+        updatePreferencesStore.setLastAutomaticUpdateCheckAtMs(timestampMs)
     }
 
     fun release() {
@@ -712,12 +706,6 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         return normalized
     }
 
-    private fun loadDismissedUpdateVersion(): String? {
-        return preferences.getString(KEY_DISMISSED_UPDATE_VERSION, null)
-            ?.trim()
-            ?.takeIf { it.isNotBlank() }
-    }
-
     private fun loadSearchHistory(): List<SearchHistoryEntry> {
         return preferences.getString(KEY_SEARCH_HISTORY, null)
             ?.split(RECORD_SEPARATOR)
@@ -925,8 +913,6 @@ class PreferenceStore(context: Context) : RootSettingsReader {
         const val KEY_LIBRARY_FOLDER_URI = "library_folder_uri"
         const val KEY_LIBRARY_FOLDER_PATH = "library_folder_path"
         const val KEY_LIBRARY_FOLDERS = "library_folders"
-        const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
-        const val KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS = "last_automatic_update_check_at_ms"
         const val KEY_BANDS = "eq_bands"
         const val KEY_BASS = "eq_bass"
         const val KEY_MIDRANGE = "eq_midrange"

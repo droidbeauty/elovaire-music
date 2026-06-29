@@ -85,7 +85,7 @@ internal sealed interface SharedTopBarSpec {
 
 internal fun SharedTopBarSpec.visualSignature(): String {
     return when (this) {
-        is SharedTopBarSpec.Unified -> "unified|$showSettings|${supplementalActionIconResId ?: 0}|${supplementalActionContentDescription.orEmpty()}"
+        is SharedTopBarSpec.Unified -> "unified"
         is SharedTopBarSpec.Back -> "back|$title|$centeredTitle"
         is SharedTopBarSpec.Detail -> "detail|$title|${subtitle.orEmpty()}|${actions.joinToString { "${it.iconResId}:${it.contentDescription}" }}"
     }

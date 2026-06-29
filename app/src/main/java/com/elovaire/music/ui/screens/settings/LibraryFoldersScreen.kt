@@ -168,7 +168,7 @@ internal fun LibraryFoldersScreen(
             onClick = { folderPicker.launch(null) },
             modifier = Modifier
                 .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding + navigationBarInsetDp() + 30.dp),
+                .padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
         )
         Box(
             modifier = Modifier
@@ -238,19 +238,19 @@ private fun AddFolderPill(
                 indication = null,
                 onClick = onClick,
             )
-            .padding(horizontal = 22.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
             painter = painterResource(id = R.drawable.ic_lucide_plus),
             contentDescription = null,
             tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(16.dp),
         )
         Text(
             text = text,
-            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
             color = MaterialTheme.colorScheme.onPrimary,
         )
     }
@@ -372,7 +372,6 @@ internal fun SettingNavigationRow(
     val interactionSource = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
-            .clip(RoundedCornerShape(ElovaireRadii.card))
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,

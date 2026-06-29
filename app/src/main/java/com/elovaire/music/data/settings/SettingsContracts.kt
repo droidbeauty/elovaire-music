@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.settings
 
+import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
@@ -8,7 +9,7 @@ import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.StateFlow
 
-interface RootSettingsReader {
+internal interface RootSettingsReader {
     val eqSettings: StateFlow<EqSettings>
     val themeMode: StateFlow<ThemeMode>
     val textSizePreset: StateFlow<TextSizePreset>
@@ -26,4 +27,48 @@ interface RootSettingsReader {
     val recentAlbumIds: StateFlow<List<Long>>
     val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?>
     val lastPlayedCollectionId: StateFlow<Long?>
+}
+
+internal interface AppearanceSettingsWriter {
+    fun setThemeMode(themeMode: ThemeMode)
+    fun setTextSizePreset(textSizePreset: TextSizePreset)
+    fun setAppLanguage(language: AppLanguage)
+}
+
+internal interface LibrarySettingsWriter {
+    val libraryFolders: StateFlow<List<LibraryFolderSelection>>
+    fun addLibraryFolder(selection: LibraryFolderSelection)
+    fun removeLibraryFolder(selection: LibraryFolderSelection)
+    fun setLibraryFolders(selections: List<LibraryFolderSelection>)
+    fun restoreDefaultLibraryFolderIfEmpty()
+    fun setAlbumCollectionLayoutMode(mode: String)
+    fun setSongCollectionGridEnabled(enabled: Boolean)
+    fun setAlbumCollectionSortMode(sortMode: String)
+    fun setSongCollectionSortMode(sortMode: String)
+}
+
+internal interface PlaybackSettingsWriter {
+    fun setPlaybackVolume(value: Float)
+    fun setGaplessPlaybackEnabled(enabled: Boolean)
+}
+
+internal interface PlaylistStore {
+    fun createPlaylist(name: String): Long
+    fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>)
+    fun renamePlaylist(playlistId: Long, name: String)
+    fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>)
+    fun deletePlaylists(playlistIds: Set<Long>)
+    fun removeSongReferences(songId: Long)
+}
+
+internal interface FavoritesStore {
+    fun toggleFavoriteSong(songId: Long)
+    fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean)
+}
+
+internal interface UpdatePreferencesStore {
+    val dismissedUpdateVersion: StateFlow<String?>
+    fun setDismissedUpdateVersion(versionName: String?)
+    fun lastAutomaticUpdateCheckAtMs(): Long
+    fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long)
 }

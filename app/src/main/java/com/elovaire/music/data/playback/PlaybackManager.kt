@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.annotation.SuppressLint
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -18,8 +17,6 @@ import android.os.Looper
 import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
-import androidx.media3.common.C
-import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
@@ -27,18 +24,13 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
-import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
-import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
-import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
-import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryCallbackRouter
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
@@ -211,7 +203,14 @@ class PlaybackManager(
     private val extractorsFactory = DefaultExtractorsFactory()
         .setConstantBitrateSeekingEnabled(true)
     private val dataSourceFactory = DefaultDataSource.Factory(appContext)
-    private val mediaSourceFactory = buildMediaSourceFactory()
+    private val playerFactory = PlaybackPlayerFactory(
+        context = appContext,
+        dataSourceFactory = dataSourceFactory,
+        extractorsFactory = extractorsFactory,
+        playbackAudioAttributes = playbackAudioAttributes,
+        audioProcessorsProvider = audioProcessorsProvider,
+        preferredOutputDevice = bitPerfectUsbManager::preferredOutputDevice,
+    )
     private val playbackHandler = Handler(Looper.getMainLooper())
     private var pendingAudioPathReason: String? = null
     private var isDirectPlaybackActive = false
@@ -223,7 +222,7 @@ class PlaybackManager(
     private var audioDeviceCallbackRegistered = false
     private var noisyReceiverRegistered = false
     private var player = createPlayer(enableSignalProcessing = true)
-    private var commandGatewayPlayer: Player = PlaybackCommandPlayer(player)
+    private var commandGatewayPlayer: Player = PlaybackExternalCommandGateway(player, ::dispatchPlaybackCommand)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
             platformPlaybackAudioAttributes,
@@ -483,27 +482,14 @@ class PlaybackManager(
     val playerInstance: Player
         get() = commandGatewayPlayer
     val mediaSessionToken
-        get() = mediaSession.token
+        get() = sessionOwner.mediaSessionToken
     val platformMediaSessionToken
-        get() = mediaSession.platformToken
+        get() = sessionOwner.platformMediaSessionToken
     internal val mediaLibrarySession: MediaLibrarySession
-        get() = mediaSession
-    private val mediaLibraryCallbackRouter = MediaLibraryCallbackRouter()
-    private val mediaSession = MediaLibrarySession.Builder(context, commandGatewayPlayer, mediaLibraryCallbackRouter)
-        .setSessionActivity(
-            PendingIntent.getActivity(
-                context,
-                3101,
-                Intent(context, MainActivity::class.java).apply {
-                    flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
-                    putExtra(EXTRA_OPEN_PLAYER_FROM_NOTIFICATION, true)
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            ),
-        )
-        .build()
+        get() = sessionOwner.mediaLibrarySession
+    private val sessionOwner = PlaybackSessionOwner(context, commandGatewayPlayer)
     internal fun setMediaLibrarySessionCallback(callback: MediaLibrarySession.Callback) {
-        mediaLibraryCallbackRouter.setDelegate(callback)
+        sessionOwner.setMediaLibrarySessionCallback(callback)
     }
 
     private val playerSwitcher = PlaybackPlayerSwitcher(
@@ -512,8 +498,8 @@ class PlaybackManager(
         detachPlayerObservers = ::detachPlayerObservers,
         onPlayerReplaced = { replacementPlayer ->
             player = replacementPlayer
-            commandGatewayPlayer = PlaybackCommandPlayer(replacementPlayer)
-            mediaSession.setPlayer(commandGatewayPlayer)
+            commandGatewayPlayer = PlaybackExternalCommandGateway(replacementPlayer, ::dispatchPlaybackCommand)
+            sessionOwner.setPlayer(commandGatewayPlayer)
             _playerInstanceVersion.value += 1L
         },
         applyPreferredAudioDevice = ::applyPreferredAudioDeviceIfNeeded,
@@ -614,49 +600,7 @@ class PlaybackManager(
     }
 
     private fun createPlayer(enableSignalProcessing: Boolean): ExoPlayer {
-        val configuredPlayer = ExoPlayer.Builder(appContext)
-            .setRenderersFactory(
-                ElovaireRenderersFactory(
-                    appContext,
-                    if (enableSignalProcessing) audioProcessorsProvider() else emptyArray(),
-                )
-                    // Keep the framework sink configuration stable across the regular and direct
-                    // paths so direct-playback eligibility doesn't oscillate between players.
-                    .setEnableAudioFloatOutput(false)
-                    .setEnableDecoderFallback(true)
-                    .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER),
-            )
-            .setMediaSourceFactory(
-                mediaSourceFactory,
-            )
-            .setAudioAttributes(playbackAudioAttributes, false)
-            .setWakeMode(C.WAKE_MODE_LOCAL)
-            .setHandleAudioBecomingNoisy(false)
-            .build()
-            .apply {
-                repeatMode = Player.REPEAT_MODE_OFF
-            }
-        bitPerfectUsbManager.preferredOutputDevice()?.let(configuredPlayer::setPreferredAudioDevice)
-        return configuredPlayer
-    }
-
-    private inner class PlaybackCommandPlayer(
-        delegate: Player,
-    ) : ForwardingPlayer(delegate) {
-        override fun play() {
-            dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.ExternalController)
-        }
-
-        override fun pause() {
-            dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.ExternalController)
-        }
-
-        override fun setPlayWhenReady(playWhenReady: Boolean) {
-            dispatchPlaybackCommand(
-                command = if (playWhenReady) PlaybackCommand.Play else PlaybackCommand.Pause,
-                origin = PlaybackCommandOrigin.ExternalController,
-            )
-        }
+        return playerFactory.create(enableSignalProcessing)
     }
 
     private fun attachPlayerObservers(target: ExoPlayer) {
@@ -887,7 +831,7 @@ class PlaybackManager(
         setAudioDeviceCallbackRegistered(false)
         setVolumeObserverRegistered(false)
         detachPlayerObservers(player)
-        mediaSession.release()
+        sessionOwner.release()
         player.release()
     }
 
@@ -1795,10 +1739,6 @@ class PlaybackManager(
         const val MAX_UNEXPECTED_IDLE_RECOVERY_ATTEMPTS = 3
         const val UNEXPECTED_IDLE_RECOVERY_WINDOW_MS = 10_000L
         const val TAG = "PlaybackManager"
-    }
-
-    private fun buildMediaSourceFactory(): MediaSource.Factory {
-        return DefaultMediaSourceFactory(dataSourceFactory, extractorsFactory)
     }
 
     private fun logDebug(message: String) {

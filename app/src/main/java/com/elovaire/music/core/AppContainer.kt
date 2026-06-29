@@ -32,6 +32,27 @@ class AppContainer(
     internal val albumTagEditorService get() = services.albumTagEditorService
     val playbackManager get() = services.playbackManager
     val libraryRepository get() = services.libraryRepository
+    internal val rootReadDependencies: RootReadDependencies = object : RootReadDependencies {
+        override val libraryReader get() = services.libraryRepository
+        override val rootSettingsReader get() = services.preferenceStore
+        override val playbackReader get() = services.playbackManager
+        override val updateReader get() = services.appUpdateManager
+    }
+    internal val playbackActionDependencies: PlaybackActionDependencies = object : PlaybackActionDependencies {
+        override val playbackController get() = services.playbackManager
+    }
+    internal val libraryActionDependencies: LibraryActionDependencies = object : LibraryActionDependencies {
+        override val libraryRepository get() = services.libraryRepository
+    }
+    internal val settingsActionDependencies: SettingsActionDependencies = object : SettingsActionDependencies {
+        override val appearanceSettings get() = services.preferenceStore
+        override val librarySettings get() = services.preferenceStore
+        override val playbackSettings get() = services.preferenceStore
+    }
+    internal val playlistActionDependencies: PlaylistActionDependencies = object : PlaylistActionDependencies {
+        override val playlistStore get() = services.preferenceStore
+        override val favoritesStore get() = services.preferenceStore
+    }
     internal val viewModelDependencies: ElovaireViewModelDependencies = object : ElovaireViewModelDependencies {
         override val libraryReader get() = services.libraryRepository
         override val libraryRepository get() = services.libraryRepository

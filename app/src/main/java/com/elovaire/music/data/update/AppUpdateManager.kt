@@ -68,15 +68,19 @@ class AppUpdateManager internal constructor(
     private var startupMaintenanceScheduled = false
     private var pendingAutomaticStartupCheck = false
     private var pendingInstallApk: File? = null
+    private var resumeInstallAfterPermissionGrant = false
 
     init {
         if (BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) {
             scope.launch {
                 backgroundWorkPolicy.isForeground.collect { isForeground ->
-                    if (isForeground && pendingAutomaticStartupCheck) {
-                        pendingAutomaticStartupCheck = false
-                        checkForUpdates()
-                    } else if (!isForeground) {
+                    if (isForeground) {
+                        if (launchPendingInstallIfPermissionGranted()) return@collect
+                        if (pendingAutomaticStartupCheck) {
+                            pendingAutomaticStartupCheck = false
+                            checkForUpdates()
+                        }
+                    } else {
                         cancelForegroundBoundUpdateWork()
                     }
                 }
@@ -160,19 +164,7 @@ class AppUpdateManager internal constructor(
             val reusableApk = pendingInstallApk?.takeIf { it.exists() && it.name == release.assetFileName }
             if (reusableApk != null) {
                 if (!ensureInstallerPermission(reusableApk)) return@launch
-                val launchError = runCatching { launchPackageInstaller(reusableApk) }.exceptionOrNull()
-                if (launchError != null) {
-                    _uiState.update {
-                        it.copy(
-                            isDownloading = false,
-                            isInstalling = false,
-                            installPermissionRequired = false,
-                            downloadProgress = null,
-                            errorMessage = launchError.message ?: "Unable to install update",
-                        )
-                    }
-                    return@launch
-                }
+                if (!launchInstallerOrReport(reusableApk)) return@launch
                 _uiState.update {
                     it.copy(
                         isDownloading = false,
@@ -222,19 +214,7 @@ class AppUpdateManager internal constructor(
                 )
             }
             if (!ensureInstallerPermission(apkFile)) return@launch
-            val launchError = runCatching { launchPackageInstaller(apkFile) }.exceptionOrNull()
-            if (launchError != null) {
-                _uiState.update {
-                    it.copy(
-                        isDownloading = false,
-                        isInstalling = false,
-                        installPermissionRequired = false,
-                        downloadProgress = null,
-                        errorMessage = launchError.message ?: "Unable to install update",
-                    )
-                }
-                return@launch
-            }
+            if (!launchInstallerOrReport(apkFile)) return@launch
             _uiState.update {
                 it.copy(
                     isDownloading = false,
@@ -296,6 +276,7 @@ class AppUpdateManager internal constructor(
             }
         }
         pendingInstallApk = null
+        resumeInstallAfterPermissionGrant = false
     }
 
     fun scheduleStartupMaintenance() {
@@ -473,6 +454,7 @@ class AppUpdateManager internal constructor(
             !appContext.packageManager.canRequestPackageInstalls()
         ) {
             pendingInstallApk = apkFile
+            resumeInstallAfterPermissionGrant = true
             _uiState.update {
                 it.copy(
                     isDownloading = false,
@@ -483,6 +465,54 @@ class AppUpdateManager internal constructor(
                 )
             }
             openUnknownAppSourcesSettings()
+            return false
+        }
+        return true
+    }
+
+    private fun launchPendingInstallIfPermissionGranted(): Boolean {
+        val apkFile = pendingInstallApk ?: return false
+        if (!resumeInstallAfterPermissionGrant) return false
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
+            !appContext.packageManager.canRequestPackageInstalls()
+        ) {
+            return false
+        }
+        resumeInstallAfterPermissionGrant = false
+        _uiState.update {
+            it.copy(
+                isDownloading = false,
+                isInstalling = true,
+                installPermissionRequired = false,
+                downloadProgress = 1f,
+                errorMessage = null,
+            )
+        }
+        if (!launchInstallerOrReport(apkFile)) return false
+        _uiState.update {
+            it.copy(
+                isDownloading = false,
+                isInstalling = false,
+                installPermissionRequired = false,
+                downloadProgress = null,
+                errorMessage = null,
+            )
+        }
+        return true
+    }
+
+    private fun launchInstallerOrReport(apkFile: File): Boolean {
+        val launchError = runCatching { launchPackageInstaller(apkFile) }.exceptionOrNull()
+        if (launchError != null) {
+            _uiState.update {
+                it.copy(
+                    isDownloading = false,
+                    isInstalling = false,
+                    installPermissionRequired = false,
+                    downloadProgress = null,
+                    errorMessage = launchError.message ?: "Unable to install update",
+                )
+            }
             return false
         }
         return true

@@ -235,6 +235,7 @@ internal fun PlaylistDetailScreen(
         ) {
             val listState = rememberElovaireLazyListState(playlistState.id, "playlist_detail")
             val scope = rememberCoroutineScope()
+            val density = androidx.compose.ui.platform.LocalDensity.current
             LazyColumn(
                 state = listState,
                 overscrollEffect = null,
@@ -356,7 +357,7 @@ internal fun PlaylistDetailScreen(
                 } else {
                     itemsIndexed(
                         items = playlistSongs,
-                        key = { index, song -> "${song.id}_$index" },
+                        key = { _, song -> song.id },
                         contentType = { _, _ -> "playlist_song_row" },
                     ) { index, song ->
                         GroupedListRowContainer(
@@ -424,28 +425,27 @@ internal fun PlaylistDetailScreen(
                                 },
                                 onReorderDrag = { dragAmount ->
                                     if (editMode && editableSongIds.size > 1) {
-                                        val visibleSongItems = listState.layoutInfo.visibleItemsInfo
-                                            .filter { it.contentType == "playlist_song_row" }
-                                        val currentAbsoluteIndex = index + 2
-                                        val firstVisibleSongIndex = visibleSongItems.firstOrNull()?.index ?: currentAbsoluteIndex
-                                        val lastVisibleSongIndex = visibleSongItems.lastOrNull()?.index ?: currentAbsoluteIndex
-                                        val canScrollUp =
-                                            listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
-                                        val canScrollDown =
-                                            visibleSongItems.lastOrNull()?.index != listState.layoutInfo.totalItemsCount - 1
-                                        when {
-                                            dragAmount < 0f &&
-                                                currentAbsoluteIndex <= firstVisibleSongIndex &&
-                                                canScrollUp -> {
-                                                scope.launch {
-                                                    listState.scrollBy((dragAmount * 0.72f).coerceAtLeast(-22f))
+                                        val layoutInfo = listState.layoutInfo
+                                        val draggedItem = layoutInfo.visibleItemsInfo.firstOrNull { it.key == song.id }
+                                        if (draggedItem != null) {
+                                            val edgeThresholdPx = with(density) { 84.dp.toPx() }
+                                            val canScrollUp =
+                                                listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 0
+                                            val canScrollDown =
+                                                layoutInfo.visibleItemsInfo.lastOrNull()?.index != layoutInfo.totalItemsCount - 1
+                                            val nearTop = draggedItem.offset <= layoutInfo.viewportStartOffset + edgeThresholdPx
+                                            val nearBottom = draggedItem.offset + draggedItem.size >=
+                                                layoutInfo.viewportEndOffset - edgeThresholdPx
+                                            when {
+                                                dragAmount < 0f && nearTop && canScrollUp -> {
+                                                    scope.launch {
+                                                        listState.scrollBy((dragAmount * 0.72f).coerceAtLeast(-22f))
+                                                    }
                                                 }
-                                            }
-                                            dragAmount > 0f &&
-                                                currentAbsoluteIndex >= lastVisibleSongIndex &&
-                                                canScrollDown -> {
-                                                scope.launch {
-                                                    listState.scrollBy((dragAmount * 0.72f).coerceAtMost(22f))
+                                                dragAmount > 0f && nearBottom && canScrollDown -> {
+                                                    scope.launch {
+                                                        listState.scrollBy((dragAmount * 0.72f).coerceAtMost(22f))
+                                                    }
                                                 }
                                             }
                                         }
