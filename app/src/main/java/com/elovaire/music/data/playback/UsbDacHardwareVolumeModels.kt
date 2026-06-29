@@ -24,8 +24,11 @@ internal data class UsbAudioDeviceDescriptor(
     val type: Int,
     val isSink: Boolean,
     val productName: String? = null,
+    val address: String? = null,
     val sampleRates: IntArray = intArrayOf(),
     val encodings: IntArray = intArrayOf(),
+    val channelCounts: IntArray = intArrayOf(),
+    val channelMasks: IntArray = intArrayOf(),
 ) {
     fun routingFingerprint(): UsbAudioDeviceRoutingFingerprint {
         return UsbAudioDeviceRoutingFingerprint(
@@ -33,8 +36,11 @@ internal data class UsbAudioDeviceDescriptor(
             type = type,
             isSink = isSink,
             productName = productName?.trim(),
+            address = address?.trim(),
             sampleRates = sampleRates.copyOf().sortedArray(),
             encodings = encodings.copyOf().sortedArray(),
+            channelCounts = channelCounts.copyOf().sortedArray(),
+            channelMasks = channelMasks.copyOf().sortedArray(),
         )
     }
 }
@@ -44,8 +50,11 @@ internal data class UsbAudioDeviceRoutingFingerprint(
     val type: Int,
     val isSink: Boolean,
     val productName: String?,
+    val address: String?,
     val sampleRates: IntArray,
     val encodings: IntArray,
+    val channelCounts: IntArray,
+    val channelMasks: IntArray,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -54,8 +63,11 @@ internal data class UsbAudioDeviceRoutingFingerprint(
             type == other.type &&
             isSink == other.isSink &&
             productName == other.productName &&
+            address == other.address &&
             sampleRates.contentEquals(other.sampleRates) &&
-            encodings.contentEquals(other.encodings)
+            encodings.contentEquals(other.encodings) &&
+            channelCounts.contentEquals(other.channelCounts) &&
+            channelMasks.contentEquals(other.channelMasks)
     }
 
     override fun hashCode(): Int {
@@ -63,8 +75,11 @@ internal data class UsbAudioDeviceRoutingFingerprint(
         result = 31 * result + type
         result = 31 * result + isSink.hashCode()
         result = 31 * result + (productName?.hashCode() ?: 0)
+        result = 31 * result + (address?.hashCode() ?: 0)
         result = 31 * result + sampleRates.contentHashCode()
         result = 31 * result + encodings.contentHashCode()
+        result = 31 * result + channelCounts.contentHashCode()
+        result = 31 * result + channelMasks.contentHashCode()
         return result
     }
 }
@@ -163,12 +178,14 @@ internal object UsbDacHardwareVolumeMath {
         return ((clamped - range.minRaw).toFloat() / span.toFloat()).coerceIn(0f, 1f)
     }
 
-    fun shouldAutoRestoreStoredVolume(
+    fun resolveStoredVolumeCandidate(
         identity: UsbDacDeviceIdentity,
         currentVolumeReadable: Boolean,
         storedNormalizedVolume: Float?,
-    ): Boolean {
-        return identity.isReliable && currentVolumeReadable && storedNormalizedVolume != null
+    ): Float? {
+        return storedNormalizedVolume
+            ?.coerceIn(0f, 1f)
+            ?.takeIf { identity.isReliable && currentVolumeReadable }
     }
 }
 

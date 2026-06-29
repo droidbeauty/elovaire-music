@@ -357,7 +357,7 @@ internal class ElovaireMediaTree(
             .map { it.genre.ifBlank { UNKNOWN_GENRE } }
             .distinct()
             .sortedBy(String::lowercase)
-        fun hasUsefulGenres(): Boolean = songs.any { it.genre.isNotBlank() }
+        fun hasUsefulGenres(): Boolean = songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }
         fun playlistSongs(playlistId: Long): List<Song> {
             val playlist = playlists.firstOrNull { it.id == playlistId } ?: return emptyList()
             val songsById = songs.associateBy(Song::id)

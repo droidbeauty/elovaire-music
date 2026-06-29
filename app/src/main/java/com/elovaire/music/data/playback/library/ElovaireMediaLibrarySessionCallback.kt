@@ -118,9 +118,10 @@ internal class ElovaireMediaLibrarySessionCallback(
 
     private fun pageItems(items: List<MediaItem>, page: Int, pageSize: Int): List<MediaItem> {
         if (page < 0 || pageSize <= 0) return items
-        val from = page * pageSize
+        val from = page.toLong() * pageSize.toLong()
         if (from >= items.size) return emptyList()
-        return items.subList(from, (from + pageSize).coerceAtMost(items.size))
+        val to = (from + pageSize.toLong()).coerceAtMost(items.size.toLong())
+        return items.subList(from.toInt(), to.toInt())
     }
 
     private fun invalidMediaIdError(): SessionError {
