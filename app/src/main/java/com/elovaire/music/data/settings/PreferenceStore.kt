@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class PreferenceStore(context: Context) {
+class PreferenceStore(context: Context) : RootSettingsReader {
     private val appContext = context.applicationContext
     private val preferences = appContext.getSharedPreferences("elovaire_preferences", Context.MODE_PRIVATE)
     private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -45,16 +45,16 @@ class PreferenceStore(context: Context) {
     private var pendingEqSettings: EqSettings? = null
 
     private val _themeMode = MutableStateFlow(loadThemeMode())
-    val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
+    override val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
     private val _textSizePreset = MutableStateFlow(loadTextSizePreset())
-    val textSizePreset: StateFlow<TextSizePreset> = _textSizePreset.asStateFlow()
+    override val textSizePreset: StateFlow<TextSizePreset> = _textSizePreset.asStateFlow()
 
     private val _appLanguage = MutableStateFlow(loadAppLanguage())
-    val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
+    override val appLanguage: StateFlow<AppLanguage> = _appLanguage.asStateFlow()
 
     private val _eqSettings = MutableStateFlow(loadEqSettings())
-    val eqSettings: StateFlow<EqSettings> = _eqSettings.asStateFlow()
+    override val eqSettings: StateFlow<EqSettings> = _eqSettings.asStateFlow()
 
     private val _playbackVolume = MutableStateFlow(loadPlaybackVolume())
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
@@ -63,19 +63,19 @@ class PreferenceStore(context: Context) {
     val gaplessPlaybackEnabled: StateFlow<Boolean> = _gaplessPlaybackEnabled.asStateFlow()
 
     private val _onlineLyricsLookupEnabled = MutableStateFlow(loadOnlineLyricsLookupEnabled())
-    val onlineLyricsLookupEnabled: StateFlow<Boolean> = _onlineLyricsLookupEnabled.asStateFlow()
+    override val onlineLyricsLookupEnabled: StateFlow<Boolean> = _onlineLyricsLookupEnabled.asStateFlow()
 
     private val _albumCollectionLayoutMode = MutableStateFlow(loadAlbumCollectionLayoutMode())
-    val albumCollectionLayoutMode: StateFlow<String> = _albumCollectionLayoutMode.asStateFlow()
+    override val albumCollectionLayoutMode: StateFlow<String> = _albumCollectionLayoutMode.asStateFlow()
 
     private val _songCollectionGridEnabled = MutableStateFlow(loadSongCollectionGridEnabled())
-    val songCollectionGridEnabled: StateFlow<Boolean> = _songCollectionGridEnabled.asStateFlow()
+    override val songCollectionGridEnabled: StateFlow<Boolean> = _songCollectionGridEnabled.asStateFlow()
 
     private val _albumCollectionSortMode = MutableStateFlow(loadAlbumCollectionSortMode())
-    val albumCollectionSortMode: StateFlow<String> = _albumCollectionSortMode.asStateFlow()
+    override val albumCollectionSortMode: StateFlow<String> = _albumCollectionSortMode.asStateFlow()
 
     private val _songCollectionSortMode = MutableStateFlow(loadSongCollectionSortMode())
-    val songCollectionSortMode: StateFlow<String> = _songCollectionSortMode.asStateFlow()
+    override val songCollectionSortMode: StateFlow<String> = _songCollectionSortMode.asStateFlow()
 
     private val _libraryFolders = MutableStateFlow(loadLibraryFolders())
     val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
@@ -85,25 +85,25 @@ class PreferenceStore(context: Context) {
     private val _searchHistory = MutableStateFlow(loadSearchHistory())
     val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
     private val _albumPlayCounts = MutableStateFlow(loadAlbumPlayCounts())
-    val albumPlayCounts: StateFlow<Map<Long, Int>> = _albumPlayCounts.asStateFlow()
+    override val albumPlayCounts: StateFlow<Map<Long, Int>> = _albumPlayCounts.asStateFlow()
     private val _songPlayCounts = MutableStateFlow(loadSongPlayCounts())
-    val songPlayCounts: StateFlow<Map<Long, Int>> = _songPlayCounts.asStateFlow()
+    override val songPlayCounts: StateFlow<Map<Long, Int>> = _songPlayCounts.asStateFlow()
     private val _recentSongIds = MutableStateFlow(loadRecentSongIds())
-    val recentSongIds: StateFlow<List<Long>> = _recentSongIds.asStateFlow()
+    override val recentSongIds: StateFlow<List<Long>> = _recentSongIds.asStateFlow()
     private val _recentAlbumIds = MutableStateFlow(loadRecentAlbumIds())
-    val recentAlbumIds: StateFlow<List<Long>> = _recentAlbumIds.asStateFlow()
+    override val recentAlbumIds: StateFlow<List<Long>> = _recentAlbumIds.asStateFlow()
     private val _lastPlayedCollectionKind = MutableStateFlow(loadLastPlayedCollectionKind())
-    val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?> = _lastPlayedCollectionKind.asStateFlow()
+    override val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?> = _lastPlayedCollectionKind.asStateFlow()
     private val _lastPlayedCollectionId = MutableStateFlow(loadLastPlayedCollectionId())
-    val lastPlayedCollectionId: StateFlow<Long?> = _lastPlayedCollectionId.asStateFlow()
+    override val lastPlayedCollectionId: StateFlow<Long?> = _lastPlayedCollectionId.asStateFlow()
 
     private val _userPlaylists = MutableStateFlow(loadPlaylists())
     private var nextPlaylistId = loadNextPlaylistId(_userPlaylists.value)
     private val _favoriteSongIds = MutableStateFlow(loadFavoriteSongIds())
-    val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
+    override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
 
     private val _playlists = MutableStateFlow(assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value))
-    val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
+    override val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
 
     fun setThemeMode(themeMode: ThemeMode) {
         if (_themeMode.value == themeMode) return

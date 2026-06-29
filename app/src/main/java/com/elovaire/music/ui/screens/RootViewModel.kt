@@ -33,43 +33,43 @@ internal class RootViewModel(
     dependencies: ElovaireViewModelDependencies,
 ) : ViewModel() {
     private val libraryState = combine(
-        dependencies.libraryRepository.contentState,
-        dependencies.libraryRepository.scanState,
+        dependencies.libraryReader.contentState,
+        dependencies.libraryReader.scanState,
         ::libraryUiStateOf,
     )
 
     private val playbackState = combine(
-        dependencies.playbackManager.nowPlayingState,
-        dependencies.playbackManager.transportState,
-        dependencies.playbackManager.queueState,
-        dependencies.playbackManager.volumeState,
-        dependencies.playbackManager.recentPlaybackState,
+        dependencies.playbackReader.nowPlayingState,
+        dependencies.playbackReader.transportState,
+        dependencies.playbackReader.queueState,
+        dependencies.playbackReader.volumeState,
+        dependencies.playbackReader.recentPlaybackState,
         ::playbackUiStateOf,
     )
 
     private val preferenceState = combine(
         combine(
-            dependencies.preferenceStore.eqSettings,
-            dependencies.preferenceStore.themeMode,
-            dependencies.preferenceStore.textSizePreset,
-            dependencies.preferenceStore.appLanguage,
-            dependencies.preferenceStore.playlists,
+            dependencies.rootSettingsReader.eqSettings,
+            dependencies.rootSettingsReader.themeMode,
+            dependencies.rootSettingsReader.textSizePreset,
+            dependencies.rootSettingsReader.appLanguage,
+            dependencies.rootSettingsReader.playlists,
         ) { eq, theme, textSize, language, playlists ->
             PartialRootPreferenceStateA(eq, theme, textSize, language, playlists)
         },
         combine(
-            dependencies.preferenceStore.favoriteSongIds,
-            dependencies.preferenceStore.albumPlayCounts,
-            dependencies.preferenceStore.songPlayCounts,
-            dependencies.preferenceStore.albumCollectionLayoutMode,
-            dependencies.preferenceStore.songCollectionGridEnabled,
+            dependencies.rootSettingsReader.favoriteSongIds,
+            dependencies.rootSettingsReader.albumPlayCounts,
+            dependencies.rootSettingsReader.songPlayCounts,
+            dependencies.rootSettingsReader.albumCollectionLayoutMode,
+            dependencies.rootSettingsReader.songCollectionGridEnabled,
         ) { favorites, albumCounts, songCounts, albumLayout, songGrid ->
             PartialRootPreferenceStateB(favorites.toHashSet(), albumCounts, songCounts, albumLayout, songGrid)
         },
         combine(
-            dependencies.preferenceStore.albumCollectionSortMode,
-            dependencies.preferenceStore.songCollectionSortMode,
-            dependencies.preferenceStore.onlineLyricsLookupEnabled,
+            dependencies.rootSettingsReader.albumCollectionSortMode,
+            dependencies.rootSettingsReader.songCollectionSortMode,
+            dependencies.rootSettingsReader.onlineLyricsLookupEnabled,
         ) { albumSort, songSort, onlineLyrics ->
             PartialRootPreferenceStateC(albumSort, songSort, onlineLyrics)
         },
@@ -95,7 +95,7 @@ internal class RootViewModel(
         libraryState,
         playbackState,
         preferenceState,
-        dependencies.appUpdateManager.uiState,
+        dependencies.updateReader.uiState,
     ) { library, playback, prefs, update ->
         RootAppState(
             library = library,
@@ -124,26 +124,26 @@ internal class RootViewModel(
                 dependencies.libraryRepository.scanState.value,
             ),
             playback = playbackUiStateOf(
-                dependencies.playbackManager.nowPlayingState.value,
-                dependencies.playbackManager.transportState.value,
-                dependencies.playbackManager.queueState.value,
-                dependencies.playbackManager.volumeState.value,
-                dependencies.playbackManager.recentPlaybackState.value,
+                dependencies.playbackReader.nowPlayingState.value,
+                dependencies.playbackReader.transportState.value,
+                dependencies.playbackReader.queueState.value,
+                dependencies.playbackReader.volumeState.value,
+                dependencies.playbackReader.recentPlaybackState.value,
             ),
-            eqSettings = dependencies.preferenceStore.eqSettings.value,
-            themeMode = dependencies.preferenceStore.themeMode.value,
-            textSizePreset = dependencies.preferenceStore.textSizePreset.value,
-            appLanguage = dependencies.preferenceStore.appLanguage.value,
-            playlists = dependencies.preferenceStore.playlists.value,
-            favoriteSongIds = dependencies.preferenceStore.favoriteSongIds.value.toHashSet(),
-            albumPlayCounts = dependencies.preferenceStore.albumPlayCounts.value,
-            songPlayCounts = dependencies.preferenceStore.songPlayCounts.value,
-            albumCollectionLayoutModeName = dependencies.preferenceStore.albumCollectionLayoutMode.value,
-            songCollectionGridEnabled = dependencies.preferenceStore.songCollectionGridEnabled.value,
-            albumCollectionSortModeName = dependencies.preferenceStore.albumCollectionSortMode.value,
-            songCollectionSortModeName = dependencies.preferenceStore.songCollectionSortMode.value,
-            onlineLyricsLookupEnabled = dependencies.preferenceStore.onlineLyricsLookupEnabled.value,
-            appUpdateState = dependencies.appUpdateManager.uiState.value,
+            eqSettings = dependencies.rootSettingsReader.eqSettings.value,
+            themeMode = dependencies.rootSettingsReader.themeMode.value,
+            textSizePreset = dependencies.rootSettingsReader.textSizePreset.value,
+            appLanguage = dependencies.rootSettingsReader.appLanguage.value,
+            playlists = dependencies.rootSettingsReader.playlists.value,
+            favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds.value.toHashSet(),
+            albumPlayCounts = dependencies.rootSettingsReader.albumPlayCounts.value,
+            songPlayCounts = dependencies.rootSettingsReader.songPlayCounts.value,
+            albumCollectionLayoutModeName = dependencies.rootSettingsReader.albumCollectionLayoutMode.value,
+            songCollectionGridEnabled = dependencies.rootSettingsReader.songCollectionGridEnabled.value,
+            albumCollectionSortModeName = dependencies.rootSettingsReader.albumCollectionSortMode.value,
+            songCollectionSortModeName = dependencies.rootSettingsReader.songCollectionSortMode.value,
+            onlineLyricsLookupEnabled = dependencies.rootSettingsReader.onlineLyricsLookupEnabled.value,
+            appUpdateState = dependencies.updateReader.uiState.value,
         ),
     )
 }

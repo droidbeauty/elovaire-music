@@ -57,10 +57,10 @@ class AppUpdateManager internal constructor(
     private val scope: CoroutineScope,
     private val preferenceStore: PreferenceStore,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
-) {
+) : UpdateReader {
     private val appContext = context.applicationContext
     private val _uiState = MutableStateFlow(AppUpdateUiState())
-    val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
+    override val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
     private var checkJob: Job? = null
     private var downloadJob: Job? = null
     private var startupCleanupJob: Job? = null

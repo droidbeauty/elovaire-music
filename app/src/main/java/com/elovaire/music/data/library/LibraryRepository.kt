@@ -70,7 +70,7 @@ class LibraryRepository internal constructor(
     private val scanner: MediaStoreScanner,
     private val scope: CoroutineScope,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
-) {
+) : LibraryReader {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
     private val snapshotPublisher = LibrarySnapshotPublisher(
@@ -84,8 +84,8 @@ class LibraryRepository internal constructor(
     private var backgroundLibraryDirty = false
     private val deletionMarkers = LibraryDeletionMarkers()
     private var didBootstrapLibrary = false
-    val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
-    val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
+    override val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
+    override val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
     val state: StateFlow<LibraryUiState> = combine(contentState, scanState) { content, scan ->
         LibraryUiState(
             permissionGranted = scan.permissionGranted,
