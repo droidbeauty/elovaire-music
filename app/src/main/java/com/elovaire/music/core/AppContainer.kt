@@ -1,15 +1,16 @@
 package elovaire.music.droidbeauty.app.core
 
-import android.annotation.SuppressLint
 import android.app.Application
 import android.content.Context
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
-@SuppressLint("UnsafeOptInUsageError")
+@OptIn(UnstableApi::class)
 class AppContainer(
     appContext: Context,
 ) {

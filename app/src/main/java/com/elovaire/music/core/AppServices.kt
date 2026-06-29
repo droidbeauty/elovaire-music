@@ -1,10 +1,8 @@
 package elovaire.music.droidbeauty.app.core
 
-import android.annotation.SuppressLint
 import android.content.Context
 import kotlinx.coroutines.CoroutineScope
 
-@SuppressLint("UnsafeOptInUsageError")
 internal class AppServices(
     applicationContext: Context,
     appScope: CoroutineScope,

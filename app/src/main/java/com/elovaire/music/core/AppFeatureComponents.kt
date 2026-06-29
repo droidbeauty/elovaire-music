@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.core
 
-import android.annotation.SuppressLint
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
@@ -106,7 +105,7 @@ internal class LibraryComponent(
     }
 }
 
-@SuppressLint("UnsafeOptInUsageError")
+@OptIn(UnstableApi::class)
 internal class MediaLibraryComponent(
     libraryRepository: LibraryRepository,
     preferenceStore: PreferenceStore,
