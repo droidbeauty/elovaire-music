@@ -55,6 +55,9 @@ import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
+import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -103,18 +106,9 @@ internal fun LibraryFoldersScreen(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 60.dp,
                 end = 18.dp,
-                bottom = bottomPadding + buttonNavigationScrollBoost(),
+                bottom = bottomPadding + buttonNavigationScrollBoost() + 104.dp,
             ),
         ) {
-            item {
-                LibraryFolderListRow(
-                    title = copy.addFolder,
-                    subtitle = copy.subtitle,
-                    songCountLabel = null,
-                    iconResId = R.drawable.ic_lucide_plus,
-                    onClick = { folderPicker.launch(null) },
-                )
-            }
             if (folders.isEmpty()) {
                 item {
                     Column(
@@ -169,6 +163,13 @@ internal fun LibraryFoldersScreen(
                 }
             }
         }
+        AddFolderPill(
+            text = copy.addFolder,
+            onClick = { folderPicker.launch(null) },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = bottomPadding + navigationBarInsetDp() + 30.dp),
+        )
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
@@ -206,12 +207,52 @@ internal fun LibraryFoldersScreen(
                 Text(if (editMode) copy.done else copy.edit)
             }
             HeaderIconButton(
-                iconResId = R.drawable.ic_lucide_refresh_cw,
+                iconResId = R.drawable.ic_lucide_refresh_ccw,
                 contentDescription = copy.refresh,
                 showBackground = false,
                 onClick = onRefresh,
             )
         }
+    }
+}
+
+@Composable
+private fun AddFolderPill(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val interactionSource = rememberElovaireInteractionSource()
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(MaterialTheme.colorScheme.primary)
+            .elovairePressScale(
+                pressedScale = 0.9f,
+                animationSpec = ElovaireMotion.bounceSpringSpec(),
+                interactionSource = interactionSource,
+                label = "addFolderPillScale",
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 22.dp, vertical = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(id = R.drawable.ic_lucide_plus),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = text,
+            style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onPrimary,
+        )
     }
 }
 

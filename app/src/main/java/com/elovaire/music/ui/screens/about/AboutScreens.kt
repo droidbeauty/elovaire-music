@@ -50,6 +50,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
@@ -401,22 +402,26 @@ internal fun PrivacySafetyScreen(
                 top = detailTopBarOccupiedHeight() + ElovaireSpacing.topBarToFirstContentGap,
                 bottom = bottomPadding,
             ),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
+            verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            item {
-                ModuleCard {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(14.dp),
-                    ) {
-                        copy.points.forEach { point ->
-                            Text(
-                                text = point,
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
-                            )
-                        }
-                    }
+            itemsIndexed(copy.sections, key = { index, section -> "${section.title}_$index" }) { _, section ->
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = section.title,
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.SemiBold,
+                        ),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        text = section.body,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Normal),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
                 }
             }
         }

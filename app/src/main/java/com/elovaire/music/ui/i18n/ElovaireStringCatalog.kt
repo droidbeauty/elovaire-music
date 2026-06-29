@@ -1765,7 +1765,12 @@ internal data class PrivacySafetyCopy(
     val subtitle: String,
     val onlineLyricsTitle: String,
     val onlineLyricsSubtitle: String,
-    val points: List<String>,
+    val sections: List<PrivacySafetySectionCopy>,
+)
+
+internal data class PrivacySafetySectionCopy(
+    val title: String,
+    val body: String,
 )
 
 internal fun privacySafetyCopy(language: AppLanguage): PrivacySafetyCopy = PrivacySafetyCopy(
@@ -1773,15 +1778,23 @@ internal fun privacySafetyCopy(language: AppLanguage): PrivacySafetyCopy = Priva
     subtitle = "How Elovaire handles music, lyrics, and updates",
     onlineLyricsTitle = "Online lyrics lookup",
     onlineLyricsSubtitle = "Search online providers when local lyrics are unavailable",
-    points = listOf(
-        "Elovaire reads your selected audio folders so it can build your music library.",
-        "Your library, playlists, favorites, settings, and playback history are stored on your device.",
-        "Online lyrics lookup may send song title, artist, album, and duration to lyrics providers when enabled or used.",
-        "Update checks contact GitHub in this build and may download an APK if you choose to update.",
-        "Elovaire does not need an account.",
-        "Elovaire does not use ads.",
-        "Elovaire does not sell personal data.",
-        "Removing a library folder from Elovaire does not delete files from your device.",
+    sections = listOf(
+        PrivacySafetySectionCopy(
+            title = "Local library",
+            body = "Elovaire reads the audio folders you choose so it can build your music library and keep browsing fast. Removing a folder only removes it from Elovaire's scan list; your audio files stay on your device.",
+        ),
+        PrivacySafetySectionCopy(
+            title = "On-device data",
+            body = "Your playlists, favorites, settings, playback history, play counts, search history, and cached lyrics are stored on your device. Elovaire does not need an account, does not use ads, and does not sell personal data.",
+        ),
+        PrivacySafetySectionCopy(
+            title = "Online lyrics",
+            body = "When online lyrics lookup is enabled, Elovaire may send song title, artist, album, and duration to lyrics providers to find matching lyrics. When it is off, embedded, sidecar, and cached local lyrics still work without remote lyrics requests.",
+        ),
+        PrivacySafetySectionCopy(
+            title = "Updates",
+            body = "In this build, update checks contact GitHub to compare app versions. An APK is downloaded only if you choose to update, and installer permission is requested only when you choose to install.",
+        ),
     ),
 )
 

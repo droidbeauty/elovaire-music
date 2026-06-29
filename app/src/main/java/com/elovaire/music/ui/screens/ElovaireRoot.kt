@@ -2540,7 +2540,7 @@ private fun AlbumSortControl(
                 shape = RoundedCornerShape(ElovaireRadii.card),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                Column {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     AlbumSortMode.entries.forEachIndexed { index, mode ->
                         Row(
                             modifier = Modifier
@@ -3003,7 +3003,7 @@ private fun SongSortControl(
                 shape = RoundedCornerShape(ElovaireRadii.card),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                Column {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     SongSortMode.entries.forEachIndexed { index, mode ->
                         Row(
                             modifier = Modifier
@@ -4059,7 +4059,7 @@ private fun SearchSongsResultsHeader(
                 shape = RoundedCornerShape(ElovaireRadii.card),
                 color = MaterialTheme.colorScheme.surface,
             ) {
-                Column {
+                Column(modifier = Modifier.padding(vertical = 8.dp)) {
                     SearchSongSortMode.entries.forEachIndexed { index, mode ->
                         Box(
                             modifier = Modifier
