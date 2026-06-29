@@ -21,7 +21,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
 import kotlin.math.roundToInt
 
@@ -294,14 +293,16 @@ object ElovaireMotion {
 
     fun verticalRevealEnter(): EnterTransition = fadeIn(
         animationSpec = scaledTween(durationMillis = FastBase, easing = FadeIn),
-    ) + androidx.compose.animation.expandVertically(
+    ) + slideInVertically(
         animationSpec = scaledTween(durationMillis = StandardBase, easing = GentleDecelerate),
+        initialOffsetY = { -it / 10 },
     )
 
     fun verticalRevealExit(): ExitTransition = fadeOut(
         animationSpec = scaledTween(durationMillis = QuickBase, easing = FadeOut),
-    ) + androidx.compose.animation.shrinkVertically(
+    ) + slideOutVertically(
         animationSpec = scaledTween(durationMillis = ComponentBase, easing = GentleAccelerate),
+        targetOffsetY = { -it / 12 },
     )
 
     fun contextMenuEnter(
@@ -349,10 +350,6 @@ object ElovaireMotion {
         slideInVertically(
             animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = GentleDecelerate),
             initialOffsetY = initialOffsetY,
-        ) +
-        androidx.compose.animation.expandVertically(
-            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = GentleDecelerate),
-            expandFrom = Alignment.Bottom,
         )
 
     fun bottomSheetExit(
@@ -361,10 +358,6 @@ object ElovaireMotion {
         slideOutVertically(
             animationSpec = scaledTween(durationMillis = FastBase, easing = GentleAccelerate),
             targetOffsetY = targetOffsetY,
-        ) +
-        androidx.compose.animation.shrinkVertically(
-            animationSpec = scaledTween(durationMillis = FastBase, easing = GentleAccelerate),
-            shrinkTowards = Alignment.Bottom,
         )
 
     fun bannerEnter(

@@ -6,10 +6,8 @@ import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
@@ -18,7 +16,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
 
 @Stable
@@ -78,13 +75,6 @@ class MotionTransitions internal constructor(
                 easing = MotionEasing.RefinedDecelerate,
             ),
             initialOffsetY = { it / 5 },
-        ) +
-        expandVertically(
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Emphasized,
-                easing = MotionEasing.RefinedDecelerate,
-            ),
-            expandFrom = Alignment.Bottom,
         )
 
     fun bottomSheetExit(): ExitTransition = overlayFadeExit(targetAlpha = 0.9f) +
@@ -94,13 +84,6 @@ class MotionTransitions internal constructor(
                 easing = MotionEasing.RefinedAccelerate,
             ),
             targetOffsetY = { it / 8 },
-        ) +
-        shrinkVertically(
-            animationSpec = specs.tween(
-                durationMillis = MotionDuration.Fast,
-                easing = MotionEasing.RefinedAccelerate,
-            ),
-            shrinkTowards = Alignment.Bottom,
         )
 
     fun bannerEnter(): EnterTransition = fadeSlideVerticalEnter(
@@ -136,11 +119,12 @@ class MotionTransitions internal constructor(
             durationMillis = MotionDuration.Fast,
             easing = MotionEasing.FadeIn,
         ),
-    ) + expandVertically(
+    ) + slideInVertically(
         animationSpec = specs.tween(
             durationMillis = MotionDuration.Standard,
             easing = MotionEasing.RefinedDecelerate,
         ),
+        initialOffsetY = { -it / 10 },
     )
 
     fun verticalRevealExit(): ExitTransition = fadeOut(
@@ -148,11 +132,12 @@ class MotionTransitions internal constructor(
             durationMillis = MotionDuration.Quick,
             easing = MotionEasing.FadeOut,
         ),
-    ) + shrinkVertically(
+    ) + slideOutVertically(
         animationSpec = specs.tween(
             durationMillis = MotionDuration.Component,
             easing = MotionEasing.RefinedAccelerate,
         ),
+        targetOffsetY = { -it / 12 },
     )
 
     fun contextMenuEnter(
@@ -287,12 +272,6 @@ class MotionTransitions internal constructor(
             durationMillis = MotionDuration.QueueMenuEnter,
             easing = MotionEasing.RefinedDecelerate,
         ),
-    ) + slideInHorizontally(
-        initialOffsetX = { it / 14 },
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.QueueMenuEnter,
-            easing = MotionEasing.RefinedDecelerate,
-        ),
     ) + slideInVertically(
         initialOffsetY = { it / 9 },
         animationSpec = specs.tween(
@@ -326,9 +305,6 @@ class MotionTransitions internal constructor(
     fun fullScreenForwardEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.FadeIn),
         initialAlpha = 0.01f,
-    ) + scaleIn(
-        animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.RefinedDecelerate),
-        initialScale = 0.988f,
     ) + slideInHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.RefinedDecelerate),
         initialOffsetX = { it / 64 },
@@ -336,9 +312,6 @@ class MotionTransitions internal constructor(
 
     fun fullScreenForwardExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.FadeOut),
-    ) + scaleOut(
-        animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.RefinedAccelerate),
-        targetScale = 0.996f,
     ) + slideOutHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.RefinedAccelerate),
         targetOffsetX = { -(it / 96) },
@@ -347,9 +320,6 @@ class MotionTransitions internal constructor(
     fun fullScreenBackEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.FadeIn),
         initialAlpha = 0.08f,
-    ) + scaleIn(
-        animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.RefinedDecelerate),
-        initialScale = 0.997f,
     ) + slideInHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.RefinedDecelerate),
         initialOffsetX = { -(it / 96) },
@@ -357,9 +327,6 @@ class MotionTransitions internal constructor(
 
     fun fullScreenBackExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.FadeOut),
-    ) + scaleOut(
-        animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.RefinedAccelerate),
-        targetScale = 0.992f,
     ) + slideOutHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.RefinedAccelerate),
         targetOffsetX = { it / 72 },
@@ -368,24 +335,15 @@ class MotionTransitions internal constructor(
     fun topLevelEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.TopLevelEnter, easing = MotionEasing.FadeIn),
         initialAlpha = 0.02f,
-    ) + scaleIn(
-        animationSpec = specs.tween(MotionDuration.TopLevelEnter, easing = MotionEasing.RefinedDecelerate),
-        initialScale = 0.988f,
     )
 
     fun topLevelExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.TopLevelExit, easing = MotionEasing.FadeOut),
-    ) + scaleOut(
-        animationSpec = specs.tween(MotionDuration.TopLevelExit, easing = MotionEasing.RefinedAccelerate),
-        targetScale = 0.998f,
     )
 
     fun detailForwardEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeIn),
         initialAlpha = 0.08f,
-    ) + scaleIn(
-        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.RefinedDecelerate),
-        initialScale = 0.99f,
     ) + slideInVertically(
         animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.RefinedDecelerate),
         initialOffsetY = { it / 96 },
@@ -393,24 +351,15 @@ class MotionTransitions internal constructor(
 
     fun detailForwardExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeOut),
-    ) + scaleOut(
-        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedAccelerate),
-        targetScale = 0.998f,
     )
 
     fun detailBackEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeIn),
         initialAlpha = 0.1f,
-    ) + scaleIn(
-        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.RefinedDecelerate),
-        initialScale = 0.998f,
     )
 
     fun detailBackExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeOut),
-    ) + scaleOut(
-        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedAccelerate),
-        targetScale = 0.99f,
     ) + slideOutVertically(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedAccelerate),
         targetOffsetY = { it / 96 },

@@ -18,6 +18,8 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
+private const val MaxAnimatedRevealIndex = 11
+
 @Stable
 class MotionRevealRegistry {
     private val revealedKeys = mutableStateMapOf<Any, Boolean>()
@@ -55,7 +57,7 @@ fun Modifier.elovaireListReveal(
     enabled: Boolean = true,
 ): Modifier = composed {
     val previouslyRevealed = remember(itemKey, registry) { registry.isRevealed(itemKey) }
-    if (!enabled || previouslyRevealed) return@composed this
+    if (!enabled || previouslyRevealed || index > MaxAnimatedRevealIndex) return@composed this
     val specs = rememberMotionSpecs()
     val density = LocalDensity.current
     var started by remember(itemKey) { mutableStateOf(false) }

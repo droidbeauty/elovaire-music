@@ -19,7 +19,6 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
@@ -332,9 +331,11 @@ private fun BoxScope.FastScrollbarTrack(
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .offset(y = with(density) { thumbOffsetPx.toDp() })
                     .width(5.dp)
                     .height(with(density) { thumbHeightPx.toDp() })
+                    .graphicsLayer {
+                        translationY = thumbOffsetPx
+                    }
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
                     .background(thumbColor),
             )

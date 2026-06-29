@@ -2053,7 +2053,11 @@ private fun AlbumCollectionContent(
                         }
                     }
 
-                    itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
+                    itemsIndexed(
+                        items = sortedAlbums,
+                        key = { _, album -> album.id },
+                        contentType = { _, _ -> "album_grid_card" },
+                    ) { index, album ->
                         AlbumGridCard(
                             album = album,
                             modifier = Modifier
@@ -2131,7 +2135,11 @@ private fun AlbumCollectionContent(
                         }
                     }
 
-                    itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
+                    itemsIndexed(
+                        items = sortedAlbums,
+                        key = { _, album -> album.id },
+                        contentType = { _, _ -> "album_grid_card" },
+                    ) { index, album ->
                         AlbumGridCard(
                             album = album,
                             modifier = Modifier
@@ -2208,7 +2216,11 @@ private fun AlbumCollectionContent(
                         }
                     }
 
-                    itemsIndexed(sortedAlbums, key = { _, album -> album.id }) { index, album ->
+                    itemsIndexed(
+                        items = sortedAlbums,
+                        key = { _, album -> album.id },
+                        contentType = { _, _ -> "album_compact_row" },
+                    ) { index, album ->
                         Box(
                             modifier = Modifier
                                 .animateItem(
@@ -3637,6 +3649,7 @@ private fun SearchScreen(
                             itemsIndexed(
                                 items = state.allMatchingSongs,
                                 key = { _, song -> song.id },
+                                contentType = { _, _ -> "search_song_row" },
                             ) { index, song ->
                                 Box(
                                     modifier = Modifier
