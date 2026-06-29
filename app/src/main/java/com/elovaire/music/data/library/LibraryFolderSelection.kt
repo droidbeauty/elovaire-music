@@ -16,8 +16,7 @@ data class LibraryFolderSelection(
 
 object LibraryFolderSelectionResolver {
     fun defaultMusicFolder(): LibraryFolderSelection {
-        @Suppress("DEPRECATION")
-        val musicDirectory = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+        val musicDirectory = MediaFilePathResolver.defaultMusicDirectory()
         return LibraryFolderSelection(
             uri = null,
             path = musicDirectory.absolutePath,
@@ -85,11 +84,7 @@ object LibraryFolderSelectionResolver {
         val volume = treeId.substringBefore(':', "")
         val relativePath = treeId.substringAfter(':', "").trim('/')
         val base = when {
-            volume.equals("primary", ignoreCase = true) -> {
-                @Suppress("DEPRECATION")
-                val storageDirectory = Environment.getExternalStorageDirectory()
-                storageDirectory
-            }
+            volume.equals("primary", ignoreCase = true) -> MediaFilePathResolver.primarySharedStorageRoot()
             volume.isNotBlank() -> context.getExternalFilesDirs(null)
                 .orEmpty()
                 .mapNotNull { file ->

@@ -7,7 +7,7 @@ import android.app.RecoverableSecurityException
 import android.net.Uri
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
-import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
+import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport

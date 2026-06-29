@@ -4,7 +4,6 @@ import android.net.Uri
 import android.provider.MediaStore
 
 internal object MediaStoreAudioQuery {
-    @Suppress("DEPRECATION")
     val projection: Array<String> = arrayOf(
         MediaStore.Audio.Media._ID,
         MediaStore.Audio.Media.ALBUM_ID,
@@ -22,7 +21,7 @@ internal object MediaStoreAudioQuery {
         MediaStore.MediaColumns.DATE_MODIFIED,
         MediaStore.MediaColumns.RELATIVE_PATH,
         MediaStore.MediaColumns.VOLUME_NAME,
-        MediaStore.MediaColumns.DATA,
+        MediaFilePathResolver.dataColumn,
     )
 
     val collectionUri: Uri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)

@@ -131,10 +131,7 @@ private object NotificationArtworkCache {
             override fun onConfigurationChanged(newConfig: Configuration) = Unit
 
             @Deprecated("Deprecated Android callback")
-            @Suppress("DEPRECATION")
-            override fun onLowMemory() {
-                trim(ComponentCallbacks2.TRIM_MEMORY_COMPLETE)
-            }
+            override fun onLowMemory() = Unit
 
             override fun onTrimMemory(level: Int) {
                 trim(level)
@@ -160,15 +157,17 @@ private object NotificationArtworkCache {
         keysToRemove.forEach(cache::remove)
     }
 
-    @Suppress("DEPRECATION")
     @Synchronized
     private fun trim(level: Int) {
         when {
-            level >= ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL ||
-                level >= ComponentCallbacks2.TRIM_MEMORY_COMPLETE -> cache.evictAll()
+            level == TRIM_MEMORY_RUNNING_CRITICAL_LEVEL ||
+                level >= TRIM_MEMORY_COMPLETE_LEVEL -> cache.evictAll()
             level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
         }
     }
+
+    private const val TRIM_MEMORY_RUNNING_CRITICAL_LEVEL = 15
+    private const val TRIM_MEMORY_COMPLETE_LEVEL = 80
 }
 
 internal fun removeNotificationArtworkForUris(uris: Collection<String>) {

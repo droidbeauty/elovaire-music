@@ -198,6 +198,7 @@ dependencies {
 }
 
 val checkHiddenApiUsage = tasks.register<HiddenApiUsageCheckTask>("checkHiddenApiUsage") {
+    projectDirectory.set(layout.projectDirectory)
     sourceFiles.from(
         fileTree("src/main/java") {
             include("**/*.kt", "**/*.java")
@@ -226,6 +227,16 @@ val checkHiddenApiUsage = tasks.register<HiddenApiUsageCheckTask>("checkHiddenAp
     )
 }
 
+val checkDeprecatedAndroidApiUsage = tasks.register<DeprecatedAndroidApiUsageCheckTask>("checkDeprecatedAndroidApiUsage") {
+    projectDirectory.set(layout.projectDirectory)
+    sourceFiles.from(
+        fileTree("src/main/java") {
+            include("**/*.kt", "**/*.java")
+        },
+    )
+}
+
 tasks.named("check") {
     dependsOn(checkHiddenApiUsage)
+    dependsOn(checkDeprecatedAndroidApiUsage)
 }

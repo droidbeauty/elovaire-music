@@ -5,7 +5,6 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
-import android.os.Environment
 import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
@@ -242,8 +241,7 @@ class MediaStoreScanner(
     }
 
     fun musicDirectory(): File {
-        @Suppress("DEPRECATION")
-        return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
+        return MediaFilePathResolver.defaultMusicDirectory()
     }
 
     fun refreshMediaIndex() {

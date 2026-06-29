@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import android.net.Uri
 import android.provider.MediaStore
-import elovaire.music.droidbeauty.app.core.resolveMediaStoreFilePath
 import java.util.Locale
 
 internal data class MediaStoreAudioRow(
@@ -51,8 +50,7 @@ internal class MediaStoreAudioRowMapper(
     private val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
     private val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
 
-    @Suppress("DEPRECATION")
-    private val dataIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATA)
+    private val dataIndex = cursor.getColumnIndex(MediaFilePathResolver.dataColumn)
 
     fun row(cursor: Cursor): MediaStoreAudioRow {
         val id = cursor.getLong(idIndex)
@@ -80,7 +78,7 @@ internal class MediaStoreAudioRowMapper(
                 ?.takeIf { it > 0 },
             relativePath = relativePath,
             volumeName = volumeName,
-            filePath = resolveMediaStoreFilePath(
+            filePath = MediaFilePathResolver.resolveMediaStoreFilePath(
                 context = context,
                 rawDataPath = dataIndex.takeIf { it >= 0 }?.let(cursor::getString),
                 relativePath = relativePath,

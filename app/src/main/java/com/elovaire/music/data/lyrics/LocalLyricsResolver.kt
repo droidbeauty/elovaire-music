@@ -2,7 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.ContentResolver
 import android.content.Context
-import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
+import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.BufferedInputStream
 import java.io.File

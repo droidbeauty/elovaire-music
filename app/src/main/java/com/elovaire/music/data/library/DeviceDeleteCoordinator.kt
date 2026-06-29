@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.net.Uri
-import elovaire.music.droidbeauty.app.core.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
