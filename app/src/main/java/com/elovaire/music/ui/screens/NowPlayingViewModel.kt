@@ -124,11 +124,13 @@ internal class NowPlayingViewModel(
         lyricsVisible,
         playbackManager.nowPlayingState,
         manualLyricsOverride,
-    ) { visible, nowPlaying, manualOverride ->
+        preferenceStore.onlineLyricsLookupEnabled,
+    ) { visible, nowPlaying, manualOverride, onlineLyricsLookupEnabled ->
         val song = nowPlaying.currentSong
         LyricsRequest(
             visible = visible,
             song = song,
+            onlineLyricsLookupEnabled = onlineLyricsLookupEnabled,
             identityKey = song?.let { "${it.id}:${it.uri}:${it.title}:${it.artist}:${it.durationMs / 1_000L}" },
             manualUiState = manualOverride?.takeIf { it.songId == song?.id }?.uiState,
         )
@@ -136,6 +138,7 @@ internal class NowPlayingViewModel(
         .distinctUntilChanged { previous, current ->
             previous.visible == current.visible &&
                 previous.identityKey == current.identityKey &&
+                previous.onlineLyricsLookupEnabled == current.onlineLyricsLookupEnabled &&
                 previous.manualUiState == current.manualUiState
         }
         .flatMapLatest { request ->
@@ -164,6 +167,12 @@ internal class NowPlayingViewModel(
                     val localState = local.toUiState()
                     emit(localState)
                     logLyrics("local song=${request.song.id} state=${localState::class.simpleName}")
+                    return@flow
+                }
+
+                if (!request.onlineLyricsLookupEnabled) {
+                    logLyrics("online disabled song=${request.song.id}")
+                    emit(LyricsUiState.Empty)
                     return@flow
                 }
 
@@ -381,6 +390,7 @@ internal class NowPlayingViewModel(
     private data class LyricsRequest(
         val visible: Boolean,
         val song: Song?,
+        val onlineLyricsLookupEnabled: Boolean,
         val identityKey: String?,
         val manualUiState: LyricsUiState?,
     )

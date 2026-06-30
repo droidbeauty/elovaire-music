@@ -47,7 +47,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
-import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
@@ -226,6 +226,7 @@ internal fun PlaylistGridTile(
     val screenSizePx = screenContainerSizePx()
     val screenWidthPx = screenSizePx.width.toFloat()
     val screenHeightPx = screenSizePx.height.toFloat()
+    val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
 
     Column(
@@ -261,7 +262,7 @@ internal fun PlaylistGridTile(
             overflow = TextOverflow.Ellipsis,
         )
         Text(
-            text = formatCountLabel(playlist.songIds.size, "song"),
+            text = localizedCountLabel(playlist.songIds.size, "song", language),
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

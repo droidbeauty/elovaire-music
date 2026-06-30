@@ -44,7 +44,7 @@ It gives your albums, artists and favorite songs an organized place. Intuitive U
 
 Browse by songs, albums, artists, genres and playlists. Instantly search even through large collection of music, open lyrics when you feel like a superstar, and shape playback with built-in audio controls
 
-#### Efficient architecture supports all features across devices running Android 10 through 17
+#### Efficient architecture supports all features across devices running Android 11 through 17
 
 ## Highlights
 

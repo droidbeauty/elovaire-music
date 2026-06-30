@@ -8,7 +8,6 @@ internal fun rankLrcLibMatches(
     responses: List<LrcLibResponse>,
 ): List<RankedLyricsCandidate> {
     val songDurationSec = song.durationMs / 1000.0
-    if (songDurationSec <= 0.0) return emptyList()
 
     return responses
         .distinctBy { it.id }
@@ -28,23 +27,25 @@ internal fun scoreLrcLibMatch(
     response: LrcLibResponse,
     songDurationSec: Double,
 ): Int? {
-    if (!response.hasLyrics() || response.duration <= 0.0 || response.instrumental) return null
+    if (!response.hasLyrics() || response.instrumental) return null
     if (!variantCompatible(song.title, response.name)) return null
 
     val hasSynced = !response.syncedLyrics.isNullOrBlank()
-    val durationTolerance = if (hasSynced) {
-        (songDurationSec * 0.04).coerceIn(6.0, 15.0)
-    } else {
-        (songDurationSec * 0.06).coerceIn(8.0, 20.0)
-    }
-
-    val durationDiff = abs(response.duration - songDurationSec)
-    if (durationDiff > durationTolerance) return null
-
     val titleScore = titleScore(song.title, response.name) ?: return null
     val artistScore = artistScore(song.artist, response.artistName) ?: return null
     val albumScore = albumScore(song.album, response.albumName)
-    val durationScore = ((durationTolerance - durationDiff) / durationTolerance * 14.0).toInt().coerceAtLeast(0)
+    val durationScore = if (songDurationSec > 0.0 && response.duration > 0.0) {
+        val durationTolerance = if (hasSynced) {
+            (songDurationSec * 0.04).coerceIn(6.0, 15.0)
+        } else {
+            (songDurationSec * 0.06).coerceIn(8.0, 20.0)
+        }
+        val durationDiff = abs(response.duration - songDurationSec)
+        if (durationDiff > durationTolerance) return null
+        ((durationTolerance - durationDiff) / durationTolerance * 14.0).toInt().coerceAtLeast(0)
+    } else {
+        0
+    }
     val syncedBonus = if (hasSynced) 12 else 0
 
     return titleScore + artistScore + albumScore + durationScore + syncedBonus

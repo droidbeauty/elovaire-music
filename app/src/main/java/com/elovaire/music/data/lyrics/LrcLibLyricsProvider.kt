@@ -195,8 +195,8 @@ internal class LrcLibLyricsProvider(
 
     private companion object {
         const val TAG = "LrcLibLyrics"
-        const val FULL_LOOKUP_TIMEOUT_MS = 4_000L
-        const val FAST_LOOKUP_TIMEOUT_MS = 1_100L
+        const val FULL_LOOKUP_TIMEOUT_MS = 5_500L
+        const val FAST_LOOKUP_TIMEOUT_MS = 1_500L
     }
 }
 
@@ -260,8 +260,9 @@ private class DefaultLrcLibApi : LrcLibApi {
             try {
                 val connection = (URL(url).openConnection() as? HttpURLConnection)
                     ?: return null
-                return connection.useRequest()
+                return connection.useRequest(baseUrl)
             } catch (throwable: Throwable) {
+                if (throwable is CancellationException) throw throwable
                 if (!shouldRetry(throwable) || attempt == NETWORK_RETRY_ATTEMPTS - 1) {
                     if (BuildConfig.DEBUG) {
                         Log.d(TAG, "lrclib request failed", throwable)
@@ -309,7 +310,7 @@ private class DefaultLrcLibApi : LrcLibApi {
         }
     }
 
-    private fun HttpURLConnection.useRequest(): String? {
+    private fun HttpURLConnection.useRequest(endpoint: String): String? {
         return try {
             requestMethod = "GET"
             connectTimeout = CONNECT_TIMEOUT_MS
@@ -320,6 +321,9 @@ private class DefaultLrcLibApi : LrcLibApi {
             )
             setRequestProperty("Accept", "application/json")
             val responseCode = responseCode
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "lrclib ${endpoint.substringAfterLast('/')} status=$responseCode")
+            }
             when {
                 responseCode == 404 -> null
                 responseCode !in 200..299 -> throw LrcLibHttpException(responseCode)
@@ -402,8 +406,8 @@ private class DefaultLrcLibApi : LrcLibApi {
     private companion object {
         const val TAG = "LrcLibApi"
         const val BASE_URL = "https://lrclib.net/api"
-        const val CONNECT_TIMEOUT_MS = 650
-        const val READ_TIMEOUT_MS = 900
+        const val CONNECT_TIMEOUT_MS = 1_500
+        const val READ_TIMEOUT_MS = 2_000
         const val LRCLIB_MIN_DELAY_MS = 100L
         const val LRCLIB_MAX_CALLS_PER_MINUTE = 30
         const val NETWORK_RETRY_ATTEMPTS = 2

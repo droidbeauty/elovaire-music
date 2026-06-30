@@ -99,6 +99,9 @@ internal class LyricsOvhProvider : LyricsProvider {
             )
             connection.setRequestProperty("Accept", "application/json")
             val code = connection.responseCode
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "lyrics.ovh status=$code")
+            }
             if (code !in 200..299) return@runCatching null
             connection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
         }.getOrElse { throwable ->
@@ -114,8 +117,8 @@ internal class LyricsOvhProvider : LyricsProvider {
     private companion object {
         const val TAG = "LyricsOvhProvider"
         const val BASE_URL = "https://api.lyrics.ovh/v1"
-        const val CONNECT_TIMEOUT_MS = 450
-        const val READ_TIMEOUT_MS = 700
+        const val CONNECT_TIMEOUT_MS = 1_500
+        const val READ_TIMEOUT_MS = 2_000
         const val MAX_QUERY_VARIANTS = 2
     }
 }

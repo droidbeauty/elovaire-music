@@ -194,12 +194,17 @@ internal class LyricsRepository(
             )
         }
 
-        if (!isNetworkAvailable()) {
+        val networkState = currentNetworkState()
+        if (!networkState.hasInternet) {
+            logDebug("remote skipped song=${song.id} network=${networkState.reason}")
             return@coroutineScope LyricsLookupOutcome(
                 result = LyricsResult.NotFound,
                 cacheTtlMs = CACHE_TTL_OFFLINE_MS,
                 state = LyricsLookupState.Error,
             )
+        }
+        if (!networkState.validated) {
+            logDebug("remote continuing on unvalidated network song=${song.id} network=${networkState.reason}")
         }
 
         val remoteOutcome = withContext(ioDispatcher) {
@@ -292,12 +297,24 @@ internal class LyricsRepository(
 
     private fun String.identityPart(): String = substringBeforeLast(REQUEST_KEY_SEPARATOR)
 
-    private fun isNetworkAvailable(): Boolean {
-        val connectivityManager = applicationContext.getSystemService(ConnectivityManager::class.java) ?: return false
-        val network = connectivityManager.activeNetwork ?: return false
-        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
-        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
-            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    private fun currentNetworkState(): NetworkLookupState {
+        val connectivityManager = applicationContext.getSystemService(ConnectivityManager::class.java)
+            ?: return NetworkLookupState(hasInternet = false, validated = false, reason = "no_connectivity_manager")
+        val network = connectivityManager.activeNetwork
+            ?: return NetworkLookupState(hasInternet = false, validated = false, reason = "no_active_network")
+        val capabilities = connectivityManager.getNetworkCapabilities(network)
+            ?: return NetworkLookupState(hasInternet = false, validated = false, reason = "no_capabilities")
+        val hasInternet = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+        val validated = capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+        return NetworkLookupState(
+            hasInternet = hasInternet,
+            validated = validated,
+            reason = when {
+                !hasInternet -> "missing_internet"
+                validated -> "validated"
+                else -> "unvalidated"
+            },
+        )
     }
 
     private fun isNetworkSuitableForPrefetch(): Boolean {
@@ -338,4 +355,10 @@ internal class LyricsRepository(
         data object NotFound : RemoteLookupOutcome
         data object Timeout : RemoteLookupOutcome
     }
+
+    private data class NetworkLookupState(
+        val hasInternet: Boolean,
+        val validated: Boolean,
+        val reason: String,
+    )
 }
