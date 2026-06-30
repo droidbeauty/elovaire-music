@@ -1773,7 +1773,10 @@ internal data class PrivacySafetySectionCopy(
     val body: String,
 )
 
-internal fun privacySafetyCopy(language: AppLanguage): PrivacySafetyCopy {
+internal fun privacySafetyCopy(
+    language: AppLanguage,
+    includeUpdates: Boolean = true,
+): PrivacySafetyCopy {
     fun copy(
         title: String,
         subtitle: String,
@@ -1792,12 +1795,14 @@ internal fun privacySafetyCopy(language: AppLanguage): PrivacySafetyCopy {
         subtitle = subtitle,
         onlineLyricsTitle = onlineLyricsTitle,
         onlineLyricsSubtitle = onlineLyricsSubtitle,
-        sections = listOf(
-            PrivacySafetySectionCopy(localTitle, localBody),
-            PrivacySafetySectionCopy(deviceTitle, deviceBody),
-            PrivacySafetySectionCopy(lyricsTitle, lyricsBody),
-            PrivacySafetySectionCopy(updatesTitle, updatesBody),
-        ),
+        sections = buildList {
+            add(PrivacySafetySectionCopy(localTitle, localBody))
+            add(PrivacySafetySectionCopy(deviceTitle, deviceBody))
+            add(PrivacySafetySectionCopy(lyricsTitle, lyricsBody))
+            if (includeUpdates) {
+                add(PrivacySafetySectionCopy(updatesTitle, updatesBody))
+            }
+        },
     )
     return when (language) {
         AppLanguage.Polish -> copy("Prywatność i bezpieczeństwo", "Jak Elovaire obsługuje muzykę, teksty i aktualizacje", "Wyszukiwanie tekstów online", "Szukaj u dostawców online, gdy brakuje lokalnego tekstu", "Lokalna biblioteka", "Elovaire odczytuje wybrane foldery audio, aby zbudować bibliotekę muzyki i przyspieszyć przeglądanie. Usunięcie folderu usuwa go tylko z listy skanowania Elovaire; pliki zostają na urządzeniu.", "Dane na urządzeniu", "Playlisty, ulubione, ustawienia, historia odtwarzania, licznik odtworzeń, historia wyszukiwania i zapisane teksty są przechowywane na urządzeniu. Elovaire nie wymaga konta, nie używa reklam i nie sprzedaje danych osobowych.", "Teksty online", "Po włączeniu wyszukiwania online Elovaire może wysłać tytuł, wykonawcę, album i czas trwania utworu do dostawców tekstów. Gdy opcja jest wyłączona, osadzone, poboczne i zapisane lokalnie teksty nadal działają bez żądań zdalnych.", "Aktualizacje", "W tej wersji sprawdzanie aktualizacji kontaktuje się z GitHubem, aby porównać wersje aplikacji. APK jest pobierany tylko po wybraniu aktualizacji, a zgoda instalatora jest proszona dopiero przy instalacji.")

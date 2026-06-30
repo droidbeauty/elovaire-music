@@ -56,11 +56,9 @@ void Spectrum::Consume(const FFTFrame &frame)
 	for (int i = 0; i < NumBands(); i++) {
 		int first = FirstIndex(i);
 		int last = LastIndex(i);
-		double numerator = 0.0;
 		double denominator = 0.0;
 		for (int j = first; j < last; j++) {
 			double s = frame[j];
-			numerator += j * s;
 			denominator += s;
 		}
 		m_features[i] = denominator / (last - first);

@@ -383,7 +383,12 @@ internal fun PrivacySafetyScreen(
     bottomPadding: Dp,
 ) {
     val language = LocalAppLanguage.current
-    val copy = remember(language) { privacySafetyCopy(language) }
+    val copy = remember(language) {
+        privacySafetyCopy(
+            language = language,
+            includeUpdates = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
+        )
+    }
     val listState = rememberElovaireLazyListState("privacy_safety_screen")
     Box(
         modifier = Modifier

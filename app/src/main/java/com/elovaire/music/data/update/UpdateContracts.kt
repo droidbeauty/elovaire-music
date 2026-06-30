@@ -2,11 +2,11 @@ package elovaire.music.droidbeauty.app.data.update
 
 import kotlinx.coroutines.flow.StateFlow
 
-interface UpdateReader {
+internal interface UpdateReader {
     val uiState: StateFlow<AppUpdateUiState>
 }
 
-interface UpdateController : UpdateReader {
+internal interface UpdateController : UpdateReader {
     fun checkForUpdates(force: Boolean = false)
     fun dismissAvailableUpdate()
     fun startUpdate()

@@ -28,7 +28,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
-data class AppReleaseInfo(
+internal data class AppReleaseInfo(
     val versionName: String,
     val tagName: String,
     val downloadUrl: String,
@@ -37,7 +37,7 @@ data class AppReleaseInfo(
     val assetFileName: String,
 )
 
-data class AppUpdateUiState(
+internal data class AppUpdateUiState(
     val availableRelease: AppReleaseInfo? = null,
     val isChecking: Boolean = false,
     val isDownloading: Boolean = false,
@@ -48,11 +48,11 @@ data class AppUpdateUiState(
     val transientStatus: AppUpdateTransientStatus? = null,
 )
 
-enum class AppUpdateTransientStatus {
+internal enum class AppUpdateTransientStatus {
     UpToDate,
 }
 
-class AppUpdateManager internal constructor(
+internal class AppUpdateManager(
     private val context: Context,
     private val scope: CoroutineScope,
     private val preferenceStore: PreferenceStore,

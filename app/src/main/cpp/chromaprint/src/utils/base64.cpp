@@ -11,6 +11,7 @@ void Base64Encode(const std::string &src, std::string &dest)
 	dest.resize(GetBase64EncodedSize(src.size()));
 	const auto end = Base64Encode(src.cbegin(), src.cend(), dest.begin());
 	assert(dest.end() == end);
+	(void)end;
 }
 
 std::string Base64Encode(const std::string &src)
@@ -25,6 +26,7 @@ void Base64Decode(const std::string &src, std::string &dest)
 	dest.resize(GetBase64DecodedSize(src.size()));
 	const auto end = Base64Decode(src.cbegin(), src.cend(), dest.begin());
 	assert(dest.end() == end);
+	(void)end;
 }
 
 std::string Base64Decode(const std::string &src)

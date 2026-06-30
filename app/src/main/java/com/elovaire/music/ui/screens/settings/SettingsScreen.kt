@@ -73,6 +73,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -127,7 +128,12 @@ internal fun SettingsScreen(
     val listState = rememberElovaireLazyListState("settings_screen")
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
-    val privacyCopy = remember(appLanguage) { privacySafetyCopy(appLanguage) }
+    val privacyCopy = remember(appLanguage) {
+        privacySafetyCopy(
+            language = appLanguage,
+            includeUpdates = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
+        )
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()

@@ -12,8 +12,6 @@
 namespace chromaprint {
 
 static const int kMaxNormalValue = 7;
-static const int kNormalBits = 3;
-static const int kExceptionBits = 5;
 
 FingerprintDecompressor::FingerprintDecompressor()
 {

@@ -127,7 +127,7 @@ bool FingerprintMatcher::Match(const uint32_t fp1_data[], size_t fp1_size, const
 		const auto size = std::min(fp1_size - offset1, fp2_size - offset2);
 		std::vector<float> bit_counts(size);
 		for (size_t i = 0; i < size; i++) {
-			bit_counts[i] = HammingDistance(*it1++, *it2++) + rand() * (0.001f / RAND_MAX);
+			bit_counts[i] = HammingDistance(*it1++, *it2++) + rand() * (0.001f / static_cast<float>(RAND_MAX));
 		}
 
 		std::vector<float> orig_bit_counts = bit_counts;
