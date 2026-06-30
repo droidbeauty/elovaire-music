@@ -13,6 +13,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.Spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -155,12 +156,6 @@ class MotionTransitions internal constructor(
             durationMillis = MotionDuration.Standard,
             easing = MotionEasing.RefinedDecelerate,
         ),
-    ) + slideInVertically(
-        initialOffsetY = { -it / 6 },
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Standard,
-            easing = MotionEasing.RefinedDecelerate,
-        ),
     )
 
     fun contextMenuExit(
@@ -272,12 +267,6 @@ class MotionTransitions internal constructor(
             durationMillis = MotionDuration.QueueMenuEnter,
             easing = MotionEasing.RefinedDecelerate,
         ),
-    ) + slideInVertically(
-        initialOffsetY = { it / 9 },
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.QueueMenuEnter,
-            easing = MotionEasing.RefinedDecelerate,
-        ),
     )
 
     fun queueMenuExit(
@@ -290,12 +279,6 @@ class MotionTransitions internal constructor(
     ) + scaleOut(
         targetScale = 0.98f,
         transformOrigin = origin,
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.QueueMenuExit,
-            easing = MotionEasing.RefinedAccelerate,
-        ),
-    ) + slideOutVertically(
-        targetOffsetY = { it / 12 },
         animationSpec = specs.tween(
             durationMillis = MotionDuration.QueueMenuExit,
             easing = MotionEasing.RefinedAccelerate,
@@ -363,6 +346,48 @@ class MotionTransitions internal constructor(
     ) + slideOutVertically(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedAccelerate),
         targetOffsetY = { it / 96 },
+    )
+
+    fun albumDetailForwardEnter(
+        transformOrigin: TransformOrigin = TransformOrigin.Center,
+    ): EnterTransition = fadeIn(
+        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeIn),
+        initialAlpha = 0.06f,
+    ) + scaleIn(
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = 720f,
+        ),
+        initialScale = 0.9f,
+        transformOrigin = transformOrigin,
+    )
+
+    fun albumDetailForwardExit(): ExitTransition = fadeOut(
+        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeOut),
+    ) + scaleOut(
+        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedAccelerate),
+        targetScale = 0.994f,
+    )
+
+    fun albumDetailBackEnter(): EnterTransition = fadeIn(
+        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeIn),
+        initialAlpha = 0.08f,
+    ) + scaleIn(
+        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedDecelerate),
+        initialScale = 0.994f,
+    )
+
+    fun albumDetailBackExit(
+        transformOrigin: TransformOrigin = TransformOrigin.Center,
+    ): ExitTransition = fadeOut(
+        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeOut),
+    ) + scaleOut(
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = 720f,
+        ),
+        targetScale = 0.9f,
+        transformOrigin = transformOrigin,
     )
 }
 

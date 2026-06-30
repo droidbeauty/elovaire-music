@@ -289,7 +289,6 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireAlbumMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime

@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.motion
 
-import androidx.compose.animation.core.animateDp
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.runtime.Composable
@@ -81,14 +80,15 @@ fun Modifier.elovaireListReveal(
         },
         label = "elovaireListRevealAlpha",
     ) { visible -> if (visible) 1f else 0f }
-    val offset by transition.animateDp(
+    val hiddenOffsetPx = with(density) { -8.dp.toPx() }
+    val offsetY by transition.animateFloat(
         transitionSpec = {
             specs.listReveal(delayMillis = delay)
         },
         label = "elovaireListRevealOffsetY",
-    ) { visible -> if (visible) 0.dp else (-8).dp }
+    ) { visible -> if (visible) 0f else hiddenOffsetPx }
     graphicsLayer {
         this.alpha = alpha
-        translationY = with(density) { offset.toPx() }
+        translationY = offsetY
     }
 }

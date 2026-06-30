@@ -10,6 +10,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
@@ -79,10 +80,13 @@ class LibraryRepository internal constructor(
     )
     private val _scanState = MutableStateFlow(LibraryScanState())
     private var scanJob: Job? = null
+    private var bootstrapJob: Job? = null
     private var refreshDebounceJob: Job? = null
     private val refreshRequests = LibraryRefreshRequests()
     private var backgroundLibraryDirty = false
     private val deletionMarkers = LibraryDeletionMarkers()
+    @Volatile
+    private var permissionChangeVersion = 0L
     private var didBootstrapLibrary = false
     override val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     override val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
@@ -126,6 +130,7 @@ class LibraryRepository internal constructor(
     }
 
     fun onPermissionChanged(granted: Boolean) {
+        permissionChangeVersion += 1L
         _scanState.update { current ->
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
         }
@@ -146,58 +151,72 @@ class LibraryRepository internal constructor(
     private fun bootstrapLibrary() {
         if (didBootstrapLibrary) return
         didBootstrapLibrary = true
-        scope.launch {
+        val bootstrapPermissionVersion = permissionChangeVersion
+        bootstrapJob = scope.launch {
+            try {
                 val cachedSnapshot = withContext(Dispatchers.IO) { snapshotStore.load() }
-            val cacheMatchesCurrentFilter = cachedSnapshot?.signature?.filterFingerprint == scanner.currentFilterFingerprint()
-            if (cachedSnapshot != null && cacheMatchesCurrentFilter) {
-                scanner.primeMetadataCache(cachedSnapshot.snapshot.songs)
-                val cachedSnapshotNeedsMetadata = cachedSnapshot.snapshot.songs.any { song ->
-                    !song.metadataResolved ||
-                        song.releaseYear == null ||
-                        song.qualityNeedsEnrichment() ||
-                        song.genre.isBlank() ||
-                        song.genre == "Unknown Genre"
-                }
-                val cachedContent = LibraryContentState(
-                    songs = cachedSnapshot.snapshot.songs,
-                    albums = cachedSnapshot.snapshot.albums,
-                    removingSongIds = deletionMarkers.pendingSongIds.value,
-                    removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
-                )
-                if (_contentState.value != cachedContent) {
-                    _contentState.value = cachedContent
-                }
-                val cachedScanState = LibraryScanState(
-                    permissionGranted = true,
-                    isLoading = false,
-                    scanProgress = 1f,
-                )
-                if (_scanState.value != cachedScanState) {
-                    _scanState.value = cachedScanState
-                }
-                val currentSyncState = withContext(Dispatchers.IO) { scanner.currentSyncState() }
-                val syncDecision = decideLibrarySync(cachedSnapshot.syncState, currentSyncState)
-                if (syncDecision != LibrarySyncDecision.ReuseCached) {
+                if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
+                val cacheMatchesCurrentFilter = cachedSnapshot?.signature?.filterFingerprint == scanner.currentFilterFingerprint()
+                if (cachedSnapshot != null && cacheMatchesCurrentFilter) {
+                    scanner.primeMetadataCache(cachedSnapshot.snapshot.songs)
+                    val cachedSnapshotNeedsMetadata = cachedSnapshot.snapshot.songs.any { song ->
+                        !song.metadataResolved ||
+                            song.releaseYear == null ||
+                            song.qualityNeedsEnrichment() ||
+                            song.genre.isBlank() ||
+                            song.genre == "Unknown Genre"
+                    }
+                    val cachedContent = LibraryContentState(
+                        songs = cachedSnapshot.snapshot.songs,
+                        albums = cachedSnapshot.snapshot.albums,
+                        removingSongIds = deletionMarkers.pendingSongIds.value,
+                        removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
+                    )
+                    if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
+                    if (_contentState.value != cachedContent) {
+                        _contentState.value = cachedContent
+                    }
+                    val cachedScanState = LibraryScanState(
+                        permissionGranted = true,
+                        isLoading = false,
+                        scanProgress = 1f,
+                    )
+                    if (_scanState.value != cachedScanState) {
+                        _scanState.value = cachedScanState
+                    }
+                    val currentSyncState = withContext(Dispatchers.IO) { scanner.currentSyncState() }
+                    if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
+                    val syncDecision = decideLibrarySync(cachedSnapshot.syncState, currentSyncState)
+                    if (syncDecision != LibrarySyncDecision.ReuseCached) {
+                        refresh(
+                            forceMediaIndex = false,
+                            enrichMetadata = false,
+                            showLoadingIndicator = false,
+                        )
+                    } else if (cachedSnapshotNeedsMetadata) {
+                        refresh(
+                            forceMediaIndex = false,
+                            enrichMetadata = true,
+                            showLoadingIndicator = false,
+                        )
+                    }
+                } else {
                     refresh(
                         forceMediaIndex = false,
                         enrichMetadata = false,
-                        showLoadingIndicator = false,
-                    )
-                } else if (cachedSnapshotNeedsMetadata) {
-                    refresh(
-                        forceMediaIndex = false,
-                        enrichMetadata = true,
-                        showLoadingIndicator = false,
+                        showLoadingIndicator = true,
                     )
                 }
-            } else {
-                refresh(
-                    forceMediaIndex = false,
-                    enrichMetadata = false,
-                    showLoadingIndicator = true,
-                )
+            } finally {
+                if (bootstrapJob === currentCoroutineContext()[Job]) {
+                    bootstrapJob = null
+                }
             }
         }
+    }
+
+    private fun hasCurrentPermission(permissionVersion: Long): Boolean {
+        return permissionChangeVersion == permissionVersion && _scanState.value.permissionGranted
     }
 
     fun refresh(
@@ -539,6 +558,8 @@ class LibraryRepository internal constructor(
     }
 
     private fun releaseObserversAndJobs(clearPermissionState: Boolean) {
+        bootstrapJob?.cancel()
+        bootstrapJob = null
         scanJob?.cancel()
         scanJob = null
         refreshDebounceJob?.cancel()
