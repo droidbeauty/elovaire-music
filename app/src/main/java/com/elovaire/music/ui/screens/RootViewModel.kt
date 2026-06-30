@@ -27,6 +27,7 @@ internal data class RootPreferenceState(
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
     val onlineLyricsLookupEnabled: Boolean,
+    val volumeNormalizationEnabled: Boolean,
 )
 
 internal class RootViewModel(
@@ -70,8 +71,9 @@ internal class RootViewModel(
             dependencies.rootSettingsReader.albumCollectionSortMode,
             dependencies.rootSettingsReader.songCollectionSortMode,
             dependencies.rootSettingsReader.onlineLyricsLookupEnabled,
-        ) { albumSort, songSort, onlineLyrics ->
-            PartialRootPreferenceStateC(albumSort, songSort, onlineLyrics)
+            dependencies.rootSettingsReader.volumeNormalizationEnabled,
+        ) { albumSort, songSort, onlineLyrics, volumeNormalization ->
+            PartialRootPreferenceStateC(albumSort, songSort, onlineLyrics, volumeNormalization)
         },
     ) { a, b, sorts ->
         RootPreferenceState(
@@ -88,6 +90,7 @@ internal class RootViewModel(
             albumCollectionSortModeName = sorts.albumCollectionSortModeName,
             songCollectionSortModeName = sorts.songCollectionSortModeName,
             onlineLyricsLookupEnabled = sorts.onlineLyricsLookupEnabled,
+            volumeNormalizationEnabled = sorts.volumeNormalizationEnabled,
         )
     }
 
@@ -113,6 +116,7 @@ internal class RootViewModel(
             albumCollectionSortModeName = prefs.albumCollectionSortModeName,
             songCollectionSortModeName = prefs.songCollectionSortModeName,
             onlineLyricsLookupEnabled = prefs.onlineLyricsLookupEnabled,
+            volumeNormalizationEnabled = prefs.volumeNormalizationEnabled,
             appUpdateState = update,
         )
     }.stateIn(
@@ -143,6 +147,7 @@ internal class RootViewModel(
             albumCollectionSortModeName = dependencies.rootSettingsReader.albumCollectionSortMode.value,
             songCollectionSortModeName = dependencies.rootSettingsReader.songCollectionSortMode.value,
             onlineLyricsLookupEnabled = dependencies.rootSettingsReader.onlineLyricsLookupEnabled.value,
+            volumeNormalizationEnabled = dependencies.rootSettingsReader.volumeNormalizationEnabled.value,
             appUpdateState = dependencies.updateReader.uiState.value,
         ),
     )
@@ -168,4 +173,5 @@ private data class PartialRootPreferenceStateC(
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
     val onlineLyricsLookupEnabled: Boolean,
+    val volumeNormalizationEnabled: Boolean,
 )

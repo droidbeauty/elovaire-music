@@ -33,6 +33,7 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -218,10 +219,17 @@ class PlaybackManager(
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var gaplessPlaybackEnabled = true
+    private var volumeNormalizationEnabled = false
     private var volumeObserverRegistered = false
     private var audioDeviceCallbackRegistered = false
     private var noisyReceiverRegistered = false
     private var player = createPlayer(enableSignalProcessing = true)
+    private val sleepTimerController = PlaybackSleepTimerController(
+        scope = scope,
+        elapsedRealtimeMs = SystemClock::elapsedRealtime,
+        onTimerFired = ::stopAndClearQueue,
+        setPauseAtEndOfMediaItems = { enabled -> player.setPauseAtEndOfMediaItems(enabled) },
+    )
     private var commandGatewayPlayer: Player = PlaybackExternalCommandGateway(player, ::dispatchPlaybackCommand)
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
@@ -303,6 +311,8 @@ class PlaybackManager(
         ) {
             resetUnexpectedIdleRecoveryGuard()
             scheduleAudioPathReevaluation("media-item-transition", AUDIO_PATH_REEVALUATION_DELAY_MS)
+            sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
+            player.volume = targetPlayerOutputGain()
             scheduleStatePublish()
         }
 
@@ -311,11 +321,25 @@ class PlaybackManager(
             newPosition: Player.PositionInfo,
             reason: Int,
         ) {
+            sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
             scheduleStatePublish()
         }
 
+        override fun onPlayWhenReadyChanged(
+            playWhenReady: Boolean,
+            reason: Int,
+        ) {
+            if (!playWhenReady && sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
+                sleepTimerController.onEndOfSongReached()
+            } else {
+                scheduleStatePublish()
+            }
+        }
+
         override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState == Player.STATE_ENDED && player.repeatMode == Player.REPEAT_MODE_OFF) {
+            if (sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
+                sleepTimerController.onEndOfSongReached()
+            } else if (playbackState == Player.STATE_ENDED && player.repeatMode == Player.REPEAT_MODE_OFF) {
                 stopAndClearQueue()
             } else if (
                 playbackState == Player.STATE_IDLE &&
@@ -479,6 +503,7 @@ class PlaybackManager(
     val playbackFormatFailure: StateFlow<PlaybackFormatFailure?> = _playbackFormatFailure.asStateFlow()
     private val _manualPlaybackStartVersion = MutableStateFlow(0L)
     val manualPlaybackStartVersion: StateFlow<Long> = _manualPlaybackStartVersion.asStateFlow()
+    val sleepTimerState: StateFlow<PlaybackSleepTimerState> = sleepTimerController.state
     val playerInstance: Player
         get() = commandGatewayPlayer
     val mediaSessionToken
@@ -498,6 +523,7 @@ class PlaybackManager(
         detachPlayerObservers = ::detachPlayerObservers,
         onPlayerReplaced = { replacementPlayer ->
             player = replacementPlayer
+            replacementPlayer.setPauseAtEndOfMediaItems(sleepTimerState.value.option == SleepTimerOption.EndOfSong)
             commandGatewayPlayer = PlaybackExternalCommandGateway(replacementPlayer, ::dispatchPlaybackCommand)
             sessionOwner.setPlayer(commandGatewayPlayer)
             _playerInstanceVersion.value += 1L
@@ -819,8 +845,26 @@ class PlaybackManager(
         gaplessPlaybackEnabled = enabled
     }
 
+    fun setVolumeNormalizationEnabled(enabled: Boolean) {
+        if (volumeNormalizationEnabled == enabled) return
+        volumeNormalizationEnabled = enabled
+        player.volume = targetPlayerOutputGain()
+    }
+
+    fun setSleepTimer(option: SleepTimerOption) {
+        sleepTimerController.setTimer(
+            option = option,
+            currentSongId = currentSong()?.id,
+        )
+    }
+
+    fun clearSleepTimer() {
+        sleepTimerController.clear()
+    }
+
     fun release() {
         pauseFadeJob?.cancel()
+        sleepTimerController.release()
         progressDemandController.clear()
         playbackProgressTicker.release()
         externalInterruptionResumeJob?.cancel()
@@ -962,10 +1006,12 @@ class PlaybackManager(
             sourcePlaylistId = sourcePlaylistId,
             audioPathDelayMs = AUDIO_PATH_REEVALUATION_DELAY_MS,
         )
+        sleepTimerController.updateEndOfSongTarget(songs.getOrNull(startIndex)?.id)
     }
 
     private fun stopAndClearQueue() {
         cancelPauseFade(resetVolume = false)
+        sleepTimerController.clear()
         isStoppingQueue = true
         clearInterruptionResumeState()
         bitPerfectUsbManager.clearForStop()
@@ -1350,6 +1396,13 @@ class PlaybackManager(
         return _state.value.queue.getOrNull(index)
     }
 
+    private fun isPausedAtEndOfCurrentSong(): Boolean {
+        if (!player.getPauseAtEndOfMediaItems() || player.playWhenReady || player.isPlaying) return false
+        val duration = player.duration.takeIf { it > 0L } ?: return false
+        val position = player.currentPosition.coerceAtLeast(0L)
+        return duration - position <= END_OF_SONG_TIMER_TOLERANCE_MS
+    }
+
     private fun syncProgressUpdateLoop() {
         if (!shouldPollProgress()) {
             playbackProgressTicker.stop()
@@ -1557,7 +1610,12 @@ class PlaybackManager(
             return 1f
         }
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
-        return baseGain.coerceIn(0f, 1f)
+        val normalizationGain = if (volumeNormalizationEnabled) {
+            VolumeNormalizationPolicy.multiplierFor(currentSong()?.volumeNormalization)
+        } else {
+            1f
+        }
+        return (baseGain * normalizationGain).coerceIn(0f, 1f)
     }
 
     private fun lerp(
@@ -1732,6 +1790,7 @@ class PlaybackManager(
         const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
+        const val END_OF_SONG_TIMER_TOLERANCE_MS = 350L
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
         const val EXTERNAL_INTERRUPTION_FAST_WATCH_MS = 10_000L
         const val EXTERNAL_INTERRUPTION_MAX_WATCH_MS = 5 * 60_000L
@@ -1787,6 +1846,7 @@ internal fun Song.playbackMetadataSignature(): Int {
     result = 31 * result + uri.hashCode()
     result = 31 * result + (artUri?.hashCode() ?: 0)
     result = 31 * result + fileName.hashCode()
+    result = 31 * result + (volumeNormalization?.hashCode() ?: 0)
     return result
 }
 

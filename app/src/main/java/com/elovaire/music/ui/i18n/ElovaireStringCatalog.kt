@@ -83,6 +83,21 @@ internal fun queueTitle(language: AppLanguage): String = when (language) {
     AppLanguage.English -> "Queue"
 }
 
+internal fun sleepTimerTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.English -> "Sleep timer"
+    else -> "Sleep timer"
+}
+
+internal fun sleepTimerOffLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.English -> "Off"
+    else -> "Off"
+}
+
+internal fun sleepTimerEndOfSongLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.English -> "End of song"
+    else -> "End of song"
+}
+
 internal fun playLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Polish -> "Odtwórz"
     AppLanguage.Slovak -> "Prehrať"
@@ -1722,6 +1737,8 @@ internal data class SettingsLanguageCopy(
     val check: String,
     val changelog: String,
     val footerSubtitle: String,
+    val volumeNormalization: String = "Volume normalization",
+    val volumeNormalizationSubtitle: String = "Reduce loudness differences between songs when supported by file metadata.",
 )
 
 internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (language) {

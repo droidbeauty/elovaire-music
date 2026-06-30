@@ -13,6 +13,8 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
+import elovaire.music.droidbeauty.app.data.playback.PlaybackSleepTimerState
+import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,6 +56,7 @@ internal data class PlayerUiState(
     val volume: Float = 1f,
     val sourceLabel: String? = null,
     val gaplessPlaybackEnabled: Boolean = false,
+    val sleepTimer: PlaybackSleepTimerState = PlaybackSleepTimerState(),
 )
 
 internal data class MiniPlayerUiState(
@@ -76,24 +79,29 @@ internal class NowPlayingViewModel(
     private var pendingLyricsSave: PendingLyricsSave? = null
 
     val uiState: StateFlow<PlayerUiState> = combine(
-        playbackManager.nowPlayingState,
-        playbackManager.transportState,
-        playbackManager.queueState,
-        playbackManager.volumeState,
-        preferenceStore.gaplessPlaybackEnabled,
-    ) { nowPlaying, transport, queue, volume, gaplessPlaybackEnabled ->
-        PlayerUiState(
-            currentSong = nowPlaying.currentSong,
-            isPlaying = transport.isPlaying,
-            transportShowsPause = transport.transportShowsPause,
-            queue = queue.queue,
-            currentIndex = queue.currentIndex,
-            repeatMode = transport.repeatMode,
-            shuffleEnabled = transport.shuffleEnabled,
-            volume = volume.volume,
-            sourceLabel = nowPlaying.sourceLabel,
-            gaplessPlaybackEnabled = gaplessPlaybackEnabled,
-        )
+        combine(
+            playbackManager.nowPlayingState,
+            playbackManager.transportState,
+            playbackManager.queueState,
+            playbackManager.volumeState,
+            preferenceStore.gaplessPlaybackEnabled,
+        ) { nowPlaying, transport, queue, volume, gaplessPlaybackEnabled ->
+            PlayerUiState(
+                currentSong = nowPlaying.currentSong,
+                isPlaying = transport.isPlaying,
+                transportShowsPause = transport.transportShowsPause,
+                queue = queue.queue,
+                currentIndex = queue.currentIndex,
+                repeatMode = transport.repeatMode,
+                shuffleEnabled = transport.shuffleEnabled,
+                volume = volume.volume,
+                sourceLabel = nowPlaying.sourceLabel,
+                gaplessPlaybackEnabled = gaplessPlaybackEnabled,
+            )
+        },
+        playbackManager.sleepTimerState,
+    ) { uiState, sleepTimer ->
+        uiState.copy(sleepTimer = sleepTimer)
     }
         .distinctUntilChanged()
         .stateIn(
@@ -369,6 +377,10 @@ internal class NowPlayingViewModel(
 
     fun setVolume(volume: Float) {
         playbackManager.setVolume(volume)
+    }
+
+    fun setSleepTimer(option: SleepTimerOption) {
+        playbackManager.setSleepTimer(option)
     }
 
     fun playQueueIndex(index: Int) {

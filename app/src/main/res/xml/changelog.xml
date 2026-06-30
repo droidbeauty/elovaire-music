@@ -6,9 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.3.1">
-        <item>Performance optimization</item>
-        <item>Refined compatibility and stability of bit-perfect playback framework</item>
+    <release version="2.4">
+        <item>Added volume normalization in settings</item>
+        <item>Added playback timer feature</item>
+        <item>Refined cross compatibility</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

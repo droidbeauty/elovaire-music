@@ -91,6 +91,7 @@ internal fun NowPlayingRouteHost(
             onQueueItemRemoved = viewModel::removeQueueIndex,
             onOpenEqualizer = onOpenEqualizer,
             onToggleGaplessPlayback = viewModel::toggleGaplessPlayback,
+            onSleepTimerSelected = viewModel::setSleepTimer,
             onVolumeChanged = viewModel::setVolume,
             transitionSnapshot = transitionSnapshot,
             modifier = modifier,

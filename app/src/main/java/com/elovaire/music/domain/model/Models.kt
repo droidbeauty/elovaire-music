@@ -24,6 +24,7 @@ data class Song(
     val artUri: Uri?,
     val metadataResolved: Boolean = false,
     val albumArtist: String? = null,
+    val volumeNormalization: VolumeNormalizationMetadata? = null,
 )
 
 data class Album(

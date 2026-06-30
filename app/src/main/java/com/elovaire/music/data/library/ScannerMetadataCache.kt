@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import java.io.File
 
 internal class ScannerMetadataCache {
@@ -28,6 +29,7 @@ internal class ScannerMetadataCache {
                 quality = song.audioQuality,
                 trackNumber = song.trackNumber.takeIf { it > 0 },
                 discNumber = song.discNumber.takeIf { it > 0 },
+                volumeNormalization = song.volumeNormalization,
             )
             metadata[song.id] = CachedSongMetadata(
                 fileName = song.fileName,
@@ -87,4 +89,5 @@ internal data class SongMetadata(
     val quality: String?,
     val trackNumber: Int?,
     val discNumber: Int?,
+    val volumeNormalization: VolumeNormalizationMetadata?,
 )

@@ -162,6 +162,7 @@ class MediaStoreScanner(
                             quality = null,
                             trackNumber = null,
                             discNumber = null,
+                            volumeNormalization = null,
                         )
                     }
                 val resolvedTitle = songMetadata.title ?: row.title
@@ -200,6 +201,7 @@ class MediaStoreScanner(
                     artUri = albumArtworkUri(row.albumId),
                     metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
                     albumArtist = songMetadata.albumArtist,
+                    volumeNormalization = songMetadata.volumeNormalization,
                 )
                 if (processedRows == totalRows || processedRows % 24 == 0) {
                     progressEmitter.emit(processedRows, totalRows)
@@ -349,6 +351,7 @@ class MediaStoreScanner(
             ),
             trackNumber = embeddedMetadata?.trackNumber ?: retrieverMetadata.trackNumber,
             discNumber = embeddedMetadata?.discNumber ?: retrieverMetadata.discNumber,
+            volumeNormalization = embeddedMetadata?.volumeNormalization,
         )
     }
 

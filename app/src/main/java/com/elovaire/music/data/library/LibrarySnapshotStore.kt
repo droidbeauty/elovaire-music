@@ -5,6 +5,7 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -72,6 +73,7 @@ internal class LibrarySnapshotStore(
                             uri = Uri.parse(songJson.optString("uri")),
                             artUri = songJson.optString("artUri").takeIf { it.isNotBlank() }?.let(Uri::parse),
                             metadataResolved = songJson.optBoolean("metadataResolved", false),
+                            volumeNormalization = songJson.optJSONObject("volumeNormalization")?.toVolumeNormalizationMetadata(),
                         ),
                     )
                 }
@@ -137,6 +139,7 @@ internal class LibrarySnapshotStore(
                                     put("uri", song.uri.toString())
                                     put("artUri", song.artUri?.toString().orEmpty())
                                     put("metadataResolved", song.metadataResolved)
+                                    song.volumeNormalization?.let { put("volumeNormalization", it.toJson()) }
                                 },
                             )
                         }
@@ -156,8 +159,8 @@ internal class LibrarySnapshotStore(
     }
 
     private companion object {
-        const val SNAPSHOT_FILE_NAME = "library_snapshot_v6.json"
-        const val SNAPSHOT_VERSION = 6
+        const val SNAPSHOT_FILE_NAME = "library_snapshot_v7.json"
+        const val SNAPSHOT_VERSION = 7
     }
 }
 
@@ -179,6 +182,27 @@ private fun LibraryMediaStoreSyncState.toJson(): JSONObject {
             },
         )
     }
+}
+
+private fun VolumeNormalizationMetadata.toJson(): JSONObject {
+    return JSONObject().apply {
+        trackGainDb?.let { put("trackGainDb", it.toDouble()) }
+        albumGainDb?.let { put("albumGainDb", it.toDouble()) }
+        trackPeak?.let { put("trackPeak", it.toDouble()) }
+        albumPeak?.let { put("albumPeak", it.toDouble()) }
+    }
+}
+
+private fun JSONObject.toVolumeNormalizationMetadata(): VolumeNormalizationMetadata {
+    fun optionalFloat(name: String): Float? {
+        return takeIf { has(name) && !isNull(name) }?.optDouble(name)?.toFloat()
+    }
+    return VolumeNormalizationMetadata(
+        trackGainDb = optionalFloat("trackGainDb"),
+        albumGainDb = optionalFloat("albumGainDb"),
+        trackPeak = optionalFloat("trackPeak"),
+        albumPeak = optionalFloat("albumPeak"),
+    )
 }
 
 private fun JSONObject.toLibraryMediaStoreSyncState(): LibraryMediaStoreSyncState {

@@ -261,6 +261,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
+import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.data.update.AppReleaseInfo
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -316,6 +317,9 @@ import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchSortModeLabel
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
+import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerEndOfSongLabel
+import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerOffLabel
+import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerTitle
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
@@ -6359,6 +6363,7 @@ internal fun NowPlayingScreen(
     onQueueItemRemoved: (Int) -> Unit,
     onOpenEqualizer: () -> Unit,
     onToggleGaplessPlayback: () -> Unit,
+    onSleepTimerSelected: (SleepTimerOption) -> Unit,
     onVolumeChanged: (Float) -> Unit,
     transitionSnapshot: NowPlayingTransitionSnapshot?,
     modifier: Modifier = Modifier,
@@ -6459,6 +6464,7 @@ internal fun NowPlayingScreen(
     var showLyricsSheet by remember { mutableStateOf(false) }
     var showQueueSheet by remember(currentSong?.id) { mutableStateOf(false) }
     var showAddToPlaylistDialog by remember(currentSong?.id) { mutableStateOf(false) }
+    var showSleepTimerDialog by remember { mutableStateOf(false) }
     var queueStatusText by remember(currentSong?.id) { mutableStateOf<String?>(null) }
     var queueStatusVersion by remember(currentSong?.id) { mutableStateOf(0L) }
     LaunchedEffect(showLyricsSheet) {
@@ -7148,6 +7154,21 @@ internal fun NowPlayingScreen(
                         )
                         Spacer(modifier = Modifier.width(20.dp))
                         PlayerSecondaryActionButton(
+                            iconResId = R.drawable.ic_lucide_moon,
+                            label = "",
+                            contentDescription = sleepTimerTitle(language),
+                            iconSize = 20.dp,
+                            tint = contentColor,
+                            showBackground = playerUiState.sleepTimer.option != SleepTimerOption.Off,
+                            onClick = {
+                                showLyricsSheet = false
+                                showQueueSheet = false
+                                showAddToPlaylistDialog = false
+                                showSleepTimerDialog = true
+                            },
+                        )
+                        Spacer(modifier = Modifier.width(20.dp))
+                        PlayerSecondaryActionButton(
                             iconResId = R.drawable.ic_lucide_list_music,
                             label = "",
                             iconSize = 20.dp,
@@ -7321,6 +7342,16 @@ internal fun NowPlayingScreen(
                     showAddToPlaylistDialog = false
                 },
                 onCreatePlaylist = onCreatePlaylist,
+            )
+        }
+        if (showSleepTimerDialog) {
+            SleepTimerDialog(
+                selectedOption = playerUiState.sleepTimer.option,
+                onOptionSelected = { option ->
+                    onSleepTimerSelected(option)
+                    showSleepTimerDialog = false
+                },
+                onDismiss = { showSleepTimerDialog = false },
             )
         }
     }
@@ -7835,6 +7866,97 @@ private fun QueueSeparator(
             .height(1.dp)
             .background(tint.copy(alpha = 0.3f)),
     )
+}
+
+@Composable
+private fun SleepTimerDialog(
+    selectedOption: SleepTimerOption,
+    onOptionSelected: (SleepTimerOption) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val language = LocalAppLanguage.current
+    val options = remember {
+        listOf(
+            SleepTimerOption.Off,
+            SleepTimerOption.FifteenMinutes,
+            SleepTimerOption.ThirtyMinutes,
+            SleepTimerOption.FortyFiveMinutes,
+            SleepTimerOption.SixtyMinutes,
+            SleepTimerOption.EndOfSong,
+        )
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = sleepTimerTitle(language),
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                options.forEach { option ->
+                    val selected = option == selectedOption
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(ElovaireRadii.pill))
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onOptionSelected(option) },
+                            ),
+                        shape = RoundedCornerShape(ElovaireRadii.pill),
+                        color = if (selected) {
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                        } else {
+                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f)
+                        },
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(
+                                    id = if (selected) R.drawable.ic_lucide_check else R.drawable.ic_lucide_circle,
+                                ),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (selected) 0.95f else 0.5f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                            Text(
+                                text = sleepTimerOptionLabel(option, language),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(text = rootUiCopy(language).ok)
+            }
+        },
+    )
+}
+
+private fun sleepTimerOptionLabel(
+    option: SleepTimerOption,
+    language: AppLanguage,
+): String {
+    return when (option) {
+        SleepTimerOption.Off -> sleepTimerOffLabel(language)
+        SleepTimerOption.FifteenMinutes -> "15 min"
+        SleepTimerOption.ThirtyMinutes -> "30 min"
+        SleepTimerOption.FortyFiveMinutes -> "45 min"
+        SleepTimerOption.SixtyMinutes -> "60 min"
+        SleepTimerOption.EndOfSong -> sleepTimerEndOfSongLabel(language)
+    }
 }
 
 @Composable

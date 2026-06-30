@@ -107,6 +107,7 @@ internal fun SettingsScreen(
     appLanguage: AppLanguage,
     eqSettings: EqSettings,
     onlineLyricsLookupEnabled: Boolean,
+    volumeNormalizationEnabled: Boolean,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onThemeModeSelected: (ThemeMode) -> Unit,
@@ -115,6 +116,7 @@ internal fun SettingsScreen(
     onBassChanged: (Float) -> Unit,
     onMidrangeChanged: (Float) -> Unit,
     onTrebleChanged: (Float) -> Unit,
+    onVolumeNormalizationChanged: (Boolean) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOnlineLyricsLookupChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
@@ -296,6 +298,17 @@ internal fun SettingsScreen(
                             }
                         }
                         Spacer(modifier = Modifier.height(20.dp))
+                        SettingToggleRow(
+                            title = copy.volumeNormalization,
+                            subtitle = copy.volumeNormalizationSubtitle,
+                            enabled = volumeNormalizationEnabled,
+                            onEnabledChanged = onVolumeNormalizationChanged,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp)
+                                .align(Alignment.CenterHorizontally),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
                         SettingToggleRow(
                             title = copy.enableMono,
                             subtitle = copy.monoSubtitle,

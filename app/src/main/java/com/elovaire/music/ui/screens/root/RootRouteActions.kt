@@ -177,6 +177,10 @@ internal class SettingsRouteActions(
         container.preferenceStore.updateMonoPlaybackEnabled(enabled)
     }
 
+    fun setVolumeNormalizationEnabled(enabled: Boolean) {
+        container.preferenceStore.setVolumeNormalizationEnabled(enabled)
+    }
+
     fun setOnlineLyricsLookupEnabled(enabled: Boolean) {
         container.preferenceStore.setOnlineLyricsLookupEnabled(enabled)
     }

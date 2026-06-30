@@ -23,6 +23,7 @@ internal interface RootSettingsReader {
     val albumCollectionSortMode: StateFlow<String>
     val songCollectionSortMode: StateFlow<String>
     val onlineLyricsLookupEnabled: StateFlow<Boolean>
+    val volumeNormalizationEnabled: StateFlow<Boolean>
     val recentSongIds: StateFlow<List<Long>>
     val recentAlbumIds: StateFlow<List<Long>>
     val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?>
@@ -50,6 +51,7 @@ internal interface LibrarySettingsWriter {
 internal interface PlaybackSettingsWriter {
     fun setPlaybackVolume(value: Float)
     fun setGaplessPlaybackEnabled(enabled: Boolean)
+    fun setVolumeNormalizationEnabled(enabled: Boolean)
 }
 
 internal interface PlaylistStore {

@@ -33,5 +33,9 @@ internal class PlaybackSettingsBridge(
             preferenceStore.gaplessPlaybackEnabled
                 .collect(playbackManager::setGaplessPlaybackEnabled)
         }
+        scope.launch {
+            preferenceStore.volumeNormalizationEnabled
+                .collect(playbackManager::setVolumeNormalizationEnabled)
+        }
     }
 }
