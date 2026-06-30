@@ -5,3 +5,13 @@ import kotlinx.coroutines.flow.StateFlow
 interface UpdateReader {
     val uiState: StateFlow<AppUpdateUiState>
 }
+
+interface UpdateController : UpdateReader {
+    fun checkForUpdates(force: Boolean = false)
+    fun dismissAvailableUpdate()
+    fun startUpdate()
+    fun clearInstallState()
+    fun clearTransientStatus()
+    fun scheduleStartupMaintenance()
+    fun release()
+}

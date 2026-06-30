@@ -57,7 +57,7 @@ class AppUpdateManager internal constructor(
     private val scope: CoroutineScope,
     private val preferenceStore: PreferenceStore,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
-) : UpdateReader {
+) : UpdateController {
     private val appContext = context.applicationContext
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     override val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
@@ -88,7 +88,7 @@ class AppUpdateManager internal constructor(
         }
     }
 
-    fun checkForUpdates(force: Boolean = false) {
+    override fun checkForUpdates(force: Boolean) {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (!backgroundWorkPolicy.canStart(AppWorkKind.ForegroundOnlyMaintenance, userInitiated = force)) {
             if (!force) pendingAutomaticStartupCheck = true
@@ -148,14 +148,14 @@ class AppUpdateManager internal constructor(
         }
     }
 
-    fun dismissAvailableUpdate() {
+    override fun dismissAvailableUpdate() {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         val version = _uiState.value.availableRelease?.versionName ?: return
         preferenceStore.setDismissedUpdateVersion(version)
         _uiState.update { it.copy(availableRelease = null, errorMessage = null) }
     }
 
-    fun startUpdate() {
+    override fun startUpdate() {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (!backgroundWorkPolicy.canStart(AppWorkKind.UserInitiatedLongTransfer, userInitiated = true)) return
         val release = _uiState.value.availableRelease ?: return
@@ -243,7 +243,7 @@ class AppUpdateManager internal constructor(
         }
     }
 
-    fun clearInstallState() {
+    override fun clearInstallState() {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         _uiState.update {
             it.copy(
@@ -256,7 +256,7 @@ class AppUpdateManager internal constructor(
         }
     }
 
-    fun clearTransientStatus() {
+    override fun clearTransientStatus() {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         _uiState.update { state ->
             if (state.transientStatus == null) state else state.copy(transientStatus = null)
@@ -279,7 +279,7 @@ class AppUpdateManager internal constructor(
         resumeInstallAfterPermissionGrant = false
     }
 
-    fun scheduleStartupMaintenance() {
+    override fun scheduleStartupMaintenance() {
         if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (startupMaintenanceScheduled) return
         startupMaintenanceScheduled = true
@@ -296,7 +296,7 @@ class AppUpdateManager internal constructor(
         }
     }
 
-    fun release() {
+    override fun release() {
         checkJob?.cancel()
         checkJob = null
         downloadJob?.cancel()
