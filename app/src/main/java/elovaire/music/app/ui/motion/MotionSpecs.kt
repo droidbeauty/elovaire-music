@@ -84,7 +84,7 @@ class MotionSpecs internal constructor(
     )
 
     fun listRevealDelay(index: Int): Int {
-        return runtime.delay((index.coerceAtLeast(0) * 14).coerceAtMost(90))
+        return runtime.delay((index.coerceAtLeast(0) * 12).coerceAtMost(72))
     }
 
     fun <T> pressDown(): FiniteAnimationSpec<T> = tween(

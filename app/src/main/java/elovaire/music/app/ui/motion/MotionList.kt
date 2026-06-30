@@ -17,7 +17,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
-private const val MaxAnimatedRevealIndex = 11
+private const val MaxAnimatedRevealIndex = 8
 
 @Stable
 class MotionRevealRegistry {

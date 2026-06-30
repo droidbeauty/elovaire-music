@@ -13,7 +13,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.animation.core.Spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
@@ -192,26 +191,26 @@ class MotionTransitions internal constructor(
 
     fun playerOverlayEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(
-            durationMillis = MotionDuration.Screen,
+            durationMillis = MotionDuration.PlayerFade,
             easing = MotionEasing.FadeIn,
         ),
     ) + scaleIn(
         initialScale = MotionScale.PlayerOverlayEnter,
         animationSpec = specs.tween(
-            durationMillis = MotionDuration.Spacious,
+            durationMillis = MotionDuration.Player,
             easing = MotionEasing.RefinedDecelerate,
         ),
     )
 
     fun playerOverlayExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(
-            durationMillis = MotionDuration.Standard,
+            durationMillis = MotionDuration.PlayerFade,
             easing = MotionEasing.FadeOut,
         ),
     ) + scaleOut(
         targetScale = MotionScale.PlayerOverlayExit,
         animationSpec = specs.tween(
-            durationMillis = MotionDuration.Standard,
+            durationMillis = MotionDuration.PlayerFade,
             easing = MotionEasing.RefinedAccelerate,
         ),
     )
@@ -351,12 +350,12 @@ class MotionTransitions internal constructor(
     fun albumDetailForwardEnter(
         transformOrigin: TransformOrigin = TransformOrigin.Center,
     ): EnterTransition = fadeIn(
-        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeIn),
+        animationSpec = specs.tween(MotionDuration.AlbumDetail, easing = MotionEasing.FadeIn),
         initialAlpha = 0.06f,
     ) + scaleIn(
-        animationSpec = specs.spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = 720f,
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.AlbumDetail,
+            easing = MotionEasing.RefinedDecelerate,
         ),
         initialScale = 0.9f,
         transformOrigin = transformOrigin,
@@ -380,11 +379,11 @@ class MotionTransitions internal constructor(
     fun albumDetailBackExit(
         transformOrigin: TransformOrigin = TransformOrigin.Center,
     ): ExitTransition = fadeOut(
-        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeOut),
+        animationSpec = specs.tween(MotionDuration.AlbumDetail, easing = MotionEasing.FadeOut),
     ) + scaleOut(
-        animationSpec = specs.spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = 720f,
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.AlbumDetail,
+            easing = MotionEasing.RefinedAccelerate,
         ),
         targetScale = 0.9f,
         transformOrigin = transformOrigin,

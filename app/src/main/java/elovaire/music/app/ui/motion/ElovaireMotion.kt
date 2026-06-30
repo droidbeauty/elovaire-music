@@ -265,7 +265,7 @@ object ElovaireMotion {
         easing = RefinedDecelerate,
     )
 
-    fun listRevealDelay(index: Int): Int = scaledDelayMillis((index.coerceAtLeast(0) * 14).coerceAtMost(90))
+    fun listRevealDelay(index: Int): Int = scaledDelayMillis((index.coerceAtLeast(0) * 12).coerceAtMost(72))
 
     fun <T> listPlacementSpec(): FiniteAnimationSpec<T> = scaledTween(
         durationMillis = ListPlacementBase,
@@ -511,13 +511,6 @@ object ElovaireMotion {
         ),
         initialAlpha = 0.01f,
     ) +
-        scaleIn(
-            animationSpec = scaledTween(
-                durationMillis = FullScreenEnterBase,
-                easing = RefinedDecelerate,
-            ),
-            initialScale = 0.988f,
-        ) +
         slideInHorizontally(
             animationSpec = scaledTween(
                 durationMillis = FullScreenEnterBase,
@@ -535,13 +528,6 @@ object ElovaireMotion {
         ),
         targetAlpha = 0f,
     ) +
-        scaleOut(
-            animationSpec = scaledTween(
-                durationMillis = FullScreenExitBase,
-                easing = RefinedAccelerate,
-            ),
-            targetScale = 0.996f,
-        ) +
         slideOutHorizontally(
             animationSpec = scaledTween(
                 durationMillis = FullScreenExitBase,
@@ -559,13 +545,6 @@ object ElovaireMotion {
         ),
         initialAlpha = 0.08f,
     ) +
-        scaleIn(
-            animationSpec = scaledTween(
-                durationMillis = FullScreenEnterBase,
-                easing = RefinedDecelerate,
-            ),
-            initialScale = 0.997f,
-        ) +
         slideInHorizontally(
             animationSpec = scaledTween(
                 durationMillis = FullScreenEnterBase,
@@ -583,13 +562,6 @@ object ElovaireMotion {
         ),
         targetAlpha = 0f,
     ) +
-        scaleOut(
-            animationSpec = scaledTween(
-                durationMillis = FullScreenExitBase,
-                easing = RefinedAccelerate,
-            ),
-            targetScale = 0.992f,
-        ) +
         slideOutHorizontally(
             animationSpec = scaledTween(
                 durationMillis = FullScreenExitBase,
