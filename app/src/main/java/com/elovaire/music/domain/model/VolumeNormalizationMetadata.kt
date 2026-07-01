@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.domain.model
 
+import kotlin.math.abs
 import kotlin.math.pow
 
 data class VolumeNormalizationMetadata(
@@ -13,6 +14,25 @@ data class VolumeNormalizationMetadata(
 }
 
 internal object VolumeNormalizationPolicy {
+    fun effectivePlayerGain(
+        baseGain: Float,
+        metadata: VolumeNormalizationMetadata?,
+        enabled: Boolean,
+        softwareGainAllowed: Boolean,
+    ): Float {
+        if (!softwareGainAllowed) return 1f
+        val normalizedBaseGain = baseGain.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 1f
+        val normalizationGain = if (enabled) multiplierFor(metadata) else 1f
+        return (normalizedBaseGain * normalizationGain).coerceIn(0f, PLAYER_VOLUME_MAX)
+    }
+
+    fun isSignalAltering(
+        metadata: VolumeNormalizationMetadata?,
+        enabled: Boolean,
+    ): Boolean {
+        return enabled && abs(multiplierFor(metadata) - 1f) > NEUTRAL_GAIN_EPSILON
+    }
+
     fun multiplierFor(metadata: VolumeNormalizationMetadata?): Float {
         val normalizedMetadata = metadata ?: return 1f
         val gainDb = normalizedMetadata.trackGainDb ?: normalizedMetadata.albumGainDb ?: return 1f
@@ -49,6 +69,8 @@ internal object VolumeNormalizationPolicy {
 
     private const val MIN_MULTIPLIER = 0.25f
     private const val MAX_MULTIPLIER = 1.5f
+    private const val PLAYER_VOLUME_MAX = 1f
+    private const val NEUTRAL_GAIN_EPSILON = 0.001f
     private const val MIN_GAIN_DB = -60f
     private const val MAX_GAIN_DB = 24f
     private const val MAX_PEAK = 8f

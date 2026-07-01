@@ -218,7 +218,7 @@ class PlaybackManager(
     private var isSwitchingAudioPath = false
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
-    private var gaplessPlaybackEnabled = true
+    private var gaplessPlaybackEnabled = false
     private var volumeNormalizationEnabled = false
     private var volumeObserverRegistered = false
     private var audioDeviceCallbackRegistered = false
@@ -310,7 +310,8 @@ class PlaybackManager(
             reason: Int,
         ) {
             resetUnexpectedIdleRecoveryGuard()
-            scheduleAudioPathReevaluation("media-item-transition", AUDIO_PATH_REEVALUATION_DELAY_MS)
+            bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+            scheduleAudioPathReevaluation("media-item-transition", audioPathReevaluationDelayForTransition())
             sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
             player.volume = targetPlayerOutputGain()
             scheduleStatePublish()
@@ -578,7 +579,7 @@ class PlaybackManager(
     )
 
     init {
-        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
+        bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         refreshUsbAudioOutputState()
         applyPreferredAudioDeviceIfNeeded(force = true)
         attachPlayerObservers(player)
@@ -590,7 +591,7 @@ class PlaybackManager(
 
     fun reevaluateAudioOutputPath() {
         if (!hasActiveQueue()) return
-        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
+        bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         refreshUsbAudioOutputState()
         scheduleAudioPathReevaluation("effects-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
@@ -838,16 +839,22 @@ class PlaybackManager(
 
     fun refreshQueuedLibraryMetadataIfNeeded(updatedSongs: List<Song>) {
         queueController.refreshQueuedLibraryMetadataIfNeeded(updatedSongs)
+        bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+        scheduleAudioPathReevaluation("queue-metadata-refreshed", AUDIO_PATH_REEVALUATION_DELAY_MS)
+        player.volume = targetPlayerOutputGain()
     }
 
     fun setGaplessPlaybackEnabled(enabled: Boolean) {
         if (gaplessPlaybackEnabled == enabled) return
         gaplessPlaybackEnabled = enabled
+        scheduleAudioPathReevaluation("gapless-setting-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
     }
 
     fun setVolumeNormalizationEnabled(enabled: Boolean) {
         if (volumeNormalizationEnabled == enabled) return
         volumeNormalizationEnabled = enabled
+        bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
+        scheduleAudioPathReevaluation("volume-normalization-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
     }
 
@@ -1133,7 +1140,7 @@ class PlaybackManager(
         }
 
         cancelPauseFade(resetVolume = false)
-        bitPerfectUsbManager.updateEffectsActive(hasSignalAlteringEffects())
+        bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         refreshUsbAudioOutputState()
         scheduleAudioPathReevaluation(
             when (reason) {
@@ -1606,16 +1613,29 @@ class PlaybackManager(
     }
 
     private fun effectivePlayerGain(): Float {
-        if (isDirectPlaybackActive || usbDacHardwareVolumeManager.shouldBypassSoftwareVolume()) {
-            return 1f
-        }
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
-        val normalizationGain = if (volumeNormalizationEnabled) {
-            VolumeNormalizationPolicy.multiplierFor(currentSong()?.volumeNormalization)
+        return VolumeNormalizationPolicy.effectivePlayerGain(
+            baseGain = baseGain,
+            metadata = currentSong()?.volumeNormalization,
+            enabled = volumeNormalizationEnabled,
+            softwareGainAllowed = !isDirectPlaybackActive && !usbDacHardwareVolumeManager.shouldBypassSoftwareVolume(),
+        )
+    }
+
+    private fun hasActiveSignalAlteringEffects(): Boolean {
+        return hasSignalAlteringEffects() ||
+            VolumeNormalizationPolicy.isSignalAltering(
+                metadata = currentSong()?.volumeNormalization,
+                enabled = volumeNormalizationEnabled,
+            )
+    }
+
+    private fun audioPathReevaluationDelayForTransition(): Long {
+        return if (gaplessPlaybackEnabled) {
+            GAPLESS_TRANSITION_AUDIO_PATH_REEVALUATION_DELAY_MS
         } else {
-            1f
+            AUDIO_PATH_REEVALUATION_DELAY_MS
         }
-        return (baseGain * normalizationGain).coerceIn(0f, 1f)
     }
 
     private fun lerp(
@@ -1792,6 +1812,7 @@ class PlaybackManager(
         const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
         const val END_OF_SONG_TIMER_TOLERANCE_MS = 350L
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
+        const val GAPLESS_TRANSITION_AUDIO_PATH_REEVALUATION_DELAY_MS = 650L
         const val EXTERNAL_INTERRUPTION_FAST_WATCH_MS = 10_000L
         const val EXTERNAL_INTERRUPTION_MAX_WATCH_MS = 5 * 60_000L
         const val EXTERNAL_INTERRUPTION_FAST_DELAY_MS = 500L

@@ -41,4 +41,44 @@ class VolumeNormalizationPolicyTest {
         )
         assertTrue(abs(multiplier - 0.501f) < 0.01f)
     }
+
+    @Test
+    fun effectiveGain_appliesPositiveNormalizationWhenHeadroomExists() {
+        val gain = VolumeNormalizationPolicy.effectivePlayerGain(
+            baseGain = 0.5f,
+            metadata = VolumeNormalizationMetadata(trackGainDb = 6f),
+            enabled = true,
+            softwareGainAllowed = true,
+        )
+
+        assertTrue(gain > 0.5f)
+    }
+
+    @Test
+    fun effectiveGain_usesNeutralGainWhenSoftwareGainIsBypassed() {
+        val gain = VolumeNormalizationPolicy.effectivePlayerGain(
+            baseGain = 0.5f,
+            metadata = VolumeNormalizationMetadata(trackGainDb = -6f),
+            enabled = true,
+            softwareGainAllowed = false,
+        )
+
+        assertEquals(1f, gain, 0.001f)
+    }
+
+    @Test
+    fun activeNormalizationIsSignalAlteringOnlyForNonNeutralGain() {
+        assertTrue(
+            VolumeNormalizationPolicy.isSignalAltering(
+                metadata = VolumeNormalizationMetadata(trackGainDb = -3f),
+                enabled = true,
+            ),
+        )
+        assertTrue(
+            !VolumeNormalizationPolicy.isSignalAltering(
+                metadata = VolumeNormalizationMetadata(trackGainDb = 0f),
+                enabled = true,
+            ),
+        )
+    }
 }

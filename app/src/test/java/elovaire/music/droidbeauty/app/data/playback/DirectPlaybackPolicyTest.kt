@@ -137,6 +137,30 @@ class DirectPlaybackPolicyTest {
         assertTrue(status.shouldUseDirectPlayback)
     }
 
+    @Test
+    fun gaplessOffloadAloneDoesNotForceDirectPlayback() {
+        val classification = DirectPlaybackSupportClassification(
+            rawFlags = AudioManager.DIRECT_PLAYBACK_OFFLOAD_GAPLESS_SUPPORTED,
+            kinds = setOf(
+                DirectPlaybackSupportKind.Offload,
+                DirectPlaybackSupportKind.GaplessOffload,
+            ),
+        )
+        val status = BitPerfectEligibilityPolicy.evaluate(
+            sdkInt = Build.VERSION_CODES.TIRAMISU,
+            routeContext = usbRouteContext(),
+            effectsActive = false,
+            trackConfig = trackConfig(),
+            evaluationKey = evaluationKey(),
+            supportClassification = classification,
+            directPlaybackSupport = classification.rawFlags,
+        )
+
+        assertEquals(BitPerfectPlaybackState.GaplessOffloadDirectPlaybackSupported, status.state)
+        assertEquals(BitPerfectPlaybackDirective.PreferRegular, status.directive)
+        assertFalse(status.shouldUseDirectPlayback)
+    }
+
     private fun usbRouteContext(): DirectPlaybackRouteContext {
         return DirectPlaybackRouteContext(
             hasEligibleUsbRoute = true,

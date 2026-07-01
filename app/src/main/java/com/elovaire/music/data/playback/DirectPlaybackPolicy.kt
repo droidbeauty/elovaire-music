@@ -197,6 +197,18 @@ internal object BitPerfectEligibilityPolicy {
             )
         }
 
+        if (supportClassification.supportsGaplessOffload && !supportClassification.supportsBitstreamPassThrough) {
+            return buildStatus(
+                state = BitPerfectPlaybackState.GaplessOffloadDirectPlaybackSupported,
+                directive = BitPerfectPlaybackDirective.PreferRegular,
+                mode = DirectPlaybackMode.RegularPlaybackRequired,
+                routeContext = routeContext,
+                supportClassification = supportClassification,
+                directPlaybackSupport = directPlaybackSupport,
+                evaluationKey = evaluationKey,
+            )
+        }
+
         return buildStatus(
             state = supportClassification.toPlaybackState(),
             directive = BitPerfectPlaybackDirective.PreferDirect,
