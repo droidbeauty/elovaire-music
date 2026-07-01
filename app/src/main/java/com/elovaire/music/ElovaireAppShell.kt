@@ -36,6 +36,8 @@ import elovaire.music.droidbeauty.app.ui.screens.ElovaireRoot
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
 import elovaire.music.droidbeauty.app.ui.theme.themeBackgroundForMode
 import kotlinx.coroutines.delay
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 
 @Composable
 internal fun ElovaireAppShell(
@@ -75,13 +77,16 @@ internal fun ElovaireAppShell(
         }
         LaunchedEffect(container) {
             withFrameNanos { }
-            container.scheduleDeferredStartupWork()
+            ElovaireTrace.section("deferred_startup") {
+                container.scheduleDeferredStartupWork()
+            }
         }
 
         ElovaireTheme(
             themeMode = themeMode.value,
             textSizePreset = textSizePreset.value,
         ) {
+            PerformanceState("animation", if (showSplash) "cold_start_reveal" else null)
             Box(modifier = Modifier.fillMaxSize()) {
                 ElovaireRoot(
                     container = container,

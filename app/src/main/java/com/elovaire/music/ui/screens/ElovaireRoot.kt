@@ -237,6 +237,7 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
@@ -297,6 +298,7 @@ import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
@@ -360,6 +362,32 @@ private fun Set<Long>.toggleSelection(id: Long): Set<Long> {
     return if (id in this) this - id else this + id
 }
 
+private fun String?.performanceRouteLabel(): String? {
+    return when (this) {
+        null -> null
+        HOME_ROUTE -> "home"
+        ALBUMS_ROUTE -> "library_hub"
+        PLAYLISTS_ROUTE -> "playlists"
+        SEARCH_ROUTE -> "search"
+        SETTINGS_ROUTE -> "settings"
+        LIBRARY_FOLDERS_ROUTE -> "library_folders"
+        PRIVACY_SAFETY_ROUTE -> "privacy_safety"
+        CHANGELOG_ROUTE -> "changelog"
+        ABOUT_ROUTE -> "about"
+        EQUALIZER_ROUTE -> "equalizer"
+        PLAYER_ROUTE -> "now_playing"
+        else -> when {
+            startsWith("$ALBUM_ROUTE/") || this == "$ALBUM_ROUTE/{albumId}" -> "album_detail"
+            startsWith("$PLAYLIST_ROUTE/") || this == "$PLAYLIST_ROUTE/{playlistId}" -> "playlist_detail"
+            startsWith("$ARTIST_ROUTE/") || this == "$ARTIST_ROUTE/{artistName}" -> "artist_detail"
+            startsWith("$GENRE_ROUTE/") || this == "$GENRE_ROUTE/{genre}" -> "genre_detail"
+            startsWith("$LIBRARY_COLLECTION_ROUTE/") || this == "$LIBRARY_COLLECTION_ROUTE/{kind}" -> "library_collection"
+            startsWith("$ALBUM_TAG_EDITOR_ROUTE/") || this == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> "tag_editor"
+            else -> "other"
+        }
+    }
+}
+
 @OptIn(ExperimentalHazeApi::class)
 @Composable
 fun ElovaireRoot(
@@ -407,6 +435,7 @@ fun ElovaireRoot(
     val lastPlayedPlaylist = derivedState.lastPlayedPlaylist
 
     if (!permissionController.state.hasAudioPermission) {
+        PerformanceState("screen", "permission")
         FirstLaunchPermissionLoadingScreen(
             showLoading = true,
             onRequestPermission = permissionController::requestAudioPermission,
@@ -422,9 +451,28 @@ fun ElovaireRoot(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val currentConcreteRoute = currentBackStackEntry?.concreteNavigationRoute() ?: currentRoute
+    PerformanceState("route", currentRoute.performanceRouteLabel())
+    PerformanceState("screen", currentRoute.performanceRouteLabel())
+    PerformanceState(
+        "library",
+        when {
+            libraryState.isLoading -> "library_loading"
+            libraryState.scanProgress in 0f..0.999f -> "scan_active"
+            else -> "scan_idle"
+        },
+    )
+    PerformanceState(
+        "interaction",
+        when {
+            isPlaybackActuallyPlaying -> "playback_progress_active"
+            else -> "idle"
+        },
+    )
     var previousMotionRoute by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(currentConcreteRoute) {
-        navigationState.logRouteTransition(previousMotionRoute, currentConcreteRoute)
+        ElovaireTrace.section("route_change") {
+            navigationState.logRouteTransition(previousMotionRoute, currentConcreteRoute)
+        }
         previousMotionRoute = currentConcreteRoute
     }
     val currentAlbumRouteId = currentBackStackEntry?.arguments?.let { arguments ->
@@ -6345,7 +6393,6 @@ internal fun NowPlayingScreen(
     lyricsUiState: LyricsUiState,
     lyricsEditorUiState: LyricsEditorUiState,
     activeLyricsLineIndex: Int,
-    playbackProgress: PlaybackProgressState,
     onLyricsVisibilityChanged: (Boolean) -> Unit,
     onSaveLyrics: (String) -> Unit,
     onClearLyricsEditorError: () -> Unit,
@@ -7322,7 +7369,7 @@ internal fun NowPlayingScreen(
                 lyricsUiState = lyricsUiState,
                 lyricsEditorUiState = lyricsEditorUiState,
                 activeLyricsLineIndex = activeLyricsLineIndex,
-                playbackProgress = playbackProgress,
+                playbackManager = playbackManager,
                 tintColor = baseSurface.copy(alpha = 0.66f),
                 contentColor = contentColor,
                 secondaryContentColor = secondaryContentColor,
@@ -9000,7 +9047,7 @@ private fun LyricsOverlay(
     lyricsUiState: LyricsUiState,
     lyricsEditorUiState: LyricsEditorUiState,
     activeLyricsLineIndex: Int,
-    playbackProgress: PlaybackProgressState,
+    playbackManager: PlaybackManager,
     tintColor: Color,
     contentColor: Color,
     secondaryContentColor: Color,
@@ -9029,6 +9076,11 @@ private fun LyricsOverlay(
     var observedSaveRevision by remember(song?.id) {
         mutableLongStateOf(lyricsEditorUiState.savedRevision)
     }
+    val playbackProgress = rememberRenderedPlaybackProgress(
+        playbackManager = playbackManager,
+        currentSongId = song?.id,
+        freezeUpdates = false,
+    )
     val backgroundReveal by animateFloatAsState(
         targetValue = if (overlayEntered) 1f else 0f,
         animationSpec = motionSpecs.tween(

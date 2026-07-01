@@ -14,6 +14,8 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.ui.performance.PerformanceScreenState
+import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 
 @Composable
 internal fun NowPlayingRouteHost(
@@ -35,7 +37,11 @@ internal fun NowPlayingRouteHost(
     val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
     val lyricsEditorUiState by viewModel.lyricsEditorUiState.collectAsStateWithLifecycle()
     val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
-    val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
+    PerformanceScreenState("now_playing")
+    PerformanceState(
+        key = "interaction",
+        value = if (lyricsUiState is LyricsUiState.Ready) "lyrics" else "playback_progress_active",
+    )
     val lyricsWriteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
@@ -73,7 +79,6 @@ internal fun NowPlayingRouteHost(
             lyricsUiState = lyricsUiState,
             lyricsEditorUiState = lyricsEditorUiState,
             activeLyricsLineIndex = activeLyricsLineIndex,
-            playbackProgress = playbackProgress,
             onLyricsVisibilityChanged = viewModel::setLyricsVisible,
             onSaveLyrics = viewModel::requestSaveLyrics,
             onClearLyricsEditorError = viewModel::clearLyricsEditorError,

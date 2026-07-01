@@ -6,13 +6,16 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import elovaire.music.droidbeauty.app.core.performance.ElovaireJankMonitor
 
 class MainActivity : ComponentActivity() {
     private lateinit var intentHandler: MainIntentHandler
+    private var jankMonitor: ElovaireJankMonitor? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        jankMonitor = runCatching { ElovaireJankMonitor.start(window) }.getOrNull()
 
         val app = application as ElovaireApp
         val container = app.container
@@ -41,5 +44,17 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         volumeControlStream = AudioManager.STREAM_MUSIC
+        jankMonitor?.setTrackingEnabled(true)
+    }
+
+    override fun onPause() {
+        jankMonitor?.setTrackingEnabled(false)
+        super.onPause()
+    }
+
+    override fun onDestroy() {
+        jankMonitor?.release()
+        jankMonitor = null
+        super.onDestroy()
     }
 }

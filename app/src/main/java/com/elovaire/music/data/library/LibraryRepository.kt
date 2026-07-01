@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
@@ -259,13 +260,15 @@ class LibraryRepository internal constructor(
                         onProgress = if (showLoadingIndicator) { current, total ->
                             val progress = if (total <= 0) 1f else (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
                             if (progressThrottler.shouldEmit(progress)) {
-                                _scanState.update { state ->
-                                    state.copy(
-                                        permissionGranted = true,
-                                        isLoading = true,
-                                        scanProgress = progress,
-                                        errorMessage = null,
-                                    )
+                                ElovaireTrace.section("library_scan_progress") {
+                                    _scanState.update { state ->
+                                        state.copy(
+                                            permissionGranted = true,
+                                            isLoading = true,
+                                            scanProgress = progress,
+                                            errorMessage = null,
+                                        )
+                                    }
                                 }
                             }
                         } else {
@@ -279,7 +282,9 @@ class LibraryRepository internal constructor(
                     val visibleSongs = snapshot.songs.filterNot { it.id in suppressedSongIds }
                     val scannedSongIds = snapshot.songs.mapTo(hashSetOf(), Song::id)
                     deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
-                    val nextContentState = publishLibraryContent(visibleSongs)
+                    val nextContentState = ElovaireTrace.section("library_publish_content") {
+                        publishLibraryContent(visibleSongs)
+                    }
                     val visibleSnapshot = snapshotPublisher.snapshotOf(nextContentState)
                     val nextScanState = LibraryScanState(
                         permissionGranted = true,

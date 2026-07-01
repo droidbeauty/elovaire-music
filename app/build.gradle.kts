@@ -185,6 +185,7 @@ dependencies {
     implementation(libs.androidx.media3.extractor)
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
+    implementation(libs.androidx.metrics.performance)
     implementation(libs.haze)
     implementation(libs.jaudiotagger)
 

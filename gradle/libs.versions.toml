@@ -7,6 +7,7 @@ composeFoundation = "1.11.3"
 composeMaterial3 = "1.4.0"
 lifecycle = "2.11.0"
 media3 = "1.10.1"
+metricsPerformance = "1.0.0"
 navigation = "2.9.8"
 haze = "1.7.2"
 jaudiotagger = "3.0.1"
@@ -32,6 +33,7 @@ androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplaye
 androidx-media3-extractor = { group = "androidx.media3", name = "media3-extractor", version.ref = "media3" }
 androidx-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
+androidx-metrics-performance = { group = "androidx.metrics", name = "metrics-performance", version.ref = "metricsPerformance" }
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
