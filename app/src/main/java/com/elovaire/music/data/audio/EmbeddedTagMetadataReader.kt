@@ -79,9 +79,15 @@ internal class EmbeddedTagMetadataReader {
             val field = fields.next()
             if (normalizeTagName(field.id) !in normalizedNames) continue
             val fieldText = field.toString()
-            val withoutEqualsPrefix = fieldText.substringAfter('=', fieldText)
-            return withoutEqualsPrefix
-                .substringAfter(':', withoutEqualsPrefix)
+            val separatorIndex = sequenceOf(
+                fieldText.indexOf('='),
+                fieldText.indexOf(':'),
+            )
+                .filter { it >= 0 }
+                .minOrNull()
+                ?: continue
+            return fieldText
+                .substring(separatorIndex + 1)
                 .trim()
                 .takeIf(String::isNotBlank)
         }

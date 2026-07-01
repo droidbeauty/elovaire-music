@@ -8,6 +8,8 @@ build/
 app/build/
 app/debug/
 app/release/
+/app/github/
+/app/play/
 captures/
 externalNativeBuild/
 .cxx/
