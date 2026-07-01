@@ -27,18 +27,10 @@ class MotionSpecs internal constructor(
     fun <T> spring(
         dampingRatio: Float = Spring.DampingRatioNoBouncy,
         stiffness: Float = 520f,
-    ): FiniteAnimationSpec<T> {
-        if (runtime.reduceMotion) return tween(durationMillis = 0)
-        return composeSpring(
-            dampingRatio = dampingRatio,
-            stiffness = scaledSpringStiffness(stiffness),
-        )
-    }
-
-    private fun scaledSpringStiffness(stiffness: Float): Float {
-        return (stiffness / (runtime.durationScale * runtime.durationScale))
-            .coerceIn(25f, 10_000f)
-    }
+    ): FiniteAnimationSpec<T> = composeSpring(
+        dampingRatio = dampingRatio,
+        stiffness = stiffness,
+    )
 
     fun <T> fadeIn(
         durationMillis: Int = MotionDuration.ScreenFade,

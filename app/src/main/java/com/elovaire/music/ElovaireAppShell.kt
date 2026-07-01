@@ -54,7 +54,6 @@ internal fun ElovaireAppShell(
         var overlayColor by remember {
             mutableStateOf(themeBackgroundForMode(themeMode.value, systemDark))
         }
-        val motionDurationScale = motionRuntime.durationScale
         val themeOverlayAlpha = remember { Animatable(0f) }
         var showSplash by remember { mutableStateOf(shouldShowColdStartSplash) }
         LaunchedEffect(themeMode.value, systemDark) {
@@ -71,7 +70,7 @@ internal fun ElovaireAppShell(
 
         LaunchedEffect(showSplash) {
             if (showSplash) {
-                delay(ElovaireMotion.scaleDurationMillis(1_500L, motionDurationScale))
+                delay(1_500L)
                 showSplash = false
             }
         }

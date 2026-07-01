@@ -18,9 +18,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.TransformOrigin
 import kotlin.math.roundToInt
 
@@ -80,27 +77,14 @@ object ElovaireMotion {
     val GentleDecelerate: Easing = RefinedDecelerate
     val GentleAccelerate: Easing = RefinedAccelerate
 
-    private var systemDurationScale by mutableFloatStateOf(1f)
-
-    fun updateSystemDurationScale(scale: Float) {
-        systemDurationScale = scale.coerceAtLeast(0f)
-    }
-
     private fun scaledDurationMillis(durationMillis: Int): Int = when {
         durationMillis <= 0 -> 0
-        systemDurationScale <= 0f -> 0
-        else -> (durationMillis * systemDurationScale).roundToInt().coerceAtLeast(1)
+        else -> durationMillis
     }
 
     private fun scaledDelayMillis(delayMillis: Int): Int = when {
         delayMillis <= 0 -> 0
-        systemDurationScale <= 0f -> 0
-        else -> (delayMillis * systemDurationScale).roundToInt().coerceAtLeast(0)
-    }
-
-    private fun scaledSpringStiffness(stiffness: Float): Float {
-        if (systemDurationScale <= 0f) return stiffness
-        return (stiffness / (systemDurationScale * systemDurationScale)).coerceIn(25f, 10_000f)
+        else -> delayMillis
     }
 
     private fun <T> scaledTween(
@@ -116,14 +100,10 @@ object ElovaireMotion {
     private fun <T> scaledSpring(
         dampingRatio: Float = Spring.DampingRatioNoBouncy,
         stiffness: Float,
-    ): FiniteAnimationSpec<T> = if (systemDurationScale <= 0f) {
-        tween(durationMillis = 0)
-    } else {
-        spring(
-            dampingRatio = dampingRatio,
-            stiffness = scaledSpringStiffness(stiffness),
-        )
-    }
+    ): FiniteAnimationSpec<T> = spring(
+        dampingRatio = dampingRatio,
+        stiffness = stiffness,
+    )
 
     fun <T> fadeFast(): FiniteAnimationSpec<T> = tween(
         durationMillis = Quick,
@@ -785,8 +765,7 @@ object ElovaireMotion {
         durationScale: Float,
     ): Long = when {
         durationMillis <= 0L -> 0L
-        durationScale <= 0f -> 0L
-        else -> (durationMillis * durationScale).roundToInt().toLong().coerceAtLeast(1L)
+        else -> durationMillis
     }
 
     fun scaleDurationMillis(
