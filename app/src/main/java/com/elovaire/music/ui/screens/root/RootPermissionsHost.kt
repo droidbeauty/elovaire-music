@@ -7,10 +7,17 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -22,7 +29,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
@@ -34,6 +44,7 @@ internal fun FirstLaunchPermissionLoadingScreen(
     showLoading: Boolean,
     onRequestPermission: () -> Unit,
 ) {
+    val copy = rootUiCopy(LocalAppLanguage.current)
     val spinnerColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
@@ -69,7 +80,7 @@ internal fun FirstLaunchPermissionLoadingScreen(
                 .fillMaxWidth(),
         )
         ElovaireAnimatedVisibility(
-            visible = showLoading,
+            visible = true,
             modifier = Modifier.align(Alignment.Center),
             enter = androidx.compose.animation.fadeIn(
                 animationSpec = motionSpecs.tween(
@@ -85,32 +96,59 @@ internal fun FirstLaunchPermissionLoadingScreen(
             ),
             label = "FirstLaunchPermissionSpinnerVisibility",
         ) {
-            Canvas(
-                modifier = Modifier
-                    .size(46.dp)
-                    .graphicsLayer { rotationZ = rotationDegrees },
-            ) {
-                val stroke = 2.5.dp.toPx()
-                val inset = stroke / 2f + 1.dp.toPx()
-                val arcSize = size.minDimension - inset * 2f
-                drawArc(
-                    color = spinnerColor.copy(alpha = 0.2f),
-                    startAngle = 0f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(arcSize, arcSize),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
-                )
-                drawArc(
-                    color = spinnerColor,
-                    startAngle = -80f,
-                    sweepAngle = 88f,
-                    useCenter = false,
-                    topLeft = Offset(inset, inset),
-                    size = Size(arcSize, arcSize),
-                    style = Stroke(width = stroke, cap = StrokeCap.Round),
-                )
+            if (showLoading) {
+                Canvas(
+                    modifier = Modifier
+                        .size(46.dp)
+                        .graphicsLayer { rotationZ = rotationDegrees },
+                ) {
+                    val stroke = 2.5.dp.toPx()
+                    val inset = stroke / 2f + 1.dp.toPx()
+                    val arcSize = size.minDimension - inset * 2f
+                    drawArc(
+                        color = spinnerColor.copy(alpha = 0.2f),
+                        startAngle = 0f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = Offset(inset, inset),
+                        size = Size(arcSize, arcSize),
+                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    )
+                    drawArc(
+                        color = spinnerColor,
+                        startAngle = -80f,
+                        sweepAngle = 88f,
+                        useCenter = false,
+                        topLeft = Offset(inset, inset),
+                        size = Size(arcSize, arcSize),
+                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .padding(horizontal = 28.dp)
+                        .widthIn(max = 420.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = copy.firstLaunchPermissionTitle,
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = copy.firstLaunchPermissionMessage,
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(modifier = Modifier.height(22.dp))
+                    Button(onClick = onRequestPermission) {
+                        Text(text = copy.firstLaunchPermissionButton)
+                    }
+                }
             }
         }
     }

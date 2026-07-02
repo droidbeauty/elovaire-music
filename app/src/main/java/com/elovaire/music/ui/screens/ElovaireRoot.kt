@@ -437,7 +437,7 @@ fun ElovaireRoot(
     if (!permissionController.state.hasAudioPermission) {
         PerformanceState("screen", "permission")
         FirstLaunchPermissionLoadingScreen(
-            showLoading = true,
+            showLoading = false,
             onRequestPermission = permissionController::requestAudioPermission,
         )
         return

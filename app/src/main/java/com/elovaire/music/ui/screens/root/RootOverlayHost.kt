@@ -121,7 +121,7 @@ internal fun BoxScope.RootOverlayHost(
         label = "FirstLaunchPermissionOverlayVisibility",
     ) {
         FirstLaunchPermissionLoadingScreen(
-            showLoading = true,
+            showLoading = permissionState.hasAudioPermission,
             onRequestPermission = onRequestAudioPermission,
         )
     }
