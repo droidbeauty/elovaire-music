@@ -444,6 +444,18 @@ fun ElovaireRoot(
     }
 
     val isPlaybackActuallyPlaying = playbackState.isPlaying && playbackState.currentSong != null
+    LaunchedEffect(
+        isPlaybackActuallyPlaying,
+        permissionController.state.hasNotificationPermission,
+    ) {
+        if (
+            isPlaybackActuallyPlaying &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !permissionController.state.hasNotificationPermission
+        ) {
+            permissionController.requestNotificationPermission()
+        }
+    }
 
     val topLevelDestinations = DefaultTopLevelDestinations
 

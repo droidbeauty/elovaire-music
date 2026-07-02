@@ -65,7 +65,6 @@ internal fun rememberRootPermissionController(
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasPermission by remember { mutableStateOf(context.hasAudioReadPermission()) }
     var hasNotificationPermission by remember { mutableStateOf(context.hasNotificationPostingPermission()) }
-    var hasRequestedAudioPermission by rememberSaveable { mutableStateOf(false) }
     var hasRequestedNotificationPermission by rememberSaveable { mutableStateOf(false) }
     var firstLaunchPermissionExperienceActive by rememberSaveable {
         mutableStateOf(!hasPermission)
@@ -101,32 +100,11 @@ internal fun rememberRootPermissionController(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         syncAudioPermission(granted)
-        if (
-            granted &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            !hasNotificationPermission &&
-            !hasRequestedNotificationPermission
-        ) {
-            hasRequestedNotificationPermission = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 
     LaunchedEffect(hasPermission, hasNotificationPermission) {
         syncAudioPermission(hasPermission)
         syncNotificationPermission(hasNotificationPermission)
-        if (!hasPermission && !hasRequestedAudioPermission) {
-            hasRequestedAudioPermission = true
-            permissionLauncher.launch(requiredAudioPermission())
-        } else if (
-            hasPermission &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            !hasNotificationPermission &&
-            !hasRequestedNotificationPermission
-        ) {
-            hasRequestedNotificationPermission = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
     }
 
     DisposableEffect(lifecycleOwner, context) {
@@ -200,9 +178,16 @@ internal fun rememberRootPermissionController(
     return remember(state) {
         RootPermissionController(
             state = state,
-            requestAudioPermissionAction = { permissionLauncher.launch(requiredAudioPermission()) },
+            requestAudioPermissionAction = {
+                permissionLauncher.launch(requiredAudioPermission())
+            },
             requestNotificationPermissionAction = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                if (
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    !hasNotificationPermission &&
+                    !hasRequestedNotificationPermission
+                ) {
+                    hasRequestedNotificationPermission = true
                     notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                 }
             },

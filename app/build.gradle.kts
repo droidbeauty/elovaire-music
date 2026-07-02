@@ -243,3 +243,28 @@ tasks.named("check") {
     dependsOn(checkHiddenApiUsage)
     dependsOn(checkDeprecatedAndroidApiUsage)
 }
+
+val assertPlayReleaseManifest = tasks.register<PlayReleaseManifestCheckTask>("assertPlayReleaseManifest") {
+    dependsOn("processPlayReleaseManifest")
+    manifestFile.set(
+        layout.buildDirectory.file(
+            "intermediates/merged_manifests/playRelease/processPlayReleaseManifest/AndroidManifest.xml",
+        ),
+    )
+}
+
+val validatePlayReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validatePlayReleaseNativePageSize") {
+    dependsOn("bundlePlayRelease")
+    bundleDirectory.set(layout.buildDirectory.dir("outputs/bundle/playRelease"))
+    minPageSize.set(16 * 1024L)
+}
+
+tasks.register("verifyPlayReleaseReadiness") {
+    dependsOn(
+        "check",
+        "lintPlayRelease",
+        "bundlePlayRelease",
+        assertPlayReleaseManifest,
+        validatePlayReleaseNativePageSize,
+    )
+}
