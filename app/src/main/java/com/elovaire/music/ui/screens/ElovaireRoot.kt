@@ -7205,21 +7205,6 @@ internal fun NowPlayingScreen(
                         )
                         Spacer(modifier = Modifier.width(20.dp))
                         PlayerSecondaryActionButton(
-                            iconResId = R.drawable.ic_lucide_moon,
-                            label = "",
-                            contentDescription = sleepTimerTitle(language),
-                            iconSize = 20.dp,
-                            tint = contentColor,
-                            showBackground = playerUiState.sleepTimer.option != SleepTimerOption.Off,
-                            onClick = {
-                                showLyricsSheet = false
-                                showQueueSheet = false
-                                showAddToPlaylistDialog = false
-                                showSleepTimerDialog = true
-                            },
-                        )
-                        Spacer(modifier = Modifier.width(20.dp))
-                        PlayerSecondaryActionButton(
                             iconResId = R.drawable.ic_lucide_list_music,
                             label = "",
                             iconSize = 20.dp,
@@ -7285,6 +7270,11 @@ internal fun NowPlayingScreen(
                             onToggleGaplessPlayback()
                         },
                         onOpenEqualizer = onOpenEqualizer,
+                        sleepTimerActive = playerUiState.sleepTimer.option != SleepTimerOption.Off,
+                        onOpenSleepTimer = {
+                            showAddToPlaylistDialog = false
+                            showSleepTimerDialog = true
+                        },
                         onAddSongToPlaylist = onAddCurrentSongToPlaylist,
                         onCreatePlaylist = onCreatePlaylist,
                         statusText = queueStatusText,
@@ -7664,6 +7654,8 @@ private fun QueueSheet(
     gaplessPlaybackEnabled: Boolean,
     onToggleGaplessPlayback: () -> Unit,
     onOpenEqualizer: () -> Unit,
+    sleepTimerActive: Boolean,
+    onOpenSleepTimer: () -> Unit,
     onAddSongToPlaylist: (Long, Song) -> Unit,
     onCreatePlaylist: (String) -> Long,
     statusText: String?,
@@ -7871,14 +7863,13 @@ private fun QueueSheet(
                     )
                     Spacer(modifier = Modifier.width(20.dp))
                     PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_plus,
+                        iconResId = R.drawable.ic_lucide_moon,
                         label = "",
+                        contentDescription = sleepTimerTitle(language),
                         iconSize = 20.dp,
                         tint = tint,
-                        showBackground = playlistTargetSong != null,
-                        onClick = {
-                            playlistTargetSong = currentSong
-                        },
+                        showBackground = sleepTimerActive,
+                        onClick = onOpenSleepTimer,
                     )
                     Spacer(modifier = Modifier.width(20.dp))
                     PlayerSecondaryActionButton(

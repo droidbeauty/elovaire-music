@@ -104,7 +104,10 @@ private fun getTextContent(url: String, accept: String): String {
     connection.setRequestProperty("Accept", accept)
     connection.setRequestProperty("User-Agent", "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)")
     return try {
-        connection.inputStream.bufferedReader().use { it.readText() }
+        connection.inputStream.use { input ->
+            readBytesBounded(input, MAX_HTML_BYTES, connection.contentLengthLong)
+                .toString(Charsets.UTF_8)
+        }
     } finally {
         connection.disconnect()
     }
@@ -131,3 +134,4 @@ private fun normalize(value: String): String {
 }
 
 private const val MAX_ARTWORK_BYTES = 16 * 1024 * 1024
+private const val MAX_HTML_BYTES = 1 * 1024 * 1024

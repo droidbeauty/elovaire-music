@@ -14,6 +14,7 @@ import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.nio.ByteOrder
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
@@ -26,9 +27,9 @@ internal class AndroidChromaprintFingerprintProvider(
     private val formatDetector = AudioFormatDetector(appContext)
 
     override suspend fun fingerprint(song: Song): Result<AudioFingerprint> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             if (!AudioFormatPolicy.canFingerprint(song.fileName)) {
-                throw UnsupportedFingerprintFormat(song.fileName)
+                throw UnsupportedFingerprintFormat()
             }
             val detected = formatDetector.detect(song.uri, song.fileName, null)
             if (
@@ -37,28 +38,36 @@ internal class AndroidChromaprintFingerprintProvider(
                 AudioFormatPolicy.playbackSupport(detected) == PlaybackSupport.Unsupported
             ) {
                 if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "Fingerprint skipped for ${song.fileName}: unsupported decode path")
+                    Log.d(TAG, "Fingerprint skipped: unsupported decode path")
                 }
-                throw UnsupportedFingerprintFormat(song.fileName)
+                throw UnsupportedFingerprintFormat()
             }
             val signature = fileSignature(song)
             val cached = cache.getFingerprint(signature)
             if (!cached.isNullOrBlank()) {
-                return@runCatching AudioFingerprint(
-                    songId = song.id,
-                    durationSeconds = (song.durationMs / 1_000L).coerceAtLeast(1L).toInt(),
-                    fingerprint = cached,
-                    fileSignature = signature,
+                return@withContext Result.success(
+                    AudioFingerprint(
+                        songId = song.id,
+                        durationSeconds = (song.durationMs / 1_000L).coerceAtLeast(1L).toInt(),
+                        fingerprint = cached,
+                        fileSignature = signature,
+                    ),
                 )
             }
             val generated = decodeFingerprint(song)
             cache.putFingerprint(signature, generated)
-            AudioFingerprint(
-                songId = song.id,
-                durationSeconds = (song.durationMs / 1_000L).coerceAtLeast(1L).toInt(),
-                fingerprint = generated,
-                fileSignature = signature,
+            Result.success(
+                AudioFingerprint(
+                    songId = song.id,
+                    durationSeconds = (song.durationMs / 1_000L).coerceAtLeast(1L).toInt(),
+                    fingerprint = generated,
+                    fileSignature = signature,
+                ),
             )
+        } catch (throwable: CancellationException) {
+            throw throwable
+        } catch (throwable: Throwable) {
+            Result.failure(throwable)
         }
     }
 
@@ -206,8 +215,8 @@ internal class AndroidChromaprintFingerprintProvider(
     }
 }
 
-internal class UnsupportedFingerprintFormat(fileName: String) :
-    IllegalArgumentException("Fingerprinting is unavailable for ${fileName.substringAfterLast('/', fileName)}")
+internal class UnsupportedFingerprintFormat :
+    IllegalArgumentException("Fingerprinting is unavailable for this audio file.")
 
 internal class NativeChromaprintBridge {
     init {

@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.data.tags.matching
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.util.Locale
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.Mutex
@@ -224,13 +226,16 @@ internal class RequestRateLimiter(
 internal fun getText(url: String): String {
     val connection = URL(url).openConnection() as HttpURLConnection
     return connection.useRequest("application/json") { input ->
-        input.bufferedReader().use { it.readText() }
+        readBytesBounded(input, MAX_TEXT_RESPONSE_BYTES, connection.contentLengthLong)
+            .toString(Charsets.UTF_8)
     }
 }
 
 internal fun getBytes(url: String): ByteArray {
     val connection = URL(url).openConnection() as HttpURLConnection
-    return connection.useRequest("*/*") { input -> input.readBytes() }
+    return connection.useRequest("*/*") { input ->
+        readBytesBounded(input, MAX_BINARY_RESPONSE_BYTES, connection.contentLengthLong)
+    }
 }
 
 private fun postForm(url: String, values: Map<String, String>): String {
@@ -272,6 +277,29 @@ private inline fun <T> HttpURLConnection.useRequest(
 }
 
 private fun String.urlEncode(): String = URLEncoder.encode(this, Charsets.UTF_8.name())
+
+internal fun readBytesBounded(
+    input: java.io.InputStream,
+    maxBytes: Int,
+    expectedBytes: Long = -1L,
+): ByteArray {
+    if (expectedBytes > maxBytes) {
+        throw IOException("Remote response is too large.")
+    }
+    val output = ByteArrayOutputStream(expectedBytes.takeIf { it in 0..maxBytes }?.toInt() ?: DEFAULT_BUFFER_SIZE)
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    var total = 0
+    while (true) {
+        val read = input.read(buffer)
+        if (read < 0) break
+        total += read
+        if (total > maxBytes) {
+            throw IOException("Remote response is too large.")
+        }
+        output.write(buffer, 0, read)
+    }
+    return output.toByteArray()
+}
 
 private fun JSONArray?.artistNames(): String {
     if (this == null) return ""
@@ -316,4 +344,6 @@ private fun JSONArray?.relatedUrls(): List<String> {
 }
 
 private const val NETWORK_TIMEOUT_MS = 8_000
+private const val MAX_TEXT_RESPONSE_BYTES = 1 * 1024 * 1024
+private const val MAX_BINARY_RESPONSE_BYTES = 16 * 1024 * 1024
 private const val USER_AGENT = "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)"
