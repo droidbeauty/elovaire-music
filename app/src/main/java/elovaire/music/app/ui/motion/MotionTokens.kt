@@ -25,7 +25,7 @@ object MotionDuration {
     const val TopLevelExit = 240
     const val DetailEnter = 480
     const val DetailExit = 340
-    const val AlbumDetail = 640
+    const val AlbumDetail = 540
     const val FullScreenEnter = 440
     const val FullScreenExit = 320
     const val QueueMenuEnter = 480

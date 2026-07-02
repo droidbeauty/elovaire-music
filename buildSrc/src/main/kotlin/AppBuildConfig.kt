@@ -5,5 +5,5 @@ object AppBuildConfig {
     const val versionCode = 10010100
 
     // User-facing version shown in the app.
-    const val versionName = "2.4"
+    const val versionName = "2.3.2"
 }

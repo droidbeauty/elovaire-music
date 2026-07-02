@@ -4,6 +4,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.core.Easing
+import androidx.compose.animation.core.Spring
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -17,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.TransformOrigin
+import kotlin.math.roundToInt
 
 @Stable
 class MotionTransitions internal constructor(
@@ -286,17 +288,18 @@ class MotionTransitions internal constructor(
 
     fun fullScreenForwardEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.FadeIn),
-        initialAlpha = 0.01f,
+        initialAlpha = 0.08f,
     ) + slideInHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.RefinedDecelerate),
-        initialOffsetX = { it / 64 },
+        initialOffsetX = { it / 5 },
     )
 
     fun fullScreenForwardExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.FadeOut),
+        targetAlpha = 0f,
     ) + slideOutHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.RefinedAccelerate),
-        targetOffsetX = { -(it / 96) },
+        targetOffsetX = { -(it / 6) },
     )
 
     fun fullScreenBackEnter(): EnterTransition = fadeIn(
@@ -304,14 +307,15 @@ class MotionTransitions internal constructor(
         initialAlpha = 0.08f,
     ) + slideInHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenEnter, easing = MotionEasing.RefinedDecelerate),
-        initialOffsetX = { -(it / 96) },
+        initialOffsetX = { -(it / 6) },
     )
 
     fun fullScreenBackExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.FadeOut),
+        targetAlpha = 0f,
     ) + slideOutHorizontally(
         animationSpec = specs.tween(MotionDuration.FullScreenExit, easing = MotionEasing.RefinedAccelerate),
-        targetOffsetX = { it / 72 },
+        targetOffsetX = { it / 5 },
     )
 
     fun topLevelEnter(): EnterTransition = fadeIn(
@@ -326,39 +330,63 @@ class MotionTransitions internal constructor(
     fun detailForwardEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeIn),
         initialAlpha = 0.08f,
-    ) + slideInVertically(
+    ) + slideInHorizontally(
         animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.RefinedDecelerate),
-        initialOffsetY = { it / 96 },
+        initialOffsetX = { it / 5 },
     )
 
     fun detailForwardExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeOut),
+        targetAlpha = 0f,
+    ) + slideOutHorizontally(
+        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedAccelerate),
+        targetOffsetX = { -(it / 6) },
     )
 
     fun detailBackEnter(): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeIn),
         initialAlpha = 0.1f,
+    ) + slideInHorizontally(
+        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.RefinedDecelerate),
+        initialOffsetX = { -(it / 6) },
     )
 
     fun detailBackExit(): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeOut),
-    ) + slideOutVertically(
+        targetAlpha = 0f,
+    ) + slideOutHorizontally(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedAccelerate),
-        targetOffsetY = { it / 96 },
+        targetOffsetX = { it / 5 },
     )
 
     fun albumDetailForwardEnter(
         transformOrigin: TransformOrigin = TransformOrigin.Center,
     ): EnterTransition = fadeIn(
         animationSpec = specs.tween(MotionDuration.AlbumDetail, easing = MotionEasing.FadeIn),
-        initialAlpha = 0.06f,
+        initialAlpha = 0.04f,
     ) + scaleIn(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.AlbumDetail,
-            easing = MotionEasing.RefinedDecelerate,
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
         ),
-        initialScale = 0.9f,
+        initialScale = 0.74f,
         transformOrigin = transformOrigin,
+    ) + slideInHorizontally(
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        initialOffsetX = { fullWidth ->
+            ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+        },
+    ) + slideInVertically(
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        initialOffsetY = { fullHeight ->
+            ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+        },
     )
 
     fun albumDetailForwardExit(): ExitTransition = fadeOut(
@@ -381,12 +409,28 @@ class MotionTransitions internal constructor(
     ): ExitTransition = fadeOut(
         animationSpec = specs.tween(MotionDuration.AlbumDetail, easing = MotionEasing.FadeOut),
     ) + scaleOut(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.AlbumDetail,
-            easing = MotionEasing.RefinedAccelerate,
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMediumLow,
         ),
-        targetScale = 0.9f,
+        targetScale = 0.74f,
         transformOrigin = transformOrigin,
+    ) + slideOutHorizontally(
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        targetOffsetX = { fullWidth ->
+            ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+        },
+    ) + slideOutVertically(
+        animationSpec = specs.spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessLow,
+        ),
+        targetOffsetY = { fullHeight ->
+            ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+        },
     )
 }
 
