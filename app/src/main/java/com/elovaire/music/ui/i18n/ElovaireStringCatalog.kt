@@ -167,6 +167,8 @@ internal data class RootUiCopy(
     val playAlbum: String,
     val shuffleAlbum: String,
     val editTags: String,
+    val savePlaylistChanges: String,
+    val editPlaylist: String,
 )
 
 internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
@@ -203,6 +205,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         playAlbum = "Odtwórz album",
         shuffleAlbum = "Tasuj album",
         editTags = "Edytuj tagi",
+        savePlaylistChanges = "Zapisz zmiany playlisty",
+        editPlaylist = "Edytuj playlistę",
     )
     AppLanguage.Slovak -> RootUiCopy(
         firstLaunchPermissionTitle = "Offline hudba si zaslúži prístup k vašej knižnici",
@@ -237,6 +241,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         playAlbum = "Prehrať album",
         shuffleAlbum = "Zamiešať album",
         editTags = "Upraviť tagy",
+        savePlaylistChanges = "Uložiť zmeny playlistu",
+        editPlaylist = "Upraviť playlist",
     )
     AppLanguage.Korean -> RootUiCopy(
         firstLaunchPermissionTitle = "오프라인 음악에는 라이브러리 접근 권한이 필요합니다",
@@ -271,6 +277,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         playAlbum = "앨범 재생",
         shuffleAlbum = "앨범 셔플",
         editTags = "태그 편집",
+        savePlaylistChanges = "플레이리스트 변경사항 저장",
+        editPlaylist = "플레이리스트 편집",
     )
     AppLanguage.Malay -> RootUiCopy(
         firstLaunchPermissionTitle = "Audio luar talian memerlukan akses ke pustaka anda",
@@ -305,6 +313,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         playAlbum = "Mainkan album",
         shuffleAlbum = "Kocok album",
         editTags = "Edit tag",
+        savePlaylistChanges = "Simpan perubahan senarai main",
+        editPlaylist = "Edit senarai main",
     )
     AppLanguage.Bengali -> RootUiCopy(
         firstLaunchPermissionTitle = "অফলাইন অডিওর জন্য আপনার লাইব্রেরিতে প্রবেশাধিকার দরকার",
@@ -339,6 +349,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         playAlbum = "অ্যালবাম চালান",
         shuffleAlbum = "অ্যালবাম শাফল করুন",
         editTags = "ট্যাগ সম্পাদনা",
+        savePlaylistChanges = "প্লেলিস্টের পরিবর্তন সংরক্ষণ করুন",
+        editPlaylist = "প্লেলিস্ট সম্পাদনা",
     )
     AppLanguage.Urdu -> RootUiCopy(
         firstLaunchPermissionTitle = "آف لائن آڈیو کو آپ کی لائبریری تک رسائی درکار ہے",
@@ -373,6 +385,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         playAlbum = "البم چلائیں",
         shuffleAlbum = "البم شفل کریں",
         editTags = "ٹیگز میں ترمیم کریں",
+        savePlaylistChanges = "پلے لسٹ کی تبدیلیاں محفوظ کریں",
+        editPlaylist = "پلے لسٹ میں ترمیم کریں",
     )
     else -> RootUiCopy(
         firstLaunchPermissionTitle = "Offline audio deserves access to your library",
@@ -407,6 +421,8 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         playAlbum = "Play album",
         shuffleAlbum = "Shuffle album",
         editTags = "Edit tags",
+        savePlaylistChanges = "Save playlist changes",
+        editPlaylist = "Edit playlist",
     )
 }
 

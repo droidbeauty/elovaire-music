@@ -151,6 +151,8 @@ internal fun PlaylistDetailScreen(
     var activelyDraggedSongId by rememberSaveable(playlistState.id) { mutableStateOf<Long?>(null) }
     var showEditModeMenu by rememberSaveable(playlistState.id) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(playlistState.id) { mutableStateOf(false) }
+    val language = LocalAppLanguage.current
+    val rootCopy = rootUiCopy(language)
     LaunchedEffect(playlistState.id, playlistState.songIds, editMode) {
         if (!editMode) {
             editableSongIds = playlistState.songIds
@@ -177,13 +179,19 @@ internal fun PlaylistDetailScreen(
         animationSpec = ElovaireMotion.sizeSoft(),
         label = "playlist_edit_menu_top_inset",
     )
-    val topBarActions = remember(editMode, playlistState.isSystem) {
+    val topBarActions = remember(
+        editMode,
+        editableSongIds,
+        songIdsMarkedForRemoval,
+        playlistState.isSystem,
+        rootCopy,
+    ) {
         buildList {
             if (editMode && !playlistState.isSystem) {
                 add(
                     TopBarActionSpec(
                         iconResId = R.drawable.ic_lucide_plus,
-                        contentDescription = "Add songs",
+                        contentDescription = rootCopy.addSongsTitle,
                         onClick = { showAddSongsPicker = true },
                     ),
                 )
@@ -192,7 +200,7 @@ internal fun PlaylistDetailScreen(
                 add(
                     TopBarActionSpec(
                         iconResId = if (editMode) R.drawable.ic_lucide_check else R.drawable.ic_lucide_square_pen,
-                        contentDescription = if (editMode) "Save playlist changes" else "Edit playlist",
+                        contentDescription = if (editMode) rootCopy.savePlaylistChanges else rootCopy.editPlaylist,
                         onClick = {
                             if (editMode) {
                                 val updatedSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }

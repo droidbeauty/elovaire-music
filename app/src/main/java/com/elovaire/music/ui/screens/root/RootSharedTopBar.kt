@@ -31,6 +31,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -590,7 +591,7 @@ internal fun HeaderIconButton(
     }
     Box(
         modifier = modifier
-            .size(40.dp)
+            .size(48.dp)
             .elovairePressScale(
                 enabled = enabled,
                 pressedScale = 0.88f,
@@ -599,28 +600,36 @@ internal fun HeaderIconButton(
                 label = "${contentDescription}_header_scale",
             )
             .clip(CircleShape)
-            .background(
-                if (showBackground) {
-                    MaterialTheme.colorScheme.surfaceVariant.copy(
-                        alpha = if (enabled) 0.58f else 0.32f,
-                    )
-                } else {
-                    Color.Transparent
-                },
-            )
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
                 indication = null,
+                role = Role.Button,
                 onClick = onClick,
             ),
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            painter = iconPainter,
-            contentDescription = contentDescription,
-            tint = tint.copy(alpha = if (enabled) 1f else 0.35f),
-            modifier = Modifier.size(20.dp),
-        )
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(
+                    if (showBackground) {
+                        MaterialTheme.colorScheme.surfaceVariant.copy(
+                            alpha = if (enabled) 0.58f else 0.32f,
+                        )
+                    } else {
+                        Color.Transparent
+                    },
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = iconPainter,
+                contentDescription = contentDescription,
+                tint = tint.copy(alpha = if (enabled) 1f else 0.35f),
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
