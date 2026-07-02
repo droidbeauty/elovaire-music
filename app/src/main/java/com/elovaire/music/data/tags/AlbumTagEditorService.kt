@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
+import elovaire.music.droidbeauty.app.data.network.readBytesBounded
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumTagMatchResult
 import elovaire.music.droidbeauty.app.data.tags.matching.AndroidChromaprintFingerprintProvider
@@ -505,7 +506,7 @@ internal class AlbumTagEditorService(
 
     private fun readBytes(uri: Uri): ByteArray? {
         return contentResolver.openInputStream(uri)?.use { input ->
-            input.readBytes()
+            input.readBytesBounded(MAX_SELECTED_ARTWORK_BYTES)
         }
     }
 
@@ -592,6 +593,7 @@ internal class AlbumTagEditorService(
         const val TAG = "AlbumTagEditor"
         const val MIN_RELEASE_YEAR = 1
         const val MAX_RELEASE_YEAR = 9999
+        const val MAX_SELECTED_ARTWORK_BYTES = 16 * 1024 * 1024
     }
 
     private fun logDebug(message: String) {

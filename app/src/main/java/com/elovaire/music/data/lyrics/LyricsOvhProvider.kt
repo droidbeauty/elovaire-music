@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.json.JSONObject
 import java.net.HttpURLConnection
@@ -103,7 +104,9 @@ internal class LyricsOvhProvider : LyricsProvider {
                 Log.d(TAG, "lyrics.ovh status=$code")
             }
             if (code !in 200..299) return@runCatching null
-            connection.inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+            connection.inputStream.use { input ->
+                input.readUtf8Bounded(MAX_RESPONSE_BYTES, connection.contentLengthLong)
+            }
         }.getOrElse { throwable ->
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "lyrics.ovh request failed", throwable)
@@ -120,5 +123,6 @@ internal class LyricsOvhProvider : LyricsProvider {
         const val CONNECT_TIMEOUT_MS = 1_500
         const val READ_TIMEOUT_MS = 2_000
         const val MAX_QUERY_VARIANTS = 2
+        const val MAX_RESPONSE_BYTES = 1 * 1024 * 1024
     }
 }

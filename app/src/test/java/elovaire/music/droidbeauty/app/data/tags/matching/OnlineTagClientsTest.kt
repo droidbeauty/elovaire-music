@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.tags.matching
 
+import elovaire.music.droidbeauty.app.data.network.readBytesBounded
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import org.junit.Assert.assertArrayEquals
@@ -12,17 +13,17 @@ class OnlineTagClientsTest {
 
         assertArrayEquals(
             bytes,
-            readBytesBounded(ByteArrayInputStream(bytes), maxBytes = 3, expectedBytes = bytes.size.toLong()),
+            ByteArrayInputStream(bytes).readBytesBounded(maxBytes = 3, expectedBytes = bytes.size.toLong()),
         )
     }
 
     @Test(expected = IOException::class)
     fun readBytesBounded_rejectsOversizedContentLength() {
-        readBytesBounded(ByteArrayInputStream(byteArrayOf()), maxBytes = 3, expectedBytes = 4)
+        ByteArrayInputStream(byteArrayOf()).readBytesBounded(maxBytes = 3, expectedBytes = 4)
     }
 
     @Test(expected = IOException::class)
     fun readBytesBounded_rejectsStreamThatExceedsLimit() {
-        readBytesBounded(ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)), maxBytes = 3)
+        ByteArrayInputStream(byteArrayOf(1, 2, 3, 4)).readBytesBounded(maxBytes = 3)
     }
 }

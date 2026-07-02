@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.tags.matching
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import elovaire.music.droidbeauty.app.data.network.readBytesBounded
 import java.net.URLEncoder
 import java.util.Locale
 
@@ -105,7 +106,7 @@ private fun getTextContent(url: String, accept: String): String {
     connection.setRequestProperty("User-Agent", "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)")
     return try {
         connection.inputStream.use { input ->
-            readBytesBounded(input, MAX_HTML_BYTES, connection.contentLengthLong)
+            input.readBytesBounded(MAX_HTML_BYTES, connection.contentLengthLong)
                 .toString(Charsets.UTF_8)
         }
     } finally {

@@ -9,6 +9,7 @@ import androidx.core.content.FileProvider
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppWorkKind
+import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import java.io.File
 import java.net.HttpURLConnection
@@ -722,7 +723,9 @@ internal class AppUpdateManager(
             if (responseCode !in 200..299) {
                 throw IllegalStateException("Release check failed")
             }
-            val payload = inputStream.bufferedReader().use { it.readText() }
+            val payload = inputStream.use { input ->
+                input.readUtf8Bounded(MAX_RELEASE_METADATA_BYTES, contentLengthLong)
+            }
             block(JSONArray(payload))
         } finally {
             disconnect()
@@ -738,7 +741,9 @@ internal class AppUpdateManager(
             if (responseCode !in 200..299) {
                 throw IllegalStateException("Release check failed")
             }
-            val payload = inputStream.bufferedReader().use { it.readText() }
+            val payload = inputStream.use { input ->
+                input.readUtf8Bounded(MAX_RELEASE_METADATA_BYTES, contentLengthLong)
+            }
             block(JSONObject(payload))
         } finally {
             disconnect()
@@ -753,6 +758,7 @@ internal class AppUpdateManager(
         const val AUTOMATIC_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1_000L
         const val STARTUP_UPDATE_CHECK_DELAY_MS = 4_500L
         const val NETWORK_TIMEOUT_MS = 12_000
+        const val MAX_RELEASE_METADATA_BYTES = 1 * 1024 * 1024
         const val MAX_CHECKSUM_TEXT_CHARS = 64 * 1024
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")

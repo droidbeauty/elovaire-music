@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
@@ -327,7 +328,9 @@ private class DefaultLrcLibApi : LrcLibApi {
             when {
                 responseCode == 404 -> null
                 responseCode !in 200..299 -> throw LrcLibHttpException(responseCode)
-                else -> inputStream.bufferedReader(StandardCharsets.UTF_8).use { it.readText() }
+                else -> inputStream.use { input ->
+                    input.readUtf8Bounded(MAX_RESPONSE_BYTES, contentLengthLong)
+                }
             }
         } finally {
             disconnect()
@@ -410,6 +413,7 @@ private class DefaultLrcLibApi : LrcLibApi {
         const val READ_TIMEOUT_MS = 2_000
         const val LRCLIB_MIN_DELAY_MS = 100L
         const val LRCLIB_MAX_CALLS_PER_MINUTE = 30
+        const val MAX_RESPONSE_BYTES = 1 * 1024 * 1024
         const val NETWORK_RETRY_ATTEMPTS = 2
         const val NETWORK_RETRY_INITIAL_DELAY_MS = 350L
     }

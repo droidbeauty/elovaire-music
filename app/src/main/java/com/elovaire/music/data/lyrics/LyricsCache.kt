@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
+import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -74,7 +75,9 @@ internal class LyricsCache(
         cacheLoaded = true
         if (!cacheFile.exists()) return
         runCatching {
-            val root = JSONObject(cacheFile.readText())
+            val root = JSONObject(cacheFile.inputStream().use { input ->
+                input.readUtf8Bounded(MAX_CACHE_FILE_BYTES, cacheFile.length())
+            })
             if (root.optInt("version") != CACHE_VERSION) return@runCatching
             val entries = root.optJSONArray("entries") ?: JSONArray()
             repeat(entries.length()) { index ->
@@ -201,6 +204,7 @@ internal class LyricsCache(
         const val CACHE_FILE_NAME = "lyrics_cache_v5.json"
         const val CACHE_VERSION = 5
         const val MAX_ENTRIES = 320
+        const val MAX_CACHE_FILE_BYTES = 2 * 1024 * 1024
         const val RESULT_FOUND = "found"
         const val RESULT_NOT_FOUND = "not_found"
         const val RESULT_TIMEOUT = "timeout"
