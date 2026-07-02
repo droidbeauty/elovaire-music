@@ -78,7 +78,7 @@ internal class ElovaireMediaTree(
                 ?.songs.orEmpty()
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Artist -> snapshot.songs
-                .filter { it.artist.equals(ElovaireMediaIds.decodeName(id.encodedName), ignoreCase = true) }
+                .filter { it.libraryArtistName().equals(ElovaireMediaIds.decodeName(id.encodedName), ignoreCase = true) }
                 .sortedSongsForContext()
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Genre -> snapshot.songs
@@ -140,7 +140,7 @@ internal class ElovaireMediaTree(
             is ElovaireMediaId.Artist -> {
                 val artist = ElovaireMediaIds.decodeName(parsed.encodedName)
                 snapshot.songs
-                    .filter { it.artist.equals(artist, ignoreCase = true) }
+                    .filter { it.libraryArtistName().equals(artist, ignoreCase = true) }
                     .sortedSongsForContext()
                     .toQueue(artist)
             }
@@ -381,7 +381,7 @@ internal class ElovaireMediaTree(
         fun favoriteSongs(): List<Song> = songs.filter { it.id in favoriteSongIds }
         fun recentlyAddedSongs(): List<Song> = songs.sortedByDescending { song -> song.dateAddedSeconds }
         fun artistNames(): List<String> = songs
-            .map { it.artist.ifBlank { UNKNOWN_ARTIST } }
+            .map { it.libraryArtistName() }
             .distinct()
             .sortedBy { name -> name.lowercase() }
         fun genreNames(): List<String> = songs
@@ -411,6 +411,10 @@ internal class ElovaireMediaTree(
         const val UNKNOWN_ARTIST = "Unknown Artist"
         const val UNKNOWN_GENRE = "Unknown Genre"
     }
+}
+
+private fun Song.libraryArtistName(): String {
+    return albumArtist?.takeIf { it.isNotBlank() } ?: artist.ifBlank { "Unknown Artist" }
 }
 
 internal data class ResolvedPlayableQueue(

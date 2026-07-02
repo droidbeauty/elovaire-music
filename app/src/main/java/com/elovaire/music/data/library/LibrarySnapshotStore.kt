@@ -139,7 +139,10 @@ internal class LibrarySnapshotStore(
                                     put("uri", song.uri.toString())
                                     put("artUri", song.artUri?.toString().orEmpty())
                                     put("metadataResolved", song.metadataResolved)
-                                    song.volumeNormalization?.let { put("volumeNormalization", it.toJson()) }
+                                    song.volumeNormalization
+                                        ?.toJson()
+                                        ?.takeIf { it.length() > 0 }
+                                        ?.let { put("volumeNormalization", it) }
                                 },
                             )
                         }
@@ -186,16 +189,18 @@ private fun LibraryMediaStoreSyncState.toJson(): JSONObject {
 
 private fun VolumeNormalizationMetadata.toJson(): JSONObject {
     return JSONObject().apply {
-        trackGainDb?.let { put("trackGainDb", it.toDouble()) }
-        albumGainDb?.let { put("albumGainDb", it.toDouble()) }
-        trackPeak?.let { put("trackPeak", it.toDouble()) }
-        albumPeak?.let { put("albumPeak", it.toDouble()) }
+        trackGainDb?.takeIf(Float::isFinite)?.let { put("trackGainDb", it.toDouble()) }
+        albumGainDb?.takeIf(Float::isFinite)?.let { put("albumGainDb", it.toDouble()) }
+        trackPeak?.takeIf(Float::isFinite)?.let { put("trackPeak", it.toDouble()) }
+        albumPeak?.takeIf(Float::isFinite)?.let { put("albumPeak", it.toDouble()) }
     }
 }
 
 private fun JSONObject.toVolumeNormalizationMetadata(): VolumeNormalizationMetadata {
     fun optionalFloat(name: String): Float? {
-        return takeIf { has(name) && !isNull(name) }?.optDouble(name)?.toFloat()
+        return takeIf { has(name) && !isNull(name) }
+            ?.optDouble(name)
+            ?.let(::finiteFloatOrNull)
     }
     return VolumeNormalizationMetadata(
         trackGainDb = optionalFloat("trackGainDb"),
@@ -203,6 +208,10 @@ private fun JSONObject.toVolumeNormalizationMetadata(): VolumeNormalizationMetad
         trackPeak = optionalFloat("trackPeak"),
         albumPeak = optionalFloat("albumPeak"),
     )
+}
+
+internal fun finiteFloatOrNull(value: Double): Float? {
+    return value.takeIf(Double::isFinite)?.toFloat()
 }
 
 private fun JSONObject.toLibraryMediaStoreSyncState(): LibraryMediaStoreSyncState {

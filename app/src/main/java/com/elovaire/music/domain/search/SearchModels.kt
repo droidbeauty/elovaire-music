@@ -236,18 +236,18 @@ internal fun Album.toSearchableAlbum(): SearchableAlbum {
 
 private fun buildSearchableArtists(songs: List<Song>): List<SearchableArtist> {
     return songs
-        .filter { it.artist.isNotBlank() }
-        .groupBy { normalizeSearchText(it.artist) }
+        .filter { it.libraryArtistName().isNotBlank() }
+        .groupBy { normalizeSearchText(it.libraryArtistName()) }
         .mapNotNull { (normalizedName, artistSongs) ->
             if (normalizedName.isBlank()) return@mapNotNull null
             val displayName = artistSongs
-                .map { it.artist.trim() }
+                .map { it.libraryArtistName().trim() }
                 .filter { it.isNotBlank() }
                 .groupingBy { it }
                 .eachCount()
                 .maxWithOrNull(compareBy<Map.Entry<String, Int>> { it.value }.thenBy { it.key.length })
                 ?.key
-                ?: artistSongs.first().artist.trim()
+                ?: artistSongs.first().libraryArtistName().trim()
             SearchableArtist(
                 displayName = displayName,
                 normalizedName = normalizedName,
@@ -260,6 +260,10 @@ private fun buildSearchableArtists(songs: List<Song>): List<SearchableArtist> {
                 .thenByDescending { it.songCount }
                 .thenBy { it.displayName },
         )
+}
+
+private fun Song.libraryArtistName(): String {
+    return albumArtist?.takeIf { it.isNotBlank() } ?: artist
 }
 
 private val SEARCH_DIACRITICS_REGEX = Regex("\\p{Mn}+")

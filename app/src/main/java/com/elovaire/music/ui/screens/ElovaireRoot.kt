@@ -2566,7 +2566,7 @@ private fun ArtistCollectionScreen(
     val scrollState = rememberElovaireScrollState("artist_collection")
     val artists = remember(songs) {
         songs
-            .groupBy { it.artist.ifBlank { "Unknown Artist" } }
+            .groupBy { it.libraryArtistName() }
             .map { (name, artistSongs) ->
                 ArtistEntry(
                     name = name,
@@ -2760,7 +2760,7 @@ internal fun ArtistDetailScreen(
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
     val artistSongs = remember(normalizedArtist, libraryState.songs) {
         libraryState.songs.filter { song ->
-            song.artist.ifBlank { "Unknown Artist" }.equals(normalizedArtist, ignoreCase = true)
+            song.libraryArtistName().equals(normalizedArtist, ignoreCase = true)
         }
     }
     val topSongs = remember(artistSongs, songPlayCounts) {
@@ -2856,6 +2856,10 @@ private fun buildArtistScreenSubtitle(
     language: AppLanguage,
 ): String {
     return "${localizedCountLabel(albumCount, "album", language)} • ${localizedCountLabel(songCount, "song", language)}"
+}
+
+private fun Song.libraryArtistName(): String {
+    return albumArtist?.takeIf { it.isNotBlank() } ?: artist.ifBlank { "Unknown Artist" }
 }
 
 @Composable
@@ -5718,7 +5722,7 @@ internal fun AddSongsToPlaylistOverlay(
             .sortedWith(compareBy<Album> { it.artist.lowercase() }.thenBy { it.title.lowercase() })
     }
     val artists = remember(candidateSongs) {
-        candidateSongs.groupBy { it.artist }
+        candidateSongs.groupBy { it.libraryArtistName() }
             .map { (artistName, songs) ->
                 ArtistEntry(
                     name = artistName,

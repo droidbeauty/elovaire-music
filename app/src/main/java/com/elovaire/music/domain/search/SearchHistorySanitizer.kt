@@ -17,14 +17,15 @@ internal fun albumSearchHistoryEntry(album: Album): SearchHistoryEntry {
 }
 
 internal fun artistSearchHistoryEntry(song: Song): SearchHistoryEntry {
-    val normalizedArtist = normalizeSearchText(song.artist)
+    val artist = song.albumArtist?.takeIf { it.isNotBlank() } ?: song.artist
+    val normalizedArtist = normalizeSearchText(artist)
     return SearchHistoryEntry(
         key = "artist:$normalizedArtist",
         kind = SearchHistoryKind.Artist,
-        title = song.artist.trim(),
+        title = artist.trim(),
         subtitle = song.album,
         artUri = song.artUri,
-        query = song.artist.trim(),
+        query = artist.trim(),
     )
 }
 

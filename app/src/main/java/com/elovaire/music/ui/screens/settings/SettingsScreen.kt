@@ -151,7 +151,7 @@ internal fun SettingsScreen(
                 start = 18.dp,
                 top = topBarOccupiedHeight() + 8.dp,
                 end = 18.dp,
-                bottom = bottomPadding + buttonNavigationScrollBoost(),
+                bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {

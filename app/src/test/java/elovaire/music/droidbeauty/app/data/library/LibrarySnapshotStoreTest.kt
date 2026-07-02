@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LibrarySnapshotStoreTest {
@@ -37,5 +38,17 @@ class LibrarySnapshotStoreTest {
         )
 
         assertEquals(withoutModified, zeroModified)
+    }
+
+    @Test
+    fun finiteFloatOrNull_rejectsInvalidSnapshotNumbers() {
+        assertNull(finiteFloatOrNull(Double.NaN))
+        assertNull(finiteFloatOrNull(Double.POSITIVE_INFINITY))
+        assertEquals(0.92f, finiteFloatOrNull(0.92) ?: 0f, 0.001f)
+    }
+
+    @Test
+    fun finiteFloatOrNull_acceptsFiniteSnapshotNumbers() {
+        assertEquals(-4f, finiteFloatOrNull(-4.0) ?: 0f, 0.001f)
     }
 }
