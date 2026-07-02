@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.playback.library
 
 import androidx.annotation.OptIn
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.LibraryResult
@@ -95,24 +96,55 @@ internal class ElovaireMediaLibrarySessionCallback(
                 }
         } ?: mediaTree.defaultPlayableQueue().takeIf { requested == null }
         if (resolved != null) {
-            val resolvedStartIndex = resolved.queue.indexOfFirst { it.id == resolved.startSong.id }.coerceAtLeast(0)
-            playbackManager.playSong(
-                song = resolved.startSong,
-                collection = resolved.queue,
-                sourceLabel = resolved.sourceLabel,
-                shuffleEnabled = playbackManager.state.value.shuffleEnabled,
-                sourcePlaylistId = resolved.sourcePlaylistId,
-            )
-            return Futures.immediateFuture(
-                MediaSession.MediaItemsWithStartPosition(
-                    resolved.queue.map(ElovaireMediaItems::song),
-                    resolvedStartIndex,
-                    startPositionMs.coerceAtLeast(0L),
-                ),
-            )
+            playResolvedQueue(resolved, startPositionMs)
+            return Futures.immediateFuture(resolved.toMediaItemsWithStartPosition(startPositionMs))
         }
         return Futures.immediateFuture(
             MediaSession.MediaItemsWithStartPosition(emptyList(), 0, 0L),
+        )
+    }
+
+    override fun onPlaybackResumption(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        isForPlayback: Boolean,
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+        val resolved = mediaTree.resumptionQueue()
+            ?: return Futures.immediateFailedFuture(NoSuchElementException("No resumable media"))
+        if (isForPlayback) {
+            playResolvedQueue(resolved, C.TIME_UNSET)
+        }
+        return Futures.immediateFuture(resolved.toMediaItemsWithStartPosition(C.TIME_UNSET))
+    }
+
+    private fun playResolvedQueue(
+        resolved: ResolvedPlayableQueue,
+        startPositionMs: Long,
+    ) {
+        playbackManager.playSong(
+            song = resolved.startSong,
+            collection = resolved.queue,
+            sourceLabel = resolved.sourceLabel,
+            shuffleEnabled = playbackManager.state.value.shuffleEnabled,
+            sourcePlaylistId = resolved.sourcePlaylistId,
+        )
+        if (startPositionMs > 0L) {
+            playbackManager.seekTo(startPositionMs.coerceAtMost(resolved.startSong.durationMs.takeIf { it > 0 } ?: startPositionMs))
+        }
+    }
+
+    private fun ResolvedPlayableQueue.toMediaItemsWithStartPosition(startPositionMs: Long): MediaSession.MediaItemsWithStartPosition {
+        val resolvedStartIndex = queue.indexOfFirst { it.id == startSong.id }.coerceAtLeast(0)
+        val resolvedStartPositionMs = when {
+            startPositionMs == C.TIME_UNSET -> C.TIME_UNSET
+            startPositionMs <= 0L -> 0L
+            startSong.durationMs > 0L -> startPositionMs.coerceAtMost(startSong.durationMs)
+            else -> startPositionMs
+        }
+        return MediaSession.MediaItemsWithStartPosition(
+            queue.map(ElovaireMediaItems::song),
+            resolvedStartIndex,
+            resolvedStartPositionMs,
         )
     }
 
@@ -199,5 +231,14 @@ internal class MediaLibraryCallbackRouter : MediaLibrarySession.Callback {
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         return delegate?.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
             ?: Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex, startPositionMs))
+    }
+
+    override fun onPlaybackResumption(
+        mediaSession: MediaSession,
+        controller: MediaSession.ControllerInfo,
+        isForPlayback: Boolean,
+    ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+        return delegate?.onPlaybackResumption(mediaSession, controller, isForPlayback)
+            ?: Futures.immediateFailedFuture(UnsupportedOperationException())
     }
 }

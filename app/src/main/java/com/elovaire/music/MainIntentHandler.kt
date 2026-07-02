@@ -2,17 +2,27 @@ package elovaire.music.droidbeauty.app
 
 import android.content.Intent
 import androidx.activity.ComponentActivity
+import androidx.lifecycle.lifecycleScope
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.playback.EXTRA_OPEN_PLAYER_FROM_NOTIFICATION
 import elovaire.music.droidbeauty.app.data.playback.ExternalAudioIntentHandler
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 internal class MainIntentHandler(
     private val activity: ComponentActivity,
     private val container: AppContainer,
 ) {
+    private var externalAudioJob: Job? = null
+
     fun handle(intent: Intent?) {
         handleNotificationIntent(intent)
         handleExternalAudioIntent(intent)
+    }
+
+    fun release() {
+        externalAudioJob?.cancel()
+        externalAudioJob = null
     }
 
     private fun handleNotificationIntent(intent: Intent?) {
@@ -23,18 +33,27 @@ internal class MainIntentHandler(
     }
 
     private fun handleExternalAudioIntent(intent: Intent?) {
-        val song = ExternalAudioIntentHandler.buildSong(activity, intent) ?: return
-        container.playbackManager.playSong(
-            song = song,
-            collection = listOf(song),
-            sourceLabel = "External audio",
-        )
-        container.requestOpenNowPlaying()
-        activity.setIntent(
-            Intent(activity, MainActivity::class.java).apply {
-                action = Intent.ACTION_MAIN
-                addCategory(Intent.CATEGORY_LAUNCHER)
-            },
-        )
+        if (!ExternalAudioIntentHandler.canHandle(intent)) return
+        val request = intent?.let(::Intent) ?: return
+        externalAudioJob?.cancel()
+        val job = activity.lifecycleScope.launch {
+            val song = ExternalAudioIntentHandler.buildSong(activity.applicationContext, request) ?: return@launch
+            container.playbackManager.playSong(
+                song = song,
+                collection = listOf(song),
+                sourceLabel = "External audio",
+            )
+            container.requestOpenNowPlaying()
+            activity.setIntent(
+                Intent(activity, MainActivity::class.java).apply {
+                    action = Intent.ACTION_MAIN
+                    addCategory(Intent.CATEGORY_LAUNCHER)
+                },
+            )
+        }
+        externalAudioJob = job
+        job.invokeOnCompletion {
+            if (externalAudioJob == job) externalAudioJob = null
+        }
     }
 }

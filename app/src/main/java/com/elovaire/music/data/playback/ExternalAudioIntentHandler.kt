@@ -7,10 +7,12 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
-import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.io.File
 import java.util.Locale
 import kotlin.math.absoluteValue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 internal object ExternalAudioIntentHandler {
     private const val EXTERNAL_ALBUM_ID_BASE = -9_000_000_000_000L
@@ -20,35 +22,36 @@ internal object ExternalAudioIntentHandler {
         return intent?.action == Intent.ACTION_VIEW && intent.data != null
     }
 
-    fun buildSong(
+    suspend fun buildSong(
         context: Context,
         intent: Intent?,
-    ): Song? {
-        if (!canHandle(intent)) return null
-        val uri = intent?.data ?: return null
-        if (!uri.isSupportedScheme()) return null
+    ): Song? = withContext(Dispatchers.IO) {
+        if (!canHandle(intent)) return@withContext null
+        val uri = intent?.data ?: return@withContext null
+        if (!uri.isSupportedScheme()) return@withContext null
+        if (uri.scheme == ContentResolver.SCHEME_FILE && !uri.isReadableFileAudioInput()) return@withContext null
 
         val contentResolver = context.contentResolver
         val mimeType = intent.type
-            ?: contentResolver.getType(uri)
+            ?: contentResolver.safeType(uri)
             ?: uri.extensionMimeType()
-        val normalizedMimeType = mimeType?.lowercase(Locale.ROOT)
 
-        val displayName = contentResolver.queryDisplayName(uri)
+        val displayName = ExternalAudioMetadataPolicy.sanitizeDisplayName(
+            contentResolver.queryDisplayName(uri)
             ?: uri.lastPathSegment
-            ?: "External audio"
-        val extension = displayName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        val extensionCapability = AudioFormatPolicy.capabilityForExtension(extension)
-        val mimeCapability = normalizedMimeType?.let { mime ->
-            AudioFormatPolicy.capabilities.firstOrNull { mime in it.mimeTypes }
-        }
-        val capability = extensionCapability ?: mimeCapability ?: return null
+            ?: "External audio",
+        )
+        val capability = ExternalAudioMetadataPolicy.resolveCapability(
+            displayName = displayName,
+            pathSegment = uri.lastPathSegment,
+            mimeType = mimeType,
+        ) ?: return@withContext null
 
-        val title = displayName.substringBeforeLast('.').ifBlank { displayName }
+        val title = ExternalAudioMetadataPolicy.titleFromDisplayName(displayName)
         val durationMs = contentResolver.readDurationMs(context, uri)
         val stableHash = uri.toString().hashCode().toLong().absoluteValue
 
-        return Song(
+        Song(
             id = EXTERNAL_SONG_ID_BASE + stableHash,
             title = title,
             isExplicit = false,
@@ -76,6 +79,17 @@ internal object ExternalAudioIntentHandler {
         return scheme == ContentResolver.SCHEME_CONTENT || scheme == ContentResolver.SCHEME_FILE
     }
 
+    private fun Uri.isReadableFileAudioInput(): Boolean {
+        val file = path?.let(::File) ?: return false
+        if (!file.isFile || !file.canRead()) return false
+        val displayName = ExternalAudioMetadataPolicy.sanitizeDisplayName(file.name)
+        return ExternalAudioMetadataPolicy.resolveCapability(
+            displayName = displayName,
+            pathSegment = file.name,
+            mimeType = extensionMimeType(),
+        ) != null
+    }
+
     private fun Uri.extensionMimeType(): String? {
         val extension = lastPathSegment
             ?.substringAfterLast('.', "")
@@ -101,6 +115,13 @@ internal object ExternalAudioIntentHandler {
         }.getOrNull()
     }
 
+    private fun ContentResolver.safeType(uri: Uri): String? {
+        return runCatching { getType(uri) }
+            .getOrNull()
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+    }
+
     private fun ContentResolver.readDurationMs(
         context: Context,
         uri: Uri,
@@ -109,10 +130,9 @@ internal object ExternalAudioIntentHandler {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, uri)
-                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                    ?.toLongOrNull()
-                    ?.coerceAtLeast(0L)
-                    ?: 0L
+                ExternalAudioMetadataPolicy.boundedDurationMs(
+                    retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION),
+                )
             } finally {
                 retriever.release()
             }

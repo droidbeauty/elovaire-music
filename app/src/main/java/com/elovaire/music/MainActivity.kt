@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        intentHandler.release()
         jankMonitor?.release()
         jankMonitor = null
         super.onDestroy()

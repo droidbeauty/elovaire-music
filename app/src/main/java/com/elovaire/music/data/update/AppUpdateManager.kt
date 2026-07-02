@@ -32,6 +32,8 @@ internal data class AppReleaseInfo(
     val versionName: String,
     val tagName: String,
     val downloadUrl: String,
+    val checksumUrl: String?,
+    val assetSizeBytes: Long?,
     val notes: String,
     val publishedAt: String,
     val assetFileName: String,
@@ -163,6 +165,7 @@ internal class AppUpdateManager(
         downloadJob = scope.launch {
             val reusableApk = pendingInstallApk?.takeIf { it.exists() && it.name == release.assetFileName }
             if (reusableApk != null) {
+                if (!verifyDownloadedApkOrReport(reusableApk, release)) return@launch
                 if (!ensureInstallerPermission(reusableApk)) return@launch
                 if (!launchInstallerOrReport(reusableApk)) return@launch
                 _uiState.update {
@@ -186,9 +189,7 @@ internal class AppUpdateManager(
                 )
             }
             val apkFile = runCatching {
-                withContext(Dispatchers.IO) {
-                    downloadReleaseApk(release)
-                }
+                withContext(Dispatchers.IO) { downloadReleaseApk(release) }
             }.getOrElse { throwable ->
                 if (throwable is CancellationException) throw throwable
                 _uiState.update {
@@ -340,7 +341,9 @@ internal class AppUpdateManager(
     }
 
     private fun openGithubConnection(url: String): HttpURLConnection {
-        return (URL(url).openConnection() as HttpURLConnection).apply {
+        val parsedUrl = URL(url)
+        require(parsedUrl.protocol == "https") { "Update source is invalid" }
+        return (parsedUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = NETWORK_TIMEOUT_MS
             readTimeout = NETWORK_TIMEOUT_MS
@@ -364,12 +367,13 @@ internal class AppUpdateManager(
                     ("release" in name || BuildConfig.APPLICATION_ID.lowercase() in name)
             }
             ?: (0 until assets.length())
-                .mapNotNull { index -> assets.optJSONObject(index) }
-                .firstOrNull { assetJson ->
-                    assetJson.optString("name").orEmpty().lowercase().endsWith(".apk")
-                }
+            .mapNotNull { index -> assets.optJSONObject(index) }
+            .firstOrNull { assetJson ->
+                assetJson.optString("name").orEmpty().lowercase().endsWith(".apk")
+            }
             ?: return null
         val assetName = asset.optString("name").orEmpty()
+        val checksumAsset = findChecksumAsset(assets, assetName)
         val versionName = resolveReleaseVersionLabel(
             tagName = tagName,
             releaseName = releaseName,
@@ -381,10 +385,30 @@ internal class AppUpdateManager(
             versionName = versionName,
             tagName = tagName,
             downloadUrl = asset.optString("browser_download_url").orEmpty(),
+            checksumUrl = checksumAsset?.optString("browser_download_url").orEmpty().ifBlank { null },
+            assetSizeBytes = asset.optLong("size", -1L).takeIf { it > 0L },
             notes = json.optString("body").orEmpty(),
             publishedAt = json.optString("published_at").orEmpty(),
             assetFileName = asset.optString("name").orEmpty().ifBlank { "elovaire-update.apk" },
-        ).takeIf { it.downloadUrl.isNotBlank() }
+        ).takeIf { it.downloadUrl.startsWith("https://") }
+    }
+
+    private fun findChecksumAsset(
+        assets: JSONArray,
+        apkAssetName: String,
+    ): JSONObject? {
+        val lowerApkName = apkAssetName.lowercase()
+        val candidates = (0 until assets.length())
+            .mapNotNull { index -> assets.optJSONObject(index) }
+            .filter { asset ->
+                val name = asset.optString("name").orEmpty().lowercase()
+                name.endsWith(".sha256") ||
+                    name.endsWith(".sha256sum") ||
+                    "checksum" in name
+            }
+        return candidates.firstOrNull { asset ->
+            lowerApkName in asset.optString("name").orEmpty().lowercase()
+        } ?: candidates.firstOrNull()
     }
 
     private suspend fun downloadReleaseApk(release: AppReleaseInfo): File {
@@ -395,7 +419,9 @@ internal class AppUpdateManager(
             partFile.delete()
             targetFile.delete()
         }
-        val connection = (URL(release.downloadUrl).openConnection() as HttpURLConnection).apply {
+        val parsedUrl = URL(release.downloadUrl)
+        require(parsedUrl.protocol == "https") { "Update source is invalid" }
+        val connection = (parsedUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = NETWORK_TIMEOUT_MS
             readTimeout = NETWORK_TIMEOUT_MS
@@ -404,6 +430,9 @@ internal class AppUpdateManager(
         }
         try {
             connection.connect()
+            if (connection.url.protocol != "https") {
+                throw IllegalStateException("Update source is invalid")
+            }
             if (connection.responseCode !in 200..299) {
                 throw IllegalStateException("Update download failed")
             }
@@ -440,10 +469,95 @@ internal class AppUpdateManager(
                 runCatching { targetFile.delete() }
                 error("Downloaded update is invalid")
             }
+            release.assetSizeBytes?.let { expectedSize ->
+                if (targetFile.length() != expectedSize) {
+                    runCatching { targetFile.delete() }
+                    error("Downloaded update is incomplete")
+                }
+            }
+            verifyDownloadedApk(targetFile, release)
             return targetFile
         } catch (throwable: Throwable) {
             runCatching { partFile.delete() }
+            runCatching { targetFile.delete() }
             throw throwable
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private suspend fun verifyDownloadedApkOrReport(
+        apkFile: File,
+        release: AppReleaseInfo,
+    ): Boolean {
+        val result = runCatching {
+            withContext(Dispatchers.IO) { verifyDownloadedApk(apkFile, release) }
+        }
+        if (result.isSuccess) return true
+        runCatching { apkFile.delete() }
+        pendingInstallApk = null
+        _uiState.update {
+            it.copy(
+                isDownloading = false,
+                isInstalling = false,
+                installPermissionRequired = false,
+                downloadProgress = null,
+                errorMessage = result.exceptionOrNull()?.message ?: "Downloaded update is invalid",
+            )
+        }
+        return false
+    }
+
+    private fun verifyDownloadedApk(
+        apkFile: File,
+        release: AppReleaseInfo,
+    ) {
+        if (!apkFile.exists() || apkFile.length() <= 0L) {
+            error("Downloaded update is invalid")
+        }
+        release.assetSizeBytes?.let { expectedSize ->
+            if (apkFile.length() != expectedSize) error("Downloaded update is incomplete")
+        }
+        val checksumUrl = release.checksumUrl ?: return
+        val checksumText = fetchChecksumText(checksumUrl)
+        val expectedChecksum = AppUpdateIntegrity.expectedSha256(
+            checksumText = checksumText,
+            apkFileName = release.assetFileName,
+        ) ?: error("Unable to verify update")
+        if (!AppUpdateIntegrity.verifySha256(apkFile, expectedChecksum)) {
+            error("Update verification failed")
+        }
+    }
+
+    private fun fetchChecksumText(url: String): String {
+        val parsedUrl = URL(url)
+        require(parsedUrl.protocol == "https") { "Update source is invalid" }
+        val connection = (parsedUrl.openConnection() as HttpURLConnection).apply {
+            requestMethod = "GET"
+            connectTimeout = NETWORK_TIMEOUT_MS
+            readTimeout = NETWORK_TIMEOUT_MS
+            setRequestProperty("User-Agent", "Elovaire/${BuildConfig.VERSION_NAME}")
+            instanceFollowRedirects = true
+        }
+        return try {
+            connection.connect()
+            if (connection.url.protocol != "https") {
+                throw IllegalStateException("Update source is invalid")
+            }
+            if (connection.responseCode !in 200..299) {
+                throw IllegalStateException("Update verification failed")
+            }
+            connection.inputStream.bufferedReader().use { reader ->
+                buildString {
+                    val buffer = CharArray(DEFAULT_BUFFER_SIZE)
+                    while (length < MAX_CHECKSUM_TEXT_CHARS) {
+                        val remaining = MAX_CHECKSUM_TEXT_CHARS - length
+                        val read = reader.read(buffer, 0, minOf(buffer.size, remaining))
+                        if (read <= 0) break
+                        append(buffer, 0, read)
+                    }
+                }
+            }
         } finally {
             connection.disconnect()
         }
@@ -470,9 +584,11 @@ internal class AppUpdateManager(
         return true
     }
 
-    private fun launchPendingInstallIfPermissionGranted(): Boolean {
+    private suspend fun launchPendingInstallIfPermissionGranted(): Boolean {
         val apkFile = pendingInstallApk ?: return false
         if (!resumeInstallAfterPermissionGrant) return false
+        val release = _uiState.value.availableRelease
+        if (release != null && !verifyDownloadedApkOrReport(apkFile, release)) return false
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             !appContext.packageManager.canRequestPackageInstalls()
         ) {
@@ -600,6 +716,9 @@ internal class AppUpdateManager(
     private inline fun <T> HttpURLConnection.useJsonArray(block: (JSONArray) -> T): T {
         return try {
             connect()
+            if (url.protocol != "https") {
+                throw IllegalStateException("Release check failed")
+            }
             if (responseCode !in 200..299) {
                 throw IllegalStateException("Release check failed")
             }
@@ -613,6 +732,9 @@ internal class AppUpdateManager(
     private inline fun <T> HttpURLConnection.useJsonObject(block: (JSONObject) -> T): T {
         return try {
             connect()
+            if (url.protocol != "https") {
+                throw IllegalStateException("Release check failed")
+            }
             if (responseCode !in 200..299) {
                 throw IllegalStateException("Release check failed")
             }
@@ -631,6 +753,7 @@ internal class AppUpdateManager(
         const val AUTOMATIC_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1_000L
         const val STARTUP_UPDATE_CHECK_DELAY_MS = 4_500L
         const val NETWORK_TIMEOUT_MS = 12_000
+        const val MAX_CHECKSUM_TEXT_CHARS = 64 * 1024
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")
     }

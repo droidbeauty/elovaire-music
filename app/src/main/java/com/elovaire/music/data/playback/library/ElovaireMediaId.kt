@@ -45,6 +45,7 @@ internal object ElovaireMediaIds {
         value == ElovaireMediaId.Playlists.value -> ElovaireMediaId.Playlists
         value == ElovaireMediaId.Favorites.value -> ElovaireMediaId.Favorites
         value == ElovaireMediaId.RecentlyAdded.value -> ElovaireMediaId.RecentlyAdded
+        value?.toLongOrNull() != null -> ElovaireMediaId.Song(value.toLong())
         value?.startsWith(SONG_PREFIX) == true ->
             value.removePrefix(SONG_PREFIX).toLongOrNull()?.let(ElovaireMediaId::Song)
         value?.startsWith(ALBUM_PREFIX) == true ->

@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.playback.library
 
 import androidx.media3.common.MediaItem
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -233,6 +234,30 @@ internal class ElovaireMediaTree(
         return defaultQueue(snapshot)
     }
 
+    fun resumptionQueue(): ResolvedPlayableQueue? {
+        val snapshot = snapshot()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
+        val recentSong = snapshot.recentSongIds.firstNotNullOfOrNull { songId ->
+            snapshot.songs.firstOrNull { it.id == songId }
+        } ?: return null
+        return when (snapshot.lastPlayedCollectionKind) {
+            PlaybackCollectionKind.Playlist -> snapshot.lastPlayedCollectionId
+                ?.let(snapshot::playlistSongs)
+                ?.takeIf { songs -> songs.any { it.id == recentSong.id } }
+                ?.let { songs ->
+                    val playlistName = snapshot.playlists.firstOrNull { it.id == snapshot.lastPlayedCollectionId }?.name
+                    ResolvedPlayableQueue(recentSong, songs, playlistName ?: "Playlist", snapshot.lastPlayedCollectionId)
+                }
+            PlaybackCollectionKind.Album -> snapshot.lastPlayedCollectionId
+                ?.let { albumId -> snapshot.albums.firstOrNull { it.id == albumId } }
+                ?.takeIf { album -> album.songs.any { it.id == recentSong.id } }
+                ?.let { album -> ResolvedPlayableQueue(recentSong, album.songs, album.title, null) }
+            null -> null
+        } ?: snapshot.albums.firstOrNull { it.id == recentSong.albumId }
+            ?.let { album -> ResolvedPlayableQueue(recentSong, album.songs, album.title, null) }
+            ?: ResolvedPlayableQueue(recentSong, snapshot.songs.sortedSongsByTitle(), "Songs", null)
+    }
+
     private fun snapshot(): MediaTreeSnapshot {
         val content = libraryRepository.contentState.value
         val scan = libraryRepository.scanState.value
@@ -242,6 +267,9 @@ internal class ElovaireMediaTree(
             albums = content.albums,
             playlists = preferenceStore.playlists.value,
             favoriteSongIds = preferenceStore.favoriteSongIds.value.toSet(),
+            recentSongIds = preferenceStore.recentSongIds.value,
+            lastPlayedCollectionKind = preferenceStore.lastPlayedCollectionKind.value,
+            lastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
         )
     }
 
@@ -346,21 +374,24 @@ internal class ElovaireMediaTree(
         val albums: List<Album>,
         val playlists: List<Playlist>,
         val favoriteSongIds: Set<Long>,
+        val recentSongIds: List<Long>,
+        val lastPlayedCollectionKind: PlaybackCollectionKind?,
+        val lastPlayedCollectionId: Long?,
     ) {
         fun favoriteSongs(): List<Song> = songs.filter { it.id in favoriteSongIds }
-        fun recentlyAddedSongs(): List<Song> = songs.sortedByDescending(Song::dateAddedSeconds)
+        fun recentlyAddedSongs(): List<Song> = songs.sortedByDescending { song -> song.dateAddedSeconds }
         fun artistNames(): List<String> = songs
             .map { it.artist.ifBlank { UNKNOWN_ARTIST } }
             .distinct()
-            .sortedBy(String::lowercase)
+            .sortedBy { name -> name.lowercase() }
         fun genreNames(): List<String> = songs
             .map { it.genre.ifBlank { UNKNOWN_GENRE } }
             .distinct()
-            .sortedBy(String::lowercase)
+            .sortedBy { name -> name.lowercase() }
         fun hasUsefulGenres(): Boolean = songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }
         fun playlistSongs(playlistId: Long): List<Song> {
             val playlist = playlists.firstOrNull { it.id == playlistId } ?: return emptyList()
-            val songsById = songs.associateBy(Song::id)
+            val songsById = songs.associateBy { song -> song.id }
             return playlist.songIds.mapNotNull(songsById::get)
         }
     }
