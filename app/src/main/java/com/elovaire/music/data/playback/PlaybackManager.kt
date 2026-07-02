@@ -30,6 +30,8 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.routedDevicesForAttributes
+import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -1785,8 +1787,11 @@ class PlaybackManager(
 
     private fun currentUsbOutputDescriptor(): UsbAudioDeviceDescriptor? {
         val manager = audioManager ?: return null
-        val routedUsbDevice = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            manager.getAudioDevicesForAttributes(platformPlaybackAudioAttributes)
+        val routedUsbDevice = if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
+        ) {
+            manager.routedDevicesForAttributes(platformPlaybackAudioAttributes)
                 .firstOrNull { device ->
                     device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES
                 }

@@ -4,6 +4,7 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import android.media.AudioManager
 import android.os.Build
+import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
 
 internal enum class DirectPlaybackMode {
     RegularPlaybackRequired,
@@ -130,7 +131,7 @@ internal object BitPerfectEligibilityPolicy {
             )
         }
 
-        if (sdkInt < Build.VERSION_CODES.TIRAMISU) {
+        if (!supportsVerifiedDirectPlaybackRouting(sdkInt)) {
             return buildStatus(
                 state = BitPerfectPlaybackState.LegacyUnverifiedUsbRoute,
                 directive = BitPerfectPlaybackDirective.PreferRegular,

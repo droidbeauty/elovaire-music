@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.platform.isContentUri
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -28,6 +29,7 @@ internal class EmbeddedLyricsWriter(context: Context) {
     private val audioFormatDetector = AudioFormatDetector(appContext)
 
     fun createWritePermissionRequest(song: Song): PendingIntent? {
+        if (!song.uri.isContentUri()) return null
         return runCatching {
             MediaStore.createWriteRequest(contentResolver, listOf(song.uri))
         }.getOrNull()

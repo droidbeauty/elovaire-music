@@ -253,10 +253,9 @@ internal fun rememberRootDeleteController(
     val deleteSongsCallback: (List<Song>) -> Unit = deleteSongsCallback@{ songs ->
         rootScope.launch {
             val deletePlan = deleteCoordinator.prepareSongDeletePlan(songs) ?: return@launch
+            val request = mediaStoreDeleteRequest(context, deletePlan.uris) ?: return@launch
             pendingSongDeletion = deletePlan
-            deleteSongLauncher.launch(
-                mediaStoreDeleteRequest(context, deletePlan.uris),
-            )
+            deleteSongLauncher.launch(request)
         }
     }
 

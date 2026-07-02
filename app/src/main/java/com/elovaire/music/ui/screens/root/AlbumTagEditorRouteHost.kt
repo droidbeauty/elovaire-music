@@ -65,13 +65,12 @@ internal fun AlbumTagEditorRouteHost(
             when (event) {
                 is AlbumTagEditorEvent.RequestWritePermission -> {
                     pendingWriteRequest = event.request
-                    if (event.uris.isNotEmpty()) {
-                        albumTagWriteLauncher.launch(
-                            mediaStoreWriteRequest(
-                                context = context,
-                                uris = event.uris,
-                            ),
-                        )
+                    val request = mediaStoreWriteRequest(
+                        context = context,
+                        uris = event.uris,
+                    )
+                    if (request != null) {
+                        albumTagWriteLauncher.launch(request)
                     } else {
                         tagEditorViewModel.onWritePermissionResult(
                             granted = true,

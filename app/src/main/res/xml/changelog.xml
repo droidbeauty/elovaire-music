@@ -10,6 +10,7 @@
         <item>Added volume normalization in settings</item>
         <item>Added playback timer feature</item>
         <item>Refined cross compatibility</item>
+        <item>Various specific optimizations for Android 16 and 17 devices</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

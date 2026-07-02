@@ -12,6 +12,8 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioSink
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.routedDevicesForAttributes
+import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -137,7 +139,9 @@ internal class BitPerfectUsbManager(
 
         val trackConfig = currentTrackConfig
         val routeContext = routeSnapshot.toRouteContext()
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            !supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
+        ) {
             updateStatus(
                 BitPerfectEligibilityPolicy.evaluate(
                     sdkInt = Build.VERSION.SDK_INT,
@@ -261,8 +265,11 @@ private fun resolveRouteSnapshot(
     audioManager: AudioManager,
     playbackAudioAttributes: AudioAttributes,
 ): DirectPlaybackRouteSnapshot {
-    val routedDevices = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        audioManager.getAudioDevicesForAttributes(playbackAudioAttributes)
+    val routedDevices = if (
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+        supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
+    ) {
+        audioManager.routedDevicesForAttributes(playbackAudioAttributes)
             .filter(AudioDeviceInfo::isSink)
     } else {
         audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
@@ -279,7 +286,7 @@ private fun resolveRouteSnapshot(
         primaryRoutedDevice = routedDevices.firstOrNull(),
         primaryRouteFingerprint = routedDevices.firstOrNull()?.toRouteFingerprint(),
         hasBluetoothRoute = routedDevices.any { it.type.isBluetoothOutputType() },
-        isRouteVerified = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU,
+        isRouteVerified = supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT),
     )
 }
 
