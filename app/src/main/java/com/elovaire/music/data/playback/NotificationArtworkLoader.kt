@@ -18,6 +18,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.roundToInt
 
 @UnstableApi
 internal class NotificationArtworkLoader(
@@ -100,13 +101,22 @@ private fun loadBitmap(
     key: ArtworkRequestKey,
 ): Bitmap? {
     NotificationArtworkCache[key.cacheKey]?.let { return it }
-    val bitmap = loadArtworkBitmap(context, key)
+    val bitmap = loadArtworkBitmap(context, key)?.scaledDownForNotification()
     return bitmap?.also { cachedBitmap ->
         NotificationArtworkCache.put(key.cacheKey, cachedBitmap)
     }
 }
 
-private const val NOTIFICATION_ARTWORK_SIZE_PX = 256
+private const val NOTIFICATION_ARTWORK_SIZE_PX = 96
+
+private fun Bitmap.scaledDownForNotification(): Bitmap {
+    val largestDimension = maxOf(width, height)
+    if (largestDimension <= NOTIFICATION_ARTWORK_SIZE_PX) return this
+    val scale = NOTIFICATION_ARTWORK_SIZE_PX.toFloat() / largestDimension.toFloat()
+    val scaledWidth = (width * scale).roundToInt().coerceAtLeast(1)
+    val scaledHeight = (height * scale).roundToInt().coerceAtLeast(1)
+    return Bitmap.createScaledBitmap(this, scaledWidth, scaledHeight, true)
+}
 
 private object NotificationArtworkCache {
     private val maxCacheBytes = (Runtime.getRuntime().maxMemory() / 16L)

@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import androidx.media3.common.Player
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal interface PlaybackQueueRuntime {
@@ -46,7 +47,10 @@ internal class PlaybackQueueController(
         runtime.resetUnexpectedIdleRecoveryGuard()
 
         val player = runtime.player
-        player.setMediaItems(songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem), startIndex, 0L)
+        allowStrictModeDiskReads {
+            // MediaSession metadata publication may synchronously ask MediaProvider to validate artwork URI grants.
+            player.setMediaItems(songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem), startIndex, 0L)
+        }
         player.shuffleModeEnabled = shuffleEnabled
         player.prepare()
         val shouldAutoPlay = runtime.requestAudioFocus()
@@ -103,7 +107,10 @@ internal class PlaybackQueueController(
             return
         }
         val player = runtime.player
-        player.addMediaItem(song.toPlaybackMediaItem())
+        allowStrictModeDiskReads {
+            // MediaSession metadata publication may synchronously ask MediaProvider to validate artwork URI grants.
+            player.addMediaItem(song.toPlaybackMediaItem())
+        }
         runtime.publishState(state.copy(queue = existingQueue + song))
         runtime.updateState()
     }
