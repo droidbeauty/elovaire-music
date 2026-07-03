@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import org.json.JSONArray
 import org.json.JSONObject
@@ -8,7 +9,10 @@ import org.json.JSONObject
 internal class LyricsCache(
     appContext: Context,
 ) {
-    private val cacheFile = appContext.filesDir.resolve(CACHE_FILE_NAME)
+    private val cacheFile = allowStrictModeDiskReads {
+        // The lazy cache only needs its app-private file handle during service construction.
+        appContext.filesDir.resolve(CACHE_FILE_NAME)
+    }
     private val cacheLock = Any()
     private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>()
     private var cacheLoaded = false

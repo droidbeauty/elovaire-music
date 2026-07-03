@@ -373,7 +373,7 @@ fun ElovaireRoot(
     )
     val deleteController = rememberRootDeleteController(container)
     RootUpdateTransientStatusEffect(
-        enabled = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
+        enabled = true,
         transientStatus = appState.appUpdateState.transientStatus,
         clearTransientStatus = container.appUpdateManager::clearTransientStatus,
     )

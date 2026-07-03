@@ -25,6 +25,7 @@ import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -45,7 +46,10 @@ class PreferenceStore(context: Context) :
     FavoritesStore,
     UpdatePreferencesStore {
     private val appContext = context.applicationContext
-    private val preferences = PreferenceStorage(appContext).preferences
+    private val preferences = allowStrictModeDiskReads {
+        // Initial settings must be available synchronously before the first UI state is published.
+        PreferenceStorage(appContext).preferences.also { it.all }
+    }
     private val updatePreferencesStore = UpdatePreferencesStoreImpl(preferences)
     private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var playbackHistoryPersistJob: Job? = null

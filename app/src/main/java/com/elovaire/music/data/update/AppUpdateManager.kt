@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.update
 
 import android.content.Context
 import android.content.Intent
+import android.net.TrafficStats
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -74,25 +75,22 @@ internal class AppUpdateManager(
     private var resumeInstallAfterPermissionGrant = false
 
     init {
-        if (BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) {
-            scope.launch {
-                backgroundWorkPolicy.isForeground.collect { isForeground ->
-                    if (isForeground) {
-                        if (launchPendingInstallIfPermissionGranted()) return@collect
-                        if (pendingAutomaticStartupCheck) {
-                            pendingAutomaticStartupCheck = false
-                            checkForUpdates()
-                        }
-                    } else {
-                        cancelForegroundBoundUpdateWork()
+        scope.launch {
+            backgroundWorkPolicy.isForeground.collect { isForeground ->
+                if (isForeground) {
+                    if (launchPendingInstallIfPermissionGranted()) return@collect
+                    if (pendingAutomaticStartupCheck) {
+                        pendingAutomaticStartupCheck = false
+                        checkForUpdates()
                     }
+                } else {
+                    cancelForegroundBoundUpdateWork()
                 }
             }
         }
     }
 
     override fun checkForUpdates(force: Boolean) {
-        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (!backgroundWorkPolicy.canStart(AppWorkKind.ForegroundOnlyMaintenance, userInitiated = force)) {
             if (!force) pendingAutomaticStartupCheck = true
             return
@@ -152,14 +150,12 @@ internal class AppUpdateManager(
     }
 
     override fun dismissAvailableUpdate() {
-        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         val version = _uiState.value.availableRelease?.versionName ?: return
         preferenceStore.setDismissedUpdateVersion(version)
         _uiState.update { it.copy(availableRelease = null, errorMessage = null) }
     }
 
     override fun startUpdate() {
-        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (!backgroundWorkPolicy.canStart(AppWorkKind.UserInitiatedLongTransfer, userInitiated = true)) return
         val release = _uiState.value.availableRelease ?: return
         if (downloadJob?.isActive == true) return
@@ -246,7 +242,6 @@ internal class AppUpdateManager(
     }
 
     override fun clearInstallState() {
-        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         _uiState.update {
             it.copy(
                 isDownloading = false,
@@ -259,7 +254,6 @@ internal class AppUpdateManager(
     }
 
     override fun clearTransientStatus() {
-        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         _uiState.update { state ->
             if (state.transientStatus == null) state else state.copy(transientStatus = null)
         }
@@ -282,7 +276,6 @@ internal class AppUpdateManager(
     }
 
     override fun scheduleStartupMaintenance() {
-        if (!BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) return
         if (startupMaintenanceScheduled) return
         startupMaintenanceScheduled = true
         startupCleanupJob = scope.launch(Dispatchers.IO) {
@@ -329,16 +322,18 @@ internal class AppUpdateManager(
     }
 
     private fun fetchLatestRelease(installedVersion: String): AppReleaseInfo? {
-        val releases = openGithubConnection(RELEASES_URL).useJsonArray { json ->
-            (0 until json.length())
-                .mapNotNull(json::optJSONObject)
-                .mapNotNull(::parseReleaseInfo)
+        return withUpdateTrafficStatsTag {
+            val releases = openGithubConnection(RELEASES_URL).useJsonArray { json ->
+                (0 until json.length())
+                    .mapNotNull(json::optJSONObject)
+                    .mapNotNull(::parseReleaseInfo)
+            }
+            releases
+                .filter { release -> isVersionNewer(release.versionName, installedVersion) }
+                .maxWithOrNull { left, right -> compareVersions(left.versionName, right.versionName) }
+                ?: openGithubConnection(LATEST_RELEASE_URL).useJsonObject(::parseReleaseInfo)
+                    ?.takeIf { release -> isVersionNewer(release.versionName, installedVersion) }
         }
-        return releases
-            .filter { release -> isVersionNewer(release.versionName, installedVersion) }
-            .maxWithOrNull { left, right -> compareVersions(left.versionName, right.versionName) }
-            ?: openGithubConnection(LATEST_RELEASE_URL).useJsonObject(::parseReleaseInfo)
-                ?.takeIf { release -> isVersionNewer(release.versionName, installedVersion) }
     }
 
     private fun openGithubConnection(url: String): HttpURLConnection {
@@ -429,7 +424,9 @@ internal class AppUpdateManager(
             setRequestProperty("User-Agent", "Elovaire/${BuildConfig.VERSION_NAME}")
             instanceFollowRedirects = true
         }
+        val previousTrafficStatsTag = TrafficStats.getThreadStatsTag()
         try {
+            TrafficStats.setThreadStatsTag(UPDATE_TRAFFIC_STATS_TAG)
             connection.connect()
             if (connection.url.protocol != "https") {
                 throw IllegalStateException("Update source is invalid")
@@ -483,6 +480,7 @@ internal class AppUpdateManager(
             runCatching { targetFile.delete() }
             throw throwable
         } finally {
+            TrafficStats.setThreadStatsTag(previousTrafficStatsTag)
             connection.disconnect()
         }
     }
@@ -540,7 +538,9 @@ internal class AppUpdateManager(
             setRequestProperty("User-Agent", "Elovaire/${BuildConfig.VERSION_NAME}")
             instanceFollowRedirects = true
         }
+        val previousTrafficStatsTag = TrafficStats.getThreadStatsTag()
         return try {
+            TrafficStats.setThreadStatsTag(UPDATE_TRAFFIC_STATS_TAG)
             connection.connect()
             if (connection.url.protocol != "https") {
                 throw IllegalStateException("Update source is invalid")
@@ -560,7 +560,18 @@ internal class AppUpdateManager(
                 }
             }
         } finally {
+            TrafficStats.setThreadStatsTag(previousTrafficStatsTag)
             connection.disconnect()
+        }
+    }
+
+    private inline fun <T> withUpdateTrafficStatsTag(block: () -> T): T {
+        val previousTag = TrafficStats.getThreadStatsTag()
+        TrafficStats.setThreadStatsTag(UPDATE_TRAFFIC_STATS_TAG)
+        return try {
+            block()
+        } finally {
+            TrafficStats.setThreadStatsTag(previousTag)
         }
     }
 
@@ -760,6 +771,7 @@ internal class AppUpdateManager(
         const val NETWORK_TIMEOUT_MS = 12_000
         const val MAX_RELEASE_METADATA_BYTES = 1 * 1024 * 1024
         const val MAX_CHECKSUM_TEXT_CHARS = 64 * 1024
+        const val UPDATE_TRAFFIC_STATS_TAG = 0x454C5550
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")
     }

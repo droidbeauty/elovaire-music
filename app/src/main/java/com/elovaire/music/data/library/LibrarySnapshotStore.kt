@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.net.Uri
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -25,7 +26,10 @@ internal data class CachedLibrarySnapshot(
 internal class LibrarySnapshotStore(
     appContext: Context,
 ) {
-    private val snapshotFile = appContext.filesDir.resolve(SNAPSHOT_FILE_NAME)
+    private val snapshotFile = allowStrictModeDiskReads {
+        // Snapshot loading is explicit and off-main; construction only resolves the app-private file.
+        appContext.filesDir.resolve(SNAPSHOT_FILE_NAME)
+    }
     @Volatile
     private var lastSerializedSnapshot: String? = null
 

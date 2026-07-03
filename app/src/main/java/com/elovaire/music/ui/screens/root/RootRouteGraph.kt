@@ -12,7 +12,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 @Composable
@@ -306,7 +305,7 @@ internal fun RootRouteGraph(
                 onOpenPrivacySafety = routeActions::openPrivacySafety,
                 onOpenChangelog = routeActions::openChangelog,
                 onScanLibrary = routeActions::refreshLibrary,
-                showUpdateChecks = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
+                showUpdateChecks = true,
                 onCheckForUpdates = routeActions::checkForUpdates,
             )
         }

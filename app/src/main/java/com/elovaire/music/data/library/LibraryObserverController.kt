@@ -9,9 +9,11 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal class LibraryObserverController(
     appContext: Context,
@@ -88,17 +90,29 @@ internal class LibraryObserverController(
     }
 
     fun ensureLibraryFolderObservers(forceRebuild: Boolean = false) {
-        val roots = scanner.scanRoots()
-        val rootPaths = roots.map(File::getAbsolutePath)
-        if (!forceRebuild && libraryFolderObservers.map(RecursiveMusicDirectoryObserver::rootPath) == rootPaths) return
-        releaseLibraryFolderObservers()
-        libraryFolderObservers = roots.mapNotNull(::createMusicDirectoryObserver)
-            .also { observers -> observers.forEach(RecursiveMusicDirectoryObserver::startWatching) }
+        val currentRootPaths = libraryFolderObservers.map(RecursiveMusicDirectoryObserver::rootPath)
+        observerRebuildJob?.cancel()
+        observerRebuildJob = scope.launch {
+            val observers = withContext(Dispatchers.IO) {
+                val roots = scanner.scanRoots()
+                val rootPaths = roots.map(File::getAbsolutePath)
+                if (!forceRebuild && currentRootPaths == rootPaths) return@withContext null
+                roots.mapNotNull(::createMusicDirectoryObserver)
+                    .also { observers -> observers.forEach(RecursiveMusicDirectoryObserver::startWatching) }
+            } ?: return@launch
+            observerRebuildJob = null
+            stopLibraryFolderObservers()
+            libraryFolderObservers = observers
+        }
     }
 
     fun releaseLibraryFolderObservers() {
         observerRebuildJob?.cancel()
         observerRebuildJob = null
+        stopLibraryFolderObservers()
+    }
+
+    private fun stopLibraryFolderObservers() {
         libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
         libraryFolderObservers = emptyList()
     }
@@ -109,7 +123,9 @@ internal class LibraryObserverController(
             delay(AUTO_REFRESH_DEBOUNCE_MS)
             observerRebuildJob = null
             if (libraryFolderObservers.isNotEmpty()) {
-                libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::rebuildWatchingTree)
+                withContext(Dispatchers.IO) {
+                    libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::rebuildWatchingTree)
+                }
             } else {
                 ensureLibraryFolderObservers(forceRebuild = true)
             }

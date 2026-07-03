@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.core
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
-import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
@@ -14,7 +13,6 @@ import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
-import elovaire.music.droidbeauty.app.data.update.DisabledUpdateController
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import kotlinx.coroutines.CoroutineScope
 
@@ -32,16 +30,12 @@ internal class UpdateComponent(
     preferenceStore: PreferenceStore,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
-    val appUpdateManager: UpdateController = if (BuildConfig.ENABLE_GITHUB_UPDATE_FLOW) {
-        AppUpdateManager(
-            context = context,
-            scope = scope,
-            preferenceStore = preferenceStore,
-            backgroundWorkPolicy = backgroundWorkPolicy,
-        )
-    } else {
-        DisabledUpdateController()
-    }
+    val appUpdateManager: UpdateController = AppUpdateManager(
+        context = context,
+        scope = scope,
+        preferenceStore = preferenceStore,
+        backgroundWorkPolicy = backgroundWorkPolicy,
+    )
 
     fun release() {
         appUpdateManager.release()

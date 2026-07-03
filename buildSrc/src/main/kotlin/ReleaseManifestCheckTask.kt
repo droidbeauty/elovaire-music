@@ -6,7 +6,7 @@ import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
-abstract class PlayReleaseManifestCheckTask : DefaultTask() {
+abstract class ReleaseManifestCheckTask : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val manifestFile: RegularFileProperty
@@ -15,28 +15,21 @@ abstract class PlayReleaseManifestCheckTask : DefaultTask() {
     fun checkManifest() {
         val manifest = manifestFile.asFile.get()
         if (!manifest.isFile) {
-            throw GradleException("Play release manifest was not generated.")
+            throw GradleException("Release manifest was not generated.")
         }
         val text = manifest.readText()
-        val forbidden = listOf(
-            "android.permission.REQUEST_INSTALL_PACKAGES",
-            "androidx.core.content.FileProvider",
-            ".data.update.AppUpdateInstallReceiver",
-            ".fileprovider",
-        )
-        forbidden.forEach { value ->
-            if (value in text) {
-                throw GradleException("Play release manifest contains GitHub-only entry: $value")
-            }
-        }
         listOf(
             "android:usesCleartextTraffic=\"false\"",
             "android:allowBackup=\"false\"",
             "android:dataExtractionRules=\"@xml/data_extraction_rules\"",
             "android:fullBackupContent=\"@xml/backup_rules\"",
+            "android.permission.REQUEST_INSTALL_PACKAGES",
+            "androidx.core.content.FileProvider",
+            "AppUpdateInstallReceiver",
+            ".fileprovider",
         ).forEach { value ->
             if (value !in text) {
-                throw GradleException("Play release manifest is missing expected entry: $value")
+                throw GradleException("Release manifest is missing expected entry: $value")
             }
         }
     }

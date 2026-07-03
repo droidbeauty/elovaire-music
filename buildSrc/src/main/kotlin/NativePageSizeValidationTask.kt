@@ -1,32 +1,29 @@
-import java.io.File
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.zip.ZipFile
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
-import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.InputDirectory
+import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
 
 abstract class NativePageSizeValidationTask : DefaultTask() {
-    @get:InputDirectory
+    @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val bundleDirectory: DirectoryProperty
+    abstract val bundleFile: RegularFileProperty
 
     @get:Input
     abstract val minPageSize: Property<Long>
 
     @TaskAction
     fun validate() {
-        val bundle = bundleDirectory.asFile.get()
-            .listFiles()
-            ?.filter { file -> file.isFile && file.extension == "aab" }
-            ?.maxByOrNull(File::lastModified)
-            ?: throw GradleException("Play release AAB was not generated.")
+        val bundle = bundleFile.asFile.get()
+            .takeIf { file -> file.isFile && file.extension == "aab" }
+            ?: throw GradleException("Release AAB was not generated.")
         var checkedLibraries = 0
         ZipFile(bundle).use { zip ->
             zip.entries().iterator().asSequence()
@@ -38,7 +35,7 @@ abstract class NativePageSizeValidationTask : DefaultTask() {
                 }
         }
         if (checkedLibraries == 0) {
-            throw GradleException("Play release AAB does not contain native libraries to validate.")
+            throw GradleException("Release AAB does not contain native libraries to validate.")
         }
     }
 

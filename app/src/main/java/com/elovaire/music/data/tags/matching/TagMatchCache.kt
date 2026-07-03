@@ -1,11 +1,15 @@
 package elovaire.music.droidbeauty.app.data.tags.matching
 
 import android.content.Context
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import java.security.MessageDigest
 import java.util.LinkedHashMap
 
 internal class TagMatchCache(context: Context) {
-    private val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    private val preferences = allowStrictModeDiskReads {
+        // The tag-match cache keeps small fingerprints in SharedPreferences for immediate reuse.
+        context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+    }
     private val responseCache = object : LinkedHashMap<String, String>(32, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean {
             return size > MAX_RESPONSE_ENTRIES

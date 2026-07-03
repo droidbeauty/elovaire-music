@@ -73,7 +73,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -133,7 +132,6 @@ internal fun SettingsScreen(
     val privacyCopy = remember(appLanguage) {
         privacySafetyCopy(
             language = appLanguage,
-            includeUpdates = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
         )
     }
     Box(
@@ -371,7 +369,7 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
-                        if (showUpdateChecks) {
+                    if (showUpdateChecks) {
                             SettingActionRow(
                                 title = copy.checkUpdates,
                                 subtitle = copy.checkUpdatesSubtitle,

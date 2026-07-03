@@ -9,7 +9,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.update.AppUpdateTransientStatus
@@ -87,8 +86,7 @@ internal fun BoxScope.RootOverlayHost(
                 end = 16.dp,
                 top = topBarHeight + 8.dp,
             ),
-        visible = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW &&
-            (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
+        visible = (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
             (appUpdateState.availableRelease != null || appUpdateState.transientStatus != null),
         enter = motionTransitions.bannerEnter(),
         exit = motionTransitions.bannerExit(),

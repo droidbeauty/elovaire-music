@@ -14,6 +14,7 @@ import android.os.Build
 import android.util.Log
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
@@ -29,7 +30,10 @@ internal class UsbDacHardwareVolumeManager(
 ) {
     private val appContext = context.applicationContext
     private val controller = UsbDacHardwareVolumeController()
-    private val preferences = appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val preferences = allowStrictModeDiskReads {
+        // Hardware-volume calibration needs persisted values before route state is exposed.
+        appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    }
     private val _status = MutableStateFlow(controller.status())
     val status: StateFlow<UsbDacHardwareVolumeStatus> = _status.asStateFlow()
 

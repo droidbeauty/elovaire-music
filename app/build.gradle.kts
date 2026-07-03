@@ -42,7 +42,6 @@ android {
             "ACOUSTID_API_KEY",
             "\"${acoustIdApiKey.orEmpty().replace("\"", "\\\"")}\"",
         )
-
         externalNativeBuild {
             cmake {
                 cppFlags += "-std=c++17"
@@ -63,18 +62,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-        }
-    }
-
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("github") {
-            dimension = "distribution"
-            buildConfigField("boolean", "ENABLE_GITHUB_UPDATE_FLOW", "true")
-        }
-        create("play") {
-            dimension = "distribution"
-            buildConfigField("boolean", "ENABLE_GITHUB_UPDATE_FLOW", "false")
         }
     }
 
@@ -244,27 +231,28 @@ tasks.named("check") {
     dependsOn(checkDeprecatedAndroidApiUsage)
 }
 
-val assertPlayReleaseManifest = tasks.register<PlayReleaseManifestCheckTask>("assertPlayReleaseManifest") {
-    dependsOn("processPlayReleaseManifest")
+val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertReleaseManifest") {
+    dependsOn("processReleaseManifest")
     manifestFile.set(
         layout.buildDirectory.file(
-            "intermediates/merged_manifests/playRelease/processPlayReleaseManifest/AndroidManifest.xml",
+            "intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml",
         ),
     )
 }
 
-val validatePlayReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validatePlayReleaseNativePageSize") {
-    dependsOn("bundlePlayRelease")
-    bundleDirectory.set(layout.buildDirectory.dir("outputs/bundle/playRelease"))
+val validateReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validateReleaseNativePageSize") {
+    dependsOn("bundleRelease")
+    bundleFile.set(layout.buildDirectory.file("outputs/bundle/release/app-release.aab"))
     minPageSize.set(16 * 1024L)
 }
 
-tasks.register("verifyPlayReleaseReadiness") {
+tasks.register("verifyReleaseReadiness") {
     dependsOn(
         "check",
-        "lintPlayRelease",
-        "bundlePlayRelease",
-        assertPlayReleaseManifest,
-        validatePlayReleaseNativePageSize,
+        "lintRelease",
+        "assembleRelease",
+        "bundleRelease",
+        assertReleaseManifest,
+        validateReleaseNativePageSize,
     )
 }
