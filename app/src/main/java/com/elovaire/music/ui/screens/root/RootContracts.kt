@@ -555,9 +555,9 @@ internal fun String?.normalizedNavigationRoute(): String? {
 
 internal fun androidx.navigation.NavBackStackEntry.elovaireConcreteRoute(): String? {
     return when (destination.route) {
-        "$ALBUM_ROUTE/{albumId}" -> Routes.album(arguments?.getLong("albumId") ?: return null)
-        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> Routes.tagEditor(arguments?.getLong("albumId") ?: return null)
-        "$PLAYLIST_ROUTE/{playlistId}" -> Routes.playlist(arguments?.getLong("playlistId") ?: return null)
+        "$ALBUM_ROUTE/{albumId}" -> Routes.album(arguments.routeLongArg("albumId") ?: return null)
+        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> Routes.tagEditor(arguments.routeLongArg("albumId") ?: return null)
+        "$PLAYLIST_ROUTE/{playlistId}" -> Routes.playlist(arguments.routeLongArg("playlistId") ?: return null)
         "$GENRE_ROUTE/{genre}" -> Routes.genre(arguments?.getString("genre") ?: return null)
         "$ARTIST_ROUTE/{artistName}" -> Routes.artist(arguments?.getString("artistName") ?: return null)
         "$LIBRARY_COLLECTION_ROUTE/{kind}" -> "$LIBRARY_COLLECTION_ROUTE/${arguments?.getString("kind") ?: return null}"
@@ -574,9 +574,9 @@ internal fun androidx.navigation.NavBackStackEntry.concreteNavigationRoute(): St
     val route = destination.route ?: return null
     val args = arguments
     return when (route) {
-        "$ALBUM_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it != 0L }?.let(Routes::album)
-        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it != 0L }?.let(Routes::tagEditor)
-        "$PLAYLIST_ROUTE/{playlistId}" -> args?.getLong("playlistId")?.takeIf { it > 0L }?.let(Routes::playlist)
+        "$ALBUM_ROUTE/{albumId}" -> args.routeLongArg("albumId")?.let(Routes::album)
+        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> args.routeLongArg("albumId")?.let(Routes::tagEditor)
+        "$PLAYLIST_ROUTE/{playlistId}" -> args.routeLongArg("playlistId")?.let(Routes::playlist)
         "$LIBRARY_COLLECTION_ROUTE/{kind}" -> args?.getString("kind")?.let { "$LIBRARY_COLLECTION_ROUTE/$it" }
         "$GENRE_ROUTE/{genre}" -> args?.getString("genre")?.let(Routes::genre)
         "$ARTIST_ROUTE/{artistName}" -> args?.getString("artistName")?.let(Routes::artist)

@@ -47,7 +47,7 @@ internal fun BoxScope.RootOverlayHost(
         expanded = showTopBarMenu,
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(10f),
+            .zIndex(RootLayerZ.TopBarMenu),
         onDismiss = onDismissTopBarMenu,
         onOpenSettings = onOpenSettings,
         onOpenEqualizer = onOpenEqualizer,
@@ -58,7 +58,7 @@ internal fun BoxScope.RootOverlayHost(
         visible = showChangelogSheet,
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(11f),
+            .zIndex(RootLayerZ.ChangelogSheet),
         enter = motionTransitions.bottomSheetEnter(),
         exit = motionTransitions.bottomSheetExit(),
         label = "ChangelogSheetOverlay",
@@ -81,7 +81,7 @@ internal fun BoxScope.RootOverlayHost(
     ElovaireAnimatedVisibility(
         modifier = Modifier
             .align(Alignment.TopCenter)
-            .zIndex(7f)
+            .zIndex(RootLayerZ.UpdateBanner)
             .padding(
                 start = 16.dp,
                 end = 16.dp,
@@ -115,7 +115,7 @@ internal fun BoxScope.RootOverlayHost(
         visible = permissionState.showFirstLaunchPermissionOverlay,
         modifier = Modifier
             .fillMaxSize()
-            .zIndex(9f),
+            .zIndex(RootLayerZ.PermissionOverlay),
         enter = motionTransitions.overlayFadeEnter(initialAlpha = 0.82f),
         exit = motionTransitions.overlayFadeExit(targetAlpha = 0.96f),
         label = "FirstLaunchPermissionOverlayVisibility",

@@ -43,7 +43,7 @@ internal fun RootPlayerLayerHost(
         modifier = modifier
             .fillMaxSize()
             .clipToBounds()
-            .zIndex(20f),
+            .zIndex(RootLayerZ.PlayerOverlay),
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
             Box(

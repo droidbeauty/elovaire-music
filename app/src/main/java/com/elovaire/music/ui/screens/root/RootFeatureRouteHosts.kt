@@ -49,7 +49,7 @@ internal fun HomeRouteHost(
 
 @Composable
 internal fun PlaylistDetailRouteHost(
-    playlistId: Long,
+    playlistId: Long?,
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
@@ -57,7 +57,7 @@ internal fun PlaylistDetailRouteHost(
     val appState = routeState.appState
     val libraryState = routeState.libraryState
     val playbackState = routeState.playbackState
-    val playlist = appState.playlists.firstOrNull { it.id == playlistId }
+    val playlist = playlistId?.let { id -> appState.playlists.firstOrNull { it.id == id } }
     PlaylistDetailScreen(
         playlist = playlist,
         librarySongs = libraryState.songs,
@@ -98,7 +98,9 @@ internal fun PlaylistDetailRouteHost(
                 sourcePlaylistId = playlist?.id,
             )
         },
-        onUpdateSongOrder = { songIds -> routeActions.updatePlaylistSongOrder(playlistId, songIds) },
+        onUpdateSongOrder = { songIds ->
+            playlistId?.let { routeActions.updatePlaylistSongOrder(it, songIds) }
+        },
         onRenamePlaylist = routeActions::renamePlaylist,
         onToggleFavorite = routeActions.playlists::toggleFavorite,
     )

@@ -47,7 +47,7 @@ internal fun BoxScope.RootChromeHost(
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
                 .height(sharedTopBarHeight)
-                .zIndex(7f),
+                .zIndex(RootLayerZ.ChromeBackdrop),
         )
     }
     if (sharedTopBarSpec != null) {
@@ -57,7 +57,7 @@ internal fun BoxScope.RootChromeHost(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
                     .fillMaxWidth()
-                    .zIndex(9f),
+                    .zIndex(RootLayerZ.SharedTopBar),
             )
         }
     }
@@ -66,7 +66,7 @@ internal fun BoxScope.RootChromeHost(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .zIndex(7f)
+                    .zIndex(RootLayerZ.CompactPlayer)
                     .padding(
                         start = 16.dp,
                         end = 16.dp,
@@ -89,7 +89,7 @@ internal fun BoxScope.RootChromeHost(
     ElovaireAnimatedVisibility(
         modifier = Modifier
             .align(Alignment.BottomCenter)
-            .zIndex(8f)
+            .zIndex(RootLayerZ.BottomNavigation)
             .fillMaxWidth(),
         visible = showBottomNavigation,
         enter = if (reenteringFromPlayer) {

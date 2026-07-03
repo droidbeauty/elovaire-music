@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -100,9 +99,8 @@ internal fun RootRouteGraph(
             route = "$PLAYLIST_ROUTE/{playlistId}",
             arguments = listOf(navArgument("playlistId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
             PlaylistDetailRouteHost(
-                playlistId = playlistId,
+                playlistId = backStackEntry.playlistRouteId(),
                 routeState = routeState,
                 routeActions = routeActions,
                 padding = padding,
@@ -113,7 +111,7 @@ internal fun RootRouteGraph(
             route = "$ALBUM_ROUTE/{albumId}",
             arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
+            val albumId = backStackEntry.albumRouteId()
             var routedAlbumSongIds by remember(albumId) { mutableStateOf<Set<Long>>(emptySet()) }
             val album = libraryState.albums.firstOrNull { it.id == albumId }
                 ?: libraryState.albums.firstOrNull { candidate ->
@@ -156,9 +154,8 @@ internal fun RootRouteGraph(
             route = "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
             arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            val albumId = backStackEntry.arguments?.getLong("albumId") ?: 0L
             AlbumTagEditorRouteHost(
-                albumId = albumId,
+                albumId = backStackEntry.albumRouteId() ?: 0L,
                 backStackEntry = backStackEntry,
                 viewModelFactory = viewModelFactory,
                 appLanguage = appState.appLanguage,
@@ -170,9 +167,7 @@ internal fun RootRouteGraph(
             route = "$LIBRARY_COLLECTION_ROUTE/{kind}",
             arguments = listOf(navArgument("kind") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val kindArg = backStackEntry.arguments?.getString("kind")
-            val kind = kindArg?.let { runCatching { LibraryCollectionKind.valueOf(it) }.getOrNull() }
-                ?: LibraryCollectionKind.Albums
+            val kind = backStackEntry.libraryCollectionKindArg()
             LibraryCollectionScreen(
                 kind = kind,
                 libraryState = libraryState,
@@ -217,7 +212,7 @@ internal fun RootRouteGraph(
             route = "$GENRE_ROUTE/{genre}",
             arguments = listOf(navArgument("genre") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val genre = backStackEntry.arguments?.getString("genre")?.let(Uri::decode).orEmpty()
+            val genre = backStackEntry.genreRouteArg()
             GenreAlbumsScreen(
                 genre = genre,
                 libraryState = libraryState,
@@ -245,7 +240,7 @@ internal fun RootRouteGraph(
             route = "$ARTIST_ROUTE/{artistName}",
             arguments = listOf(navArgument("artistName") { type = NavType.StringType }),
         ) { backStackEntry ->
-            val artistName = backStackEntry.arguments?.getString("artistName")?.let(Uri::decode).orEmpty()
+            val artistName = backStackEntry.artistRouteArg()
             ArtistDetailScreen(
                 artistName = artistName,
                 libraryState = libraryState,

@@ -58,10 +58,5 @@ internal fun rememberRootRouteObservation(
 }
 
 internal fun NavBackStackEntry.currentAlbumRouteId(): Long? {
-    val arguments = arguments ?: return null
-    return when {
-        arguments.containsKey("albumId") -> arguments.getString("albumId")?.toLongOrNull()
-            ?: arguments.getLong("albumId").takeIf { it != 0L }
-        else -> null
-    }
+    return albumRouteId()
 }
