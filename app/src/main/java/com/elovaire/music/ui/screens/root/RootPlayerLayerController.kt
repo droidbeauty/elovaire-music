@@ -13,13 +13,13 @@ internal class RootPlayerLayerController(
     private val setStateName: (String) -> Unit,
     transitionSnapshot: NowPlayingTransitionSnapshot?,
     private val setTransitionSnapshot: (NowPlayingTransitionSnapshot?) -> Unit,
-    private val hasCurrentSong: () -> Boolean,
+    private val currentSongPresent: Boolean,
 ) {
     val state: PlayerLayerState = stateName.toPlayerLayerStateOrDefault()
     val transitionSnapshot: NowPlayingTransitionSnapshot? = transitionSnapshot
 
     fun requestOpen(snapshot: NowPlayingTransitionSnapshot?) {
-        if (!hasCurrentSong() || state == PlayerLayerState.Expanded) {
+        if (!currentSongPresent || state == PlayerLayerState.Expanded) {
             return
         }
         setStateName(PlayerLayerState.Expanded.name)
@@ -27,7 +27,7 @@ internal class RootPlayerLayerController(
     }
 
     fun hide(returnToCompact: Boolean) {
-        setStateName(playerLayerStateAfterHide(returnToCompact, hasCurrentSong()).name)
+        setStateName(playerLayerStateAfterHide(returnToCompact, currentSongPresent).name)
     }
 
     fun resetIfSongMissing(currentSongPresent: Boolean) {
@@ -49,7 +49,7 @@ internal class RootPlayerLayerController(
 @Composable
 internal fun rememberRootPlayerLayerController(
     currentSongId: Long?,
-    hasCurrentSong: () -> Boolean,
+    currentSongPresent: Boolean,
 ): RootPlayerLayerController {
     var transitionSnapshot by remember { mutableStateOf<NowPlayingTransitionSnapshot?>(null) }
     var stateName by rememberSaveable { mutableStateOf(PlayerLayerState.Compact.name) }
@@ -58,7 +58,7 @@ internal fun rememberRootPlayerLayerController(
         setStateName = { stateName = it },
         transitionSnapshot = transitionSnapshot,
         setTransitionSnapshot = { transitionSnapshot = it },
-        hasCurrentSong = hasCurrentSong,
+        currentSongPresent = currentSongPresent,
     )
     LaunchedEffect(controller.state.name) {
         if (stateName != controller.state.name) {

@@ -427,9 +427,10 @@ fun ElovaireRoot(
     )
     val currentRoute = routeObservation.route
     val currentAlbumRouteId = routeObservation.currentAlbumRouteId
+    val currentSongPresent = playbackState.currentSong != null
     val playerLayerController = rememberRootPlayerLayerController(
         currentSongId = playbackState.currentSong?.id,
-        hasCurrentSong = { container.playbackManager.state.value.currentSong != null },
+        currentSongPresent = currentSongPresent,
     )
     val playerLayerState = playerLayerController.state
     val searchChromeState = rememberRootSearchChromeState()
@@ -442,7 +443,7 @@ fun ElovaireRoot(
         currentRoute = currentRoute,
         keyboardVisible = keyboardVisible,
         searchQueryActive = searchChromeState.isQueryActive,
-        currentSongPresent = playbackState.currentSong != null,
+        currentSongPresent = currentSongPresent,
         playerLayerState = playerLayerState,
     )
     val overscrollFactory = rememberElovaireOverscrollFactory()
