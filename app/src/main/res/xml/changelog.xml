@@ -9,5 +9,6 @@
     <release version="2.3.4">
         <item>Minor UI tweaks</item>
         <item>Bug fixes for media scanning and custom folders</item>
+        <item>Stability upgrades and general bug fixes</item>
     </release>
 </changelog>

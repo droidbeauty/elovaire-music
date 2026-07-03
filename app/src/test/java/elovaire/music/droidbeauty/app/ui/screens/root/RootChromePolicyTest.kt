@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.ui.unit.dp
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -80,5 +81,29 @@ class RootChromePolicyTest {
             padding.bottomContent,
         )
         assertEquals(padding.bottomContent, padding.detailBottom)
+    }
+
+    @Test
+    fun rootSharedTopBarSpec_exposesPlaylistCreateActionOnlyOnPlaylistsRoute() {
+        val playlistsSpec = rootSharedTopBarSpec(
+            currentRoute = PLAYLISTS_ROUTE,
+            showTopLevelChrome = true,
+            language = AppLanguage.English,
+            onRequestCreatePlaylist = {},
+            onOpenMenu = {},
+        ) as SharedTopBarSpec.Unified
+        val homeSpec = rootSharedTopBarSpec(
+            currentRoute = HOME_ROUTE,
+            showTopLevelChrome = true,
+            language = AppLanguage.English,
+            onRequestCreatePlaylist = {},
+            onOpenMenu = {},
+        ) as SharedTopBarSpec.Unified
+
+        assertEquals("Create playlist", playlistsSpec.supplementalActionContentDescription)
+        assertTrue(playlistsSpec.onSupplementalAction != null)
+        assertEquals(null, homeSpec.supplementalActionContentDescription)
+        assertEquals(null, homeSpec.onSupplementalAction)
+        assertEquals(null, rootSharedTopBarSpec(HOME_ROUTE, showTopLevelChrome = false, AppLanguage.English, {}, {}))
     }
 }

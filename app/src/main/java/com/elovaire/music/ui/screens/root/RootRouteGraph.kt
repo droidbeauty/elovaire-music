@@ -35,37 +35,11 @@ internal fun RootRouteGraph(
         modifier = modifier,
     ) {
         composable(HOME_ROUTE) {
-            val recentSongs = remember(routeState.songsById, playbackState.recentSongIds) {
-                playbackState.recentSongIds.mapNotNull(routeState.songsById::get).take(5)
-            }
-            HomeScreen(
-                lastPlayedAlbum = routeState.lastPlayedAlbum,
-                lastPlayedPlaylist = routeState.lastPlayedPlaylist,
-                songsById = routeState.songsById,
-                recentlyAddedAlbums = routeState.recentlyAddedAlbums,
-                recentSongs = recentSongs,
-                favoriteAlbums = routeState.favoriteAlbums,
-                playbackState = playbackState,
-                isLibraryLoading = libraryState.isLoading,
-                libraryScanProgress = libraryState.scanProgress,
-                favoriteSongIds = appState.favoriteSongIds,
-                topPadding = padding.topContent,
-                bottomPadding = padding.bottomContent,
-                scrollToTopRequestVersion = navState.homeScrollRequestVersion,
-                resetScrollOnColdStart = routeState.resetHomeScrollOnColdStart,
-                playInitialReveal = routeState.playFirstLaunchHomeReveal,
-                onInitialRevealFinished = routeActions.onInitialRevealFinished,
-                onAlbumSelected = { album, origin ->
-                    routeActions.openAlbum(album, origin, AlbumOpenSource.HomeSection)
-                },
-                onPlaylistSelected = { playlist -> routeActions.openPlaylist(playlist.id) },
-                onPlayAlbum = { album -> routeActions.playback.playAlbum(album) },
-                onPlayPlaylist = routeActions.playback::playPlaylist,
-                onShufflePlaylist = { playlist, songs ->
-                    routeActions.playback.playPlaylist(playlist, songs, shuffle = true)
-                },
-                onSongSelected = routeActions.playback::playSongFromAlbumOrSingle,
-                onToggleFavorite = routeActions.playlists::toggleFavorite,
+            HomeRouteHost(
+                navState = navState,
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
             )
         }
 
@@ -127,50 +101,11 @@ internal fun RootRouteGraph(
             arguments = listOf(navArgument("playlistId") { type = NavType.LongType }),
         ) { backStackEntry ->
             val playlistId = backStackEntry.arguments?.getLong("playlistId") ?: 0L
-            val playlist = appState.playlists.firstOrNull { it.id == playlistId }
-            PlaylistDetailScreen(
-                playlist = playlist,
-                librarySongs = libraryState.songs,
-                favoriteSongIds = appState.favoriteSongIds,
-                currentSongId = playbackState.currentSong?.id,
-                isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
-                bottomPadding = padding.detailBottom,
-                onBack = routeActions::navigateUp,
-                onPlayPlaylist = { songs, sourceLabel ->
-                    songs.firstOrNull()?.let { firstSong ->
-                        routeActions.playback.playSongQueue(
-                            song = firstSong,
-                            queue = songs,
-                            sourceLabel = sourceLabel,
-                            sourcePlaylistId = playlist?.id,
-                        )
-                    }
-                },
-                onShufflePlaylist = { songs, sourceLabel ->
-                    val shuffledSongs = songs.shuffled()
-                    shuffledSongs.firstOrNull()?.let { firstSong ->
-                        routeActions.playback.playSongQueue(
-                            song = firstSong,
-                            queue = shuffledSongs,
-                            sourceLabel = sourceLabel,
-                            sourcePlaylistId = playlist?.id,
-                        )
-                    }
-                },
-                onSongSelected = { song, queue ->
-                    routeActions.playback.playSongQueue(
-                        song = song,
-                        queue = queue,
-                        sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
-                            fallbackAlbum = song.album,
-                            language = appState.appLanguage,
-                        ),
-                        sourcePlaylistId = playlist?.id,
-                    )
-                },
-                onUpdateSongOrder = { songIds -> routeActions.updatePlaylistSongOrder(playlistId, songIds) },
-                onRenamePlaylist = routeActions::renamePlaylist,
-                onToggleFavorite = routeActions.playlists::toggleFavorite,
+            PlaylistDetailRouteHost(
+                playlistId = playlistId,
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
             )
         }
 

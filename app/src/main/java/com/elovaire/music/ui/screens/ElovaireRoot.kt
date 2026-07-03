@@ -42,7 +42,6 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.MarqueeAnimationMode
 import androidx.compose.foundation.background
@@ -123,7 +122,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
 import elovaire.music.droidbeauty.app.BuildConfig
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
@@ -230,7 +228,6 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.core.AppContainer
-import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
@@ -375,14 +372,13 @@ fun ElovaireRoot(
         libraryState = appState.library,
     )
     val deleteController = rememberRootDeleteController(container)
-    LaunchedEffect(appState.appUpdateState.transientStatus) {
-        if (BuildConfig.ENABLE_GITHUB_UPDATE_FLOW && appState.appUpdateState.transientStatus != null) {
-            delay(2_500L)
-            container.appUpdateManager.clearTransientStatus()
-        }
-    }
+    RootUpdateTransientStatusEffect(
+        enabled = BuildConfig.ENABLE_GITHUB_UPDATE_FLOW,
+        transientStatus = appState.appUpdateState.transientStatus,
+        clearTransientStatus = container.appUpdateManager::clearTransientStatus,
+    )
     val albumCollectionLayoutMode = appState.albumCollectionLayoutModeName.toAlbumLayoutMode()
-    val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
+    val changelogReleases = rememberChangelogReleases(context)
     val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
     val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
     val libraryState = appState.library
@@ -436,8 +432,7 @@ fun ElovaireRoot(
         hasCurrentSong = { container.playbackManager.state.value.currentSong != null },
     )
     val playerLayerState = playerLayerController.state
-    var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
-    var searchFieldFocused by rememberSaveable { mutableStateOf(false) }
+    val searchChromeState = rememberRootSearchChromeState()
     val openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit = { album, origin, source ->
         navigationState.openAlbum(album, origin, source)
     }
@@ -446,7 +441,7 @@ fun ElovaireRoot(
     val chromeVisibility = rootChromeVisibility(
         currentRoute = currentRoute,
         keyboardVisible = keyboardVisible,
-        searchQueryActive = isSearchQueryActive,
+        searchQueryActive = searchChromeState.isQueryActive,
         currentSongPresent = playbackState.currentSong != null,
         playerLayerState = playerLayerState,
     )
@@ -487,47 +482,15 @@ fun ElovaireRoot(
             }
         }
     }
-    val openSettingsFromMenu = remember(navController, overlayState) {
-        {
-            overlayState.dismissTopBarMenu()
-            navController.navigate(SETTINGS_ROUTE)
-        }
-    }
-    val openEqualizerFromMenu = remember(navController, overlayState) {
-        {
-            overlayState.dismissTopBarMenu()
-            navController.navigate(EQUALIZER_ROUTE)
-        }
-    }
-    val openChangelogSheetFromMenu = remember(overlayState) {
-        {
-            overlayState.openChangelogSheet()
-        }
-    }
-    val openAboutFromMenu = remember(navController, overlayState) {
-        {
-            overlayState.dismissTopBarMenu()
-            navController.navigate(ABOUT_ROUTE)
-        }
-    }
-    val showPlaylistCreateAction = currentRoute == PLAYLISTS_ROUTE
+    val topBarMenuActions = rememberRootTopBarMenuActions(navController, overlayState)
     val sharedTopBarSpec = sharedTopBarController.registration?.spec
-        ?: if (chromeVisibility.showTopLevelChrome) {
-            SharedTopBarSpec.Unified(
-                title = topBarTitle(currentRoute, appState.appLanguage),
-                showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
-                supplementalActionIconResId = if (showPlaylistCreateAction) R.drawable.ic_lucide_plus else null,
-                supplementalActionContentDescription = if (showPlaylistCreateAction) "Create playlist" else null,
-                onSupplementalAction = if (showPlaylistCreateAction) {
-                    overlayState::requestCreatePlaylist
-                } else {
-                    null
-                },
-                onOpenMenu = overlayState::openTopBarMenu,
-            )
-        } else {
-            null
-        }
+        ?: rootSharedTopBarSpec(
+            currentRoute = currentRoute,
+            showTopLevelChrome = chromeVisibility.showTopLevelChrome,
+            language = appState.appLanguage,
+            onRequestCreatePlaylist = overlayState::requestCreatePlaylist,
+            onOpenMenu = overlayState::openTopBarMenu,
+        )
     val currentPlayerLayerController by rememberUpdatedState(playerLayerController)
     LaunchedEffect(container) {
         container.openNowPlayingCommands.collect {
@@ -564,7 +527,7 @@ fun ElovaireRoot(
         albumCollectionLayoutMode = albumCollectionLayoutMode,
         resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
         playFirstLaunchHomeReveal = permissionController.state.playFirstLaunchHomeReveal,
-        searchFieldFocused = searchFieldFocused,
+        searchFieldFocused = searchChromeState.isFieldFocused,
     )
     val routeActions = rememberRootRouteActions(
         context = context,
@@ -576,115 +539,80 @@ fun ElovaireRoot(
         deleteController = deleteController,
         onRequestCreatePlaylist = overlayState::requestCreatePlaylist,
         onInitialRevealFinished = permissionController::onInitialRevealFinished,
-        onSearchFieldFocusedChange = { searchFieldFocused = it },
-        onSearchQueryActiveChanged = { isSearchQueryActive = it },
+        onSearchFieldFocusedChange = searchChromeState::onFieldFocusedChanged,
+        onSearchQueryActiveChanged = searchChromeState::onQueryActiveChanged,
         openAlbum = openAlbum,
     )
 
-    CompositionLocalProvider(
-        LocalOverscrollFactory provides overscrollFactory,
-        LocalSongMenuActions provides songMenuActions,
-        LocalChromeHazeState provides chromeHazeState,
-        LocalSharedBackIconPainter provides sharedBackIconPainter,
-        LocalSharedTopMenuIconPainter provides sharedTopMenuIconPainter,
-        LocalAppLanguage provides appState.appLanguage,
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clipToBounds(),
-        ) {
-            Scaffold(
-                modifier = Modifier.fillMaxSize(),
-                containerColor = MaterialTheme.colorScheme.background,
-            ) { innerPadding ->
-            val topBarHeight = topBarOccupiedHeight()
-            val detailTopBarHeight = detailTopBarOccupiedHeight()
-            val sharedTopBarHeight = sharedTopBarOccupiedHeight()
-            val bottomNavHeight = if (chromeVisibility.showBottomNavigation) bottomNavigationOccupiedHeight() else 0.dp
-            val routePadding = rootScaffoldPadding(
-                showTopLevelChrome = chromeVisibility.showTopLevelChrome,
-                showBottomNavigation = chromeVisibility.showBottomNavigation,
-                reserveCompactNowPlayingSpace = chromeVisibility.reserveCompactNowPlayingSpace,
-                topBarHeight = topBarHeight,
-                innerTopPadding = innerPadding.calculateTopPadding(),
-                bottomNavHeight = bottomNavigationOccupiedHeight(),
+    ElovaireRootShell(
+        overscrollFactory = overscrollFactory,
+        songMenuActions = songMenuActions,
+        chromeHazeState = chromeHazeState,
+        sharedBackIconPainter = sharedBackIconPainter,
+        sharedTopMenuIconPainter = sharedTopMenuIconPainter,
+        appLanguage = appState.appLanguage,
+        chromeVisibility = chromeVisibility,
+        sharedTopBarController = sharedTopBarController,
+        navHostBlur = navHostBlur,
+        navHostScrimAlpha = navHostScrimAlpha,
+        routeHost = { routePadding, modifier ->
+            RootRouteGraph(
+                navState = navigationState,
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = routePadding,
+                searchViewModel = searchViewModel,
+                viewModelFactory = viewModelFactory,
+                changelogReleases = changelogReleases,
+                modifier = modifier,
             )
-
-            Box(modifier = Modifier.fillMaxSize()) {
-                CompositionLocalProvider(
-                    LocalUseSharedTopBarBackdrop provides chromeVisibility.showSharedTopBarBackdrop,
-                    LocalSharedTopBarController provides sharedTopBarController,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .hazeSource(chromeHazeState),
-                    ) {
-                    RootRouteGraph(
-                        navState = navigationState,
-                        routeState = routeState,
-                        routeActions = routeActions,
-                        padding = routePadding,
-                        searchViewModel = searchViewModel,
-                        viewModelFactory = viewModelFactory,
-                        changelogReleases = changelogReleases,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .blur(navHostBlur),
-                    )
-                    if (navHostScrimAlpha > 0f) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.background.copy(alpha = navHostScrimAlpha)),
-                        )
-                    }
-                    }
-                    RootChromeHost(
-                        sharedTopBarSpec = sharedTopBarSpec,
-                        showSharedTopBarBackdrop = chromeVisibility.showSharedTopBarBackdrop,
-                        sharedTopBarHeight = sharedTopBarHeight,
-                        canHostCompactNowPlaying = chromeVisibility.canHostCompactNowPlaying,
-                        playbackState = playbackState,
-                        nowPlayingViewModel = nowPlayingViewModel,
-                        showGlobalNowPlaying = chromeVisibility.showGlobalNowPlaying,
-                        reenteringFromPlayer = chromeVisibility.reenteringFromPlayer,
-                        showBottomNavigation = chromeVisibility.showBottomNavigation,
-                        bottomNavHeight = bottomNavHeight,
-                        activeBottomRoute = activeBottomRoute,
-                        currentRoute = currentRoute,
-                        navigationState = navigationState,
-                        topLevelDestinations = topLevelDestinations,
-                        motionTransitions = rootMotionTransitions,
-                        onOpenPlayer = playerLayerController::requestOpen,
-                    )
-                    RootOverlayHost(
-                        showTopBarMenu = overlayState.showTopBarMenu,
-                        onDismissTopBarMenu = overlayState::dismissTopBarMenu,
-                        onOpenSettings = openSettingsFromMenu,
-                        onOpenEqualizer = openEqualizerFromMenu,
-                        onOpenChangelog = openChangelogSheetFromMenu,
-                        onOpenAbout = openAboutFromMenu,
-                        showChangelogSheet = overlayState.showChangelogSheet,
-                        changelogReleases = changelogReleases,
-                        onDismissChangelogSheet = overlayState::dismissChangelogSheet,
-                        showPlaylistCreateDialog = overlayState.showPlaylistCreateDialog,
-                        onDismissPlaylistCreateDialog = overlayState::dismissPlaylistCreateDialog,
-                        onCreatePlaylist = playlistActions::createPlaylist,
-                        showTopLevelChrome = chromeVisibility.showTopLevelChrome,
-                        currentRoute = currentRoute,
-                        topBarHeight = topBarHeight,
-                        appUpdateState = appState.appUpdateState,
-                        onDismissUpdate = container.appUpdateManager::dismissAvailableUpdate,
-                        onStartUpdate = container.appUpdateManager::startUpdate,
-                        permissionState = permissionController.state,
-                        onRequestAudioPermission = permissionController::requestAudioPermission,
-                        motionTransitions = rootMotionTransitions,
-                    )
-            }
-            }
-            }
+        },
+        chromeHost = { layout ->
+            RootChromeHost(
+                sharedTopBarSpec = sharedTopBarSpec,
+                showSharedTopBarBackdrop = chromeVisibility.showSharedTopBarBackdrop,
+                sharedTopBarHeight = layout.sharedTopBarHeight,
+                canHostCompactNowPlaying = chromeVisibility.canHostCompactNowPlaying,
+                playbackState = playbackState,
+                nowPlayingViewModel = nowPlayingViewModel,
+                showGlobalNowPlaying = chromeVisibility.showGlobalNowPlaying,
+                reenteringFromPlayer = chromeVisibility.reenteringFromPlayer,
+                showBottomNavigation = chromeVisibility.showBottomNavigation,
+                bottomNavHeight = layout.bottomNavHeight,
+                activeBottomRoute = activeBottomRoute,
+                currentRoute = currentRoute,
+                navigationState = navigationState,
+                topLevelDestinations = topLevelDestinations,
+                motionTransitions = rootMotionTransitions,
+                onOpenPlayer = playerLayerController::requestOpen,
+            )
+        },
+        overlayHost = { layout ->
+            RootOverlayHost(
+                showTopBarMenu = overlayState.showTopBarMenu,
+                onDismissTopBarMenu = overlayState::dismissTopBarMenu,
+                onOpenSettings = topBarMenuActions.openSettings,
+                onOpenEqualizer = topBarMenuActions.openEqualizer,
+                onOpenChangelog = topBarMenuActions.openChangelogSheet,
+                onOpenAbout = topBarMenuActions.openAbout,
+                showChangelogSheet = overlayState.showChangelogSheet,
+                changelogReleases = changelogReleases,
+                onDismissChangelogSheet = overlayState::dismissChangelogSheet,
+                showPlaylistCreateDialog = overlayState.showPlaylistCreateDialog,
+                onDismissPlaylistCreateDialog = overlayState::dismissPlaylistCreateDialog,
+                onCreatePlaylist = playlistActions::createPlaylist,
+                showTopLevelChrome = chromeVisibility.showTopLevelChrome,
+                currentRoute = currentRoute,
+                topBarHeight = layout.topBarHeight,
+                appUpdateState = appState.appUpdateState,
+                onDismissUpdate = container.appUpdateManager::dismissAvailableUpdate,
+                onStartUpdate = container.appUpdateManager::startUpdate,
+                permissionState = permissionController.state,
+                onRequestAudioPermission = permissionController::requestAudioPermission,
+                motionTransitions = rootMotionTransitions,
+            )
+        },
+        playerLayerHost = {
             RootPlayerLayerHost(
                 visible = chromeVisibility.showPlayerOverlay,
                 playerLayerState = playerLayerState,
@@ -707,11 +635,10 @@ fun ElovaireRoot(
                     navController.navigate(EQUALIZER_ROUTE)
                 },
                 transitionSnapshot = playerLayerController.transitionSnapshot,
-                modifier = Modifier
-                    .fillMaxSize(),
+                modifier = Modifier.fillMaxSize(),
             )
-        }
-    }
+        },
+    )
 }
 
 @Composable
