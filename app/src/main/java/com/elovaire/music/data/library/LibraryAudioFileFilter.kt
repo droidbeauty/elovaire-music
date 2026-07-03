@@ -33,6 +33,7 @@ internal sealed interface AudioFileFilterDecision {
 internal class LibraryAudioFileFilter(
     private val selectedRelativeRoots: Set<String>,
     private val libraryRootPaths: Set<String>,
+    private val explicitCustomRootPaths: Set<String> = emptySet(),
 ) {
     fun evaluate(candidate: AudioScanCandidate): AudioFileFilterDecision {
         val normalizedExtension = candidate.extension
@@ -85,7 +86,10 @@ internal class LibraryAudioFileFilter(
             normalizedRelativePath = normalizedRelativePath,
             normalizedAbsolutePath = normalizedAbsolutePath,
         )
-        if (ExcludedPathFragments.any(combinedPath::contains)) {
+        if (
+            ExcludedPathFragments.any(combinedPath::contains) &&
+            !isInsideExplicitCustomRoot(normalizedAbsolutePath)
+        ) {
             return AudioFileFilterDecision.Exclude("Excluded path")
         }
 
@@ -123,6 +127,13 @@ internal class LibraryAudioFileFilter(
     private fun isInsideLibraryRoot(normalizedAbsolutePath: String?): Boolean {
         if (normalizedAbsolutePath == null) return false
         return libraryRootPaths.any { root ->
+            normalizedAbsolutePath == root || normalizedAbsolutePath.startsWith("$root/")
+        }
+    }
+
+    private fun isInsideExplicitCustomRoot(normalizedAbsolutePath: String?): Boolean {
+        if (normalizedAbsolutePath == null) return false
+        return explicitCustomRootPaths.any { root ->
             normalizedAbsolutePath == root || normalizedAbsolutePath.startsWith("$root/")
         }
     }

@@ -27,6 +27,7 @@ class MediaStoreScanner(
         context = context,
         scanRoots = scanRoots::accessibleFileRoots,
     )
+    private val safTreeScanner = SafTreeLibraryScanner(context)
 
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean {
         return scanRoots.setSelections(selections)
@@ -76,7 +77,7 @@ class MediaStoreScanner(
         metadataCache.invalidateSongIds(songIds)
     }
 
-    fun scan(
+    suspend fun scan(
         refreshMediaIndex: Boolean = false,
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
@@ -215,11 +216,16 @@ class MediaStoreScanner(
             progressEmitter.emit(totalRows, totalRows)
         }
 
+        val mergedSongs = mergeMediaStoreAndSafSongs(
+            mediaStoreSongs = songs,
+            safSongs = safTreeScanner.scan(scanRoots.safTreeSelections()),
+        )
+
         metadataCache.replaceWith(refreshedMetadataCache)
 
         return LibrarySnapshot(
-            songs = songs.sortedByDescending { it.dateAddedSeconds },
-            albums = buildAlbumsFromSongs(songs),
+            songs = mergedSongs.sortedByDescending { it.dateAddedSeconds },
+            albums = buildAlbumsFromSongs(mergedSongs),
         )
     }
 
@@ -258,6 +264,7 @@ class MediaStoreScanner(
         return LibraryAudioFileFilter(
             selectedRelativeRoots = scanRoots.relativeRoots(),
             libraryRootPaths = scanRoots.normalizedFileRootPaths(),
+            explicitCustomRootPaths = scanRoots.explicitCustomFileRootPaths(),
         )
     }
 
@@ -267,6 +274,32 @@ class MediaStoreScanner(
         } else {
             ContentUris.withAppendedId(ALBUM_ART_URI, albumId)
         }
+    }
+
+    private fun mergeMediaStoreAndSafSongs(
+        mediaStoreSongs: List<Song>,
+        safSongs: List<Song>,
+    ): List<Song> {
+        if (safSongs.isEmpty()) return mediaStoreSongs
+        val mediaUris = mediaStoreSongs.mapTo(hashSetOf()) { it.uri.toString() }
+        val mediaPaths = mediaStoreSongs.mapNotNullTo(hashSetOf()) { song ->
+            song.libraryPath?.trim()?.lowercase(Locale.ROOT)
+        }
+        val looseMediaSignatures = mediaStoreSongs.mapTo(hashSetOf(), ::looseSongSignature)
+        val uniqueSafSongs = safSongs.filterNot { song ->
+            val normalizedPath = song.libraryPath?.trim()?.lowercase(Locale.ROOT)
+            song.uri.toString() in mediaUris ||
+                (normalizedPath != null && normalizedPath in mediaPaths) ||
+                looseSongSignature(song) in looseMediaSignatures
+        }
+        return mediaStoreSongs + uniqueSafSongs
+    }
+
+    private fun looseSongSignature(song: Song): String {
+        return listOf(
+            song.fileName.lowercase(Locale.ROOT),
+            song.durationMs.toString(),
+        ).joinToString("|")
     }
 
     private fun String?.orUnknown(fallback: String): String {

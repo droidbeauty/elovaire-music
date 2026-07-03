@@ -12,7 +12,23 @@ data class LibraryFolderSelection(
     val path: String,
     val displayName: String,
     val isDefaultMusicFolder: Boolean = false,
-)
+) {
+    fun hasPersistedReadPermission(context: Context): Boolean {
+        val targetUri = uri ?: return false
+        return context.contentResolver.persistedUriPermissions.any { permission ->
+            permission.uri == targetUri && permission.isReadPermission
+        }
+    }
+
+    fun isAvailable(context: Context): Boolean {
+        val pathDirectory = path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath)?.let(::File)
+        return when {
+            uri != null -> hasPersistedReadPermission(context) || pathDirectory?.let { it.exists() && it.isDirectory } == true
+            pathDirectory != null -> pathDirectory.exists() && pathDirectory.isDirectory
+            else -> false
+        }
+    }
+}
 
 object LibraryFolderSelectionResolver {
     fun defaultMusicFolder(): LibraryFolderSelection {
@@ -39,16 +55,20 @@ object LibraryFolderSelectionResolver {
     }
 
     fun normalize(selections: List<LibraryFolderSelection>): List<LibraryFolderSelection> {
-        val seen = linkedSetOf<String>()
+        val seenUris = linkedSetOf<String>()
+        val seenPaths = linkedSetOf<String>()
         return selections.mapNotNull { selection ->
             val path = selection.path.trim().replace('\\', '/').trimEnd('/')
             val uri = selection.uri?.toString()?.trim().orEmpty()
-            val key = when {
-                uri.isNotBlank() -> "uri:${uri.lowercase(Locale.ROOT)}"
-                path.isNotBlank() -> "path:${path.lowercase(Locale.ROOT)}"
-                else -> return@mapNotNull null
-            }
-            if (!seen.add(key)) return@mapNotNull null
+            val uriKey = uri.takeIf(String::isNotBlank)?.lowercase(Locale.ROOT)
+            val pathKey = path
+                .takeIf { it.isNotBlank() && !isUriBackedPath(it) }
+                ?.lowercase(Locale.ROOT)
+            if (uriKey == null && pathKey == null) return@mapNotNull null
+            if (uriKey != null && uriKey in seenUris) return@mapNotNull null
+            if (pathKey != null && pathKey in seenPaths) return@mapNotNull null
+            uriKey?.let(seenUris::add)
+            pathKey?.let(seenPaths::add)
             selection.copy(
                 path = path,
                 displayName = selection.displayName.trim().ifBlank { path.substringAfterLast('/').ifBlank { "Music" } },
@@ -58,7 +78,7 @@ object LibraryFolderSelectionResolver {
 
     fun accessibleFileRoots(selections: List<LibraryFolderSelection>): List<File> {
         return selections.asSequence()
-            .mapNotNull { selection -> selection.path.takeIf { it.isNotBlank() }?.let(::File) }
+            .mapNotNull { selection -> selection.path.takeIf { it.isNotBlank() && !isUriBackedPath(it) }?.let(::File) }
             .filter { it.exists() && it.isDirectory }
             .distinctBy { it.absolutePath }
             .toList()
@@ -74,6 +94,14 @@ object LibraryFolderSelectionResolver {
 
     fun normalizedPathKey(path: String): String {
         return path.trim().replace('\\', '/').trimEnd('/').lowercase(Locale.ROOT)
+    }
+
+    fun safSyntheticRoot(uri: Uri): String {
+        return "saf/${uri.toString().hashCode().toUInt().toString(16)}"
+    }
+
+    fun isUriBackedPath(path: String): Boolean {
+        return path.startsWith("content://", ignoreCase = true)
     }
 
     private fun resolveTreePath(

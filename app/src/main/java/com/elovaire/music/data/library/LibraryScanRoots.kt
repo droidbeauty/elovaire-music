@@ -19,7 +19,8 @@ internal class LibraryScanRoots(
         return listOf(
             version.toString(),
             selectedFolders.joinToString("|") { selection ->
-                listOf(selection.uri?.toString().orEmpty(), normalizeAbsolutePath(selection.path)).joinToString("@")
+                val path = selection.path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath).orEmpty()
+                listOf(selection.uri?.toString().orEmpty(), normalizeAbsolutePath(path)).joinToString("@")
             },
         ).joinToString("::")
     }
@@ -36,6 +37,21 @@ internal class LibraryScanRoots(
         return accessibleFileRoots()
             .map { normalizeAbsolutePath(it.absolutePath) }
             .toSet()
+    }
+
+    fun explicitCustomFileRootPaths(): Set<String> {
+        return selectedFolders
+            .filterNot(LibraryFolderSelection::isDefaultMusicFolder)
+            .mapNotNull { selection ->
+                selection.path
+                    .takeIf { it.isNotBlank() && !LibraryFolderSelectionResolver.isUriBackedPath(it) }
+                    ?.let(::normalizeAbsolutePath)
+            }
+            .toSet()
+    }
+
+    fun safTreeSelections(): List<LibraryFolderSelection> {
+        return selectedFolders.filter { it.uri != null }
     }
 
     private fun normalizeAbsolutePath(path: String): String {

@@ -96,10 +96,21 @@ internal fun rememberRootPermissionController(
     ) { granted ->
         syncNotificationPermission(granted)
     }
+    fun requestNotificationPermissionIfNeeded() {
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !hasNotificationPermission &&
+            !hasRequestedNotificationPermission
+        ) {
+            hasRequestedNotificationPermission = true
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         syncAudioPermission(granted)
+        if (granted) requestNotificationPermissionIfNeeded()
     }
 
     LaunchedEffect(hasPermission, hasNotificationPermission) {
@@ -182,14 +193,7 @@ internal fun rememberRootPermissionController(
                 permissionLauncher.launch(requiredAudioPermission())
             },
             requestNotificationPermissionAction = {
-                if (
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                    !hasNotificationPermission &&
-                    !hasRequestedNotificationPermission
-                ) {
-                    hasRequestedNotificationPermission = true
-                    notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
+                requestNotificationPermissionIfNeeded()
             },
             setPlayFirstLaunchHomeRevealAction = { playFirstLaunchHomeReveal = it },
             setFirstLaunchPermissionExperienceActiveAction = { firstLaunchPermissionExperienceActive = it },

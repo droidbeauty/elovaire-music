@@ -110,7 +110,7 @@ internal class ElovaireMediaLibrarySessionCallback(
         isForPlayback: Boolean,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val resolved = mediaTree.resumptionQueue()
-            ?: return Futures.immediateFailedFuture(NoSuchElementException("No resumable media"))
+            ?: return Futures.immediateFuture(emptyMediaItemsWithStartPosition())
         if (isForPlayback) {
             playResolvedQueue(resolved, C.TIME_UNSET)
         }
@@ -239,6 +239,11 @@ internal class MediaLibraryCallbackRouter : MediaLibrarySession.Callback {
         isForPlayback: Boolean,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         return delegate?.onPlaybackResumption(mediaSession, controller, isForPlayback)
-            ?: Futures.immediateFailedFuture(UnsupportedOperationException())
+            ?: Futures.immediateFuture(emptyMediaItemsWithStartPosition())
     }
+}
+
+@OptIn(UnstableApi::class)
+internal fun emptyMediaItemsWithStartPosition(): MediaSession.MediaItemsWithStartPosition {
+    return MediaSession.MediaItemsWithStartPosition(emptyList(), 0, 0L)
 }

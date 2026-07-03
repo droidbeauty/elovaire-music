@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.activity.compose.BackHandler
-import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -145,7 +144,11 @@ internal fun LibraryFoldersScreen(
                     val unavailable = remember(folder, context) { !folder.isAvailable(context) }
                     LibraryFolderListRow(
                         title = folder.displayName,
-                        subtitle = if (unavailable) copy.unavailableSubtitle else folder.path,
+                        subtitle = if (unavailable) {
+                            copy.unavailableSubtitle
+                        } else {
+                            folder.path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath) ?: folder.displayName
+                        },
                         songCountLabel = localizedCountLabel(songCountsByFolder[folder] ?: 0, "song", appLanguage),
                         trailingLabel = if (unavailable) copy.unavailable else null,
                         showRemove = editMode,
@@ -350,20 +353,14 @@ private fun LibraryFolderListRow(
 }
 
 private fun List<Song>.countInFolder(folder: LibraryFolderSelection): Int {
-    val folderPath = LibraryFolderSelectionResolver.normalizedPathKey(folder.path)
+    val folderPath = folder.uri
+        ?.let(LibraryFolderSelectionResolver::safSyntheticRoot)
+        ?: LibraryFolderSelectionResolver.normalizedPathKey(folder.path)
     if (folderPath.isBlank()) return 0
     return count { song ->
         val songPath = song.libraryPath?.let(LibraryFolderSelectionResolver::normalizedPathKey) ?: return@count false
         songPath == folderPath || songPath.startsWith("$folderPath/")
     }
-}
-
-private fun LibraryFolderSelection.isAvailable(context: Context): Boolean {
-    val hasUriAccess = uri == null || context.contentResolver.persistedUriPermissions.any { permission ->
-        permission.uri == uri && permission.isReadPermission
-    }
-    val hasPathAccess = path.isBlank() || java.io.File(path).let { it.exists() && it.isDirectory }
-    return hasUriAccess && hasPathAccess
 }
 
 @Composable

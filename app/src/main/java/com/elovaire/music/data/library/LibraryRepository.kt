@@ -492,7 +492,11 @@ class LibraryRepository internal constructor(
 
     fun defaultMediaFolderPath(): String = scanner.musicDirectory().absolutePath
 
-    fun setLibraryFolders(selections: List<LibraryFolderSelection>) {
+    fun setLibraryFolders(
+        selections: List<LibraryFolderSelection>,
+        enrichMetadata: Boolean = false,
+        showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
+    ) {
         val changed = scanner.setLibraryFolders(selections)
         if (!changed) return
         if (_scanState.value.permissionGranted) {
@@ -501,8 +505,8 @@ class LibraryRepository internal constructor(
             }
             refresh(
                 forceMediaIndex = true,
-                enrichMetadata = false,
-                showLoadingIndicator = _contentState.value.songs.isEmpty(),
+                enrichMetadata = enrichMetadata,
+                showLoadingIndicator = showLoadingIndicator,
             )
         }
     }

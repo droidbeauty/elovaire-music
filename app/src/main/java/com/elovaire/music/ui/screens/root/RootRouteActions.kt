@@ -92,8 +92,15 @@ internal class RootRouteActions(
     }
 
     fun addLibraryFolder(uri: Uri) {
-        container.preferenceStore.addLibraryFolder(
-            LibraryFolderSelectionResolver.fromTreeUri(context, uri),
+        val selection = LibraryFolderSelectionResolver.fromTreeUri(context, uri)
+        val currentFolders = container.preferenceStore.libraryFolders.value
+        val normalizedFolders = LibraryFolderSelectionResolver.normalize(currentFolders + selection)
+        if (normalizedFolders == LibraryFolderSelectionResolver.normalize(currentFolders)) return
+        container.preferenceStore.setLibraryFolders(normalizedFolders)
+        container.libraryRepository.setLibraryFolders(
+            selections = normalizedFolders,
+            enrichMetadata = true,
+            showLoadingIndicator = true,
         )
     }
 

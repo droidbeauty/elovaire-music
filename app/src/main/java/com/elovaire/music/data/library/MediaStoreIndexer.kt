@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaScannerConnection
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import java.io.File
+import java.nio.file.Files
 import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -44,7 +45,7 @@ internal class MediaStoreIndexer(
 
     fun refreshPaths(paths: List<String>) {
         scanAudioPaths(
-            paths = paths,
+            paths = audioFilesForPaths(paths).map(File::getAbsolutePath),
             timeoutSeconds = TARGETED_MEDIA_SCAN_TIMEOUT_SECONDS,
         )
     }
@@ -82,4 +83,27 @@ internal class MediaStoreIndexer(
         const val TARGETED_MEDIA_SCAN_TIMEOUT_SECONDS = 5L
         const val MEDIA_SCANNER_CHUNK_SIZE = 160
     }
+}
+
+internal fun audioFilesForPaths(paths: Iterable<String>): List<File> {
+    return paths.asSequence()
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .map(::File)
+        .flatMap { path ->
+            when {
+                path.isFile -> sequenceOf(path)
+                path.isDirectory -> path.walkTopDown()
+                    .onEnter { directory -> !directory.isSymbolicLink() }
+                    .filter(File::isFile)
+                else -> emptySequence()
+            }
+        }
+        .filter { file -> file.extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions }
+        .distinctBy { it.absolutePath }
+        .toList()
+}
+
+private fun File.isSymbolicLink(): Boolean {
+    return runCatching { Files.isSymbolicLink(toPath()) }.getOrDefault(false)
 }
