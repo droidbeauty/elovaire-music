@@ -1,6 +1,8 @@
 import java.io.File
 import java.util.Properties
+import dev.detekt.gradle.Detekt
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 
 val localProperties = Properties().apply {
     val localPropertiesFile = rootProject.file("local.properties")
@@ -18,6 +20,8 @@ val acoustIdApiKey = providers.gradleProperty("ACOUSTID_API_KEY").orNull
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.dependency.analysis)
+    alias(libs.plugins.detekt)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -153,6 +157,36 @@ kotlin {
     }
 }
 
+if (providers.gradleProperty("app.composeCompilerReports").map(String::toBoolean).getOrElse(false)) {
+    composeCompiler {
+        reportsDestination = layout.buildDirectory.dir("compose_compiler/reports")
+        metricsDestination = layout.buildDirectory.dir("compose_compiler/metrics")
+    }
+}
+
+detekt {
+    buildUponDefaultConfig = false
+    config.setFrom(rootProject.files("config/detekt/detekt.yml"))
+    source.setFrom(
+        files(
+            "src/main/java",
+            "src/test/java",
+            "src/androidTest/java",
+        ),
+    )
+}
+
+val detektJavaLauncher = javaToolchains.launcherFor {
+    languageVersion.set(JavaLanguageVersion.of(17))
+}
+
+tasks.withType<Detekt>().configureEach {
+    jvmTarget.set("17")
+    jdkHome.set(detektJavaLauncher.map { launcher ->
+        launcher.metadata.installationPath
+    })
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
@@ -167,6 +201,7 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.profileinstaller)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.extractor)
@@ -177,8 +212,10 @@ dependencies {
     implementation(libs.jaudiotagger)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.leakcanary.android)
 
     testImplementation(libs.junit)
+    androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
 }

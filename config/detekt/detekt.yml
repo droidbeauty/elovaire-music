@@ -1,0 +1,75 @@
+config:
+  validation: true
+
+complexity:
+  active: true
+  ComplexCondition:
+    active: true
+    allowedConditions: 5
+  CyclomaticComplexMethod:
+    active: true
+    allowedComplexity: 35
+  LargeClass:
+    active: true
+    allowedLines: 900
+  LongMethod:
+    active: true
+    allowedLines: 120
+  NestedBlockDepth:
+    active: true
+    allowedDepth: 5
+  TooManyFunctions:
+    active: true
+    allowedFunctionsPerFile: 60
+    allowedFunctionsPerClass: 30
+    allowedFunctionsPerInterface: 20
+    allowedFunctionsPerObject: 30
+    allowedFunctionsPerEnum: 20
+
+empty-blocks:
+  active: true
+  EmptyCatchBlock:
+    active: true
+
+exceptions:
+  active: true
+  SwallowedException:
+    active: true
+  TooGenericExceptionCaught:
+    active: true
+  TooGenericExceptionThrown:
+    active: false
+
+potential-bugs:
+  active: true
+  CastNullableToNonNullableType:
+    active: true
+  Deprecation:
+    active: false
+  DontDowncastCollectionTypes:
+    active: true
+  ElseCaseInsteadOfExhaustiveWhen:
+    active: true
+  EqualsWithHashCodeExist:
+    active: true
+  UnsafeCallOnNullableType:
+    active: true
+  UnsafeCast:
+    active: true
+
+style:
+  active: true
+  MagicNumber:
+    active: false
+  MaxLineLength:
+    active: false
+  ReturnCount:
+    active: false
+  SerialVersionUIDInSerializableClass:
+    active: false
+  UnusedPrivateClass:
+    active: true
+  UnusedPrivateFunction:
+    active: true
+  UnusedPrivateProperty:
+    active: true

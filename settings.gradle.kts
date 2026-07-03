@@ -16,4 +16,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "Elovaire Music"
 include(":app")
-
+include(":macrobenchmark")

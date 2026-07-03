@@ -6,6 +6,7 @@
 .gradle/
 build/
 app/build/
+macrobenchmark/build/
 app/debug/
 app/release/
 /app/github/
