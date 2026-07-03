@@ -268,6 +268,41 @@ private fun NowPlayingBar(
                 shape = RoundedCornerShape(ElovaireRadii.card),
             ),
     ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .padding(end = 66.dp)
+                .compactBarGestures(
+                    enabled = visible,
+                    actions = CompactBarGestureActions(
+                        onTap = {
+                            val validSnapshot = if (
+                                barBounds != null &&
+                                artworkBounds != null &&
+                                barBounds!!.isValidTransitionBounds &&
+                                artworkBounds!!.isValidTransitionBounds
+                            ) {
+                                NowPlayingTransitionSnapshot(
+                                    songId = song.id,
+                                    barBounds = barBounds!!,
+                                    artworkBounds = artworkBounds!!,
+                                )
+                            } else {
+                                null
+                            }
+                            onOpenPlayer(validSnapshot)
+                        },
+                        onSwipePrevious = onSkipPrevious,
+                        onSwipeNext = onSkipNext,
+                        onDragDelta = { delta ->
+                            dragOffsetX = (dragOffsetX + delta).coerceIn(-160f, 160f)
+                        },
+                        onGestureFinished = {
+                            dragOffsetX = 0f
+                        },
+                    ),
+                ),
+        )
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -278,37 +313,7 @@ private fun NowPlayingBar(
             Row(
                 modifier = Modifier
                     .weight(1f)
-                    .graphicsLayer { translationX = animatedDragOffsetX * 0.18f }
-                    .compactBarGestures(
-                        enabled = visible,
-                        actions = CompactBarGestureActions(
-                            onTap = {
-                                val validSnapshot = if (
-                                    barBounds != null &&
-                                    artworkBounds != null &&
-                                    barBounds!!.isValidTransitionBounds &&
-                                    artworkBounds!!.isValidTransitionBounds
-                                ) {
-                                    NowPlayingTransitionSnapshot(
-                                        songId = song.id,
-                                        barBounds = barBounds!!,
-                                        artworkBounds = artworkBounds!!,
-                                    )
-                                } else {
-                                    null
-                                }
-                                onOpenPlayer(validSnapshot)
-                            },
-                            onSwipePrevious = onSkipPrevious,
-                            onSwipeNext = onSkipNext,
-                            onDragDelta = { delta ->
-                                dragOffsetX = (dragOffsetX + delta).coerceIn(-160f, 160f)
-                            },
-                            onGestureFinished = {
-                                dragOffsetX = 0f
-                            },
-                        ),
-                    ),
+                    .graphicsLayer { translationX = animatedDragOffsetX * 0.18f },
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
