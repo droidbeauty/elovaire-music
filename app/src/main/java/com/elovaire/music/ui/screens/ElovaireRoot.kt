@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import android.Manifest
-import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -148,7 +147,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
-import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -190,7 +188,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
@@ -218,15 +215,11 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.ui.zIndex
-import androidx.core.view.WindowCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavBackStackEntry
-import androidx.navigation.NavGraph.Companion.findStartDestination
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import dev.chrisbanes.haze.ExperimentalHazeApi
 import dev.chrisbanes.haze.HazeProgressive
@@ -237,7 +230,6 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.core.AppContainer
-import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
@@ -349,8 +341,6 @@ import kotlin.math.roundToInt
 import kotlin.math.pow
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -393,7 +383,6 @@ fun ElovaireRoot(
     }
     val albumCollectionLayoutMode = appState.albumCollectionLayoutModeName.toAlbumLayoutMode()
     val changelogReleases = remember(context) { ChangelogRepository(context).loadReleases() }
-    val rootScope = rememberCoroutineScope()
     val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
     val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
     val libraryState = appState.library
@@ -434,83 +423,43 @@ fun ElovaireRoot(
     val topLevelDestinations = DefaultTopLevelDestinations
 
     val navigationState = rememberRootNavigationState(navController)
-    val currentBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = currentBackStackEntry?.destination?.route
-    val currentConcreteRoute = currentBackStackEntry?.concreteNavigationRoute() ?: currentRoute
-    RootPerformanceStates(
-        route = currentRoute,
+    val routeObservation = rememberRootRouteObservation(
+        navController = navController,
+        navigationState = navigationState,
         libraryState = libraryState,
         isPlaybackActuallyPlaying = isPlaybackActuallyPlaying,
     )
-    var previousMotionRoute by remember { mutableStateOf<String?>(null) }
-    LaunchedEffect(currentConcreteRoute) {
-        ElovaireTrace.section("route_change") {
-            navigationState.logRouteTransition(previousMotionRoute, currentConcreteRoute)
-        }
-        previousMotionRoute = currentConcreteRoute
-    }
-    val currentAlbumRouteId = currentBackStackEntry?.arguments?.let { arguments ->
-        when {
-            arguments.containsKey("albumId") -> arguments.getString("albumId")?.toLongOrNull()
-                ?: arguments.getLong("albumId").takeIf { it != 0L }
-            else -> null
-        }
-    }
-    var nowPlayingTransitionSnapshot by remember { mutableStateOf<NowPlayingTransitionSnapshot?>(null) }
-    var playerLayerStateName by rememberSaveable { mutableStateOf(PlayerLayerState.Compact.name) }
-    val playerLayerState = remember(playerLayerStateName) {
-        playerLayerStateName.toPlayerLayerStateOrDefault()
-    }
-    LaunchedEffect(playerLayerState.name) {
-        if (playerLayerStateName != playerLayerState.name) {
-            playerLayerStateName = playerLayerState.name
-        }
-    }
-    val openNowPlayingMutex = remember { Mutex() }
+    val currentRoute = routeObservation.route
+    val currentAlbumRouteId = routeObservation.currentAlbumRouteId
+    val playerLayerController = rememberRootPlayerLayerController(
+        currentSongId = playbackState.currentSong?.id,
+        hasCurrentSong = { container.playbackManager.state.value.currentSong != null },
+    )
+    val playerLayerState = playerLayerController.state
     var isSearchQueryActive by rememberSaveable { mutableStateOf(false) }
     var searchFieldFocused by rememberSaveable { mutableStateOf(false) }
     val openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit = { album, origin, source ->
         navigationState.openAlbum(album, origin, source)
     }
-    val showTopLevelChrome = currentRoute in TopLevelRoutes
-    val showBottomNavigation = currentRoute in BottomNavigationRoutes
-    LaunchedEffect(currentRoute) {
-        navigationState.syncTopLevelSelection(currentRoute)
-    }
-    LaunchedEffect(currentBackStackEntry, currentRoute, currentConcreteRoute, navigationState.browsingOriginRoute) {
-        navigationState.syncRouteOwnership(currentBackStackEntry, currentRoute)
-    }
-    val activeBottomRoute = navigationState.activeBottomRoute(currentConcreteRoute, currentRoute)
+    val activeBottomRoute = routeObservation.activeBottomRoute
     val keyboardVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-    val hideCompactNowPlayingRoutes = setOf(
-        SETTINGS_ROUTE,
-        LIBRARY_FOLDERS_ROUTE,
-        PRIVACY_SAFETY_ROUTE,
-        CHANGELOG_ROUTE,
-        EQUALIZER_ROUTE,
-        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+    val chromeVisibility = rootChromeVisibility(
+        currentRoute = currentRoute,
+        keyboardVisible = keyboardVisible,
+        searchQueryActive = isSearchQueryActive,
+        currentSongPresent = playbackState.currentSong != null,
+        playerLayerState = playerLayerState,
     )
-    val hideCompactNowPlaying = (keyboardVisible && currentRoute == PLAYLISTS_ROUTE) ||
-        (currentRoute == SEARCH_ROUTE && isSearchQueryActive) ||
-        currentRoute in hideCompactNowPlayingRoutes
-    val reserveCompactNowPlayingSpace = playbackState.currentSong != null && !hideCompactNowPlaying
-    val canHostCompactNowPlaying = playbackState.currentSong != null
-    val showPlayerOverlay = playerLayerState == PlayerLayerState.Expanded && playbackState.currentSong != null
-    val showGlobalNowPlaying = canHostCompactNowPlaying && !hideCompactNowPlaying && playerLayerState != PlayerLayerState.Expanded
-    val reenteringFromPlayer = playerLayerState == PlayerLayerState.ReturningToCompact
     val overscrollFactory = rememberElovaireOverscrollFactory()
     val navHostBlur = 0.dp
     val navHostScrimAlpha = 0f
-    val rootView = LocalView.current
     val appBackground = MaterialTheme.colorScheme.background
     val darkTheme = appBackground.luminance() < 0.5f
     val chromeHazeState = rememberHazeState()
     val sharedTopBarController = remember { SharedTopBarController() }
     val sharedBackIconPainter = painterResource(id = R.drawable.ic_lucide_chevron_left)
     val sharedTopMenuIconPainter = painterResource(id = R.drawable.ic_lucide_menu)
-    var showTopBarMenu by rememberSaveable { mutableStateOf(false) }
-    var showChangelogSheet by rememberSaveable { mutableStateOf(false) }
-    var showPlaylistCreateDialog by rememberSaveable { mutableStateOf(false) }
+    val overlayState = rememberRootOverlayStateHolder(currentRoute)
     val playerArtworkGradient = rememberArtworkGradient(playbackState.currentSong?.artUri).value
     val playerAdaptivePalette = remember(
         playbackState.currentSong?.id,
@@ -524,29 +473,10 @@ fun ElovaireRoot(
             darkTheme = darkTheme,
         )
     }
-    val requestOpenNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit = { snapshot ->
-        rootScope.launch {
-            openNowPlayingMutex.withLock {
-                if (container.playbackManager.state.value.currentSong == null || playerLayerState == PlayerLayerState.Expanded) {
-                    return@withLock
-                }
-                playerLayerStateName = PlayerLayerState.Expanded.name
-                nowPlayingTransitionSnapshot = snapshot
-            }
-        }
-    }
-    val hidePlayerOverlay: (Boolean) -> Unit = { returnToCompact ->
-        playerLayerStateName = if (returnToCompact && container.playbackManager.state.value.currentSong != null) {
-            PlayerLayerState.ReturningToCompact.name
-        } else {
-            PlayerLayerState.Compact.name
-        }
-    }
-    val currentRequestOpenNowPlaying by rememberUpdatedState(requestOpenNowPlaying)
     val openCurrentPlayingAlbum: (Long) -> Unit = { albumId ->
         val sameAlbumAlreadyVisible =
             currentRoute == "$ALBUM_ROUTE/{albumId}" && currentAlbumRouteId == albumId
-        hidePlayerOverlay(false)
+        playerLayerController.hide(false)
         if (!sameAlbumAlreadyVisible) {
             albumsById[albumId]?.let { album ->
                 openAlbum(album, ExpandOrigin(), AlbumOpenSource.Player)
@@ -557,76 +487,58 @@ fun ElovaireRoot(
             }
         }
     }
-    val openSettingsFromMenu = remember(navController) {
+    val openSettingsFromMenu = remember(navController, overlayState) {
         {
-            showTopBarMenu = false
+            overlayState.dismissTopBarMenu()
             navController.navigate(SETTINGS_ROUTE)
         }
     }
-    val openEqualizerFromMenu = remember(navController) {
+    val openEqualizerFromMenu = remember(navController, overlayState) {
         {
-            showTopBarMenu = false
+            overlayState.dismissTopBarMenu()
             navController.navigate(EQUALIZER_ROUTE)
         }
     }
-    val openChangelogSheetFromMenu = remember {
+    val openChangelogSheetFromMenu = remember(overlayState) {
         {
-            showTopBarMenu = false
-            showChangelogSheet = true
+            overlayState.openChangelogSheet()
         }
     }
-    val openAboutFromMenu = remember(navController) {
+    val openAboutFromMenu = remember(navController, overlayState) {
         {
-            showTopBarMenu = false
+            overlayState.dismissTopBarMenu()
             navController.navigate(ABOUT_ROUTE)
         }
     }
     val showPlaylistCreateAction = currentRoute == PLAYLISTS_ROUTE
     val sharedTopBarSpec = sharedTopBarController.registration?.spec
-        ?: if (showTopLevelChrome) {
+        ?: if (chromeVisibility.showTopLevelChrome) {
             SharedTopBarSpec.Unified(
                 title = topBarTitle(currentRoute, appState.appLanguage),
                 showSettings = currentRoute in setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE),
                 supplementalActionIconResId = if (showPlaylistCreateAction) R.drawable.ic_lucide_plus else null,
                 supplementalActionContentDescription = if (showPlaylistCreateAction) "Create playlist" else null,
                 onSupplementalAction = if (showPlaylistCreateAction) {
-                    { showPlaylistCreateDialog = true }
+                    overlayState::requestCreatePlaylist
                 } else {
                     null
                 },
-                onOpenMenu = { showTopBarMenu = true },
+                onOpenMenu = overlayState::openTopBarMenu,
             )
         } else {
             null
         }
+    val currentPlayerLayerController by rememberUpdatedState(playerLayerController)
     LaunchedEffect(container) {
         container.openNowPlayingCommands.collect {
-            currentRequestOpenNowPlaying(null)
+            currentPlayerLayerController.requestOpen(null)
         }
     }
-    LaunchedEffect(playbackState.currentSong?.id) {
-        if (playbackState.currentSong == null) {
-            playerLayerStateName = PlayerLayerState.Compact.name
-            nowPlayingTransitionSnapshot = null
-        }
-    }
-    LaunchedEffect(currentRoute) {
-        showTopBarMenu = false
-        if (currentRoute != PLAYLISTS_ROUTE) {
-            showPlaylistCreateDialog = false
-        }
-    }
-    SideEffect {
-        val window = (rootView.context as? Activity)?.window ?: return@SideEffect
-        val controller = WindowCompat.getInsetsController(window, rootView)
-        val usesLightSystemBarIcons = if (showPlayerOverlay) {
-            playerAdaptivePalette.contentColor.luminance() < 0.56f
-        } else {
-            !darkTheme
-        }
-        controller.isAppearanceLightStatusBars = usesLightSystemBarIcons
-        controller.isAppearanceLightNavigationBars = usesLightSystemBarIcons
-    }
+    RootSystemBarEffect(
+        darkTheme = darkTheme,
+        showPlayerOverlay = chromeVisibility.showPlayerOverlay,
+        playerContentColor = playerAdaptivePalette.contentColor,
+    )
 
     val songMenuActions = rememberRootSongMenuActions(
         playlists = appState.playlists,
@@ -643,7 +555,7 @@ fun ElovaireRoot(
         appLanguage = appState.appLanguage,
         songsByAlbumId = songsByAlbumId,
         albumsById = albumsById,
-        openNowPlaying = requestOpenNowPlaying,
+        openNowPlaying = playerLayerController::requestOpen,
     )
     val playlistActions = rememberRootPlaylistActions(container)
     val routeState = rootRouteStateOf(
@@ -662,7 +574,7 @@ fun ElovaireRoot(
         playbackActions = playbackActions,
         playlistActions = playlistActions,
         deleteController = deleteController,
-        onRequestCreatePlaylist = { showPlaylistCreateDialog = true },
+        onRequestCreatePlaylist = overlayState::requestCreatePlaylist,
         onInitialRevealFinished = permissionController::onInitialRevealFinished,
         onSearchFieldFocusedChange = { searchFieldFocused = it },
         onSearchQueryActiveChanged = { isSearchQueryActive = it },
@@ -689,30 +601,19 @@ fun ElovaireRoot(
             val topBarHeight = topBarOccupiedHeight()
             val detailTopBarHeight = detailTopBarOccupiedHeight()
             val sharedTopBarHeight = sharedTopBarOccupiedHeight()
-            val bottomNavHeight = if (showBottomNavigation) bottomNavigationOccupiedHeight() else 0.dp
-            val showSharedTopBarBackdrop = currentRoute != null && currentRoute != PLAYER_ROUTE
-            val topContentPadding = if (showTopLevelChrome) {
-                topBarHeight + ElovaireSpacing.topBarToFirstContentGap
-            } else {
-                innerPadding.calculateTopPadding()
-            }
-            val bottomContentPadding =
-                bottomNavHeight +
-                    (if (reserveCompactNowPlayingSpace) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
-                    ElovaireSpacing.scrollTailPadding
-            val detailBottomPadding =
-                bottomNavHeight +
-                    (if (reserveCompactNowPlayingSpace) ElovaireSpacing.miniPlayerReservedHeight else 0.dp) +
-                    ElovaireSpacing.scrollTailPadding
-            val routePadding = RootRoutePadding(
-                topContent = topContentPadding,
-                bottomContent = bottomContentPadding,
-                detailBottom = detailBottomPadding,
+            val bottomNavHeight = if (chromeVisibility.showBottomNavigation) bottomNavigationOccupiedHeight() else 0.dp
+            val routePadding = rootScaffoldPadding(
+                showTopLevelChrome = chromeVisibility.showTopLevelChrome,
+                showBottomNavigation = chromeVisibility.showBottomNavigation,
+                reserveCompactNowPlayingSpace = chromeVisibility.reserveCompactNowPlayingSpace,
+                topBarHeight = topBarHeight,
+                innerTopPadding = innerPadding.calculateTopPadding(),
+                bottomNavHeight = bottomNavigationOccupiedHeight(),
             )
 
             Box(modifier = Modifier.fillMaxSize()) {
                 CompositionLocalProvider(
-                    LocalUseSharedTopBarBackdrop provides showSharedTopBarBackdrop,
+                    LocalUseSharedTopBarBackdrop provides chromeVisibility.showSharedTopBarBackdrop,
                     LocalSharedTopBarController provides sharedTopBarController,
                 ) {
                     Box(
@@ -742,36 +643,36 @@ fun ElovaireRoot(
                     }
                     RootChromeHost(
                         sharedTopBarSpec = sharedTopBarSpec,
-                        showSharedTopBarBackdrop = showSharedTopBarBackdrop,
+                        showSharedTopBarBackdrop = chromeVisibility.showSharedTopBarBackdrop,
                         sharedTopBarHeight = sharedTopBarHeight,
-                        canHostCompactNowPlaying = canHostCompactNowPlaying,
+                        canHostCompactNowPlaying = chromeVisibility.canHostCompactNowPlaying,
                         playbackState = playbackState,
                         nowPlayingViewModel = nowPlayingViewModel,
-                        showGlobalNowPlaying = showGlobalNowPlaying,
-                        reenteringFromPlayer = reenteringFromPlayer,
-                        showBottomNavigation = showBottomNavigation,
+                        showGlobalNowPlaying = chromeVisibility.showGlobalNowPlaying,
+                        reenteringFromPlayer = chromeVisibility.reenteringFromPlayer,
+                        showBottomNavigation = chromeVisibility.showBottomNavigation,
                         bottomNavHeight = bottomNavHeight,
                         activeBottomRoute = activeBottomRoute,
                         currentRoute = currentRoute,
                         navigationState = navigationState,
                         topLevelDestinations = topLevelDestinations,
                         motionTransitions = rootMotionTransitions,
-                        onOpenPlayer = requestOpenNowPlaying,
+                        onOpenPlayer = playerLayerController::requestOpen,
                     )
                     RootOverlayHost(
-                        showTopBarMenu = showTopBarMenu,
-                        onDismissTopBarMenu = { showTopBarMenu = false },
+                        showTopBarMenu = overlayState.showTopBarMenu,
+                        onDismissTopBarMenu = overlayState::dismissTopBarMenu,
                         onOpenSettings = openSettingsFromMenu,
                         onOpenEqualizer = openEqualizerFromMenu,
                         onOpenChangelog = openChangelogSheetFromMenu,
                         onOpenAbout = openAboutFromMenu,
-                        showChangelogSheet = showChangelogSheet,
+                        showChangelogSheet = overlayState.showChangelogSheet,
                         changelogReleases = changelogReleases,
-                        onDismissChangelogSheet = { showChangelogSheet = false },
-                        showPlaylistCreateDialog = showPlaylistCreateDialog,
-                        onDismissPlaylistCreateDialog = { showPlaylistCreateDialog = false },
+                        onDismissChangelogSheet = overlayState::dismissChangelogSheet,
+                        showPlaylistCreateDialog = overlayState.showPlaylistCreateDialog,
+                        onDismissPlaylistCreateDialog = overlayState::dismissPlaylistCreateDialog,
                         onCreatePlaylist = playlistActions::createPlaylist,
-                        showTopLevelChrome = showTopLevelChrome,
+                        showTopLevelChrome = chromeVisibility.showTopLevelChrome,
                         currentRoute = currentRoute,
                         topBarHeight = topBarHeight,
                         appUpdateState = appState.appUpdateState,
@@ -785,18 +686,16 @@ fun ElovaireRoot(
             }
             }
             RootPlayerLayerHost(
-                visible = showPlayerOverlay,
+                visible = chromeVisibility.showPlayerOverlay,
                 playerLayerState = playerLayerState,
-                onExitFinished = {
-                    nowPlayingTransitionSnapshot = null
-                },
-                onReturnToCompactFinished = { playerLayerStateName = PlayerLayerState.Compact.name },
+                onExitFinished = playerLayerController::clearTransitionSnapshot,
+                onReturnToCompactFinished = playerLayerController::finishReturnToCompact,
                 nowPlayingViewModel = nowPlayingViewModel,
                 playbackManager = container.playbackManager,
                 songsById = songsById,
                 isCurrentSongFavorite = playbackState.currentSong?.id in appState.favoriteSongIds,
                 playlists = appState.playlists.filterNot { it.isSystem },
-                onBack = { hidePlayerOverlay(true) },
+                onBack = { playerLayerController.hide(true) },
                 onOpenCurrentAlbum = openCurrentPlayingAlbum,
                 onToggleFavorite = playlistActions::toggleFavorite,
                 onAddCurrentSongToPlaylist = { playlistId, song ->
@@ -804,10 +703,10 @@ fun ElovaireRoot(
                 },
                 onCreatePlaylist = playlistActions::createPlaylist,
                 onOpenEqualizer = {
-                    hidePlayerOverlay(false)
+                    playerLayerController.hide(false)
                     navController.navigate(EQUALIZER_ROUTE)
                 },
-                transitionSnapshot = nowPlayingTransitionSnapshot,
+                transitionSnapshot = playerLayerController.transitionSnapshot,
                 modifier = Modifier
                     .fillMaxSize(),
             )
