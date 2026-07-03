@@ -35,7 +35,25 @@ class ElovaireMediaItemsTest {
         assertFalse(metadata.isBrowsable == true)
     }
 
-    private fun testSong(): Song {
+    @Test
+    fun playbackMediaItem_usesPolicyMimeForSupportedFormats() {
+        val cases = mapOf(
+            "song.mp3" to "audio/mpeg",
+            "song.flac" to "audio/flac",
+            "song.m4a" to "audio/mp4",
+            "song.m4b" to "audio/mp4",
+            "song.ogg" to "audio/ogg",
+            "song.opus" to "audio/opus",
+            "song.wav" to "audio/wav",
+            "song.aac" to "audio/aac",
+        )
+
+        cases.forEach { (fileName, expectedMime) ->
+            assertEquals(expectedMime, testSong(fileName = fileName).toPlaybackMediaItem().localConfiguration?.mimeType)
+        }
+    }
+
+    private fun testSong(fileName: String = "song.mp3"): Song {
         return Song(
             id = 42L,
             title = "Title",
@@ -46,7 +64,7 @@ class ElovaireMediaItemsTest {
             genre = "Rock",
             audioFormat = "MP3",
             audioQuality = null,
-            fileName = "song.mp3",
+            fileName = fileName,
             albumId = 24L,
             durationMs = 123_000L,
             trackNumber = 7,

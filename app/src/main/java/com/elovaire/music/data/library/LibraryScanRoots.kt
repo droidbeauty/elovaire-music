@@ -50,6 +50,12 @@ internal class LibraryScanRoots(
             .toSet()
     }
 
+    fun explicitCustomRelativeRoots(): Set<String> {
+        return LibraryFolderSelectionResolver.relativeRoots(
+            selectedFolders.filterNot(LibraryFolderSelection::isDefaultMusicFolder),
+        )
+    }
+
     fun safTreeSelections(): List<LibraryFolderSelection> {
         return selectedFolders.filter { it.uri != null }
     }

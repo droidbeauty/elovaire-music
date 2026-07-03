@@ -265,6 +265,7 @@ class MediaStoreScanner(
             selectedRelativeRoots = scanRoots.relativeRoots(),
             libraryRootPaths = scanRoots.normalizedFileRootPaths(),
             explicitCustomRootPaths = scanRoots.explicitCustomFileRootPaths(),
+            explicitCustomRelativeRoots = scanRoots.explicitCustomRelativeRoots(),
         )
     }
 
@@ -285,21 +286,12 @@ class MediaStoreScanner(
         val mediaPaths = mediaStoreSongs.mapNotNullTo(hashSetOf()) { song ->
             song.libraryPath?.trim()?.lowercase(Locale.ROOT)
         }
-        val looseMediaSignatures = mediaStoreSongs.mapTo(hashSetOf(), ::looseSongSignature)
         val uniqueSafSongs = safSongs.filterNot { song ->
             val normalizedPath = song.libraryPath?.trim()?.lowercase(Locale.ROOT)
             song.uri.toString() in mediaUris ||
-                (normalizedPath != null && normalizedPath in mediaPaths) ||
-                looseSongSignature(song) in looseMediaSignatures
+                (normalizedPath != null && normalizedPath in mediaPaths)
         }
         return mediaStoreSongs + uniqueSafSongs
-    }
-
-    private fun looseSongSignature(song: Song): String {
-        return listOf(
-            song.fileName.lowercase(Locale.ROOT),
-            song.durationMs.toString(),
-        ).joinToString("|")
     }
 
     private fun String?.orUnknown(fallback: String): String {

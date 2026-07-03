@@ -34,6 +34,7 @@ internal class LibraryAudioFileFilter(
     private val selectedRelativeRoots: Set<String>,
     private val libraryRootPaths: Set<String>,
     private val explicitCustomRootPaths: Set<String> = emptySet(),
+    private val explicitCustomRelativeRoots: Set<String> = emptySet(),
 ) {
     fun evaluate(candidate: AudioScanCandidate): AudioFileFilterDecision {
         val normalizedExtension = candidate.extension
@@ -47,16 +48,17 @@ internal class LibraryAudioFileFilter(
 
         val normalizedAbsolutePath = candidate.absolutePath.normalizeAbsolutePath()
         val normalizedRelativePath = candidate.relativePath.normalizeRelativePath()
-        val insideSelectedFolder = isInsideSelectedFolder(
+        val folderMatch = folderMatch(
             normalizedAbsolutePath = normalizedAbsolutePath,
             normalizedRelativePath = normalizedRelativePath,
         )
-        if (!insideSelectedFolder) {
+        if (folderMatch == FolderMatch.None) {
             return AudioFileFilterDecision.Exclude("Outside selected library folders")
         }
+        val isExplicitCustomFolder = folderMatch.isExplicitCustom
         val capability = AudioFormatPolicy.capabilityForExtension(normalizedExtension)
             ?: return AudioFileFilterDecision.Exclude("Unsupported format")
-        if (normalizedExtension in VOICE_CONTAINER_EXTENSIONS) {
+        if (normalizedExtension in VOICE_CONTAINER_EXTENSIONS && !isExplicitCustomFolder) {
             return AudioFileFilterDecision.Exclude("Voice-oriented format outside preferred music folder")
         }
         val detectedFormat = candidate.detectedFormat
@@ -88,7 +90,7 @@ internal class LibraryAudioFileFilter(
         )
         if (
             ExcludedPathFragments.any(combinedPath::contains) &&
-            !isInsideExplicitCustomRoot(normalizedAbsolutePath)
+            !isExplicitCustomFolder
         ) {
             return AudioFileFilterDecision.Exclude("Excluded path")
         }
@@ -97,13 +99,14 @@ internal class LibraryAudioFileFilter(
             return AudioFileFilterDecision.Exclude("Excluded name")
         }
 
-        if (candidate.isMusic == false && !isInsideLibraryRoot(normalizedAbsolutePath)) {
+        if (candidate.isMusic == false && !isExplicitCustomFolder && folderMatch != FolderMatch.DefaultRoot) {
             return AudioFileFilterDecision.Exclude("MediaStore says non-music")
         }
 
         if (
             capability.playbackSupport == PlaybackSupport.PlatformDependent &&
-            candidate.isMusic != true
+            candidate.isMusic != true &&
+            !isExplicitCustomFolder
         ) {
             return AudioFileFilterDecision.Exclude("Platform-dependent non-music audio")
         }
@@ -111,17 +114,26 @@ internal class LibraryAudioFileFilter(
         return AudioFileFilterDecision.Include
     }
 
-    private fun isInsideSelectedFolder(
+    private fun folderMatch(
         normalizedAbsolutePath: String?,
         normalizedRelativePath: String?,
-    ): Boolean {
-        if (isInsideLibraryRoot(normalizedAbsolutePath)) return true
+    ): FolderMatch {
+        if (isInsideExplicitCustomRoot(normalizedAbsolutePath)) return FolderMatch.ExplicitCustomAbsoluteRoot
+        if (isInsideLibraryRoot(normalizedAbsolutePath)) return FolderMatch.DefaultRoot
         if (normalizedRelativePath != null) {
-            return selectedRelativeRoots.any { preferredRoot ->
+            if (explicitCustomRelativeRoots.any { preferredRoot ->
+                    normalizedRelativePath == preferredRoot || normalizedRelativePath.startsWith("$preferredRoot/")
+                }
+            ) {
+                return FolderMatch.ExplicitCustomRelativeRoot
+            }
+            if (selectedRelativeRoots.any { preferredRoot ->
                 normalizedRelativePath == preferredRoot || normalizedRelativePath.startsWith("$preferredRoot/")
+            }) {
+                return FolderMatch.DefaultRoot
             }
         }
-        return false
+        return FolderMatch.None
     }
 
     private fun isInsideLibraryRoot(normalizedAbsolutePath: String?): Boolean {
@@ -221,4 +233,11 @@ internal class LibraryAudioFileFilter(
             Regex("""^voice[\s_-]?record(?:ing)?"""),
         )
     }
+}
+
+private enum class FolderMatch(val isExplicitCustom: Boolean) {
+    None(false),
+    DefaultRoot(false),
+    ExplicitCustomAbsoluteRoot(true),
+    ExplicitCustomRelativeRoot(true),
 }

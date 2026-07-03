@@ -17,7 +17,7 @@ internal fun normalizePlaylistName(name: String): String {
 internal fun normalizePlaylistSongIds(songIds: List<Long>): List<Long> {
     val seen = LinkedHashSet<Long>(songIds.size)
     songIds.forEach { id ->
-        if (id > 0L) {
+        if (id != 0L) {
             seen += id
         }
     }
@@ -116,7 +116,7 @@ internal fun removeSongReferencesFromPlaylists(
     playlists: List<Playlist>,
     songId: Long,
 ): List<Playlist>? {
-    if (songId <= 0L) return null
+    if (songId == 0L) return null
     var changed = false
     val updated = playlists.map { playlist ->
         val filteredSongIds = playlist.songIds.filterNot { it == songId }

@@ -574,8 +574,8 @@ internal fun androidx.navigation.NavBackStackEntry.concreteNavigationRoute(): St
     val route = destination.route ?: return null
     val args = arguments
     return when (route) {
-        "$ALBUM_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it > 0L }?.let(Routes::album)
-        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it > 0L }?.let(Routes::tagEditor)
+        "$ALBUM_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it != 0L }?.let(Routes::album)
+        "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> args?.getLong("albumId")?.takeIf { it != 0L }?.let(Routes::tagEditor)
         "$PLAYLIST_ROUTE/{playlistId}" -> args?.getLong("playlistId")?.takeIf { it > 0L }?.let(Routes::playlist)
         "$LIBRARY_COLLECTION_ROUTE/{kind}" -> args?.getString("kind")?.let { "$LIBRARY_COLLECTION_ROUTE/$it" }
         "$GENRE_ROUTE/{genre}" -> args?.getString("genre")?.let(Routes::genre)

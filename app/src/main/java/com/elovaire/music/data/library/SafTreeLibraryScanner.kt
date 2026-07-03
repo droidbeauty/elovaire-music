@@ -4,6 +4,7 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.DocumentsContract
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.security.MessageDigest
@@ -15,6 +16,8 @@ import kotlinx.coroutines.ensureActive
 internal class SafTreeLibraryScanner(
     private val context: Context,
 ) {
+    private val audioFormatDetector = AudioFormatDetector(context)
+
     suspend fun scan(selections: List<LibraryFolderSelection>): List<Song> {
         if (selections.isEmpty()) return emptyList()
         val songs = mutableListOf<Song>()
@@ -59,9 +62,9 @@ internal class SafTreeLibraryScanner(
                 }
                 val extension = child.name.substringAfterLast('.', "").lowercase(Locale.ROOT)
                 if (extension !in AudioFormatPolicy.scannerExtensions) return@forEach
+                val detectedFormat = audioFormatDetector.detect(child.uri, child.name, child.mimeType)
                 val metadata = readMetadata(child.uri)
-                val durationMs = metadata.durationMs ?: return@forEach
-                val detectedFormat = AudioScanCandidateMapper.fastDetectedFormat(extension, child.mimeType)
+                val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: return@forEach
                 val candidate = AudioScanCandidate(
                     id = stableNegativeId("saf-song:${child.uri}"),
                     uri = child.uri,
@@ -81,6 +84,7 @@ internal class SafTreeLibraryScanner(
                     selectedRelativeRoots = emptySet(),
                     libraryRootPaths = setOf(rootKey),
                     explicitCustomRootPaths = setOf(rootKey),
+                    explicitCustomRelativeRoots = emptySet(),
                 )
                 if (filter.evaluate(candidate) !is AudioFileFilterDecision.Include) return@forEach
                 val title = metadata.title ?: child.name.substringBeforeLast('.').ifBlank { child.name }

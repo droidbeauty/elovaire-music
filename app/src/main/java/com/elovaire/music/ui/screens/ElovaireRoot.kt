@@ -362,32 +362,6 @@ private fun Set<Long>.toggleSelection(id: Long): Set<Long> {
     return if (id in this) this - id else this + id
 }
 
-private fun String?.performanceRouteLabel(): String? {
-    return when (this) {
-        null -> null
-        HOME_ROUTE -> "home"
-        ALBUMS_ROUTE -> "library_hub"
-        PLAYLISTS_ROUTE -> "playlists"
-        SEARCH_ROUTE -> "search"
-        SETTINGS_ROUTE -> "settings"
-        LIBRARY_FOLDERS_ROUTE -> "library_folders"
-        PRIVACY_SAFETY_ROUTE -> "privacy_safety"
-        CHANGELOG_ROUTE -> "changelog"
-        ABOUT_ROUTE -> "about"
-        EQUALIZER_ROUTE -> "equalizer"
-        PLAYER_ROUTE -> "now_playing"
-        else -> when {
-            startsWith("$ALBUM_ROUTE/") || this == "$ALBUM_ROUTE/{albumId}" -> "album_detail"
-            startsWith("$PLAYLIST_ROUTE/") || this == "$PLAYLIST_ROUTE/{playlistId}" -> "playlist_detail"
-            startsWith("$ARTIST_ROUTE/") || this == "$ARTIST_ROUTE/{artistName}" -> "artist_detail"
-            startsWith("$GENRE_ROUTE/") || this == "$GENRE_ROUTE/{genre}" -> "genre_detail"
-            startsWith("$LIBRARY_COLLECTION_ROUTE/") || this == "$LIBRARY_COLLECTION_ROUTE/{kind}" -> "library_collection"
-            startsWith("$ALBUM_TAG_EDITOR_ROUTE/") || this == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> "tag_editor"
-            else -> "other"
-        }
-    }
-}
-
 @OptIn(ExperimentalHazeApi::class)
 @Composable
 fun ElovaireRoot(
@@ -463,22 +437,10 @@ fun ElovaireRoot(
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     val currentConcreteRoute = currentBackStackEntry?.concreteNavigationRoute() ?: currentRoute
-    PerformanceState("route", currentRoute.performanceRouteLabel())
-    PerformanceState("screen", currentRoute.performanceRouteLabel())
-    PerformanceState(
-        "library",
-        when {
-            libraryState.isLoading -> "library_loading"
-            libraryState.scanProgress in 0f..0.999f -> "scan_active"
-            else -> "scan_idle"
-        },
-    )
-    PerformanceState(
-        "interaction",
-        when {
-            isPlaybackActuallyPlaying -> "playback_progress_active"
-            else -> "idle"
-        },
+    RootPerformanceStates(
+        route = currentRoute,
+        libraryState = libraryState,
+        isPlaybackActuallyPlaying = isPlaybackActuallyPlaying,
     )
     var previousMotionRoute by remember { mutableStateOf<String?>(null) }
     LaunchedEffect(currentConcreteRoute) {
@@ -490,7 +452,7 @@ fun ElovaireRoot(
     val currentAlbumRouteId = currentBackStackEntry?.arguments?.let { arguments ->
         when {
             arguments.containsKey("albumId") -> arguments.getString("albumId")?.toLongOrNull()
-                ?: arguments.getLong("albumId").takeIf { it > 0L }
+                ?: arguments.getLong("albumId").takeIf { it != 0L }
             else -> null
         }
     }
@@ -7021,7 +6983,7 @@ internal fun NowPlayingScreen(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
                                 onClick = {
-                                    currentSong.takeIf { it.albumId > 0L }?.albumId?.let { albumId ->
+                                    currentSong.takeIf { it.albumId != 0L }?.albumId?.let { albumId ->
                                         dismissNowPlaying {
                                             onOpenCurrentAlbum(albumId)
                                         }

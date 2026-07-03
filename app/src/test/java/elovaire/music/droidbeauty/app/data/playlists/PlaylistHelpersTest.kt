@@ -50,15 +50,15 @@ class PlaylistHelpersTest {
     }
 
     @Test
-    fun addSongsToPlaylistEntries_normalizesPositiveDistinctIdsAndPreservesOrder() {
+    fun addSongsToPlaylistEntries_normalizesNonZeroDistinctIdsAndPreservesOrder() {
         val result = addSongsToPlaylistEntries(
             playlists = listOf(Playlist(id = 1L, name = "Test", songIds = listOf(3L, 1L))),
             playlistId = 1L,
-            songIds = listOf(1L, -1L, 2L, 3L, 2L, 4L),
+            songIds = listOf(1L, -1L, 2L, 3L, 2L, 0L, 4L),
         )
 
         requireNotNull(result)
-        assertEquals(listOf(3L, 1L, 2L, 4L), result.single().songIds)
+        assertEquals(listOf(3L, 1L, -1L, 2L, 4L), result.single().songIds)
     }
 
     @Test
@@ -70,7 +70,7 @@ class PlaylistHelpersTest {
         )
 
         requireNotNull(result)
-        assertEquals(listOf(3L, 2L, 1L), result.single().songIds)
+        assertEquals(listOf(-5L, 3L, 2L, 1L), result.single().songIds)
     }
 
     @Test
@@ -99,6 +99,17 @@ class PlaylistHelpersTest {
     }
 
     @Test
+    fun removeSongReferencesFromPlaylists_removesNegativeSafSongIds() {
+        val result = removeSongReferencesFromPlaylists(
+            playlists = listOf(Playlist(id = 1L, name = "Test", songIds = listOf(4L, -8L, 2L))),
+            songId = -8L,
+        )
+
+        requireNotNull(result)
+        assertEquals(listOf(4L, 2L), result.single().songIds)
+    }
+
+    @Test
     fun deserializePlaylists_readsLegacyEntries() {
         val legacy = listOf(
             "1\u001FPlaylist One\u001F7,3,3,-4\u001Ffalse",
@@ -109,7 +120,7 @@ class PlaylistHelpersTest {
 
         assertEquals(
             listOf(
-                Playlist(id = 1L, name = "Playlist One", songIds = listOf(7L, 3L), isSystem = false),
+                Playlist(id = 1L, name = "Playlist One", songIds = listOf(7L, 3L, -4L), isSystem = false),
                 Playlist(id = 2L, name = "Playlist Two", songIds = emptyList(), isSystem = false),
             ),
             result,
@@ -122,7 +133,7 @@ class PlaylistHelpersTest {
             Playlist(
                 id = 1L,
                 name = "  Road \u001F Trip \u001E Mix  ",
-                songIds = listOf(5L, 5L, 2L, -4L),
+                songIds = listOf(5L, 5L, 2L, -4L, 0L),
                 isSystem = false,
             ),
             Playlist(
@@ -138,7 +149,7 @@ class PlaylistHelpersTest {
 
         assertEquals(
             listOf(
-                Playlist(id = 1L, name = "Road \u001F Trip \u001E Mix", songIds = listOf(5L, 2L), isSystem = false),
+                Playlist(id = 1L, name = "Road \u001F Trip \u001E Mix", songIds = listOf(5L, 2L, -4L), isSystem = false),
                 Playlist(id = 2L, name = "Late Night \uD83C\uDF19", songIds = listOf(9L, 1L), isSystem = false),
             ),
             deserialized,

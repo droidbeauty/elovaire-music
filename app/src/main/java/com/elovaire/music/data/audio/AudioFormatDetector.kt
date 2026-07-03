@@ -20,6 +20,7 @@ internal data class DetectedAudioFormat(
     val channelCount: Int?,
     val bitrate: Int?,
     val bitDepth: Int?,
+    val durationMs: Long? = null,
 )
 
 internal class AudioFormatDetector(context: Context) {
@@ -49,12 +50,15 @@ internal class AudioFormatDetector(context: Context) {
                 hasAudioTrack = audioFormat != null,
                 hasVideoTrack = hasVideo,
                 decoderAvailable = codecMime?.let { mime ->
-                    mime.equals("audio/raw", true) || hasDecoder(mime)
+                    mime.equals("audio/raw", true) || mime.equals("audio/alac", true) || hasDecoder(mime)
                 },
                 sampleRate = audioFormat?.integerOrNull(MediaFormat.KEY_SAMPLE_RATE),
                 channelCount = audioFormat?.integerOrNull(MediaFormat.KEY_CHANNEL_COUNT),
                 bitrate = audioFormat?.integerOrNull(MediaFormat.KEY_BIT_RATE),
                 bitDepth = null,
+                durationMs = audioFormat?.longOrNull(MediaFormat.KEY_DURATION)
+                    ?.takeIf { it > 0L }
+                    ?.div(1_000L),
             )
         } catch (_: Throwable) {
             val container = AudioFormatPolicy.resolveContainer(extension, mediaStoreMimeType, null)
@@ -91,5 +95,9 @@ internal class AudioFormatDetector(context: Context) {
 
     private fun MediaFormat.integerOrNull(key: String): Int? {
         return runCatching { if (containsKey(key)) getInteger(key) else null }.getOrNull()
+    }
+
+    private fun MediaFormat.longOrNull(key: String): Long? {
+        return runCatching { if (containsKey(key)) getLong(key) else null }.getOrNull()
     }
 }

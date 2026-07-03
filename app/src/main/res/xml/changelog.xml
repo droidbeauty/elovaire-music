@@ -6,9 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.3.3">
-        <item>Fixed some of the minor UI inconsistencies</item>
-        <item>Tweaked sorting method by artists in the library</item>
-        <item>General performance oriented tweaks</item>
+    <release version="2.3.4">
+        <item>Minor UI tweaks</item>
+        <item>Bug fixes for media scanning and custom folders</item>
     </release>
 </changelog>

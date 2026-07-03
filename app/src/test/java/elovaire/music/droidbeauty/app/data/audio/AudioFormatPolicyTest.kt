@@ -31,9 +31,45 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun capabilityForExtension_acceptsCommonFlacMimeAlias() {
+        val flac = AudioFormatPolicy.capabilityFor(AudioContainerFormat.Flac)
+
+        requireNotNull(flac)
+        assertTrue("audio/x-flac" in flac.mimeTypes)
+    }
+
+    @Test
     fun playbackMimeType_includesOgaAndM4b() {
         assertEquals("audio/ogg", AudioFormatPolicy.playbackMimeType("chapter.oga"))
         assertEquals("audio/mp4", AudioFormatPolicy.playbackMimeType("book.m4b"))
+    }
+
+    @Test
+    fun scannerExtensions_allMapToCapabilitiesAndPlaybackMime() {
+        AudioFormatPolicy.scannerExtensions.forEach { extension ->
+            requireNotNull(AudioFormatPolicy.capabilityForExtension(extension))
+            requireNotNull(AudioFormatPolicy.playbackMimeType("song.$extension"))
+        }
+    }
+
+    @Test
+    fun playbackSupport_rejectsVideoContainersEvenWithAudioTrack() {
+        val detected = DetectedAudioFormat(
+            container = AudioContainerFormat.Mp4Audio,
+            displayName = "MP4 Audio",
+            mimeType = "video/mp4",
+            codecMimeType = "audio/mp4a-latm",
+            detectionSucceeded = true,
+            hasAudioTrack = true,
+            hasVideoTrack = true,
+            decoderAvailable = true,
+            sampleRate = null,
+            channelCount = null,
+            bitrate = null,
+            bitDepth = null,
+        )
+
+        assertEquals(PlaybackSupport.Unsupported, AudioFormatPolicy.playbackSupport(detected))
     }
 
     @Test

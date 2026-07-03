@@ -47,7 +47,7 @@ internal fun rememberRootSongMenuActions(
                 val album = albumsById[song.albumId]
                 if (album != null) {
                     openAlbum(album, ExpandOrigin(), AlbumOpenSource.LibraryAlbums)
-                } else if (song.albumId > 0L) {
+                } else if (song.albumId != 0L) {
                     navigateToAlbumId(song.albumId)
                 }
             },

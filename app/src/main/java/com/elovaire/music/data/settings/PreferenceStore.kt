@@ -174,13 +174,13 @@ class PreferenceStore(context: Context) :
         albumId: Long?,
     ) {
         var changed = false
-        if (songId != null && songId > 0L) {
+        if (songId != null && songId != 0L) {
             _songPlayCounts.value = _songPlayCounts.value.toMutableMap().apply {
                 this[songId] = (this[songId] ?: 0) + 1
             }.toMap()
             changed = true
         }
-        if (albumId != null && albumId > 0L) {
+        if (albumId != null && albumId != 0L) {
             _albumPlayCounts.value = _albumPlayCounts.value.toMutableMap().apply {
                 this[albumId] = (this[albumId] ?: 0) + 1
             }.toMap()
@@ -198,14 +198,14 @@ class PreferenceStore(context: Context) :
         lastPlayedCollectionId: Long?,
     ) {
         val normalizedSongIds = songIds
-            .filter { it > 0L }
+            .filter { it != 0L }
             .distinct()
             .take(MAX_RECENT_PLAYBACK_IDS)
         val normalizedAlbumIds = albumIds
-            .filter { it > 0L }
+            .filter { it != 0L }
             .distinct()
             .take(MAX_RECENT_PLAYBACK_IDS)
-        val normalizedCollectionId = lastPlayedCollectionId?.takeIf { it > 0L }
+        val normalizedCollectionId = lastPlayedCollectionId?.takeIf { it != 0L }
         if (
             _recentSongIds.value == normalizedSongIds &&
             _recentAlbumIds.value == normalizedAlbumIds &&
@@ -793,7 +793,7 @@ class PreferenceStore(context: Context) :
     private fun loadLastPlayedCollectionId(): Long? {
         return preferences.takeIf { it.contains(KEY_LAST_PLAYED_COLLECTION_ID) }
             ?.getLong(KEY_LAST_PLAYED_COLLECTION_ID, -1L)
-            ?.takeIf { it > 0L }
+            ?.takeIf { it != 0L }
     }
 
     private fun SearchHistoryEntry.serialize(): String {
