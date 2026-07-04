@@ -6,10 +6,10 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.media.AudioAttributes
 import android.media.AudioDeviceInfo
+import android.media.AudioFormat
 import android.media.AudioManager
 import android.os.Build
 import android.os.Parcelable
-import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 
@@ -42,9 +42,33 @@ internal fun supportsVerifiedDirectPlaybackRouting(sdkInt: Int): Boolean {
     return sdkInt >= Build.VERSION_CODES.TIRAMISU
 }
 
-@RequiresApi(Build.VERSION_CODES.TIRAMISU)
-internal fun AudioManager.routedDevicesForAttributes(attributes: AudioAttributes): List<AudioDeviceInfo> {
-    return getAudioDevicesForAttributes(attributes)
+internal fun AudioManager.safeOutputDevices(): List<AudioDeviceInfo> {
+    return runCatching {
+        getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList()
+    }.getOrDefault(emptyList())
+        .filter { device -> runCatching { device.isSink }.getOrDefault(false) }
+}
+
+internal fun AudioManager.safeRoutedOutputDevicesForAttributes(attributes: AudioAttributes): List<AudioDeviceInfo> {
+    val routedDevices = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        runCatching { getAudioDevicesForAttributes(attributes) }.getOrDefault(emptyList())
+    } else {
+        emptyList()
+    }
+    return (routedDevices.ifEmpty { safeOutputDevices() })
+        .filter { device -> runCatching { device.isSink }.getOrDefault(false) }
+}
+
+internal fun AudioManager.safeDirectPlaybackSupport(
+    format: AudioFormat,
+    attributes: AudioAttributes,
+): Int {
+    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+        return AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED
+    }
+    return runCatching {
+        AudioManager.getDirectPlaybackSupport(format, attributes)
+    }.getOrDefault(AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED)
 }
 
 internal inline fun <reified T : Parcelable> Intent.getParcelableExtraCompat(name: String): T? {

@@ -80,11 +80,21 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     init {
-        registerReceiverIfNeeded()
+        runCatching { registerReceiverIfNeeded() }
         refreshConnectedDevice()
     }
 
     fun refreshConnectedDevice() {
+        runCatching {
+            refreshConnectedDeviceUnsafe()
+        }.onFailure {
+            clearCurrentDevice()
+            controller.onHardwareVolumeUnavailable("USB hardware volume unavailable")
+            publishStatus("refresh-failed")
+        }
+    }
+
+    private fun refreshConnectedDeviceUnsafe() {
         val selectedAudioDevice = currentAudioDeviceDescriptor
         if (selectedAudioDevice == null) {
             clearCurrentDevice()
@@ -234,62 +244,67 @@ internal class UsbDacHardwareVolumeManager(
         usbDevice: UsbDevice,
         identity: UsbDacDeviceIdentity,
     ) {
-        val connection = usbManager?.openDevice(usbDevice)
+        val connection = runCatching { usbManager?.openDevice(usbDevice) }.getOrNull()
         if (connection == null) {
             controller.onHardwareVolumeUnavailable("Unable to open USB device")
             publishStatus("open-failed")
             return
         }
-        connection.useSafely { safeConnection ->
-            val parsedCapability = capabilityCache[identity.reliableCacheKey()] ?: parser.parse(
-                rawDescriptors = safeConnection.getRawDescriptors() ?: ByteArray(0),
-                identity = identity,
-            )
-            if (parsedCapability == null) {
-                controller.onHardwareVolumeUnsupported("No USB Audio Class feature unit volume control found")
-                publishStatus("unsupported-no-feature-unit")
-                return@useSafely
-            }
-            val resolvedCapability = if (
-                parsedCapability.range.maxRaw > parsedCapability.range.minRaw ||
-                    parsedCapability.range.stepRaw > 1
-            ) {
-                parsedCapability.copy(
-                    canWriteVolume = parsedCapability.canWriteVolume &&
-                        parsedCapability.range.maxRaw > parsedCapability.range.minRaw,
+        runCatching {
+            connection.useSafely { safeConnection ->
+                val parsedCapability = capabilityCache[identity.reliableCacheKey()] ?: parser.parse(
+                    rawDescriptors = runCatching { safeConnection.getRawDescriptors() }.getOrNull() ?: ByteArray(0),
+                    identity = identity,
                 )
-            } else {
-                val resolvedRange = readRange(safeConnection, parsedCapability)
-                if (resolvedRange == null) {
+                if (parsedCapability == null) {
+                    controller.onHardwareVolumeUnsupported("No USB Audio Class feature unit volume control found")
+                    publishStatus("unsupported-no-feature-unit")
+                    return@useSafely
+                }
+                val resolvedCapability = if (
+                    parsedCapability.range.maxRaw > parsedCapability.range.minRaw ||
+                    parsedCapability.range.stepRaw > 1
+                ) {
+                    parsedCapability.copy(
+                        canWriteVolume = parsedCapability.canWriteVolume &&
+                            parsedCapability.range.maxRaw > parsedCapability.range.minRaw,
+                    )
+                } else {
+                    val resolvedRange = readRange(safeConnection, parsedCapability)
+                    if (resolvedRange == null) {
+                        controller.onHardwareVolumeUnsupported("Unable to read DAC volume range")
+                        publishStatus("unsupported-no-range")
+                        return@useSafely
+                    }
+                    parsedCapability.copy(
+                        range = resolvedRange,
+                        canWriteVolume = parsedCapability.canWriteVolume && resolvedRange.maxRaw > resolvedRange.minRaw,
+                    )
+                }
+                if (resolvedCapability.range.maxRaw < resolvedCapability.range.minRaw) {
                     controller.onHardwareVolumeUnsupported("Unable to read DAC volume range")
                     publishStatus("unsupported-no-range")
                     return@useSafely
                 }
-                parsedCapability.copy(
-                    range = resolvedRange,
-                    canWriteVolume = parsedCapability.canWriteVolume && resolvedRange.maxRaw > resolvedRange.minRaw,
+                currentCapability = resolvedCapability
+                identity.reliableCacheKey()?.let { capabilityCache[it] = resolvedCapability }
+                val currentRaw = if (resolvedCapability.canReadCurrent) {
+                    readCurrentVolumeRaw(safeConnection, resolvedCapability)
+                } else {
+                    null
+                }
+                controller.onHardwareVolumeSupported(resolvedCapability, currentRaw)
+                val storedCandidate = resolveStoredVolumeCandidate(resolvedCapability, currentRaw != null)
+                logDebug(
+                    "event=detect identity=${identity.persistenceKey()} api=${Build.VERSION.SDK_INT} supported=${resolvedCapability.canWriteVolume} " +
+                        "min=${resolvedCapability.range.minRaw} max=${resolvedCapability.range.maxRaw} res=${resolvedCapability.range.stepRaw} " +
+                        "master=${resolvedCapability.usesMasterChannel} currentRaw=${currentRaw ?: Int.MIN_VALUE} storedCandidate=${storedCandidate ?: -1f}",
                 )
+                publishStatus("supported")
             }
-            if (resolvedCapability.range.maxRaw < resolvedCapability.range.minRaw) {
-                controller.onHardwareVolumeUnsupported("Unable to read DAC volume range")
-                publishStatus("unsupported-no-range")
-                return@useSafely
-            }
-            currentCapability = resolvedCapability
-            identity.reliableCacheKey()?.let { capabilityCache[it] = resolvedCapability }
-            val currentRaw = if (resolvedCapability.canReadCurrent) {
-                readCurrentVolumeRaw(safeConnection, resolvedCapability)
-            } else {
-                null
-            }
-            controller.onHardwareVolumeSupported(resolvedCapability, currentRaw)
-            val storedCandidate = resolveStoredVolumeCandidate(resolvedCapability, currentRaw != null)
-            logDebug(
-                "event=detect identity=${identity.persistenceKey()} api=${Build.VERSION.SDK_INT} supported=${resolvedCapability.canWriteVolume} " +
-                    "min=${resolvedCapability.range.minRaw} max=${resolvedCapability.range.maxRaw} res=${resolvedCapability.range.stepRaw} " +
-                    "master=${resolvedCapability.usesMasterChannel} currentRaw=${currentRaw ?: Int.MIN_VALUE} storedCandidate=${storedCandidate ?: -1f}",
-            )
-            publishStatus("supported")
+        }.onFailure {
+            controller.onHardwareVolumeUnavailable("Unable to inspect USB device")
+            publishStatus("inspect-failed")
         }
     }
 
@@ -309,7 +324,7 @@ internal class UsbDacHardwareVolumeManager(
         capability: UsbDacHardwareVolumeCapability,
         targetRaw: Int,
     ): Boolean {
-        val connection = usbManager?.openDevice(usbDevice) ?: return false
+        val connection = runCatching { usbManager?.openDevice(usbDevice) }.getOrNull() ?: return false
         return connection.useSafely { safeConnection ->
             capability.controlChannels.all { channel ->
                 setVolumeRaw(
@@ -355,15 +370,17 @@ internal class UsbDacHardwareVolumeManager(
         channel: Int,
     ): Int? {
         val buffer = ByteArray(2)
-        val transferred = connection.controlTransfer(
-            REQUEST_TYPE_CLASS_INTERFACE_IN,
-            request,
-            (CONTROL_SELECTOR_VOLUME shl 8) or channel,
-            (capability.featureUnitId shl 8) or capability.interfaceNumber,
-            buffer,
-            buffer.size,
-            USB_CONTROL_TIMEOUT_MS,
-        )
+        val transferred = runCatching {
+            connection.controlTransfer(
+                REQUEST_TYPE_CLASS_INTERFACE_IN,
+                request,
+                (CONTROL_SELECTOR_VOLUME shl 8) or channel,
+                (capability.featureUnitId shl 8) or capability.interfaceNumber,
+                buffer,
+                buffer.size,
+                USB_CONTROL_TIMEOUT_MS,
+            )
+        }.getOrDefault(-1)
         if (transferred < 2) return null
         return ByteBuffer.wrap(buffer)
             .order(ByteOrder.LITTLE_ENDIAN)
@@ -382,26 +399,30 @@ internal class UsbDacHardwareVolumeManager(
             .order(ByteOrder.LITTLE_ENDIAN)
             .putShort(clamped.toShort())
             .array()
-        val transferred = connection.controlTransfer(
-            REQUEST_TYPE_CLASS_INTERFACE_OUT,
-            REQUEST_SET_CUR,
-            (CONTROL_SELECTOR_VOLUME shl 8) or channel,
-            (capability.featureUnitId shl 8) or capability.interfaceNumber,
-            payload,
-            payload.size,
-            USB_CONTROL_TIMEOUT_MS,
-        )
+        val transferred = runCatching {
+            connection.controlTransfer(
+                REQUEST_TYPE_CLASS_INTERFACE_OUT,
+                REQUEST_SET_CUR,
+                (CONTROL_SELECTOR_VOLUME shl 8) or channel,
+                (capability.featureUnitId shl 8) or capability.interfaceNumber,
+                payload,
+                payload.size,
+                USB_CONTROL_TIMEOUT_MS,
+            )
+        }.getOrDefault(-1)
         return transferred == payload.size
     }
 
     private fun requestPermissionIfNeeded(usbDevice: UsbDevice) {
-        val pendingIntent = PendingIntent.getBroadcast(
-            appContext,
-            usbDevice.deviceId,
-            Intent(ACTION_USB_DAC_PERMISSION).setPackage(appContext.packageName),
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
-        )
-        usbManager?.requestPermission(usbDevice, pendingIntent)
+        val pendingIntent = runCatching {
+            PendingIntent.getBroadcast(
+                appContext,
+                usbDevice.deviceId,
+                Intent(ACTION_USB_DAC_PERMISSION).setPackage(appContext.packageName),
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
+            )
+        }.getOrNull() ?: return
+        runCatching { usbManager?.requestPermission(usbDevice, pendingIntent) }
     }
 
     private fun registerReceiverIfNeeded() {
@@ -410,23 +431,30 @@ internal class UsbDacHardwareVolumeManager(
             addAction(ACTION_USB_DAC_PERMISSION)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)
         }
-        ContextCompat.registerReceiver(
-            appContext,
-            permissionReceiver,
-            filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED,
-        )
-        permissionReceiverRegistered = true
+        if (
+            runCatching {
+                ContextCompat.registerReceiver(
+                    appContext,
+                    permissionReceiver,
+                    filter,
+                    ContextCompat.RECEIVER_NOT_EXPORTED,
+                )
+            }.isSuccess
+        ) {
+            permissionReceiverRegistered = true
+        }
     }
 
     private fun findUsbAudioDeviceForDescriptor(
         descriptor: UsbAudioDeviceDescriptor,
     ): RoutedUsbDacMatch {
-        val usbAudioDevices = usbManager
-            ?.getDeviceList()
-            ?.values
-            ?.filter(::isUsbAudioDevice)
-            .orEmpty()
+        val usbAudioDevices = runCatching {
+            usbManager
+                ?.getDeviceList()
+                ?.values
+                ?.filter(::isUsbAudioDevice)
+                .orEmpty()
+        }.getOrDefault(emptyList())
         if (usbAudioDevices.isEmpty()) return RoutedUsbDacMatch.Failed(UsbDacMatchResult.NoCandidates)
         val candidates = usbAudioDevices.map { usbDevice ->
             usbDevice.toMatchCandidate()
@@ -447,14 +475,16 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     private fun isUsbAudioDevice(device: UsbDevice): Boolean {
-        if (device.deviceClass == UsbConstants.USB_CLASS_AUDIO) return true
-        return (0 until device.interfaceCount).any { index ->
-            device.getInterface(index).interfaceClass == UsbConstants.USB_CLASS_AUDIO
-        }
+        return runCatching {
+            if (device.deviceClass == UsbConstants.USB_CLASS_AUDIO) return true
+            (0 until device.interfaceCount).any { index ->
+                device.getInterface(index).interfaceClass == UsbConstants.USB_CLASS_AUDIO
+            }
+        }.getOrDefault(false)
     }
 
     private fun currentSystemMediaVolume(): Int {
-        return audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0
+        return runCatching { audioManager?.getStreamVolume(AudioManager.STREAM_MUSIC) ?: 0 }.getOrDefault(0)
     }
 
     private fun storePerDeviceVolume(
@@ -494,10 +524,10 @@ internal class UsbDacHardwareVolumeManager(
 
     private fun UsbDevice.toIdentity(): UsbDacDeviceIdentity {
         return UsbDacDeviceIdentity(
-            vendorId = vendorId,
-            productId = productId,
-            manufacturerName = manufacturerName,
-            productName = productName,
+            vendorId = runCatching { vendorId }.getOrDefault(0),
+            productId = runCatching { productId }.getOrDefault(0),
+            manufacturerName = runCatching { manufacturerName }.getOrNull(),
+            productName = runCatching { productName }.getOrNull(),
             serialNumber = safeSerialNumber(),
         )
     }
@@ -511,16 +541,18 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     private fun UsbDevice.toMatchCandidate(): UsbDacMatchCandidate {
-        val audioInterfaceCount = (0 until interfaceCount).count { index ->
-            getInterface(index).interfaceClass == UsbConstants.USB_CLASS_AUDIO
-        }
+        val audioInterfaceCount = runCatching {
+            (0 until interfaceCount).count { index ->
+                getInterface(index).interfaceClass == UsbConstants.USB_CLASS_AUDIO
+            }
+        }.getOrDefault(0)
         return UsbDacMatchCandidate(
-            deviceId = deviceId,
-            deviceName = deviceName.orEmpty(),
-            productName = productName,
-            manufacturerName = manufacturerName,
-            vendorId = vendorId,
-            productId = productId,
+            deviceId = runCatching { deviceId }.getOrDefault(-1),
+            deviceName = runCatching { deviceName.orEmpty() }.getOrDefault(""),
+            productName = runCatching { productName }.getOrNull(),
+            manufacturerName = runCatching { manufacturerName }.getOrNull(),
+            vendorId = runCatching { vendorId }.getOrDefault(0),
+            productId = runCatching { productId }.getOrDefault(0),
             audioInterfaceCount = audioInterfaceCount,
         )
     }

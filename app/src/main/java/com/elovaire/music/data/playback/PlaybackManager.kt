@@ -30,7 +30,8 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
-import elovaire.music.droidbeauty.app.core.routedDevicesForAttributes
+import elovaire.music.droidbeauty.app.core.safeOutputDevices
+import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -909,19 +910,31 @@ class PlaybackManager(
     }
 
     private fun refreshUsbAudioOutputState() {
-        val currentUsbOutput = currentUsbOutputDescriptor()
-        hasUsbOutputRoute = currentUsbOutput != null
-        usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutput)
-        bitPerfectUsbManager.refreshConnectedDevices()
+        runCatching {
+            val currentUsbOutput = currentUsbOutputDescriptor()
+            hasUsbOutputRoute = currentUsbOutput != null
+            usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutput)
+            bitPerfectUsbManager.refreshConnectedDevices()
+        }.onFailure {
+            hasUsbOutputRoute = false
+            bitPerfectUsbManager.clearPlaybackFormat()
+        }
         syncRuntimeObservers()
     }
 
     private fun applyPreferredAudioDeviceIfNeeded(force: Boolean = false) {
-        val preferredDevice = bitPerfectUsbManager.preferredOutputDevice()
-        val nextKey = preferredDevice?.let { PreferredAudioDeviceKey(it.id, it.type) }
+        val preferredDevice = runCatching { bitPerfectUsbManager.preferredOutputDevice() }.getOrNull()
+        val nextKey = preferredDevice?.let { device ->
+            val id = runCatching { device.id }.getOrNull() ?: return@let null
+            val type = runCatching { device.type }.getOrNull() ?: return@let null
+            PreferredAudioDeviceKey(id, type)
+        }
         if (!force && lastAppliedPreferredDeviceKey == nextKey) return
-        player.setPreferredAudioDevice(preferredDevice)
-        lastAppliedPreferredDeviceKey = nextKey
+        if (runCatching { player.setPreferredAudioDevice(preferredDevice) }.isSuccess) {
+            lastAppliedPreferredDeviceKey = nextKey
+        } else {
+            lastAppliedPreferredDeviceKey = null
+        }
     }
 
     private fun maybeRebuildPlayerForAudioPath(reason: String) {
@@ -995,12 +1008,17 @@ class PlaybackManager(
             val playbackSnapshot = PlaybackSnapshot.from(previousPlayer)
             val queueSnapshot = _state.value.queue
             logDebug("rebuild direct=$useDirectPlayback reason=$reason position=${playbackSnapshot.positionMs} index=${playbackSnapshot.currentIndex}")
-            playerSwitcher.switchPlayerAudioPath(
+            val replacementPlayer = playerSwitcher.switchPlayerAudioPath(
                 currentPlayer = previousPlayer,
                 queueSnapshot = queueSnapshot,
                 useDirectPlayback = useDirectPlayback,
                 playbackSnapshot = playbackSnapshot,
             )
+            if (replacementPlayer === previousPlayer) {
+                lastAppliedAudioPathDecisionKey = decisionKey.copy(useDirectPlayback = isDirectPlaybackActive)
+                player.volume = targetPlayerOutputGain()
+                return
+            }
             isDirectPlaybackActive = useDirectPlayback
             lastAppliedPreferredDeviceKey = null
             lastAppliedAudioPathDecisionKey = decisionKey
@@ -1579,11 +1597,17 @@ class PlaybackManager(
     private fun setVolumeObserverRegistered(registered: Boolean) {
         if (volumeObserverRegistered == registered) return
         if (registered) {
-            appContext.contentResolver.registerContentObserver(
-                Settings.System.CONTENT_URI,
-                true,
-                systemVolumeObserver,
-            )
+            if (
+                runCatching {
+                    appContext.contentResolver.registerContentObserver(
+                        Settings.System.CONTENT_URI,
+                        true,
+                        systemVolumeObserver,
+                    )
+                }.isFailure
+            ) {
+                return
+            }
         } else {
             runCatching { appContext.contentResolver.unregisterContentObserver(systemVolumeObserver) }
         }
@@ -1593,7 +1617,9 @@ class PlaybackManager(
     private fun setAudioDeviceCallbackRegistered(registered: Boolean) {
         if (audioDeviceCallbackRegistered == registered) return
         if (registered) {
-            audioManager?.registerAudioDeviceCallback(audioDeviceCallback, playbackHandler)
+            if (runCatching { audioManager?.registerAudioDeviceCallback(audioDeviceCallback, playbackHandler) }.isFailure) {
+                return
+            }
         } else {
             runCatching { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) }
         }
@@ -1603,12 +1629,18 @@ class PlaybackManager(
     private fun setNoisyReceiverRegistered(registered: Boolean) {
         if (noisyReceiverRegistered == registered) return
         if (registered) {
-            ContextCompat.registerReceiver(
-                appContext,
-                becomingNoisyReceiver,
-                IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
-                ContextCompat.RECEIVER_NOT_EXPORTED,
-            )
+            if (
+                runCatching {
+                    ContextCompat.registerReceiver(
+                        appContext,
+                        becomingNoisyReceiver,
+                        IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
+                        ContextCompat.RECEIVER_NOT_EXPORTED,
+                    )
+                }.isFailure
+            ) {
+                return
+            }
         } else {
             runCatching { appContext.unregisterReceiver(becomingNoisyReceiver) }
         }
@@ -1668,10 +1700,12 @@ class PlaybackManager(
                 volumeFineGain = if (targetVolume <= 0f) 0f else 1f
                 return
             }
-            val maxStep = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+            val maxStep = runCatching {
+                manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+            }.getOrDefault(1).coerceAtLeast(1)
             val targetSystemStep = (targetVolume * maxStep.toFloat()).roundToInt().coerceIn(0, maxStep)
             ignoreObservedSystemVolumeStep = targetSystemStep
-            manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0)
+            runCatching { manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0) }
             volumeFineGain = if (targetSystemStep <= 0) 0f else 1f
             userVolume = currentSystemVolumeFraction().quantizedVolume()
             return
@@ -1688,10 +1722,12 @@ class PlaybackManager(
             volumeFineGain = targetVolume
             return
         }
-        val maxStep = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val maxStep = runCatching {
+            manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        }.getOrDefault(1).coerceAtLeast(1)
         if (targetVolume <= 0f) {
             ignoreObservedSystemVolumeStep = 0
-            manager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0)
+            runCatching { manager.setStreamVolume(AudioManager.STREAM_MUSIC, 0, 0) }
             volumeFineGain = 0f
             userVolume = 0f
             return
@@ -1700,7 +1736,7 @@ class PlaybackManager(
         val exactSteps = targetVolume * maxStep.toFloat()
         val targetSystemStep = ceil(exactSteps).toInt().coerceIn(1, maxStep)
         ignoreObservedSystemVolumeStep = targetSystemStep
-        manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0)
+        runCatching { manager.setStreamVolume(AudioManager.STREAM_MUSIC, targetSystemStep, 0) }
         volumeFineGain = (exactSteps / targetSystemStep.toFloat()).coerceIn(0f, 1f)
         userVolume = currentEffectiveVolumeFraction()
     }
@@ -1779,17 +1815,21 @@ class PlaybackManager(
     }
 
     private fun usesFixedVolumeOutput(): Boolean {
-        return audioManager?.isVolumeFixed == true
+        return runCatching { audioManager?.isVolumeFixed == true }.getOrDefault(false)
     }
 
     private fun currentSystemVolumeStep(): Int {
         val manager = audioManager ?: return 0
-        return manager.getStreamVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(0)
+        return runCatching {
+            manager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        }.getOrDefault(0).coerceAtLeast(0)
     }
 
     private fun currentSystemVolumeFraction(): Float {
         val manager = audioManager ?: return 1f
-        val maxStep = manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val maxStep = runCatching {
+            manager.getStreamMaxVolume(AudioManager.STREAM_MUSIC)
+        }.getOrDefault(1).coerceAtLeast(1)
         val currentStep = currentSystemVolumeStep()
         return currentStep.toFloat() / maxStep.toFloat()
     }
@@ -1800,16 +1840,16 @@ class PlaybackManager(
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
         ) {
-            manager.routedDevicesForAttributes(platformPlaybackAudioAttributes)
+            manager.safeRoutedOutputDevicesForAttributes(platformPlaybackAudioAttributes)
                 .firstOrNull { device ->
-                    device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES
+                    runCatching { device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
                 }
         } else {
             null
         }
-        return (routedUsbDevice ?: manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
+        return (routedUsbDevice ?: manager.safeOutputDevices()
             .firstOrNull { device ->
-                device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES
+                runCatching { device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
             })
             ?.toUsbAudioDeviceDescriptor()
     }
@@ -1913,7 +1953,7 @@ private fun Float.quantizedVolume(): Float {
 
 private fun Array<out AudioDeviceInfo>.hasUsbOutputDeviceChange(): Boolean {
     return any { device ->
-        device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES
+        runCatching { device.isSink && device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
     }
 }
 
@@ -1940,15 +1980,15 @@ private data class PreferredAudioDeviceKey(
 
 private fun AudioDeviceInfo.toUsbAudioDeviceDescriptor(): UsbAudioDeviceDescriptor {
     return UsbAudioDeviceDescriptor(
-        id = id,
-        type = type,
-        isSink = isSink,
-        productName = productName?.toString(),
-        address = address.takeIf { it.isNotBlank() },
-        sampleRates = sampleRates.copyOf(),
-        encodings = encodings.copyOf(),
-        channelCounts = channelCounts.copyOf(),
-        channelMasks = channelMasks.copyOf(),
+        id = runCatching { id }.getOrDefault(-1),
+        type = runCatching { type }.getOrDefault(-1),
+        isSink = runCatching { isSink }.getOrDefault(false),
+        productName = runCatching { productName?.toString() }.getOrNull(),
+        address = runCatching { address.takeIf { it.isNotBlank() } }.getOrNull(),
+        sampleRates = runCatching { sampleRates.copyOf() }.getOrDefault(intArrayOf()),
+        encodings = runCatching { encodings.copyOf() }.getOrDefault(intArrayOf()),
+        channelCounts = runCatching { channelCounts.copyOf() }.getOrDefault(intArrayOf()),
+        channelMasks = runCatching { channelMasks.copyOf() }.getOrDefault(intArrayOf()),
     )
 }
 

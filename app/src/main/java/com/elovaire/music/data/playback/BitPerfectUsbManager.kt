@@ -12,7 +12,9 @@ import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.audio.AudioSink
 import elovaire.music.droidbeauty.app.BuildConfig
-import elovaire.music.droidbeauty.app.core.routedDevicesForAttributes
+import elovaire.music.droidbeauty.app.core.safeDirectPlaybackSupport
+import elovaire.music.droidbeauty.app.core.safeOutputDevices
+import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -115,6 +117,22 @@ internal class BitPerfectUsbManager(
     fun preferredOutputDevice(): AudioDeviceInfo? = preferredRouteDevice
 
     private fun publishStatus() {
+        runCatching {
+            publishStatusUnsafe()
+        }.onFailure {
+            preferredRouteDevice = null
+            cachedEvaluation = null
+            updateStatus(
+                BitPerfectPlaybackStatus(
+                    state = BitPerfectPlaybackState.NoEligibleRoute,
+                    directive = BitPerfectPlaybackDirective.PreferRegular,
+                    mode = DirectPlaybackMode.RegularPlaybackRequired,
+                ),
+            )
+        }
+    }
+
+    private fun publishStatusUnsafe() {
         if (audioManager == null) {
             preferredRouteDevice = null
             currentRouteFingerprint = emptyList()
@@ -155,8 +173,8 @@ internal class BitPerfectUsbManager(
 
         val evaluationKey = trackConfig?.toEvaluationKey(
             routeFingerprintHash = routeSnapshot.preferredUsbFingerprint?.hashCode(),
-            routeDeviceId = routeSnapshot.preferredUsbDevice?.id,
-            routeType = routeSnapshot.preferredUsbDevice?.type,
+            routeDeviceId = routeSnapshot.preferredUsbDevice?.safeId(),
+            routeType = routeSnapshot.preferredUsbDevice?.safeType(),
             effectsActive = effectsActive,
         )
 
@@ -166,6 +184,8 @@ internal class BitPerfectUsbManager(
             effectsActive = effectsActive,
             trackConfig = trackConfig,
             evaluationKey = evaluationKey,
+            supportClassification = QUERY_ALLOWED_SUPPORT,
+            directPlaybackSupport = QUERY_ALLOWED_SUPPORT.rawFlags,
         )
         if (earlyDecision.directive != BitPerfectPlaybackDirective.PreferDirect) {
             updateStatus(earlyDecision)
@@ -187,7 +207,7 @@ internal class BitPerfectUsbManager(
             return
         }
 
-        val support = AudioManager.getDirectPlaybackSupport(platformAudioFormat, playbackAudioAttributes)
+        val support = audioManager.safeDirectPlaybackSupport(platformAudioFormat, playbackAudioAttributes)
         val supportClassification = DirectPlaybackSupportClassifier.classify(support)
         val evaluatedStatus = BitPerfectEligibilityPolicy.evaluate(
             sdkInt = Build.VERSION.SDK_INT,
@@ -219,6 +239,10 @@ internal class BitPerfectUsbManager(
 
     private companion object {
         const val TAG = "BitPerfectUsb"
+        val QUERY_ALLOWED_SUPPORT = DirectPlaybackSupportClassification(
+            rawFlags = AudioManager.DIRECT_PLAYBACK_BITSTREAM_SUPPORTED,
+            kinds = setOf(DirectPlaybackSupportKind.BitstreamPassThrough),
+        )
     }
 }
 
@@ -243,8 +267,8 @@ private data class DirectPlaybackRouteSnapshot(
             hasEligibleUsbRoute = preferredUsbDevice != null,
             hasVerifiedRoutedUsbRoute = isRouteVerified && preferredUsbDevice != null,
             hasVerifiedBluetoothRoute = isRouteVerified && hasBluetoothRoute,
-            activeRouteDeviceId = reportedDevice?.id,
-            activeRouteType = reportedDevice?.type,
+            activeRouteDeviceId = reportedDevice?.safeId(),
+            activeRouteType = reportedDevice?.safeType(),
             activeRouteSignature = reportedFingerprint?.hashCode(),
         )
     }
@@ -267,23 +291,26 @@ private fun resolveRouteSnapshot(
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
         supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
     ) {
-        audioManager.routedDevicesForAttributes(playbackAudioAttributes)
-            .filter(AudioDeviceInfo::isSink)
+        audioManager.safeRoutedOutputDevicesForAttributes(playbackAudioAttributes)
     } else {
-        audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS)
-            .filter(AudioDeviceInfo::isSink)
+        audioManager.safeOutputDevices()
     }
     val fingerprint = routedDevices
-        .map(AudioDeviceInfo::toRouteFingerprint)
+        .mapNotNull { device -> runCatching { device.toRouteFingerprint() }.getOrNull() }
         .sortedWith(compareBy(RouteFingerprint::type, RouteFingerprint::id))
-    val preferredUsbDevice = routedDevices.firstOrNull { it.type.isEligibleUsbOutputType() }
+    val preferredUsbDevice = routedDevices.firstOrNull { device ->
+        runCatching { device.type.isEligibleUsbOutputType() }.getOrDefault(false)
+    }
+    val primaryRoutedDevice = routedDevices.firstOrNull()
     return DirectPlaybackRouteSnapshot(
         fingerprint = fingerprint,
         preferredUsbDevice = preferredUsbDevice,
-        preferredUsbFingerprint = preferredUsbDevice?.toRouteFingerprint(),
-        primaryRoutedDevice = routedDevices.firstOrNull(),
-        primaryRouteFingerprint = routedDevices.firstOrNull()?.toRouteFingerprint(),
-        hasBluetoothRoute = routedDevices.any { it.type.isBluetoothOutputType() },
+        preferredUsbFingerprint = preferredUsbDevice?.let { runCatching { it.toRouteFingerprint() }.getOrNull() },
+        primaryRoutedDevice = primaryRoutedDevice,
+        primaryRouteFingerprint = primaryRoutedDevice?.let { runCatching { it.toRouteFingerprint() }.getOrNull() },
+        hasBluetoothRoute = routedDevices.any { device ->
+            runCatching { device.type.isBluetoothOutputType() }.getOrDefault(false)
+        },
         isRouteVerified = supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT),
     )
 }
@@ -331,11 +358,13 @@ private fun DirectPlaybackTrackConfig.toPlatformAudioFormat(): AudioFormat? {
     if (sampleRate <= 0 || channelMask == AudioFormat.CHANNEL_INVALID || channelCount <= 0) {
         return null
     }
-    return AudioFormat.Builder()
-        .setEncoding(platformEncoding)
-        .setSampleRate(sampleRate)
-        .setChannelMask(channelMask)
-        .build()
+    return runCatching {
+        AudioFormat.Builder()
+            .setEncoding(platformEncoding)
+            .setSampleRate(sampleRate)
+            .setChannelMask(channelMask)
+            .build()
+    }.getOrNull()
 }
 
 internal fun Int.channelCountFromChannelMask(): Int {
@@ -368,16 +397,20 @@ private data class RouteFingerprint(
 
 private fun AudioDeviceInfo.toRouteFingerprint(): RouteFingerprint {
     return RouteFingerprint(
-        id = id,
-        type = type,
-        address = address.orEmpty(),
-        productName = productName?.toString()?.trim(),
-        sampleRates = sampleRates.toList().sorted(),
-        encodings = encodings.toList().sorted(),
-        channelCounts = channelCounts.toList().sorted(),
-        channelMasks = channelMasks.toList().sorted(),
+        id = safeId() ?: -1,
+        type = safeType() ?: -1,
+        address = runCatching { address.orEmpty() }.getOrDefault(""),
+        productName = runCatching { productName?.toString()?.trim() }.getOrNull(),
+        sampleRates = runCatching { sampleRates.toList().sorted() }.getOrDefault(emptyList()),
+        encodings = runCatching { encodings.toList().sorted() }.getOrDefault(emptyList()),
+        channelCounts = runCatching { channelCounts.toList().sorted() }.getOrDefault(emptyList()),
+        channelMasks = runCatching { channelMasks.toList().sorted() }.getOrDefault(emptyList()),
     )
 }
+
+private fun AudioDeviceInfo.safeId(): Int? = runCatching { id }.getOrNull()
+
+private fun AudioDeviceInfo.safeType(): Int? = runCatching { type }.getOrNull()
 
 internal fun Int.isEligibleUsbOutputType(): Boolean {
     return this == AudioDeviceInfo.TYPE_USB_DEVICE ||

@@ -17,27 +17,39 @@ internal class PlaybackPlayerSwitcher(
         useDirectPlayback: Boolean,
         playbackSnapshot: PlaybackSnapshot = PlaybackSnapshot.from(currentPlayer),
     ): ExoPlayer {
-        detachPlayerObservers(currentPlayer)
-        val replacementPlayer = createPlayer(!useDirectPlayback)
-        attachPlayerObservers(replacementPlayer)
-        replacementPlayer.repeatMode = currentPlayer.repeatMode
-        replacementPlayer.shuffleModeEnabled = currentPlayer.shuffleModeEnabled
-        if (queueSnapshot.isNotEmpty()) {
-            replacementPlayer.setMediaItems(
-                queueSnapshot.map(Song::toPlaybackMediaItem),
-                playbackSnapshot.currentIndex.coerceIn(0, queueSnapshot.lastIndex),
-                playbackSnapshot.positionMs,
-            )
-            replacementPlayer.prepare()
-            replacementPlayer.playWhenReady = playbackSnapshot.playWhenReady
-            if (playbackSnapshot.playWhenReady) {
-                replacementPlayer.play()
+        var replacementPlayer: ExoPlayer? = null
+        var replacementObserversAttached = false
+        return try {
+            val replacement = createPlayer(!useDirectPlayback)
+            replacementPlayer = replacement
+            attachPlayerObservers(replacement)
+            replacementObserversAttached = true
+            replacement.repeatMode = currentPlayer.repeatMode
+            replacement.shuffleModeEnabled = currentPlayer.shuffleModeEnabled
+            if (queueSnapshot.isNotEmpty()) {
+                replacement.setMediaItems(
+                    queueSnapshot.map(Song::toPlaybackMediaItem),
+                    playbackSnapshot.currentIndex.coerceIn(0, queueSnapshot.lastIndex),
+                    playbackSnapshot.positionMs,
+                )
+                replacement.prepare()
+                replacement.playWhenReady = playbackSnapshot.playWhenReady
+                if (playbackSnapshot.playWhenReady) {
+                    replacement.play()
+                }
             }
+            onPlayerReplaced(replacement)
+            applyPreferredAudioDevice(true)
+            replacement.volume = targetPlayerOutputGain()
+            detachPlayerObservers(currentPlayer)
+            currentPlayer.release()
+            replacement
+        } catch (_: Throwable) {
+            if (replacementObserversAttached) {
+                replacementPlayer?.let { runCatching { detachPlayerObservers(it) } }
+            }
+            replacementPlayer?.let { runCatching { it.release() } }
+            currentPlayer
         }
-        onPlayerReplaced(replacementPlayer)
-        applyPreferredAudioDevice(true)
-        replacementPlayer.volume = targetPlayerOutputGain()
-        currentPlayer.release()
-        return replacementPlayer
     }
 }
