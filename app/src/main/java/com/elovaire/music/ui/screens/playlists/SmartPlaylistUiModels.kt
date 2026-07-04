@@ -44,9 +44,7 @@ private fun SmartPlaylistSortField.summaryLabel(): String {
         SmartPlaylistSortField.Genre -> "Sorted by genre"
         SmartPlaylistSortField.Duration -> "Sorted by duration"
         SmartPlaylistSortField.DateAdded -> "Sorted by date added"
-        SmartPlaylistSortField.RecentlyPlayed -> "Sorted by recent plays"
         SmartPlaylistSortField.PlayCount -> "Sorted by play count"
         SmartPlaylistSortField.Random -> "Random order"
     }
 }
-

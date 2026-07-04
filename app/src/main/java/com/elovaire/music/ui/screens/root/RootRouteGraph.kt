@@ -141,10 +141,6 @@ internal fun RootRouteGraph(
                 bottomPadding = padding.detailBottom,
                 onBack = routeActions::navigateUp,
                 onEdit = { routeActions.openSmartPlaylistEditor(it.id) },
-                onDuplicate = { smart ->
-                    val createdId = routeActions.duplicateSmartPlaylist(smart)
-                    if (createdId > 0L) routeActions.openSmartPlaylistEditor(createdId)
-                },
                 onDelete = routeActions::deleteSmartPlaylist,
                 onConvertToNormalPlaylist = { smart, songs ->
                     routeActions.playlists.createPlaylistAndAddSongs(smart.name, songs.map(Song::id))

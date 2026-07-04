@@ -33,8 +33,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.boundsInWindow
-import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -71,7 +69,6 @@ internal fun SmartPlaylistDetailScreen(
     bottomPadding: Dp,
     onBack: () -> Unit,
     onEdit: (SmartPlaylist) -> Unit,
-    onDuplicate: (SmartPlaylist) -> Unit,
     onDelete: (Long) -> Unit,
     onConvertToNormalPlaylist: (SmartPlaylist, List<Song>) -> Unit,
     onPlay: (SmartPlaylist, List<Song>, Boolean) -> Unit,
@@ -163,8 +160,7 @@ internal fun SmartPlaylistDetailScreen(
             playlist = playlist,
             songCountLabel = localizedCountLabel(result.songs.size, "song", language),
             onBack = onBack,
-            onEdit = { if (playlist.isBuiltIn) onDuplicate(playlist) else onEdit(playlist) },
-            onDuplicate = { onDuplicate(playlist) },
+            onEdit = { onEdit(playlist) },
             onConvert = { onConvertToNormalPlaylist(playlist, result.songs) },
             onDelete = { showDeleteConfirm = true },
             modifier = Modifier.align(Alignment.TopCenter),
@@ -269,7 +265,6 @@ private fun SmartPlaylistDetailTopBar(
     songCountLabel: String,
     onBack: () -> Unit,
     onEdit: () -> Unit,
-    onDuplicate: () -> Unit,
     onConvert: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -279,8 +274,9 @@ private fun SmartPlaylistDetailTopBar(
         subtitle = songCountLabel,
         onBack = onBack,
         actions = buildList {
-            add(TopBarActionSpec(R.drawable.ic_lucide_square_pen, "Edit rules", onEdit))
-            add(TopBarActionSpec(R.drawable.ic_lucide_list_plus, "Duplicate smart playlist", onDuplicate))
+            if (!playlist.isBuiltIn) {
+                add(TopBarActionSpec(R.drawable.ic_lucide_square_pen, "Edit rules", onEdit))
+            }
             add(TopBarActionSpec(R.drawable.ic_lucide_list_music, "Convert to playlist", onConvert))
             if (!playlist.isBuiltIn) {
                 add(TopBarActionSpec(R.drawable.ic_lucide_trash_2, "Delete smart playlist", onDelete))
@@ -565,40 +561,6 @@ private fun SmartEditorChoiceRow(
             Text(text = title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
             Text(text = value, style = MaterialTheme.typography.labelLarge, color = readableSecondaryTextColor())
         }
-    }
-}
-
-@Composable
-internal fun SmartPlaylistGridTile(
-    summary: SmartPlaylistSummary,
-    onClick: (ExpandOrigin) -> Unit,
-) {
-    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
-    val screenSizePx = screenContainerSizePx()
-    Column(
-        modifier = Modifier
-            .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .clickable { onClick(bounds.toExpandOrigin(screenSizePx.width.toFloat(), screenSizePx.height.toFloat())) },
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        PlaylistArtworkPreview(
-            songs = summary.result.songs,
-            title = summary.playlist.name,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Text(
-            text = summary.playlist.name,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = "${localizedCountLabel(summary.result.songs.size, "song", LocalAppLanguage.current)} • Auto-updating",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

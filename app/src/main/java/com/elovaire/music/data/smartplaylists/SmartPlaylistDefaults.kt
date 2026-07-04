@@ -15,14 +15,6 @@ internal object SmartPlaylistDefaults {
                 updatedAtMs = nowMs,
             ),
             SmartPlaylist(
-                id = -2L,
-                name = "Recently Played",
-                builtInType = BuiltInSmartPlaylistType.RecentlyPlayed,
-                sort = SmartPlaylistSort(SmartPlaylistSortField.RecentlyPlayed, SortDirection.Ascending),
-                createdAtMs = nowMs,
-                updatedAtMs = nowMs,
-            ),
-            SmartPlaylist(
                 id = -3L,
                 name = "Most Played",
                 builtInType = BuiltInSmartPlaylistType.MostPlayed,
@@ -32,29 +24,11 @@ internal object SmartPlaylistDefaults {
                 updatedAtMs = nowMs,
             ),
             SmartPlaylist(
-                id = -4L,
-                name = "Never Played",
-                builtInType = BuiltInSmartPlaylistType.NeverPlayed,
-                rules = listOf(SmartPlaylistRule.PlayCount(NumericOperator.EqualTo, 0)),
-                sort = SmartPlaylistSort(SmartPlaylistSortField.Title, SortDirection.Ascending),
-                createdAtMs = nowMs,
-                updatedAtMs = nowMs,
-            ),
-            SmartPlaylist(
                 id = -5L,
                 name = "Favorites",
                 builtInType = BuiltInSmartPlaylistType.Favorites,
                 rules = listOf(SmartPlaylistRule.FavoriteIs(true)),
                 sort = SmartPlaylistSort(SmartPlaylistSortField.Title, SortDirection.Ascending),
-                createdAtMs = nowMs,
-                updatedAtMs = nowMs,
-            ),
-            SmartPlaylist(
-                id = -6L,
-                name = "Long Songs",
-                builtInType = BuiltInSmartPlaylistType.LongSongs,
-                rules = listOf(SmartPlaylistRule.DurationBetween(minMs = 7L * 60L * 1000L)),
-                sort = SmartPlaylistSort(SmartPlaylistSortField.Duration, SortDirection.Descending),
                 createdAtMs = nowMs,
                 updatedAtMs = nowMs,
             ),
@@ -79,4 +53,3 @@ internal object SmartPlaylistDefaults {
 }
 
 internal val RecentlyAddedWindowMs: Long = 30L * DayMs
-

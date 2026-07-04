@@ -31,6 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -55,7 +56,6 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -84,7 +84,7 @@ internal fun CompactNowPlayingDockHost(
     modifier: Modifier = Modifier,
 ) {
     var keepProgressActive by remember(song.id) { mutableStateOf(visible) }
-    var lastProgress by remember(song.id) { mutableFloatStateOf(0f) }
+    val progressState = remember(song.id) { mutableFloatStateOf(0f) }
 
     LaunchedEffect(visible, song.id) {
         if (visible) {
@@ -102,12 +102,13 @@ internal fun CompactNowPlayingDockHost(
     }
 
     if (keepProgressActive) {
-        val playbackProgress by viewModel.progressState().collectAsStateWithLifecycle()
-        LaunchedEffect(playbackProgress.displayPositionMs, playbackProgress.durationMs, song.id) {
-            lastProgress = if (playbackProgress.durationMs > 0L) {
-                (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-            } else {
-                0f
+        LaunchedEffect(viewModel, song.id) {
+            viewModel.progressState().collect { playbackProgress ->
+                progressState.floatValue = if (playbackProgress.durationMs > 0L) {
+                    (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
+                } else {
+                    0f
+                }
             }
         }
     }
@@ -115,7 +116,7 @@ internal fun CompactNowPlayingDockHost(
     StandaloneNowPlayingDock(
         song = song,
         isPlaying = transportShowsPause,
-        progress = lastProgress,
+        progressState = progressState,
         visible = visible,
         suppressEnterAnimation = suppressEnterAnimation,
         onOpenPlayer = onOpenPlayer,
@@ -130,7 +131,7 @@ internal fun CompactNowPlayingDockHost(
 private fun StandaloneNowPlayingDock(
     song: Song,
     isPlaying: Boolean,
-    progress: Float,
+    progressState: MutableFloatState,
     visible: Boolean,
     suppressEnterAnimation: Boolean,
     onOpenPlayer: (NowPlayingTransitionSnapshot?) -> Unit,
@@ -189,7 +190,7 @@ private fun StandaloneNowPlayingDock(
                 NowPlayingBar(
                     song = song,
                     isPlaying = isPlaying,
-                    progress = progress,
+                    progressState = progressState,
                     visible = visible,
                     onOpenPlayer = onOpenPlayer,
                     onTogglePlayback = onTogglePlayback,
@@ -205,7 +206,7 @@ private fun StandaloneNowPlayingDock(
 private fun NowPlayingBar(
     song: Song,
     isPlaying: Boolean,
-    progress: Float,
+    progressState: MutableFloatState,
     visible: Boolean,
     onOpenPlayer: (NowPlayingTransitionSnapshot?) -> Unit,
     onTogglePlayback: () -> Unit,
@@ -391,7 +392,7 @@ private fun NowPlayingBar(
                     drawArc(
                         color = controlIconTint,
                         startAngle = arcStart,
-                        sweepAngle = arcSweep * progress.coerceIn(0f, 1f),
+                        sweepAngle = arcSweep * progressState.floatValue.coerceIn(0f, 1f),
                         useCenter = false,
                         topLeft = Offset(arcInset, arcInset),
                         size = Size(size.width - (arcInset * 2f), size.height - (arcInset * 2f)),

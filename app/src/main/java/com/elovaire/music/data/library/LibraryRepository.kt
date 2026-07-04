@@ -187,10 +187,14 @@ class LibraryRepository internal constructor(
                     }
                     val currentSyncState = withContext(Dispatchers.IO) { scanner.currentSyncState() }
                     if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
-                    val syncDecision = decideLibrarySync(cachedSnapshot.syncState, currentSyncState)
+                    val syncDecision = decideLibrarySync(
+                        cached = cachedSnapshot.syncState,
+                        current = currentSyncState,
+                        cachedSongCount = cachedSnapshot.snapshot.songs.size,
+                    )
                     if (syncDecision != LibrarySyncDecision.ReuseCached) {
                         refresh(
-                            forceMediaIndex = false,
+                            forceMediaIndex = cachedSnapshot.snapshot.songs.isEmpty(),
                             enrichMetadata = false,
                             showLoadingIndicator = false,
                         )
@@ -203,7 +207,7 @@ class LibraryRepository internal constructor(
                     }
                 } else {
                     refresh(
-                        forceMediaIndex = false,
+                        forceMediaIndex = true,
                         enrichMetadata = false,
                         showLoadingIndicator = true,
                     )

@@ -53,6 +53,7 @@ internal class LrcLibLyricsProvider(
         lookupMode: LyricsLookupMode,
     ): ProviderLyricsMatch? = withContext(ioDispatcher) {
         val primaryArtist = extractPrimaryArtist(song.artist)
+        val weakArtist = isWeakLyricsArtist(song.artist)
         val baseTitle = baseTitleForLyricsMatch(song.title).ifBlank { song.title }
         val cleanedTitle = cleanedTitleForFallback(song.title).ifBlank { baseTitle }
         val durationSeconds = song.durationMs.takeIf { it > 0L }?.div(1000L)?.toInt()
@@ -64,33 +65,35 @@ internal class LrcLibLyricsProvider(
         )
 
         val strategies = buildList {
-            add(
-                LyricsSearchStrategy(name = "exact_get") {
-                    listOfNotNull(
-                        api.get(
+            if (!weakArtist) {
+                add(
+                    LyricsSearchStrategy(name = "exact_get") {
+                        listOfNotNull(
+                            api.get(
+                                trackName = exactVariant.title,
+                                artistName = exactVariant.artist,
+                                albumName = exactVariant.album,
+                                durationSeconds = durationSeconds,
+                            ),
+                        )
+                    },
+                )
+                add(
+                    LyricsSearchStrategy(name = "artist_track_search") {
+                        api.search(
                             trackName = exactVariant.title,
                             artistName = exactVariant.artist,
                             albumName = exactVariant.album,
-                            durationSeconds = durationSeconds,
-                        ),
-                    )
-                },
-            )
-            add(
-                LyricsSearchStrategy(name = "artist_track_search") {
-                    api.search(
-                        trackName = exactVariant.title,
-                        artistName = exactVariant.artist,
-                        albumName = exactVariant.album,
-                    )
-                },
-            )
-            add(
-                LyricsSearchStrategy(name = "combined_query") {
-                    api.search(query = "$primaryArtist $baseTitle".trim())
-                },
-            )
-            if (baseTitle != exactVariant.title || primaryArtist != exactVariant.artist) {
+                        )
+                    },
+                )
+                add(
+                    LyricsSearchStrategy(name = "combined_query") {
+                        api.search(query = "$primaryArtist $baseTitle".trim())
+                    },
+                )
+            }
+            if (!weakArtist && (baseTitle != exactVariant.title || primaryArtist != exactVariant.artist)) {
                 add(
                     LyricsSearchStrategy(name = "simplified_variant") {
                         api.search(
@@ -98,6 +101,13 @@ internal class LrcLibLyricsProvider(
                             artistName = primaryArtist,
                             albumName = exactVariant.album,
                         )
+                    },
+                )
+            }
+            if (weakArtist && baseTitle.isNotBlank()) {
+                add(
+                    LyricsSearchStrategy(name = "title_only_base") {
+                        api.search(trackName = baseTitle)
                     },
                 )
             }
@@ -196,7 +206,7 @@ internal class LrcLibLyricsProvider(
 
     private companion object {
         const val TAG = "LrcLibLyrics"
-        const val FULL_LOOKUP_TIMEOUT_MS = 5_500L
+        const val FULL_LOOKUP_TIMEOUT_MS = 6_500L
         const val FAST_LOOKUP_TIMEOUT_MS = 1_500L
     }
 }
@@ -409,8 +419,8 @@ private class DefaultLrcLibApi : LrcLibApi {
     private companion object {
         const val TAG = "LrcLibApi"
         const val BASE_URL = "https://lrclib.net/api"
-        const val CONNECT_TIMEOUT_MS = 1_500
-        const val READ_TIMEOUT_MS = 2_000
+        const val CONNECT_TIMEOUT_MS = 2_500
+        const val READ_TIMEOUT_MS = 3_500
         const val LRCLIB_MIN_DELAY_MS = 100L
         const val LRCLIB_MAX_CALLS_PER_MINUTE = 30
         const val MAX_RESPONSE_BYTES = 1 * 1024 * 1024

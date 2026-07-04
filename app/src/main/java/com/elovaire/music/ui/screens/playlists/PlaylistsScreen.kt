@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,6 +51,7 @@ import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -165,32 +167,6 @@ internal fun PlaylistsScreen(
                         )
                     }
                 }
-                if (smartPlaylists.isNotEmpty()) {
-                    item(
-                        key = "smart_playlist_header",
-                        span = { GridItemSpan(maxLineSpan) },
-                        contentType = "playlist_section_header",
-                    ) {
-                        PlaylistSectionHeader("Smart playlists")
-                    }
-                    itemsIndexed(
-                        items = smartPlaylists,
-                        key = { _, row -> row.playlist.id },
-                        contentType = { _, _ -> "smart_playlist_tile" },
-                    ) { _, row ->
-                        SmartPlaylistGridTile(
-                            summary = row,
-                            onClick = { origin -> onOpenSmartPlaylist(row, origin) },
-                        )
-                    }
-                }
-                item(
-                    key = "normal_playlist_header",
-                    span = { GridItemSpan(maxLineSpan) },
-                    contentType = "playlist_section_header",
-                ) {
-                    PlaylistSectionHeader("Your playlists")
-                }
                 items(
                     items = playlistRows,
                     key = { it.playlist.id },
@@ -214,6 +190,33 @@ internal fun PlaylistsScreen(
                             }
                         },
                     )
+                }
+                if (smartPlaylists.isNotEmpty()) {
+                    item(
+                        key = "smart_mix_separator",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = "playlist_section_separator",
+                    ) {
+                        SmartMixSeparator()
+                    }
+                    item(
+                        key = "smart_mix_header",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = "playlist_section_header",
+                    ) {
+                        PlaylistSectionHeader("Smart mixes")
+                    }
+                    itemsIndexed(
+                        items = smartPlaylists,
+                        key = { _, row -> row.playlist.id },
+                        span = { _, _ -> GridItemSpan(maxLineSpan) },
+                        contentType = { _, _ -> "smart_mix_row" },
+                    ) { _, row ->
+                        SmartPlaylistListRow(
+                            summary = row,
+                            onClick = { origin -> onOpenSmartPlaylist(row, origin) },
+                        )
+                    }
                 }
             }
         }
@@ -274,6 +277,17 @@ internal fun PlaylistsScreen(
 }
 
 @Composable
+private fun SmartMixSeparator() {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp)
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+    )
+}
+
+@Composable
 private fun PlaylistSectionHeader(text: String) {
     Text(
         text = text,
@@ -281,6 +295,63 @@ private fun PlaylistSectionHeader(text: String) {
         color = MaterialTheme.colorScheme.onSurface,
         modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
     )
+}
+
+@Composable
+private fun SmartPlaylistListRow(
+    summary: SmartPlaylistSummary,
+    onClick: (ExpandOrigin) -> Unit,
+) {
+    val language = LocalAppLanguage.current
+    val screenSizePx = screenContainerSizePx()
+    var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val songs = summary.result.songs
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .onGloballyPositioned { bounds = it.boundsInWindow() }
+            .combinedClickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = { onClick(bounds.toExpandOrigin(screenSizePx.width.toFloat(), screenSizePx.height.toFloat())) },
+                onLongClick = {},
+            )
+            .padding(vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        ArtworkImage(
+            uri = songs.firstOrNull()?.artUri,
+            title = summary.playlist.name,
+            modifier = Modifier.size(62.dp),
+            cornerRadius = ElovaireRadii.artworkSmall,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            Text(
+                text = summary.playlist.name,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${localizedCountLabel(songs.size, "song", language)} • Auto-updating",
+                style = MaterialTheme.typography.labelLarge,
+                color = readableSecondaryTextColor(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = summary.subtitle.substringAfter(" • "),
+                style = MaterialTheme.typography.labelLarge,
+                color = readableSecondaryTextColor().copy(alpha = 0.7f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
 }
 
 @Composable

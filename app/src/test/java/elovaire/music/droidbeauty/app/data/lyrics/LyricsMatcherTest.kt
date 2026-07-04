@@ -42,6 +42,39 @@ class LyricsMatcherTest {
     }
 
     @Test
+    fun acceptsTitleDurationMatchWhenArtistIsUnknown() {
+        val score = scoreLrcLibMatch(
+            song = song(durationMs = 239_000L, artist = "Unknown Artist"),
+            response = lrcResponse(artistName = "Different Artist", duration = 241.0),
+            songDurationSec = 239.0,
+        )
+
+        assertNotNull(score)
+    }
+
+    @Test
+    fun rejectsUnknownArtistWhenDurationIsFarAway() {
+        val score = scoreLrcLibMatch(
+            song = song(durationMs = 239_000L, artist = "Unknown Artist"),
+            response = lrcResponse(artistName = "Different Artist", duration = 300.0),
+            songDurationSec = 239.0,
+        )
+
+        assertNull(score)
+    }
+
+    @Test
+    fun acceptsPlainLyricsWithModerateDurationDrift() {
+        val score = scoreLrcLibMatch(
+            song = song(durationMs = 239_000L),
+            response = lrcResponse(duration = 260.0, syncedLyrics = null),
+            songDurationSec = 239.0,
+        )
+
+        assertNotNull(score)
+    }
+
+    @Test
     fun prefersSyncedLyricsForComparableMatches() {
         val ranked = rankLrcLibMatches(
             song = song(durationMs = 239_000L),
@@ -54,12 +87,15 @@ class LyricsMatcherTest {
         assertEquals(2, ranked.first().response.id)
     }
 
-    private fun song(durationMs: Long): Song {
+    private fun song(
+        durationMs: Long,
+        artist: String = "Radiohead",
+    ): Song {
         return Song(
             id = 1L,
             title = "Creep",
             isExplicit = false,
-            artist = "Radiohead",
+            artist = artist,
             album = "Pablo Honey",
             releaseYear = null,
             genre = "",
@@ -78,6 +114,7 @@ class LyricsMatcherTest {
 
     private fun lrcResponse(
         id: Int = 1,
+        artistName: String = "Radiohead",
         duration: Double = 239.0,
         plainLyrics: String? = "plain",
         syncedLyrics: String? = null,
@@ -85,7 +122,7 @@ class LyricsMatcherTest {
         return LrcLibResponse(
             id = id,
             name = "Creep",
-            artistName = "Radiohead",
+            artistName = artistName,
             albumName = "Pablo Honey",
             duration = duration,
             plainLyrics = plainLyrics,

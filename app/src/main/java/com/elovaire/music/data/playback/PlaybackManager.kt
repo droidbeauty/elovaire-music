@@ -282,7 +282,7 @@ class PlaybackManager(
     private val progressDemandController = PlaybackProgressDemandController()
     private val playbackProgressTicker = PlaybackProgressTicker(
         scope = scope,
-        intervalMs = PLAYING_PROGRESS_UPDATE_INTERVAL_MS,
+        intervalMs = progressDemandController::pollingIntervalMs,
     ) {
         publishProgressSnapshot()
         shouldPollProgress()
@@ -1814,7 +1814,6 @@ class PlaybackManager(
         const val PAUSE_FADE_STEP_COUNT = 20
         const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
-        const val PLAYING_PROGRESS_UPDATE_INTERVAL_MS = 250L
         const val END_OF_SONG_TIMER_TOLERANCE_MS = 350L
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
         const val GAPLESS_TRANSITION_AUDIO_PATH_REEVALUATION_DELAY_MS = 650L

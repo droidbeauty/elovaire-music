@@ -536,6 +536,11 @@ internal class EqualizerAudioProcessor(
             resetProcessingState()
         }
         updateTargets()
+        if (canBypassProcessing()) {
+            outputBuffer.put(inputBuffer)
+            outputBuffer.flip()
+            return
+        }
         val frameSize = inputAudioFormat.bytesPerFrame
         if (frameSize <= 0) {
             outputBuffer.put(inputBuffer)
@@ -753,6 +758,27 @@ internal class EqualizerAudioProcessor(
             config = safeConfig,
         )
         targetsDirty = false
+    }
+
+    private fun canBypassProcessing(): Boolean {
+        return !EqValuePolicy.hasSignalAlteringEffects(currentSettings) &&
+            abs(manualPreampDb) <= 0.0001f &&
+            abs(currentWetMix) <= 0.0001f &&
+            abs(targetWetMix) <= 0.0001f &&
+            abs(currentBassAmount) <= 0.0001f &&
+            abs(targetBassAmount) <= 0.0001f &&
+            abs(currentBassShelfDb) <= 0.0001f &&
+            abs(currentBassBodyDb) <= 0.0001f &&
+            abs(currentBassAccentDb) <= 0.0001f &&
+            abs(currentBassTrimDb) <= 0.0001f &&
+            abs(currentBassPregainDb) <= 0.0001f &&
+            abs(currentMidrangeDb) <= 0.0001f &&
+            abs(currentTrebleDb) <= 0.0001f &&
+            abs(currentAutoHeadroomDb) <= 0.0001f &&
+            currentBandGainsDb.all { abs(it) <= 0.0001f } &&
+            targetBandGainsDb.all { abs(it) <= 0.0001f } &&
+            reverbProcessor.isBypassed() &&
+            spaciousnessProcessor.isBypassed()
     }
 
     private fun stepTowardsTargets() {

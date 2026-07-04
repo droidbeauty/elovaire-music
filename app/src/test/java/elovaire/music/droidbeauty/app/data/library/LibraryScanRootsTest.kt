@@ -7,6 +7,22 @@ import org.junit.Test
 
 class LibraryScanRootsTest {
     @Test
+    fun musicSelection_exposesMusicRelativeRoot() {
+        val roots = LibraryScanRoots(
+            listOf(
+                LibraryFolderSelection(
+                    uri = null,
+                    path = "/storage/emulated/0/Music",
+                    displayName = "Music",
+                    isDefaultMusicFolder = true,
+                ),
+            ),
+        )
+
+        assertEquals(setOf("music"), roots.relativeRoots())
+    }
+
+    @Test
     fun setSelections_deduplicatesEquivalentUris() {
         val roots = LibraryScanRoots(emptyList())
         roots.setSelections(

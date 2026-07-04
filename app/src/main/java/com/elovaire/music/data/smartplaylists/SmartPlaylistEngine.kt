@@ -47,9 +47,6 @@ internal class SmartPlaylistEngine {
             val addedMs = song.dateAddedSeconds * 1000L
             if (addedMs > 0L && context.nowMs - addedMs > RecentlyAddedWindowMs) return false
         }
-        if (definition.builtInType == BuiltInSmartPlaylistType.RecentlyPlayed && song.id !in context.recentSongOrder) {
-            return false
-        }
         if (definition.rules.isEmpty()) return true
         return when (definition.matchMode) {
             SmartPlaylistMatchMode.All -> definition.rules.all { rule -> matchesRule(rule, context) }
@@ -107,7 +104,6 @@ internal class SmartPlaylistEngine {
             SmartPlaylistSortField.Genre -> compareBy { it.genre.normalizeSmartText() }
             SmartPlaylistSortField.Duration -> compareBy { it.durationMs }
             SmartPlaylistSortField.DateAdded -> compareBy { it.dateAddedSeconds }
-            SmartPlaylistSortField.RecentlyPlayed -> compareBy { context.recentSongOrder[it.id] ?: Int.MAX_VALUE }
             SmartPlaylistSortField.PlayCount -> compareBy { context.playCounts[it.id] ?: 0 }
             SmartPlaylistSortField.Random -> compareBy { it.id }
         }.thenBy { it.title.normalizeSmartText() }.thenBy { it.id }
@@ -172,4 +168,3 @@ private fun stableRandomKey(
     value = value xor (value ushr 29)
     return value.absoluteValue
 }
-

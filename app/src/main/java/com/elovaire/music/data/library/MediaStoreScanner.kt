@@ -100,6 +100,7 @@ class MediaStoreScanner(
         val genreCache = mutableMapOf<Long, String?>()
         val progressEmitter = ScannerProgressEmitter(onProgress)
         val audioFileFilter = buildAudioFileFilter()
+        val decisionMap = ScannerDebugLogger.newDecisionMap()
 
         ElovaireTrace.section("library_mediastore_scan") {
             context.contentResolver.query(
@@ -126,10 +127,14 @@ class MediaStoreScanner(
                         )
                     }
                     val candidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat)
+                    decisionMap.recordMediaStoreRow(candidate)
                     when (val decision = audioFileFilter.evaluate(candidate)) {
-                        AudioFileFilterDecision.Include -> ScannerDebugLogger.logPlatformDependentCandidate(candidate)
+                        AudioFileFilterDecision.Include -> {
+                            decisionMap.recordMediaStoreInclude()
+                            ScannerDebugLogger.logPlatformDependentCandidate(candidate)
+                        }
                         is AudioFileFilterDecision.Exclude -> {
-                            ScannerDebugLogger.logFilteredOutCandidate(candidate, decision.reason)
+                            decisionMap.recordMediaStoreExclude(decision.reason)
                             if (processedRows == totalRows || processedRows % 24 == 0) {
                                 progressEmitter.emit(processedRows, totalRows)
                             }
@@ -226,12 +231,19 @@ class MediaStoreScanner(
         val safSongs = ElovaireTrace.suspendSection("library_saf_scan") {
             safTreeScanner.scan(scanRoots.safTreeSelections())
         }
+        decisionMap.recordSafIncluded(safSongs.size)
         val mergedSongs = ElovaireTrace.section("library_scan_merge") {
             mergeMediaStoreAndSafSongs(
                 mediaStoreSongs = songs,
                 safSongs = safSongs,
             )
         }
+        decisionMap.recordMerge(
+            mediaStoreSongCount = songs.size,
+            safSongCount = safSongs.size,
+            mergedSongCount = mergedSongs.size,
+        )
+        decisionMap.logSummary()
 
         metadataCache.replaceWith(refreshedMetadataCache)
 

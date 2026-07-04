@@ -148,22 +148,6 @@ internal class RootRouteActions(
         container.preferenceStore.deleteSmartPlaylists(setOf(playlistId))
     }
 
-    fun duplicateSmartPlaylist(playlist: SmartPlaylist): Long {
-        val createdId = container.preferenceStore.createSmartPlaylist("${playlist.name} Copy")
-        if (createdId > 0L) {
-            container.preferenceStore.updateSmartPlaylist(
-                playlist.copy(
-                    id = createdId,
-                    name = "${playlist.name} Copy",
-                    builtInType = null,
-                    createdAtMs = System.currentTimeMillis(),
-                    updatedAtMs = System.currentTimeMillis(),
-                ),
-            )
-        }
-        return createdId
-    }
-
     fun removeLibraryFolder(selection: LibraryFolderSelection) {
         container.preferenceStore.removeLibraryFolder(selection)
     }

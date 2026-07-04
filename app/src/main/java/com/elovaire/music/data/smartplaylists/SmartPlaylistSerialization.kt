@@ -43,7 +43,9 @@ private fun deserializeSmartPlaylist(entry: String): SmartPlaylist? {
         ?.split(ListSeparator)
         ?.mapNotNull(::deserializeRule)
         .orEmpty()
-    val sortField = parts[4].enumValueOrNull<SmartPlaylistSortField>() ?: SmartPlaylistSortField.Title
+    val sortField = parts[4].enumValueOrNull<SmartPlaylistSortField>()
+        ?: legacySortField(parts[4])
+        ?: SmartPlaylistSortField.Title
     val sortDirection = parts[5].enumValueOrNull<SortDirection>() ?: SortDirection.Ascending
     return SmartPlaylist(
         id = id,
@@ -117,7 +119,13 @@ private inline fun <reified T : Enum<T>> String?.enumValueOrNull(): T? {
     return this?.let { value -> enumValues<T>().firstOrNull { it.name == value } }
 }
 
+private fun legacySortField(value: String?): SmartPlaylistSortField? {
+    return when (value) {
+        "RecentlyPlayed" -> SmartPlaylistSortField.PlayCount
+        else -> null
+    }
+}
+
 private fun String?.toBooleanLenient(): Boolean {
     return this == "true"
 }
-

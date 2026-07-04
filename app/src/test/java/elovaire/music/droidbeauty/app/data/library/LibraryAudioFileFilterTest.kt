@@ -4,10 +4,49 @@ import android.net.TestUri
 import elovaire.music.droidbeauty.app.data.audio.AudioContainerFormat
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LibraryAudioFileFilterTest {
+    @Test
+    fun evaluate_includesDefaultMusicRelativePathWhenAbsolutePathMissing() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertTrue(
+            filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    relativePath = "Music/",
+                    isMusic = false,
+                ),
+            ) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun evaluate_includesDefaultMusicSubfolderWithCaseAndTrailingSlashDifferences() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertTrue(
+            filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    relativePath = "/MuSiC/Subfolder",
+                    extension = "flac",
+                    mimeType = "audio/flac",
+                    detectedFormat = detected(AudioContainerFormat.Flac, "flac", "audio/flac", "audio/flac"),
+                ),
+            ) is AudioFileFilterDecision.Include,
+        )
+    }
+
     @Test
     fun evaluate_excludesPodcastUnderDefaultRoot() {
         val filter = LibraryAudioFileFilter(
@@ -30,6 +69,52 @@ class LibraryAudioFileFilterTest {
 
         assertTrue(
             filter.evaluate(candidate("/storage/emulated/0/Music/Podcasts/song.mp3")) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun evaluate_excludesOutsideSelectedRootsWhenOnlyRelativePathIsAvailable() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertExcludedReason(
+            expectedReason = "Outside selected library folders",
+            decision = filter.evaluate(candidate(absolutePath = null, relativePath = "Download/")),
+        )
+    }
+
+    @Test
+    fun evaluate_excludesShortFiles() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertExcludedReason(
+            expectedReason = "Too short",
+            decision = filter.evaluate(candidate(absolutePath = null, durationMs = 10_000L)),
+        )
+    }
+
+    @Test
+    fun evaluate_excludesUnsupportedExtensions() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertExcludedReason(
+            expectedReason = "Unsupported extension",
+            decision = filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    extension = "txt",
+                    mimeType = "text/plain",
+                    detectedFormat = detected(AudioContainerFormat.Unknown, "txt", null, "text/plain"),
+                ),
+            ),
         )
     }
 
@@ -149,6 +234,7 @@ class LibraryAudioFileFilterTest {
         mimeType: String = "audio/mpeg",
         isMusic: Boolean? = true,
         detectedFormat: DetectedAudioFormat = detected(AudioContainerFormat.Mp3, extension, mimeType, mimeType),
+        durationMs: Long = 180_000L,
     ): AudioScanCandidate {
         return AudioScanCandidate(
             id = 1L,
@@ -157,7 +243,7 @@ class LibraryAudioFileFilterTest {
             title = "Song",
             artist = "Artist",
             album = "Album",
-            durationMs = 180_000L,
+            durationMs = durationMs,
             mimeType = mimeType,
             relativePath = relativePath,
             absolutePath = absolutePath,
@@ -190,5 +276,13 @@ class LibraryAudioFileFilterTest {
             bitrate = null,
             bitDepth = null,
         )
+    }
+
+    private fun assertExcludedReason(
+        expectedReason: String,
+        decision: AudioFileFilterDecision,
+    ) {
+        assertTrue(decision is AudioFileFilterDecision.Exclude)
+        assertEquals(expectedReason, (decision as AudioFileFilterDecision.Exclude).reason)
     }
 }

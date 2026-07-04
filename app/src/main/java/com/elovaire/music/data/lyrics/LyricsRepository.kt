@@ -342,7 +342,7 @@ internal class LyricsRepository(
         const val TAG = "LyricsRepository"
         const val LOCAL_LOOKUP_TIMEOUT_MS = 250L
         const val FAST_REMOTE_LOOKUP_BUDGET_MS = 1_100L
-        const val FULL_REMOTE_LOOKUP_BUDGET_MS = 6_000L
+        const val FULL_REMOTE_LOOKUP_BUDGET_MS = 9_000L
         const val POSITIVE_CACHE_TTL_MS = 30L * 24L * 60L * 60L * 1000L
         const val CACHE_TTL_NOT_FOUND_MS = 30_000L
         const val CACHE_TTL_TIMEOUT_MS = 15_000L

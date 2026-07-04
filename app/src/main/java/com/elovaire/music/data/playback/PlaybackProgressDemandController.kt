@@ -23,6 +23,16 @@ internal class PlaybackProgressDemandController {
 
     fun hasAnyDemand(): Boolean = activeConsumers.isNotEmpty()
 
+    fun pollingIntervalMs(): Long {
+        return when {
+            PlaybackProgressConsumer.Scrubbing in activeConsumers -> 120L
+            PlaybackProgressConsumer.NowPlaying in activeConsumers -> 250L
+            PlaybackProgressConsumer.SyncedLyrics in activeConsumers -> 250L
+            PlaybackProgressConsumer.CompactDock in activeConsumers -> 500L
+            else -> 1_000L
+        }
+    }
+
     fun clear() {
         activeConsumers.clear()
     }

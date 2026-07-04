@@ -16,11 +16,8 @@ data class SmartPlaylist(
 
 enum class BuiltInSmartPlaylistType {
     RecentlyAdded,
-    RecentlyPlayed,
     MostPlayed,
-    NeverPlayed,
     Favorites,
-    LongSongs,
 }
 
 enum class SmartPlaylistMatchMode {
@@ -40,7 +37,6 @@ enum class SmartPlaylistSortField {
     Genre,
     Duration,
     DateAdded,
-    RecentlyPlayed,
     PlayCount,
     Random,
 }

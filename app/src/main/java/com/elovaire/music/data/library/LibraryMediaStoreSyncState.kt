@@ -20,8 +20,10 @@ internal sealed interface LibrarySyncDecision {
 internal fun decideLibrarySync(
     cached: LibraryMediaStoreSyncState?,
     current: LibraryMediaStoreSyncState?,
+    cachedSongCount: Int? = null,
 ): LibrarySyncDecision {
     if (cached == null || current == null) return LibrarySyncDecision.FullScan
+    if (cachedSongCount == 0) return LibrarySyncDecision.FullScan
     if (cached.filterFingerprint != current.filterFingerprint) return LibrarySyncDecision.FullScan
     if (cached.volumes.size != current.volumes.size) return LibrarySyncDecision.FullScan
 

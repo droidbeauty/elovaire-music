@@ -18,11 +18,12 @@ internal class LyricsOvhProvider : LyricsProvider {
         identity: LyricsIdentity,
         lookupMode: LyricsLookupMode,
     ): ProviderLyricsMatch? {
+        if (isWeakLyricsArtist(identity.artist)) return null
         val candidates = buildLyricsQueryVariants(identity)
             .take(MAX_QUERY_VARIANTS)
             .mapIndexed { index, variant ->
                 LyricsCandidate(
-                    providerId = "lyrics.ovh::$index::${variant.artist}::${variant.title}",
+                    providerId = "lyrics.ovh::$index",
                     title = variant.title,
                     artist = variant.artist,
                     album = variant.album.orEmpty(),
@@ -35,6 +36,7 @@ internal class LyricsOvhProvider : LyricsProvider {
             }
         return candidates
             .mapNotNull { candidate -> getLyrics(candidate, identity) }
+            .filter { it.confidence >= MIN_ACCEPTED_CONFIDENCE }
             .maxByOrNull { it.confidence }
     }
 
@@ -43,7 +45,7 @@ internal class LyricsOvhProvider : LyricsProvider {
             .take(MAX_QUERY_VARIANTS)
             .mapIndexed { index, variant ->
                 LyricsCandidate(
-                    providerId = "lyrics.ovh::$index::${variant.artist}::${variant.title}",
+                    providerId = "lyrics.ovh::$index",
                     title = variant.title,
                     artist = variant.artist,
                     album = variant.album.orEmpty(),
@@ -124,5 +126,6 @@ internal class LyricsOvhProvider : LyricsProvider {
         const val READ_TIMEOUT_MS = 2_000
         const val MAX_QUERY_VARIANTS = 2
         const val MAX_RESPONSE_BYTES = 1 * 1024 * 1024
+        const val MIN_ACCEPTED_CONFIDENCE = 62
     }
 }

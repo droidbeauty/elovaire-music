@@ -32,20 +32,24 @@ internal fun scoreLrcLibMatch(
 
     val hasSynced = !response.syncedLyrics.isNullOrBlank()
     val titleScore = titleScore(song.title, response.name) ?: return null
-    val artistScore = artistScore(song.artist, response.artistName) ?: return null
+    val weakArtist = isWeakLyricsArtist(song.artist)
+    val artistScore = if (weakArtist) 0 else artistScore(song.artist, response.artistName) ?: return null
     val albumScore = albumScore(song.album, response.albumName)
+    var durationClose = false
     val durationScore = if (songDurationSec > 0.0 && response.duration > 0.0) {
         val durationTolerance = if (hasSynced) {
             (songDurationSec * 0.04).coerceIn(6.0, 15.0)
         } else {
-            (songDurationSec * 0.06).coerceIn(8.0, 20.0)
+            (songDurationSec * 0.10).coerceIn(10.0, 35.0)
         }
         val durationDiff = abs(response.duration - songDurationSec)
+        durationClose = durationDiff <= 10.0
         if (durationDiff > durationTolerance) return null
         ((durationTolerance - durationDiff) / durationTolerance * 14.0).toInt().coerceAtLeast(0)
     } else {
         0
     }
+    if (weakArtist && (titleScore < 46 || !durationClose)) return null
     val syncedBonus = if (hasSynced) 12 else 0
 
     return titleScore + artistScore + albumScore + durationScore + syncedBonus
@@ -78,6 +82,13 @@ internal fun LyricsCandidate.isAcceptableMatchFor(
 ): Boolean {
     if (!variantCompatible(identity.title, title)) return false
     val titleScore = titleScore(identity.title, title) ?: return false
-    val artistScore = artistScore(identity.artist, artist) ?: return false
+    val weakArtist = isWeakLyricsArtist(identity.artist)
+    val artistScore = if (weakArtist) 0 else artistScore(identity.artist, artist) ?: return false
+    if (weakArtist) {
+        val durationClose = durationMs?.let { candidateDuration ->
+            abs(candidateDuration - identity.durationMs) <= 10_000L
+        } == true
+        return score >= 58 && titleScore >= 46 && durationClose
+    }
     return score >= 62 && titleScore >= 34 && artistScore >= 28
 }

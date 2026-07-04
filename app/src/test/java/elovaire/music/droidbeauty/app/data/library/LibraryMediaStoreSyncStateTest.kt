@@ -12,6 +12,20 @@ class LibraryMediaStoreSyncStateTest {
     }
 
     @Test
+    fun decideLibrarySync_rescansEmptyCacheEvenWhenStateMatches() {
+        val state = syncState(generation = 10L)
+
+        assertEquals(
+            LibrarySyncDecision.FullScan,
+            decideLibrarySync(
+                cached = state,
+                current = state,
+                cachedSongCount = 0,
+            ),
+        )
+    }
+
+    @Test
     fun decideLibrarySync_usesIncrementalScanWhenGenerationAdvances() {
         val cached = syncState(generation = 10L)
         val current = syncState(generation = 11L)

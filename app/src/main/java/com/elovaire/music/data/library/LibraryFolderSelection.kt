@@ -151,5 +151,5 @@ object LibraryFolderSelectionResolver {
             .ifBlank { null }
     }
 
-    private val STORAGE_ROOT_REGEX = Regex("^/storage/[^/]+/|^/mnt/media_rw/[^/]+/")
+    private val STORAGE_ROOT_REGEX = Regex("^/storage/emulated/[^/]+/|^/storage/[^/]+/|^/mnt/media_rw/[^/]+/")
 }

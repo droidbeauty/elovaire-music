@@ -118,6 +118,11 @@ internal fun extractPrimaryArtist(value: String): String {
         ?: value.trim()
 }
 
+internal fun isWeakLyricsArtist(value: String): Boolean {
+    val normalized = normalizeForLyricsMatch(extractPrimaryArtist(value))
+    return normalized.isBlank() || normalized in WEAK_ARTIST_VALUES
+}
+
 internal fun titleScore(local: String, remote: String): Int? {
     val localBase = baseTitleForLyricsMatch(local)
     val remoteBase = baseTitleForLyricsMatch(remote)
@@ -222,6 +227,16 @@ private val WHITESPACE_REGEX = Regex("""\s{2,}""")
 private val ARTIST_SPLIT_REGEX = Regex("""(?i)\b(feat\.?|ft\.?|featuring|with|x)\b|,|&|;|/""")
 private val NOISE_REGEX = Regex(
     """(?i)\b(official audio|official video|lyric video|lyrics video|visualizer|audio|video|explicit|clean|hi[- ]?res|hq|hd)\b""",
+)
+private val WEAK_ARTIST_VALUES = setOf(
+    "unknown",
+    "unknown artist",
+    "various",
+    "various artists",
+    "no artist",
+    "artist",
+    "null",
+    "untitled",
 )
 private val VARIANT_WORD_REGEX = Regex(
     """(?i)\b(remix|mix|live|acoustic|sped up|sped-up|slowed|nightcore|instrumental|karaoke|cover|demo|radio edit|extended|movie|tv|opening|ending|op|ed|short ver|short version|full ver|full version)\b""",

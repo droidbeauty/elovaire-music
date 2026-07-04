@@ -173,6 +173,12 @@ internal class ReverbProcessor {
         monoDamping.reset()
     }
 
+    fun isBypassed(): Boolean {
+        return ReverbProcessorModel.isBypassed(activeConfig) &&
+            currentWetMix <= 0.0005f &&
+            targetWetMix <= 0.0005f
+    }
+
     fun processFrame(
         frame: FloatArray,
         channels: Int,
