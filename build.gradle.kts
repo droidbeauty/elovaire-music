@@ -14,7 +14,7 @@ tasks.register("debugQualityCheck") {
 
 tasks.register("performanceQualityCheck") {
     group = "verification"
-    dependsOn(":macrobenchmark:connectedCheck", "generateBaselineProfile")
+    dependsOn(":app:assembleBenchmark", ":macrobenchmark:connectedCheck", "generateBaselineProfile")
 }
 
 tasks.register("releaseQualityCheck") {

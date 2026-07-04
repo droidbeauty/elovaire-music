@@ -50,7 +50,10 @@ internal class RootNavigationState(
 
     fun logRouteTransition(previousRoute: String?, currentRoute: String?) {
         if (BuildConfig.DEBUG && previousRoute != currentRoute) {
-            Log.d("ElovaireMotion", "Route ${previousRoute.orEmpty()} -> ${currentRoute.orEmpty()}")
+            Log.d(
+                "ElovaireMotion",
+                "Route ${previousRoute.normalizedNavigationRoute().orEmpty()} -> ${currentRoute.normalizedNavigationRoute().orEmpty()}",
+            )
         }
     }
 

@@ -253,28 +253,30 @@ class LibraryRepository internal constructor(
             val progressThrottler = LibraryScanProgressThrottler()
             runCatching {
                 withContext(Dispatchers.IO) {
-                    scanner.scan(
-                        refreshMediaIndex = refreshRequest.forceMediaIndex,
-                        refreshMediaPaths = refreshRequest.targetedPaths,
-                        enrichMetadata = refreshRequest.enrichMetadata,
-                        onProgress = if (showLoadingIndicator) { current, total ->
-                            val progress = if (total <= 0) 1f else (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                            if (progressThrottler.shouldEmit(progress)) {
-                                ElovaireTrace.section("library_scan_progress") {
-                                    _scanState.update { state ->
-                                        state.copy(
-                                            permissionGranted = true,
-                                            isLoading = true,
-                                            scanProgress = progress,
-                                            errorMessage = null,
-                                        )
+                    ElovaireTrace.suspendSection("library_refresh_scan") {
+                        scanner.scan(
+                            refreshMediaIndex = refreshRequest.forceMediaIndex,
+                            refreshMediaPaths = refreshRequest.targetedPaths,
+                            enrichMetadata = refreshRequest.enrichMetadata,
+                            onProgress = if (showLoadingIndicator) { current, total ->
+                                val progress = if (total <= 0) 1f else (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                                if (progressThrottler.shouldEmit(progress)) {
+                                    ElovaireTrace.section("library_scan_progress") {
+                                        _scanState.update { state ->
+                                            state.copy(
+                                                permissionGranted = true,
+                                                isLoading = true,
+                                                scanProgress = progress,
+                                                errorMessage = null,
+                                            )
+                                        }
                                     }
                                 }
-                            }
-                        } else {
-                            null
-                        },
-                    )
+                            } else {
+                                null
+                            },
+                        )
+                    }
                 }
             }
                 .onSuccess { snapshot ->

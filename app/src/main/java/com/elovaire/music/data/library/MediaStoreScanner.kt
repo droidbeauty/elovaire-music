@@ -6,6 +6,7 @@ import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.AudioQualityFormatter
@@ -84,9 +85,13 @@ class MediaStoreScanner(
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): LibrarySnapshot {
         if (refreshMediaIndex) {
-            refreshMediaIndex()
+            ElovaireTrace.section("library_media_index_refresh") {
+                refreshMediaIndex()
+            }
         } else if (refreshMediaPaths.isNotEmpty()) {
-            refreshMediaIndex(refreshMediaPaths)
+            ElovaireTrace.section("library_media_index_refresh_paths") {
+                refreshMediaIndex(refreshMediaPaths)
+            }
         }
 
         var totalRows = 0
@@ -96,116 +101,118 @@ class MediaStoreScanner(
         val progressEmitter = ScannerProgressEmitter(onProgress)
         val audioFileFilter = buildAudioFileFilter()
 
-        context.contentResolver.query(
-            MediaStoreAudioQuery.collectionUri,
-            MediaStoreAudioQuery.projection,
-            MediaStoreAudioQuery.selection,
-            null,
-            MediaStoreAudioQuery.orderBy,
-        )?.use { cursor ->
-            totalRows = cursor.count.coerceAtLeast(0)
-            progressEmitter.emit(0, totalRows)
-            val rowMapper = MediaStoreAudioRowMapper(context, cursor)
+        ElovaireTrace.section("library_mediastore_scan") {
+            context.contentResolver.query(
+                MediaStoreAudioQuery.collectionUri,
+                MediaStoreAudioQuery.projection,
+                MediaStoreAudioQuery.selection,
+                null,
+                MediaStoreAudioQuery.orderBy,
+            )?.use { cursor ->
+                totalRows = cursor.count.coerceAtLeast(0)
+                progressEmitter.emit(0, totalRows)
+                val rowMapper = MediaStoreAudioRowMapper(context, cursor)
 
-            var processedRows = 0
-            while (cursor.moveToNext()) {
-                processedRows += 1
-                val row = rowMapper.row(cursor)
-                val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)) {
-                    audioFormatDetector.detect(row.uri, row.fileName, row.mimeType)
-                } else {
-                    AudioScanCandidateMapper.fastDetectedFormat(
-                        extension = row.extension,
-                        mimeType = row.mimeType,
-                    )
-                }
-                val candidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat)
-                when (val decision = audioFileFilter.evaluate(candidate)) {
-                    AudioFileFilterDecision.Include -> ScannerDebugLogger.logPlatformDependentCandidate(candidate)
-                    is AudioFileFilterDecision.Exclude -> {
-                        ScannerDebugLogger.logFilteredOutCandidate(candidate, decision.reason)
-                        if (processedRows == totalRows || processedRows % 24 == 0) {
-                            progressEmitter.emit(processedRows, totalRows)
-                        }
-                        continue
-                    }
-                }
-                val cachedMetadata = metadataCache[row.id]
-                    ?.takeIf {
-                        it.fileName == row.fileName &&
-                            (it.filePath == null || row.filePath == null || it.filePath == row.filePath) &&
-                            it.dateAddedSeconds == row.dateAddedSeconds &&
-                            it.dateModifiedSeconds == row.dateModifiedSeconds &&
-                            (!enrichMetadata || it.isEnriched)
-                    }
-                val songMetadata = cachedMetadata
-                    ?.metadata
-                    ?: if (enrichMetadata) {
-                        readSongMetadata(
-                            songId = row.id,
-                            songUri = row.uri,
-                            filePath = row.filePath,
-                            mediaStoreYear = row.mediaStoreYear,
-                            fileSizeBytes = row.fileSizeBytes,
-                            durationMs = row.durationMs,
-                            detectedFormat = detectedFormat,
-                            genreCache = genreCache,
-                        )
+                var processedRows = 0
+                while (cursor.moveToNext()) {
+                    processedRows += 1
+                    val row = rowMapper.row(cursor)
+                    val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)) {
+                        audioFormatDetector.detect(row.uri, row.fileName, row.mimeType)
                     } else {
-                        SongMetadata(
-                            title = row.title,
-                            artist = row.artist,
-                            albumArtist = null,
-                            album = row.album,
-                            releaseYear = row.mediaStoreYear,
-                            genre = null,
-                            format = detectedFormat.displayName,
-                            quality = null,
-                            trackNumber = null,
-                            discNumber = null,
-                            volumeNormalization = null,
+                        AudioScanCandidateMapper.fastDetectedFormat(
+                            extension = row.extension,
+                            mimeType = row.mimeType,
                         )
                     }
-                val resolvedTitle = songMetadata.title ?: row.title
-                val resolvedArtist = songMetadata.artist ?: row.artist
-                val resolvedAlbum = songMetadata.album ?: row.album
-                val isExplicit = detectExplicit(resolvedTitle, row.fileName)
-                val title = sanitizeDisplayTitle(resolvedTitle, isExplicit)
-                refreshedMetadataCache[row.id] = CachedSongMetadata(
-                    fileName = row.fileName,
-                    filePath = row.filePath,
-                    dateAddedSeconds = row.dateAddedSeconds,
-                    dateModifiedSeconds = row.dateModifiedSeconds,
-                    isEnriched = enrichMetadata || cachedMetadata?.isEnriched == true,
-                    metadata = songMetadata,
-                )
-                val rawTrack = row.track
-                songs += Song(
-                    id = row.id,
-                    title = title,
-                    isExplicit = isExplicit,
-                    artist = resolvedArtist,
-                    album = resolvedAlbum,
-                    releaseYear = songMetadata.releaseYear,
-                    genre = songMetadata.genre.orUnknown("Unknown Genre"),
-                    audioFormat = songMetadata.format,
-                    audioQuality = songMetadata.quality,
-                    fileName = row.fileName,
-                    albumId = row.albumId,
-                    durationMs = row.durationMs,
-                    trackNumber = songMetadata.trackNumber ?: normalizeTrackNumber(rawTrack),
-                    discNumber = songMetadata.discNumber ?: normalizeDiscNumber(rawTrack),
-                    dateAddedSeconds = row.dateAddedSeconds,
-                    dateModifiedSeconds = row.dateModifiedSeconds,
-                    libraryPath = row.filePath,
-                    uri = row.uri,
-                    artUri = albumArtworkUri(row.albumId),
-                    metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
-                    albumArtist = songMetadata.albumArtist,
-                    volumeNormalization = songMetadata.volumeNormalization,
-                )
-                if (processedRows == totalRows || processedRows % 24 == 0) {
-                    progressEmitter.emit(processedRows, totalRows)
+                    val candidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat)
+                    when (val decision = audioFileFilter.evaluate(candidate)) {
+                        AudioFileFilterDecision.Include -> ScannerDebugLogger.logPlatformDependentCandidate(candidate)
+                        is AudioFileFilterDecision.Exclude -> {
+                            ScannerDebugLogger.logFilteredOutCandidate(candidate, decision.reason)
+                            if (processedRows == totalRows || processedRows % 24 == 0) {
+                                progressEmitter.emit(processedRows, totalRows)
+                            }
+                            continue
+                        }
+                    }
+                    val cachedMetadata = metadataCache[row.id]
+                        ?.takeIf {
+                            it.fileName == row.fileName &&
+                                (it.filePath == null || row.filePath == null || it.filePath == row.filePath) &&
+                                it.dateAddedSeconds == row.dateAddedSeconds &&
+                                it.dateModifiedSeconds == row.dateModifiedSeconds &&
+                                (!enrichMetadata || it.isEnriched)
+                        }
+                    val songMetadata = cachedMetadata
+                        ?.metadata
+                        ?: if (enrichMetadata) {
+                            readSongMetadata(
+                                songId = row.id,
+                                songUri = row.uri,
+                                filePath = row.filePath,
+                                mediaStoreYear = row.mediaStoreYear,
+                                fileSizeBytes = row.fileSizeBytes,
+                                durationMs = row.durationMs,
+                                detectedFormat = detectedFormat,
+                                genreCache = genreCache,
+                            )
+                        } else {
+                            SongMetadata(
+                                title = row.title,
+                                artist = row.artist,
+                                albumArtist = null,
+                                album = row.album,
+                                releaseYear = row.mediaStoreYear,
+                                genre = null,
+                                format = detectedFormat.displayName,
+                                quality = null,
+                                trackNumber = null,
+                                discNumber = null,
+                                volumeNormalization = null,
+                            )
+                        }
+                    val resolvedTitle = songMetadata.title ?: row.title
+                    val resolvedArtist = songMetadata.artist ?: row.artist
+                    val resolvedAlbum = songMetadata.album ?: row.album
+                    val isExplicit = detectExplicit(resolvedTitle, row.fileName)
+                    val title = sanitizeDisplayTitle(resolvedTitle, isExplicit)
+                    refreshedMetadataCache[row.id] = CachedSongMetadata(
+                        fileName = row.fileName,
+                        filePath = row.filePath,
+                        dateAddedSeconds = row.dateAddedSeconds,
+                        dateModifiedSeconds = row.dateModifiedSeconds,
+                        isEnriched = enrichMetadata || cachedMetadata?.isEnriched == true,
+                        metadata = songMetadata,
+                    )
+                    val rawTrack = row.track
+                    songs += Song(
+                        id = row.id,
+                        title = title,
+                        isExplicit = isExplicit,
+                        artist = resolvedArtist,
+                        album = resolvedAlbum,
+                        releaseYear = songMetadata.releaseYear,
+                        genre = songMetadata.genre.orUnknown("Unknown Genre"),
+                        audioFormat = songMetadata.format,
+                        audioQuality = songMetadata.quality,
+                        fileName = row.fileName,
+                        albumId = row.albumId,
+                        durationMs = row.durationMs,
+                        trackNumber = songMetadata.trackNumber ?: normalizeTrackNumber(rawTrack),
+                        discNumber = songMetadata.discNumber ?: normalizeDiscNumber(rawTrack),
+                        dateAddedSeconds = row.dateAddedSeconds,
+                        dateModifiedSeconds = row.dateModifiedSeconds,
+                        libraryPath = row.filePath,
+                        uri = row.uri,
+                        artUri = albumArtworkUri(row.albumId),
+                        metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
+                        albumArtist = songMetadata.albumArtist,
+                        volumeNormalization = songMetadata.volumeNormalization,
+                    )
+                    if (processedRows == totalRows || processedRows % 24 == 0) {
+                        progressEmitter.emit(processedRows, totalRows)
+                    }
                 }
             }
         }
@@ -216,10 +223,15 @@ class MediaStoreScanner(
             progressEmitter.emit(totalRows, totalRows)
         }
 
-        val mergedSongs = mergeMediaStoreAndSafSongs(
-            mediaStoreSongs = songs,
-            safSongs = safTreeScanner.scan(scanRoots.safTreeSelections()),
-        )
+        val safSongs = ElovaireTrace.suspendSection("library_saf_scan") {
+            safTreeScanner.scan(scanRoots.safTreeSelections())
+        }
+        val mergedSongs = ElovaireTrace.section("library_scan_merge") {
+            mergeMediaStoreAndSafSongs(
+                mediaStoreSongs = songs,
+                safSongs = safSongs,
+            )
+        }
 
         metadataCache.replaceWith(refreshedMetadataCache)
 

@@ -14,6 +14,7 @@ internal class ElovaireJankMonitor private constructor(
     private var totalFrames = 0
     private var jankyFrames = 0
     private var worstFrameDurationMs = 0L
+    private var lastJankState = ""
 
     fun setTrackingEnabled(enabled: Boolean) {
         jankStats.isTrackingEnabled = enabled
@@ -42,6 +43,9 @@ internal class ElovaireJankMonitor private constructor(
         totalFrames += 1
         if (frameData.isJank) {
             jankyFrames += 1
+            lastJankState = frameData.states
+                .joinToString(separator = ",") { state -> "${state.key}=${state.value}" }
+                .take(MAX_STATE_LOG_LENGTH)
         }
         worstFrameDurationMs = maxOf(worstFrameDurationMs, frameData.frameDurationUiNanos / NANOS_PER_MILLI)
         if (totalFrames >= LOG_WINDOW_FRAMES) {
@@ -53,12 +57,13 @@ internal class ElovaireJankMonitor private constructor(
         if (BuildConfig.DEBUG && totalFrames > 0 && jankyFrames > 0) {
             Log.d(
                 TAG,
-                "jank reason=$reason frames=$totalFrames janky=$jankyFrames worstMs=$worstFrameDurationMs",
+                "jank reason=$reason frames=$totalFrames janky=$jankyFrames worstMs=$worstFrameDurationMs state=$lastJankState",
             )
         }
         totalFrames = 0
         jankyFrames = 0
         worstFrameDurationMs = 0L
+        lastJankState = ""
     }
 
     companion object {
@@ -79,6 +84,7 @@ internal class ElovaireJankMonitor private constructor(
 
         private const val TAG = "ElovaireJank"
         private const val LOG_WINDOW_FRAMES = 240
+        private const val MAX_STATE_LOG_LENGTH = 240
         private const val NANOS_PER_MILLI = 1_000_000L
     }
 }

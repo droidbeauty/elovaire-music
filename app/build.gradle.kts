@@ -59,6 +59,11 @@ android {
     }
 
     buildTypes {
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            matchingFallbacks += listOf("release")
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
@@ -151,6 +156,12 @@ androidComponents {
     }
 }
 
+if (providers.gradleProperty("app.r8Diagnostics").map(String::toBoolean).getOrElse(false)) {
+    android.buildTypes.named("release").configure {
+        proguardFile("r8-diagnostics.pro")
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_17
@@ -202,6 +213,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.profileinstaller)
+    implementation(libs.androidx.tracing.ktx)
 
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.extractor)

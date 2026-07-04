@@ -4,6 +4,7 @@ import android.app.Application
 import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
@@ -15,16 +16,20 @@ class AppContainer(
     appContext: Context,
 ) {
     private val applicationContext = appContext.applicationContext
-    private val appForegroundTracker = AppForegroundTracker(applicationContext as Application)
+    private val appForegroundTracker = ElovaireTrace.section("app_foreground_tracker_init") {
+        AppForegroundTracker(applicationContext as Application)
+    }
     private val backgroundWorkPolicy = AppBackgroundWorkPolicy(appForegroundTracker.isForeground)
     private val appRuntimeScope = AppRuntimeScope()
     private val appScope = appRuntimeScope.scope
 
-    private val services = AppServices(
-        applicationContext = applicationContext,
-        appScope = appScope,
-        backgroundWorkPolicy = backgroundWorkPolicy,
-    )
+    private val services = ElovaireTrace.section("app_services_init") {
+        AppServices(
+            applicationContext = applicationContext,
+            appScope = appScope,
+            backgroundWorkPolicy = backgroundWorkPolicy,
+        )
+    }
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)
     val preferenceStore get() = services.preferenceStore
     internal val appUpdateManager get() = services.appUpdateManager
