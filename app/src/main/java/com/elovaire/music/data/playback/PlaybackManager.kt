@@ -213,6 +213,7 @@ class PlaybackManager(
         playbackAudioAttributes = playbackAudioAttributes,
         audioProcessorsProvider = audioProcessorsProvider,
         preferredOutputDevice = bitPerfectUsbManager::preferredOutputDevice,
+        offloadPolicyProvider = ::currentOffloadPolicy,
     )
     private val playbackHandler = Handler(Looper.getMainLooper())
     private var pendingAudioPathReason: String? = null
@@ -630,6 +631,14 @@ class PlaybackManager(
 
     private fun createPlayer(enableSignalProcessing: Boolean): ExoPlayer {
         return playerFactory.create(enableSignalProcessing)
+    }
+
+    private fun currentOffloadPolicy(): PlaybackOffloadPolicy {
+        return PlaybackOffloadPolicy.from(
+            signalProcessingEnabled = !isDirectPlaybackActive,
+            signalAlteringEffectsActive = hasActiveSignalAlteringEffects(),
+            gaplessPlaybackEnabled = gaplessPlaybackEnabled,
+        )
     }
 
     private fun attachPlayerObservers(target: ExoPlayer) {

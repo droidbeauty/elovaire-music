@@ -58,7 +58,6 @@ internal data class BitPerfectPlaybackStatus(
     val shouldUseDirectPlayback: Boolean = false,
     val activeRouteDeviceId: Int? = null,
     val activeRouteType: Int? = null,
-    val activeRouteAddress: String? = null,
     val directPlaybackSupport: Int = AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED,
     val supportClassification: DirectPlaybackSupportClassification = DirectPlaybackSupportClassification.notSupported,
     val evaluationKey: DirectPlaybackEvaluationKey? = null,
@@ -208,7 +207,7 @@ internal class BitPerfectUsbManager(
         _status.value = nextStatus
         logDebug(
             "status=${nextStatus.state} mode=${nextStatus.mode} directive=${nextStatus.directive} " +
-                "route=${nextStatus.activeRouteType}:${nextStatus.activeRouteDeviceId}@${nextStatus.activeRouteAddress.orEmpty()} " +
+                "route=${nextStatus.activeRouteType}:${nextStatus.activeRouteDeviceId} " +
                 "support=${nextStatus.directPlaybackSupport} class=${nextStatus.supportClassification.summary} key=${nextStatus.evaluationKey}",
         )
     }
@@ -246,7 +245,6 @@ private data class DirectPlaybackRouteSnapshot(
             hasVerifiedBluetoothRoute = isRouteVerified && hasBluetoothRoute,
             activeRouteDeviceId = reportedDevice?.id,
             activeRouteType = reportedDevice?.type,
-            activeRouteAddress = reportedDevice?.address?.takeIf { it.isNotBlank() },
             activeRouteSignature = reportedFingerprint?.hashCode(),
         )
     }

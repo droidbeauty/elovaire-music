@@ -82,7 +82,6 @@ internal data class DirectPlaybackRouteContext(
     val hasVerifiedBluetoothRoute: Boolean,
     val activeRouteDeviceId: Int? = null,
     val activeRouteType: Int? = null,
-    val activeRouteAddress: String? = null,
     val activeRouteSignature: Int? = null,
 )
 
@@ -94,11 +93,10 @@ internal object BitPerfectEligibilityPolicy {
      * - On Android 11/12, a USB route can be detected and preferred for routing, but direct
      *   playback cannot be verified through the public framework API. Those routes stay on the
      *   regular player path and are marked as legacy/unverified.
-     * - On Android 13+, Elovaire classifies the direct-playback bitfield for diagnostics. When
-     *   the framework reports any direct-playback mode for the exact routed USB device and exact
-     *   current output format, Elovaire allows its no-DSP direct path. Offload and bitstream
-     *   modes remain separately classified so the app does not imply that every verified direct
-     *   route represents the same underlying hardware behavior.
+     * - On Android 13+, Elovaire classifies the direct-playback bitfield for diagnostics. Only
+     *   bitstream-capable support moves to the no-DSP direct path. Offload-only support stays on
+     *   Media3's normal player path, where offload can be enabled as a separate power-saving path
+     *   without being presented as bit-perfect/direct USB playback.
      */
     fun evaluate(
         sdkInt: Int = Build.VERSION.SDK_INT,
@@ -198,9 +196,9 @@ internal object BitPerfectEligibilityPolicy {
             )
         }
 
-        if (supportClassification.supportsGaplessOffload && !supportClassification.supportsBitstreamPassThrough) {
+        if (supportClassification.supportsOffload && !supportClassification.supportsBitstreamPassThrough) {
             return buildStatus(
-                state = BitPerfectPlaybackState.GaplessOffloadDirectPlaybackSupported,
+                state = supportClassification.toPlaybackState(),
                 directive = BitPerfectPlaybackDirective.PreferRegular,
                 mode = DirectPlaybackMode.RegularPlaybackRequired,
                 routeContext = routeContext,
@@ -254,7 +252,6 @@ internal object BitPerfectEligibilityPolicy {
             shouldUseDirectPlayback = shouldUseDirectPlayback,
             activeRouteDeviceId = routeContext.activeRouteDeviceId,
             activeRouteType = routeContext.activeRouteType,
-            activeRouteAddress = routeContext.activeRouteAddress,
             directPlaybackSupport = directPlaybackSupport,
             supportClassification = supportClassification,
             evaluationKey = evaluationKey,

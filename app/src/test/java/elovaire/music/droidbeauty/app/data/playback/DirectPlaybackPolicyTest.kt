@@ -117,7 +117,7 @@ class DirectPlaybackPolicyTest {
     }
 
     @Test
-    fun offloadOnlySupportIsStillExplicitlyClassified() {
+    fun offloadOnlySupportIsPowerSavingOnlyAndDoesNotForceDirectPlayback() {
         val classification = DirectPlaybackSupportClassification(
             rawFlags = AudioManager.DIRECT_PLAYBACK_OFFLOAD_SUPPORTED,
             kinds = setOf(DirectPlaybackSupportKind.Offload),
@@ -133,8 +133,9 @@ class DirectPlaybackPolicyTest {
         )
 
         assertEquals(BitPerfectPlaybackState.OffloadOnlyDirectPlaybackSupported, status.state)
-        assertEquals(DirectPlaybackMode.DirectUsbPlaybackEligible, status.mode)
-        assertTrue(status.shouldUseDirectPlayback)
+        assertEquals(DirectPlaybackMode.RegularPlaybackRequired, status.mode)
+        assertEquals(BitPerfectPlaybackDirective.PreferRegular, status.directive)
+        assertFalse(status.shouldUseDirectPlayback)
     }
 
     @Test
@@ -161,6 +162,28 @@ class DirectPlaybackPolicyTest {
         assertFalse(status.shouldUseDirectPlayback)
     }
 
+    @Test
+    fun bitstreamSupportCanUseNoDspDirectPath() {
+        val classification = DirectPlaybackSupportClassification(
+            rawFlags = AudioManager.DIRECT_PLAYBACK_BITSTREAM_SUPPORTED,
+            kinds = setOf(DirectPlaybackSupportKind.BitstreamPassThrough),
+        )
+        val status = BitPerfectEligibilityPolicy.evaluate(
+            sdkInt = Build.VERSION_CODES.TIRAMISU,
+            routeContext = usbRouteContext(),
+            effectsActive = false,
+            trackConfig = trackConfig(),
+            evaluationKey = evaluationKey(),
+            supportClassification = classification,
+            directPlaybackSupport = classification.rawFlags,
+        )
+
+        assertEquals(BitPerfectPlaybackState.BitstreamDirectPlaybackSupported, status.state)
+        assertEquals(DirectPlaybackMode.DirectUsbPlaybackEligible, status.mode)
+        assertEquals(BitPerfectPlaybackDirective.PreferDirect, status.directive)
+        assertTrue(status.shouldUseDirectPlayback)
+    }
+
     private fun usbRouteContext(): DirectPlaybackRouteContext {
         return DirectPlaybackRouteContext(
             hasEligibleUsbRoute = true,
@@ -168,7 +191,6 @@ class DirectPlaybackPolicyTest {
             hasVerifiedBluetoothRoute = false,
             activeRouteDeviceId = 17,
             activeRouteType = 11,
-            activeRouteAddress = "usb:1,2",
             activeRouteSignature = 1234,
         )
     }
