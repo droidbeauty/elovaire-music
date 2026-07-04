@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.settings
 
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -15,6 +16,7 @@ internal interface RootSettingsReader {
     val textSizePreset: StateFlow<TextSizePreset>
     val appLanguage: StateFlow<AppLanguage>
     val playlists: StateFlow<List<Playlist>>
+    val smartPlaylists: StateFlow<List<SmartPlaylist>>
     val favoriteSongIds: StateFlow<List<Long>>
     val albumPlayCounts: StateFlow<Map<Long, Int>>
     val songPlayCounts: StateFlow<Map<Long, Int>>
@@ -61,6 +63,9 @@ internal interface PlaylistStore {
     fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>)
     fun deletePlaylists(playlistIds: Set<Long>)
     fun removeSongReferences(songId: Long)
+    fun createSmartPlaylist(name: String): Long
+    fun updateSmartPlaylist(playlist: SmartPlaylist)
+    fun deleteSmartPlaylists(playlistIds: Set<Long>)
 }
 
 internal interface FavoritesStore {

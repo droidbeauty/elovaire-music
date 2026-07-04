@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.ElovaireViewModelDependencies
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -19,6 +20,7 @@ internal data class RootPreferenceState(
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
     val playlists: List<Playlist>,
+    val smartPlaylists: List<SmartPlaylist>,
     val favoriteSongIds: Set<Long>,
     val albumPlayCounts: Map<Long, Int>,
     val songPlayCounts: Map<Long, Int>,
@@ -75,13 +77,15 @@ internal class RootViewModel(
         ) { albumSort, songSort, onlineLyrics, volumeNormalization ->
             PartialRootPreferenceStateC(albumSort, songSort, onlineLyrics, volumeNormalization)
         },
-    ) { a, b, sorts ->
+        dependencies.rootSettingsReader.smartPlaylists,
+    ) { a, b, sorts, smartPlaylists ->
         RootPreferenceState(
             eqSettings = a.eqSettings,
             themeMode = a.themeMode,
             textSizePreset = a.textSizePreset,
             appLanguage = a.appLanguage,
             playlists = a.playlists,
+            smartPlaylists = smartPlaylists,
             favoriteSongIds = b.favoriteSongIds,
             albumPlayCounts = b.albumPlayCounts,
             songPlayCounts = b.songPlayCounts,
@@ -108,6 +112,7 @@ internal class RootViewModel(
             textSizePreset = prefs.textSizePreset,
             appLanguage = prefs.appLanguage,
             playlists = prefs.playlists,
+            smartPlaylists = prefs.smartPlaylists,
             favoriteSongIds = prefs.favoriteSongIds,
             albumPlayCounts = prefs.albumPlayCounts,
             songPlayCounts = prefs.songPlayCounts,
@@ -139,6 +144,7 @@ internal class RootViewModel(
             textSizePreset = dependencies.rootSettingsReader.textSizePreset.value,
             appLanguage = dependencies.rootSettingsReader.appLanguage.value,
             playlists = dependencies.rootSettingsReader.playlists.value,
+            smartPlaylists = dependencies.rootSettingsReader.smartPlaylists.value,
             favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds.value.toHashSet(),
             albumPlayCounts = dependencies.rootSettingsReader.albumPlayCounts.value,
             songPlayCounts = dependencies.rootSettingsReader.songPlayCounts.value,

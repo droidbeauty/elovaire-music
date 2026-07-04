@@ -8,6 +8,7 @@ import androidx.navigation.NavHostController
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.Album
 
 internal class RootRouteActions(
@@ -45,6 +46,19 @@ internal class RootRouteActions(
         navigationState.detailExpandOrigin = origin
         navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
         navController.navigate(Routes.playlist(playlistId))
+    }
+
+    fun openSmartPlaylist(
+        playlistId: Long,
+        origin: ExpandOrigin = ExpandOrigin(),
+    ) {
+        navigationState.detailExpandOrigin = origin
+        navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
+        navController.navigate(Routes.smartPlaylist(playlistId))
+    }
+
+    fun openSmartPlaylistEditor(playlistId: Long? = null) {
+        navController.navigate(Routes.smartPlaylistEditor(playlistId))
     }
 
     fun openLibraryCollection(kind: LibraryCollectionKind) {
@@ -120,6 +134,34 @@ internal class RootRouteActions(
         songIds: List<Long>,
     ) {
         container.preferenceStore.updatePlaylistSongIds(playlistId, songIds)
+    }
+
+    fun createSmartPlaylist(name: String): Long {
+        return container.preferenceStore.createSmartPlaylist(name)
+    }
+
+    fun updateSmartPlaylist(playlist: SmartPlaylist) {
+        container.preferenceStore.updateSmartPlaylist(playlist)
+    }
+
+    fun deleteSmartPlaylist(playlistId: Long) {
+        container.preferenceStore.deleteSmartPlaylists(setOf(playlistId))
+    }
+
+    fun duplicateSmartPlaylist(playlist: SmartPlaylist): Long {
+        val createdId = container.preferenceStore.createSmartPlaylist("${playlist.name} Copy")
+        if (createdId > 0L) {
+            container.preferenceStore.updateSmartPlaylist(
+                playlist.copy(
+                    id = createdId,
+                    name = "${playlist.name} Copy",
+                    builtInType = null,
+                    createdAtMs = System.currentTimeMillis(),
+                    updatedAtMs = System.currentTimeMillis(),
+                ),
+            )
+        }
+        return createdId
     }
 
     fun removeLibraryFolder(selection: LibraryFolderSelection) {

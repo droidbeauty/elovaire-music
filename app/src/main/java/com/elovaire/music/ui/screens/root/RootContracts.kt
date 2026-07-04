@@ -25,6 +25,8 @@ internal const val HOME_ROUTE = "home"
 internal const val ALBUMS_ROUTE = "albums"
 internal const val PLAYLISTS_ROUTE = "playlists"
 internal const val PLAYLIST_ROUTE = "playlist"
+internal const val SMART_PLAYLIST_ROUTE = "smart_playlist"
+internal const val SMART_PLAYLIST_EDITOR_ROUTE = "smart_playlist_editor"
 internal const val SEARCH_ROUTE = "search"
 internal const val PLAYER_ROUTE = "player"
 internal const val EQUALIZER_ROUTE = "equalizer"
@@ -42,6 +44,9 @@ internal const val ARTIST_ROUTE = "artist"
 internal object Routes {
     fun album(albumId: Long): String = "$ALBUM_ROUTE/$albumId"
     fun playlist(playlistId: Long): String = "$PLAYLIST_ROUTE/$playlistId"
+    fun smartPlaylist(playlistId: Long): String = "$SMART_PLAYLIST_ROUTE/$playlistId"
+    fun smartPlaylistEditor(playlistId: Long? = null): String = playlistId?.let { "$SMART_PLAYLIST_EDITOR_ROUTE/$it" }
+        ?: SMART_PLAYLIST_EDITOR_ROUTE
     fun artist(artistName: String): String = "$ARTIST_ROUTE/${Uri.encode(artistName)}"
     fun genre(genre: String): String = "$GENRE_ROUTE/${Uri.encode(genre)}"
     fun libraryCollection(kind: LibraryCollectionKind): String = "$LIBRARY_COLLECTION_ROUTE/${kind.name}"
@@ -61,6 +66,9 @@ internal val BottomNavigationRoutes = setOf(
     SEARCH_ROUTE,
     "$ALBUM_ROUTE/{albumId}",
     "$PLAYLIST_ROUTE/{playlistId}",
+    "$SMART_PLAYLIST_ROUTE/{smartPlaylistId}",
+    SMART_PLAYLIST_EDITOR_ROUTE,
+    "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}",
     "$LIBRARY_COLLECTION_ROUTE/{kind}",
     "$GENRE_ROUTE/{genre}",
     "$ARTIST_ROUTE/{artistName}",
@@ -170,6 +178,9 @@ internal object ElovaireNavigationTransitions {
             -> 1
 
             "$PLAYLIST_ROUTE/{playlistId}",
+            "$SMART_PLAYLIST_ROUTE/{smartPlaylistId}",
+            SMART_PLAYLIST_EDITOR_ROUTE,
+            "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}",
             "$ALBUM_ROUTE/{albumId}",
             "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
             -> 2

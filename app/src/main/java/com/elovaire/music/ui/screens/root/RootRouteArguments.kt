@@ -8,6 +8,8 @@ internal fun NavBackStackEntry.albumRouteId(): Long? = routeLongArg("albumId")
 
 internal fun NavBackStackEntry.playlistRouteId(): Long? = routeLongArg("playlistId")
 
+internal fun NavBackStackEntry.smartPlaylistRouteId(): Long? = routeLongArg("smartPlaylistId")
+
 internal fun NavBackStackEntry.libraryCollectionKindArg(): LibraryCollectionKind {
     return arguments?.getString("kind")
         ?.let { runCatching { LibraryCollectionKind.valueOf(it) }.getOrNull() }

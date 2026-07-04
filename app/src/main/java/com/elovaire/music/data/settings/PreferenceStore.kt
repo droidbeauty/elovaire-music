@@ -11,6 +11,13 @@ import elovaire.music.droidbeauty.app.data.playlists.removeSongReferencesFromPla
 import elovaire.music.droidbeauty.app.data.playlists.renamePlaylistEntry
 import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
 import elovaire.music.droidbeauty.app.data.playlists.updatePlaylistSongIdsEntry
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistDefaults
+import elovaire.music.droidbeauty.app.data.smartplaylists.createSmartPlaylistEntry
+import elovaire.music.droidbeauty.app.data.smartplaylists.deleteSmartPlaylistEntries
+import elovaire.music.droidbeauty.app.data.smartplaylists.deserializeSmartPlaylists
+import elovaire.music.droidbeauty.app.data.smartplaylists.serializeSmartPlaylists
+import elovaire.music.droidbeauty.app.data.smartplaylists.updateSmartPlaylistEntry
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -114,6 +121,10 @@ class PreferenceStore(context: Context) :
 
     private val _userPlaylists = MutableStateFlow(loadPlaylists())
     private var nextPlaylistId = loadNextPlaylistId(_userPlaylists.value)
+    private val _userSmartPlaylists = MutableStateFlow(loadSmartPlaylists())
+    private var nextSmartPlaylistId = loadNextSmartPlaylistId(_userSmartPlaylists.value)
+    private val _smartPlaylists = MutableStateFlow(assembleSmartPlaylists(_userSmartPlaylists.value))
+    override val smartPlaylists: StateFlow<List<SmartPlaylist>> = _smartPlaylists.asStateFlow()
     private val _favoriteSongIds = MutableStateFlow(loadFavoriteSongIds())
     override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
 
@@ -261,6 +272,32 @@ class PreferenceStore(context: Context) :
     override fun deletePlaylists(playlistIds: Set<Long>) {
         val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds) ?: return
         persistPlaylists(updated)
+    }
+
+    override fun createSmartPlaylist(name: String): Long {
+        val result = createSmartPlaylistEntry(
+            playlists = _userSmartPlaylists.value,
+            name = name,
+            nextSmartPlaylistId = nextSmartPlaylistId,
+            nowMs = System.currentTimeMillis(),
+        ) ?: return -1L
+        nextSmartPlaylistId = result.nextSmartPlaylistId
+        persistSmartPlaylists(result.playlists, nextSmartPlaylistId = result.nextSmartPlaylistId)
+        return result.createdPlaylist.id
+    }
+
+    override fun updateSmartPlaylist(playlist: SmartPlaylist) {
+        val updated = updateSmartPlaylistEntry(
+            playlists = _userSmartPlaylists.value,
+            playlist = playlist,
+            nowMs = System.currentTimeMillis(),
+        ) ?: return
+        persistSmartPlaylists(updated)
+    }
+
+    override fun deleteSmartPlaylists(playlistIds: Set<Long>) {
+        val updated = deleteSmartPlaylistEntries(_userSmartPlaylists.value, playlistIds) ?: return
+        persistSmartPlaylists(updated)
     }
 
     override fun toggleFavoriteSong(songId: Long) {
@@ -737,6 +774,10 @@ class PreferenceStore(context: Context) :
         return deserializePlaylists(preferences.getString(KEY_PLAYLISTS, null))
     }
 
+    private fun loadSmartPlaylists(): List<SmartPlaylist> {
+        return deserializeSmartPlaylists(preferences.getString(KEY_SMART_PLAYLISTS, null))
+    }
+
     private fun loadNextPlaylistId(playlists: List<Playlist>): Long {
         val existingIds = playlists.mapTo(mutableSetOf()) { it.id }
         val persisted = preferences.getLong(KEY_NEXT_PLAYLIST_ID, 0L)
@@ -746,6 +787,16 @@ class PreferenceStore(context: Context) :
             System.currentTimeMillis().coerceAtLeast(1L),
         )
         var candidate = baseline
+        while (candidate in existingIds || candidate <= 0L) {
+            candidate = if (candidate == Long.MAX_VALUE) 1L else candidate + 1L
+        }
+        return candidate
+    }
+
+    private fun loadNextSmartPlaylistId(playlists: List<SmartPlaylist>): Long {
+        val existingIds = playlists.mapTo(mutableSetOf()) { it.id }
+        val persisted = preferences.getLong(KEY_NEXT_SMART_PLAYLIST_ID, 1L)
+        var candidate = maxOf(persisted, (existingIds.maxOrNull() ?: 0L) + 1L, 1L)
         while (candidate in existingIds || candidate <= 0L) {
             candidate = if (candidate == Long.MAX_VALUE) 1L else candidate + 1L
         }
@@ -863,6 +914,18 @@ class PreferenceStore(context: Context) :
         _playlists.value = assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value)
     }
 
+    private fun persistSmartPlaylists(
+        playlists: List<SmartPlaylist>,
+        nextSmartPlaylistId: Long? = null,
+    ) {
+        preferences.edit {
+            putString(KEY_SMART_PLAYLISTS, serializeSmartPlaylists(playlists))
+            nextSmartPlaylistId?.let { putLong(KEY_NEXT_SMART_PLAYLIST_ID, it) }
+        }
+        _userSmartPlaylists.value = playlists
+        _smartPlaylists.value = assembleSmartPlaylists(playlists)
+    }
+
     private fun persistFavoriteSongIds(songIds: List<Long>) {
         preferences.edit {
             putString(KEY_FAVORITE_SONG_IDS, songIds.joinToString(","))
@@ -906,6 +969,10 @@ class PreferenceStore(context: Context) :
         return userPlaylists
     }
 
+    private fun assembleSmartPlaylists(userPlaylists: List<SmartPlaylist>): List<SmartPlaylist> {
+        return SmartPlaylistDefaults.builtIns() + userPlaylists
+    }
+
     private companion object {
         const val BAND_COUNT = 18
         const val MAX_SEARCH_HISTORY = 6
@@ -915,6 +982,8 @@ class PreferenceStore(context: Context) :
         const val KEY_SEARCH_HISTORY = "search_history"
         const val KEY_PLAYLISTS = "playlists"
         const val KEY_NEXT_PLAYLIST_ID = "next_playlist_id"
+        const val KEY_SMART_PLAYLISTS = "smart_playlists"
+        const val KEY_NEXT_SMART_PLAYLIST_ID = "next_smart_playlist_id"
         const val KEY_FAVORITE_SONG_IDS = "favorite_song_ids"
         const val KEY_ALBUM_PLAY_COUNTS = "album_play_counts"
         const val KEY_SONG_PLAY_COUNTS = "song_play_counts"

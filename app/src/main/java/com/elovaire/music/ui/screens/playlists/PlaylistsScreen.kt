@@ -10,14 +10,20 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -54,18 +60,22 @@ import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
+import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 
 @Composable
 internal fun PlaylistsScreen(
     playlists: List<Playlist>,
+    smartPlaylists: List<SmartPlaylistSummary>,
     libraryState: LibraryUiState,
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
     onRequestCreatePlaylist: () -> Unit,
+    onRequestCreateSmartPlaylist: () -> Unit,
     onRenamePlaylist: (Long, String) -> Unit,
     onDeletePlaylists: (Set<Long>) -> Unit,
     onOpenPlaylist: (Playlist, ExpandOrigin) -> Unit,
+    onOpenSmartPlaylist: (SmartPlaylistSummary, ExpandOrigin) -> Unit,
 ) {
     val motionTransitions = rememberMotionTransitions()
     var playlistBeingRenamed by remember { mutableStateOf<Playlist?>(null) }
@@ -109,7 +119,7 @@ internal fun PlaylistsScreen(
             .fillMaxSize()
             .padding(bottom = bottomPadding),
     ) {
-        if (playlistRows.isEmpty()) {
+        if (playlistRows.isEmpty() && smartPlaylists.isEmpty()) {
             EmptyPlaylistState(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -132,6 +142,55 @@ internal fun PlaylistsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                item(
+                    key = "playlist_actions",
+                    span = { GridItemSpan(maxLineSpan) },
+                    contentType = "playlist_actions",
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        PlaylistActionPill(
+                            iconResId = R.drawable.ic_lucide_plus,
+                            text = "New playlist",
+                            onClick = onRequestCreatePlaylist,
+                            modifier = Modifier.weight(1f),
+                        )
+                        PlaylistActionPill(
+                            iconResId = R.drawable.ic_lucide_sliders_vertical,
+                            text = "Smart playlist",
+                            onClick = onRequestCreateSmartPlaylist,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+                if (smartPlaylists.isNotEmpty()) {
+                    item(
+                        key = "smart_playlist_header",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = "playlist_section_header",
+                    ) {
+                        PlaylistSectionHeader("Smart playlists")
+                    }
+                    itemsIndexed(
+                        items = smartPlaylists,
+                        key = { _, row -> row.playlist.id },
+                        contentType = { _, _ -> "smart_playlist_tile" },
+                    ) { _, row ->
+                        SmartPlaylistGridTile(
+                            summary = row,
+                            onClick = { origin -> onOpenSmartPlaylist(row, origin) },
+                        )
+                    }
+                }
+                item(
+                    key = "normal_playlist_header",
+                    span = { GridItemSpan(maxLineSpan) },
+                    contentType = "playlist_section_header",
+                ) {
+                    PlaylistSectionHeader("Your playlists")
+                }
                 items(
                     items = playlistRows,
                     key = { it.playlist.id },
@@ -211,6 +270,52 @@ internal fun PlaylistsScreen(
                 },
             )
         }
+    }
+}
+
+@Composable
+private fun PlaylistSectionHeader(text: String) {
+    Text(
+        text = text,
+        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(top = 4.dp, bottom = 2.dp),
+    )
+}
+
+@Composable
+private fun PlaylistActionPill(
+    iconResId: Int,
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
+            .combinedClickable(
+                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+                onLongClick = {},
+            )
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(id = iconResId),
+            contentDescription = null,
+            modifier = Modifier.size(17.dp),
+        )
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(
+            text = text,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
