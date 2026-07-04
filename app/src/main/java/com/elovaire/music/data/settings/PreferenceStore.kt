@@ -25,7 +25,7 @@ import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
-import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskWrites
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -46,7 +46,8 @@ class PreferenceStore(context: Context) :
     FavoritesStore,
     UpdatePreferencesStore {
     private val appContext = context.applicationContext
-    private val preferences = allowStrictModeDiskReads {
+    private val preferences = allowStrictModeDiskWrites {
+        // SharedPreferences may create its private directory during first startup.
         // Initial settings must be available synchronously before the first UI state is published.
         PreferenceStorage(appContext).preferences.also { it.all }
     }
