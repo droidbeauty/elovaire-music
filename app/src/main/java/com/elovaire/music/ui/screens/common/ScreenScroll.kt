@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,6 +56,8 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.InkText
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
 import kotlin.math.max
@@ -119,12 +122,13 @@ internal fun BoxScope.FastScrollbar(
         topInset = topInset,
         bottomInset = bottomInset,
         modifier = modifier,
+        isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
             val maxFirstVisibleIndex = (resolvedMetrics.totalItems - resolvedMetrics.visibleItemsCount).coerceAtLeast(0)
             val targetIndex = (maxFirstVisibleIndex * fraction)
                 .roundToInt()
                 .coerceIn(0, maxFirstVisibleIndex)
-            state.requestScrollToItem(targetIndex)
+            state.scrollToItem(targetIndex)
         },
     )
 }
@@ -153,6 +157,7 @@ internal fun BoxScope.FastScrollbar(
             topInset = topInset,
             bottomInset = bottomInset,
             modifier = modifier,
+            isScrollInProgress = state.isScrollInProgress,
             onJumpToFraction = { fraction ->
                 state.scrollTo((scrollableContentHeightPx * fraction).roundToInt())
             },
@@ -212,6 +217,7 @@ internal fun BoxScope.FastScrollbar(
         topInset = topInset,
         bottomInset = bottomInset,
         modifier = modifier,
+        isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
             val maxFirstVisibleRow = (resolvedMetrics.totalRows - resolvedMetrics.visibleRows).coerceAtLeast(0)
             val targetRow = (maxFirstVisibleRow * fraction)
@@ -219,7 +225,7 @@ internal fun BoxScope.FastScrollbar(
                 .coerceIn(0, maxFirstVisibleRow)
             val targetIndex =
                 (targetRow * resolvedMetrics.spanCount).coerceIn(0, (resolvedMetrics.totalItems - 1).coerceAtLeast(0))
-            state.requestScrollToItem(targetIndex)
+            state.scrollToItem(targetIndex)
         },
     )
 }
@@ -232,6 +238,7 @@ private fun BoxScope.FastScrollbarTrack(
     visibleItemsCount: Int,
     topInset: Dp,
     bottomInset: Dp,
+    isScrollInProgress: Boolean,
     onJumpToFraction: suspend (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -240,6 +247,8 @@ private fun BoxScope.FastScrollbarTrack(
     val motionSpecs = rememberMotionSpecs()
     val scope = rememberCoroutineScope()
     var isDragging by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(true) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
     var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
     var lastRequestedFraction by remember { mutableFloatStateOf(-1f) }
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -260,6 +269,14 @@ private fun BoxScope.FastScrollbarTrack(
         ),
         label = "fast_scrollbar_fraction",
     )
+    LaunchedEffect(isScrollInProgress, isDragging) {
+        if (isScrollInProgress || isDragging) {
+            visible = true
+        } else {
+            delay(2000L)
+            visible = false
+        }
+    }
     BoxWithConstraints(
         modifier = modifier
             .align(Alignment.CenterEnd)
@@ -281,66 +298,88 @@ private fun BoxScope.FastScrollbarTrack(
             dragFraction = normalized
             if (kotlin.math.abs(normalized - lastRequestedFraction) >= 0.0025f) {
                 lastRequestedFraction = normalized
-                scope.launch {
+                scrollJob?.cancel()
+                scrollJob = scope.launch {
                     onJumpToFraction(normalized)
                 }
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
-                    detectTapGestures { offset ->
-                        isDragging = true
-                        jumpToFraction(fractionForPosition(offset.y))
-                        isDragging = false
-                    }
-                },
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = motionSpecs.tween(120)),
+            exit = fadeOut(animationSpec = motionSpecs.tween(220)),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
-                        detectVerticalDragGestures(
-                            onDragStart = { offset ->
-                                isDragging = true
-                                jumpToFraction(fractionForPosition(offset.y))
-                            },
-                            onVerticalDrag = { change, _ ->
-                                change.consume()
-                                jumpToFraction(fractionForPosition(change.position.y))
-                            },
-                            onDragEnd = {
-                                isDragging = false
-                            },
-                            onDragCancel = {
-                                isDragging = false
-                            },
-                        )
+                        detectTapGestures { offset ->
+                            isDragging = true
+                            jumpToFraction(fractionForPosition(offset.y))
+                            isDragging = false
+                        }
                     },
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxHeight()
-                    .width(2.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(trackColor),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .width(5.dp)
-                    .height(with(density) { thumbHeightPx.toDp() })
-                    .graphicsLayer {
-                        translationY = thumbOffsetPx
-                    }
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(thumbColor),
-            )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
+                            detectVerticalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    jumpToFraction(fractionForPosition(offset.y))
+                                },
+                                onVerticalDrag = { change, _ ->
+                                    change.consume()
+                                    jumpToFraction(fractionForPosition(change.position.y))
+                                },
+                                onDragEnd = {
+                                    isDragging = false
+                                },
+                                onDragCancel = {
+                                    isDragging = false
+                                },
+                            )
+                        },
+                )
+                FastScrollbarChrome(
+                    trackColor = trackColor,
+                    thumbColor = thumbColor,
+                    thumbHeight = with(density) { thumbHeightPx.toDp() },
+                    thumbOffsetPx = thumbOffsetPx,
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun BoxScope.FastScrollbarChrome(
+    trackColor: Color,
+    thumbColor: Color,
+    thumbHeight: Dp,
+    thumbOffsetPx: Float,
+) {
+    Box(
+        modifier = Modifier
+            .align(Alignment.Center)
+            .fillMaxHeight()
+            .width(2.dp)
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(trackColor),
+    )
+    Box(
+        modifier = Modifier
+            .align(Alignment.TopCenter)
+            .width(5.dp)
+            .height(thumbHeight)
+            .graphicsLayer {
+                translationY = thumbOffsetPx
+            }
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(thumbColor),
+    )
 }
 
 internal fun Modifier.ensureSingleItemRubberBand(state: androidx.compose.foundation.lazy.LazyListState): Modifier = composed {

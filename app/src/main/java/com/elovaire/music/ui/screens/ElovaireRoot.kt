@@ -1825,7 +1825,7 @@ private fun AlbumSortControl(
                 )
                 Text(
                     text = selected.label,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 )
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lucide_chevron_down),
@@ -1870,7 +1870,7 @@ private fun AlbumSortControl(
                         ) {
                             Text(
                                 text = mode.label,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                 color = if (mode == selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                             )
                             if (mode == selected) {
@@ -2288,7 +2288,7 @@ private fun SongSortControl(
                 )
                 Text(
                     text = selected.label,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 )
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lucide_chevron_down),
@@ -2333,7 +2333,7 @@ private fun SongSortControl(
                         ) {
                             Text(
                                 text = mode.label,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                 color = if (mode == selected) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f),
                             )
                             if (mode == selected) {
@@ -3392,9 +3392,7 @@ private fun SearchSongsResultsHeader(
                         ) {
                             Text(
                                 text = searchSortModeLabel(mode, language),
-                                style = MaterialTheme.typography.bodyLarge.copy(
-                                    fontWeight = if (mode == selected) FontWeight.SemiBold else FontWeight.Normal,
-                                ),
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                                 color = if (mode == selected) {
                                     MaterialTheme.colorScheme.onSurface
                                 } else {
@@ -5310,6 +5308,20 @@ internal fun PlaybackActiveArtworkOverlay(
 ) {
     val artworkShape = RoundedCornerShape(ElovaireRadii.artworkSmall)
     val artworkBitmap = rememberArtworkBitmap(uri = uri, size = 256).value
+    var entered by remember { mutableStateOf(false) }
+    val blurRadius by animateDpAsState(
+        targetValue = if (entered) 18.dp else 0.dp,
+        animationSpec = ElovaireMotion.sizeSoft(),
+        label = "active_artwork_blur_radius",
+    )
+    val surfaceAlpha by animateFloatAsState(
+        targetValue = if (entered) 1f else 0f,
+        animationSpec = ElovaireMotion.contentFadeInSpec(),
+        label = "active_artwork_blur_alpha",
+    )
+    LaunchedEffect(Unit) {
+        entered = true
+    }
     Box(
         modifier = modifier
             .graphicsLayer {
@@ -5330,8 +5342,9 @@ internal fun PlaybackActiveArtworkOverlay(
                     .graphicsLayer {
                         scaleX = 1.08f
                         scaleY = 1.08f
+                        alpha = surfaceAlpha
                     }
-                    .blur(18.dp),
+                    .blur(blurRadius),
             )
         } else {
             ArtworkImage(
@@ -5339,14 +5352,15 @@ internal fun PlaybackActiveArtworkOverlay(
                 title = title,
                 modifier = Modifier
                     .matchParentSize()
-                    .blur(18.dp),
+                    .graphicsLayer { alpha = surfaceAlpha }
+                    .blur(blurRadius),
                 cornerRadius = ElovaireRadii.artworkSmall,
             )
         }
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(Color.Black.copy(alpha = 0.12f)),
+                .background(Color.Black.copy(alpha = 0.08f * surfaceAlpha)),
         )
         AnimatedAudioLinesIcon(
             tint = Color.White.copy(alpha = 0.82f),
@@ -6690,7 +6704,7 @@ internal fun NowPlayingScreen(
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .nowPlayingDismissGesture(),
+                            .then(if (showQueueSheet) Modifier else Modifier.nowPlayingDismissGesture()),
                     ) {
                         val expandedArtworkWidth = maxWidth
                         val compactArtworkWidth = maxWidth * 0.38f
@@ -6793,6 +6807,7 @@ internal fun NowPlayingScreen(
                     .padding(top = nowPlayingTitleTopGap, bottom = nowPlayingTitleBottomGap),
                 contentAlignment = Alignment.Center,
             ) {
+                val metadataClickInteractionSource = remember { MutableInteractionSource() }
                 Row(
                     modifier = Modifier
                         .fillMaxWidth(centeredInfoWidth)
@@ -6806,15 +6821,21 @@ internal fun NowPlayingScreen(
                     Row(
                         modifier = Modifier
                             .weight(1f)
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = {
-                                    currentSong.takeIf { it.albumId != 0L }?.albumId?.let { albumId ->
-                                        dismissNowPlaying {
-                                            onOpenCurrentAlbum(albumId)
-                                        }
-                                    }
+                            .then(
+                                if (showQueueSheet) {
+                                    Modifier
+                                } else {
+                                    Modifier.clickable(
+                                        interactionSource = metadataClickInteractionSource,
+                                        indication = null,
+                                        onClick = {
+                                            currentSong.takeIf { it.albumId != 0L }?.albumId?.let { albumId ->
+                                                dismissNowPlaying {
+                                                    onOpenCurrentAlbum(albumId)
+                                                }
+                                            }
+                                        },
+                                    )
                                 },
                             ),
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
@@ -6870,11 +6891,13 @@ internal fun NowPlayingScreen(
                             .alpha(favoriteAlpha * if (showQueueSheet) 0f else metadataSectionProgress),
                         contentAlignment = Alignment.CenterEnd,
                     ) {
-                        FavoriteSongButton(
-                            isFavorite = isFavorite,
-                            tint = contentColor,
-                            onClick = { onToggleFavorite(currentSong.id) },
-                        )
+                        if (!showQueueSheet) {
+                            FavoriteSongButton(
+                                isFavorite = isFavorite,
+                                tint = contentColor,
+                                onClick = { onToggleFavorite(currentSong.id) },
+                            )
+                        }
                     }
                 }
             }
@@ -6885,7 +6908,7 @@ internal fun NowPlayingScreen(
                     .align(Alignment.CenterHorizontally)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 532.dp
+                val queueSheetTopExtension = 562.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),

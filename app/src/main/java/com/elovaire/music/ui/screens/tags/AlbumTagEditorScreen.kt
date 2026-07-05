@@ -83,6 +83,8 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
@@ -698,12 +700,13 @@ private fun BoxScope.TagEditorFastScrollbar(
         visibleItemsCount = resolvedMetrics.visibleItemsCount,
         topInset = topInset,
         bottomInset = bottomInset,
+        isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
             val maxFirstVisibleIndex = (resolvedMetrics.totalItems - resolvedMetrics.visibleItemsCount).coerceAtLeast(0)
             val targetIndex = (maxFirstVisibleIndex * fraction)
                 .roundToInt()
                 .coerceIn(0, maxFirstVisibleIndex)
-            state.requestScrollToItem(targetIndex)
+            state.scrollToItem(targetIndex)
         },
     )
 }
@@ -716,12 +719,15 @@ private fun BoxScope.TagEditorFastScrollbarTrack(
     visibleItemsCount: Int,
     topInset: Dp,
     bottomInset: Dp,
+    isScrollInProgress: Boolean,
     onJumpToFraction: suspend (Float) -> Unit,
 ) {
     if (totalItems <= visibleItemsCount) return
 
     val scope = rememberCoroutineScope()
     var isDragging by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(true) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
     var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
     var lastRequestedFraction by remember { mutableFloatStateOf(-1f) }
     val colors = MaterialTheme.colorScheme
@@ -735,6 +741,14 @@ private fun BoxScope.TagEditorFastScrollbarTrack(
         ),
         label = "tag_editor_fast_scrollbar_fraction",
     )
+    LaunchedEffect(isScrollInProgress, isDragging) {
+        if (isScrollInProgress || isDragging) {
+            visible = true
+        } else {
+            delay(2000L)
+            visible = false
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -755,58 +769,65 @@ private fun BoxScope.TagEditorFastScrollbarTrack(
             dragFraction = normalized
             if (abs(normalized - lastRequestedFraction) >= 0.0025f) {
                 lastRequestedFraction = normalized
-                scope.launch {
+                scrollJob?.cancel()
+                scrollJob = scope.launch {
                     onJumpToFraction(normalized)
                 }
             }
         }
 
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
-                    detectTapGestures { offset ->
-                        isDragging = true
-                        jumpToFraction(fractionForPosition(offset.y))
-                        isDragging = false
-                    }
-                },
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = motionSpecs.tween(120)),
+            exit = fadeOut(animationSpec = motionSpecs.tween(220)),
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
-                        detectVerticalDragGestures(
-                            onDragStart = { offset ->
-                                isDragging = true
-                                jumpToFraction(fractionForPosition(offset.y))
-                            },
-                            onVerticalDrag = { change, _ ->
-                                change.consume()
-                                jumpToFraction(fractionForPosition(change.position.y))
-                            },
-                            onDragEnd = { isDragging = false },
-                            onDragCancel = { isDragging = false },
-                        )
+                        detectTapGestures { offset ->
+                            isDragging = true
+                            jumpToFraction(fractionForPosition(offset.y))
+                            isDragging = false
+                        }
                     },
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxHeight()
-                    .width(2.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(trackColor),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .offset(y = with(density) { thumbOffsetPx.toDp() })
-                    .width(5.dp)
-                    .height(with(density) { thumbHeightPx.toDp() })
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(thumbColor),
-            )
+            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
+                            detectVerticalDragGestures(
+                                onDragStart = { offset ->
+                                    isDragging = true
+                                    jumpToFraction(fractionForPosition(offset.y))
+                                },
+                                onVerticalDrag = { change, _ ->
+                                    change.consume()
+                                    jumpToFraction(fractionForPosition(change.position.y))
+                                },
+                                onDragEnd = { isDragging = false },
+                                onDragCancel = { isDragging = false },
+                            )
+                        },
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxHeight()
+                        .width(2.dp)
+                        .clip(RoundedCornerShape(ElovaireRadii.pill))
+                        .background(trackColor),
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .offset(y = with(density) { thumbOffsetPx.toDp() })
+                        .width(5.dp)
+                        .height(with(density) { thumbHeightPx.toDp() })
+                        .clip(RoundedCornerShape(ElovaireRadii.pill))
+                        .background(thumbColor),
+                )
+            }
         }
     }
 }

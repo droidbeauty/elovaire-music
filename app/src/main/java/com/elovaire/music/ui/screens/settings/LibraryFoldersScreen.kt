@@ -75,7 +75,7 @@ internal fun LibraryFoldersScreen(
 ) {
     val context = LocalContext.current
     val copy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
-    val listState = rememberElovaireLazyListState("library_folders_screen")
+    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val songCountsByFolder = remember(folders, songs) {
         folders.associateWith { folder -> songs.countInFolder(folder) }
     }

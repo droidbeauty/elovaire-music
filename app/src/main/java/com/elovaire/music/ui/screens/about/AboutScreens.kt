@@ -341,7 +341,7 @@ internal fun AboutScreen(
     val context = LocalContext.current
     val language = LocalAppLanguage.current
     val aboutModel = remember(context) { context.loadAboutScreenModel() }
-    val listState = rememberElovaireLazyListState("about_screen")
+    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -388,7 +388,7 @@ internal fun PrivacySafetyScreen(
             language = language,
         )
     }
-    val listState = rememberElovaireLazyListState("privacy_safety_screen")
+    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     Box(
         modifier = Modifier
             .fillMaxSize()

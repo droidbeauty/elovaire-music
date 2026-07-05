@@ -99,6 +99,8 @@ import kotlin.math.min
 import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -119,7 +121,7 @@ internal fun EqualizerScreen(
     onApplyPreset: (String, EqSettings) -> Unit,
     onReset: () -> Unit,
 ) {
-    val listState = rememberElovaireLazyListState("equalizer_screen")
+    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val graphScrollState = rememberScrollState()
     val language = LocalAppLanguage.current
     val copy = remember(language) { settingsCopy(language) }
@@ -1537,6 +1539,18 @@ internal fun EqHorizontalScrollbar(
     modifier: Modifier = Modifier,
 ) {
     val scope = rememberCoroutineScope()
+    val motionSpecs = rememberMotionSpecs()
+    var isDragging by remember { mutableStateOf(false) }
+    var visible by remember { mutableStateOf(true) }
+    var scrollJob by remember { mutableStateOf<Job?>(null) }
+    LaunchedEffect(scrollState.isScrollInProgress, isDragging) {
+        if (scrollState.isScrollInProgress || isDragging) {
+            visible = true
+        } else {
+            delay(2000L)
+            visible = false
+        }
+    }
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
@@ -1566,47 +1580,61 @@ internal fun EqHorizontalScrollbar(
             if (maxScrollPx > 0f && viewportWidthPx > 0f) {
                 val fraction = ((xPosition - (thumbWidthPx / 2f)) / thumbTravelPx.coerceAtLeast(1f)).coerceIn(0f, 1f)
                 val targetScroll = (maxScrollPx * fraction).roundToInt()
-                scope.launch {
+                scrollJob?.cancel()
+                scrollJob = scope.launch {
                     scrollState.scrollTo(targetScroll)
                 }
             }
         }
 
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .pointerInput(viewportWidthPx, maxScrollPx) {
-                    detectTapGestures { offset ->
-                        updateScrollFromX(offset.x)
-                    }
-                }
-                .pointerInput(viewportWidthPx, maxScrollPx) {
-                    detectHorizontalDragGestures(
-                        onDragStart = { offset -> updateScrollFromX(offset.x) },
-                        onHorizontalDrag = { change, _ ->
-                            change.consume()
-                            updateScrollFromX(change.position.x)
-                        },
-                    )
-                },
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(animationSpec = motionSpecs.tween(120)),
+            exit = fadeOut(animationSpec = motionSpecs.tween(220)),
         ) {
             Box(
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxWidth()
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(trackColor),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset { IntOffset(x = thumbOffsetPx.roundToInt(), y = 0) }
-                    .width(with(density) { thumbWidthPx.toDp() })
-                    .height(4.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(thumbColor),
-            )
+                    .matchParentSize()
+                    .pointerInput(viewportWidthPx, maxScrollPx) {
+                        detectTapGestures { offset ->
+                            isDragging = true
+                            updateScrollFromX(offset.x)
+                            isDragging = false
+                        }
+                    }
+                    .pointerInput(viewportWidthPx, maxScrollPx) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                isDragging = true
+                                updateScrollFromX(offset.x)
+                            },
+                            onHorizontalDrag = { change, _ ->
+                                change.consume()
+                                updateScrollFromX(change.position.x)
+                            },
+                            onDragEnd = { isDragging = false },
+                            onDragCancel = { isDragging = false },
+                        )
+                    },
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .clip(RoundedCornerShape(ElovaireRadii.pill))
+                        .background(trackColor),
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterStart)
+                        .offset { IntOffset(x = thumbOffsetPx.roundToInt(), y = 0) }
+                        .width(with(density) { thumbWidthPx.toDp() })
+                        .height(4.dp)
+                        .clip(RoundedCornerShape(ElovaireRadii.pill))
+                        .background(thumbColor),
+                )
+            }
         }
     }
 }

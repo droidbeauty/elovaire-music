@@ -126,7 +126,7 @@ internal fun SettingsScreen(
     showUpdateChecks: Boolean,
     onCheckForUpdates: () -> Unit,
 ) {
-    val listState = rememberElovaireLazyListState("settings_screen")
+    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
     val privacyCopy = remember(appLanguage) {
@@ -549,7 +549,7 @@ private fun LanguageSelectionDialog(
     onConfirm: (AppLanguage) -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
-    val listState = rememberElovaireLazyListState("language_picker")
+    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val copy = remember(selectedLanguage) { rootUiCopy(selectedLanguage) }
     val languages = remember {
         AppLanguage.entries.sortedBy { it.englishName }
