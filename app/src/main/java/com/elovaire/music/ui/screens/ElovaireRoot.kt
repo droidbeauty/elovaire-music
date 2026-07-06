@@ -355,6 +355,7 @@ private fun Set<Long>.toggleSelection(id: Long): Set<Long> {
 fun ElovaireRoot(
     container: AppContainer,
     resetHomeScrollOnColdStart: Boolean = false,
+    adaptiveInfo: ElovaireAdaptiveInfo = elovaireAdaptiveInfo(width = 0.dp),
 ) {
     val navController = rememberNavController()
     val rootMotionTransitions = rememberMotionTransitions()
@@ -553,6 +554,7 @@ fun ElovaireRoot(
         sharedBackIconPainter = sharedBackIconPainter,
         sharedTopMenuIconPainter = sharedTopMenuIconPainter,
         appLanguage = appState.appLanguage,
+        adaptiveInfo = adaptiveInfo,
         chromeVisibility = chromeVisibility,
         sharedTopBarController = sharedTopBarController,
         navHostBlur = navHostBlur,
@@ -580,6 +582,7 @@ fun ElovaireRoot(
                 showGlobalNowPlaying = chromeVisibility.showGlobalNowPlaying,
                 reenteringFromPlayer = chromeVisibility.reenteringFromPlayer,
                 showBottomNavigation = chromeVisibility.showBottomNavigation,
+                adaptiveInfo = adaptiveInfo,
                 bottomNavHeight = layout.bottomNavHeight,
                 activeBottomRoute = activeBottomRoute,
                 currentRoute = currentRoute,

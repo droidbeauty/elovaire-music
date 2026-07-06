@@ -19,6 +19,8 @@ android {
                     .toString()
             },
         )
+    val benchmarkIterations = providers.gradleProperty("app.benchmarkIterations").orNull
+    val baselineProfileStableIterations = providers.gradleProperty("app.baselineProfileStableIterations").orNull
 
     defaultConfig {
         minSdk = 30
@@ -27,6 +29,12 @@ android {
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] =
             "DEBUGGABLE,EMULATOR,NOT-SELF-INSTRUMENTING"
         testInstrumentationRunnerArguments["elovaire.runBenchmarks"] = runBenchmarks.get()
+        benchmarkIterations?.let { value ->
+            testInstrumentationRunnerArguments["elovaire.benchmarkIterations"] = value
+        }
+        baselineProfileStableIterations?.let { value ->
+            testInstrumentationRunnerArguments["elovaire.baselineProfileStableIterations"] = value
+        }
     }
 
     targetProjectPath = ":app"

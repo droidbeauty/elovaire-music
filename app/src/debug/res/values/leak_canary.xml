@@ -1,0 +1,3 @@
+<resources>
+    <bool name="leak_canary_add_launcher_icon">false</bool>
+</resources>

@@ -103,10 +103,12 @@ internal fun MacrobenchmarkScope.routeOpenBackJourney() {
     waitForAppVisible()
     uiDevice.click(uiDevice.displayWidth / 2, (uiDevice.displayHeight * 0.35f).toInt())
     waitForAppVisible()
-    uiDevice.pressBack()
+    if (uiDevice.findObject(By.desc("Playlists")) == null) {
+        uiDevice.pressBack()
+        waitForAppVisible()
+    }
     requireClickDescription("Playlists")
     waitForAppVisible()
-    uiDevice.pressBack()
     requireClickDescription("Home")
     requireClickDescription("Menu")
     requireClickText("Settings")
