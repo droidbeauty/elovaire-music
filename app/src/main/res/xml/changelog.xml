@@ -6,8 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.4.1">
-        <item>Minor UI tweaks in playlists screen</item>
-        <item>Added translations of missing UI parts for all supported languages</item>
+    <release version="2.4.2">
+        <item>Performance tweaks optimized around reducing CPU usage</item>
+        <item>Minor tweaks to animation system</item>
+        <item>Further improved core structure</item>
+        <item>Minor layout tweaks in playlists UI</item>
     </release>
 </changelog>

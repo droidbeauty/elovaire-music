@@ -5,15 +5,23 @@ import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.navigation.NavHostController
-import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.LibraryActionDependencies
+import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
+import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
+import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.Album
 
 internal class RootRouteActions(
     private val context: Context,
-    private val container: AppContainer,
+    private val libraryDependencies: LibraryActionDependencies,
+    private val librarySettings: LibrarySettingsWriter,
+    private val playlistDependencies: PlaylistActionDependencies,
+    settingsDependencies: SettingsActionDependencies,
+    private val updateController: UpdateController,
     private val navController: NavHostController,
     private val navigationState: RootNavigationState,
     val playback: RootPlaybackActions,
@@ -25,7 +33,7 @@ internal class RootRouteActions(
     val onSearchQueryActiveChanged: (Boolean) -> Unit,
     private val openAlbumRoute: (Album, ExpandOrigin, AlbumOpenSource) -> Unit,
 ) {
-    val libraryFolders = container.preferenceStore.libraryFolders
+    val libraryFolders = librarySettings.libraryFolders
 
     fun navigateUp() {
         navController.navigateUp()
@@ -98,7 +106,7 @@ internal class RootRouteActions(
     }
 
     fun refreshLibrary() {
-        container.libraryRepository.refresh(
+        libraryDependencies.libraryRepository.refresh(
             forceMediaIndex = true,
             enrichMetadata = true,
             showLoadingIndicator = true,
@@ -107,11 +115,11 @@ internal class RootRouteActions(
 
     fun addLibraryFolder(uri: Uri) {
         val selection = LibraryFolderSelectionResolver.fromTreeUri(context, uri)
-        val currentFolders = container.preferenceStore.libraryFolders.value
+        val currentFolders = librarySettings.libraryFolders.value
         val normalizedFolders = LibraryFolderSelectionResolver.normalize(currentFolders + selection)
         if (normalizedFolders == LibraryFolderSelectionResolver.normalize(currentFolders)) return
-        container.preferenceStore.setLibraryFolders(normalizedFolders)
-        container.libraryRepository.setLibraryFolders(
+        librarySettings.setLibraryFolders(normalizedFolders)
+        libraryDependencies.libraryRepository.setLibraryFolders(
             selections = normalizedFolders,
             enrichMetadata = true,
             showLoadingIndicator = true,
@@ -122,107 +130,110 @@ internal class RootRouteActions(
         playlistId: Long,
         name: String,
     ) {
-        container.preferenceStore.renamePlaylist(playlistId, name)
+        playlistDependencies.playlistStore.renamePlaylist(playlistId, name)
     }
 
     fun deletePlaylists(playlistIds: Set<Long>) {
-        container.preferenceStore.deletePlaylists(playlistIds)
+        playlistDependencies.playlistStore.deletePlaylists(playlistIds)
     }
 
     fun updatePlaylistSongOrder(
         playlistId: Long,
         songIds: List<Long>,
     ) {
-        container.preferenceStore.updatePlaylistSongIds(playlistId, songIds)
+        playlistDependencies.playlistStore.updatePlaylistSongIds(playlistId, songIds)
     }
 
     fun createSmartPlaylist(name: String): Long {
-        return container.preferenceStore.createSmartPlaylist(name)
+        return playlistDependencies.playlistStore.createSmartPlaylist(name)
     }
 
     fun updateSmartPlaylist(playlist: SmartPlaylist) {
-        container.preferenceStore.updateSmartPlaylist(playlist)
+        playlistDependencies.playlistStore.updateSmartPlaylist(playlist)
     }
 
     fun deleteSmartPlaylist(playlistId: Long) {
-        container.preferenceStore.deleteSmartPlaylists(setOf(playlistId))
+        playlistDependencies.playlistStore.deleteSmartPlaylists(setOf(playlistId))
     }
 
     fun removeLibraryFolder(selection: LibraryFolderSelection) {
-        container.preferenceStore.removeLibraryFolder(selection)
+        librarySettings.removeLibraryFolder(selection)
     }
 
     fun enqueueAlbum(album: Album) {
-        album.songs.forEach(container.playbackManager::enqueueSong)
+        playback.enqueueAlbum(album)
     }
 
     fun setAlbumCollectionLayoutMode(mode: AlbumLayoutMode) {
-        container.preferenceStore.setAlbumCollectionLayoutMode(mode.name)
+        librarySettings.setAlbumCollectionLayoutMode(mode.name)
     }
 
     fun setSongCollectionLayoutMode(mode: AlbumLayoutMode) {
-        container.preferenceStore.setSongCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
+        librarySettings.setSongCollectionGridEnabled(mode == AlbumLayoutMode.Grid)
     }
 
     fun setAlbumSortMode(mode: AlbumSortMode) {
-        container.preferenceStore.setAlbumCollectionSortMode(mode.name)
+        librarySettings.setAlbumCollectionSortMode(mode.name)
     }
 
     fun setSongSortMode(mode: SongSortMode) {
-        container.preferenceStore.setSongCollectionSortMode(mode.name)
+        librarySettings.setSongCollectionSortMode(mode.name)
     }
 
     fun checkForUpdates() {
-        container.appUpdateManager.checkForUpdates(force = true)
+        updateController.checkForUpdates(force = true)
     }
 
-    val settings = SettingsRouteActions(container)
+    val settings = SettingsRouteActions(settingsDependencies)
 }
 
 internal class SettingsRouteActions(
-    private val container: AppContainer,
+    private val settingsDependencies: SettingsActionDependencies,
 ) {
     fun setThemeMode(mode: elovaire.music.droidbeauty.app.domain.model.ThemeMode) {
-        container.preferenceStore.setThemeMode(mode)
+        settingsDependencies.appearanceSettings.setThemeMode(mode)
     }
 
     fun setTextSizePreset(preset: elovaire.music.droidbeauty.app.domain.model.TextSizePreset) {
-        container.preferenceStore.setTextSizePreset(preset)
+        settingsDependencies.appearanceSettings.setTextSizePreset(preset)
     }
 
     fun setAppLanguage(language: elovaire.music.droidbeauty.app.domain.model.AppLanguage) {
-        container.preferenceStore.setAppLanguage(language)
+        settingsDependencies.appearanceSettings.setAppLanguage(language)
     }
 
     fun updateBass(value: Float) {
-        container.preferenceStore.updateBass(value)
+        settingsDependencies.playbackSettings.updateBass(value)
     }
 
     fun updateMidrange(value: Float) {
-        container.preferenceStore.updateMidrange(value)
+        settingsDependencies.playbackSettings.updateMidrange(value)
     }
 
     fun updateTreble(value: Float) {
-        container.preferenceStore.updateTreble(value)
+        settingsDependencies.playbackSettings.updateTreble(value)
     }
 
     fun updateMonoPlaybackEnabled(enabled: Boolean) {
-        container.preferenceStore.updateMonoPlaybackEnabled(enabled)
+        settingsDependencies.playbackSettings.updateMonoPlaybackEnabled(enabled)
     }
 
     fun setVolumeNormalizationEnabled(enabled: Boolean) {
-        container.preferenceStore.setVolumeNormalizationEnabled(enabled)
+        settingsDependencies.playbackSettings.setVolumeNormalizationEnabled(enabled)
     }
 
     fun setOnlineLyricsLookupEnabled(enabled: Boolean) {
-        container.preferenceStore.setOnlineLyricsLookupEnabled(enabled)
+        settingsDependencies.setOnlineLyricsLookupEnabled(enabled)
     }
 }
 
 @Composable
 internal fun rememberRootRouteActions(
     context: Context,
-    container: AppContainer,
+    libraryDependencies: LibraryActionDependencies,
+    settingsDependencies: SettingsActionDependencies,
+    playlistDependencies: PlaylistActionDependencies,
+    updateController: UpdateController,
     navController: NavHostController,
     navigationState: RootNavigationState,
     playbackActions: RootPlaybackActions,
@@ -236,7 +247,10 @@ internal fun rememberRootRouteActions(
 ): RootRouteActions {
     return remember(
         context,
-        container,
+        libraryDependencies,
+        settingsDependencies,
+        playlistDependencies,
+        updateController,
         navController,
         navigationState,
         playbackActions,
@@ -250,7 +264,11 @@ internal fun rememberRootRouteActions(
     ) {
         RootRouteActions(
             context = context,
-            container = container,
+            libraryDependencies = libraryDependencies,
+            librarySettings = settingsDependencies.librarySettings,
+            playlistDependencies = playlistDependencies,
+            settingsDependencies = settingsDependencies,
+            updateController = updateController,
             navController = navController,
             navigationState = navigationState,
             playback = playbackActions,

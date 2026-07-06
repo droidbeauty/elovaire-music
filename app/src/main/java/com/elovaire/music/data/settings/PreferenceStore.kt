@@ -343,15 +343,15 @@ class PreferenceStore(context: Context) :
         persistEqSettings(_eqSettings.value.copy(bands = updatedBands), immediate = false)
     }
 
-    fun updateBass(value: Float) {
+    override fun updateBass(value: Float) {
         persistEqSettings(_eqSettings.value.copy(bass = EqValuePolicy.clampPositiveMacro(value)), immediate = false)
     }
 
-    fun updateMidrange(value: Float) {
+    override fun updateMidrange(value: Float) {
         persistEqSettings(_eqSettings.value.copy(midrange = EqValuePolicy.clampMacro(value)), immediate = false)
     }
 
-    fun updateTreble(value: Float) {
+    override fun updateTreble(value: Float) {
         persistEqSettings(_eqSettings.value.copy(treble = EqValuePolicy.clampMacro(value)), immediate = false)
     }
 
@@ -401,7 +401,7 @@ class PreferenceStore(context: Context) :
         persistEqSettings(_eqSettings.value.copy(reverbProfile = profile))
     }
 
-    fun updateMonoPlaybackEnabled(enabled: Boolean) {
+    override fun updateMonoPlaybackEnabled(enabled: Boolean) {
         persistEqSettings(_eqSettings.value.copy(monoEnabled = enabled))
     }
 

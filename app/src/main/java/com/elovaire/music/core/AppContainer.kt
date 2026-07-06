@@ -53,6 +53,7 @@ class AppContainer(
         override val appearanceSettings get() = services.preferenceStore
         override val librarySettings get() = services.preferenceStore
         override val playbackSettings get() = services.preferenceStore
+        override val setOnlineLyricsLookupEnabled = services.preferenceStore::setOnlineLyricsLookupEnabled
     }
     internal val playlistActionDependencies: PlaylistActionDependencies = object : PlaylistActionDependencies {
         override val playlistStore get() = services.preferenceStore

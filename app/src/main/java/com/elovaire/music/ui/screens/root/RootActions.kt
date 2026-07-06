@@ -2,7 +2,9 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.PlaybackActionDependencies
+import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
+import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -10,7 +12,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 
 internal class RootPlaybackActions internal constructor(
-    private val container: AppContainer,
+    private val playbackManager: PlaybackManager,
     private val languageProvider: () -> AppLanguage,
     private val songsByAlbumIdProvider: () -> Map<Long, List<Song>>,
     private val albumsByIdProvider: () -> Map<Long, Album>,
@@ -21,7 +23,7 @@ internal class RootPlaybackActions internal constructor(
         shuffle: Boolean = false,
         openPlayer: Boolean = false,
     ) {
-        container.playbackManager.playAlbum(album, shuffleEnabled = shuffle)
+        playbackManager.playAlbum(album, shuffleEnabled = shuffle)
         if (openPlayer) {
             openNowPlaying(null)
         }
@@ -34,7 +36,7 @@ internal class RootPlaybackActions internal constructor(
     ) {
         val queue = if (shuffle) songs.shuffled() else songs
         val firstSong = queue.firstOrNull() ?: return
-        container.playbackManager.playSong(
+        playbackManager.playSong(
             song = firstSong,
             collection = queue,
             sourceLabel = playlist.name,
@@ -45,14 +47,14 @@ internal class RootPlaybackActions internal constructor(
     fun playSongFromAlbumOrSingle(song: Song) {
         val album = albumsByIdProvider()[song.albumId]
         if (album != null) {
-            container.playbackManager.playAlbum(
+            playbackManager.playAlbum(
                 album = album,
                 startSongId = song.id,
                 sourceLabel = album.title,
             )
         } else {
             val albumSongs = songsByAlbumIdProvider()[song.albumId].orEmpty()
-            container.playbackManager.playSong(
+            playbackManager.playSong(
                 song = song,
                 collection = albumSongs.ifEmpty { listOf(song) },
                 sourceLabel = song.album,
@@ -66,7 +68,7 @@ internal class RootPlaybackActions internal constructor(
         sourceLabel: String? = null,
         sourcePlaylistId: Long? = null,
     ) {
-        container.playbackManager.playSong(
+        playbackManager.playSong(
             song = song,
             collection = queue,
             sourceLabel = sourceLabel ?: queue.playbackSourceLabel(
@@ -81,18 +83,22 @@ internal class RootPlaybackActions internal constructor(
         song: Song,
         queue: List<Song>,
     ) {
-        container.playbackManager.playSong(
+        playbackManager.playSong(
             song = song,
             collection = queue,
             sourceLabel = localizedAllSongsSource(languageProvider()),
         )
     }
+
+    fun enqueueAlbum(album: Album) {
+        album.songs.forEach(playbackManager::enqueueSong)
+    }
 }
 
 internal class RootPlaylistActions internal constructor(
-    private val container: AppContainer,
+    private val dependencies: PlaylistActionDependencies,
 ) {
-    fun createPlaylist(name: String): Long = container.preferenceStore.createPlaylist(name)
+    fun createPlaylist(name: String): Long = dependencies.playlistStore.createPlaylist(name)
 
     fun createPlaylistAndAddSongs(
         name: String,
@@ -100,7 +106,7 @@ internal class RootPlaylistActions internal constructor(
     ): Long {
         val createdId = createPlaylist(name)
         if (createdId > 0L && songIds.isNotEmpty()) {
-            container.preferenceStore.addSongsToPlaylist(createdId, songIds)
+            dependencies.playlistStore.addSongsToPlaylist(createdId, songIds)
         }
         return createdId
     }
@@ -109,7 +115,7 @@ internal class RootPlaylistActions internal constructor(
         playlistId: Long,
         songIds: List<Long>,
     ) {
-        container.preferenceStore.addSongsToPlaylist(playlistId, songIds)
+        dependencies.playlistStore.addSongsToPlaylist(playlistId, songIds)
     }
 
     fun addAlbumToPlaylist(
@@ -123,25 +129,26 @@ internal class RootPlaylistActions internal constructor(
         songIds: List<Long>,
         favorite: Boolean,
     ) {
-        container.preferenceStore.setFavoriteSongs(songIds, favorite)
+        dependencies.favoritesStore.setFavoriteSongs(songIds, favorite)
     }
 
     fun toggleFavorite(songId: Long) {
-        container.preferenceStore.toggleFavoriteSong(songId)
+        dependencies.favoritesStore.toggleFavoriteSong(songId)
     }
 }
 
 @Composable
 internal fun rememberRootPlaybackActions(
-    container: AppContainer,
+    dependencies: PlaybackActionDependencies,
+    playbackManager: PlaybackManager,
     appLanguage: AppLanguage,
     songsByAlbumId: Map<Long, List<Song>>,
     albumsById: Map<Long, Album>,
     openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
 ): RootPlaybackActions {
-    return remember(container, appLanguage, songsByAlbumId, albumsById, openNowPlaying) {
+    return remember(dependencies, playbackManager, appLanguage, songsByAlbumId, albumsById, openNowPlaying) {
         RootPlaybackActions(
-            container = container,
+            playbackManager = playbackManager,
             languageProvider = { appLanguage },
             songsByAlbumIdProvider = { songsByAlbumId },
             albumsByIdProvider = { albumsById },
@@ -151,8 +158,8 @@ internal fun rememberRootPlaybackActions(
 }
 
 @Composable
-internal fun rememberRootPlaylistActions(container: AppContainer): RootPlaylistActions {
-    return remember(container) { RootPlaylistActions(container) }
+internal fun rememberRootPlaylistActions(dependencies: PlaylistActionDependencies): RootPlaylistActions {
+    return remember(dependencies) { RootPlaylistActions(dependencies) }
 }
 
 internal fun List<Song>.playbackSourceLabel(

@@ -28,6 +28,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.Locale
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
@@ -95,6 +96,7 @@ internal data class TagEditFailure(
 
 internal class AlbumTagEditorService(
     context: Context,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
@@ -111,7 +113,7 @@ internal class AlbumTagEditorService(
         ),
     )
 
-    suspend fun findBestOnlineMatch(album: Album): OnlineTagMatchOutcome = withContext(Dispatchers.IO) {
+    suspend fun findBestOnlineMatch(album: Album): OnlineTagMatchOutcome = withContext(ioDispatcher) {
         when (val result = albumMatcher.matchAlbum(album)) {
             is AlbumTagMatchResult.Success -> {
                 val suggestion = AlbumTagMatchSuggestion(
@@ -146,7 +148,7 @@ internal class AlbumTagEditorService(
     suspend fun applyEdits(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean = false,
-    ): TagEditApplyResult = withContext(Dispatchers.IO) {
+    ): TagEditApplyResult = withContext(ioDispatcher) {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
         val trackEditsById = request.tracks.associateBy { it.songId }
         val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)

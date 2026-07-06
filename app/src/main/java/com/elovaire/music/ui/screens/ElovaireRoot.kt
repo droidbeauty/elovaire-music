@@ -196,13 +196,14 @@ fun ElovaireRoot(
         navigateToAlbumId = { albumId -> navController.navigate(Routes.album(albumId)) },
     )
     val playbackActions = rememberRootPlaybackActions(
-        container = container,
+        dependencies = container.playbackActionDependencies,
+        playbackManager = container.playbackManager,
         appLanguage = appState.appLanguage,
         songsByAlbumId = songsByAlbumId,
         albumsById = albumsById,
         openNowPlaying = playerLayerController::requestOpen,
     )
-    val playlistActions = rememberRootPlaylistActions(container)
+    val playlistActions = rememberRootPlaylistActions(container.playlistActionDependencies)
     val routeState = rootRouteStateOf(
         appState = appState,
         derivedState = derivedState,
@@ -213,7 +214,10 @@ fun ElovaireRoot(
     )
     val routeActions = rememberRootRouteActions(
         context = context,
-        container = container,
+        libraryDependencies = container.libraryActionDependencies,
+        settingsDependencies = container.settingsActionDependencies,
+        playlistDependencies = container.playlistActionDependencies,
+        updateController = container.appUpdateManager,
         navController = navController,
         navigationState = navigationState,
         playbackActions = playbackActions,

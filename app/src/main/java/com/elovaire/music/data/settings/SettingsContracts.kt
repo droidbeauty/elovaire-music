@@ -54,6 +54,10 @@ internal interface PlaybackSettingsWriter {
     fun setPlaybackVolume(value: Float)
     fun setGaplessPlaybackEnabled(enabled: Boolean)
     fun setVolumeNormalizationEnabled(enabled: Boolean)
+    fun updateBass(value: Float)
+    fun updateMidrange(value: Float)
+    fun updateTreble(value: Float)
+    fun updateMonoPlaybackEnabled(enabled: Boolean)
 }
 
 internal interface PlaylistStore {
