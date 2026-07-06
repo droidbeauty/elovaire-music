@@ -377,6 +377,7 @@ internal class AlbumTagEditorViewModel(
             albumTitle = suggestion.albumTitle.ifBlank { albumTitle },
             albumArtist = suggestion.albumArtist.ifBlank { albumArtist },
             releaseYear = suggestion.releaseYear?.toString().orEmpty().ifBlank { releaseYear },
+            genre = suggestion.genre.ifBlank { genre },
             yearClearedExplicitly = suggestion.releaseYear?.let { false } ?: yearClearedExplicitly,
             tracks = updatedTracks,
             selectedArtworkBytes = suggestion.coverArtBytes ?: selectedArtworkBytes,

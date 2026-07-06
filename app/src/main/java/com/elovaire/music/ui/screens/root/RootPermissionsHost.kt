@@ -29,6 +29,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -140,13 +141,17 @@ internal fun FirstLaunchPermissionLoadingScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = copy.firstLaunchPermissionMessage,
+                        modifier = Modifier.widthIn(max = 380.dp),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.72f),
                         textAlign = TextAlign.Center,
                     )
                     Spacer(modifier = Modifier.height(22.dp))
                     Button(onClick = onRequestPermission) {
-                        Text(text = copy.firstLaunchPermissionButton)
+                        Text(
+                            text = copy.firstLaunchPermissionButton,
+                            fontWeight = FontWeight.SemiBold,
+                        )
                     }
                 }
             }

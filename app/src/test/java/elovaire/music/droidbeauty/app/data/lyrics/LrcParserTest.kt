@@ -76,4 +76,19 @@ class LrcParserTest {
         assertEquals(listOf(10_000L, 10_000L, 12_000L), payload.lines.map { it.startTimeMs })
         assertEquals(listOf(11_999L, 11_999L, null), payload.lines.map { it.endTimeMs })
     }
+
+    @Test
+    fun embeddedTextKeepsSyncedSourceInsteadOfFlatteningTiming() {
+        val raw = "[00:01.00]First line\r\n[00:02.00]Second line\n\n\n"
+        val payload = requireNotNull(
+            parseLrcOrPlain(
+                raw = raw,
+                providerName = "test",
+                confidence = 90,
+            ),
+        )
+
+        assertTrue(payload.isSynced)
+        assertEquals("[00:01.00]First line\n[00:02.00]Second line", payload.toEmbeddedLyricsText())
+    }
 }

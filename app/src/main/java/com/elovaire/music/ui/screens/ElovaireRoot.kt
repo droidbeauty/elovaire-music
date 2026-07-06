@@ -236,6 +236,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
+import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
@@ -8956,8 +8957,7 @@ private fun LyricsOverlay(
         if (!isEditingLyrics) {
             lyricsDraft = (lyricsUiState as? LyricsUiState.Ready)
                 ?.payload
-                ?.lines
-                ?.joinToString("\n") { it.text }
+                ?.toEmbeddedLyricsText()
                 .orEmpty()
         }
     }
@@ -9093,8 +9093,7 @@ private fun LyricsOverlay(
                                 } else {
                                     lyricsDraft = (lyricsUiState as? LyricsUiState.Ready)
                                         ?.payload
-                                        ?.lines
-                                        ?.joinToString("\n") { line -> line.text }
+                                        ?.toEmbeddedLyricsText()
                                         .orEmpty()
                                     onClearLyricsEditorError()
                                     isEditingLyrics = true

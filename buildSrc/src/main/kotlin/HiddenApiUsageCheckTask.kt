@@ -28,7 +28,7 @@ abstract class HiddenApiUsageCheckTask : DefaultTask() {
         val violations = sourceFiles.files
             .filter { it.isFile }
             .flatMap { file ->
-                file.readLines().mapIndexedNotNull { index, line ->
+                file.uncommentedLines().mapNotNull { (index, line) ->
                     patterns
                         .firstOrNull { pattern -> line.contains(pattern) }
                         ?.let { pattern -> "${file.relativeTo(root)}:${index + 1}: $pattern" }
@@ -38,6 +38,39 @@ abstract class HiddenApiUsageCheckTask : DefaultTask() {
             throw GradleException(
                 "Potential hidden/non-SDK API usage detected:\n${violations.joinToString("\n")}",
             )
+        }
+    }
+
+    private fun java.io.File.uncommentedLines(): List<Pair<Int, String>> {
+        var inBlockComment = false
+        return readLines().mapIndexed { index, line ->
+            val builder = StringBuilder(line.length)
+            var position = 0
+            while (position < line.length) {
+                when {
+                    inBlockComment -> {
+                        val end = line.indexOf("*/", position)
+                        if (end == -1) {
+                            position = line.length
+                        } else {
+                            inBlockComment = false
+                            position = end + 2
+                        }
+                    }
+
+                    line.startsWith("//", position) -> position = line.length
+                    line.startsWith("/*", position) -> {
+                        inBlockComment = true
+                        position += 2
+                    }
+
+                    else -> {
+                        builder.append(line[position])
+                        position += 1
+                    }
+                }
+            }
+            index to builder.toString()
         }
     }
 }

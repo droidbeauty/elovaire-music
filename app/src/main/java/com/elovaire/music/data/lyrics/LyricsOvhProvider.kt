@@ -73,6 +73,7 @@ internal class LyricsOvhProvider : LyricsProvider {
                 isSynced = false,
                 providerName = providerName,
                 confidence = score,
+                sourceTextForEmbedding = plainLyrics.canonicalEmbeddedLyricsText(),
             ),
             confidence = score,
             providerName = providerName,

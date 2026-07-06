@@ -13,7 +13,19 @@ internal val MacrobenchmarkScope.uiDevice: UiDevice
     get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
 internal fun MacrobenchmarkScope.waitForAppVisible() {
-    uiDevice.wait(Until.hasObject(By.pkg(TARGET_PACKAGE)), 10_000)
+    check(uiDevice.wait(Until.hasObject(By.pkg(TARGET_PACKAGE)), 10_000)) {
+        "App package did not become visible: $TARGET_PACKAGE"
+    }
+    acceptFirstLaunchStoragePermissionIfVisible()
+}
+
+internal fun MacrobenchmarkScope.grantMediaPermission() {
+    runCatching {
+        uiDevice.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_AUDIO")
+    }
+    runCatching {
+        uiDevice.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_EXTERNAL_STORAGE")
+    }
 }
 
 internal fun MacrobenchmarkScope.clickDescription(description: String) {
@@ -24,8 +36,31 @@ internal fun MacrobenchmarkScope.clickText(text: String) {
     uiDevice.findObject(By.text(text))?.click()
 }
 
+internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
+    val node = uiDevice.wait(Until.findObject(By.desc(description)), 5_000)
+        ?: error("Missing required UI element with contentDescription=$description")
+    node.click()
+    uiDevice.waitForIdle()
+}
+
+internal fun MacrobenchmarkScope.requireClickText(text: String) {
+    val node = uiDevice.wait(Until.findObject(By.text(text)), 5_000)
+        ?: error("Missing required UI element with text=$text")
+    node.click()
+    uiDevice.waitForIdle()
+}
+
 internal fun MacrobenchmarkScope.clickTextContains(text: String) {
     uiDevice.findObject(By.textContains(text))?.click()
+}
+
+private fun MacrobenchmarkScope.acceptFirstLaunchStoragePermissionIfVisible() {
+    uiDevice.findObject(By.text("Allow storage access"))?.let { button ->
+        button.click()
+        uiDevice.waitForIdle()
+        uiDevice.wait(Until.findObject(By.text("Allow")), 5_000)?.click()
+        uiDevice.waitForIdle()
+    }
 }
 
 internal fun MacrobenchmarkScope.homeJourney() {
@@ -36,20 +71,20 @@ internal fun MacrobenchmarkScope.homeJourney() {
 
 internal fun MacrobenchmarkScope.topLevelNavigationJourney() {
     listOf("Albums", "Playlists", "Search", "Home").forEach { destination ->
-        clickDescription(destination)
+        requireClickDescription(destination)
         waitForAppVisible()
     }
 }
 
 internal fun MacrobenchmarkScope.searchJourney() {
-    clickDescription("Search")
+    requireClickDescription("Search")
     waitForAppVisible()
-    uiDevice.findObject(By.focusable(true))?.click()
+    uiDevice.click(uiDevice.displayWidth / 2, (uiDevice.displayHeight * 0.16f).toInt())
     uiDevice.waitForIdle()
     uiDevice.pressKeyCode(android.view.KeyEvent.KEYCODE_A)
     uiDevice.waitForIdle()
     uiDevice.pressBack()
-    clickDescription("Home")
+    requireClickDescription("Home")
 }
 
 internal fun MacrobenchmarkScope.playerJourneyIfAvailable() {
@@ -64,21 +99,21 @@ internal fun MacrobenchmarkScope.playerJourneyIfAvailable() {
 }
 
 internal fun MacrobenchmarkScope.routeOpenBackJourney() {
-    clickDescription("Albums")
+    requireClickDescription("Albums")
     waitForAppVisible()
-    uiDevice.findObject(By.clickable(true))?.click()
-    waitForAppVisible()
-    uiDevice.pressBack()
-    clickDescription("Playlists")
+    uiDevice.click(uiDevice.displayWidth / 2, (uiDevice.displayHeight * 0.35f).toInt())
     waitForAppVisible()
     uiDevice.pressBack()
-    clickDescription("Home")
-    clickDescription("Menu")
-    clickText("Settings")
+    requireClickDescription("Playlists")
     waitForAppVisible()
     uiDevice.pressBack()
-    clickDescription("Menu")
-    clickText("Equalizer")
+    requireClickDescription("Home")
+    requireClickDescription("Menu")
+    requireClickText("Settings")
+    waitForAppVisible()
+    uiDevice.pressBack()
+    requireClickDescription("Menu")
+    requireClickText("Equalizer")
     waitForAppVisible()
     uiDevice.pressBack()
 }

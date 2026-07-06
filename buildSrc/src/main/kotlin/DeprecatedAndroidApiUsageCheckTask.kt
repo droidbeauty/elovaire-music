@@ -24,7 +24,7 @@ abstract class DeprecatedAndroidApiUsageCheckTask : DefaultTask() {
             .filter { file -> file.isFile }
             .flatMap { file ->
                 val relativePath = file.relativeTo(root).path.replace(File.separatorChar, '/')
-                file.readLines().mapIndexedNotNull { index, line ->
+                file.uncommentedLines().mapNotNull { (index, line) ->
                     val pattern = riskyPatterns.firstOrNull { rule ->
                         line.contains(rule.pattern) && rule.allowedPathSuffixes.none(relativePath::endsWith)
                     }
@@ -37,6 +37,39 @@ abstract class DeprecatedAndroidApiUsageCheckTask : DefaultTask() {
                 "Deprecated Android API usage must stay behind approved compatibility shims:\n" +
                     violations.joinToString("\n"),
             )
+        }
+    }
+
+    private fun File.uncommentedLines(): List<Pair<Int, String>> {
+        var inBlockComment = false
+        return readLines().mapIndexed { index, line ->
+            val builder = StringBuilder(line.length)
+            var position = 0
+            while (position < line.length) {
+                when {
+                    inBlockComment -> {
+                        val end = line.indexOf("*/", position)
+                        if (end == -1) {
+                            position = line.length
+                        } else {
+                            inBlockComment = false
+                            position = end + 2
+                        }
+                    }
+
+                    line.startsWith("//", position) -> position = line.length
+                    line.startsWith("/*", position) -> {
+                        inBlockComment = true
+                        position += 2
+                    }
+
+                    else -> {
+                        builder.append(line[position])
+                        position += 1
+                    }
+                }
+            }
+            index to builder.toString()
         }
     }
 

@@ -158,6 +158,7 @@ internal class LyricsCache(
             put("timingProfile", timingProfile.name)
             put("providerName", providerName.orEmpty())
             put("confidence", confidence)
+            sourceTextForEmbedding?.let { put("sourceTextForEmbedding", it) }
             put(
                 "lines",
                 JSONArray().apply {
@@ -201,6 +202,7 @@ internal class LyricsCache(
             }.getOrDefault(SyncedLyricsTimingProfile.ExactIntervals),
             providerName = optString("providerName").takeIf { it.isNotBlank() },
             confidence = optInt("confidence", 0),
+            sourceTextForEmbedding = optString("sourceTextForEmbedding").takeIf { it.isNotBlank() },
         )
     }
 

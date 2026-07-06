@@ -173,9 +173,9 @@ internal data class RootUiCopy(
 
 internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
     AppLanguage.Polish -> RootUiCopy(
-        firstLaunchPermissionTitle = "Muzyka offline wymaga dostępu do Twojej biblioteki",
-        firstLaunchPermissionMessage = "Elovaire skanuje folder Muzyka na urządzeniu, aby znaleźć lokalne albumy, okładki i kolejki utworów",
-        firstLaunchPermissionButton = "Zezwól na dostęp do biblioteki audio",
+        firstLaunchPermissionTitle = "Dostęp do pamięci jest wymagany, aby rozpocząć",
+        firstLaunchPermissionMessage = "Aplikacja domyślnie skanuje folder Muzyka w poszukiwaniu muzyki na urządzeniu",
+        firstLaunchPermissionButton = "Zezwól na dostęp do pamięci",
         appName = "Elovaire",
         allAlbumsTitle = "Wszystkie albumy",
         allAlbumsSubtitle = "Alfabetycznie według wykonawcy albumu, a następnie tytułu albumu.",
@@ -209,9 +209,9 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         editPlaylist = "Edytuj playlistę",
     )
     AppLanguage.Slovak -> RootUiCopy(
-        firstLaunchPermissionTitle = "Offline hudba si zaslúži prístup k vašej knižnici",
-        firstLaunchPermissionMessage = "Elovaire prehľadáva priečinok Music v zariadení a hľadá lokálne albumy, obaly a fronty skladieb",
-        firstLaunchPermissionButton = "Povoliť prístup k zvukovej knižnici",
+        firstLaunchPermissionTitle = "Na spustenie je potrebný prístup k úložisku",
+        firstLaunchPermissionMessage = "Aplikácia predvolene prehľadáva priečinok Music a hľadá hudbu v zariadení",
+        firstLaunchPermissionButton = "Povoliť prístup k úložisku",
         appName = "Elovaire",
         allAlbumsTitle = "Všetky albumy",
         allAlbumsSubtitle = "Abecedne podľa interpreta albumu, potom podľa názvu albumu.",
@@ -245,9 +245,9 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         editPlaylist = "Upraviť playlist",
     )
     AppLanguage.Korean -> RootUiCopy(
-        firstLaunchPermissionTitle = "오프라인 음악에는 라이브러리 접근 권한이 필요합니다",
-        firstLaunchPermissionMessage = "Elovaire가 기기의 Music 폴더를 스캔하여 로컬 앨범, 아트워크, 트랙 대기열을 찾습니다",
-        firstLaunchPermissionButton = "오디오 라이브러리 접근 허용",
+        firstLaunchPermissionTitle = "시작하려면 저장소 접근 권한이 필요합니다",
+        firstLaunchPermissionMessage = "앱은 기본적으로 기기의 음악을 찾기 위해 Music 폴더를 스캔합니다",
+        firstLaunchPermissionButton = "저장소 접근 허용",
         appName = "Elovaire",
         allAlbumsTitle = "모든 앨범",
         allAlbumsSubtitle = "앨범 아티스트 기준 가나다순, 그다음 앨범 제목순입니다.",
@@ -281,9 +281,9 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         editPlaylist = "플레이리스트 편집",
     )
     AppLanguage.Malay -> RootUiCopy(
-        firstLaunchPermissionTitle = "Audio luar talian memerlukan akses ke pustaka anda",
-        firstLaunchPermissionMessage = "Elovaire mengimbas folder Music pada peranti untuk album tempatan, karya seni dan barisan trek",
-        firstLaunchPermissionButton = "Benarkan akses pustaka audio",
+        firstLaunchPermissionTitle = "Akses storan diperlukan untuk bermula",
+        firstLaunchPermissionMessage = "Aplikasi mengimbas folder Music secara lalai untuk mencari muzik pada peranti",
+        firstLaunchPermissionButton = "Benarkan akses storan",
         appName = "Elovaire",
         allAlbumsTitle = "Semua album",
         allAlbumsSubtitle = "Disusun mengikut artis album, kemudian tajuk album.",
@@ -317,9 +317,9 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         editPlaylist = "Edit senarai main",
     )
     AppLanguage.Bengali -> RootUiCopy(
-        firstLaunchPermissionTitle = "অফলাইন অডিওর জন্য আপনার লাইব্রেরিতে প্রবেশাধিকার দরকার",
-        firstLaunchPermissionMessage = "Elovaire আপনার ডিভাইসের Music ফোল্ডার স্ক্যান করে স্থানীয় অ্যালবাম, কভার আর্ট ও ট্র্যাক কিউ খুঁজে নেয়",
-        firstLaunchPermissionButton = "অডিও লাইব্রেরি অ্যাক্সেস দিন",
+        firstLaunchPermissionTitle = "শুরু করতে স্টোরেজ অ্যাক্সেস প্রয়োজন",
+        firstLaunchPermissionMessage = "অ্যাপটি ডিভাইসে গান খুঁজতে ডিফল্টভাবে Music ফোল্ডার স্ক্যান করে",
+        firstLaunchPermissionButton = "স্টোরেজ অ্যাক্সেস দিন",
         appName = "Elovaire",
         allAlbumsTitle = "সব অ্যালবাম",
         allAlbumsSubtitle = "অ্যালবাম শিল্পী অনুযায়ী, তারপর অ্যালবামের শিরোনাম অনুযায়ী বর্ণানুক্রমে।",
@@ -353,9 +353,9 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         editPlaylist = "প্লেলিস্ট সম্পাদনা",
     )
     AppLanguage.Urdu -> RootUiCopy(
-        firstLaunchPermissionTitle = "آف لائن آڈیو کو آپ کی لائبریری تک رسائی درکار ہے",
-        firstLaunchPermissionMessage = "Elovaire آپ کے آلے کے Music فولڈر کو اسکین کرتا ہے تاکہ مقامی البمز، آرٹ ورک اور ٹریک قطاریں تلاش کی جا سکیں",
-        firstLaunchPermissionButton = "آڈیو لائبریری تک رسائی دیں",
+        firstLaunchPermissionTitle = "شروع کرنے کے لیے اسٹوریج تک رسائی درکار ہے",
+        firstLaunchPermissionMessage = "ایپ ڈیفالٹ طور پر آلے میں موسیقی تلاش کرنے کے لیے Music فولڈر اسکین کرتی ہے",
+        firstLaunchPermissionButton = "اسٹوریج تک رسائی دیں",
         appName = "Elovaire",
         allAlbumsTitle = "تمام البمز",
         allAlbumsSubtitle = "پہلے البم آرٹسٹ، پھر البم عنوان کے مطابق حروف تہجی ترتیب۔",
@@ -389,9 +389,9 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         editPlaylist = "پلے لسٹ میں ترمیم کریں",
     )
     else -> RootUiCopy(
-        firstLaunchPermissionTitle = "Offline audio deserves access to your library",
-        firstLaunchPermissionMessage = "Elovaire scans the device Music folder for local albums, artwork, and track queues",
-        firstLaunchPermissionButton = "Allow audio library access",
+        firstLaunchPermissionTitle = "Storage access required to start",
+        firstLaunchPermissionMessage = "The app scans Music folder by default in search for music on the device",
+        firstLaunchPermissionButton = "Allow storage access",
         appName = "Elovaire",
         allAlbumsTitle = "All albums",
         allAlbumsSubtitle = "Alphabetical by album artist, then album title.",

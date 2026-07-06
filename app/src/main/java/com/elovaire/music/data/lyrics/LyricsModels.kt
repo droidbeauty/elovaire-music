@@ -77,6 +77,7 @@ data class LyricsPayload(
     val timingProfile: SyncedLyricsTimingProfile = SyncedLyricsTimingProfile.ExactIntervals,
     val providerName: String? = null,
     val confidence: Int = 0,
+    val sourceTextForEmbedding: String? = null,
 ) {
     fun currentLineIndexAt(
         positionMs: Long,

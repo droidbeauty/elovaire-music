@@ -9,6 +9,7 @@
     <release version="2.4">
         <item>Redesigned timer pop-up menu</item>
         <item>UI tweaks to queue menu</item>
+        <item>Improved touch recognition for fast scrollbars</item>
         <item>Stability and performance tweaks</item>
         <item>General bug fixes</item>
     </release>

@@ -25,8 +25,9 @@ class AppStartupBenchmark {
             metrics = listOf(StartupTimingMetric()),
             compilationMode = CompilationMode.None(),
             startupMode = StartupMode.COLD,
-            iterations = 1,
+            iterations = benchmarkIterations(),
             setupBlock = {
+                grantMediaPermission()
                 pressHome()
             },
         ) {
@@ -43,8 +44,9 @@ class AppStartupBenchmark {
             metrics = listOf(StartupTimingMetric()),
             compilationMode = CompilationMode.None(),
             startupMode = StartupMode.WARM,
-            iterations = 1,
+            iterations = benchmarkIterations(),
             setupBlock = {
+                grantMediaPermission()
                 pressHome()
             },
         ) {
@@ -61,8 +63,9 @@ class AppStartupBenchmark {
             metrics = listOf(FrameTimingMetric()),
             compilationMode = CompilationMode.None(),
             startupMode = StartupMode.WARM,
-            iterations = 1,
+            iterations = benchmarkIterations(),
             setupBlock = {
+                grantMediaPermission()
                 pressHome()
                 startActivityAndWait()
                 waitForAppVisible()

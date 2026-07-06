@@ -18,9 +18,10 @@ class BaselineProfileGenerator {
         assumeMacrobenchmarksEnabled()
         baselineProfileRule.collect(
             packageName = TARGET_PACKAGE,
-            maxIterations = 1,
-            stableIterations = 1,
+            maxIterations = baselineProfileMaxIterations(),
+            stableIterations = baselineProfileStableIterations(),
         ) {
+            grantMediaPermission()
             pressHome()
             startActivityAndWait()
             waitForAppVisible()

@@ -68,6 +68,7 @@ internal fun parseLrcOrPlain(
                 isSynced = false,
                 providerName = providerName,
                 confidence = confidence,
+                sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsText(),
             )
         }
     }
@@ -85,6 +86,7 @@ internal fun parseLrcOrPlain(
         isSynced = true,
         providerName = providerName,
         confidence = confidence,
+        sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsText(),
     )
 }
 
@@ -138,6 +140,15 @@ internal fun String.normalizeLyricBreaks(): String {
         .replace(Regex("""(?i)</\s*p\s*>"""), "\n")
         .replace(Regex("""(?i)<\s*/?\s*(div|p|span)[^>]*>"""), "\n")
 }
+
+internal fun String.canonicalEmbeddedLyricsText(): String =
+    normalizeLyricBreaks()
+        .replace(Regex("""\n{3,}"""), "\n\n")
+        .trimEnd()
+
+internal fun LyricsPayload.toEmbeddedLyricsText(): String =
+    (sourceTextForEmbedding ?: lines.joinToString("\n") { it.text })
+        .canonicalEmbeddedLyricsText()
 
 internal fun decodeBestEffortText(bytes: ByteArray): String {
     if (bytes.isEmpty()) return ""

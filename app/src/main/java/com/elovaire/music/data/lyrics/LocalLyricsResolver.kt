@@ -47,16 +47,10 @@ internal class LocalLyricsResolver(
                 .tag
                 ?.getFirst(FieldKey.LYRICS)
                 .orEmpty()
-                .trim()
-            val lines = parsePlainLyrics(rawLyrics).orEmpty()
-            if (lines.isEmpty()) null else LocalLyricsMatch(
-                LyricsPayload(
-                    lines = lines,
-                    isSynced = false,
-                    providerName = "Embedded",
-                    confidence = 100,
-                ),
-            )
+                .canonicalEmbeddedLyricsText()
+            parseLrcOrPlain(rawLyrics, providerName = "Embedded", confidence = 100)
+                ?.takeIf { it.lines.isNotEmpty() }
+                ?.let(::LocalLyricsMatch)
         } catch (_: Throwable) {
             null
         } finally {

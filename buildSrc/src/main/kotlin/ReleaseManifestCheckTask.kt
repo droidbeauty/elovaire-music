@@ -23,13 +23,31 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "android:allowBackup=\"false\"",
             "android:dataExtractionRules=\"@xml/data_extraction_rules\"",
             "android:fullBackupContent=\"@xml/backup_rules\"",
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            "android.permission.POST_NOTIFICATIONS",
+            "android.permission.READ_MEDIA_AUDIO",
             "android.permission.REQUEST_INSTALL_PACKAGES",
+            "android:foregroundServiceType=\"mediaPlayback\"",
             "androidx.core.content.FileProvider",
+            "androidx.media3.session.MediaButtonReceiver",
             "AppUpdateInstallReceiver",
+            "ElovaireMediaLibraryService",
+            "androidx.media3.session.MediaLibraryService",
+            "android.media.browse.MediaBrowserService",
             ".fileprovider",
         ).forEach { value ->
             if (value !in text) {
                 throw GradleException("Release manifest is missing expected entry: $value")
+            }
+        }
+        listOf(
+            "android.permission.MANAGE_EXTERNAL_STORAGE",
+            "android:usesCleartextTraffic=\"true\"",
+            "android:debuggable=\"true\"",
+        ).forEach { value ->
+            if (value in text) {
+                throw GradleException("Release manifest contains forbidden entry: $value")
             }
         }
     }

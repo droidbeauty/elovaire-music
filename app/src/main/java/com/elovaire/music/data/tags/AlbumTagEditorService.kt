@@ -65,6 +65,7 @@ internal data class AlbumTagMatchSuggestion(
     val albumTitle: String,
     val albumArtist: String,
     val releaseYear: Int?,
+    val genre: String,
     val coverArtBytes: ByteArray?,
     val tracks: List<EditableAlbumTrack>,
 )
@@ -117,6 +118,7 @@ internal class AlbumTagEditorService(
                     albumTitle = result.match.release.title.ifBlank { album.title },
                     albumArtist = result.match.release.albumArtist.ifBlank { album.artist },
                     releaseYear = result.match.release.releaseYear,
+                    genre = album.songs.firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty(),
                     coverArtBytes = result.artwork?.bytes,
                     tracks = album.songs.map { song ->
                         val resolved = result.match.trackMatches.firstOrNull { it.song.id == song.id }
@@ -142,10 +144,7 @@ internal class AlbumTagEditorService(
     }
 
     suspend fun applyEdits(request: AlbumTagEditRequest): TagEditApplyResult = withContext(Dispatchers.IO) {
-        logDebug(
-            "Applying tag edit album=${request.album.id} title=${request.albumTitle} " +
-                "artist=${request.albumArtist} releaseYear=${request.releaseYear} tracks=${request.tracks.size}",
-        )
+        logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
         val trackEditsById = request.tracks.associateBy { it.songId }
         val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)
         val coverArtMimeType = coverArtBytes?.let(::detectMimeType)

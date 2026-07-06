@@ -36,7 +36,7 @@ internal class EmbeddedLyricsWriter(context: Context) {
     }
 
     fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
-        val lyrics = rawLyrics.trim()
+        val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
         val detectedFormat = song.fileName
             .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
             ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
@@ -76,13 +76,14 @@ internal class EmbeddedLyricsWriter(context: Context) {
                 throw throwable
             }
 
-            val lines = parsePlainLyrics(lyrics).orEmpty()
+            val payload = parseLrcOrPlain(lyrics, providerName = "Embedded", confidence = 100)
             EmbeddedLyricsWriteResult.Success(
-                LyricsPayload(
-                    lines = lines,
+                payload ?: LyricsPayload(
+                    lines = emptyList(),
                     isSynced = false,
                     providerName = "Embedded",
                     confidence = 100,
+                    sourceTextForEmbedding = lyrics,
                 ),
             )
         } catch (throwable: CancellationException) {
@@ -103,8 +104,8 @@ internal class EmbeddedLyricsWriter(context: Context) {
             .tagOrCreateAndSetDefault
             .getFirst(FieldKey.LYRICS)
             .orEmpty()
-            .trim()
-        check(actual == expected) { "Lyrics verification failed after writing metadata." }
+            .canonicalEmbeddedLyricsText()
+        check(actual == expected.canonicalEmbeddedLyricsText()) { "Lyrics verification failed after writing metadata." }
     }
 
     private fun copySongToTemp(song: Song, purpose: String): File {

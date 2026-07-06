@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
+import elovaire.music.droidbeauty.app.data.lyrics.canonicalEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
@@ -285,7 +286,7 @@ internal class NowPlayingViewModel(
     fun requestSaveLyrics(rawLyrics: String) {
         if (_lyricsEditorUiState.value.isSaving) return
         val song = playbackManager.nowPlayingState.value.currentSong ?: return
-        val lyrics = rawLyrics.trim()
+        val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
         pendingLyricsSave = PendingLyricsSave(song, lyrics)
         lyricsService.createLyricsWritePermissionRequest(song)?.let { request ->
             _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
