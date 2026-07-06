@@ -6,11 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.4">
-        <item>Redesigned timer pop-up menu</item>
-        <item>UI tweaks to queue menu</item>
-        <item>Improved touch recognition for fast scrollbars</item>
-        <item>Stability and performance tweaks</item>
-        <item>General bug fixes</item>
+    <release version="2.4.1">
+        <item>Minor UI tweaks in playlists screen</item>
+        <item>Added translations of missing UI parts for all supported languages</item>
     </release>
 </changelog>

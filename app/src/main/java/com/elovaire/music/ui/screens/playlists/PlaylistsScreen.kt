@@ -11,20 +11,16 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -54,10 +50,13 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.PlaylistMainCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.playlistMainCopy
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSortLabel
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
@@ -72,8 +71,6 @@ internal fun PlaylistsScreen(
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
-    onRequestCreatePlaylist: () -> Unit,
-    onRequestCreateSmartPlaylist: () -> Unit,
     onRenamePlaylist: (Long, String) -> Unit,
     onDeletePlaylists: (Set<Long>) -> Unit,
     onOpenPlaylist: (Playlist, ExpandOrigin) -> Unit,
@@ -144,29 +141,6 @@ internal fun PlaylistsScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                item(
-                    key = "playlist_actions",
-                    span = { GridItemSpan(maxLineSpan) },
-                    contentType = "playlist_actions",
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        PlaylistActionPill(
-                            iconResId = R.drawable.ic_lucide_plus,
-                            text = "New playlist",
-                            onClick = onRequestCreatePlaylist,
-                            modifier = Modifier.weight(1f),
-                        )
-                        PlaylistActionPill(
-                            iconResId = R.drawable.ic_lucide_sliders_vertical,
-                            text = "Smart playlist",
-                            onClick = onRequestCreateSmartPlaylist,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                }
                 items(
                     items = playlistRows,
                     key = { it.playlist.id },
@@ -204,18 +178,22 @@ internal fun PlaylistsScreen(
                         span = { GridItemSpan(maxLineSpan) },
                         contentType = "playlist_section_header",
                     ) {
-                        PlaylistSectionHeader("Smart mixes")
+                        PlaylistSectionHeader(playlistMainCopy(LocalAppLanguage.current).smartMixes)
                     }
-                    itemsIndexed(
-                        items = smartPlaylists,
-                        key = { _, row -> row.playlist.id },
-                        span = { _, _ -> GridItemSpan(maxLineSpan) },
-                        contentType = { _, _ -> "smart_mix_row" },
-                    ) { _, row ->
-                        SmartPlaylistListRow(
-                            summary = row,
-                            onClick = { origin -> onOpenSmartPlaylist(row, origin) },
-                        )
+                    item(
+                        key = "smart_mix_rows",
+                        span = { GridItemSpan(maxLineSpan) },
+                        contentType = "smart_mix_rows",
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            smartPlaylists.forEach { row ->
+                                SmartPlaylistListRow(
+                                    summary = row,
+                                    copy = playlistMainCopy(LocalAppLanguage.current),
+                                    onClick = { origin -> onOpenSmartPlaylist(row, origin) },
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -300,6 +278,7 @@ private fun PlaylistSectionHeader(text: String) {
 @Composable
 private fun SmartPlaylistListRow(
     summary: SmartPlaylistSummary,
+    copy: PlaylistMainCopy,
     onClick: (ExpandOrigin) -> Unit,
 ) {
     val language = LocalAppLanguage.current
@@ -337,56 +316,20 @@ private fun SmartPlaylistListRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = "${localizedCountLabel(songs.size, "song", language)} • Auto-updating",
+                text = "${localizedCountLabel(songs.size, "song", language)} • ${copy.autoUpdating}",
                 style = MaterialTheme.typography.labelLarge,
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = summary.subtitle.substringAfter(" • "),
+                text = smartPlaylistSortLabel(language, summary.playlist.sort.field),
                 style = MaterialTheme.typography.labelLarge,
                 color = readableSecondaryTextColor().copy(alpha = 0.7f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-    }
-}
-
-@Composable
-private fun PlaylistActionPill(
-    iconResId: Int,
-    text: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(ElovaireRadii.pill))
-            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.72f))
-            .combinedClickable(
-                interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                indication = null,
-                onClick = onClick,
-                onLongClick = {},
-            )
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(id = iconResId),
-            contentDescription = null,
-            modifier = Modifier.size(17.dp),
-        )
-        Spacer(modifier = Modifier.width(8.dp))
-        Text(
-            text = text,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

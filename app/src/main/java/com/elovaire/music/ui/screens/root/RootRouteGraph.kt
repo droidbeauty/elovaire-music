@@ -77,8 +77,6 @@ internal fun RootRouteGraph(
                 topPadding = padding.topContent,
                 bottomPadding = padding.bottomContent,
                 scrollToTopRequestVersion = navState.playlistsScrollRequestVersion,
-                onRequestCreatePlaylist = routeActions.onRequestCreatePlaylist,
-                onRequestCreateSmartPlaylist = { routeActions.openSmartPlaylistEditor() },
                 onRenamePlaylist = routeActions::renamePlaylist,
                 onDeletePlaylists = routeActions::deletePlaylists,
                 onOpenPlaylist = { playlist, origin -> routeActions.openPlaylist(playlist.id, origin) },

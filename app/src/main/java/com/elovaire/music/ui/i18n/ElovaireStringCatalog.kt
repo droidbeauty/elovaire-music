@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.i18n
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSortField
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
@@ -424,6 +425,122 @@ internal fun rootUiCopy(language: AppLanguage): RootUiCopy = when (language) {
         savePlaylistChanges = "Save playlist changes",
         editPlaylist = "Edit playlist",
     )
+}.withLocalizedFirstLaunchPermission(language)
+
+private fun RootUiCopy.withLocalizedFirstLaunchPermission(language: AppLanguage): RootUiCopy {
+    return copy(
+        firstLaunchPermissionTitle = firstLaunchPermissionTitle(language),
+        firstLaunchPermissionMessage = firstLaunchPermissionMessage(language),
+        firstLaunchPermissionButton = firstLaunchPermissionButton(language),
+    )
+}
+
+private fun firstLaunchPermissionTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Dostęp do pamięci jest wymagany, aby rozpocząć"
+    AppLanguage.Albanian -> "Kërkohet qasje në hapësirën ruajtëse"
+    AppLanguage.ChineseSimplified -> "需要存储访问权限才能开始"
+    AppLanguage.Croatian -> "Za početak je potreban pristup pohrani"
+    AppLanguage.Czech -> "Pro spuštění je potřeba přístup k úložišti"
+    AppLanguage.Danish -> "Lageradgang kræves for at starte"
+    AppLanguage.Dutch -> "Opslagtoegang vereist om te beginnen"
+    AppLanguage.Estonian -> "Alustamiseks on vaja juurdepääsu salvestusruumile"
+    AppLanguage.French -> "Accès au stockage requis pour commencer"
+    AppLanguage.German -> "Speicherzugriff zum Start erforderlich"
+    AppLanguage.Greek -> "Απαιτείται πρόσβαση στον χώρο αποθήκευσης"
+    AppLanguage.Hindi -> "शुरू करने के लिए स्टोरेज एक्सेस चाहिए"
+    AppLanguage.Hungarian -> "A kezdéshez tárhely-hozzáférés szükséges"
+    AppLanguage.Italian -> "Accesso allo spazio di archiviazione richiesto"
+    AppLanguage.Japanese -> "開始するにはストレージアクセスが必要です"
+    AppLanguage.Latin -> "Accessus ad repositorium requiritur"
+    AppLanguage.Latvian -> "Lai sāktu, vajadzīga piekļuve krātuvei"
+    AppLanguage.Lithuanian -> "Norint pradėti reikia saugyklos prieigos"
+    AppLanguage.Macedonian -> "Потребен е пристап до складиште"
+    AppLanguage.Norwegian -> "Lagringstilgang kreves for å starte"
+    AppLanguage.Portuguese -> "É necessário acesso ao armazenamento"
+    AppLanguage.Russian -> "Для начала нужен доступ к хранилищу"
+    AppLanguage.Serbian -> "Потребан је приступ складишту"
+    AppLanguage.Spanish -> "Se necesita acceso al almacenamiento"
+    AppLanguage.Swedish -> "Lagringsåtkomst krävs för att börja"
+    AppLanguage.Thai -> "ต้องให้สิทธิ์เข้าถึงพื้นที่เก็บข้อมูลเพื่อเริ่ม"
+    AppLanguage.Ukrainian -> "Для початку потрібен доступ до сховища"
+    AppLanguage.Slovak -> "Na spustenie je potrebný prístup k úložisku"
+    AppLanguage.Korean -> "시작하려면 저장소 접근 권한이 필요합니다"
+    AppLanguage.Malay -> "Akses storan diperlukan untuk bermula"
+    AppLanguage.Bengali -> "শুরু করতে স্টোরেজ অ্যাক্সেস প্রয়োজন"
+    AppLanguage.Urdu -> "شروع کرنے کے لیے اسٹوریج تک رسائی درکار ہے"
+    AppLanguage.English -> "Storage access required to start"
+}
+
+private fun firstLaunchPermissionMessage(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Aplikacja domyślnie skanuje folder Muzyka w poszukiwaniu muzyki na urządzeniu"
+    AppLanguage.Albanian -> "Aplikacioni skanon si parazgjedhje dosjen Music për të gjetur muzikë në pajisje"
+    AppLanguage.ChineseSimplified -> "应用默认扫描 Music 文件夹，以查找设备上的音乐"
+    AppLanguage.Croatian -> "Aplikacija prema zadanim postavkama skenira mapu Music kako bi pronašla glazbu na uređaju"
+    AppLanguage.Czech -> "Aplikace ve výchozím nastavení skenuje složku Music a hledá hudbu v zařízení"
+    AppLanguage.Danish -> "Appen scanner som standard Music-mappen for at finde musik på enheden"
+    AppLanguage.Dutch -> "De app scant standaard de map Music om muziek op het apparaat te vinden"
+    AppLanguage.Estonian -> "Rakendus skannib vaikimisi kausta Music, et leida seadmest muusikat"
+    AppLanguage.French -> "L’application analyse par défaut le dossier Music pour trouver la musique sur l’appareil"
+    AppLanguage.German -> "Die App scannt standardmäßig den Ordner Music, um Musik auf dem Gerät zu finden"
+    AppLanguage.Greek -> "Η εφαρμογή σαρώνει από προεπιλογή τον φάκελο Music για να βρει μουσική στη συσκευή"
+    AppLanguage.Hindi -> "ऐप डिवाइस पर संगीत खोजने के लिए डिफ़ॉल्ट रूप से Music फ़ोल्डर स्कैन करता है"
+    AppLanguage.Hungarian -> "Az app alapértelmezés szerint a Music mappát olvassa be, hogy zenét találjon az eszközön"
+    AppLanguage.Italian -> "L’app scansiona per impostazione predefinita la cartella Music per trovare musica sul dispositivo"
+    AppLanguage.Japanese -> "アプリは既定で Music フォルダをスキャンし、端末上の音楽を探します"
+    AppLanguage.Latin -> "App folder Music per defaltum scrutatur ut musicam in machina inveniat"
+    AppLanguage.Latvian -> "Lietotne pēc noklusējuma skenē mapi Music, lai ierīcē atrastu mūziku"
+    AppLanguage.Lithuanian -> "Programa pagal numatymą skenuoja Music aplanką, kad rastų muziką įrenginyje"
+    AppLanguage.Macedonian -> "Апликацијата стандардно ја скенира папката Music за да најде музика на уредот"
+    AppLanguage.Norwegian -> "Appen skanner Music-mappen som standard for å finne musikk på enheten"
+    AppLanguage.Portuguese -> "A app analisa por predefinição a pasta Music para encontrar música no dispositivo"
+    AppLanguage.Russian -> "Приложение по умолчанию сканирует папку Music, чтобы найти музыку на устройстве"
+    AppLanguage.Serbian -> "Апликација подразумевано скенира фасциклу Music да пронађе музику на уређају"
+    AppLanguage.Spanish -> "La app escanea de forma predeterminada la carpeta Music para buscar música en el dispositivo"
+    AppLanguage.Swedish -> "Appen skannar som standard Music-mappen för att hitta musik på enheten"
+    AppLanguage.Thai -> "แอปจะสแกนโฟลเดอร์ Music เป็นค่าเริ่มต้นเพื่อค้นหาเพลงในอุปกรณ์"
+    AppLanguage.Ukrainian -> "Застосунок типово сканує папку Music, щоб знайти музику на пристрої"
+    AppLanguage.Slovak -> "Aplikácia predvolene prehľadáva priečinok Music a hľadá hudbu v zariadení"
+    AppLanguage.Korean -> "앱은 기본적으로 기기의 음악을 찾기 위해 Music 폴더를 스캔합니다"
+    AppLanguage.Malay -> "Aplikasi mengimbas folder Music secara lalai untuk mencari muzik pada peranti"
+    AppLanguage.Bengali -> "অ্যাপটি ডিভাইসে গান খুঁজতে ডিফল্টভাবে Music ফোল্ডার স্ক্যান করে"
+    AppLanguage.Urdu -> "ایپ ڈیفالٹ طور پر آلے میں موسیقی تلاش کرنے کے لیے Music فولڈر اسکین کرتی ہے"
+    AppLanguage.English -> "The app scans Music folder by default in search for music on the device"
+}
+
+private fun firstLaunchPermissionButton(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Zezwól na dostęp do pamięci"
+    AppLanguage.Albanian -> "Lejo qasjen në hapësirën ruajtëse"
+    AppLanguage.ChineseSimplified -> "允许存储访问"
+    AppLanguage.Croatian -> "Dopusti pristup pohrani"
+    AppLanguage.Czech -> "Povolit přístup k úložišti"
+    AppLanguage.Danish -> "Tillad lageradgang"
+    AppLanguage.Dutch -> "Opslagtoegang toestaan"
+    AppLanguage.Estonian -> "Luba juurdepääs salvestusruumile"
+    AppLanguage.French -> "Autoriser l’accès au stockage"
+    AppLanguage.German -> "Speicherzugriff erlauben"
+    AppLanguage.Greek -> "Να επιτραπεί η πρόσβαση στον χώρο αποθήκευσης"
+    AppLanguage.Hindi -> "स्टोरेज एक्सेस दें"
+    AppLanguage.Hungarian -> "Tárhely-hozzáférés engedélyezése"
+    AppLanguage.Italian -> "Consenti accesso allo spazio"
+    AppLanguage.Japanese -> "ストレージアクセスを許可"
+    AppLanguage.Latin -> "Accessum ad repositorium sine"
+    AppLanguage.Latvian -> "Atļaut piekļuvi krātuvei"
+    AppLanguage.Lithuanian -> "Leisti saugyklos prieigą"
+    AppLanguage.Macedonian -> "Дозволи пристап до складиште"
+    AppLanguage.Norwegian -> "Tillat lagringstilgang"
+    AppLanguage.Portuguese -> "Permitir acesso ao armazenamento"
+    AppLanguage.Russian -> "Разрешить доступ к хранилищу"
+    AppLanguage.Serbian -> "Дозволи приступ складишту"
+    AppLanguage.Spanish -> "Permitir acceso al almacenamiento"
+    AppLanguage.Swedish -> "Tillåt lagringsåtkomst"
+    AppLanguage.Thai -> "อนุญาตการเข้าถึงพื้นที่เก็บข้อมูล"
+    AppLanguage.Ukrainian -> "Дозволити доступ до сховища"
+    AppLanguage.Slovak -> "Povoliť prístup k úložisku"
+    AppLanguage.Korean -> "저장소 접근 허용"
+    AppLanguage.Malay -> "Benarkan akses storan"
+    AppLanguage.Bengali -> "স্টোরেজ অ্যাক্সেস দিন"
+    AppLanguage.Urdu -> "اسٹوریج تک رسائی دیں"
+    AppLanguage.English -> "Allow storage access"
 }
 
 internal fun availableReleasesLabel(count: Int, language: AppLanguage): String {
@@ -1644,6 +1761,227 @@ internal fun commonUiCopy(language: AppLanguage): CommonUiCopy = when (language)
     AppLanguage.English -> CommonUiCopy("Home", "Library", "Playlists", "Search", "Welcome", "Songs", "Albums", "Artists", "Genres", "Light", "Dark", "System", "in your library", "in total", "found", "Your music, refined into an elegant experience")
 }
 
+internal data class PlaylistMainCopy(
+    val smartMixes: String,
+    val autoUpdating: String,
+)
+
+internal fun playlistMainCopy(language: AppLanguage): PlaylistMainCopy = PlaylistMainCopy(
+    smartMixes = smartMixesLabel(language),
+    autoUpdating = autoUpdatingLabel(language),
+)
+
+private fun smartMixesLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Smart miksy"
+    AppLanguage.Albanian -> "Përzierje smart"
+    AppLanguage.ChineseSimplified -> "智能混音"
+    AppLanguage.Croatian -> "Pametni miksevi"
+    AppLanguage.Czech -> "Chytré mixy"
+    AppLanguage.Danish -> "Smarte miks"
+    AppLanguage.Dutch -> "Slimme mixes"
+    AppLanguage.Estonian -> "Nutikad miksid"
+    AppLanguage.French -> "Mix intelligents"
+    AppLanguage.German -> "Smarte Mixe"
+    AppLanguage.Greek -> "Έξυπνες μίξεις"
+    AppLanguage.Hindi -> "स्मार्ट मिक्स"
+    AppLanguage.Hungarian -> "Okos mixek"
+    AppLanguage.Italian -> "Mix smart"
+    AppLanguage.Japanese -> "スマートミックス"
+    AppLanguage.Latin -> "Mixturae callidae"
+    AppLanguage.Latvian -> "Viedie miksi"
+    AppLanguage.Lithuanian -> "Išmanūs miksai"
+    AppLanguage.Macedonian -> "Паметни миксови"
+    AppLanguage.Norwegian -> "Smarte mikser"
+    AppLanguage.Portuguese -> "Misturas inteligentes"
+    AppLanguage.Russian -> "Умные миксы"
+    AppLanguage.Serbian -> "Паметни миксеви"
+    AppLanguage.Spanish -> "Mezclas inteligentes"
+    AppLanguage.Swedish -> "Smarta mixar"
+    AppLanguage.Thai -> "มิกซ์อัจฉริยะ"
+    AppLanguage.Ukrainian -> "Розумні мікси"
+    AppLanguage.Slovak -> "Smart mixy"
+    AppLanguage.Korean -> "스마트 믹스"
+    AppLanguage.Malay -> "Campuran pintar"
+    AppLanguage.Bengali -> "স্মার্ট মিক্স"
+    AppLanguage.Urdu -> "اسمارٹ مکسز"
+    AppLanguage.English -> "Smart mixes"
+}
+
+private fun autoUpdatingLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Aktualizuje się automatycznie"
+    AppLanguage.Albanian -> "Përditësohet automatikisht"
+    AppLanguage.ChineseSimplified -> "自动更新"
+    AppLanguage.Croatian -> "Automatski se ažurira"
+    AppLanguage.Czech -> "Automaticky se aktualizuje"
+    AppLanguage.Danish -> "Opdateres automatisk"
+    AppLanguage.Dutch -> "Wordt automatisch bijgewerkt"
+    AppLanguage.Estonian -> "Uueneb automaatselt"
+    AppLanguage.French -> "Mise à jour automatique"
+    AppLanguage.German -> "Aktualisiert sich automatisch"
+    AppLanguage.Greek -> "Ενημερώνεται αυτόματα"
+    AppLanguage.Hindi -> "अपने आप अपडेट होता है"
+    AppLanguage.Hungarian -> "Automatikusan frissül"
+    AppLanguage.Italian -> "Si aggiorna automaticamente"
+    AppLanguage.Japanese -> "自動更新"
+    AppLanguage.Latin -> "Sponte renovatur"
+    AppLanguage.Latvian -> "Atjauninās automātiski"
+    AppLanguage.Lithuanian -> "Atnaujinama automatiškai"
+    AppLanguage.Macedonian -> "Се ажурира автоматски"
+    AppLanguage.Norwegian -> "Oppdateres automatisk"
+    AppLanguage.Portuguese -> "Atualiza automaticamente"
+    AppLanguage.Russian -> "Обновляется автоматически"
+    AppLanguage.Serbian -> "Аутоматски се ажурира"
+    AppLanguage.Spanish -> "Se actualiza automáticamente"
+    AppLanguage.Swedish -> "Uppdateras automatiskt"
+    AppLanguage.Thai -> "อัปเดตอัตโนมัติ"
+    AppLanguage.Ukrainian -> "Оновлюється автоматично"
+    AppLanguage.Slovak -> "Aktualizuje sa automaticky"
+    AppLanguage.Korean -> "자동 업데이트"
+    AppLanguage.Malay -> "Dikemas kini automatik"
+    AppLanguage.Bengali -> "স্বয়ংক্রিয়ভাবে আপডেট হয়"
+    AppLanguage.Urdu -> "خودکار طور پر اپ ڈیٹ ہوتا ہے"
+    AppLanguage.English -> "Auto-updating"
+}
+
+internal fun smartPlaylistSortLabel(language: AppLanguage, field: SmartPlaylistSortField): String {
+    return when (field) {
+        SmartPlaylistSortField.Title -> sortedByLabel(language, titleName(language))
+        SmartPlaylistSortField.Artist -> sortedByLabel(language, artistName(language))
+        SmartPlaylistSortField.Album -> sortedByLabel(language, albumName(language))
+        SmartPlaylistSortField.Genre -> sortedByLabel(language, genreName(language))
+        SmartPlaylistSortField.Duration -> sortedByLabel(language, durationName(language))
+        SmartPlaylistSortField.DateAdded -> sortedByLabel(language, dateAddedName(language))
+        SmartPlaylistSortField.PlayCount -> sortedByLabel(language, playCountName(language))
+        SmartPlaylistSortField.Random -> randomOrderLabel(language)
+    }
+}
+
+private fun sortedByLabel(language: AppLanguage, field: String): String = when (language) {
+    AppLanguage.Polish -> "Sortowane według: $field"
+    AppLanguage.Albanian -> "Renditur sipas: $field"
+    AppLanguage.ChineseSimplified -> "排序依据：$field"
+    AppLanguage.Croatian -> "Sortirano po: $field"
+    AppLanguage.Czech -> "Seřazeno podle: $field"
+    AppLanguage.Danish -> "Sorteret efter: $field"
+    AppLanguage.Dutch -> "Gesorteerd op: $field"
+    AppLanguage.Estonian -> "Sorditud: $field"
+    AppLanguage.French -> "Trié par : $field"
+    AppLanguage.German -> "Sortiert nach: $field"
+    AppLanguage.Greek -> "Ταξινόμηση κατά: $field"
+    AppLanguage.Hindi -> "इसके अनुसार क्रमबद्ध: $field"
+    AppLanguage.Hungarian -> "Rendezés: $field"
+    AppLanguage.Italian -> "Ordinato per: $field"
+    AppLanguage.Japanese -> "並び替え: $field"
+    AppLanguage.Latin -> "Ordinem secundum: $field"
+    AppLanguage.Latvian -> "Kārtots pēc: $field"
+    AppLanguage.Lithuanian -> "Rikiuojama pagal: $field"
+    AppLanguage.Macedonian -> "Сортирано според: $field"
+    AppLanguage.Norwegian -> "Sortert etter: $field"
+    AppLanguage.Portuguese -> "Ordenado por: $field"
+    AppLanguage.Russian -> "Сортировка: $field"
+    AppLanguage.Serbian -> "Сортирано по: $field"
+    AppLanguage.Spanish -> "Ordenado por: $field"
+    AppLanguage.Swedish -> "Sorterat efter: $field"
+    AppLanguage.Thai -> "จัดเรียงตาม: $field"
+    AppLanguage.Ukrainian -> "Сортування: $field"
+    AppLanguage.Slovak -> "Zoradené podľa: $field"
+    AppLanguage.Korean -> "정렬 기준: $field"
+    AppLanguage.Malay -> "Diisih mengikut: $field"
+    AppLanguage.Bengali -> "যেভাবে সাজানো: $field"
+    AppLanguage.Urdu -> "ترتیب: $field"
+    AppLanguage.English -> "Sorted by $field"
+}
+
+private fun titleName(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "tytuł"
+    AppLanguage.ChineseSimplified -> "标题"
+    AppLanguage.Korean -> "제목"
+    AppLanguage.Malay -> "tajuk"
+    AppLanguage.Bengali -> "শিরোনাম"
+    AppLanguage.Urdu -> "عنوان"
+    else -> "title"
+}
+
+private fun artistName(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "wykonawca"
+    AppLanguage.ChineseSimplified -> "艺人"
+    AppLanguage.Korean -> "아티스트"
+    AppLanguage.Malay -> "artis"
+    AppLanguage.Bengali -> "শিল্পী"
+    AppLanguage.Urdu -> "آرٹسٹ"
+    else -> "artist"
+}
+
+private fun albumName(language: AppLanguage): String = commonUiCopy(language).albums.lowercase()
+
+private fun genreName(language: AppLanguage): String = commonUiCopy(language).genres.lowercase()
+
+private fun durationName(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "czas trwania"
+    AppLanguage.ChineseSimplified -> "时长"
+    AppLanguage.Korean -> "길이"
+    AppLanguage.Malay -> "tempoh"
+    AppLanguage.Bengali -> "সময়কাল"
+    AppLanguage.Urdu -> "دورانیہ"
+    else -> "duration"
+}
+
+private fun dateAddedName(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "data dodania"
+    AppLanguage.ChineseSimplified -> "添加日期"
+    AppLanguage.Korean -> "추가 날짜"
+    AppLanguage.Malay -> "tarikh ditambah"
+    AppLanguage.Bengali -> "যোগ করার তারিখ"
+    AppLanguage.Urdu -> "شامل کرنے کی تاریخ"
+    else -> "date added"
+}
+
+private fun playCountName(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "liczba odtworzeń"
+    AppLanguage.ChineseSimplified -> "播放次数"
+    AppLanguage.Korean -> "재생 횟수"
+    AppLanguage.Malay -> "bilangan main"
+    AppLanguage.Bengali -> "চালানোর সংখ্যা"
+    AppLanguage.Urdu -> "چلانے کی تعداد"
+    else -> "play count"
+}
+
+private fun randomOrderLabel(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Losowa kolejność"
+    AppLanguage.Albanian -> "Rend i rastësishëm"
+    AppLanguage.ChineseSimplified -> "随机顺序"
+    AppLanguage.Croatian -> "Nasumičan redoslijed"
+    AppLanguage.Czech -> "Náhodné pořadí"
+    AppLanguage.Danish -> "Tilfældig rækkefølge"
+    AppLanguage.Dutch -> "Willekeurige volgorde"
+    AppLanguage.Estonian -> "Juhuslik järjestus"
+    AppLanguage.French -> "Ordre aléatoire"
+    AppLanguage.German -> "Zufällige Reihenfolge"
+    AppLanguage.Greek -> "Τυχαία σειρά"
+    AppLanguage.Hindi -> "यादृच्छिक क्रम"
+    AppLanguage.Hungarian -> "Véletlen sorrend"
+    AppLanguage.Italian -> "Ordine casuale"
+    AppLanguage.Japanese -> "ランダム順"
+    AppLanguage.Latin -> "Ordo fortuitus"
+    AppLanguage.Latvian -> "Nejauša secība"
+    AppLanguage.Lithuanian -> "Atsitiktinė tvarka"
+    AppLanguage.Macedonian -> "Случаен редослед"
+    AppLanguage.Norwegian -> "Tilfeldig rekkefølge"
+    AppLanguage.Portuguese -> "Ordem aleatória"
+    AppLanguage.Russian -> "Случайный порядок"
+    AppLanguage.Serbian -> "Насумичан редослед"
+    AppLanguage.Spanish -> "Orden aleatorio"
+    AppLanguage.Swedish -> "Slumpmässig ordning"
+    AppLanguage.Thai -> "ลำดับแบบสุ่ม"
+    AppLanguage.Ukrainian -> "Випадковий порядок"
+    AppLanguage.Slovak -> "Náhodné poradie"
+    AppLanguage.Korean -> "무작위 순서"
+    AppLanguage.Malay -> "Susunan rawak"
+    AppLanguage.Bengali -> "এলোমেলো ক্রম"
+    AppLanguage.Urdu -> "بے ترتیب ترتیب"
+    AppLanguage.English -> "Random order"
+}
+
 internal data class SearchUiCopy(
     val placeholder: String,
     val clearSearch: String,
@@ -1754,7 +2092,7 @@ internal data class SettingsLanguageCopy(
     val changelog: String,
     val footerSubtitle: String,
     val volumeNormalization: String = "Volume normalization",
-    val volumeNormalizationSubtitle: String = "Reduce loudness differences between songs when supported by file metadata.",
+    val volumeNormalizationSubtitle: String = "Reduce loudness differences between songs when supported by file metadata",
 )
 
 internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (language) {
@@ -1791,6 +2129,85 @@ internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (l
     AppLanguage.Bengali -> SettingsLanguageCopy("সেটিংস", "চেহারা", "থিম", "টেক্সটের আকার", "ভাষা", "বর্তমানে ব্যবহৃত: ${language.nativeName}", "শব্দ", "বেস বুস্ট", "স্পেসিয়াসনেস", "ইকুয়ালাইজার", "মোনো চালু করুন", "স্টেরিও প্লেব্যাককে মোনোতে বদলে দেয়", "অন্যান্য সেটিংস", "লাইব্রেরি স্ক্যান করুন", "নতুন মিডিয়ার জন্য ইনডেক্স রিফ্রেশ করে", "স্ক্যান", "আপডেট পরীক্ষা করুন", "নতুন সংস্করণ উপলভ্য কি না পরীক্ষা করে", "পরীক্ষা করুন", "পরিবর্তনপঞ্জি", "সঙ্গীত ও দারুণ ডিজাইনের প্রতি ভালবাসা দিয়ে নির্মিত")
     AppLanguage.Urdu -> SettingsLanguageCopy("سیٹنگز", "ظاہری شکل", "تھیم", "متن کا سائز", "زبان", "فی الحال استعمال میں: ${language.nativeName}", "آواز", "باس بوسٹ", "کشادگی", "ایکوالائزر", "مونو فعال کریں", "اسٹیریو پلے بیک کو مونو میں بدلتا ہے", "دیگر سیٹنگز", "لائبریری اسکین کریں", "نئے میڈیا کے لیے انڈیکس تازہ کرتا ہے", "اسکین", "اپ ڈیٹس چیک کریں", "چیک کریں کہ نئی ورژن دستیاب ہے یا نہیں", "چیک کریں", "تبدیلیاں", "موسیقی اور عمدہ ڈیزائن کے شوق سے تیار کیا گیا")
     AppLanguage.English -> SettingsLanguageCopy("Settings", "Appearance", "Theme", "Text size", "Language", "Currently used: ${language.nativeName}", "Sound", "Bass boost", "Spaciousness", "Equalizer", "Enable mono", "Switches stereo playback to mono", "Other settings", "Scan library", "Refresh indexing in search for new media", "Scan", "Check for updates", "Check if there's new version available", "Check", "Changelog", "Designed with passion for music and great design")
+}.withLocalizedVolumeNormalization(language)
+
+private fun SettingsLanguageCopy.withLocalizedVolumeNormalization(language: AppLanguage): SettingsLanguageCopy {
+    return copy(
+        volumeNormalization = volumeNormalizationTitle(language),
+        volumeNormalizationSubtitle = volumeNormalizationSubtitle(language),
+    )
+}
+
+private fun volumeNormalizationTitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Normalizacja głośności"
+    AppLanguage.Albanian -> "Normalizimi i volumit"
+    AppLanguage.ChineseSimplified -> "音量标准化"
+    AppLanguage.Croatian -> "Normalizacija glasnoće"
+    AppLanguage.Czech -> "Normalizace hlasitosti"
+    AppLanguage.Danish -> "Volumennormalisering"
+    AppLanguage.Dutch -> "Volumenormalisatie"
+    AppLanguage.Estonian -> "Helitugevuse normaliseerimine"
+    AppLanguage.French -> "Normalisation du volume"
+    AppLanguage.German -> "Lautstärkenormalisierung"
+    AppLanguage.Greek -> "Κανονικοποίηση έντασης"
+    AppLanguage.Hindi -> "वॉल्यूम नॉर्मलाइज़ेशन"
+    AppLanguage.Hungarian -> "Hangerő-normalizálás"
+    AppLanguage.Italian -> "Normalizzazione volume"
+    AppLanguage.Japanese -> "音量正規化"
+    AppLanguage.Latin -> "Voluminis normalizatio"
+    AppLanguage.Latvian -> "Skaļuma normalizēšana"
+    AppLanguage.Lithuanian -> "Garsumo normalizavimas"
+    AppLanguage.Macedonian -> "Нормализација на јачина"
+    AppLanguage.Norwegian -> "Volumnormalisering"
+    AppLanguage.Portuguese -> "Normalização de volume"
+    AppLanguage.Russian -> "Нормализация громкости"
+    AppLanguage.Serbian -> "Нормализација јачине"
+    AppLanguage.Spanish -> "Normalización de volumen"
+    AppLanguage.Swedish -> "Volymnormalisering"
+    AppLanguage.Thai -> "ปรับระดับเสียงให้สม่ำเสมอ"
+    AppLanguage.Ukrainian -> "Нормалізація гучності"
+    AppLanguage.Slovak -> "Normalizácia hlasitosti"
+    AppLanguage.Korean -> "음량 정규화"
+    AppLanguage.Malay -> "Penormalan kelantangan"
+    AppLanguage.Bengali -> "ভলিউম স্বাভাবিকীকরণ"
+    AppLanguage.Urdu -> "آواز کی نارملائزیشن"
+    AppLanguage.English -> "Volume normalization"
+}
+
+private fun volumeNormalizationSubtitle(language: AppLanguage): String = when (language) {
+    AppLanguage.Polish -> "Zmniejsza różnice głośności między utworami, gdy metadane pliku to obsługują"
+    AppLanguage.Albanian -> "Zvogëlon dallimet e volumit mes këngëve kur metadatat e skedarit e mbështesin"
+    AppLanguage.ChineseSimplified -> "在文件元数据支持时减少歌曲之间的响度差异"
+    AppLanguage.Croatian -> "Smanjuje razlike u glasnoći između pjesama kada to podržavaju metapodaci datoteke"
+    AppLanguage.Czech -> "Snižuje rozdíly hlasitosti mezi skladbami, pokud to podporují metadata souboru"
+    AppLanguage.Danish -> "Reducerer lydstyrkeforskelle mellem sange, når filmetadata understøtter det"
+    AppLanguage.Dutch -> "Vermindert volumeverschillen tussen nummers wanneer bestandsmetadata dit ondersteunen"
+    AppLanguage.Estonian -> "Vähendab lugude helitugevuse erinevusi, kui faili metaandmed seda toetavad"
+    AppLanguage.French -> "Réduit les écarts de volume entre les morceaux quand les métadonnées du fichier le permettent"
+    AppLanguage.German -> "Verringert Lautstärkeunterschiede zwischen Songs, wenn die Dateimetadaten es unterstützen"
+    AppLanguage.Greek -> "Μειώνει τις διαφορές έντασης μεταξύ τραγουδιών όταν το υποστηρίζουν τα μεταδεδομένα αρχείου"
+    AppLanguage.Hindi -> "फ़ाइल मेटाडेटा समर्थित होने पर गानों के बीच लाउडनेस अंतर कम करता है"
+    AppLanguage.Hungarian -> "Csökkenti a dalok közti hangerőkülönbségeket, ha a fájl metaadatai támogatják"
+    AppLanguage.Italian -> "Riduce le differenze di volume tra i brani quando i metadati del file lo supportano"
+    AppLanguage.Japanese -> "ファイルのメタデータが対応している場合に曲間の音量差を抑えます"
+    AppLanguage.Latin -> "Differentias voluminis inter cantus minuit cum metadata fasciculi id sustinent"
+    AppLanguage.Latvian -> "Samazina skaļuma atšķirības starp dziesmām, ja to atbalsta faila metadati"
+    AppLanguage.Lithuanian -> "Sumažina garsumo skirtumus tarp dainų, kai tai palaiko failo metaduomenys"
+    AppLanguage.Macedonian -> "Ги намалува разликите во јачина меѓу песните кога метаподатоците го поддржуваат тоа"
+    AppLanguage.Norwegian -> "Reduserer lydstyrkeforskjeller mellom sanger når filmetadata støtter det"
+    AppLanguage.Portuguese -> "Reduz diferenças de volume entre músicas quando os metadados do ficheiro o suportam"
+    AppLanguage.Russian -> "Уменьшает разницу громкости между треками, если это поддерживают метаданные файла"
+    AppLanguage.Serbian -> "Смањује разлике у јачини између песама када то подржавају метаподаци фајла"
+    AppLanguage.Spanish -> "Reduce diferencias de volumen entre canciones cuando los metadatos del archivo lo admiten"
+    AppLanguage.Swedish -> "Minskar volymskillnader mellan låtar när filens metadata stöder det"
+    AppLanguage.Thai -> "ลดความต่างของความดังระหว่างเพลงเมื่อเมตาดาตาของไฟล์รองรับ"
+    AppLanguage.Ukrainian -> "Зменшує різницю гучності між піснями, якщо це підтримують метадані файла"
+    AppLanguage.Slovak -> "Znižuje rozdiely hlasitosti medzi skladbami, keď to podporujú metadáta súboru"
+    AppLanguage.Korean -> "파일 메타데이터가 지원할 때 곡 사이의 음량 차이를 줄입니다"
+    AppLanguage.Malay -> "Mengurangkan perbezaan kelantangan antara lagu apabila metadata fail menyokongnya"
+    AppLanguage.Bengali -> "ফাইল মেটাডেটা সমর্থন করলে গানগুলোর মধ্যে ভলিউমের পার্থক্য কমায়"
+    AppLanguage.Urdu -> "فائل میٹا ڈیٹا کے تعاون پر گانوں کے درمیان آواز کا فرق کم کرتا ہے"
+    AppLanguage.English -> "Reduce loudness differences between songs when supported by file metadata"
 }
 
 internal data class PrivacySafetyCopy(
