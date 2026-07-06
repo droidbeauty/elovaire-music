@@ -74,6 +74,27 @@ internal fun loadArtworkBitmap(
     return loadArtworkBitmap(context, Uri.parse(key.uri), key.targetPx)
 }
 
+internal fun decodeArtworkBytes(
+    bytes: ByteArray,
+    targetPx: Int,
+): Bitmap? {
+    if (bytes.isEmpty()) return null
+    val size = normalizeArtworkRequestSize(targetPx)
+    return runCatching {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+        val sampledOptions = BitmapFactory.Options().apply {
+            inPreferredConfig = Bitmap.Config.RGB_565
+            inSampleSize = calculateInSampleSize(
+                outWidth = bounds.outWidth,
+                outHeight = bounds.outHeight,
+                targetSize = size,
+            )
+        }
+        BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
+    }.getOrNull()
+}
+
 private fun decodeBitmapStream(
     context: Context,
     uri: Uri,

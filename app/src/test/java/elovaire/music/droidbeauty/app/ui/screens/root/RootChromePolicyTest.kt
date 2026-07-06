@@ -106,4 +106,28 @@ class RootChromePolicyTest {
         assertEquals(null, homeSpec.onSupplementalAction)
         assertEquals(null, rootSharedTopBarSpec(HOME_ROUTE, showTopLevelChrome = false, AppLanguage.English, {}, {}))
     }
+
+    @Test
+    fun topBarMotionDirection_tracksSemanticDepth() {
+        val unified = SharedTopBarSpec.Unified(
+            title = "Home",
+            showSettings = true,
+            onOpenMenu = {},
+        )
+        val back = SharedTopBarSpec.Back(
+            title = "Settings",
+            onBack = {},
+        )
+        val detail = SharedTopBarSpec.Detail(
+            title = "Album",
+            subtitle = "Artist",
+            onBack = {},
+        )
+
+        assertEquals(TopBarMotionDirection.Forward, topBarMotionDirection(unified, back))
+        assertEquals(TopBarMotionDirection.Forward, topBarMotionDirection(back, detail))
+        assertEquals(TopBarMotionDirection.Back, topBarMotionDirection(detail, back))
+        assertEquals(TopBarMotionDirection.Back, topBarMotionDirection(back, unified))
+        assertEquals(TopBarMotionDirection.Lateral, topBarMotionDirection(back, back.copy(title = "About")))
+    }
 }

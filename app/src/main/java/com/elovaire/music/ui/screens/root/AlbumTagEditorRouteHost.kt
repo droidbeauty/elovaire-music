@@ -65,25 +65,53 @@ internal fun AlbumTagEditorRouteHost(
             when (event) {
                 is AlbumTagEditorEvent.RequestWritePermission -> {
                     pendingWriteRequest = event.request
-                    val request = mediaStoreWriteRequest(
-                        context = context,
-                        uris = event.uris,
-                    )
-                    if (request != null) {
-                        albumTagWriteLauncher.launch(request)
-                    } else {
+                    val requestResult = runCatching {
+                        mediaStoreWriteRequest(
+                            context = context,
+                            uris = event.uris,
+                        )
+                    }
+                    if (requestResult.isFailure) {
+                        pendingWriteRequest = null
                         tagEditorViewModel.onWritePermissionResult(
-                            granted = true,
+                            granted = false,
                             request = event.request,
                         )
+                        return@collect
+                    }
+                    when (val request = requestResult.getOrNull()) {
+                        null -> {
+                            pendingWriteRequest = null
+                            tagEditorViewModel.onWritePermissionResult(
+                                granted = true,
+                                request = event.request,
+                            )
+                        }
+                        else -> runCatching {
+                            albumTagWriteLauncher.launch(request)
+                        }.onFailure {
+                            pendingWriteRequest = null
+                            tagEditorViewModel.onWritePermissionResult(
+                                granted = false,
+                                request = event.request,
+                            )
+                        }
                     }
                 }
 
                 is AlbumTagEditorEvent.RequestRecoverableWritePermission -> {
                     pendingWriteRequest = event.request
-                    albumTagWriteLauncher.launch(
-                        IntentSenderRequest.Builder(event.intentSender).build(),
-                    )
+                    runCatching {
+                        albumTagWriteLauncher.launch(
+                            IntentSenderRequest.Builder(event.intentSender).build(),
+                        )
+                    }.onFailure {
+                        pendingWriteRequest = null
+                        tagEditorViewModel.onWritePermissionResult(
+                            granted = false,
+                            request = event.request,
+                        )
+                    }
                 }
 
                 AlbumTagEditorEvent.SaveSucceeded -> {

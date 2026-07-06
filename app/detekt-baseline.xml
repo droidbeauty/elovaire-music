@@ -6,31 +6,21 @@
     <ID>CyclomaticComplexMethod:AboutScreens.kt:private fun localizedAboutDescription: String</ID>
     <ID>CyclomaticComplexMethod:AboutScreens.kt:private fun localizedAboutLinkLabel: String</ID>
     <ID>CyclomaticComplexMethod:AlbumTagEditorService.kt:AlbumTagEditorService$suspend fun applyEdits: TagEditApplyResult</ID>
-    <ID>CyclomaticComplexMethod:ElovaireRoot.kt:@Composable internal fun AddSongsToPlaylistOverlay</ID>
-    <ID>CyclomaticComplexMethod:ElovaireRoot.kt:@Composable internal fun NowPlayingScreen</ID>
-    <ID>CyclomaticComplexMethod:ElovaireRoot.kt:@Composable private fun SearchScreen</ID>
     <ID>CyclomaticComplexMethod:ElovaireStringCatalog.kt:internal fun SpaciousnessMode.displayLabel: String</ID>
     <ID>CyclomaticComplexMethod:ElovaireStringCatalog.kt:internal fun localizedCountLabel: String</ID>
     <ID>CyclomaticComplexMethod:ElovaireStringCatalog.kt:internal fun miscPhrase: String</ID>
     <ID>CyclomaticComplexMethod:ElovaireStringCatalog.kt:internal fun privacySafetyCopy: PrivacySafetyCopy</ID>
     <ID>CyclomaticComplexMethod:ElovaireStringCatalog.kt:internal fun searchSortModeLabel: String</ID>
+    <ID>CyclomaticComplexMethod:FeatureScreens.kt:@Composable internal fun AddSongsToPlaylistOverlay</ID>
+    <ID>CyclomaticComplexMethod:FeatureScreens.kt:@Composable internal fun NowPlayingScreen</ID>
+    <ID>CyclomaticComplexMethod:FeatureScreens.kt:@Composable private fun SearchScreen</ID>
     <ID>CyclomaticComplexMethod:PlaylistDetailScreen.kt:@Composable internal fun PlaylistDetailScreen</ID>
     <ID>CyclomaticComplexMethod:PreferenceStore.kt:PreferenceStore$private fun resolveDeviceLanguage: AppLanguage</ID>
     <ID>LargeClass:PlaybackManager.kt:PlaybackManager : PlaybackReaderPlaybackController</ID>
     <ID>LongMethod:AboutScreens.kt:@Composable internal fun ChangelogBottomSheetOverlay</ID>
     <ID>LongMethod:AlbumTagEditorScreen.kt:@Composable internal fun AlbumTagEditorScreen</ID>
     <ID>LongMethod:AlbumTagEditorService.kt:AlbumTagEditorService$suspend fun applyEdits: TagEditApplyResult</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable internal fun AddSongsToPlaylistOverlay</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable internal fun AlbumScreen</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable internal fun HomeScreen</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable internal fun NowPlayingScreen</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable private fun AlbumCollectionContent</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable private fun LastPlayedAlbumModule</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable private fun LastPlayedPlaylistModule</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable private fun LyricsOverlay</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable private fun QueueSheet</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable private fun SearchScreen</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@OptIn(ExperimentalHazeApi::class) @Composable fun ElovaireRoot</ID>
+    <ID>LongMethod:ElovaireRoot.kt:@Composable fun ElovaireRoot</ID>
     <ID>LongMethod:ElovaireStringCatalog.kt:internal fun SpaciousnessMode.displayLabel: String</ID>
     <ID>LongMethod:ElovaireStringCatalog.kt:internal fun homeCopy: HomeUiCopy</ID>
     <ID>LongMethod:ElovaireStringCatalog.kt:internal fun localizedCountLabel: String</ID>
@@ -41,6 +31,16 @@
     <ID>LongMethod:EqualizerScreen.kt:@Composable private fun DigitalSoundKnob</ID>
     <ID>LongMethod:EqualizerScreen.kt:@Composable private fun EqResponseGraph</ID>
     <ID>LongMethod:EqualizerScreen.kt:@Composable private fun ReverbStepSlider</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable internal fun AddSongsToPlaylistOverlay</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable internal fun AlbumScreen</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable internal fun NowPlayingScreen</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable private fun AlbumCollectionContent</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable private fun LastPlayedAlbumModule</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable private fun LastPlayedPlaylistModule</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable private fun LyricsOverlay</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable private fun QueueSheet</ID>
+    <ID>LongMethod:FeatureScreens.kt:@Composable private fun SearchScreen</ID>
+    <ID>LongMethod:FeatureScreens.kt:@OptIn(ExperimentalHazeApi::class) @Composable internal fun HomeScreen</ID>
     <ID>LongMethod:LibraryFoldersScreen.kt:@Composable internal fun LibraryFoldersScreen</ID>
     <ID>LongMethod:MediaStoreScanner.kt:MediaStoreScanner$suspend fun scan: LibrarySnapshot</ID>
     <ID>LongMethod:PlaylistDetailScreen.kt:@Composable internal fun PlaylistDetailScreen</ID>
@@ -63,7 +63,7 @@
     <ID>TooGenericExceptionCaught:LrcLibLyricsProvider.kt:DefaultLrcLibApi$throwable: Throwable</ID>
     <ID>TooManyFunctions:AppUpdateManager.kt:AppUpdateManager : UpdateController</ID>
     <ID>TooManyFunctions:ElovaireMotion.kt:ElovaireMotion</ID>
-    <ID>TooManyFunctions:ElovaireRoot.kt:elovaire.music.droidbeauty.app.ui.screens.ElovaireRoot.kt</ID>
+    <ID>TooManyFunctions:FeatureScreens.kt:elovaire.music.droidbeauty.app.ui.screens.FeatureScreens.kt</ID>
     <ID>TooManyFunctions:MotionTransitions.kt:MotionTransitions</ID>
     <ID>TooManyFunctions:PlaybackManager.kt:PlaybackManager : PlaybackReaderPlaybackController</ID>
     <ID>TooManyFunctions:PreferenceStore.kt:PreferenceStore : RootSettingsReaderAppearanceSettingsWriterLibrarySettingsWriterPlaybackSettingsWriterPlaylistStoreFavoritesStoreUpdatePreferencesStore</ID>

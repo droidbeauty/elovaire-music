@@ -180,8 +180,15 @@ fun rememberArtworkBitmap(
         }
         value = value ?: ArtworkMemoryCache.bestImageForUri(uriKey, normalizedSize)
         val loaded = withContext(Dispatchers.IO) {
-            loadArtworkBitmap(context, uri, normalizedSize)?.asImageBitmap()?.also { bitmap ->
-                ArtworkMemoryCache.putImage(cacheKey, bitmap)
+            loadArtworkBitmap(context, uri, normalizedSize)?.also { bitmap ->
+                bitmap.prepareToDraw()
+            }?.asImageBitmap()?.also { image ->
+                ArtworkMemoryCache.putImage(
+                    key = cacheKey,
+                    uriKey = uriKey,
+                    size = normalizedSize,
+                    image = image,
+                )
             }
         }
         if (loaded != null || value == null) {
@@ -298,7 +305,18 @@ private object ArtworkMemoryCache {
         ): Int {
             return (value.width * value.height * 4).coerceAtLeast(1)
         }
+
+        override fun entryRemoved(
+            evicted: Boolean,
+            key: String,
+            oldValue: ImageBitmap,
+            newValue: ImageBitmap?,
+        ) {
+            removeImageIndexKey(key)
+        }
     }
+    private val imageIndex = linkedMapOf<String, MutableMap<Int, LinkedHashSet<String>>>()
+    private val imageKeyIndex = linkedMapOf<String, Pair<String, Int>>()
     private val gradients = object : LinkedHashMap<String, List<Color>>(MAX_GRADIENTS, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Color>>?): Boolean {
             return size > MAX_GRADIENTS
@@ -311,9 +329,18 @@ private object ArtworkMemoryCache {
     @Synchronized
     fun putImage(
         key: String,
+        uriKey: String,
+        size: Int,
         image: ImageBitmap,
     ) {
         images.put(key, image)
+        if (uriKey.isNotBlank()) {
+            imageKeyIndex[key] = uriKey to size
+            imageIndex
+                .getOrPut(uriKey) { linkedMapOf() }
+                .getOrPut(size) { linkedSetOf() }
+                .add(key)
+        }
     }
 
     @Synchronized
@@ -322,27 +349,21 @@ private object ArtworkMemoryCache {
         requestedSize: Int,
     ): ImageBitmap? {
         if (uriKey.isBlank()) return null
-        val prefix = "$uriKey|"
-        val snapshot = images.snapshot()
-        var bestExactOrLarger: Pair<Int, ImageBitmap>? = null
-        var bestSmaller: Pair<Int, ImageBitmap>? = null
-        snapshot.forEach { (key, image) ->
-            if (!key.startsWith(prefix)) return@forEach
-            val cachedSize = key.split('|').getOrNull(1)?.toIntOrNull() ?: return@forEach
-            when {
-                cachedSize >= requestedSize && (
-                    bestExactOrLarger == null || cachedSize < bestExactOrLarger.first
-                ) -> {
-                    bestExactOrLarger = cachedSize to image
-                }
-                cachedSize < requestedSize && (
-                    bestSmaller == null || cachedSize > bestSmaller.first
-                ) -> {
-                    bestSmaller = cachedSize to image
-                }
+        val sizeIndex = imageIndex[uriKey] ?: return null
+        val candidateSizes = sizeIndex.keys
+        val preferredSize = candidateSizes
+            .filter { it >= requestedSize }
+            .minOrNull()
+            ?: candidateSizes.maxOrNull()
+            ?: return null
+        val keys = sizeIndex[preferredSize].orEmpty().toList().asReversed()
+        keys.forEach { key ->
+            val image = images.get(key)
+            if (image != null) {
+                return image
             }
         }
-        return bestExactOrLarger?.second ?: bestSmaller?.second
+        return null
     }
 
     @Synchronized
@@ -385,6 +406,20 @@ private object ArtworkMemoryCache {
         images.snapshot().keys
             .filter { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
             .forEach(images::remove)
+    }
+
+    @Synchronized
+    private fun removeImageIndexKey(key: String) {
+        val (uriKey, size) = imageKeyIndex.remove(key) ?: return
+        val sizes = imageIndex[uriKey] ?: return
+        val keys = sizes[size] ?: return
+        keys.remove(key)
+        if (keys.isEmpty()) {
+            sizes.remove(size)
+        }
+        if (sizes.isEmpty()) {
+            imageIndex.remove(uriKey)
+        }
     }
 
     @Synchronized

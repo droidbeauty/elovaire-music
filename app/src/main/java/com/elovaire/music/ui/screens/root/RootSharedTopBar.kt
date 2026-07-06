@@ -60,6 +60,12 @@ internal data class TopBarActionSpec(
     val onClick: () -> Unit,
 )
 
+internal enum class TopBarMotionDirection {
+    Forward,
+    Back,
+    Lateral,
+}
+
 internal sealed interface SharedTopBarSpec {
     data class Unified(
         val title: String,
@@ -87,10 +93,41 @@ internal sealed interface SharedTopBarSpec {
 internal fun SharedTopBarSpec.visualSignature(): String {
     return when (this) {
         is SharedTopBarSpec.Unified -> "unified"
-        is SharedTopBarSpec.Back,
-        is SharedTopBarSpec.Detail,
-        -> "back"
+        is SharedTopBarSpec.Back -> "back"
+        is SharedTopBarSpec.Detail -> "detail"
     }
+}
+
+internal fun topBarMotionDirection(
+    initial: SharedTopBarSpec,
+    target: SharedTopBarSpec,
+): TopBarMotionDirection {
+    val initialDepth = initial.topBarDepth()
+    val targetDepth = target.topBarDepth()
+    return when {
+        targetDepth > initialDepth -> TopBarMotionDirection.Forward
+        targetDepth < initialDepth -> TopBarMotionDirection.Back
+        else -> TopBarMotionDirection.Lateral
+    }
+}
+
+private fun SharedTopBarSpec.topBarDepth(): Int = when (this) {
+    is SharedTopBarSpec.Unified -> 0
+    is SharedTopBarSpec.Back -> 1
+    is SharedTopBarSpec.Detail -> 2
+}
+
+private fun ElovaireMotion.topBarTextTransform(direction: TopBarMotionDirection) = when (direction) {
+    TopBarMotionDirection.Forward -> topBarTextForwardTransform()
+    TopBarMotionDirection.Back -> topBarTextBackTransform()
+    TopBarMotionDirection.Lateral -> titleSwapTransform()
+}
+
+private fun ElovaireMotion.topBarActionsTransform(direction: TopBarMotionDirection) = when (direction) {
+    TopBarMotionDirection.Forward -> topBarActionsForwardTransform()
+    TopBarMotionDirection.Back,
+    TopBarMotionDirection.Lateral,
+    -> topBarActionsBackTransform()
 }
 
 internal data class SharedTopBarRegistration(
@@ -336,16 +373,10 @@ internal fun SharedTopBarOverlay(
         ElovaireAnimatedContent(
             targetState = spec,
             transitionSpec = {
-                when {
-                    initialState is SharedTopBarSpec.Unified && targetState !is SharedTopBarSpec.Unified -> {
-                        ElovaireMotion.sharedTopBarForwardTransform()
-                    }
-
-                    initialState !is SharedTopBarSpec.Unified && targetState is SharedTopBarSpec.Unified -> {
-                        ElovaireMotion.sharedTopBarBackTransform()
-                    }
-
-                    else -> ElovaireMotion.sharedTopBarTransform()
+                when (topBarMotionDirection(initialState, targetState)) {
+                    TopBarMotionDirection.Forward -> ElovaireMotion.sharedTopBarForwardTransform()
+                    TopBarMotionDirection.Back -> ElovaireMotion.sharedTopBarBackTransform()
+                    TopBarMotionDirection.Lateral -> ElovaireMotion.sharedTopBarTransform()
                 }
             },
             contentKey = { it.visualSignature() },
@@ -370,7 +401,7 @@ internal fun SharedTopBarOverlay(
                             ElovaireAnimatedContent(
                                 targetState = currentSpec.title,
                                 transitionSpec = {
-                                    ElovaireMotion.sharedTopBarTransform()
+                                    ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Lateral)
                                 },
                                 label = "SharedTopBarUnifiedTitle",
                             ) { currentTitle ->
@@ -388,12 +419,18 @@ internal fun SharedTopBarOverlay(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 if (currentSpec.supplementalActionIconResId != null && currentSpec.onSupplementalAction != null) {
-                                    HeaderIconButton(
-                                        iconResId = currentSpec.supplementalActionIconResId,
-                                        contentDescription = currentSpec.supplementalActionContentDescription ?: "Action",
-                                        showBackground = false,
-                                        onClick = currentSpec.onSupplementalAction,
-                                    )
+                                    ElovaireAnimatedContent(
+                                        targetState = currentSpec.supplementalActionIconResId,
+                                        transitionSpec = { ElovaireMotion.topBarActionsTransform(TopBarMotionDirection.Forward) },
+                                        label = "SharedTopBarUnifiedSupplementalAction",
+                                    ) { iconResId ->
+                                        HeaderIconButton(
+                                            iconResId = iconResId,
+                                            contentDescription = currentSpec.supplementalActionContentDescription ?: "Action",
+                                            showBackground = false,
+                                            onClick = currentSpec.onSupplementalAction,
+                                        )
+                                    }
                                 }
                                 HeaderIconButton(
                                     iconResId = R.drawable.ic_lucide_menu,
@@ -433,7 +470,7 @@ internal fun SharedTopBarOverlay(
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
                                     transitionSpec = {
-                                        ElovaireMotion.sharedTopBarTransform()
+                                        ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Back)
                                     },
                                     label = "SharedTopBarBackCenteredTitle",
                                 ) { currentTitle ->
@@ -457,12 +494,18 @@ internal fun SharedTopBarOverlay(
                             horizontalArrangement = Arrangement.spacedBy(14.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            HeaderIconButton(
-                                iconResId = R.drawable.ic_lucide_chevron_left,
-                                contentDescription = "Back",
-                                showBackground = false,
-                                onClick = currentSpec.onBack,
-                            )
+                            ElovaireAnimatedContent(
+                                targetState = "back",
+                                transitionSpec = { ElovaireMotion.topBarNavigationTransform() },
+                                label = "SharedTopBarBackNavigation",
+                            ) {
+                                HeaderIconButton(
+                                    iconResId = R.drawable.ic_lucide_chevron_left,
+                                    contentDescription = "Back",
+                                    showBackground = false,
+                                    onClick = currentSpec.onBack,
+                                )
+                            }
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -472,7 +515,7 @@ internal fun SharedTopBarOverlay(
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
                                     transitionSpec = {
-                                        ElovaireMotion.sharedTopBarTransform()
+                                        ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Back)
                                     },
                                     label = "SharedTopBarBackTitle",
                                 ) { currentTitle ->
@@ -498,12 +541,18 @@ internal fun SharedTopBarOverlay(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        HeaderIconButton(
-                            iconResId = R.drawable.ic_lucide_chevron_left,
-                            contentDescription = "Back",
-                            showBackground = false,
-                            onClick = currentSpec.onBack,
-                        )
+                        ElovaireAnimatedContent(
+                            targetState = "detail",
+                            transitionSpec = { ElovaireMotion.topBarNavigationTransform() },
+                            label = "SharedTopBarDetailNavigation",
+                        ) {
+                            HeaderIconButton(
+                                iconResId = R.drawable.ic_lucide_chevron_left,
+                                contentDescription = "Back",
+                                showBackground = false,
+                                onClick = currentSpec.onBack,
+                            )
+                        }
                         if (currentSpec.subtitle.isNullOrBlank()) {
                             Box(
                                 modifier = Modifier.weight(1f),
@@ -511,7 +560,7 @@ internal fun SharedTopBarOverlay(
                             ) {
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
-                                    transitionSpec = { ElovaireMotion.titleSwapTransform() },
+                                    transitionSpec = { ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Forward) },
                                     label = "SharedTopBarDetailTitleOnly",
                                 ) { currentTitle ->
                                     Text(
@@ -530,7 +579,7 @@ internal fun SharedTopBarOverlay(
                             ) {
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
-                                    transitionSpec = { ElovaireMotion.titleSwapTransform() },
+                                    transitionSpec = { ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Forward) },
                                     label = "SharedTopBarDetailTitleWithSubtitle",
                                 ) { currentTitle ->
                                     Text(
@@ -551,17 +600,23 @@ internal fun SharedTopBarOverlay(
                             }
                         }
                         if (currentSpec.actions.isNotEmpty()) {
-                            Row(
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
+                            ElovaireAnimatedContent(
+                                targetState = currentSpec.actions.map { it.iconResId to it.contentDescription },
+                                transitionSpec = { ElovaireMotion.topBarActionsTransform(TopBarMotionDirection.Forward) },
+                                label = "SharedTopBarDetailActions",
                             ) {
-                                currentSpec.actions.forEach { action ->
-                                    HeaderIconButton(
-                                        iconResId = action.iconResId,
-                                        contentDescription = action.contentDescription,
-                                        showBackground = false,
-                                        onClick = action.onClick,
-                                    )
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    currentSpec.actions.forEach { action ->
+                                        HeaderIconButton(
+                                            iconResId = action.iconResId,
+                                            contentDescription = action.contentDescription,
+                                            showBackground = false,
+                                            onClick = action.onClick,
+                                        )
+                                    }
                                 }
                             }
                         }

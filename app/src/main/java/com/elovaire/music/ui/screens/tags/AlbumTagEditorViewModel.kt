@@ -245,7 +245,14 @@ internal class AlbumTagEditorViewModel(
     }
 
     fun requestSave() {
-        val request = _uiState.value.toAlbumTagEditRequest() ?: return
+        val currentState = _uiState.value
+        if (currentState.isSaving) return
+        val request = currentState.toAlbumTagEditRequest() ?: return
+        _uiState.value = currentState.copy(
+            isSaving = true,
+            statusMessage = null,
+            saveFailures = emptyList(),
+        ).recalculateFlags()
         viewModelScope.launch {
             _events.emit(
                 AlbumTagEditorEvent.RequestWritePermission(
@@ -268,11 +275,14 @@ internal class AlbumTagEditorViewModel(
             return
         }
         viewModelScope.launch {
-            performSave(request)
+            performSave(request, writeConsentGranted = true)
         }
     }
 
-    private suspend fun performSave(request: AlbumTagEditRequest) {
+    private suspend fun performSave(
+        request: AlbumTagEditRequest,
+        writeConsentGranted: Boolean,
+    ) {
         _uiState.value = _uiState.value.copy(
             isSaving = true,
             statusMessage = null,
@@ -280,7 +290,10 @@ internal class AlbumTagEditorViewModel(
         ).recalculateFlags()
         runCatching {
             withContext(Dispatchers.IO) {
-                tagEditorService.applyEdits(request)
+                tagEditorService.applyEdits(
+                    request = request,
+                    writeConsentGranted = writeConsentGranted,
+                )
             }
         }.onSuccess { result ->
             if (result.artworkChanged) {
@@ -306,6 +319,15 @@ internal class AlbumTagEditorViewModel(
                 )
             }
             _uiState.value = _uiState.value.copy(
+                originalAlbum = result.editedSongs.takeIf { it.isNotEmpty() }?.let { editedSongs ->
+                    request.album.copy(
+                        title = editedSongs.firstOrNull()?.album ?: request.album.title,
+                        artist = editedSongs.firstOrNull()?.albumArtist ?: editedSongs.firstOrNull()?.artist ?: request.album.artist,
+                        songs = request.album.songs.map { song ->
+                            editedSongs.firstOrNull { it.id == song.id } ?: song
+                        },
+                    )
+                } ?: _uiState.value.originalAlbum,
                 isSaving = false,
                 saveFailures = failures,
                 statusMessage = when {

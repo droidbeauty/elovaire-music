@@ -143,7 +143,10 @@ internal class AlbumTagEditorService(
         }
     }
 
-    suspend fun applyEdits(request: AlbumTagEditRequest): TagEditApplyResult = withContext(Dispatchers.IO) {
+    suspend fun applyEdits(
+        request: AlbumTagEditRequest,
+        writeConsentGranted: Boolean = false,
+    ): TagEditApplyResult = withContext(Dispatchers.IO) {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
         val trackEditsById = request.tracks.associateBy { it.songId }
         val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)
@@ -296,13 +299,17 @@ internal class AlbumTagEditorService(
             } catch (throwable: CancellationException) {
                 throw throwable
             } catch (throwable: RecoverableSecurityException) {
-                if (permissionRequest == null) {
+                if (!writeConsentGranted && permissionRequest == null) {
                     permissionRequest = throwable.userAction.actionIntent
                 }
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,
-                    reason = "Additional write access is required for this file.",
+                    reason = if (writeConsentGranted) {
+                        "The system did not allow this file to be updated after write access was granted."
+                    } else {
+                        "Additional write access is required for this file."
+                    },
                 )
             } catch (throwable: Throwable) {
                 failures += TagEditFailure(
