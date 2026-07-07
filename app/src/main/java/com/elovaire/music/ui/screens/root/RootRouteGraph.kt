@@ -55,32 +55,11 @@ internal fun RootRouteGraph(
         }
 
         composable(PLAYLISTS_ROUTE) {
-            val smartSummaries = remember(
-                appState.smartPlaylists,
-                libraryState.songs,
-                appState.favoriteSongIds,
-                appState.songPlayCounts,
-                playbackState.recentSongIds,
-            ) {
-                buildSmartPlaylistSummaries(
-                    playlists = appState.smartPlaylists,
-                    songs = libraryState.songs,
-                    favoriteSongIds = appState.favoriteSongIds,
-                    songPlayCounts = appState.songPlayCounts,
-                    recentSongIds = playbackState.recentSongIds,
-                )
-            }
-            PlaylistsScreen(
-                playlists = appState.playlists,
-                smartPlaylists = smartSummaries,
-                libraryState = libraryState,
-                topPadding = padding.topContent,
-                bottomPadding = padding.bottomContent,
-                scrollToTopRequestVersion = navState.playlistsScrollRequestVersion,
-                onRenamePlaylist = routeActions::renamePlaylist,
-                onDeletePlaylists = routeActions::deletePlaylists,
-                onOpenPlaylist = { playlist, origin -> routeActions.openPlaylist(playlist.id, origin) },
-                onOpenSmartPlaylist = { summary, origin -> routeActions.openSmartPlaylist(summary.playlist.id, origin) },
+            PlaylistsRouteHost(
+                navState = navState,
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
             )
         }
 
@@ -126,60 +105,20 @@ internal fun RootRouteGraph(
             route = "$SMART_PLAYLIST_ROUTE/{smartPlaylistId}",
             arguments = listOf(navArgument("smartPlaylistId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            val smartPlaylistId = backStackEntry.smartPlaylistRouteId()
-            val playlist = appState.smartPlaylists.firstOrNull { it.id == smartPlaylistId }
-            SmartPlaylistDetailScreen(
-                playlist = playlist,
-                songs = libraryState.songs,
-                favoriteSongIds = appState.favoriteSongIds,
-                songPlayCounts = appState.songPlayCounts,
-                recentSongIds = playbackState.recentSongIds,
-                currentSongId = playbackState.currentSong?.id,
-                isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
-                bottomPadding = padding.detailBottom,
-                onBack = routeActions::navigateUp,
-                onEdit = { routeActions.openSmartPlaylistEditor(it.id) },
-                onDelete = routeActions::deleteSmartPlaylist,
-                onConvertToNormalPlaylist = { smart, songs ->
-                    routeActions.playlists.createPlaylistAndAddSongs(smart.name, songs.map(Song::id))
-                },
-                onPlay = { smart, songs, shuffle ->
-                    val queue = if (shuffle) songs.shuffled() else songs
-                    queue.firstOrNull()?.let { first ->
-                        routeActions.playback.playSongQueue(
-                            song = first,
-                            queue = queue,
-                            sourceLabel = smart.name,
-                        )
-                    }
-                },
-                onSongSelected = { song, queue, smart ->
-                    routeActions.playback.playSongQueue(song, queue, sourceLabel = smart.name)
-                },
-                onToggleFavorite = routeActions.playlists::toggleFavorite,
+            SmartPlaylistDetailRouteHost(
+                playlistId = backStackEntry.smartPlaylistRouteId(),
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
             )
         }
 
         composable(SMART_PLAYLIST_EDITOR_ROUTE) {
-            val now = remember { System.currentTimeMillis() }
-            SmartPlaylistEditorScreen(
-                playlist = null,
-                songs = libraryState.songs,
-                favoriteSongIds = appState.favoriteSongIds,
-                songPlayCounts = appState.songPlayCounts,
-                recentSongIds = playbackState.recentSongIds,
-                bottomPadding = padding.detailBottom,
-                onBack = routeActions::navigateUp,
-                onSave = { smart ->
-                    val id = routeActions.createSmartPlaylist(smart.name)
-                    if (id > 0L) {
-                        routeActions.updateSmartPlaylist(
-                            smart.copy(id = id, createdAtMs = now, updatedAtMs = System.currentTimeMillis()),
-                        )
-                        routeActions.navigateUp()
-                        routeActions.openSmartPlaylist(id)
-                    }
-                },
+            SmartPlaylistEditorRouteHost(
+                playlistId = null,
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
             )
         }
 
@@ -187,20 +126,11 @@ internal fun RootRouteGraph(
             route = "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}",
             arguments = listOf(navArgument("smartPlaylistId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            val smartPlaylistId = backStackEntry.smartPlaylistRouteId()
-            val playlist = appState.smartPlaylists.firstOrNull { it.id == smartPlaylistId }
-            SmartPlaylistEditorScreen(
-                playlist = playlist,
-                songs = libraryState.songs,
-                favoriteSongIds = appState.favoriteSongIds,
-                songPlayCounts = appState.songPlayCounts,
-                recentSongIds = playbackState.recentSongIds,
-                bottomPadding = padding.detailBottom,
-                onBack = routeActions::navigateUp,
-                onSave = { smart ->
-                    routeActions.updateSmartPlaylist(smart)
-                    routeActions.navigateUp()
-                },
+            SmartPlaylistEditorRouteHost(
+                playlistId = backStackEntry.smartPlaylistRouteId(),
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
             )
         }
 
@@ -252,7 +182,7 @@ internal fun RootRouteGraph(
             arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
         ) { backStackEntry ->
             AlbumTagEditorRouteHost(
-                albumId = backStackEntry.albumRouteId() ?: 0L,
+                albumId = backStackEntry.albumRouteId(),
                 backStackEntry = backStackEntry,
                 viewModelFactory = viewModelFactory,
                 appLanguage = appState.appLanguage,

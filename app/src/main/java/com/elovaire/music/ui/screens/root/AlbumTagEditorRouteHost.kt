@@ -22,7 +22,7 @@ import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
 
 @Composable
 internal fun AlbumTagEditorRouteHost(
-    albumId: Long,
+    albumId: Long?,
     backStackEntry: NavBackStackEntry,
     viewModelFactory: ElovaireViewModelFactory,
     appLanguage: AppLanguage,
@@ -30,7 +30,7 @@ internal fun AlbumTagEditorRouteHost(
 ) {
     val tagEditorViewModel: AlbumTagEditorViewModel = viewModel(
         viewModelStoreOwner = backStackEntry,
-        key = "album_tag_editor_$albumId",
+        key = "album_tag_editor_${albumId ?: "missing"}",
         factory = viewModelFactory,
     )
     val tagEditorState by tagEditorViewModel.uiState.collectAsStateWithLifecycle()
@@ -57,7 +57,11 @@ internal fun AlbumTagEditorRouteHost(
     }
 
     LaunchedEffect(albumId) {
-        tagEditorViewModel.loadAlbum(albumId)
+        if (albumId == null) {
+            tagEditorViewModel.clearAlbum()
+        } else {
+            tagEditorViewModel.loadAlbum(albumId)
+        }
     }
 
     LaunchedEffect(tagEditorViewModel) {

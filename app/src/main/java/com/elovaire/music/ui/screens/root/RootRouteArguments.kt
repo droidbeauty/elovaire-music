@@ -29,7 +29,15 @@ private fun NavBackStackEntry.routeLongArg(name: String): Long? {
 }
 
 internal fun Bundle?.routeLongArg(name: String): Long? {
-    return this?.takeIf { it.containsKey(name) }
-        ?.getLong(name)
-        ?.takeIf { it != 0L }
+    return normalizedRouteLongArg(
+        containsArg = this?.containsKey(name) == true,
+        value = this?.getLong(name),
+    )
+}
+
+internal fun normalizedRouteLongArg(
+    containsArg: Boolean,
+    value: Long?,
+): Long? {
+    return value?.takeIf { containsArg && it != 0L }
 }

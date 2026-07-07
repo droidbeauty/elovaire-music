@@ -96,6 +96,11 @@ internal class AlbumTagEditorViewModel(
         albumId.value = targetAlbumId
     }
 
+    fun clearAlbum() {
+        albumId.value = null
+        _uiState.value = AlbumTagEditorUiState(isLoading = false)
+    }
+
     fun onAlbumTitleChange(value: String) {
         _uiState.value = _uiState.value.copy(
             albumTitle = value,
