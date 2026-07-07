@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import elovaire.music.droidbeauty.app.domain.model.Song
 
 @Composable
 internal fun PlaylistsRouteHost(
@@ -60,9 +59,6 @@ internal fun SmartPlaylistDetailRouteHost(
         onBack = routeActions::navigateUp,
         onEdit = { routeActions.openSmartPlaylistEditor(it.id) },
         onDelete = routeActions::deleteSmartPlaylist,
-        onConvertToNormalPlaylist = { smart, songs ->
-            routeActions.playlists.createPlaylistAndAddSongs(smart.name, songs.map(Song::id))
-        },
         onPlay = { smart, songs, shuffle ->
             val queue = if (shuffle) songs.shuffled() else songs
             queue.firstOrNull()?.let { first ->

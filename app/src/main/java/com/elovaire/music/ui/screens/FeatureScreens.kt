@@ -1135,6 +1135,9 @@ private fun AlbumCollectionContent(
                                 onLayoutModeChanged = onLayoutModeChanged,
                             )
                         }
+                        if (showSortOptions) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
 
                     itemsIndexed(
@@ -8990,7 +8993,7 @@ private fun LyricsOverlay(
                             .align(Alignment.TopCenter)
                             .fillMaxWidth()
                             .height(lyricsBottomBlurArea)
-                            .offset(y = (-6).dp)
+                            .offset(y = (-12).dp)
                             .padding(horizontal = 20.dp)
                             .zIndex(4f),
                         contentAlignment = Alignment.Center,
@@ -9013,7 +9016,7 @@ private fun LyricsOverlay(
                                 )
                                 Text(
                                     text = copy.hideLyrics,
-                                    style = MaterialTheme.typography.labelLarge,
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                                 )
                             }
                         }

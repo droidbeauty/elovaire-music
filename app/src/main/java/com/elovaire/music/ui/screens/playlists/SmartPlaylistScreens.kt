@@ -70,7 +70,6 @@ internal fun SmartPlaylistDetailScreen(
     onBack: () -> Unit,
     onEdit: (SmartPlaylist) -> Unit,
     onDelete: (Long) -> Unit,
-    onConvertToNormalPlaylist: (SmartPlaylist, List<Song>) -> Unit,
     onPlay: (SmartPlaylist, List<Song>, Boolean) -> Unit,
     onSongSelected: (Song, List<Song>, SmartPlaylist) -> Unit,
     onToggleFavorite: (Long) -> Unit,
@@ -161,7 +160,6 @@ internal fun SmartPlaylistDetailScreen(
             songCountLabel = localizedCountLabel(result.songs.size, "song", language),
             onBack = onBack,
             onEdit = { onEdit(playlist) },
-            onConvert = { onConvertToNormalPlaylist(playlist, result.songs) },
             onDelete = { showDeleteConfirm = true },
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -265,7 +263,6 @@ private fun SmartPlaylistDetailTopBar(
     songCountLabel: String,
     onBack: () -> Unit,
     onEdit: () -> Unit,
-    onConvert: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -277,7 +274,6 @@ private fun SmartPlaylistDetailTopBar(
             if (!playlist.isBuiltIn) {
                 add(TopBarActionSpec(R.drawable.ic_lucide_square_pen, "Edit rules", onEdit))
             }
-            add(TopBarActionSpec(R.drawable.ic_lucide_list_music, "Convert to playlist", onConvert))
             if (!playlist.isBuiltIn) {
                 add(TopBarActionSpec(R.drawable.ic_lucide_trash_2, "Delete smart playlist", onDelete))
             }

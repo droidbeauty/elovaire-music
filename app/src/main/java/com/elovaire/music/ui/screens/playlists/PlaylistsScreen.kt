@@ -112,6 +112,7 @@ internal fun PlaylistsScreen(
             gridState.animateScrollToItem(0)
         }
     }
+    val contentTopPadding = if (playlistRows.isEmpty() && smartPlaylists.isNotEmpty()) 16.dp else 12.dp
 
     Box(
         modifier = Modifier
@@ -134,7 +135,7 @@ internal fun PlaylistsScreen(
                     .ensureSingleItemRubberBand(gridState),
                 contentPadding = PaddingValues(
                     start = 20.dp,
-                    top = topPadding + selectionTopInset + 12.dp,
+                    top = topPadding + selectionTopInset + contentTopPadding,
                     end = 20.dp,
                     bottom = 16.dp,
                 ),
@@ -166,12 +167,14 @@ internal fun PlaylistsScreen(
                     )
                 }
                 if (smartPlaylists.isNotEmpty()) {
-                    item(
-                        key = "smart_mix_separator",
-                        span = { GridItemSpan(maxLineSpan) },
-                        contentType = "playlist_section_separator",
-                    ) {
-                        SmartMixSeparator()
+                    if (playlistRows.isNotEmpty()) {
+                        item(
+                            key = "smart_mix_separator",
+                            span = { GridItemSpan(maxLineSpan) },
+                            contentType = "playlist_section_separator",
+                        ) {
+                            SmartMixSeparator()
+                        }
                     }
                     item(
                         key = "smart_mix_header",
@@ -185,7 +188,7 @@ internal fun PlaylistsScreen(
                         span = { GridItemSpan(maxLineSpan) },
                         contentType = "smart_mix_rows",
                     ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             smartPlaylists.forEach { row ->
                                 SmartPlaylistListRow(
                                     summary = row,
