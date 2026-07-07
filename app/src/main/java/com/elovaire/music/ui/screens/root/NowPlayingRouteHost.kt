@@ -16,6 +16,7 @@ import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceScreenState
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
+import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
 
 @Composable
 internal fun NowPlayingRouteHost(

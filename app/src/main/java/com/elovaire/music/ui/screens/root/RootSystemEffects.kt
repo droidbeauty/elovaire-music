@@ -57,6 +57,26 @@ internal class RootPermissionController internal constructor(
 }
 
 @Composable
+internal fun RootNotificationPermissionEffect(
+    isPlaybackActuallyPlaying: Boolean,
+    permissionState: RootPermissionState,
+    onRequestNotificationPermission: () -> Unit,
+) {
+    LaunchedEffect(
+        isPlaybackActuallyPlaying,
+        permissionState.hasNotificationPermission,
+    ) {
+        if (
+            isPlaybackActuallyPlaying &&
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !permissionState.hasNotificationPermission
+        ) {
+            onRequestNotificationPermission()
+        }
+    }
+}
+
+@Composable
 internal fun rememberRootPermissionController(
     container: AppContainer,
     libraryState: LibraryUiState,

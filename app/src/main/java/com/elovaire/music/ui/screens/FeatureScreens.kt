@@ -321,6 +321,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
+import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
 import elovaire.music.droidbeauty.app.ui.theme.elovaireResolvedColorScheme
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import elovaire.music.droidbeauty.app.ui.theme.rememberElovaireOverscrollFactory

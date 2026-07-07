@@ -9,7 +9,7 @@
     <release version="2.4.2">
         <item>Performance tweaks optimized around reducing CPU usage</item>
         <item>Minor tweaks to animation system</item>
-        <item>Further improved core structure</item>
+        <item>Further improved core structure for stability</item>
         <item>Minor layout tweaks in playlists UI</item>
     </release>
 </changelog>

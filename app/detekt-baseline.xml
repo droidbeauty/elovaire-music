@@ -20,7 +20,6 @@
     <ID>LongMethod:AboutScreens.kt:@Composable internal fun ChangelogBottomSheetOverlay</ID>
     <ID>LongMethod:AlbumTagEditorScreen.kt:@Composable internal fun AlbumTagEditorScreen</ID>
     <ID>LongMethod:AlbumTagEditorService.kt:AlbumTagEditorService$suspend fun applyEdits: TagEditApplyResult</ID>
-    <ID>LongMethod:ElovaireRoot.kt:@Composable fun ElovaireRoot</ID>
     <ID>LongMethod:ElovaireStringCatalog.kt:internal fun SpaciousnessMode.displayLabel: String</ID>
     <ID>LongMethod:ElovaireStringCatalog.kt:internal fun homeCopy: HomeUiCopy</ID>
     <ID>LongMethod:ElovaireStringCatalog.kt:internal fun localizedCountLabel: String</ID>
@@ -48,7 +47,6 @@
     <ID>LongMethod:PlaylistDialogs.kt:@Composable internal fun PlaylistSelectionDialog</ID>
     <ID>LongMethod:PlaylistsScreen.kt:@Composable internal fun PlaylistsScreen</ID>
     <ID>LongMethod:RootCompactNowPlayingDock.kt:@Composable private fun NowPlayingBar</ID>
-    <ID>LongMethod:RootRouteGraph.kt:@Composable internal fun RootRouteGraph</ID>
     <ID>LongMethod:RootSharedTopBar.kt:@Composable internal fun SharedTopBarOverlay</ID>
     <ID>LongMethod:SettingsScreen.kt:@Composable internal fun SettingsScreen</ID>
     <ID>LongMethod:SettingsScreen.kt:@Composable private fun LanguageSelectionDialog</ID>

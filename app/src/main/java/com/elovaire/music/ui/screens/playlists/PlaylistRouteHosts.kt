@@ -5,78 +5,31 @@ import androidx.compose.runtime.remember
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 @Composable
-internal fun HomeRouteHost(
-    navState: RootNavigationState,
-    routeState: RootRouteState,
-    routeActions: RootRouteActions,
-    padding: RootRoutePadding,
-) {
-    val appState = routeState.appState
-    val libraryState = routeState.libraryState
-    val playbackState = routeState.playbackState
-    val recentSongs = remember(routeState.songsById, playbackState.recentSongIds) {
-        playbackState.recentSongIds.mapNotNull(routeState.songsById::get).take(5)
-    }
-    HomeScreen(
-        lastPlayedAlbum = routeState.lastPlayedAlbum,
-        lastPlayedPlaylist = routeState.lastPlayedPlaylist,
-        songsById = routeState.songsById,
-        recentlyAddedAlbums = routeState.recentlyAddedAlbums,
-        recentSongs = recentSongs,
-        favoriteAlbums = routeState.favoriteAlbums,
-        playbackState = playbackState,
-        isLibraryLoading = libraryState.isLoading,
-        libraryScanProgress = libraryState.scanProgress,
-        favoriteSongIds = appState.favoriteSongIds,
-        topPadding = padding.topContent,
-        bottomPadding = padding.bottomContent,
-        scrollToTopRequestVersion = navState.homeScrollRequestVersion,
-        resetScrollOnColdStart = routeState.resetHomeScrollOnColdStart,
-        playInitialReveal = routeState.playFirstLaunchHomeReveal,
-        onInitialRevealFinished = routeActions.onInitialRevealFinished,
-        onAlbumSelected = { album, origin ->
-            routeActions.openAlbum(album, origin, AlbumOpenSource.HomeSection)
-        },
-        onPlaylistSelected = { playlist -> routeActions.openPlaylist(playlist.id) },
-        onPlayAlbum = { album -> routeActions.playback.playAlbum(album) },
-        onPlayPlaylist = routeActions.playback::playPlaylist,
-        onShufflePlaylist = { playlist, songs ->
-            routeActions.playback.playPlaylist(playlist, songs, shuffle = true)
-        },
-        onSongSelected = routeActions.playback::playSongFromAlbumOrSingle,
-        onToggleFavorite = routeActions.playlists::toggleFavorite,
-    )
-}
-
-@Composable
 internal fun PlaylistsRouteHost(
     navState: RootNavigationState,
-    routeState: RootRouteState,
+    state: PlaylistRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val appState = routeState.appState
-    val libraryState = routeState.libraryState
-    val playbackState = routeState.playbackState
     val smartSummaries = remember(
-        appState.smartPlaylists,
-        libraryState.songs,
-        appState.favoriteSongIds,
-        appState.songPlayCounts,
-        playbackState.recentSongIds,
+        state.smartPlaylists,
+        state.libraryState.songs,
+        state.favoriteSongIds,
+        state.songPlayCounts,
+        state.recentSongIds,
     ) {
         buildSmartPlaylistSummaries(
-            playlists = appState.smartPlaylists,
-            songs = libraryState.songs,
-            favoriteSongIds = appState.favoriteSongIds,
-            songPlayCounts = appState.songPlayCounts,
-            recentSongIds = playbackState.recentSongIds,
+            playlists = state.smartPlaylists,
+            songs = state.libraryState.songs,
+            favoriteSongIds = state.favoriteSongIds,
+            songPlayCounts = state.songPlayCounts,
+            recentSongIds = state.recentSongIds,
         )
     }
     PlaylistsScreen(
-        playlists = appState.playlists,
+        playlists = state.playlists,
         smartPlaylists = smartSummaries,
-        libraryState = libraryState,
+        libraryState = state.libraryState,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.playlistsScrollRequestVersion,
@@ -90,22 +43,19 @@ internal fun PlaylistsRouteHost(
 @Composable
 internal fun SmartPlaylistDetailRouteHost(
     playlistId: Long?,
-    routeState: RootRouteState,
+    state: PlaylistRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val appState = routeState.appState
-    val libraryState = routeState.libraryState
-    val playbackState = routeState.playbackState
-    val playlist = appState.smartPlaylists.firstOrNull { it.id == playlistId }
+    val playlist = state.smartPlaylists.firstOrNull { it.id == playlistId }
     SmartPlaylistDetailScreen(
         playlist = playlist,
-        songs = libraryState.songs,
-        favoriteSongIds = appState.favoriteSongIds,
-        songPlayCounts = appState.songPlayCounts,
-        recentSongIds = playbackState.recentSongIds,
-        currentSongId = playbackState.currentSong?.id,
-        isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
+        songs = state.libraryState.songs,
+        favoriteSongIds = state.favoriteSongIds,
+        songPlayCounts = state.songPlayCounts,
+        recentSongIds = state.recentSongIds,
+        currentSongId = state.currentSongId,
+        isCurrentSongPlaying = state.isCurrentSongPlaying,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onEdit = { routeActions.openSmartPlaylistEditor(it.id) },
@@ -133,20 +83,18 @@ internal fun SmartPlaylistDetailRouteHost(
 @Composable
 internal fun SmartPlaylistEditorRouteHost(
     playlistId: Long?,
-    routeState: RootRouteState,
+    state: PlaylistRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val appState = routeState.appState
-    val libraryState = routeState.libraryState
-    val playlist = playlistId?.let { id -> appState.smartPlaylists.firstOrNull { it.id == id } }
+    val playlist = playlistId?.let { id -> state.smartPlaylists.firstOrNull { it.id == id } }
     val now = remember { System.currentTimeMillis() }
     SmartPlaylistEditorScreen(
         playlist = playlist,
-        songs = libraryState.songs,
-        favoriteSongIds = appState.favoriteSongIds,
-        songPlayCounts = appState.songPlayCounts,
-        recentSongIds = routeState.playbackState.recentSongIds,
+        songs = state.libraryState.songs,
+        favoriteSongIds = state.favoriteSongIds,
+        songPlayCounts = state.songPlayCounts,
+        recentSongIds = state.recentSongIds,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onSave = { smart ->
@@ -170,20 +118,17 @@ internal fun SmartPlaylistEditorRouteHost(
 @Composable
 internal fun PlaylistDetailRouteHost(
     playlistId: Long?,
-    routeState: RootRouteState,
+    state: PlaylistRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val appState = routeState.appState
-    val libraryState = routeState.libraryState
-    val playbackState = routeState.playbackState
-    val playlist = playlistId?.let { id -> appState.playlists.firstOrNull { it.id == id } }
+    val playlist = playlistId?.let { id -> state.playlists.firstOrNull { it.id == id } }
     PlaylistDetailScreen(
         playlist = playlist,
-        librarySongs = libraryState.songs,
-        favoriteSongIds = appState.favoriteSongIds,
-        currentSongId = playbackState.currentSong?.id,
-        isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
+        librarySongs = state.libraryState.songs,
+        favoriteSongIds = state.favoriteSongIds,
+        currentSongId = state.currentSongId,
+        isCurrentSongPlaying = state.isCurrentSongPlaying,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onPlayPlaylist = { songs, sourceLabel ->
@@ -213,7 +158,7 @@ internal fun PlaylistDetailRouteHost(
                 queue = queue,
                 sourceLabel = playlist?.name ?: queue.playbackSourceLabel(
                     fallbackAlbum = song.album,
-                    language = appState.appLanguage,
+                    language = state.appLanguage,
                 ),
                 sourcePlaylistId = playlist?.id,
             )
