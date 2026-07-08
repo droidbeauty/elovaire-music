@@ -42,6 +42,9 @@ internal data class AudioFormatCapability(
     val displayName: String,
     val extensions: Set<String>,
     val mimeTypes: Set<String>,
+    val playbackMimeType: String?,
+    val allowedCodecMimeTypes: Set<String>,
+    val requiresContainerValidation: Boolean,
     val playbackSupport: PlaybackSupport,
     val metadataReadSupport: MetadataReadSupport,
     val tagWriteSupport: TagWriteSupport,
@@ -51,18 +54,174 @@ internal data class AudioFormatCapability(
 
 internal object AudioFormatPolicy {
     val capabilities = listOf(
-        AudioFormatCapability(AudioContainerFormat.Mp3, "MP3", setOf("mp3"), setOf("audio/mpeg"), PlaybackSupport.Supported, MetadataReadSupport.Strong, TagWriteSupport.Safe, true, "ID3 metadata and artwork are supported."),
-        AudioFormatCapability(AudioContainerFormat.Mp4Audio, "M4A/MP4 Audio", setOf("m4a", "m4b", "mp4"), setOf("audio/mp4", "audio/mp4a-latm", "video/mp4"), PlaybackSupport.Supported, MetadataReadSupport.Strong, TagWriteSupport.Safe, true, "MP4 files must contain audio and no video track."),
-        AudioFormatCapability(AudioContainerFormat.AacAdts, "AAC", setOf("aac"), setOf("audio/aac", "audio/aac-adts"), PlaybackSupport.Supported, MetadataReadSupport.Weak, TagWriteSupport.Unsupported, false, "ADTS metadata writes are unsafe."),
-        AudioFormatCapability(AudioContainerFormat.Flac, "FLAC", setOf("flac"), setOf("audio/flac", "audio/x-flac"), PlaybackSupport.Supported, MetadataReadSupport.Strong, TagWriteSupport.Safe, true, "Vorbis comments and artwork are supported."),
-        AudioFormatCapability(AudioContainerFormat.Wav, "WAV", setOf("wav"), setOf("audio/wav", "audio/x-wav"), PlaybackSupport.Supported, MetadataReadSupport.Partial, TagWriteSupport.Partial, false, "WAV metadata layouts are inconsistent."),
-        AudioFormatCapability(AudioContainerFormat.OggVorbis, "OGG/VORBIS", setOf("ogg", "oga"), setOf("audio/ogg", "application/ogg", "audio/vorbis"), PlaybackSupport.Supported, MetadataReadSupport.Partial, TagWriteSupport.Partial, false, "Codec is detected before playback; writes remain disabled."),
-        AudioFormatCapability(AudioContainerFormat.OggOpus, "OGG/OPUS", setOf("ogg", "oga"), setOf("audio/ogg", "application/ogg", "audio/opus"), PlaybackSupport.Supported, MetadataReadSupport.Partial, TagWriteSupport.Partial, false, "Codec is detected before playback; writes remain disabled."),
-        AudioFormatCapability(AudioContainerFormat.OggFlac, "OGG/FLAC", setOf("ogg", "oga"), setOf("audio/ogg", "application/ogg", "audio/flac"), PlaybackSupport.Supported, MetadataReadSupport.Partial, TagWriteSupport.Partial, false, "Codec is detected before playback; writes remain disabled."),
-        AudioFormatCapability(AudioContainerFormat.Opus, "OPUS", setOf("opus"), setOf("audio/opus"), PlaybackSupport.Supported, MetadataReadSupport.Partial, TagWriteSupport.Partial, false, "Text and artwork writes are not guaranteed."),
-        AudioFormatCapability(AudioContainerFormat.Amr, "AMR", setOf("amr"), setOf("audio/amr", "audio/amr-wb"), PlaybackSupport.PlatformDependent, MetadataReadSupport.Weak, TagWriteSupport.Unsupported, false, "Usually voice content and device-decoder dependent."),
-        AudioFormatCapability(AudioContainerFormat.ThreeGpAudio, "3GP Audio", setOf("3gp"), setOf("audio/3gpp", "video/3gpp"), PlaybackSupport.PlatformDependent, MetadataReadSupport.Weak, TagWriteSupport.Unsupported, false, "Only audio-only files with a device decoder are eligible."),
-        AudioFormatCapability(AudioContainerFormat.MatroskaAudio, "MKA", setOf("mka"), setOf("audio/x-matroska", "video/x-matroska"), PlaybackSupport.PlatformDependent, MetadataReadSupport.Weak, TagWriteSupport.Unsupported, false, "Codec playback depends on the device decoder."),
+        AudioFormatCapability(
+            format = AudioContainerFormat.Mp3,
+            displayName = "MP3",
+            extensions = setOf("mp3"),
+            mimeTypes = setOf("audio/mpeg"),
+            playbackMimeType = "audio/mpeg",
+            allowedCodecMimeTypes = setOf("audio/mpeg"),
+            requiresContainerValidation = false,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Strong,
+            tagWriteSupport = TagWriteSupport.Safe,
+            canEmbedArtwork = true,
+            notes = "ID3 metadata and artwork are supported.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.Mp4Audio,
+            displayName = "M4A/MP4 Audio",
+            extensions = setOf("m4a", "m4b", "mp4"),
+            mimeTypes = setOf("audio/mp4", "audio/mp4a-latm", "video/mp4"),
+            playbackMimeType = "audio/mp4",
+            allowedCodecMimeTypes = setOf("audio/mp4a-latm", "audio/aac", "audio/mpeg", "audio/opus", "audio/alac"),
+            requiresContainerValidation = true,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Strong,
+            tagWriteSupport = TagWriteSupport.Safe,
+            canEmbedArtwork = true,
+            notes = "MP4 files must contain audio and no video track.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.AacAdts,
+            displayName = "AAC",
+            extensions = setOf("aac"),
+            mimeTypes = setOf("audio/aac", "audio/aac-adts"),
+            playbackMimeType = "audio/aac",
+            allowedCodecMimeTypes = setOf("audio/aac", "audio/mp4a-latm"),
+            requiresContainerValidation = false,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Weak,
+            tagWriteSupport = TagWriteSupport.Unsupported,
+            canEmbedArtwork = false,
+            notes = "ADTS metadata writes are unsafe.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.Flac,
+            displayName = "FLAC",
+            extensions = setOf("flac"),
+            mimeTypes = setOf("audio/flac", "audio/x-flac"),
+            playbackMimeType = "audio/flac",
+            allowedCodecMimeTypes = setOf("audio/flac"),
+            requiresContainerValidation = false,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Strong,
+            tagWriteSupport = TagWriteSupport.Safe,
+            canEmbedArtwork = true,
+            notes = "Vorbis comments and artwork are supported.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.Wav,
+            displayName = "WAV",
+            extensions = setOf("wav"),
+            mimeTypes = setOf("audio/wav", "audio/x-wav"),
+            playbackMimeType = "audio/wav",
+            allowedCodecMimeTypes = setOf("audio/g711-alaw", "audio/g711-mlaw"),
+            requiresContainerValidation = false,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Partial,
+            tagWriteSupport = TagWriteSupport.Partial,
+            canEmbedArtwork = false,
+            notes = "WAV metadata layouts are inconsistent.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.OggVorbis,
+            displayName = "OGG/VORBIS",
+            extensions = setOf("ogg", "oga"),
+            mimeTypes = setOf("audio/ogg", "application/ogg", "audio/vorbis"),
+            playbackMimeType = "audio/ogg",
+            allowedCodecMimeTypes = setOf("audio/vorbis", "audio/ogg"),
+            requiresContainerValidation = true,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Partial,
+            tagWriteSupport = TagWriteSupport.Partial,
+            canEmbedArtwork = false,
+            notes = "Codec is detected before playback; writes remain disabled.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.OggOpus,
+            displayName = "OGG/OPUS",
+            extensions = setOf("ogg", "oga"),
+            mimeTypes = setOf("audio/ogg", "application/ogg", "audio/opus"),
+            playbackMimeType = "audio/ogg",
+            allowedCodecMimeTypes = setOf("audio/opus"),
+            requiresContainerValidation = true,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Partial,
+            tagWriteSupport = TagWriteSupport.Partial,
+            canEmbedArtwork = false,
+            notes = "Codec is detected before playback; writes remain disabled.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.OggFlac,
+            displayName = "OGG/FLAC",
+            extensions = setOf("ogg", "oga"),
+            mimeTypes = setOf("audio/ogg", "application/ogg", "audio/flac"),
+            playbackMimeType = "audio/ogg",
+            allowedCodecMimeTypes = setOf("audio/flac"),
+            requiresContainerValidation = true,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Partial,
+            tagWriteSupport = TagWriteSupport.Partial,
+            canEmbedArtwork = false,
+            notes = "Codec is detected before playback; writes remain disabled.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.Opus,
+            displayName = "OPUS",
+            extensions = setOf("opus"),
+            mimeTypes = setOf("audio/opus"),
+            playbackMimeType = "audio/opus",
+            allowedCodecMimeTypes = setOf("audio/opus"),
+            requiresContainerValidation = false,
+            playbackSupport = PlaybackSupport.Supported,
+            metadataReadSupport = MetadataReadSupport.Partial,
+            tagWriteSupport = TagWriteSupport.Partial,
+            canEmbedArtwork = false,
+            notes = "Text and artwork writes are not guaranteed.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.Amr,
+            displayName = "AMR",
+            extensions = setOf("amr"),
+            mimeTypes = setOf("audio/amr", "audio/amr-wb"),
+            playbackMimeType = "audio/amr",
+            allowedCodecMimeTypes = setOf("audio/3gpp", "audio/amr-wb", "audio/amr"),
+            requiresContainerValidation = true,
+            playbackSupport = PlaybackSupport.PlatformDependent,
+            metadataReadSupport = MetadataReadSupport.Weak,
+            tagWriteSupport = TagWriteSupport.Unsupported,
+            canEmbedArtwork = false,
+            notes = "Usually voice content and device-decoder dependent.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.ThreeGpAudio,
+            displayName = "3GP Audio",
+            extensions = setOf("3gp"),
+            mimeTypes = setOf("audio/3gpp", "video/3gpp"),
+            playbackMimeType = "audio/3gpp",
+            allowedCodecMimeTypes = setOf("audio/3gpp", "audio/amr-wb", "audio/mp4a-latm", "audio/aac"),
+            requiresContainerValidation = true,
+            playbackSupport = PlaybackSupport.PlatformDependent,
+            metadataReadSupport = MetadataReadSupport.Weak,
+            tagWriteSupport = TagWriteSupport.Unsupported,
+            canEmbedArtwork = false,
+            notes = "Only audio-only files with a device decoder are eligible.",
+        ),
+        AudioFormatCapability(
+            format = AudioContainerFormat.MatroskaAudio,
+            displayName = "MKA",
+            extensions = setOf("mka"),
+            mimeTypes = setOf("audio/x-matroska", "video/x-matroska"),
+            playbackMimeType = "audio/x-matroska",
+            allowedCodecMimeTypes = setOf("audio/opus", "audio/vorbis", "audio/flac", "audio/mpeg", "audio/mp4a-latm"),
+            requiresContainerValidation = true,
+            playbackSupport = PlaybackSupport.PlatformDependent,
+            metadataReadSupport = MetadataReadSupport.Weak,
+            tagWriteSupport = TagWriteSupport.Unsupported,
+            canEmbedArtwork = false,
+            notes = "Codec playback depends on the device decoder.",
+        ),
     )
 
     val scannerExtensions: Set<String> = capabilities
@@ -73,16 +232,9 @@ internal object AudioFormatPolicy {
         .filter { it.tagWriteSupport == TagWriteSupport.Safe }
         .flatMapTo(linkedSetOf()) { it.extensions }
 
-    val validationRequiredExtensions: Set<String> = setOf(
-        "m4a",
-        "m4b",
-        "mp4",
-        "ogg",
-        "oga",
-        "mka",
-        "3gp",
-        "amr",
-    )
+    val validationRequiredExtensions: Set<String> = capabilities
+        .filter { it.requiresContainerValidation }
+        .flatMapTo(linkedSetOf()) { it.extensions }
 
     fun requiresContainerValidation(extension: String?): Boolean {
         return extension.orEmpty().trim().lowercase(Locale.ROOT) in validationRequiredExtensions
@@ -134,9 +286,7 @@ internal object AudioFormatPolicy {
             "amr" -> AudioContainerFormat.Amr
             "3gp" -> AudioContainerFormat.ThreeGpAudio
             "mka" -> AudioContainerFormat.MatroskaAudio
-            else -> capabilities.firstOrNull { capability ->
-                mediaStoreMimeType.orEmpty().lowercase(Locale.ROOT) in capability.mimeTypes
-            }?.format ?: AudioContainerFormat.Unknown
+            else -> capabilityForMimeType(mediaStoreMimeType)?.format ?: AudioContainerFormat.Unknown
         }
     }
 
@@ -224,24 +374,12 @@ internal object AudioFormatPolicy {
     }
 
     private fun isCodecAllowed(container: AudioContainerFormat, codecMimeType: String?): Boolean {
+        if (container == AudioContainerFormat.Wav && codecMimeType.orEmpty().lowercase(Locale.ROOT).startsWith("audio/raw")) {
+            return true
+        }
         val codec = codecMimeType.orEmpty().lowercase(Locale.ROOT)
         if (codec.isBlank()) return false
-        return when (container) {
-            AudioContainerFormat.Mp3 -> codec == "audio/mpeg"
-            AudioContainerFormat.Mp4Audio -> codec in setOf("audio/mp4a-latm", "audio/aac", "audio/mpeg", "audio/opus", "audio/alac")
-            AudioContainerFormat.AacAdts -> codec in setOf("audio/aac", "audio/mp4a-latm")
-            AudioContainerFormat.Flac -> codec == "audio/flac"
-            AudioContainerFormat.Wav -> codec.startsWith("audio/raw") || codec in setOf("audio/g711-alaw", "audio/g711-mlaw")
-            AudioContainerFormat.OggVorbis -> codec in setOf("audio/vorbis", "audio/ogg")
-            AudioContainerFormat.OggOpus,
-            AudioContainerFormat.Opus,
-            -> codec == "audio/opus"
-            AudioContainerFormat.OggFlac -> codec == "audio/flac"
-            AudioContainerFormat.Amr -> codec in setOf("audio/3gpp", "audio/amr-wb", "audio/amr")
-            AudioContainerFormat.ThreeGpAudio -> codec in setOf("audio/3gpp", "audio/amr-wb", "audio/mp4a-latm", "audio/aac")
-            AudioContainerFormat.MatroskaAudio -> codec in setOf("audio/opus", "audio/vorbis", "audio/flac", "audio/mpeg", "audio/mp4a-latm")
-            AudioContainerFormat.Unknown -> false
-        }
+        return codec in capabilityFor(container).orEmptyAllowedCodecs()
     }
 
     fun canFingerprint(fileName: String): Boolean {
@@ -249,22 +387,19 @@ internal object AudioFormatPolicy {
     }
 
     fun playbackMimeType(fileName: String): String? {
-        return when (fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)) {
-            "mp3" -> "audio/mpeg"
-            "m4a", "m4b", "mp4" -> "audio/mp4"
-            "aac" -> "audio/aac"
-            "flac" -> "audio/flac"
-            "wav" -> "audio/wav"
-            "ogg", "oga" -> "audio/ogg"
-            "opus" -> "audio/opus"
-            "amr" -> "audio/amr"
-            "3gp" -> "audio/3gpp"
-            "mka" -> "audio/x-matroska"
-            else -> null
-        }
+        return capabilityForFileName(fileName)?.playbackMimeType
     }
 
     private fun isOggExtension(extension: String): Boolean {
         return extension == "ogg" || extension == "oga"
+    }
+
+    private fun capabilityForMimeType(mimeType: String?): AudioFormatCapability? {
+        val normalized = mimeType.orEmpty().lowercase(Locale.ROOT)
+        return capabilities.firstOrNull { normalized in it.mimeTypes }
+    }
+
+    private fun AudioFormatCapability?.orEmptyAllowedCodecs(): Set<String> {
+        return this?.allowedCodecMimeTypes.orEmpty()
     }
 }

@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import androidx.core.content.edit
 import elovaire.music.droidbeauty.app.data.playlists.addSongsToPlaylistEntries
@@ -132,27 +133,21 @@ class PreferenceStore(context: Context) :
     override val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
 
     override fun setThemeMode(themeMode: ThemeMode) {
-        if (_themeMode.value == themeMode) return
-        preferences.edit {
+        updateStateAndPreference(_themeMode, themeMode) {
             putString(KEY_THEME_MODE, themeMode.name)
         }
-        _themeMode.value = themeMode
     }
 
     override fun setTextSizePreset(textSizePreset: TextSizePreset) {
-        if (_textSizePreset.value == textSizePreset) return
-        preferences.edit {
+        updateStateAndPreference(_textSizePreset, textSizePreset) {
             putString(KEY_TEXT_SIZE_PRESET, textSizePreset.name)
         }
-        _textSizePreset.value = textSizePreset
     }
 
     override fun setAppLanguage(language: AppLanguage) {
-        if (_appLanguage.value == language) return
-        preferences.edit {
+        updateStateAndPreference(_appLanguage, language) {
             putString(KEY_APP_LANGUAGE, language.name)
         }
-        _appLanguage.value = language
     }
 
     fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
@@ -415,35 +410,27 @@ class PreferenceStore(context: Context) :
 
     override fun setPlaybackVolume(value: Float) {
         val volume = value.coerceIn(0f, 1f)
-        if (_playbackVolume.value == volume) return
-        preferences.edit {
+        updateStateAndPreference(_playbackVolume, volume) {
             putFloat(KEY_PLAYBACK_VOLUME, volume)
         }
-        _playbackVolume.value = volume
     }
 
     override fun setGaplessPlaybackEnabled(enabled: Boolean) {
-        if (_gaplessPlaybackEnabled.value == enabled) return
-        preferences.edit {
+        updateStateAndPreference(_gaplessPlaybackEnabled, enabled) {
             putBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, enabled)
         }
-        _gaplessPlaybackEnabled.value = enabled
     }
 
     override fun setVolumeNormalizationEnabled(enabled: Boolean) {
-        if (_volumeNormalizationEnabled.value == enabled) return
-        preferences.edit {
+        updateStateAndPreference(_volumeNormalizationEnabled, enabled) {
             putBoolean(KEY_VOLUME_NORMALIZATION_ENABLED, enabled)
         }
-        _volumeNormalizationEnabled.value = enabled
     }
 
     fun setOnlineLyricsLookupEnabled(enabled: Boolean) {
-        if (_onlineLyricsLookupEnabled.value == enabled) return
-        preferences.edit {
+        updateStateAndPreference(_onlineLyricsLookupEnabled, enabled) {
             putBoolean(KEY_ONLINE_LYRICS_LOOKUP_ENABLED, enabled)
         }
-        _onlineLyricsLookupEnabled.value = enabled
     }
 
     override fun setAlbumCollectionLayoutMode(mode: String) {
@@ -456,11 +443,9 @@ class PreferenceStore(context: Context) :
     }
 
     override fun setSongCollectionGridEnabled(enabled: Boolean) {
-        if (_songCollectionGridEnabled.value == enabled) return
-        preferences.edit {
+        updateStateAndPreference(_songCollectionGridEnabled, enabled) {
             putBoolean(KEY_SONG_COLLECTION_GRID_ENABLED, enabled)
         }
-        _songCollectionGridEnabled.value = enabled
     }
 
     override fun setAlbumCollectionSortMode(sortMode: String) {
@@ -600,6 +585,18 @@ class PreferenceStore(context: Context) :
             putInt(KEY_REVERB_DURATION_MS, settings.reverbDurationMs)
             putString(KEY_REVERB_PROFILE, settings.reverbProfile.name)
         }
+    }
+
+    private inline fun <T> updateStateAndPreference(
+        state: MutableStateFlow<T>,
+        value: T,
+        crossinline write: SharedPreferences.Editor.() -> Unit,
+    ) {
+        if (state.value == value) return
+        preferences.edit {
+            write()
+        }
+        state.value = value
     }
 
     private fun loadThemeMode(): ThemeMode {

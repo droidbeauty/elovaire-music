@@ -53,6 +53,35 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun capabilityTableKeepsDerivedSetsConsistent() {
+        val derivedScannerExtensions = AudioFormatPolicy.capabilities
+            .filter { it.playbackSupport != PlaybackSupport.Unsupported }
+            .flatMapTo(linkedSetOf()) { it.extensions }
+        val derivedValidationExtensions = AudioFormatPolicy.capabilities
+            .filter { it.requiresContainerValidation }
+            .flatMapTo(linkedSetOf()) { it.extensions }
+        val derivedTaggableExtensions = AudioFormatPolicy.capabilities
+            .filter { it.tagWriteSupport == TagWriteSupport.Safe }
+            .flatMapTo(linkedSetOf()) { it.extensions }
+
+        assertEquals(derivedScannerExtensions, AudioFormatPolicy.scannerExtensions)
+        assertEquals(derivedValidationExtensions, AudioFormatPolicy.validationRequiredExtensions)
+        assertEquals(derivedTaggableExtensions, AudioFormatPolicy.safelyTaggableExtensions)
+    }
+
+    @Test
+    fun playbackMimeTypes_comeFromCapabilityTable() {
+        AudioFormatPolicy.capabilities.forEach { capability ->
+            capability.extensions.forEach { extension ->
+                assertEquals(
+                    capability.playbackMimeType,
+                    AudioFormatPolicy.playbackMimeType("song.$extension"),
+                )
+            }
+        }
+    }
+
+    @Test
     fun playbackSupport_rejectsVideoContainersEvenWithAudioTrack() {
         val detected = DetectedAudioFormat(
             container = AudioContainerFormat.Mp4Audio,

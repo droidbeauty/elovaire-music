@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -23,7 +25,7 @@ internal data class HomeRouteState(
 
 internal data class PlaylistRouteState(
     val playlists: List<Playlist>,
-    val smartPlaylists: List<elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist>,
+    val smartPlaylists: List<SmartPlaylist>,
     val libraryState: LibraryUiState,
     val favoriteSongIds: Set<Long>,
     val songPlayCounts: Map<Long, Int>,
@@ -31,7 +33,7 @@ internal data class PlaylistRouteState(
     val currentSongId: Long?,
     val isCurrentSongPlaying: Boolean,
     val songsById: Map<Long, Song>,
-    val appLanguage: elovaire.music.droidbeauty.app.domain.model.AppLanguage,
+    val appLanguage: AppLanguage,
 )
 
 internal data class RootRouteState(

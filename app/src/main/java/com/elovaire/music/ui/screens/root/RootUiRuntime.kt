@@ -2,16 +2,22 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.OverscrollFactory
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.data.library.LibraryUiState
+import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.theme.rememberElovaireOverscrollFactory
@@ -31,12 +37,12 @@ internal data class RootUiRuntime(
 )
 
 internal data class RootShellInputs(
-    val overscrollFactory: androidx.compose.foundation.OverscrollFactory,
-    val chromeHazeState: dev.chrisbanes.haze.HazeState,
-    val sharedBackIconPainter: androidx.compose.ui.graphics.painter.Painter,
-    val sharedTopMenuIconPainter: androidx.compose.ui.graphics.painter.Painter,
+    val overscrollFactory: OverscrollFactory,
+    val chromeHazeState: HazeState,
+    val sharedBackIconPainter: Painter,
+    val sharedTopMenuIconPainter: Painter,
     val sharedTopBarController: SharedTopBarController,
-    val navHostBlur: androidx.compose.ui.unit.Dp,
+    val navHostBlur: Dp,
     val navHostScrimAlpha: Float,
     val darkTheme: Boolean,
     val playerAdaptivePalette: PlayerAdaptivePalette,
@@ -46,8 +52,8 @@ internal data class RootShellInputs(
 internal fun rememberRootUiRuntime(
     navController: NavHostController,
     routeState: RootAppState,
-    libraryState: elovaire.music.droidbeauty.app.data.library.LibraryUiState,
-    playbackState: elovaire.music.droidbeauty.app.data.playback.PlaybackUiState,
+    libraryState: LibraryUiState,
+    playbackState: PlaybackUiState,
     albumsById: Map<Long, Album>,
     isPlaybackActuallyPlaying: Boolean,
 ): RootUiRuntime {
@@ -115,7 +121,7 @@ internal fun rememberRootUiRuntime(
 
 @Composable
 private fun rememberRootShellInputs(
-    playbackState: elovaire.music.droidbeauty.app.data.playback.PlaybackUiState,
+    playbackState: PlaybackUiState,
     darkTheme: Boolean,
     sharedTopBarController: SharedTopBarController,
 ): RootShellInputs {
