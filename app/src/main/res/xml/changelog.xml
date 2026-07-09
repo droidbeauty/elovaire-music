@@ -6,10 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.4.2">
-        <item>Performance tweaks optimized around reducing CPU usage</item>
-        <item>Minor tweaks to animation system</item>
-        <item>Further improved core structure for stability</item>
-        <item>Minor layout tweaks in playlists UI</item>
+    <release version="2.4.3">
+        <item>Stability improvements</item>
+        <item>Improved animation smoothness</item>
+        <item>Fixed bug that wouldn't allow to save lyrics into a song</item>
+        <item>Minor technical upgrades to playback framework</item>
     </release>
 </changelog>

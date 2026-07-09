@@ -11,6 +11,11 @@ import androidx.compose.runtime.CompositionLocalProvider
 data class MotionRuntime(
     val durationScale: Float,
 ) {
+    /**
+     * The runtime currently records motion policy without changing effective timing.
+     * This preserves the app's established animation feel while keeping a single
+     * extension point for future accessibility work.
+     */
     val reduceMotion: Boolean
         get() = false
 

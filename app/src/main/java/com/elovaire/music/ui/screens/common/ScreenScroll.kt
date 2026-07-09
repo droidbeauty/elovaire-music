@@ -80,6 +80,17 @@ private data class FastGridScrollbarMetrics(
     val spanCount: Int,
 )
 
+internal val FastScrollbarTouchWidth = 28.dp
+internal val FastScrollbarEdgePadding = 0.dp
+internal val FastScrollbarTrackWidth = 1.dp
+internal val FastScrollbarThumbWidth = 3.dp
+internal val FastScrollbarMinThumbHeight = 40.dp
+
+private class FastScrollbarRuntime {
+    var scrollJob: Job? = null
+    var lastRequestedFraction: Float = -1f
+}
+
 @Composable
 internal fun BoxScope.FastScrollbar(
     state: androidx.compose.foundation.lazy.LazyListState,
@@ -97,7 +108,7 @@ internal fun BoxScope.FastScrollbar(
             } else {
                 val viewportHeightPx =
                     (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat().coerceAtLeast(1f)
-                val averageItemHeightPx = visibleItems.map { it.size }.average().toFloat().coerceAtLeast(1f)
+                val averageItemHeightPx = visibleItems.averageHeightPx { it.size }
                 val estimatedContentHeightPx = max(viewportHeightPx, averageItemHeightPx * totalItems)
                 val scrollableContentHeightPx = max(estimatedContentHeightPx - viewportHeightPx, 1f)
                 val currentScrollPx =
@@ -182,7 +193,7 @@ internal fun BoxScope.FastScrollbar(
             } else {
                 val viewportHeightPx =
                     (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat().coerceAtLeast(1f)
-                val averageItemHeightPx = visibleItems.map { it.size.height }.average().toFloat().coerceAtLeast(1f)
+                val averageItemHeightPx = visibleItems.averageHeightPx { it.size.height }
                 val firstRowOffsetY = visibleItems.firstOrNull()?.offset?.y
                 val spanCount = visibleItems
                     .takeWhile { it.offset.y == firstRowOffsetY }
@@ -246,11 +257,10 @@ private fun BoxScope.FastScrollbarTrack(
 
     val motionSpecs = rememberMotionSpecs()
     val scope = rememberCoroutineScope()
+    val runtime = remember { FastScrollbarRuntime() }
     var isDragging by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(true) }
-    var scrollJob by remember { mutableStateOf<Job?>(null) }
     var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
-    var lastRequestedFraction by remember { mutableFloatStateOf(-1f) }
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val trackColor = if (darkTheme) {
         Color.White.copy(alpha = 0.12f)
@@ -282,12 +292,12 @@ private fun BoxScope.FastScrollbarTrack(
             .align(Alignment.CenterEnd)
             .zIndex(3f)
             .fillMaxHeight()
-            .padding(top = topInset, end = 3.dp, bottom = bottomInset)
-            .width(28.dp),
+            .padding(top = topInset, end = FastScrollbarEdgePadding, bottom = bottomInset)
+            .width(FastScrollbarTouchWidth),
     ) {
         val density = LocalDensity.current
         val trackHeightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
-        val thumbHeightPx = max(with(density) { 40.dp.toPx() }, trackHeightPx * visibleFraction)
+        val thumbHeightPx = max(with(density) { FastScrollbarMinThumbHeight.toPx() }, trackHeightPx * visibleFraction)
         val trackTravelPx = max(trackHeightPx - thumbHeightPx, 1f)
         val thumbOffsetPx = trackTravelPx * animatedScrollFraction
         val fractionForPosition: (Float) -> Float = { y ->
@@ -296,10 +306,10 @@ private fun BoxScope.FastScrollbarTrack(
         val jumpToFraction: (Float) -> Unit = { fraction ->
             val normalized = fraction.coerceIn(0f, 1f)
             dragFraction = normalized
-            if (kotlin.math.abs(normalized - lastRequestedFraction) >= 0.0025f) {
-                lastRequestedFraction = normalized
-                scrollJob?.cancel()
-                scrollJob = scope.launch {
+            if (kotlin.math.abs(normalized - runtime.lastRequestedFraction) >= 0.0025f) {
+                runtime.lastRequestedFraction = normalized
+                runtime.scrollJob?.cancel()
+                runtime.scrollJob = scope.launch {
                     onJumpToFraction(normalized)
                 }
             }
@@ -363,16 +373,16 @@ private fun BoxScope.FastScrollbarChrome(
 ) {
     Box(
         modifier = Modifier
-            .align(Alignment.Center)
+            .align(Alignment.CenterEnd)
             .fillMaxHeight()
-            .width(2.dp)
+            .width(FastScrollbarTrackWidth)
             .clip(RoundedCornerShape(ElovaireRadii.pill))
             .background(trackColor),
     )
     Box(
         modifier = Modifier
-            .align(Alignment.TopCenter)
-            .width(5.dp)
+            .align(Alignment.TopEnd)
+            .width(FastScrollbarThumbWidth)
             .height(thumbHeight)
             .graphicsLayer {
                 translationY = thumbOffsetPx
@@ -380,6 +390,15 @@ private fun BoxScope.FastScrollbarChrome(
             .clip(RoundedCornerShape(ElovaireRadii.pill))
             .background(thumbColor),
     )
+}
+
+private inline fun <T> List<T>.averageHeightPx(sizeOf: (T) -> Int): Float {
+    if (isEmpty()) return 1f
+    var total = 0
+    for (item in this) {
+        total += sizeOf(item)
+    }
+    return (total.toFloat() / size).coerceAtLeast(1f)
 }
 
 internal fun Modifier.ensureSingleItemRubberBand(state: androidx.compose.foundation.lazy.LazyListState): Modifier = composed {
