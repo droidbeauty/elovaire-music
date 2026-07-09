@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
+import elovaire.music.droidbeauty.app.data.lyrics.toDisplayPayload
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
@@ -450,7 +451,11 @@ internal sealed interface LyricsUiState {
 }
 
 internal fun LyricsResult.toUiState(): LyricsUiState = when (this) {
-    is LyricsResult.Found -> if (payload.lines.isEmpty()) LyricsUiState.Empty else LyricsUiState.Ready(payload)
+    is LyricsResult.Found -> payload
+        .toDisplayPayload()
+        .takeIf { it.lines.isNotEmpty() }
+        ?.let(LyricsUiState::Ready)
+        ?: LyricsUiState.Empty
     LyricsResult.NotFound -> LyricsUiState.Empty
     LyricsResult.Timeout -> LyricsUiState.Empty
 }

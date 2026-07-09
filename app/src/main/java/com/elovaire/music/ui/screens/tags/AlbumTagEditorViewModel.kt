@@ -58,6 +58,7 @@ internal class AlbumTagEditorViewModel(
     private val _events = MutableSharedFlow<AlbumTagEditorEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<AlbumTagEditorEvent> = _events.asSharedFlow()
     private var matchJob: Job? = null
+    private var pendingWriteRequest: AlbumTagEditRequest? = null
 
     init {
         viewModelScope.launch {
@@ -258,6 +259,7 @@ internal class AlbumTagEditorViewModel(
             statusMessage = null,
             saveFailures = emptyList(),
         ).recalculateFlags()
+        pendingWriteRequest = request
         viewModelScope.launch {
             _events.emit(
                 AlbumTagEditorEvent.RequestWritePermission(
@@ -270,15 +272,17 @@ internal class AlbumTagEditorViewModel(
 
     fun onWritePermissionResult(
         granted: Boolean,
-        request: AlbumTagEditRequest?,
+        request: AlbumTagEditRequest? = pendingWriteRequest,
     ) {
         if (!granted || request == null) {
+            pendingWriteRequest = null
             _uiState.value = _uiState.value.copy(
                 isSaving = false,
                 statusMessage = "Write access was not granted.",
             ).recalculateFlags()
             return
         }
+        pendingWriteRequest = null
         viewModelScope.launch {
             performSave(request, writeConsentGranted = true)
         }
@@ -344,6 +348,7 @@ internal class AlbumTagEditorViewModel(
                 },
             ).recalculateFlags()
             if (result.permissionRequest != null) {
+                pendingWriteRequest = request
                 _events.emit(
                     AlbumTagEditorEvent.RequestRecoverableWritePermission(
                         request = request,
@@ -364,6 +369,7 @@ internal class AlbumTagEditorViewModel(
                 else -> null
             }
             if (recoverableIntentSender != null) {
+                pendingWriteRequest = request
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     statusMessage = null,

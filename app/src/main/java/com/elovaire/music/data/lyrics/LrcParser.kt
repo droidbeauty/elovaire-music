@@ -150,6 +150,15 @@ internal fun LyricsPayload.toEmbeddedLyricsText(): String =
     (sourceTextForEmbedding ?: lines.joinToString("\n") { it.text })
         .canonicalEmbeddedLyricsText()
 
+internal fun LyricsPayload.toDisplayPayload(): LyricsPayload {
+    val displayLines = lines
+        .mapNotNull { line ->
+            sanitizeLyricLine(line.text.replace(LRC_TIME_REGEX, "").trim())
+                ?.let { displayText -> line.copy(text = displayText) }
+        }
+    return copy(lines = displayLines)
+}
+
 internal fun decodeBestEffortText(bytes: ByteArray): String {
     if (bytes.isEmpty()) return ""
     if (bytes.startsWith(byteArrayOf(0xEF.toByte(), 0xBB.toByte(), 0xBF.toByte()))) {

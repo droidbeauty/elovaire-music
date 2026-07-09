@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.lyrics.canonicalEmbeddedLyricsText
+import elovaire.music.droidbeauty.app.data.lyrics.toDisplayPayload
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
@@ -163,6 +164,13 @@ internal class NowPlayingViewModel(
                     return@flow
                 }
 
+                lyricsService.localLyrics(request.song)?.let { local ->
+                    val localState = local.toUiState()
+                    emit(localState)
+                    logLyrics("local song=${request.song.id} state=${localState::class.simpleName}")
+                    return@flow
+                }
+
                 lyricsService.cachedLyrics(request.song, includeNotFound = false)?.let { cached ->
                     val cachedState = cached.toUiState()
                     emit(cachedState)
@@ -170,13 +178,6 @@ internal class NowPlayingViewModel(
                     if (cached is LyricsResult.Found) {
                         return@flow
                     }
-                }
-
-                lyricsService.localLyrics(request.song)?.let { local ->
-                    val localState = local.toUiState()
-                    emit(localState)
-                    logLyrics("local song=${request.song.id} state=${localState::class.simpleName}")
-                    return@flow
                 }
 
                 if (!request.onlineLyricsLookupEnabled) {
@@ -324,12 +325,13 @@ internal class NowPlayingViewModel(
             when (val result = lyricsService.saveEmbeddedLyrics(pending.song, pending.lyrics)) {
                 is EmbeddedLyricsWriteResult.Success -> {
                     pendingLyricsSave = null
+                    val displayPayload = result.payload.toDisplayPayload()
                     manualLyricsOverride.value = ManualLyricsOverride(
                         songId = pending.song.id,
-                        uiState = if (result.payload.lines.isEmpty()) {
+                        uiState = if (displayPayload.lines.isEmpty()) {
                             LyricsUiState.Empty
                         } else {
-                            LyricsUiState.Ready(result.payload)
+                            LyricsUiState.Ready(displayPayload)
                         },
                     )
                     _lyricsEditorUiState.value = LyricsEditorUiState(

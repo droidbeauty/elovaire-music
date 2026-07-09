@@ -91,4 +91,25 @@ class LrcParserTest {
         assertTrue(payload.isSynced)
         assertEquals("[00:01.00]First line\n[00:02.00]Second line", payload.toEmbeddedLyricsText())
     }
+
+    @Test
+    fun displayPayloadStripsTimestampMarkersButKeepsEmbeddingSource() {
+        val payload = requireNotNull(
+            parseLrcOrPlain(
+                raw = "[00:01.00]First line\n[00:02.00]Second line",
+                providerName = "test",
+                confidence = 90,
+            ),
+        ).copy(
+            lines = listOf(
+                LyricsLine(text = "[00:01.00]First line", startTimeMs = 1_000L, index = 0),
+                LyricsLine(text = "[00:02.00]Second line", startTimeMs = 2_000L, index = 1),
+            ),
+        )
+
+        val displayPayload = payload.toDisplayPayload()
+
+        assertEquals(listOf("First line", "Second line"), displayPayload.lines.map { it.text })
+        assertEquals("[00:01.00]First line\n[00:02.00]Second line", displayPayload.toEmbeddedLyricsText())
+    }
 }
