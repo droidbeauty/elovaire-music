@@ -242,6 +242,14 @@ class LibraryRepository internal constructor(
         )
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
+            backendEventSink.emit(
+                BackendEvent.LibraryRefreshCoalesced(
+                    mapOf(
+                        "force_index" to forceMediaIndex.toString(),
+                        "enrich_metadata" to enrichMetadata.toString(),
+                    ),
+                ),
+            )
             return
         }
         startRefresh(request, showLoadingIndicator)
@@ -348,6 +356,11 @@ class LibraryRepository internal constructor(
                 }
                 .onFailure { throwable ->
                     if (throwable is CancellationException) throw throwable
+                    backendEventSink.emit(
+                        BackendEvent.LibraryScanFailed(
+                            mapOf("error_type" to (throwable::class.simpleName ?: "Unknown")),
+                        ),
+                    )
                     _scanState.update {
                         it.copy(
                             isLoading = false,

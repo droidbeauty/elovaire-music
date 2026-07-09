@@ -15,6 +15,14 @@ internal sealed interface BackendEvent {
         override val name = "LibraryScanCompleted"
     }
 
+    data class LibraryScanFailed(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "LibraryScanFailed"
+    }
+
+    data class LibraryRefreshCoalesced(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "LibraryRefreshCoalesced"
+    }
+
     data class MediaMutationStarted(override val fields: Map<String, String>) : BackendEvent {
         override val name = "MediaMutationStarted"
     }

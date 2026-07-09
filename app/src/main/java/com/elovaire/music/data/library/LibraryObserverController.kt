@@ -9,8 +9,10 @@ import android.os.SystemClock
 import android.provider.MediaStore
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -93,7 +95,8 @@ internal class LibraryObserverController(
     fun ensureLibraryFolderObservers(forceRebuild: Boolean = false) {
         val currentRootPaths = libraryFolderObservers.map(RecursiveMusicDirectoryObserver::rootPath)
         observerRebuildJob?.cancel()
-        observerRebuildJob = scope.launch {
+        val rebuildJob = scope.launch(start = CoroutineStart.LAZY) {
+            val currentJob = currentCoroutineContext()[Job] ?: return@launch
             val observers = withContext(Dispatchers.IO) {
                 val roots = scanner.scanRoots()
                 val rootPaths = roots.map(File::getAbsolutePath)
@@ -101,10 +104,16 @@ internal class LibraryObserverController(
                 roots.mapNotNull(::createMusicDirectoryObserver)
                     .also { observers -> observers.forEach(RecursiveMusicDirectoryObserver::startWatching) }
             } ?: return@launch
+            if (observerRebuildJob !== currentJob) {
+                observers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
+                return@launch
+            }
             observerRebuildJob = null
             stopLibraryFolderObservers()
             libraryFolderObservers = observers
         }
+        observerRebuildJob = rebuildJob
+        rebuildJob.start()
     }
 
     fun releaseLibraryFolderObservers() {
@@ -120,8 +129,10 @@ internal class LibraryObserverController(
 
     private fun requestMusicDirectoryObserverRebuild() {
         observerRebuildJob?.cancel()
-        observerRebuildJob = scope.launch {
+        val rebuildJob = scope.launch(start = CoroutineStart.LAZY) {
+            val currentJob = currentCoroutineContext()[Job] ?: return@launch
             delay(AUTO_REFRESH_DEBOUNCE_MS)
+            if (observerRebuildJob !== currentJob) return@launch
             observerRebuildJob = null
             if (libraryFolderObservers.isNotEmpty()) {
                 withContext(Dispatchers.IO) {
@@ -131,6 +142,8 @@ internal class LibraryObserverController(
                 ensureLibraryFolderObservers(forceRebuild = true)
             }
         }
+        observerRebuildJob = rebuildJob
+        rebuildJob.start()
     }
 
     private fun shouldCoalesceObservedPath(path: String): Boolean {
