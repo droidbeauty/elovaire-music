@@ -5,7 +5,10 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
+import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
+import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
@@ -46,11 +49,13 @@ internal class LyricsComponent(
     context: Context,
     preferenceStore: PreferenceStore,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
+    mediaMutationJournal: MediaMutationJournal,
 ) {
     val lyricsService = LyricsService(
         context = context,
         onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
         backgroundWorkPolicy = backgroundWorkPolicy,
+        mediaMutationJournal = mediaMutationJournal,
     )
 
     fun release() {
@@ -58,8 +63,11 @@ internal class LyricsComponent(
     }
 }
 
-internal class TagEditingComponent(context: Context) {
-    val albumTagEditorService = AlbumTagEditorService(context)
+internal class TagEditingComponent(
+    context: Context,
+    mediaMutationJournal: MediaMutationJournal,
+) {
+    val albumTagEditorService = AlbumTagEditorService(context, mediaMutationJournal = mediaMutationJournal)
 }
 
 @OptIn(UnstableApi::class)
@@ -88,15 +96,18 @@ internal class PlaybackComponent(
 
 internal class LibraryComponent(
     context: Context,
+    database: ElovaireDatabase,
     scope: CoroutineScope,
     preferenceStore: PreferenceStore,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
+    private val indexStore = LibraryIndexStore(database.libraryDao())
     val libraryRepository = LibraryRepository(
         appContext = context,
         scanner = MediaStoreScanner(context),
         scope = scope,
         backgroundWorkPolicy = backgroundWorkPolicy,
+        indexStore = indexStore,
     ).also { repository ->
         repository.setLibraryFolders(preferenceStore.libraryFolders.value)
     }

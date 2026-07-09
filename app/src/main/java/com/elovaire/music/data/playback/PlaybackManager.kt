@@ -34,6 +34,7 @@ import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.PlaybackFailureClassifier
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationPolicy
@@ -1110,16 +1111,17 @@ class PlaybackManager(
     private fun handleUnsupportedPlaybackFormat(error: PlaybackException): Boolean {
         val song = currentSong() ?: return false
         if (!failedPlaybackSongIds.add(song.id)) {
-            logDebug("Repeated unsupported playback failure ignored for ${song.fileName}")
+            logDebug("Repeated unsupported playback failure ignored")
             return true
         }
+        val classification = PlaybackFailureClassifier.classify(error)
         _playbackFormatFailure.value = PlaybackFormatFailure(
             songId = song.id,
             fileName = song.fileName,
             format = song.audioFormat,
-            reason = error.errorCodeName,
+            reason = classification.userSafeReason,
         )
-        logDebug("Unsupported playback format ${song.audioFormat} (${song.fileName}): ${error.errorCodeName}")
+        logDebug("Unsupported playback format category=${classification.category} code=${error.errorCodeName}")
         if (player.hasNextMediaItem()) {
             player.seekToNextMediaItem()
             player.prepare()

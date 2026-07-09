@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.content.Context
+import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import kotlinx.coroutines.CoroutineScope
 
 internal class AppServices(
@@ -8,6 +10,8 @@ internal class AppServices(
     appScope: CoroutineScope,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
+    private val database = ElovaireDatabase.create(applicationContext)
+    private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
     private val settingsComponent = SettingsComponent(applicationContext)
     private val updateComponent = UpdateComponent(
         context = applicationContext,
@@ -19,8 +23,9 @@ internal class AppServices(
         context = applicationContext,
         preferenceStore = preferenceStore,
         backgroundWorkPolicy = backgroundWorkPolicy,
+        mediaMutationJournal = mediaMutationJournal,
     )
-    private val tagEditingComponent = TagEditingComponent(applicationContext)
+    private val tagEditingComponent = TagEditingComponent(applicationContext, mediaMutationJournal)
     private val playbackComponent = PlaybackComponent(
         context = applicationContext,
         scope = appScope,
@@ -28,6 +33,7 @@ internal class AppServices(
     )
     private val libraryComponent = LibraryComponent(
         context = applicationContext,
+        database = database,
         scope = appScope,
         preferenceStore = preferenceStore,
         backgroundWorkPolicy = backgroundWorkPolicy,
@@ -52,5 +58,6 @@ internal class AppServices(
         libraryComponent.release()
         playbackComponent.release()
         settingsComponent.release()
+        database.close()
     }
 }

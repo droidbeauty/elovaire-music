@@ -50,7 +50,7 @@ internal class AudioFormatDetector(context: Context) {
                 hasAudioTrack = audioFormat != null,
                 hasVideoTrack = hasVideo,
                 decoderAvailable = codecMime?.let { mime ->
-                    mime.equals("audio/raw", true) || mime.equals("audio/alac", true) || hasDecoder(mime)
+                    AudioDecoderAvailability.isImplicitlyAvailable(mime) || hasDecoder(mime)
                 },
                 sampleRate = audioFormat?.integerOrNull(MediaFormat.KEY_SAMPLE_RATE),
                 channelCount = audioFormat?.integerOrNull(MediaFormat.KEY_CHANNEL_COUNT),
@@ -99,5 +99,11 @@ internal class AudioFormatDetector(context: Context) {
 
     private fun MediaFormat.longOrNull(key: String): Long? {
         return runCatching { if (containsKey(key)) getLong(key) else null }.getOrNull()
+    }
+}
+
+internal object AudioDecoderAvailability {
+    fun isImplicitlyAvailable(mimeType: String): Boolean {
+        return mimeType.equals("audio/raw", ignoreCase = true)
     }
 }

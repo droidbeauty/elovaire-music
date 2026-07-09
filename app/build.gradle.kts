@@ -23,6 +23,7 @@ plugins {
     alias(libs.plugins.dependency.analysis)
     alias(libs.plugins.detekt)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -220,8 +221,12 @@ dependencies {
     implementation(libs.androidx.media3.ui)
     implementation(libs.androidx.media3.session)
     implementation(libs.androidx.metrics.performance)
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.haze)
     implementation(libs.jaudiotagger)
+    ksp(libs.androidx.room.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.leakcanary.android)

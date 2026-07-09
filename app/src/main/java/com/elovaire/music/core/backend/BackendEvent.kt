@@ -1,0 +1,60 @@
+package elovaire.music.droidbeauty.app.core.backend
+
+import android.util.Log
+import elovaire.music.droidbeauty.app.BuildConfig
+
+internal sealed interface BackendEvent {
+    val name: String
+    val fields: Map<String, String>
+
+    data class LibraryScanStarted(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "LibraryScanStarted"
+    }
+
+    data class LibraryScanCompleted(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "LibraryScanCompleted"
+    }
+
+    data class MediaMutationStarted(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "MediaMutationStarted"
+    }
+
+    data class MediaMutationCompleted(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "MediaMutationCompleted"
+    }
+
+    data class MediaMutationFailed(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "MediaMutationFailed"
+    }
+
+    data class PlaybackUnsupportedFormat(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "PlaybackUnsupportedFormat"
+    }
+}
+
+internal interface BackendEventSink {
+    fun emit(event: BackendEvent)
+}
+
+internal object NoOpBackendEventSink : BackendEventSink {
+    override fun emit(event: BackendEvent) = Unit
+}
+
+internal object LogcatBackendEventSink : BackendEventSink {
+    private const val TAG = "ElovaireBackend"
+
+    override fun emit(event: BackendEvent) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(TAG, buildString {
+            append(event.name)
+            event.fields.entries
+                .sortedBy { it.key }
+                .forEach { (key, value) ->
+                    append(' ')
+                    append(key)
+                    append('=')
+                    append(value)
+                }
+        })
+    }
+}

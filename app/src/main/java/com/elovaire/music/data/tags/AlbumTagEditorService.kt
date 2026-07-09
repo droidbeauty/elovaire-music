@@ -11,6 +11,10 @@ import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationStatus
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.data.network.readBytesBounded
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumTagMatchResult
@@ -96,6 +100,7 @@ internal data class TagEditFailure(
 
 internal class AlbumTagEditorService(
     context: Context,
+    private val mediaMutationJournal: MediaMutationJournal? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val appContext = context.applicationContext
@@ -176,12 +181,24 @@ internal class AlbumTagEditorService(
             )
         }
         request.album.songs.forEach { song ->
+            val mutationId = mediaMutationJournal?.create(
+                MediaMutationOperation(
+                    type = if (coverArtBytes != null) MediaMutationType.ArtworkWrite else MediaMutationType.TagEdit,
+                    songId = song.id,
+                    albumId = song.albumId,
+                    uri = song.uri,
+                    displayName = song.fileName,
+                ),
+            )
             val detectedFormat = song.fileName
                 .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
                 ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
             if (AudioFormatPolicy.tagWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
                 val capability = AudioFormatPolicy.capabilityForFileName(song.fileName)
                 logDebug("Skipped unsafe tag write for ${song.fileName}: ${capability?.notes ?: "unknown format"}")
+                mutationId?.let {
+                    mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported tag write format")
+                }
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,
@@ -190,6 +207,9 @@ internal class AlbumTagEditorService(
                 return@forEach
             }
             if (coverArtBytes != null && !AudioFormatPolicy.canEmbedArtwork(detectedFormat, song.fileName)) {
+                mutationId?.let {
+                    mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported artwork write format")
+                }
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,
@@ -204,6 +224,7 @@ internal class AlbumTagEditorService(
                 request.genre !is TagFieldEdit.Unchanged ||
                 coverArtBytes != null
             if (trackEdit == null && !hasAlbumLevelChanges) {
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Cancelled) }
                 return@forEach
             }
             if (trackEdit == null) {
@@ -214,6 +235,7 @@ internal class AlbumTagEditorService(
             var backupFile: File? = null
             var persistedVerificationFile: File? = null
             try {
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
                 val originalBackup = copySongToTempFile(song, "backup")
                 backupFile = originalBackup
                 val workingFile = createTagEditTempFile(song, "working").also { file ->
@@ -228,6 +250,7 @@ internal class AlbumTagEditorService(
                     coverArtBytes = coverArtBytes,
                     coverArtMimeType = coverArtMimeType,
                 )
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
                 val verificationFailures = verifyWrittenTags(
                     tempFile = workingFile,
                     expected = ExpectedTagValues(
@@ -247,6 +270,9 @@ internal class AlbumTagEditorService(
                     expectArtwork = coverArtBytes != null,
                 )
                 if (verificationFailures.isNotEmpty()) {
+                    mutationId?.let {
+                        mediaMutationJournal.mark(it, MediaMutationStatus.Failed, verificationFailures.joinToString())
+                    }
                     failures += TagEditFailure(
                         songId = song.id,
                         fileName = song.fileName,
@@ -254,12 +280,14 @@ internal class AlbumTagEditorService(
                     )
                     return@forEach
                 }
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
                 try {
                     overwriteSongFromTemp(song.uri, tempFile)
                 } catch (writeFailure: Throwable) {
                     runCatching { overwriteSongFromTemp(song.uri, originalBackup) }
                     throw writeFailure
                 }
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
                 persistedVerificationFile = copySongToTempFile(song, "verify")
                 val persistedFailures = verifyWrittenTags(
                     tempFile = persistedVerificationFile,
@@ -280,9 +308,13 @@ internal class AlbumTagEditorService(
                     expectArtwork = coverArtBytes != null,
                 )
                 if (persistedFailures.isNotEmpty()) {
+                    mutationId?.let {
+                        mediaMutationJournal.mark(it, MediaMutationStatus.NeedsRepair, persistedFailures.joinToString())
+                    }
                     overwriteSongFromTemp(song.uri, originalBackup)
                     error("Persisted tag verification failed: ${persistedFailures.joinToString()}")
                 }
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
                 editedSongIds += song.id
                 editedUris += song.uri
                 resolveFilePath(song)?.let(editedFilePaths::add)
@@ -298,9 +330,12 @@ internal class AlbumTagEditorService(
                     discNumber = trackEdit?.let { effectiveTrack.discNumber } ?: song.discNumber,
                     metadataResolved = true,
                 )
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Completed) }
             } catch (throwable: CancellationException) {
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Cancelled) }
                 throw throwable
             } catch (throwable: RecoverableSecurityException) {
+                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.NeedsPermission) }
                 if (!writeConsentGranted && permissionRequest == null) {
                     permissionRequest = throwable.userAction.actionIntent
                 }
@@ -314,6 +349,9 @@ internal class AlbumTagEditorService(
                     },
                 )
             } catch (throwable: Throwable) {
+                mutationId?.let {
+                    mediaMutationJournal.mark(it, MediaMutationStatus.Failed, throwable.message)
+                }
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,

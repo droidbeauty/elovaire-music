@@ -227,6 +227,60 @@ class LibraryAudioFileFilterTest {
         )
     }
 
+    @Test
+    fun evaluate_rejectsMissingAudioTrack() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = emptySet(),
+            libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/music/custom"),
+        )
+
+        assertExcludedReason(
+            expectedReason = "No detectable audio track",
+            decision = filter.evaluate(
+                candidate(
+                    absolutePath = "/storage/emulated/0/Music/Custom/song.m4a",
+                    extension = "m4a",
+                    mimeType = "audio/mp4",
+                    detectedFormat = detected(
+                        container = AudioContainerFormat.Mp4Audio,
+                        extension = "m4a",
+                        codecMimeType = null,
+                        mimeType = "audio/mp4",
+                        hasAudioTrack = false,
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun evaluate_rejectsDecoderUnavailable() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = emptySet(),
+            libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/music/custom"),
+        )
+
+        assertExcludedReason(
+            expectedReason = "No compatible audio decoder",
+            decision = filter.evaluate(
+                candidate(
+                    absolutePath = "/storage/emulated/0/Music/Custom/song.m4a",
+                    extension = "m4a",
+                    mimeType = "audio/mp4",
+                    detectedFormat = detected(
+                        container = AudioContainerFormat.Mp4Audio,
+                        extension = "m4a",
+                        codecMimeType = "audio/alac",
+                        mimeType = "audio/mp4",
+                        decoderAvailable = false,
+                    ),
+                ),
+            ),
+        )
+    }
+
     private fun candidate(
         absolutePath: String?,
         relativePath: String? = "Music/",
@@ -261,6 +315,7 @@ class LibraryAudioFileFilterTest {
         detectionSucceeded: Boolean = true,
         hasAudioTrack: Boolean = true,
         hasVideoTrack: Boolean = false,
+        decoderAvailable: Boolean = true,
     ): DetectedAudioFormat {
         return DetectedAudioFormat(
             container = container,
@@ -270,7 +325,7 @@ class LibraryAudioFileFilterTest {
             detectionSucceeded = detectionSucceeded,
             hasAudioTrack = hasAudioTrack,
             hasVideoTrack = hasVideoTrack,
-            decoderAvailable = true,
+            decoderAvailable = decoderAvailable,
             sampleRate = null,
             channelCount = null,
             bitrate = null,

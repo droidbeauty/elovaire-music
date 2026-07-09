@@ -4,7 +4,11 @@ import android.content.Context
 import android.net.Uri
 import android.os.SystemClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
+import elovaire.music.droidbeauty.app.core.backend.BackendEvent
+import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
+import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
@@ -72,6 +76,8 @@ class LibraryRepository internal constructor(
     private val scanner: MediaStoreScanner,
     private val scope: CoroutineScope,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
+    private val indexStore: LibraryIndexStore? = null,
+    private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
 ) : LibraryReader {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
@@ -254,6 +260,15 @@ class LibraryRepository internal constructor(
         }
         scanJob = scope.launch {
             val refreshRequest = refreshRequests.takeForImmediateScan(request)
+            backendEventSink.emit(
+                BackendEvent.LibraryScanStarted(
+                    mapOf(
+                        "force_index" to refreshRequest.forceMediaIndex.toString(),
+                        "enrich_metadata" to refreshRequest.enrichMetadata.toString(),
+                        "targeted_paths" to refreshRequest.targetedPaths.size.toString(),
+                    ),
+                ),
+            )
             val progressThrottler = LibraryScanProgressThrottler()
             runCatching {
                 withContext(Dispatchers.IO) {
@@ -306,6 +321,11 @@ class LibraryRepository internal constructor(
                             filterFingerprint = scanner.currentFilterFingerprint(),
                             syncState = scanner.currentSyncState(),
                         )
+                        indexStore?.indexSnapshot(
+                            snapshot = visibleSnapshot,
+                            filterFingerprint = scanner.currentFilterFingerprint(),
+                            source = "MediaStore",
+                        )
                     }
                     val snapshotNeedsMetadata = visibleSnapshot.songs.any { song ->
                         !song.metadataResolved ||
@@ -317,6 +337,14 @@ class LibraryRepository internal constructor(
                     if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
                         refreshRequests.enqueue(enrichMetadata = true)
                     }
+                    backendEventSink.emit(
+                        BackendEvent.LibraryScanCompleted(
+                            mapOf(
+                                "songs" to visibleSnapshot.songs.size.toString(),
+                                "albums" to visibleSnapshot.albums.size.toString(),
+                            ),
+                        ),
+                    )
                 }
                 .onFailure { throwable ->
                     if (throwable is CancellationException) throw throwable

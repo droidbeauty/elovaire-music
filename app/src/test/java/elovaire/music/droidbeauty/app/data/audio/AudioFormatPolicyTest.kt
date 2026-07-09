@@ -170,6 +170,12 @@ class AudioFormatPolicyTest {
         )
     }
 
+    @Test
+    fun decoderAvailability_doesNotAssumeAlacDecoderExists() {
+        assertTrue(AudioDecoderAvailability.isImplicitlyAvailable("audio/raw"))
+        assertFalse(AudioDecoderAvailability.isImplicitlyAvailable("audio/alac"))
+    }
+
     private fun detected(
         container: AudioContainerFormat,
         codecMimeType: String,
