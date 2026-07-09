@@ -3,9 +3,35 @@ package elovaire.music.droidbeauty.app.data.library
 import android.net.TestUri
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LibraryScanRootsTest {
+    @Test
+    fun normalize_keepsParentPathAndDropsChildPath() {
+        val selections = LibraryFolderSelectionResolver.normalize(
+            listOf(
+                LibraryFolderSelection(null, "/storage/emulated/0/Music/Album", "Album"),
+                LibraryFolderSelection(null, "/storage/emulated/0/Music", "Music"),
+            ),
+        )
+
+        assertEquals(listOf("/storage/emulated/0/Music"), selections.map(LibraryFolderSelection::path))
+    }
+
+    @Test
+    fun normalize_keepsUnresolvedContentRootsSeparate() {
+        val selections = LibraryFolderSelectionResolver.normalize(
+            listOf(
+                LibraryFolderSelection(TestUri("content://tree/one"), "content://tree/one", "One"),
+                LibraryFolderSelection(TestUri("content://tree/two"), "content://tree/two", "Two"),
+            ),
+        )
+
+        assertEquals(2, selections.size)
+        assertTrue(selections.all { it.path.startsWith("content://") })
+    }
+
     @Test
     fun musicSelection_exposesMusicRelativeRoot() {
         val roots = LibraryScanRoots(

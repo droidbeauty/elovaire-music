@@ -9,8 +9,9 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
+import java.nio.ByteBuffer
+import java.security.MessageDigest
 import java.util.Locale
-import kotlin.math.absoluteValue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -49,10 +50,10 @@ internal object ExternalAudioIntentHandler {
 
         val title = ExternalAudioMetadataPolicy.titleFromDisplayName(displayName)
         val durationMs = contentResolver.readDurationMs(context, uri)
-        val stableHash = uri.toString().hashCode().toLong().absoluteValue
+        val uriValue = uri.toString()
 
         Song(
-            id = EXTERNAL_SONG_ID_BASE + stableHash,
+            id = stableExternalId(uriValue, EXTERNAL_SONG_ID_BASE),
             title = title,
             isExplicit = false,
             artist = "Unknown Artist",
@@ -62,7 +63,7 @@ internal object ExternalAudioIntentHandler {
             audioFormat = capability.displayName,
             audioQuality = null,
             fileName = displayName,
-            albumId = EXTERNAL_ALBUM_ID_BASE + stableHash,
+            albumId = stableExternalId(uriValue, EXTERNAL_ALBUM_ID_BASE),
             durationMs = durationMs,
             trackNumber = 0,
             discNumber = 0,
@@ -139,3 +140,15 @@ internal object ExternalAudioIntentHandler {
         }.getOrDefault(0L)
     }
 }
+
+internal fun stableExternalId(
+    uriValue: String,
+    base: Long,
+): Long {
+    val digest = MessageDigest.getInstance("SHA-256")
+        .digest(uriValue.toByteArray(Charsets.UTF_8))
+    val positive = ByteBuffer.wrap(digest, 0, Long.SIZE_BYTES).long and Long.MAX_VALUE
+    return base + (positive % EXTERNAL_ID_RANGE)
+}
+
+private const val EXTERNAL_ID_RANGE = 1_000_000_000_000L

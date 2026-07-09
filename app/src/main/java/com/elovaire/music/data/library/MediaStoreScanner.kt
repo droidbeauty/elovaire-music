@@ -96,20 +96,21 @@ class MediaStoreScanner(
 
         var totalRows = 0
         val songs = mutableListOf<Song>()
-        val refreshedMetadataCache = mutableMapOf<Long, CachedSongMetadata>()
-        val genreCache = mutableMapOf<Long, String?>()
+        val refreshedMetadataCache = mutableMapOf<String, CachedSongMetadata>()
+        val genreCache = mutableMapOf<MediaStoreGenreKey, String?>()
         val progressEmitter = ScannerProgressEmitter(onProgress)
         val audioFileFilter = buildAudioFileFilter()
         val decisionMap = ScannerDebugLogger.newDecisionMap()
 
         ElovaireTrace.section("library_mediastore_scan") {
-            context.contentResolver.query(
+            val cursor = context.contentResolver.query(
                 MediaStoreAudioQuery.collectionUri,
                 MediaStoreAudioQuery.projection,
                 MediaStoreAudioQuery.selection,
                 null,
                 MediaStoreAudioQuery.orderBy,
-            )?.use { cursor ->
+            ) ?: throw MediaStoreQueryUnavailableException()
+            cursor.use {
                 totalRows = cursor.count.coerceAtLeast(0)
                 progressEmitter.emit(0, totalRows)
                 val rowMapper = MediaStoreAudioRowMapper(context, cursor)
@@ -141,7 +142,7 @@ class MediaStoreScanner(
                             continue
                         }
                     }
-                    val cachedMetadata = metadataCache[row.id]
+                    val cachedMetadata = metadataCache[row.uri.toString()]
                         ?.takeIf {
                             it.fileName == row.fileName &&
                                 (it.filePath == null || row.filePath == null || it.filePath == row.filePath) &&
@@ -156,6 +157,7 @@ class MediaStoreScanner(
                                 songId = row.id,
                                 songUri = row.uri,
                                 filePath = row.filePath,
+                                volumeName = row.volumeName,
                                 mediaStoreYear = row.mediaStoreYear,
                                 fileSizeBytes = row.fileSizeBytes,
                                 durationMs = row.durationMs,
@@ -182,7 +184,8 @@ class MediaStoreScanner(
                     val resolvedAlbum = songMetadata.album ?: row.album
                     val isExplicit = detectExplicit(resolvedTitle, row.fileName)
                     val title = sanitizeDisplayTitle(resolvedTitle, isExplicit)
-                    refreshedMetadataCache[row.id] = CachedSongMetadata(
+                    refreshedMetadataCache[row.uri.toString()] = CachedSongMetadata(
+                        songId = row.id,
                         fileName = row.fileName,
                         filePath = row.filePath,
                         dateAddedSeconds = row.dateAddedSeconds,
@@ -305,17 +308,7 @@ class MediaStoreScanner(
         mediaStoreSongs: List<Song>,
         safSongs: List<Song>,
     ): List<Song> {
-        if (safSongs.isEmpty()) return mediaStoreSongs
-        val mediaUris = mediaStoreSongs.mapTo(hashSetOf()) { it.uri.toString() }
-        val mediaPaths = mediaStoreSongs.mapNotNullTo(hashSetOf()) { song ->
-            song.libraryPath?.trim()?.lowercase(Locale.ROOT)
-        }
-        val uniqueSafSongs = safSongs.filterNot { song ->
-            val normalizedPath = song.libraryPath?.trim()?.lowercase(Locale.ROOT)
-            song.uri.toString() in mediaUris ||
-                (normalizedPath != null && normalizedPath in mediaPaths)
-        }
-        return mediaStoreSongs + uniqueSafSongs
+        return LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(mediaStoreSongs, safSongs)
     }
 
     private fun String?.orUnknown(fallback: String): String {
@@ -361,11 +354,12 @@ class MediaStoreScanner(
         songId: Long,
         songUri: Uri,
         filePath: String?,
+        volumeName: String?,
         mediaStoreYear: Int?,
         fileSizeBytes: Long?,
         durationMs: Long,
         detectedFormat: DetectedAudioFormat,
-        genreCache: MutableMap<Long, String?>,
+        genreCache: MutableMap<MediaStoreGenreKey, String?>,
     ): SongMetadata {
         val embeddedMetadata = embeddedTagMetadataReader.read(filePath)
         val retrieverMetadata = readRetrieverMetadata(songUri)
@@ -382,7 +376,9 @@ class MediaStoreScanner(
             )
         val genre = embeddedMetadata?.genre
             ?: retrieverMetadata.genre
-            ?: genreCache.getOrPut(songId) { queryGenre(songId) }
+            ?: genreCache.getOrPut(MediaStoreGenreKey(songId, volumeName)) {
+                queryGenre(songId, volumeName)
+            }
         return SongMetadata(
             title = embeddedMetadata?.title ?: retrieverMetadata.title,
             artist = embeddedMetadata?.artist ?: retrieverMetadata.artist,
@@ -446,12 +442,14 @@ class MediaStoreScanner(
         }.getOrDefault(RetrieverMetadata())
     }
 
-    private fun queryGenre(songId: Long): String? {
-        val volumeNames = buildList {
-            add("external")
-            add(MediaStore.VOLUME_EXTERNAL)
-            add(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        }.distinct()
+    private fun queryGenre(
+        songId: Long,
+        volumeName: String?,
+    ): String? {
+        // The platform genre URI API accepts an Int audio ID. Never truncate a MediaStore Long ID.
+        if (!canQueryMediaStoreGenre(songId)) return null
+
+        val volumeNames = mediaStoreGenreVolumes(volumeName)
 
         return volumeNames.firstNotNullOfOrNull { volumeName ->
             val genreUri = MediaStore.Audio.Genres.getContentUriForAudioId(volumeName, songId.toInt())
@@ -534,6 +532,27 @@ class MediaStoreScanner(
         }.getOrNull()
     }
 
+}
+
+internal class MediaStoreQueryUnavailableException : IllegalStateException(
+    "MediaStore audio query returned no cursor.",
+)
+
+internal data class MediaStoreGenreKey(
+    val songId: Long,
+    val volumeName: String?,
+)
+
+internal fun canQueryMediaStoreGenre(songId: Long): Boolean {
+    return songId in 1L..Int.MAX_VALUE.toLong()
+}
+
+internal fun mediaStoreGenreVolumes(preferredVolumeName: String?): List<String> {
+    return buildList {
+        preferredVolumeName?.trim()?.takeIf { it.isNotBlank() }?.let(::add)
+        add(MediaStore.VOLUME_EXTERNAL)
+        add(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+    }.distinct()
 }
 
 internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {

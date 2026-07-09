@@ -169,6 +169,10 @@ kotlin {
     }
 }
 
+ksp {
+    arg("room.schemaLocation", file("schemas").path)
+}
+
 if (providers.gradleProperty("app.composeCompilerReports").map(String::toBoolean).getOrElse(false)) {
     composeCompiler {
         reportsDestination = layout.buildDirectory.dir("compose_compiler/reports")

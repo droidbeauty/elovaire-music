@@ -73,12 +73,13 @@ internal class LibraryObserverController(
 
     private fun ensureMediaObserverRegistered() {
         if (mediaObserverRegistered) return
-        contentResolver.registerContentObserver(
-            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            true,
-            mediaObserver,
-        )
-        mediaObserverRegistered = true
+        mediaObserverRegistered = runCatching {
+            contentResolver.registerContentObserver(
+                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+                true,
+                mediaObserver,
+            )
+        }.isSuccess
     }
 
     private fun unregisterMediaObserver() {
@@ -197,6 +198,7 @@ internal class LibraryObserverController(
             }
             val nextDirectories = rootDirectory.walkTopDown()
                 .maxDepth(8)
+                .onEnter { directory -> !directory.isSymbolicLinkSafely() }
                 .filter(File::isDirectory)
                 .map(File::getAbsolutePath)
                 .toList()

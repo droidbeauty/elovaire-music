@@ -5,11 +5,11 @@ import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import java.io.File
 
 internal class ScannerMetadataCache {
-    private val metadata = mutableMapOf<Long, CachedSongMetadata>()
+    private val metadata = mutableMapOf<String, CachedSongMetadata>()
 
-    operator fun get(songId: Long): CachedSongMetadata? = metadata[songId]
+    operator fun get(mediaUri: String): CachedSongMetadata? = metadata[mediaUri]
 
-    fun replaceWith(refreshed: Map<Long, CachedSongMetadata>) {
+    fun replaceWith(refreshed: Map<String, CachedSongMetadata>) {
         metadata.clear()
         metadata.putAll(refreshed)
     }
@@ -31,7 +31,8 @@ internal class ScannerMetadataCache {
                 discNumber = song.discNumber.takeIf { it > 0 },
                 volumeNormalization = song.volumeNormalization,
             )
-            metadata[song.id] = CachedSongMetadata(
+            metadata[song.uri.toString()] = CachedSongMetadata(
+                songId = song.id,
                 fileName = song.fileName,
                 filePath = song.libraryPath,
                 dateAddedSeconds = song.dateAddedSeconds,
@@ -65,11 +66,13 @@ internal class ScannerMetadataCache {
 
     fun invalidateSongIds(songIds: Collection<Long>) {
         if (songIds.isEmpty()) return
-        metadata.keys.removeAll(songIds.toSet())
+        val ids = songIds.toSet()
+        metadata.entries.removeAll { (_, cached) -> cached.songId in ids }
     }
 }
 
 internal data class CachedSongMetadata(
+    val songId: Long,
     val fileName: String,
     val filePath: String?,
     val dateAddedSeconds: Long,

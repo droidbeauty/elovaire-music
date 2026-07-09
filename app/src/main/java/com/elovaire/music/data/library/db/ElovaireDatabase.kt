@@ -15,7 +15,7 @@ import androidx.room.RoomDatabase
         LibraryMutationEntity::class,
     ],
     version = 1,
-    exportSchema = false,
+    exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao

@@ -187,13 +187,13 @@ class PreferenceStore(context: Context) :
         var changed = false
         if (songId != null && songId != 0L) {
             _songPlayCounts.value = _songPlayCounts.value.toMutableMap().apply {
-                this[songId] = (this[songId] ?: 0) + 1
+                this[songId] = incrementPlayCount(this[songId])
             }.toMap()
             changed = true
         }
         if (albumId != null && albumId != 0L) {
             _albumPlayCounts.value = _albumPlayCounts.value.toMutableMap().apply {
-                this[albumId] = (this[albumId] ?: 0) + 1
+                this[albumId] = incrementPlayCount(this[albumId])
             }.toMap()
             changed = true
         }
@@ -296,6 +296,7 @@ class PreferenceStore(context: Context) :
     }
 
     override fun toggleFavoriteSong(songId: Long) {
+        if (songId <= 0L) return
         val updated = if (songId in _favoriteSongIds.value) {
             _favoriteSongIds.value.filterNot { it == songId }
         } else {
@@ -308,10 +309,11 @@ class PreferenceStore(context: Context) :
         songIds: List<Long>,
         favorite: Boolean,
     ) {
-        if (songIds.isEmpty()) return
-        val songIdSet = songIds.toSet()
+        val normalizedSongIds = normalizeFavoriteSongIds(songIds)
+        if (normalizedSongIds.isEmpty()) return
+        val songIdSet = normalizedSongIds.toSet()
         val updated = if (favorite) {
-            (_favoriteSongIds.value + songIds).distinct()
+            normalizeFavoriteSongIds(_favoriteSongIds.value + normalizedSongIds)
         } else {
             _favoriteSongIds.value.filterNot { it in songIdSet }
         }
@@ -805,6 +807,7 @@ class PreferenceStore(context: Context) :
             ?.takeIf { it.isNotBlank() }
             ?.split(",")
             ?.mapNotNull { it.toLongOrNull() }
+            ?.let(::normalizeFavoriteSongIds)
             .orEmpty()
     }
 
@@ -924,10 +927,11 @@ class PreferenceStore(context: Context) :
     }
 
     private fun persistFavoriteSongIds(songIds: List<Long>) {
+        val normalizedSongIds = normalizeFavoriteSongIds(songIds)
         preferences.edit {
-            putString(KEY_FAVORITE_SONG_IDS, songIds.joinToString(","))
+            putString(KEY_FAVORITE_SONG_IDS, normalizedSongIds.joinToString(","))
         }
-        _favoriteSongIds.value = songIds
+        _favoriteSongIds.value = normalizedSongIds
         _playlists.value = assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value)
     }
 
@@ -935,13 +939,14 @@ class PreferenceStore(context: Context) :
         playlists: List<Playlist>,
         favoriteSongIds: List<Long>,
     ) {
+        val normalizedFavoriteSongIds = normalizeFavoriteSongIds(favoriteSongIds)
         preferences.edit {
             putString(KEY_PLAYLISTS, serializePlaylists(playlists))
-            putString(KEY_FAVORITE_SONG_IDS, favoriteSongIds.joinToString(","))
+            putString(KEY_FAVORITE_SONG_IDS, normalizedFavoriteSongIds.joinToString(","))
         }
         _userPlaylists.value = playlists
-        _favoriteSongIds.value = favoriteSongIds
-        _playlists.value = assemblePlaylists(playlists, favoriteSongIds)
+        _favoriteSongIds.value = normalizedFavoriteSongIds
+        _playlists.value = assemblePlaylists(playlists, normalizedFavoriteSongIds)
     }
 
     private fun Map<Long, Int>.serializePlayCounts(): String {
@@ -1018,4 +1023,12 @@ class PreferenceStore(context: Context) :
         const val RECORD_SEPARATOR = "\u001E"
         const val FIELD_SEPARATOR = "\u001F"
     }
+}
+
+internal fun incrementPlayCount(current: Int?): Int {
+    return current?.coerceIn(0, Int.MAX_VALUE - 1)?.plus(1) ?: 1
+}
+
+internal fun normalizeFavoriteSongIds(songIds: Iterable<Long>): List<Long> {
+    return songIds.asSequence().filter { it > 0L }.distinct().toList()
 }

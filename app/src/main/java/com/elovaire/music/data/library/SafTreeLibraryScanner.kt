@@ -7,6 +7,7 @@ import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.io.File
 import java.security.MessageDigest
 import java.util.ArrayDeque
 import java.util.Locale
@@ -36,6 +37,16 @@ internal class SafTreeLibraryScanner(
     ): List<Song> {
         val rootDocumentId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull() ?: return emptyList()
         val rootKey = LibraryFolderSelectionResolver.safSyntheticRoot(treeUri)
+        val libraryRootPaths = buildSet {
+            add(rootKey)
+            LibrarySongDuplicateResolver.normalizedRealPath(selection.path)?.let(::add)
+        }
+        val audioFileFilter = LibraryAudioFileFilter(
+            selectedRelativeRoots = emptySet(),
+            libraryRootPaths = libraryRootPaths,
+            explicitCustomRootPaths = libraryRootPaths,
+            explicitCustomRelativeRoots = emptySet(),
+        )
         val pending = ArrayDeque<SafDirectory>()
         pending += SafDirectory(documentId = rootDocumentId, relativePath = "")
         val songs = mutableListOf<Song>()
@@ -65,6 +76,7 @@ internal class SafTreeLibraryScanner(
                 val detectedFormat = audioFormatDetector.detect(child.uri, child.name, child.mimeType)
                 val metadata = readMetadata(child.uri)
                 val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: return@forEach
+                val libraryPath = resolvedLibraryPath(selection, rootKey, childRelativePath)
                 val candidate = AudioScanCandidate(
                     id = stableNegativeId("saf-song:${child.uri}"),
                     uri = child.uri,
@@ -75,18 +87,12 @@ internal class SafTreeLibraryScanner(
                     durationMs = durationMs,
                     mimeType = child.mimeType,
                     relativePath = childRelativePath.substringBeforeLast('/', ""),
-                    absolutePath = "$rootKey/$childRelativePath",
+                    absolutePath = libraryPath,
                     extension = extension,
                     isMusic = true,
                     detectedFormat = detectedFormat,
                 )
-                val filter = LibraryAudioFileFilter(
-                    selectedRelativeRoots = emptySet(),
-                    libraryRootPaths = setOf(rootKey),
-                    explicitCustomRootPaths = setOf(rootKey),
-                    explicitCustomRelativeRoots = emptySet(),
-                )
-                if (filter.evaluate(candidate) !is AudioFileFilterDecision.Include) return@forEach
+                if (audioFileFilter.evaluate(candidate) !is AudioFileFilterDecision.Include) return@forEach
                 val title = metadata.title ?: child.name.substringBeforeLast('.').ifBlank { child.name }
                 val artist = metadata.artist ?: "Unknown Artist"
                 val album = metadata.album ?: selection.displayName.ifBlank { "Unknown Album" }
@@ -108,7 +114,7 @@ internal class SafTreeLibraryScanner(
                     discNumber = metadata.discNumber ?: 1,
                     dateAddedSeconds = 0L,
                     dateModifiedSeconds = child.lastModifiedMs?.div(1000L),
-                    libraryPath = "$rootKey/$childRelativePath",
+                    libraryPath = libraryPath,
                     uri = child.uri,
                     artUri = null,
                     metadataResolved = true,
@@ -118,6 +124,29 @@ internal class SafTreeLibraryScanner(
             }
         }
         return songs
+    }
+
+    private fun resolvedLibraryPath(
+        selection: LibraryFolderSelection,
+        rootKey: String,
+        childRelativePath: String,
+    ): String {
+        val selectionPath = LibrarySongDuplicateResolver.normalizedRealPath(selection.path)
+            ?: return "$rootKey/$childRelativePath"
+        val root = File(selectionPath)
+        val candidate = File(root, childRelativePath)
+        return runCatching {
+            val canonicalRoot = root.canonicalFile
+            val canonicalCandidate = candidate.canonicalFile
+            if (
+                canonicalCandidate.path.startsWith("${canonicalRoot.path}${File.separator}") &&
+                canonicalCandidate.isFile
+            ) {
+                canonicalCandidate.absolutePath
+            } else {
+                "$rootKey/$childRelativePath"
+            }
+        }.getOrDefault("$rootKey/$childRelativePath")
     }
 
     private fun queryChildren(

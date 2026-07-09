@@ -87,7 +87,14 @@ internal class MediaStoreAudioRowMapper(
             ),
             mimeType = mimeType,
             isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
-            uri = ContentUris.withAppendedId(MediaStoreAudioQuery.collectionUri, id),
+            uri = ContentUris.withAppendedId(
+                volumeName
+                    ?.trim()
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let(MediaStore.Audio.Media::getContentUri)
+                    ?: MediaStoreAudioQuery.collectionUri,
+                id,
+            ),
             extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT),
         )
     }

@@ -57,7 +57,7 @@ object LibraryFolderSelectionResolver {
     fun normalize(selections: List<LibraryFolderSelection>): List<LibraryFolderSelection> {
         val seenUris = linkedSetOf<String>()
         val seenPaths = linkedSetOf<String>()
-        return selections.mapNotNull { selection ->
+        val distinctSelections = selections.mapNotNull { selection ->
             val path = selection.path.trim().replace('\\', '/').trimEnd('/')
             val uri = selection.uri?.toString()?.trim().orEmpty()
             val uriKey = uri.takeIf(String::isNotBlank)?.lowercase(Locale.ROOT)
@@ -73,6 +73,14 @@ object LibraryFolderSelectionResolver {
                 path = path,
                 displayName = selection.displayName.trim().ifBlank { path.substringAfterLast('/').ifBlank { "Music" } },
             )
+        }
+        return distinctSelections.filterNot { candidate ->
+            val candidatePath = candidate.path.takeUnless(::isUriBackedPath) ?: return@filterNot false
+            distinctSelections.any { possibleParent ->
+                possibleParent !== candidate &&
+                    (possibleParent.path.takeUnless(::isUriBackedPath)
+                        ?.let { parentPath -> isSameOrChildPath(candidatePath, parentPath) } == true)
+            }
         }
     }
 
@@ -94,6 +102,15 @@ object LibraryFolderSelectionResolver {
 
     fun normalizedPathKey(path: String): String {
         return path.trim().replace('\\', '/').trimEnd('/').lowercase(Locale.ROOT)
+    }
+
+    internal fun isSameOrChildPath(
+        child: String,
+        parent: String,
+    ): Boolean {
+        val normalizedChild = normalizedPathKey(child)
+        val normalizedParent = normalizedPathKey(parent)
+        return normalizedChild == normalizedParent || normalizedChild.startsWith("$normalizedParent/")
     }
 
     fun safSyntheticRoot(uri: Uri): String {

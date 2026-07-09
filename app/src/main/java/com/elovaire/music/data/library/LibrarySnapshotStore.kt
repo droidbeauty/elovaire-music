@@ -49,7 +49,7 @@ internal class LibrarySnapshotStore(
                 filterFingerprint = root.optString("filterFingerprint"),
             )
             val syncState = root.optJSONObject("mediaStoreSyncState")?.toLibraryMediaStoreSyncState()
-            val songs = buildList {
+            val loadedSongs = buildList {
                 val songsArray = root.optJSONArray("songs") ?: JSONArray()
                 repeat(songsArray.length()) { index ->
                     val songJson = songsArray.optJSONObject(index) ?: return@repeat
@@ -82,12 +82,13 @@ internal class LibrarySnapshotStore(
                     )
                 }
             }.filter(::isSupportedLibrarySong)
+            val songs = LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(loadedSongs)
             val filteredSignature = signatureFromSongs(
                 songs = songs,
                 filterFingerprint = signature.filterFingerprint,
             )
 
-            CachedLibrarySnapshot(
+            val cachedSnapshot = CachedLibrarySnapshot(
                 snapshot = LibrarySnapshot(
                     songs = songs,
                     albums = buildAlbumsFromSongs(songs),
@@ -95,6 +96,14 @@ internal class LibrarySnapshotStore(
                 signature = if (songs.size == signature.songCount) signature else filteredSignature,
                 syncState = syncState,
             )
+            if (songs.size != loadedSongs.size) {
+                save(
+                    snapshot = cachedSnapshot.snapshot,
+                    filterFingerprint = cachedSnapshot.signature.filterFingerprint,
+                    syncState = cachedSnapshot.syncState,
+                )
+            }
+            cachedSnapshot
         }.getOrNull()
     }
 

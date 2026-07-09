@@ -31,7 +31,9 @@ internal class MediaStoreIndexer(
         }
 
         roots.asSequence()
-            .flatMap(File::walkTopDown)
+            .flatMap { root ->
+                root.walkTopDown().onEnter { directory -> !directory.isSymbolicLinkSafely() }
+            }
             .filter { file -> file.isFile && file.extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions }
             .map(File::getAbsolutePath)
             .forEach { path ->
@@ -94,7 +96,7 @@ internal fun audioFilesForPaths(paths: Iterable<String>): List<File> {
             when {
                 path.isFile -> sequenceOf(path)
                 path.isDirectory -> path.walkTopDown()
-                    .onEnter { directory -> !directory.isSymbolicLink() }
+                    .onEnter { directory -> !directory.isSymbolicLinkSafely() }
                     .filter(File::isFile)
                 else -> emptySequence()
             }
@@ -104,6 +106,6 @@ internal fun audioFilesForPaths(paths: Iterable<String>): List<File> {
         .toList()
 }
 
-private fun File.isSymbolicLink(): Boolean {
+internal fun File.isSymbolicLinkSafely(): Boolean {
     return runCatching { Files.isSymbolicLink(toPath()) }.getOrDefault(false)
 }
