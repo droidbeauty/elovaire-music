@@ -161,7 +161,9 @@ class LibraryRepository internal constructor(
         val bootstrapPermissionVersion = permissionChangeVersion
         bootstrapJob = scope.launch {
             try {
-                val cachedSnapshot = withContext(Dispatchers.IO) { snapshotStore.load() }
+                val cachedSnapshot = withContext(Dispatchers.IO) {
+                    ElovaireTrace.section("library_snapshot_load") { snapshotStore.load() }
+                }
                 if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
                 val cacheMatchesCurrentFilter = cachedSnapshot?.signature?.filterFingerprint == scanner.currentFilterFingerprint()
                 if (cachedSnapshot != null && cacheMatchesCurrentFilter) {
@@ -267,6 +269,8 @@ class LibraryRepository internal constructor(
             _scanState.update { it.copy(errorMessage = null) }
         }
         scanJob = scope.launch {
+            val currentScanJob = currentCoroutineContext()[Job]
+            val scanPermissionVersion = permissionChangeVersion
             val refreshRequest = refreshRequests.takeForImmediateScan(request)
             backendEventSink.emit(
                 BackendEvent.LibraryScanStarted(
@@ -278,35 +282,11 @@ class LibraryRepository internal constructor(
                 ),
             )
             val progressThrottler = LibraryScanProgressThrottler()
-            runCatching {
-                withContext(Dispatchers.IO) {
-                    ElovaireTrace.suspendSection("library_refresh_scan") {
-                        scanner.scan(
-                            refreshMediaIndex = refreshRequest.forceMediaIndex,
-                            refreshMediaPaths = refreshRequest.targetedPaths,
-                            enrichMetadata = refreshRequest.enrichMetadata,
-                            onProgress = if (showLoadingIndicator) { current, total ->
-                                val progress = if (total <= 0) 1f else (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
-                                if (progressThrottler.shouldEmit(progress)) {
-                                    ElovaireTrace.section("library_scan_progress") {
-                                        _scanState.update { state ->
-                                            state.copy(
-                                                permissionGranted = true,
-                                                isLoading = true,
-                                                scanProgress = progress,
-                                                errorMessage = null,
-                                            )
-                                        }
-                                    }
-                                }
-                            } else {
-                                null
-                            },
-                        )
-                    }
-                }
-            }
-                .onSuccess { snapshot ->
+            try {
+                runCatching {
+                    scanLibrary(refreshRequest, showLoadingIndicator, scanPermissionVersion, progressThrottler)
+                }.onSuccess { snapshot ->
+                    if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
                     val suppressedSongIds = deletionMarkers.suppressingSongIds()
                     val visibleSongs = snapshot.songs.filterNot { it.id in suppressedSongIds }
                     val scannedSongIds = snapshot.songs.mapTo(hashSetOf(), Song::id)
@@ -335,6 +315,7 @@ class LibraryRepository internal constructor(
                             source = "MediaStore",
                         )
                     }
+                    if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
                     val snapshotNeedsMetadata = visibleSnapshot.songs.any { song ->
                         !song.metadataResolved ||
                             song.releaseYear == null ||
@@ -353,28 +334,71 @@ class LibraryRepository internal constructor(
                             ),
                         ),
                     )
-                }
-                .onFailure { throwable ->
+                }.onFailure { throwable ->
                     if (throwable is CancellationException) throw throwable
                     backendEventSink.emit(
                         BackendEvent.LibraryScanFailed(
                             mapOf("error_type" to (throwable::class.simpleName ?: "Unknown")),
                         ),
                     )
-                    _scanState.update {
-                        it.copy(
-                            isLoading = false,
-                            scanProgress = 0f,
-                            errorMessage = throwable.message ?: "Unable to scan local music.",
-                        )
+                    if (hasCurrentPermission(scanPermissionVersion)) {
+                        _scanState.update {
+                            it.copy(
+                                isLoading = false,
+                                scanProgress = 0f,
+                                errorMessage = throwable.message ?: "Unable to scan local music.",
+                            )
+                        }
                     }
+                }
+            } finally {
+                if (scanJob === currentScanJob) {
+                    scanJob = null
+                }
             }
 
-            scanJob = null
+            if (scanJob != null || !hasCurrentPermission(scanPermissionVersion)) return@launch
             val pendingRequest = refreshRequests.takePendingAfterScan()
             if (pendingRequest != null && _scanState.value.permissionGranted) {
                 startRefresh(pendingRequest, showLoadingIndicator = false)
             }
+        }
+    }
+
+    private suspend fun scanLibrary(
+        request: LibraryRefreshRequest,
+        showLoadingIndicator: Boolean,
+        permissionVersion: Long,
+        progressThrottler: LibraryScanProgressThrottler,
+    ) = withContext(Dispatchers.IO) {
+        ElovaireTrace.suspendSection("library_refresh_scan") {
+            scanner.scan(
+                refreshMediaIndex = request.forceMediaIndex,
+                refreshMediaPaths = request.targetedPaths,
+                enrichMetadata = request.enrichMetadata,
+                onProgress = if (showLoadingIndicator) progress@{ current, total ->
+                    if (!hasCurrentPermission(permissionVersion)) return@progress
+                    val progress = if (total <= 0) {
+                        1f
+                    } else {
+                        (current.toFloat() / total.toFloat()).coerceIn(0f, 1f)
+                    }
+                    if (progressThrottler.shouldEmit(progress)) {
+                        ElovaireTrace.section("library_scan_progress") {
+                            _scanState.update { state ->
+                                state.copy(
+                                    permissionGranted = true,
+                                    isLoading = true,
+                                    scanProgress = progress,
+                                    errorMessage = null,
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    null
+                },
+            )
         }
     }
 

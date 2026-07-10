@@ -67,6 +67,8 @@ internal class MediaMutationJournal(
         error: String? = null,
     ) {
         val current = dao.mutation(mutationId) ?: return
+        val currentStatus = current.status.toMediaMutationStatusOrNull() ?: return
+        if (!isValidMutationTransition(currentStatus, status)) return
         dao.upsertMutation(
             current.copy(
                 status = status.name,
@@ -80,4 +82,74 @@ internal class MediaMutationJournal(
             ),
         )
     }
+}
+
+internal fun isValidMutationTransition(
+    current: MediaMutationStatus,
+    next: MediaMutationStatus,
+): Boolean {
+    if (current == next) return false
+    return next in when (current) {
+        MediaMutationStatus.Created -> setOf(
+            MediaMutationStatus.PreflightPassed,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.PreflightPassed -> setOf(
+            MediaMutationStatus.NeedsPermission,
+            MediaMutationStatus.TempWritten,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.NeedsPermission -> setOf(
+            MediaMutationStatus.PermissionGranted,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.PermissionGranted -> setOf(
+            MediaMutationStatus.TempWritten,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.TempWritten -> setOf(
+            MediaMutationStatus.TempVerified,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.NeedsRepair,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.TempVerified -> setOf(
+            MediaMutationStatus.Committed,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.NeedsRepair,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.Committed -> setOf(
+            MediaMutationStatus.PersistedVerified,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.NeedsRepair,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.PersistedVerified -> setOf(
+            MediaMutationStatus.Published,
+            MediaMutationStatus.Completed,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.NeedsRepair,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.Published -> setOf(
+            MediaMutationStatus.Completed,
+            MediaMutationStatus.Failed,
+            MediaMutationStatus.NeedsRepair,
+            MediaMutationStatus.Cancelled,
+        )
+        MediaMutationStatus.Failed -> setOf(MediaMutationStatus.NeedsRepair)
+        MediaMutationStatus.NeedsRepair,
+        MediaMutationStatus.Completed,
+        MediaMutationStatus.Cancelled,
+        -> emptySet()
+    }
+}
+
+private fun String.toMediaMutationStatusOrNull(): MediaMutationStatus? {
+    return enumValues<MediaMutationStatus>().firstOrNull { it.name == this }
 }

@@ -4,8 +4,10 @@ import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.provider.DocumentsContract
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.security.MessageDigest
@@ -18,25 +20,38 @@ internal class SafTreeLibraryScanner(
     private val context: Context,
 ) {
     private val audioFormatDetector = AudioFormatDetector(context)
+    private var fileMetadataCache = emptyMap<SafDocumentKey, CachedSafFile>()
 
     suspend fun scan(selections: List<LibraryFolderSelection>): List<Song> {
         if (selections.isEmpty()) return emptyList()
         val songs = mutableListOf<Song>()
+        val refreshedCache = HashMap<SafDocumentKey, CachedSafFile>(fileMetadataCache.size)
+        val visitedDirectories = hashSetOf<SafDocumentKey>()
+        val albumIds = hashMapOf<String, Long>()
         selections.forEach { selection ->
             currentCoroutineContext().ensureActive()
             val treeUri = selection.uri ?: return@forEach
             if (!selection.hasPersistedReadPermission(context)) return@forEach
-            songs += scanTree(selection, treeUri)
+            songs += scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds)
         }
+        fileMetadataCache = refreshedCache
         return songs
     }
 
     private suspend fun scanTree(
         selection: LibraryFolderSelection,
         treeUri: Uri,
+        refreshedCache: MutableMap<SafDocumentKey, CachedSafFile>,
+        visitedDirectories: MutableSet<SafDocumentKey>,
+        albumIds: MutableMap<String, Long>,
     ): List<Song> {
         val rootDocumentId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull() ?: return emptyList()
         val rootKey = LibraryFolderSelectionResolver.safSyntheticRoot(treeUri)
+        val providerKey = treeUri.authority?.lowercase(Locale.ROOT).orEmpty()
+        val canonicalRoot = LibrarySongDuplicateResolver.normalizedRealPath(selection.path)
+            ?.let(::File)
+            ?.let { runCatching { it.canonicalFile }.getOrNull() }
+            ?.takeIf(File::isDirectory)
         val libraryRootPaths = buildSet {
             add(rootKey)
             LibrarySongDuplicateResolver.normalizedRealPath(selection.path)?.let(::add)
@@ -54,7 +69,10 @@ internal class SafTreeLibraryScanner(
         while (pending.isNotEmpty() && visitedDocuments < MAX_DOCUMENTS) {
             currentCoroutineContext().ensureActive()
             val directory = pending.removeFirst()
-            queryChildren(treeUri, directory.documentId).forEach { child ->
+            if (!visitedDirectories.add(SafDocumentKey(providerKey, directory.documentId))) continue
+            ElovaireTrace.section("library_saf_child_query") {
+                queryChildren(treeUri, directory.documentId)
+            }.forEach { child ->
                 currentCoroutineContext().ensureActive()
                 visitedDocuments += 1
                 if (visitedDocuments > MAX_DOCUMENTS) return@forEach
@@ -73,10 +91,20 @@ internal class SafTreeLibraryScanner(
                 }
                 val extension = child.name.substringAfterLast('.', "").lowercase(Locale.ROOT)
                 if (extension !in AudioFormatPolicy.scannerExtensions) return@forEach
-                val detectedFormat = audioFormatDetector.detect(child.uri, child.name, child.mimeType)
-                val metadata = readMetadata(child.uri)
+                val documentKey = SafDocumentKey(providerKey, child.documentId)
+                val cachedFile = (refreshedCache[documentKey] ?: fileMetadataCache[documentKey])
+                    ?.takeIf { it.matches(child) }
+                val detectedFormat = cachedFile?.detectedFormat ?: ElovaireTrace.section("library_saf_format_detect") {
+                    audioFormatDetector.detect(child.uri, child.name, child.mimeType)
+                }
+                val metadata = cachedFile?.metadata ?: ElovaireTrace.section("library_saf_metadata_read") {
+                    readMetadata(child.uri)
+                }
+                if (child.hasStableChangeSignal) {
+                    refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
+                }
                 val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: return@forEach
-                val libraryPath = resolvedLibraryPath(selection, rootKey, childRelativePath)
+                val libraryPath = resolveSafLibraryPath(canonicalRoot, rootKey, childRelativePath)
                 val candidate = AudioScanCandidate(
                     id = stableNegativeId("saf-song:${child.uri}"),
                     uri = child.uri,
@@ -97,6 +125,7 @@ internal class SafTreeLibraryScanner(
                 val artist = metadata.artist ?: "Unknown Artist"
                 val album = metadata.album ?: selection.displayName.ifBlank { "Unknown Album" }
                 val albumArtist = metadata.albumArtist ?: artist
+                val albumIdentity = "$albumArtist::$album"
                 songs += Song(
                     id = candidate.id,
                     title = title,
@@ -108,7 +137,9 @@ internal class SafTreeLibraryScanner(
                     audioFormat = detectedFormat.displayName,
                     audioQuality = null,
                     fileName = child.name,
-                    albumId = stableNegativeId("saf-album:$albumArtist::$album"),
+                    albumId = albumIds.getOrPut(albumIdentity) {
+                        stableNegativeId("saf-album:$albumIdentity")
+                    },
                     durationMs = durationMs,
                     trackNumber = metadata.trackNumber ?: 0,
                     discNumber = metadata.discNumber ?: 1,
@@ -124,29 +155,6 @@ internal class SafTreeLibraryScanner(
             }
         }
         return songs
-    }
-
-    private fun resolvedLibraryPath(
-        selection: LibraryFolderSelection,
-        rootKey: String,
-        childRelativePath: String,
-    ): String {
-        val selectionPath = LibrarySongDuplicateResolver.normalizedRealPath(selection.path)
-            ?: return "$rootKey/$childRelativePath"
-        val root = File(selectionPath)
-        val candidate = File(root, childRelativePath)
-        return runCatching {
-            val canonicalRoot = root.canonicalFile
-            val canonicalCandidate = candidate.canonicalFile
-            if (
-                canonicalCandidate.path.startsWith("${canonicalRoot.path}${File.separator}") &&
-                canonicalCandidate.isFile
-            ) {
-                canonicalCandidate.absolutePath
-            } else {
-                "$rootKey/$childRelativePath"
-            }
-        }.getOrDefault("$rootKey/$childRelativePath")
     }
 
     private fun queryChildren(
@@ -166,6 +174,7 @@ internal class SafTreeLibraryScanner(
                 val nameIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                 val mimeIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
                 val modifiedIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                val sizeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
                 buildList {
                     while (cursor.moveToNext()) {
                         val childId = cursor.getString(idIndex) ?: continue
@@ -182,6 +191,10 @@ internal class SafTreeLibraryScanner(
                                     .takeIf { it >= 0 && !cursor.isNull(it) }
                                     ?.let(cursor::getLong)
                                     ?.takeIf { it > 0L },
+                                sizeBytes = sizeIndex
+                                    .takeIf { it >= 0 && !cursor.isNull(it) }
+                                    ?.let(cursor::getLong)
+                                    ?.takeIf { it >= 0L },
                             ),
                         )
                     }
@@ -239,8 +252,49 @@ internal class SafTreeLibraryScanner(
         val name: String,
         val mimeType: String?,
         val lastModifiedMs: Long?,
+        val sizeBytes: Long?,
     ) {
         val isDirectory: Boolean = mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+        val hasStableChangeSignal: Boolean = lastModifiedMs != null
+    }
+
+    private data class SafDocumentKey(
+        val provider: String,
+        val documentId: String,
+    )
+
+    private data class CachedSafFile(
+        val name: String,
+        val mimeType: String?,
+        val lastModifiedMs: Long?,
+        val sizeBytes: Long?,
+        val detectedFormat: DetectedAudioFormat,
+        val metadata: SafMetadata,
+    ) {
+        fun matches(document: SafDocument): Boolean {
+            return document.hasStableChangeSignal &&
+                name == document.name &&
+                mimeType == document.mimeType &&
+                lastModifiedMs == document.lastModifiedMs &&
+                sizeBytes == document.sizeBytes
+        }
+
+        companion object {
+            fun from(
+                document: SafDocument,
+                detectedFormat: DetectedAudioFormat,
+                metadata: SafMetadata,
+            ): CachedSafFile {
+                return CachedSafFile(
+                    name = document.name,
+                    mimeType = document.mimeType,
+                    lastModifiedMs = document.lastModifiedMs,
+                    sizeBytes = document.sizeBytes,
+                    detectedFormat = detectedFormat,
+                    metadata = metadata,
+                )
+            }
+        }
     }
 
     private data class SafMetadata(
@@ -263,14 +317,37 @@ internal class SafTreeLibraryScanner(
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
             DocumentsContract.Document.COLUMN_MIME_TYPE,
             DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+            DocumentsContract.Document.COLUMN_SIZE,
         )
     }
 }
 
+internal fun resolveSafLibraryPath(
+    canonicalRoot: File?,
+    rootKey: String,
+    childRelativePath: String,
+): String {
+    val syntheticPath = "$rootKey/$childRelativePath"
+    val root = canonicalRoot ?: return syntheticPath
+    return runCatching {
+        val candidate = File(root, childRelativePath).canonicalFile
+        if (
+            candidate.path.startsWith("${root.path}${File.separator}") &&
+            candidate.isFile
+        ) {
+            candidate.absolutePath
+        } else {
+            syntheticPath
+        }
+    }.getOrDefault(syntheticPath)
+}
+
 private fun stableNegativeId(input: String): Long {
-    val digest = MessageDigest.getInstance("SHA-256").digest(input.toByteArray())
+    val digest = checkNotNull(STABLE_ID_DIGEST.get()).digest(input.toByteArray())
     val positive = digest.take(8).fold(0L) { acc, byte ->
         (acc shl 8) or (byte.toLong() and 0xffL)
     } and Long.MAX_VALUE
     return -positive.coerceAtLeast(1L)
 }
+
+private val STABLE_ID_DIGEST = ThreadLocal.withInitial { MessageDigest.getInstance("SHA-256") }

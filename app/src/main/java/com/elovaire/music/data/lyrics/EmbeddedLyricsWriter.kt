@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 import android.app.RecoverableSecurityException
 import android.content.ContentResolver
 import android.content.Context
+import android.net.Uri
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
@@ -17,6 +18,8 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 
@@ -26,8 +29,10 @@ internal enum class EmbeddedLyricsWriteFailure {
     SourceReadFailed,
     TempWriteFailed,
     TagCommitFailed,
+    TempVerificationFailed,
     OriginalOverwriteFailed,
     PersistedVerificationFailed,
+    RollbackFailed,
     Unknown,
 }
 
@@ -47,8 +52,14 @@ internal class EmbeddedLyricsWriter(
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val audioFormatDetector = AudioFormatDetector(appContext)
+    private val localLyricsResolver = LocalLyricsResolver(appContext)
+    private val writeMutex = Mutex()
 
-    suspend fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
+    suspend fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult = writeMutex.withLock {
+        writeLocked(song, rawLyrics)
+    }
+
+    private suspend fun writeLocked(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
         val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
         val mutationId = mediaMutationJournal?.create(
             MediaMutationOperation(
@@ -143,7 +154,7 @@ internal class EmbeddedLyricsWriter(
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.NeedsPermission) }
             EmbeddedLyricsWriteResult.PermissionRequired(throwable.userAction.actionIntent)
         } catch (throwable: Throwable) {
-            val failure = phase.failure
+            val failure = if (needsRepair) EmbeddedLyricsWriteFailure.RollbackFailed else phase.failure
             trace(song, "failed:${failure.name}", throwable)
             mutationId?.let {
                 mediaMutationJournal.mark(
@@ -161,12 +172,30 @@ internal class EmbeddedLyricsWriter(
     }
 
     private fun verifyLyrics(file: File, expected: String) {
-        val tag = AudioFileIO.read(file).tag
-            ?: error("Lyrics metadata was not persisted to the temporary file.")
-        val actual = tag
-            .getFirst(FieldKey.LYRICS)
+        val verificationSong = Song(
+            id = Long.MIN_VALUE,
+            title = file.nameWithoutExtension,
+            isExplicit = false,
+            artist = "",
+            album = "",
+            releaseYear = null,
+            genre = "",
+            audioFormat = "",
+            audioQuality = null,
+            fileName = file.name,
+            albumId = Long.MIN_VALUE,
+            durationMs = 0L,
+            trackNumber = 0,
+            discNumber = 1,
+            dateAddedSeconds = 0L,
+            libraryPath = file.absolutePath,
+            uri = Uri.fromFile(file),
+            artUri = null,
+        )
+        val actual = localLyricsResolver.resolve(verificationSong)
+            ?.payload
+            ?.toEmbeddedLyricsText()
             .orEmpty()
-            .canonicalEmbeddedLyricsText()
         check(actual == expected.canonicalEmbeddedLyricsText()) { "Lyrics verification failed after writing metadata." }
     }
 
@@ -234,7 +263,7 @@ private enum class LyricsWritePhase(
     SourceRead(EmbeddedLyricsWriteFailure.SourceReadFailed),
     TempWrite(EmbeddedLyricsWriteFailure.TempWriteFailed),
     TagCommit(EmbeddedLyricsWriteFailure.TagCommitFailed),
-    TempVerification(EmbeddedLyricsWriteFailure.PersistedVerificationFailed),
+    TempVerification(EmbeddedLyricsWriteFailure.TempVerificationFailed),
     OriginalOverwrite(EmbeddedLyricsWriteFailure.OriginalOverwriteFailed),
     PersistedVerification(EmbeddedLyricsWriteFailure.PersistedVerificationFailed),
 }
@@ -247,7 +276,9 @@ private val EmbeddedLyricsWriteFailure.userMessage: String
         EmbeddedLyricsWriteFailure.TempWriteFailed,
         EmbeddedLyricsWriteFailure.TagCommitFailed,
         -> "Unable to write lyrics metadata safely."
+        EmbeddedLyricsWriteFailure.TempVerificationFailed -> "Lyrics metadata could not be verified before saving."
         EmbeddedLyricsWriteFailure.OriginalOverwriteFailed -> "Unable to save lyrics to the song file."
         EmbeddedLyricsWriteFailure.PersistedVerificationFailed -> "Lyrics could not be verified after saving."
+        EmbeddedLyricsWriteFailure.RollbackFailed -> "The song could not be restored after the lyrics write failed."
         EmbeddedLyricsWriteFailure.Unknown -> "Unable to save lyrics."
     }

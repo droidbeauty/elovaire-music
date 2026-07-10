@@ -12,6 +12,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.common.util.UnstableApi
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 
 @UnstableApi
 internal class PlaybackPlayerFactory(
@@ -24,10 +25,12 @@ internal class PlaybackPlayerFactory(
     private val offloadPolicyProvider: () -> PlaybackOffloadPolicy = { PlaybackOffloadPolicy.Disabled },
 ) {
     fun create(enableSignalProcessing: Boolean): ExoPlayer {
-        return runCatching {
-            createConfiguredPlayer(enableSignalProcessing)
-        }.getOrElse {
-            createFallbackPlayer()
+        return ElovaireTrace.section("playback_player_create") {
+            runCatching {
+                createConfiguredPlayer(enableSignalProcessing)
+            }.getOrElse {
+                createFallbackPlayer()
+            }
         }
     }
 

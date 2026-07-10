@@ -11,6 +11,7 @@ import androidx.core.content.FileProvider
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppWorkKind
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import java.io.File
@@ -117,7 +118,11 @@ internal class AppUpdateManager(
                 preferenceStore.setDismissedUpdateVersion(null)
             }
             val latestReleaseResult = runCatching {
-                withContext(Dispatchers.IO) { fetchLatestRelease(installedVersion) }
+                withContext(Dispatchers.IO) {
+                    ElovaireTrace.section("update_release_fetch") {
+                        fetchLatestRelease(installedVersion)
+                    }
+                }
             }
             latestReleaseResult.exceptionOrNull()?.let { throwable ->
                 if (throwable is CancellationException) throw throwable
@@ -441,21 +446,24 @@ internal class AppUpdateManager(
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     var bytesCopied = 0L
                     val progressThrottler = UpdateDownloadProgressThrottler()
-                    while (true) {
-                        currentCoroutineContext().ensureActive()
-                        val read = input.read(buffer)
-                        if (read <= 0) break
-                        output.write(buffer, 0, read)
-                        bytesCopied += read
-                        val progress = totalBytes?.let { bytesCopied.toFloat() / it.toFloat() }
-                        val normalizedProgress = progress?.coerceIn(0f, 1f)
-                        if (normalizedProgress != null && progressThrottler.shouldEmit(
-                                progress = normalizedProgress,
-                                nowMs = SystemClock.elapsedRealtime(),
-                            )
-                        ) {
-                            _uiState.update { state ->
-                                state.copy(downloadProgress = normalizedProgress)
+                    val downloadContext = currentCoroutineContext()
+                    ElovaireTrace.section("update_apk_download_copy") {
+                        while (true) {
+                            downloadContext.ensureActive()
+                            val read = input.read(buffer)
+                            if (read <= 0) break
+                            output.write(buffer, 0, read)
+                            bytesCopied += read
+                            val progress = totalBytes?.let { bytesCopied.toFloat() / it.toFloat() }
+                            val normalizedProgress = progress?.coerceIn(0f, 1f)
+                            if (normalizedProgress != null && progressThrottler.shouldEmit(
+                                    progress = normalizedProgress,
+                                    nowMs = SystemClock.elapsedRealtime(),
+                                )
+                            ) {
+                                _uiState.update { state ->
+                                    state.copy(downloadProgress = normalizedProgress)
+                                }
                             }
                         }
                     }
@@ -599,7 +607,15 @@ internal class AppUpdateManager(
                     errorMessage = "Allow installing updates from this source first.",
                 )
             }
-            openUnknownAppSourcesSettings()
+            if (!openUnknownAppSourcesSettings()) {
+                resumeInstallAfterPermissionGrant = false
+                _uiState.update {
+                    it.copy(
+                        installPermissionRequired = false,
+                        errorMessage = "Unable to open install permission settings.",
+                    )
+                }
+            }
             return false
         }
         return true
@@ -655,14 +671,17 @@ internal class AppUpdateManager(
         return true
     }
 
-    private fun openUnknownAppSourcesSettings() {
+    private fun openUnknownAppSourcesSettings(): Boolean {
         val intent = Intent(
             Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
             Uri.parse("package:${appContext.packageName}"),
         ).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
-        runCatching { appContext.startActivity(intent) }
+        return runCatching {
+            appContext.startActivity(intent)
+            true
+        }.getOrDefault(false)
     }
 
     private fun launchPackageInstaller(apkFile: File) {

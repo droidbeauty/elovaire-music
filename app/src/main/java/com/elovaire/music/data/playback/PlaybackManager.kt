@@ -30,6 +30,7 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
@@ -1136,13 +1137,15 @@ class PlaybackManager(
     }
 
     private fun publishProgressSnapshot(force: Boolean = false) {
-        val updatedProgress = playbackProgressController.onPlayerSnapshot(
-            mediaId = currentSong()?.id,
-            positionMs = player.currentPosition.coerceAtLeast(0L),
-            durationMs = player.duration.takeIf { it > 0 }?.coerceAtLeast(0L) ?: 0L,
-            bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
-            isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
-        )
+        val updatedProgress = ElovaireTrace.section("playback_progress_publish") {
+            playbackProgressController.onPlayerSnapshot(
+                mediaId = currentSong()?.id,
+                positionMs = player.currentPosition.coerceAtLeast(0L),
+                durationMs = player.duration.takeIf { it > 0 }?.coerceAtLeast(0L) ?: 0L,
+                bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
+                isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
+            )
+        }
         if (force || updatedProgress != _progressState.value) {
             _progressState.value = updatedProgress
         }

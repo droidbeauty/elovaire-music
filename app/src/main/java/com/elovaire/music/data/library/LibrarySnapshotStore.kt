@@ -40,7 +40,10 @@ internal class LibrarySnapshotStore(
             val serialized = snapshotFile.readText()
             lastSerializedSnapshot = serialized
             val root = JSONObject(serialized)
-            if (root.optInt("version", 0) != SNAPSHOT_VERSION) return null
+            if (root.optInt("version", 0) != SNAPSHOT_VERSION) {
+                discardSnapshot()
+                return null
+            }
 
             val signature = LibrarySignature(
                 songCount = root.optInt("songCount", 0),
@@ -49,7 +52,7 @@ internal class LibrarySnapshotStore(
                 filterFingerprint = root.optString("filterFingerprint"),
             )
             val syncState = root.optJSONObject("mediaStoreSyncState")?.toLibraryMediaStoreSyncState()
-            val loadedSongs = buildList {
+            val decodedSongs = buildList {
                 val songsArray = root.optJSONArray("songs") ?: JSONArray()
                 repeat(songsArray.length()) { index ->
                     val songJson = songsArray.optJSONObject(index) ?: return@repeat
@@ -81,7 +84,12 @@ internal class LibrarySnapshotStore(
                         ),
                     )
                 }
-            }.filter(::isSupportedLibrarySong)
+            }.filter(::isValidSnapshotSong)
+            if (!isLibrarySignatureValid(signature, decodedSongs)) {
+                discardSnapshot()
+                return null
+            }
+            val loadedSongs = decodedSongs
             val songs = LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(loadedSongs)
             val filteredSignature = signatureFromSongs(
                 songs = songs,
@@ -104,6 +112,8 @@ internal class LibrarySnapshotStore(
                 )
             }
             cachedSnapshot
+        }.onFailure {
+            discardSnapshot()
         }.getOrNull()
     }
 
@@ -177,6 +187,11 @@ internal class LibrarySnapshotStore(
     private companion object {
         const val SNAPSHOT_FILE_NAME = "library_snapshot_v7.json"
         const val SNAPSHOT_VERSION = 7
+    }
+
+    private fun discardSnapshot() {
+        lastSerializedSnapshot = null
+        runCatching { snapshotFile.delete() }
     }
 }
 
@@ -264,6 +279,21 @@ internal fun signatureFromSongs(
         },
         filterFingerprint = filterFingerprint,
     )
+}
+
+internal fun isLibrarySignatureValid(
+    signature: LibrarySignature,
+    songs: List<Song>,
+): Boolean {
+    return signature == signatureFromSongs(songs, signature.filterFingerprint)
+}
+
+internal fun isValidSnapshotSong(song: Song): Boolean {
+    val uriScheme = song.uri.scheme
+    return song.id != 0L &&
+        song.durationMs > 0L &&
+        (uriScheme == "content" || uriScheme == "file") &&
+        isSupportedLibrarySong(song)
 }
 
 internal fun songSignatureChecksum(

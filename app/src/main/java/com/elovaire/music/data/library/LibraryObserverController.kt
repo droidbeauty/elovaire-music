@@ -27,6 +27,7 @@ internal class LibraryObserverController(
     private var mediaObserverRegistered = false
     private var libraryFolderObservers: List<RecursiveMusicDirectoryObserver> = emptyList()
     private var observerRebuildJob: Job? = null
+    private var directoryObserversEnabled = false
     private val recentObservedPaths = linkedMapOf<String, Long>()
     private var suppressObserverRefreshUntilMs = 0L
 
@@ -93,6 +94,7 @@ internal class LibraryObserverController(
     }
 
     fun ensureLibraryFolderObservers(forceRebuild: Boolean = false) {
+        directoryObserversEnabled = true
         val currentRootPaths = libraryFolderObservers.map(RecursiveMusicDirectoryObserver::rootPath)
         observerRebuildJob?.cancel()
         val rebuildJob = scope.launch(start = CoroutineStart.LAZY) {
@@ -117,6 +119,7 @@ internal class LibraryObserverController(
     }
 
     fun releaseLibraryFolderObservers() {
+        directoryObserversEnabled = false
         observerRebuildJob?.cancel()
         observerRebuildJob = null
         stopLibraryFolderObservers()
@@ -160,25 +163,34 @@ internal class LibraryObserverController(
         if (!rootDirectory.exists() || !rootDirectory.isDirectory) return null
 
         return RecursiveMusicDirectoryObserver(rootDirectory) { event, changedFile ->
-            if (System.currentTimeMillis() < suppressObserverRefreshUntilMs) return@RecursiveMusicDirectoryObserver
-            if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
-                requestMusicDirectoryObserverRebuild()
+            scope.launch {
+                handleObservedDirectoryEvent(event, changedFile)
             }
-            val requiresFullMediaIndexRefresh = event and FULL_INDEX_REFRESH_EVENT_MASK != 0
-            val normalizedChangedPath = changedFile?.absolutePath?.normalizedObservedPath()
-            if (
-                !requiresFullMediaIndexRefresh &&
-                normalizedChangedPath != null &&
-                shouldCoalesceObservedPath(normalizedChangedPath)
-            ) {
-                return@RecursiveMusicDirectoryObserver
-            }
-            if (changedFile == null || changedFile.isDirectory || isSupportedAudioExtension(changedFile.extension)) {
-                onObservedRefresh(
-                    requiresFullMediaIndexRefresh,
-                    if (requiresFullMediaIndexRefresh) null else normalizedChangedPath,
-                )
-            }
+        }
+    }
+
+    private fun handleObservedDirectoryEvent(
+        event: Int,
+        changedFile: File?,
+    ) {
+        if (!directoryObserversEnabled || System.currentTimeMillis() < suppressObserverRefreshUntilMs) return
+        if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
+            requestMusicDirectoryObserverRebuild()
+        }
+        val requiresFullMediaIndexRefresh = event and FULL_INDEX_REFRESH_EVENT_MASK != 0
+        val normalizedChangedPath = changedFile?.absolutePath?.normalizedObservedPath()
+        if (
+            !requiresFullMediaIndexRefresh &&
+            normalizedChangedPath != null &&
+            shouldCoalesceObservedPath(normalizedChangedPath)
+        ) {
+            return
+        }
+        if (changedFile == null || changedFile.isDirectory || isSupportedAudioExtension(changedFile.extension)) {
+            onObservedRefresh(
+                requiresFullMediaIndexRefresh,
+                if (requiresFullMediaIndexRefresh) null else normalizedChangedPath,
+            )
         }
     }
 

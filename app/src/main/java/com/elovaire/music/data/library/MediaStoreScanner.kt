@@ -103,13 +103,15 @@ class MediaStoreScanner(
         val decisionMap = ScannerDebugLogger.newDecisionMap()
 
         ElovaireTrace.section("library_mediastore_scan") {
-            val cursor = context.contentResolver.query(
-                MediaStoreAudioQuery.collectionUri,
-                MediaStoreAudioQuery.projection,
-                MediaStoreAudioQuery.selection,
-                null,
-                MediaStoreAudioQuery.orderBy,
-            ) ?: throw MediaStoreQueryUnavailableException()
+            val cursor = ElovaireTrace.section("library_mediastore_query") {
+                context.contentResolver.query(
+                    MediaStoreAudioQuery.collectionUri,
+                    MediaStoreAudioQuery.projection,
+                    MediaStoreAudioQuery.selection,
+                    null,
+                    MediaStoreAudioQuery.orderBy,
+                )
+            } ?: throw MediaStoreQueryUnavailableException()
             cursor.use {
                 totalRows = cursor.count.coerceAtLeast(0)
                 progressEmitter.emit(0, totalRows)
@@ -131,7 +133,9 @@ class MediaStoreScanner(
                         continue
                     }
                     val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)) {
-                        audioFormatDetector.detect(row.uri, row.fileName, row.mimeType)
+                        ElovaireTrace.section("library_audio_format_detect") {
+                            audioFormatDetector.detect(row.uri, row.fileName, row.mimeType)
+                        }
                     } else {
                         AudioScanCandidateMapper.fastDetectedFormat(
                             extension = row.extension,
@@ -165,17 +169,19 @@ class MediaStoreScanner(
                     val songMetadata = cachedMetadata
                         ?.metadata
                         ?: if (enrichMetadata) {
-                            readSongMetadata(
-                                songId = row.id,
-                                songUri = row.uri,
-                                filePath = row.filePath,
-                                volumeName = row.volumeName,
-                                mediaStoreYear = row.mediaStoreYear,
-                                fileSizeBytes = row.fileSizeBytes,
-                                durationMs = row.durationMs,
-                                detectedFormat = detectedFormat,
-                                genreCache = genreCache,
-                            )
+                            ElovaireTrace.section("library_metadata_enrichment") {
+                                readSongMetadata(
+                                    songId = row.id,
+                                    songUri = row.uri,
+                                    filePath = row.filePath,
+                                    volumeName = row.volumeName,
+                                    mediaStoreYear = row.mediaStoreYear,
+                                    fileSizeBytes = row.fileSizeBytes,
+                                    durationMs = row.durationMs,
+                                    detectedFormat = detectedFormat,
+                                    genreCache = genreCache,
+                                )
+                            }
                         } else {
                             SongMetadata(
                                 title = row.title,
@@ -363,7 +369,7 @@ class MediaStoreScanner(
         if (!isExplicit) return title
         return title
             .replace(EXPLICIT_ADVISORY_SUFFIX, "")
-            .replace(Regex("""\s*[\uFFFD?]{3,}\s*$"""), "")
+            .replace(TRAILING_REPLACEMENT_MARKERS, "")
             .trim()
             .ifBlank { title }
     }
@@ -379,8 +385,12 @@ class MediaStoreScanner(
         detectedFormat: DetectedAudioFormat,
         genreCache: MutableMap<MediaStoreGenreKey, String?>,
     ): SongMetadata {
-        val embeddedMetadata = embeddedTagMetadataReader.read(filePath)
-        val retrieverMetadata = readRetrieverMetadata(songUri)
+        val embeddedMetadata = ElovaireTrace.section("library_embedded_metadata_read") {
+            embeddedTagMetadataReader.read(filePath)
+        }
+        val retrieverMetadata = ElovaireTrace.section("library_retriever_metadata_read") {
+            readRetrieverMetadata(songUri)
+        }
         val resolvedFormat = detectedFormat.displayName
         val year = embeddedMetadata?.releaseYear ?: retrieverMetadata.year ?: mediaStoreYear
         val sampleRate = retrieverMetadata.sampleRate ?: detectedFormat.sampleRate
@@ -395,7 +405,9 @@ class MediaStoreScanner(
         val genre = embeddedMetadata?.genre
             ?: retrieverMetadata.genre
             ?: genreCache.getOrPut(MediaStoreGenreKey(songId, volumeName)) {
-                queryGenre(songId, volumeName)
+                ElovaireTrace.section("library_genre_query") {
+                    queryGenre(songId, volumeName)
+                }
             }
         return SongMetadata(
             title = embeddedMetadata?.title ?: retrieverMetadata.title,
@@ -514,7 +526,7 @@ class MediaStoreScanner(
         resolvedFormat: String,
     ): Int? {
         if (fileSizeBytes == null || fileSizeBytes <= 0L || durationMs <= 0L) return null
-        if (resolvedFormat.uppercase() in setOf("WAV", "FLAC")) return null
+        if (resolvedFormat.uppercase(Locale.ROOT) in NON_BITRATE_ESTIMATED_FORMATS) return null
         val seconds = durationMs / 1000.0
         if (seconds <= 0.0) return null
         return ((fileSizeBytes * 8.0) / seconds).toInt().takeIf { it > 0 }
@@ -534,6 +546,8 @@ class MediaStoreScanner(
             pattern = """(?:\s|^)(?:[\[(]\s*explicit\s*[\])]|🅴|[\uFFFD?]{3,})\s*$""",
             option = RegexOption.IGNORE_CASE,
         )
+        val TRAILING_REPLACEMENT_MARKERS = Regex("""\s*[\uFFFD?]{3,}\s*$""")
+        val NON_BITRATE_ESTIMATED_FORMATS = setOf("WAV", "FLAC")
     }
 
     @Suppress("InlinedApi")

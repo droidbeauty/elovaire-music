@@ -6,11 +6,15 @@ internal class LibraryIndexStore(
     private val dao: LibraryDao,
     private val clock: () -> Long = System::currentTimeMillis,
 ) {
+    private var lastIndexedInput: LibraryIndexInput? = null
+
     suspend fun indexSnapshot(
         snapshot: LibrarySnapshot,
         filterFingerprint: String,
         source: String,
     ) {
+        val input = LibraryIndexInput(snapshot, filterFingerprint, source)
+        if (input == lastIndexedInput) return
         val now = clock()
         val generationId = now
         val indexed = LibraryDatabaseMapper.indexedSnapshot(snapshot, generationId, now)
@@ -29,5 +33,12 @@ internal class LibraryIndexStore(
             files = indexed.mediaFiles,
             removedAtMs = now,
         )
+        lastIndexedInput = input
     }
 }
+
+private data class LibraryIndexInput(
+    val snapshot: LibrarySnapshot,
+    val filterFingerprint: String,
+    val source: String,
+)

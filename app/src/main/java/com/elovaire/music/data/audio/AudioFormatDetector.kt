@@ -32,12 +32,17 @@ internal class AudioFormatDetector(context: Context) {
         val extractor = MediaExtractor()
         return try {
             extractor.setDataSource(appContext, uri, emptyMap())
-            val trackFormats = (0 until extractor.trackCount).map(extractor::getTrackFormat)
-            val audioFormat = trackFormats.firstOrNull {
-                it.getString(MediaFormat.KEY_MIME)?.startsWith("audio/") == true
-            }
-            val hasVideo = trackFormats.any {
-                it.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true
+            var audioFormat: MediaFormat? = null
+            var hasVideo = false
+            for (trackIndex in 0 until extractor.trackCount) {
+                val trackFormat = extractor.getTrackFormat(trackIndex)
+                val trackMimeType = trackFormat.mimeType()
+                when {
+                    audioFormat == null && trackMimeType?.startsWith("audio/") == true -> {
+                        audioFormat = trackFormat
+                    }
+                    trackMimeType?.startsWith("video/") == true -> hasVideo = true
+                }
             }
             val codecMime = audioFormat?.getString(MediaFormat.KEY_MIME)
             val container = AudioFormatPolicy.resolveContainer(extension, mediaStoreMimeType, codecMime)
@@ -100,6 +105,8 @@ internal class AudioFormatDetector(context: Context) {
     private fun MediaFormat.longOrNull(key: String): Long? {
         return runCatching { if (containsKey(key)) getLong(key) else null }.getOrNull()
     }
+
+    private fun MediaFormat.mimeType(): String? = getString(MediaFormat.KEY_MIME)
 }
 
 internal object AudioDecoderAvailability {
