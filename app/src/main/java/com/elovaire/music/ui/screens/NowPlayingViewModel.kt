@@ -289,21 +289,16 @@ internal class NowPlayingViewModel(
         val song = playbackManager.nowPlayingState.value.currentSong ?: return
         val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
         pendingLyricsSave = PendingLyricsSave(song, lyrics)
-        lyricsService.createLyricsWritePermissionRequest(song)?.let { request ->
-            _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
-                isSaving = true,
-                errorMessage = null,
-            )
-            _lyricsEditorEvents.tryEmit(LyricsEditorEvent.RequestWritePermission(request))
-            return
-        }
         savePendingLyrics()
     }
 
     fun onLyricsWritePermissionResult(granted: Boolean) {
         if (!granted) {
             pendingLyricsSave = null
-            _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(isSaving = false)
+            _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
+                isSaving = false,
+                errorMessage = "Permission to edit this song was denied.",
+            )
             return
         }
         savePendingLyrics()
@@ -340,8 +335,17 @@ internal class NowPlayingViewModel(
                 }
 
                 is EmbeddedLyricsWriteResult.PermissionRequired -> {
-                    _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(isSaving = false)
-                    _lyricsEditorEvents.emit(LyricsEditorEvent.RequestWritePermission(result.request))
+                    if (pending.permissionRequested) {
+                        pendingLyricsSave = null
+                        _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
+                            isSaving = false,
+                            errorMessage = "Permission to edit this song was denied.",
+                        )
+                    } else {
+                        pendingLyricsSave = pending.copy(permissionRequested = true)
+                        _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(isSaving = false)
+                        _lyricsEditorEvents.emit(LyricsEditorEvent.RequestWritePermission(result.request))
+                    }
                 }
 
                 is EmbeddedLyricsWriteResult.Failure -> {
@@ -418,6 +422,7 @@ internal class NowPlayingViewModel(
     private data class PendingLyricsSave(
         val song: Song,
         val lyrics: String,
+        val permissionRequested: Boolean = false,
     )
 
     private data class PrefetchRequest(

@@ -119,6 +119,17 @@ class MediaStoreScanner(
                 while (cursor.moveToNext()) {
                     processedRows += 1
                     val row = rowMapper.row(cursor)
+                    val preflightCandidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat = null)
+                    val preflightRejection = MediaStoreScanPreflight
+                        .rejectionBeforeContainerDetection(preflightCandidate, audioFileFilter)
+                    if (preflightRejection != null) {
+                        decisionMap.recordMediaStoreRow(preflightCandidate)
+                        decisionMap.recordMediaStoreExclude(preflightRejection.reason)
+                        if (processedRows == totalRows || processedRows % 24 == 0) {
+                            progressEmitter.emit(processedRows, totalRows)
+                        }
+                        continue
+                    }
                     val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)) {
                         audioFormatDetector.detect(row.uri, row.fileName, row.mimeType)
                     } else {

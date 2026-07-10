@@ -1,10 +1,10 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
-import android.app.PendingIntent
 import android.app.RecoverableSecurityException
 import android.content.ContentResolver
 import android.content.Context
-import android.provider.MediaStore
+import android.util.Log
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
@@ -13,7 +13,6 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationStatus
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.domain.model.Song
-import elovaire.music.droidbeauty.app.platform.isContentUri
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -21,10 +20,24 @@ import kotlinx.coroutines.CancellationException
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 
+internal enum class EmbeddedLyricsWriteFailure {
+    UnsupportedFormat,
+    PermissionDenied,
+    SourceReadFailed,
+    TempWriteFailed,
+    TagCommitFailed,
+    OriginalOverwriteFailed,
+    PersistedVerificationFailed,
+    Unknown,
+}
+
 internal sealed interface EmbeddedLyricsWriteResult {
     data class Success(val payload: LyricsPayload) : EmbeddedLyricsWriteResult
-    data class PermissionRequired(val request: PendingIntent) : EmbeddedLyricsWriteResult
-    data class Failure(val reason: String) : EmbeddedLyricsWriteResult
+    data class PermissionRequired(val request: android.app.PendingIntent) : EmbeddedLyricsWriteResult
+    data class Failure(
+        val failure: EmbeddedLyricsWriteFailure,
+        val reason: String,
+    ) : EmbeddedLyricsWriteResult
 }
 
 internal class EmbeddedLyricsWriter(
@@ -34,13 +47,6 @@ internal class EmbeddedLyricsWriter(
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val audioFormatDetector = AudioFormatDetector(appContext)
-
-    fun createWritePermissionRequest(song: Song): PendingIntent? {
-        if (!song.uri.isContentUri()) return null
-        return runCatching {
-            MediaStore.createWriteRequest(contentResolver, listOf(song.uri))
-        }.getOrNull()
-    }
 
     suspend fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
         val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
@@ -57,20 +63,32 @@ internal class EmbeddedLyricsWriter(
             .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
             ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
         if (AudioFormatPolicy.embeddedLyricsWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
+            trace(song, "unsupported_format")
             mutationId?.let {
                 mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported lyrics write format")
             }
-            return EmbeddedLyricsWriteResult.Failure("This audio format cannot store lyrics safely.")
+            return EmbeddedLyricsWriteResult.Failure(
+                failure = EmbeddedLyricsWriteFailure.UnsupportedFormat,
+                reason = "This audio format cannot store lyrics safely.",
+            )
         }
 
         var backupFile: File? = null
         var workingFile: File? = null
         var persistedFile: File? = null
+        var phase = LyricsWritePhase.SourceRead
+        var needsRepair = false
         return try {
+            trace(song, "preflight")
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
+            trace(song, "temp_copy")
             backupFile = copySongToTemp(song, "backup")
+            phase = LyricsWritePhase.TempWrite
+            trace(song, "temp_write")
             workingFile = createTempFile(song, "working").also { backupFile.copyTo(it, overwrite = true) }
 
+            phase = LyricsWritePhase.TagCommit
+            trace(song, "tag_commit")
             val audioFile = AudioFileIO.read(workingFile)
             val tag = audioFile.tagOrCreateAndSetDefault
             if (lyrics.isBlank()) {
@@ -80,22 +98,28 @@ internal class EmbeddedLyricsWriter(
             }
             audioFile.commit()
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
+            phase = LyricsWritePhase.TempVerification
+            trace(song, "temp_verify")
             verifyLyrics(workingFile, lyrics)
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
 
+            phase = LyricsWritePhase.OriginalOverwrite
+            trace(song, "original_overwrite")
             try {
                 overwriteOriginal(song, workingFile)
             } catch (throwable: Throwable) {
-                runCatching { overwriteOriginal(song, backupFile) }
+                needsRepair = runCatching { overwriteOriginal(song, backupFile) }.isFailure
                 throw throwable
             }
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
 
+            phase = LyricsWritePhase.PersistedVerification
+            trace(song, "persisted_verify")
             persistedFile = copySongToTemp(song, "verify")
             try {
                 verifyLyrics(persistedFile, lyrics)
             } catch (throwable: Throwable) {
-                overwriteOriginal(song, backupFile)
+                needsRepair = runCatching { overwriteOriginal(song, backupFile) }.isFailure
                 throw throwable
             }
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
@@ -115,13 +139,20 @@ internal class EmbeddedLyricsWriter(
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Cancelled) }
             throw throwable
         } catch (throwable: RecoverableSecurityException) {
+            trace(song, "permission_required", throwable)
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.NeedsPermission) }
             EmbeddedLyricsWriteResult.PermissionRequired(throwable.userAction.actionIntent)
         } catch (throwable: Throwable) {
+            val failure = phase.failure
+            trace(song, "failed:${failure.name}", throwable)
             mutationId?.let {
-                mediaMutationJournal.mark(it, MediaMutationStatus.Failed, throwable.message)
+                mediaMutationJournal.mark(
+                    it,
+                    if (needsRepair) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Failed,
+                    "${failure.name}:${throwable.javaClass.simpleName}",
+                )
             }
-            EmbeddedLyricsWriteResult.Failure(throwable.message ?: "Unable to save lyrics.")
+            EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
         } finally {
             runCatching { backupFile?.delete() }
             runCatching { workingFile?.delete() }
@@ -164,9 +195,10 @@ internal class EmbeddedLyricsWriter(
                 output.position(0L)
                 output.truncate(0L)
                 FileInputStream(source).channel.use { input ->
+                    val sourceSize = input.size()
                     var position = 0L
-                    while (position < input.size()) {
-                        val copied = input.transferTo(position, input.size() - position, output)
+                    while (position < sourceSize) {
+                        val copied = input.transferTo(position, sourceSize - position, output)
                         check(copied > 0L) { "Unable to replace the song metadata." }
                         position += copied
                     }
@@ -176,7 +208,45 @@ internal class EmbeddedLyricsWriter(
         }
     }
 
+    private fun trace(
+        song: Song,
+        phase: String,
+        throwable: Throwable? = null,
+    ) {
+        if (!BuildConfig.DEBUG) return
+        Log.d(
+            LOG_TAG,
+            "song=${song.id} scheme=${song.uri.scheme} extension=${song.fileName.substringAfterLast('.', "")} " +
+                "phase=$phase error=${throwable?.javaClass?.simpleName.orEmpty()}",
+        )
+    }
+
     private companion object {
         const val TEMP_DIRECTORY = "lyrics-tag-edit"
+        const val LOG_TAG = "EmbeddedLyricsWriter"
     }
 }
+
+private enum class LyricsWritePhase(
+    val failure: EmbeddedLyricsWriteFailure,
+) {
+    SourceRead(EmbeddedLyricsWriteFailure.SourceReadFailed),
+    TempWrite(EmbeddedLyricsWriteFailure.TempWriteFailed),
+    TagCommit(EmbeddedLyricsWriteFailure.TagCommitFailed),
+    TempVerification(EmbeddedLyricsWriteFailure.TagCommitFailed),
+    OriginalOverwrite(EmbeddedLyricsWriteFailure.OriginalOverwriteFailed),
+    PersistedVerification(EmbeddedLyricsWriteFailure.PersistedVerificationFailed),
+}
+
+private val EmbeddedLyricsWriteFailure.userMessage: String
+    get() = when (this) {
+        EmbeddedLyricsWriteFailure.UnsupportedFormat -> "This audio format cannot store lyrics safely."
+        EmbeddedLyricsWriteFailure.PermissionDenied -> "Permission to edit this song was denied."
+        EmbeddedLyricsWriteFailure.SourceReadFailed -> "Unable to read this song for lyrics editing."
+        EmbeddedLyricsWriteFailure.TempWriteFailed,
+        EmbeddedLyricsWriteFailure.TagCommitFailed,
+        -> "Unable to write lyrics metadata safely."
+        EmbeddedLyricsWriteFailure.OriginalOverwriteFailed -> "Unable to save lyrics to the song file."
+        EmbeddedLyricsWriteFailure.PersistedVerificationFailed -> "Lyrics could not be verified after saving."
+        EmbeddedLyricsWriteFailure.Unknown -> "Unable to save lyrics."
+    }

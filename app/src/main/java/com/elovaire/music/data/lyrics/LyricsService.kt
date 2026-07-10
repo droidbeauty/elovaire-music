@@ -40,9 +40,6 @@ class LyricsService internal constructor(
 
     fun localLyrics(song: Song): LyricsResult? = repository.localLyrics(song)
 
-    internal fun createLyricsWritePermissionRequest(song: Song) =
-        embeddedLyricsWriter.createWritePermissionRequest(song)
-
     internal suspend fun saveEmbeddedLyrics(
         song: Song,
         lyrics: String,

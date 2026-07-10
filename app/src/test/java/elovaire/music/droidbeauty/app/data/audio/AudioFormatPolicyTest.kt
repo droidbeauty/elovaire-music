@@ -171,6 +171,17 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun embeddedLyricsWriteSupport_rejectsMp4UntilRoundTripSupportIsVerified() {
+        assertEquals(
+            TagWriteSupport.Unsupported,
+            AudioFormatPolicy.embeddedLyricsWriteSupport(
+                detected(AudioContainerFormat.Mp4Audio, "audio/mp4a-latm"),
+                "song.m4a",
+            ),
+        )
+    }
+
+    @Test
     fun decoderAvailability_doesNotAssumeAlacDecoderExists() {
         assertTrue(AudioDecoderAvailability.isImplicitlyAvailable("audio/raw"))
         assertFalse(AudioDecoderAvailability.isImplicitlyAvailable("audio/alac"))

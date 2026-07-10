@@ -358,10 +358,16 @@ internal object AudioFormatPolicy {
         detected: DetectedAudioFormat?,
         fileName: String,
     ): TagWriteSupport {
-        return if (tagWriteSupport(detected, fileName) == TagWriteSupport.Safe) {
-            TagWriteSupport.Safe
-        } else {
-            TagWriteSupport.Unsupported
+        return when (detected?.container ?: resolveContainer(
+            extension = fileName.substringAfterLast('.', ""),
+            mediaStoreMimeType = null,
+            codecMimeType = null,
+        )) {
+            AudioContainerFormat.Mp3,
+            AudioContainerFormat.Flac,
+            -> TagWriteSupport.Safe
+
+            else -> TagWriteSupport.Unsupported
         }
     }
 

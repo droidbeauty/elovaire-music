@@ -6,10 +6,7 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.4.3">
-        <item>Stability improvements</item>
-        <item>Improved animation smoothness</item>
-        <item>Fixed bug that wouldn't allow to save lyrics into a song</item>
-        <item>Minor technical upgrades to playback framework</item>
+    <release version="2.4.4">
+        <item>Bug fixes and optimizations</item>
     </release>
 </changelog>

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.net.TrafficStats
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import elovaire.music.droidbeauty.app.BuildConfig
@@ -439,6 +440,7 @@ internal class AppUpdateManager(
                 partFile.outputStream().use { output ->
                     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
                     var bytesCopied = 0L
+                    val progressThrottler = UpdateDownloadProgressThrottler()
                     while (true) {
                         currentCoroutineContext().ensureActive()
                         val read = input.read(buffer)
@@ -446,8 +448,15 @@ internal class AppUpdateManager(
                         output.write(buffer, 0, read)
                         bytesCopied += read
                         val progress = totalBytes?.let { bytesCopied.toFloat() / it.toFloat() }
-                        _uiState.update { state ->
-                            state.copy(downloadProgress = progress?.coerceIn(0f, 1f))
+                        val normalizedProgress = progress?.coerceIn(0f, 1f)
+                        if (normalizedProgress != null && progressThrottler.shouldEmit(
+                                progress = normalizedProgress,
+                                nowMs = SystemClock.elapsedRealtime(),
+                            )
+                        ) {
+                            _uiState.update { state ->
+                                state.copy(downloadProgress = normalizedProgress)
+                            }
                         }
                     }
                     if (bytesCopied <= 0L || !partFile.exists()) {
@@ -774,5 +783,34 @@ internal class AppUpdateManager(
         const val UPDATE_TRAFFIC_STATS_TAG = 0x454C5550
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
         val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")
+    }
+}
+
+private const val DEFAULT_DOWNLOAD_PROGRESS_DELTA = 0.01f
+private const val DEFAULT_DOWNLOAD_PROGRESS_INTERVAL_MS = 150L
+
+internal class UpdateDownloadProgressThrottler(
+    private val minimumProgressDelta: Float = DEFAULT_DOWNLOAD_PROGRESS_DELTA,
+    private val minimumIntervalMs: Long = DEFAULT_DOWNLOAD_PROGRESS_INTERVAL_MS,
+) {
+    private var lastProgress = 0f
+    private var lastUpdateMs = -minimumIntervalMs
+
+    fun shouldEmit(
+        progress: Float,
+        nowMs: Long,
+    ): Boolean {
+        val normalizedProgress = progress.coerceIn(0f, 1f)
+        if (normalizedProgress >= 1f || normalizedProgress - lastProgress >= minimumProgressDelta) {
+            lastProgress = normalizedProgress
+            lastUpdateMs = nowMs
+            return true
+        }
+        if (nowMs - lastUpdateMs >= minimumIntervalMs) {
+            lastProgress = normalizedProgress
+            lastUpdateMs = nowMs
+            return true
+        }
+        return false
     }
 }

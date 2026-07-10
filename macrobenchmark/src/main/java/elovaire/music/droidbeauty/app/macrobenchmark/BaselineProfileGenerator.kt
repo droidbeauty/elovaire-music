@@ -20,6 +20,7 @@ class BaselineProfileGenerator {
             packageName = TARGET_PACKAGE,
             maxIterations = baselineProfileMaxIterations(),
             stableIterations = baselineProfileStableIterations(),
+            includeInStartupProfile = true,
         ) {
             grantMediaPermission()
             pressHome()
