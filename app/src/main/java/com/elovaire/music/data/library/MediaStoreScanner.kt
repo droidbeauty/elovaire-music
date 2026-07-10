@@ -153,7 +153,8 @@ class MediaStoreScanner(
                             continue
                         }
                     }
-                    val cachedMetadata = metadataCache[row.uri.toString()]
+                    val uriKey = row.uri.toString()
+                    val cachedMetadata = metadataCache[uriKey]
                         ?.takeIf {
                             it.fileName == row.fileName &&
                                 (it.filePath == null || row.filePath == null || it.filePath == row.filePath) &&
@@ -195,7 +196,7 @@ class MediaStoreScanner(
                     val resolvedAlbum = songMetadata.album ?: row.album
                     val isExplicit = detectExplicit(resolvedTitle, row.fileName)
                     val title = sanitizeDisplayTitle(resolvedTitle, isExplicit)
-                    refreshedMetadataCache[row.uri.toString()] = CachedSongMetadata(
+                    refreshedMetadataCache[uriKey] = CachedSongMetadata(
                         songId = row.id,
                         fileName = row.fileName,
                         filePath = row.filePath,
@@ -261,9 +262,15 @@ class MediaStoreScanner(
 
         metadataCache.replaceWith(refreshedMetadataCache)
 
+        val sortedSongs = ElovaireTrace.section("library_song_sort") {
+            mergedSongs.sortedByDescending { it.dateAddedSeconds }
+        }
+        val albums = ElovaireTrace.section("library_album_build") {
+            buildAlbumsFromSongs(mergedSongs)
+        }
         return LibrarySnapshot(
-            songs = mergedSongs.sortedByDescending { it.dateAddedSeconds },
-            albums = buildAlbumsFromSongs(mergedSongs),
+            songs = sortedSongs,
+            albums = albums,
         )
     }
 

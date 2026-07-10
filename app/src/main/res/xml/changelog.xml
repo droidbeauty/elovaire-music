@@ -6,7 +6,7 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.4.4">
+    <release version="2.5">
         <item>Bug fixes and optimizations</item>
     </release>
 </changelog>
