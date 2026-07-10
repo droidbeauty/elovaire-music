@@ -171,9 +171,9 @@ class AudioFormatPolicyTest {
     }
 
     @Test
-    fun embeddedLyricsWriteSupport_rejectsMp4UntilRoundTripSupportIsVerified() {
+    fun embeddedLyricsWriteSupport_allowsVerifiedMp4LyricsAtom() {
         assertEquals(
-            TagWriteSupport.Unsupported,
+            TagWriteSupport.Safe,
             AudioFormatPolicy.embeddedLyricsWriteSupport(
                 detected(AudioContainerFormat.Mp4Audio, "audio/mp4a-latm"),
                 "song.m4a",

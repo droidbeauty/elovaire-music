@@ -161,8 +161,9 @@ internal class EmbeddedLyricsWriter(
     }
 
     private fun verifyLyrics(file: File, expected: String) {
-        val actual = AudioFileIO.read(file)
-            .tagOrCreateAndSetDefault
+        val tag = AudioFileIO.read(file).tag
+            ?: error("Lyrics metadata was not persisted to the temporary file.")
+        val actual = tag
             .getFirst(FieldKey.LYRICS)
             .orEmpty()
             .canonicalEmbeddedLyricsText()
@@ -233,7 +234,7 @@ private enum class LyricsWritePhase(
     SourceRead(EmbeddedLyricsWriteFailure.SourceReadFailed),
     TempWrite(EmbeddedLyricsWriteFailure.TempWriteFailed),
     TagCommit(EmbeddedLyricsWriteFailure.TagCommitFailed),
-    TempVerification(EmbeddedLyricsWriteFailure.TagCommitFailed),
+    TempVerification(EmbeddedLyricsWriteFailure.PersistedVerificationFailed),
     OriginalOverwrite(EmbeddedLyricsWriteFailure.OriginalOverwriteFailed),
     PersistedVerification(EmbeddedLyricsWriteFailure.PersistedVerificationFailed),
 }

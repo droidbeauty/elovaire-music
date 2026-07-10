@@ -1,45 +1,22 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import android.content.Context
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.navigation.NavHostController
-import elovaire.music.droidbeauty.app.core.AppContainer
-import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
-import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 /** Owns the ready-state shell after the root permission gate has granted media access. */
 @Composable
 internal fun ElovaireRootReadyHost(
-    container: AppContainer,
+    composition: RootComposition,
     resetHomeScrollOnColdStart: Boolean,
     adaptiveInfo: ElovaireAdaptiveInfo,
-    navController: NavHostController,
-    rootMotionTransitions: MotionTransitions,
-    context: Context,
-    viewModelFactory: ElovaireViewModelFactory,
-    appState: RootAppState,
-    derivedState: RootLibraryDerivedState,
-    permissionController: RootPermissionController,
-    deleteController: RootDeleteController,
-    albumCollectionLayoutMode: AlbumLayoutMode,
-    changelogReleases: List<ChangelogRelease>,
-    searchViewModel: SearchViewModel,
-    nowPlayingViewModel: NowPlayingViewModel,
 ) {
+    val container = composition.container
+    val appState = composition.appState
+    val derivedState = composition.derivedState
     val libraryState = appState.library
     val playbackState = appState.playback
     val isPlaybackActuallyPlaying = playbackState.isPlaying && playbackState.currentSong != null
-    RootNotificationPermissionEffect(
-        isPlaybackActuallyPlaying,
-        permissionController.state,
-        permissionController::requestNotificationPermission,
-    )
-
     val uiRuntime = rememberRootUiRuntime(
-        navController = navController,
+        navController = composition.navController,
         routeState = appState,
         libraryState = libraryState,
         playbackState = playbackState,
@@ -49,28 +26,22 @@ internal fun ElovaireRootReadyHost(
     val navigationState = uiRuntime.navigationState
     val currentRoute = uiRuntime.routeObservation.route
     val playerLayerController = uiRuntime.playerLayerController
-    val currentPlayerLayerController by rememberUpdatedState(playerLayerController)
-    LaunchedEffect(container) {
-        container.openNowPlayingCommands.collect {
-            currentPlayerLayerController.requestOpen(null)
-        }
-    }
-    RootSystemBarEffect(
-        darkTheme = uiRuntime.shellInputs.darkTheme,
-        showPlayerOverlay = uiRuntime.chromeVisibility.showPlayerOverlay,
-        playerContentColor = uiRuntime.shellInputs.playerAdaptivePalette.contentColor,
+    RootEffectsHost(
+        composition = composition,
+        uiRuntime = uiRuntime,
+        isPlaybackActuallyPlaying = isPlaybackActuallyPlaying,
     )
 
     val actionRuntime = rememberRootActionRuntime(
-        context = context,
+        context = composition.context,
         container = container,
-        navController = navController,
+        navController = composition.navController,
         appState = appState,
         derivedState = derivedState,
-        albumCollectionLayoutMode = albumCollectionLayoutMode,
+        albumCollectionLayoutMode = composition.albumCollectionLayoutMode,
         resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
-        permissionController = permissionController,
-        deleteController = deleteController,
+        permissionController = composition.permissionController,
+        deleteController = composition.deleteController,
         uiRuntime = uiRuntime,
     )
 
@@ -92,9 +63,9 @@ internal fun ElovaireRootReadyHost(
                 routeState = actionRuntime.routeState,
                 routeActions = actionRuntime.routeActions,
                 padding = routePadding,
-                searchViewModel = searchViewModel,
-                viewModelFactory = viewModelFactory,
-                changelogReleases = changelogReleases,
+                searchViewModel = composition.searchViewModel,
+                viewModelFactory = composition.viewModelFactory,
+                changelogReleases = composition.changelogReleases,
                 modifier = modifier,
             )
         },
@@ -104,13 +75,13 @@ internal fun ElovaireRootReadyHost(
                 sharedTopBarSpec = uiRuntime.sharedTopBarSpec,
                 chromeVisibility = uiRuntime.chromeVisibility,
                 playbackState = playbackState,
-                nowPlayingViewModel = nowPlayingViewModel,
+                nowPlayingViewModel = composition.nowPlayingViewModel,
                 adaptiveInfo = adaptiveInfo,
                 activeBottomRoute = uiRuntime.routeObservation.activeBottomRoute,
                 currentRoute = currentRoute,
                 navigationState = navigationState,
                 topLevelDestinations = DefaultTopLevelDestinations,
-                motionTransitions = rootMotionTransitions,
+                motionTransitions = composition.motionTransitions,
                 onOpenPlayer = playerLayerController::requestOpen,
             )
         },
@@ -119,14 +90,14 @@ internal fun ElovaireRootReadyHost(
                 layout = layout,
                 overlayState = uiRuntime.overlayState,
                 topBarMenuActions = uiRuntime.topBarMenuActions,
-                changelogReleases = changelogReleases,
+                changelogReleases = composition.changelogReleases,
                 playlistActions = actionRuntime.playlistActions,
                 chromeVisibility = uiRuntime.chromeVisibility,
                 currentRoute = currentRoute,
                 appState = appState,
                 container = container,
-                permissionController = permissionController,
-                motionTransitions = rootMotionTransitions,
+                permissionController = composition.permissionController,
+                motionTransitions = composition.motionTransitions,
             )
         },
         playerLayerHost = {
@@ -135,13 +106,13 @@ internal fun ElovaireRootReadyHost(
                 chromeVisibility = uiRuntime.chromeVisibility,
                 playerLayerState = playerLayerController.state,
                 playerLayerController = playerLayerController,
-                nowPlayingViewModel = nowPlayingViewModel,
+                nowPlayingViewModel = composition.nowPlayingViewModel,
                 songsById = derivedState.songsById,
                 playbackState = playbackState,
                 appState = appState,
                 playlistActions = actionRuntime.playlistActions,
                 openCurrentPlayingAlbum = uiRuntime.openCurrentPlayingAlbum,
-                navController = navController,
+                navController = composition.navController,
             )
         },
     )

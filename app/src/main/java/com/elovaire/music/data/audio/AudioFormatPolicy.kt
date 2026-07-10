@@ -367,6 +367,14 @@ internal object AudioFormatPolicy {
             AudioContainerFormat.Flac,
             -> TagWriteSupport.Safe
 
+            AudioContainerFormat.Mp4Audio -> {
+                if (tagWriteSupport(detected, fileName) == TagWriteSupport.Safe) {
+                    TagWriteSupport.Safe
+                } else {
+                    TagWriteSupport.Unsupported
+                }
+            }
+
             else -> TagWriteSupport.Unsupported
         }
     }
