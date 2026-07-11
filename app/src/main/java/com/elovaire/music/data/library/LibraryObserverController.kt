@@ -29,6 +29,7 @@ internal class LibraryObserverController(
     private var observerRebuildJob: Job? = null
     private var directoryObserversEnabled = false
     private val recentObservedPaths = linkedMapOf<String, Long>()
+    private val recentObservedPathsLock = Any()
     private var suppressObserverRefreshUntilMs = 0L
 
     private val mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -151,19 +152,21 @@ internal class LibraryObserverController(
 
     private fun shouldCoalesceObservedPath(path: String): Boolean {
         val nowMs = SystemClock.elapsedRealtime()
-        recentObservedPaths.entries.removeIf { (_, observedAtMs) ->
-            nowMs - observedAtMs > OBSERVED_PATH_COALESCE_WINDOW_MS
+        synchronized(recentObservedPathsLock) {
+            recentObservedPaths.entries.removeIf { (_, observedAtMs) ->
+                nowMs - observedAtMs > OBSERVED_PATH_COALESCE_WINDOW_MS
+            }
+            val lastObservedAtMs = recentObservedPaths[path]
+            recentObservedPaths[path] = nowMs
+            return lastObservedAtMs != null && nowMs - lastObservedAtMs < OBSERVED_PATH_COALESCE_WINDOW_MS
         }
-        val lastObservedAtMs = recentObservedPaths[path]
-        recentObservedPaths[path] = nowMs
-        return lastObservedAtMs != null && nowMs - lastObservedAtMs < OBSERVED_PATH_COALESCE_WINDOW_MS
     }
 
     private fun createMusicDirectoryObserver(rootDirectory: File): RecursiveMusicDirectoryObserver? {
         if (!rootDirectory.exists() || !rootDirectory.isDirectory) return null
 
         return RecursiveMusicDirectoryObserver(rootDirectory) { event, changedFile ->
-            scope.launch {
+            scope.launch(Dispatchers.IO) {
                 handleObservedDirectoryEvent(event, changedFile)
             }
         }

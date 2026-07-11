@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.app.RecoverableSecurityException
-import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
 import android.util.Log
@@ -13,10 +12,9 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationStatus
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
+import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -50,9 +48,9 @@ internal class EmbeddedLyricsWriter(
     private val mediaMutationJournal: MediaMutationJournal? = null,
 ) {
     private val appContext = context.applicationContext
-    private val contentResolver: ContentResolver = appContext.contentResolver
     private val audioFormatDetector = AudioFormatDetector(appContext)
     private val localLyricsResolver = LocalLyricsResolver(appContext)
+    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_DIRECTORY)
     private val writeMutex = Mutex()
 
     suspend fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult = writeMutex.withLock {
@@ -91,21 +89,21 @@ internal class EmbeddedLyricsWriter(
         var needsRepair = false
         return try {
             trace(song, "preflight")
+            mutationRunner.requireWritable(song.uri)
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
             trace(song, "temp_copy")
-            backupFile = copySongToTemp(song, "backup")
+            backupFile = mutationRunner.copySongToTemp(song, "backup")
             phase = LyricsWritePhase.TempWrite
             trace(song, "temp_write")
-            workingFile = createTempFile(song, "working").also { backupFile.copyTo(it, overwrite = true) }
+            workingFile = mutationRunner.createTempFile(song, "working").also { backupFile.copyTo(it, overwrite = true) }
 
             phase = LyricsWritePhase.TagCommit
             trace(song, "tag_commit")
             val audioFile = AudioFileIO.read(workingFile)
             val tag = audioFile.tagOrCreateAndSetDefault
-            if (lyrics.isBlank()) {
-                tag.deleteField(FieldKey.LYRICS)
-            } else {
-                tag.setField(FieldKey.LYRICS, lyrics)
+            runCatching { tag.deleteField(FieldKey.LYRICS) }
+            if (lyrics.isNotBlank()) {
+                tag.setField(tag.createField(FieldKey.LYRICS, lyrics))
             }
             audioFile.commit()
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
@@ -117,20 +115,20 @@ internal class EmbeddedLyricsWriter(
             phase = LyricsWritePhase.OriginalOverwrite
             trace(song, "original_overwrite")
             try {
-                overwriteOriginal(song, workingFile)
+                mutationRunner.overwriteOriginal(song.uri, workingFile)
             } catch (throwable: Throwable) {
-                needsRepair = runCatching { overwriteOriginal(song, backupFile) }.isFailure
+                needsRepair = runCatching { mutationRunner.overwriteOriginal(song.uri, backupFile) }.isFailure
                 throw throwable
             }
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
 
             phase = LyricsWritePhase.PersistedVerification
             trace(song, "persisted_verify")
-            persistedFile = copySongToTemp(song, "verify")
+            persistedFile = mutationRunner.copySongToTemp(song, "verify")
             try {
                 verifyLyrics(persistedFile, lyrics)
             } catch (throwable: Throwable) {
-                needsRepair = runCatching { overwriteOriginal(song, backupFile) }.isFailure
+                needsRepair = runCatching { mutationRunner.overwriteOriginal(song.uri, backupFile) }.isFailure
                 throw throwable
             }
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
@@ -197,45 +195,6 @@ internal class EmbeddedLyricsWriter(
             ?.toEmbeddedLyricsText()
             .orEmpty()
         check(actual == expected.canonicalEmbeddedLyricsText()) { "Lyrics verification failed after writing metadata." }
-    }
-
-    private fun copySongToTemp(song: Song, purpose: String): File {
-        val destination = createTempFile(song, purpose)
-        contentResolver.openInputStream(song.uri)?.use { input ->
-            destination.outputStream().use(input::copyTo)
-        } ?: error("Unable to open ${song.fileName}")
-        return destination
-    }
-
-    private fun createTempFile(song: Song, purpose: String): File {
-        val directory = File(appContext.cacheDir, TEMP_DIRECTORY).apply { mkdirs() }
-        val extension = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
-        return File(directory, "${song.id}-$purpose-${System.nanoTime()}.$extension")
-    }
-
-    private fun overwriteOriginal(song: Song, source: File) {
-        val descriptor = try {
-            contentResolver.openFileDescriptor(song.uri, "rwt")
-        } catch (_: IllegalArgumentException) {
-            contentResolver.openFileDescriptor(song.uri, "rw")
-        } ?: error("Unable to open the song for writing.")
-
-        descriptor.use {
-            FileOutputStream(it.fileDescriptor).channel.use { output ->
-                output.position(0L)
-                output.truncate(0L)
-                FileInputStream(source).channel.use { input ->
-                    val sourceSize = input.size()
-                    var position = 0L
-                    while (position < sourceSize) {
-                        val copied = input.transferTo(position, sourceSize - position, output)
-                        check(copied > 0L) { "Unable to replace the song metadata." }
-                        position += copied
-                    }
-                }
-                output.force(true)
-            }
-        }
     }
 
     private fun trace(

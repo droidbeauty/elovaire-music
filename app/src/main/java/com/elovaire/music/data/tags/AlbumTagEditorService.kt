@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationStatus
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
@@ -29,8 +30,6 @@ import elovaire.music.droidbeauty.app.data.tags.matching.TidalArtworkProvider
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -123,6 +122,7 @@ internal class AlbumTagEditorService(
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val audioFormatDetector = AudioFormatDetector(appContext)
+    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME)
     private val matchCache = TagMatchCache(appContext)
     private val albumMatcher = FingerprintAlbumTagMatcher(
         fingerprintProvider = AndroidChromaprintFingerprintProvider(appContext, matchCache),
@@ -247,10 +247,11 @@ internal class AlbumTagEditorService(
             var backupFile: File? = null
             var persistedVerificationFile: File? = null
             try {
+                mutationRunner.requireWritable(song.uri)
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
-                val originalBackup = copySongToTempFile(song, "backup")
+                val originalBackup = mutationRunner.copySongToTemp(song, "backup")
                 backupFile = originalBackup
-                val workingFile = createTagEditTempFile(song, "working").also { file ->
+                val workingFile = mutationRunner.createTempFile(song, "working").also { file ->
                     originalBackup.copyTo(file, overwrite = true)
                 }
                 tempFile = workingFile
@@ -295,13 +296,13 @@ internal class AlbumTagEditorService(
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
                 try {
-                    overwriteSongFromTemp(song.uri, tempFile)
+                    mutationRunner.overwriteOriginal(song.uri, tempFile)
                 } catch (writeFailure: Throwable) {
-                    runCatching { overwriteSongFromTemp(song.uri, originalBackup) }
+                    runCatching { mutationRunner.overwriteOriginal(song.uri, originalBackup) }
                     throw writeFailure
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
-                persistedVerificationFile = copySongToTempFile(song, "verify")
+                persistedVerificationFile = mutationRunner.copySongToTemp(song, "verify")
                 val persistedFailures = verifyWrittenTags(
                     tempFile = persistedVerificationFile,
                     expected = ExpectedTagValues(
@@ -324,7 +325,7 @@ internal class AlbumTagEditorService(
                     mutationId?.let {
                         mediaMutationJournal.mark(it, MediaMutationStatus.NeedsRepair, persistedFailures.joinToString())
                     }
-                    overwriteSongFromTemp(song.uri, originalBackup)
+                    mutationRunner.overwriteOriginal(song.uri, originalBackup)
                     error("Persisted tag verification failed: ${persistedFailures.joinToString()}")
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
@@ -453,8 +454,10 @@ internal class AlbumTagEditorService(
             }
             is TagFieldEdit.Value -> {
                 val year = edit.value.coerceIn(MIN_RELEASE_YEAR, MAX_RELEASE_YEAR).toString()
-                tag.setField(FieldKey.YEAR, year)
-                runCatching { tag.setField(FieldKey.ORIGINAL_YEAR, year) }
+                runCatching { tag.deleteField(FieldKey.YEAR) }
+                tag.setField(tag.createField(FieldKey.YEAR, year))
+                runCatching { tag.deleteField(FieldKey.ORIGINAL_YEAR) }
+                runCatching { tag.setField(tag.createField(FieldKey.ORIGINAL_YEAR, year)) }
             }
         }
     }
@@ -465,10 +468,9 @@ internal class AlbumTagEditorService(
         value: String?,
     ) {
         val normalizedValue = value?.trim().orEmpty()
-        if (normalizedValue.isBlank()) {
-            runCatching { tag.deleteField(fieldKey) }
-        } else {
-            tag.setField(fieldKey, normalizedValue)
+        runCatching { tag.deleteField(fieldKey) }
+        if (normalizedValue.isNotBlank()) {
+            tag.setField(tag.createField(fieldKey, normalizedValue))
         }
     }
 
@@ -514,55 +516,6 @@ internal class AlbumTagEditorService(
             failures += "Artwork was not embedded correctly"
         }
         return failures
-    }
-
-    private fun copySongToTempFile(song: Song, purpose: String): File {
-        val tempFile = createTagEditTempFile(song, purpose)
-        contentResolver.openInputStream(song.uri)?.use { input ->
-            tempFile.outputStream().use { output ->
-                input.copyTo(output)
-            }
-        } ?: error("Unable to open ${song.fileName}")
-        return tempFile
-    }
-
-    private fun createTagEditTempFile(song: Song, purpose: String): File {
-        val tempDir = File(appContext.cacheDir, TEMP_TAG_EDIT_DIR_NAME).apply { mkdirs() }
-        val suffix = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
-        return File(tempDir, "${song.id}-$purpose-${System.nanoTime()}.$suffix")
-    }
-
-    private fun overwriteSongFromTemp(
-        songUri: Uri,
-        tempFile: File,
-    ) {
-        val descriptor = try {
-            contentResolver.openFileDescriptor(songUri, "rwt")
-        } catch (_: IllegalArgumentException) {
-            contentResolver.openFileDescriptor(songUri, "rw")
-        } ?: error("Unable to write updated tags")
-        descriptor.use {
-            FileOutputStream(descriptor.fileDescriptor).channel.use { outputChannel ->
-                outputChannel.position(0L)
-                outputChannel.truncate(0L)
-                FileInputStream(tempFile).channel.use { inputChannel ->
-                    var transferred = 0L
-                    val totalBytes = inputChannel.size()
-                    while (transferred < totalBytes) {
-                        val copiedBytes = inputChannel.transferTo(
-                            transferred,
-                            totalBytes - transferred,
-                            outputChannel,
-                        )
-                        if (copiedBytes <= 0L) {
-                            error("Unable to copy updated tags")
-                        }
-                        transferred += copiedBytes
-                    }
-                }
-                outputChannel.force(true)
-            }
-        }
     }
 
     private fun resolveFilePath(song: Song): String? {
