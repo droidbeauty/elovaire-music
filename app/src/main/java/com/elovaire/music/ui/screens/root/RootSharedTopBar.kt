@@ -217,7 +217,7 @@ internal fun UnifiedTopBar(
             ) {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(25f)),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                 )
@@ -306,7 +306,7 @@ internal fun PinnedBackTopBar(
                 )
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(25f)),
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -342,7 +342,7 @@ internal fun PinnedBackTopBar(
                 ) {
                     Text(
                         text = title,
-                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(25f)),
                         color = MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -407,7 +407,7 @@ internal fun SharedTopBarOverlay(
                             ) { currentTitle ->
                                 Text(
                                     text = currentTitle,
-                                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(25f)),
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
                                 )
@@ -476,7 +476,7 @@ internal fun SharedTopBarOverlay(
                                 ) { currentTitle ->
                                     Text(
                                         text = currentTitle,
-                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(25f)),
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -521,7 +521,7 @@ internal fun SharedTopBarOverlay(
                                 ) { currentTitle ->
                                     Text(
                                         text = currentTitle,
-                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(26f)),
+                                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(25f)),
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -565,7 +565,10 @@ internal fun SharedTopBarOverlay(
                                 ) { currentTitle ->
                                     Text(
                                         text = currentTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = elovaireScaledSp(19f),
+                                            fontWeight = FontWeight.SemiBold,
+                                        ),
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,
@@ -584,7 +587,10 @@ internal fun SharedTopBarOverlay(
                                 ) { currentTitle ->
                                     Text(
                                         text = currentTitle,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                                        style = MaterialTheme.typography.titleLarge.copy(
+                                            fontSize = elovaireScaledSp(19f),
+                                            fontWeight = FontWeight.SemiBold,
+                                        ),
                                         color = MaterialTheme.colorScheme.onSurface,
                                         maxLines = 1,
                                         overflow = TextOverflow.Ellipsis,

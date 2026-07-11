@@ -1136,7 +1136,7 @@ private fun AlbumCollectionContent(
                             )
                         }
                         if (showSortOptions) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(12.dp))
                         }
                     }
 
@@ -1524,6 +1524,7 @@ private fun AlbumSortControl(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
                     contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     modifier = Modifier.size(14.dp),
                 )
                 Text(
@@ -1714,7 +1715,7 @@ private fun LibraryHubRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 6.dp, vertical = 13.dp),
+            .padding(horizontal = 6.dp, vertical = 12.5.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -1919,7 +1920,14 @@ private fun SongCollectionScreen(
                 key = { _, song -> song.id },
                 contentType = { _, _ -> "song_row" },
             ) { index, song ->
-                Box(
+                HomeRecentSongRow(
+                    song = song,
+                    isFavorite = song.id in favoriteSongIds,
+                    isCurrentSong = song.id == currentSongId,
+                    isPlaybackActive = isCurrentSongPlaying,
+                    onClick = { onSongSelected(song, sortedSongs) },
+                    onToggleFavorite = { onToggleFavorite(song.id) },
+                    showDivider = index != sortedSongs.lastIndex,
                     modifier = Modifier
                         .animateItem(
                             placementSpec = ElovaireMotion.listPlacementSpec(),
@@ -1930,23 +1938,7 @@ private fun SongCollectionScreen(
                             registry = revealRegistry,
                         )
                         .libraryRemovalAnimation(song.id in removingSongIds),
-                ) {
-                    GroupedListRowContainer(
-                        index = index,
-                        lastIndex = sortedSongs.lastIndex,
-                    ) {
-                        PlaylistSongRow(
-                            song = song,
-                            isFavorite = song.id in favoriteSongIds,
-                            isCurrentSong = song.id == currentSongId,
-                            isPlaybackActive = isCurrentSongPlaying,
-                            onClick = { onSongSelected(song, sortedSongs) },
-                            onToggleFavorite = { onToggleFavorite(song.id) },
-                            showOverflowMenu = true,
-                            showDivider = index != sortedSongs.lastIndex,
-                        )
-                    }
-                }
+                )
             }
         }
 
@@ -1987,6 +1979,7 @@ private fun SongSortControl(
                 Icon(
                     painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
                     contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                     modifier = Modifier.size(14.dp),
                 )
                 Text(
@@ -2095,16 +2088,14 @@ private fun ArtistCollectionScreen(
                 ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ModuleCard {
-                Column {
-                    artists.forEachIndexed { index, artist ->
-                        ArtistRow(
-                            artist = artist,
-                            onClick = { onArtistSelected(artist.name) },
-                        )
-                        if (index != artists.lastIndex) {
-                            DividerLine()
-                        }
+            Column {
+                artists.forEachIndexed { index, artist ->
+                    ArtistRow(
+                        artist = artist,
+                        onClick = { onArtistSelected(artist.name) },
+                    )
+                    if (index != artists.lastIndex) {
+                        DividerLine()
                     }
                 }
             }
@@ -2902,6 +2893,13 @@ private fun SearchScreen(
                     }
                 }
             }
+            if (state.contentMode == SearchContentMode.Results) {
+                FastScrollbar(
+                    state = listState,
+                    topInset = topPadding + 16.dp,
+                    bottomInset = bottomPadding + if (isSearchUiActive) 84.dp else 12.dp,
+                )
+            }
         }
     }
 }
@@ -3067,6 +3065,7 @@ private fun SearchSongsResultsHeader(
                     Icon(
                         painter = painterResource(id = R.drawable.ic_lucide_arrow_down_up),
                         contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
                         modifier = Modifier.size(14.dp),
                     )
                     Text(
@@ -3766,6 +3765,14 @@ private fun ArtistRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        Icon(
+            painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+            contentDescription = null,
+            tint = readableMutedIconColor().copy(alpha = 0.5f),
+            modifier = Modifier
+                .size(18.dp)
+                .rotate(180f),
+        )
     }
 }
 
@@ -4015,9 +4022,10 @@ private fun HomeRecentSongRow(
     onClick: () -> Unit,
     onToggleFavorite: () -> Unit,
     showDivider: Boolean,
+    modifier: Modifier = Modifier,
 ) {
     val motionSpecs = rememberMotionSpecs()
-    Column {
+    Column(modifier = modifier) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()

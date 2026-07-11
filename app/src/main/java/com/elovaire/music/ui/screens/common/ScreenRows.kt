@@ -29,6 +29,7 @@ import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
+import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 
 @Composable
 internal fun DividerLine(
@@ -154,7 +155,10 @@ internal fun DetailListTopBar(
                     ) { currentTitle ->
                         Text(
                             text = currentTitle,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = elovaireScaledSp(19f),
+                                fontWeight = FontWeight.SemiBold,
+                            ),
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -175,7 +179,10 @@ internal fun DetailListTopBar(
                     ) { currentTitle ->
                         Text(
                             text = currentTitle,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontSize = elovaireScaledSp(19f),
+                                fontWeight = FontWeight.SemiBold,
+                            ),
                             color = MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,

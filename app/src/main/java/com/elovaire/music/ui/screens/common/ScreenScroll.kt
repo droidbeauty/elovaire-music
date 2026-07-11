@@ -114,9 +114,11 @@ internal fun BoxScope.FastScrollbar(
                 val currentScrollPx =
                     (state.firstVisibleItemIndex * averageItemHeightPx + state.firstVisibleItemScrollOffset)
                         .coerceAtLeast(0f)
+                val visibleFraction = viewportHeightPx / estimatedContentHeightPx
+                if (visibleFraction >= 0.85f) return@derivedStateOf null
                 FastListScrollbarMetrics(
                     scrollFraction = (currentScrollPx / scrollableContentHeightPx).coerceIn(0f, 1f),
-                    visibleFraction = (viewportHeightPx / estimatedContentHeightPx).coerceIn(0.12f, 0.5f),
+                    visibleFraction = visibleFraction.coerceIn(0.12f, 0.5f),
                     totalItems = totalItems,
                     visibleItemsCount = visibleItems.size,
                 )
@@ -157,7 +159,7 @@ internal fun BoxScope.FastScrollbar(
     ) {
         val viewportHeightPx = with(LocalDensity.current) { maxHeight.toPx() }.coerceAtLeast(1f)
         val scrollableContentHeightPx = state.maxValue.toFloat().coerceAtLeast(0f)
-        if (scrollableContentHeightPx <= 0f) return@BoxWithConstraints
+        if (scrollableContentHeightPx <= viewportHeightPx * 0.35f) return@BoxWithConstraints
 
         val estimatedContentHeightPx = viewportHeightPx + scrollableContentHeightPx
         FastScrollbarTrack(
@@ -206,9 +208,11 @@ internal fun BoxScope.FastScrollbar(
                 val currentScrollPx =
                     ((state.firstVisibleItemIndex / spanCount) * averageItemHeightPx + state.firstVisibleItemScrollOffset)
                         .coerceAtLeast(0f)
+                val visibleFraction = viewportHeightPx / estimatedContentHeightPx
+                if (visibleFraction >= 0.85f) return@derivedStateOf null
                 FastGridScrollbarMetrics(
                     scrollFraction = (currentScrollPx / scrollableContentHeightPx).coerceIn(0f, 1f),
-                    visibleFraction = (viewportHeightPx / estimatedContentHeightPx).coerceIn(0.12f, 0.5f),
+                    visibleFraction = visibleFraction.coerceIn(0.12f, 0.5f),
                     totalItems = totalItems,
                     visibleItemsCount = visibleItems.size,
                     visibleRows = visibleRows,
@@ -272,13 +276,7 @@ private fun BoxScope.FastScrollbarTrack(
     } else {
         InkText.copy(alpha = 0.72f)
     }
-    val animatedScrollFraction by animateFloatAsState(
-        targetValue = if (isDragging) dragFraction.coerceIn(0f, 1f) else scrollFraction.coerceIn(0f, 1f),
-        animationSpec = motionSpecs.tween(
-            durationMillis = if (isDragging) 50 else 90,
-        ),
-        label = "fast_scrollbar_fraction",
-    )
+    val displayedScrollFraction = if (isDragging) dragFraction.coerceIn(0f, 1f) else scrollFraction.coerceIn(0f, 1f)
     LaunchedEffect(isScrollInProgress, isDragging) {
         if (isScrollInProgress || isDragging) {
             visible = true
@@ -299,7 +297,7 @@ private fun BoxScope.FastScrollbarTrack(
         val trackHeightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
         val thumbHeightPx = max(with(density) { FastScrollbarMinThumbHeight.toPx() }, trackHeightPx * visibleFraction)
         val trackTravelPx = max(trackHeightPx - thumbHeightPx, 1f)
-        val thumbOffsetPx = trackTravelPx * animatedScrollFraction
+        val thumbOffsetPx = trackTravelPx * displayedScrollFraction
         val fractionForPosition: (Float) -> Float = { y ->
             (y / trackHeightPx).coerceIn(0f, 1f)
         }

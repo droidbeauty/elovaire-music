@@ -112,8 +112,6 @@ internal fun PlaylistsScreen(
             gridState.animateScrollToItem(0)
         }
     }
-    val contentTopPadding = if (playlistRows.isEmpty() && smartPlaylists.isNotEmpty()) 16.dp else 12.dp
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -135,7 +133,7 @@ internal fun PlaylistsScreen(
                     .ensureSingleItemRubberBand(gridState),
                 contentPadding = PaddingValues(
                     start = 20.dp,
-                    top = topPadding + selectionTopInset + contentTopPadding,
+                    top = topPadding + selectionTopInset + 12.dp,
                     end = 20.dp,
                     bottom = 16.dp,
                 ),
@@ -200,6 +198,11 @@ internal fun PlaylistsScreen(
                     }
                 }
             }
+            FastScrollbar(
+                state = gridState,
+                topInset = topPadding + selectionTopInset + 12.dp,
+                bottomInset = 16.dp,
+            )
         }
 
         AnimatedVisibility(
