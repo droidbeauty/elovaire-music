@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.domain.search
 import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
-import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 import java.text.Normalizer
 import kotlin.math.min
 
@@ -37,6 +36,11 @@ internal data class SearchIndex(
     val artistsByNormalizedName: Map<String, SearchableArtist> = emptyMap(),
 )
 
+internal enum class SearchSortMode {
+    Title,
+    Artist,
+}
+
 internal data class RankedResult<T>(
     val value: T,
     val score: Int,
@@ -60,7 +64,26 @@ internal data class NormalizedSearchQuery(
 internal data class SearchLibrarySnapshot(
     val songs: List<Song>,
     val albums: List<Album>,
-)
+) {
+    fun signature(): Long {
+        var result = 17L
+        result = 31L * result + songs.size
+        result = 31L * result + albums.size
+        songs.forEach { song ->
+            result = 31L * result + song.id
+            result = 31L * result + song.title.hashCode()
+            result = 31L * result + song.artist.hashCode()
+            result = 31L * result + song.album.hashCode()
+            result = 31L * result + song.albumArtist.orEmpty().hashCode()
+        }
+        albums.forEach { album ->
+            result = 31L * result + album.id
+            result = 31L * result + album.title.hashCode()
+            result = 31L * result + album.artist.hashCode()
+        }
+        return result
+    }
+}
 
 internal fun SearchLibrarySnapshot.toSearchIndex(): SearchIndex {
     return buildSearchIndex(
@@ -141,7 +164,16 @@ internal fun scoreMatch(
         normalizedArtist,
         normalizedAlbum,
     )
-    if (!tokens.all(composite::contains)) return null
+    if (!tokens.all { token ->
+            tokenMatchesAnyField(
+                token = token,
+                normalizedTitle = normalizedTitle,
+                normalizedArtist = normalizedArtist,
+                normalizedAlbum = normalizedAlbum,
+                normalizedComposite = composite,
+            )
+        }
+    ) return null
 
     var score = 0
 
@@ -161,6 +193,12 @@ internal fun scoreMatch(
         if (normalizedTitle.startsWith(token)) score += 12
         if (normalizedArtist.startsWith(token)) score += 8
         if (normalizedAlbum.startsWith(token)) score += 6
+        if (wordStartsWith(normalizedTitle, token)) score += 10
+        if (wordStartsWith(normalizedArtist, token)) score += 7
+        if (wordStartsWith(normalizedAlbum, token)) score += 5
+        if (acronymOf(normalizedArtist).startsWith(token)) score += 12
+        if (acronymOf(normalizedAlbum).startsWith(token)) score += 10
+        if (token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)) score += 4
     }
 
     score -= min(composite.length / 80, 10)
@@ -169,23 +207,42 @@ internal fun scoreMatch(
 
 internal fun sortRankedSongs(
     ranked: List<RankedResult<SearchableSong>>,
-    sortMode: SearchSongSortMode,
+    sortMode: SearchSortMode,
 ): List<Song> {
     val baseComparator = compareByDescending<RankedResult<SearchableSong>> { it.score }
     val comparator = when (sortMode) {
-        SearchSongSortMode.Title -> baseComparator
+        SearchSortMode.Title -> baseComparator
             .thenBy { it.value.normalizedTitle }
             .thenBy { it.value.normalizedArtist }
             .thenBy { it.value.normalizedAlbum }
             .thenBy { it.value.song.id }
 
-        SearchSongSortMode.Artist -> baseComparator
+        SearchSortMode.Artist -> baseComparator
             .thenBy { it.value.normalizedArtist }
             .thenBy { it.value.normalizedTitle }
             .thenBy { it.value.normalizedAlbum }
             .thenBy { it.value.song.id }
     }
     return ranked.sortedWith(comparator).map { it.value.song }
+}
+
+internal fun rankedSongComparator(
+    sortMode: SearchSortMode,
+): Comparator<RankedResult<SearchableSong>> {
+    val baseComparator = compareByDescending<RankedResult<SearchableSong>> { it.score }
+    return when (sortMode) {
+        SearchSortMode.Title -> baseComparator
+            .thenBy { it.value.normalizedTitle }
+            .thenBy { it.value.normalizedArtist }
+            .thenBy { it.value.normalizedAlbum }
+            .thenBy { it.value.song.id }
+
+        SearchSortMode.Artist -> baseComparator
+            .thenBy { it.value.normalizedArtist }
+            .thenBy { it.value.normalizedTitle }
+            .thenBy { it.value.normalizedAlbum }
+            .thenBy { it.value.song.id }
+    }
 }
 
 internal fun sortRankedAlbums(ranked: List<RankedResult<SearchableAlbum>>): List<Album> {
@@ -264,6 +321,64 @@ private fun buildSearchableArtists(songs: List<Song>): List<SearchableArtist> {
 
 private fun Song.libraryArtistName(): String {
     return albumArtist?.takeIf { it.isNotBlank() } ?: artist
+}
+
+private fun tokenMatchesAnyField(
+    token: String,
+    normalizedTitle: String,
+    normalizedArtist: String,
+    normalizedAlbum: String,
+    normalizedComposite: String,
+): Boolean {
+    return normalizedComposite.contains(token) ||
+        acronymOf(normalizedTitle).startsWith(token) ||
+        acronymOf(normalizedArtist).startsWith(token) ||
+        acronymOf(normalizedAlbum).startsWith(token) ||
+        (token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token))
+}
+
+private fun wordStartsWith(value: String, token: String): Boolean {
+    return value.split(' ').any { it.startsWith(token) }
+}
+
+private fun acronymOf(value: String): String {
+    return value
+        .split(' ')
+        .mapNotNull { it.firstOrNull() }
+        .joinToString("")
+}
+
+private fun fuzzyTokenMatches(value: String, token: String): Boolean {
+    return value.split(' ').any { word ->
+        word.length >= 4 && editDistanceAtMostOne(word, token)
+    }
+}
+
+private fun editDistanceAtMostOne(left: String, right: String): Boolean {
+    if (left == right) return true
+    if (kotlin.math.abs(left.length - right.length) > 1) return false
+
+    var differences = 0
+    var leftIndex = 0
+    var rightIndex = 0
+    while (leftIndex < left.length && rightIndex < right.length) {
+        if (left[leftIndex] == right[rightIndex]) {
+            leftIndex++
+            rightIndex++
+        } else {
+            differences++
+            if (differences > 1) return false
+            when {
+                left.length > right.length -> leftIndex++
+                right.length > left.length -> rightIndex++
+                else -> {
+                    leftIndex++
+                    rightIndex++
+                }
+            }
+        }
+    }
+    return differences + (left.length - leftIndex) + (right.length - rightIndex) <= 1
 }
 
 private val SEARCH_DIACRITICS_REGEX = Regex("\\p{Mn}+")

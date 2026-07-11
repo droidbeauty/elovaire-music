@@ -141,62 +141,13 @@ internal fun DetailListTopBar(
                 onClick = onBack,
                 modifier = Modifier.zIndex(1f),
             )
-            if (subtitle.isNullOrBlank()) {
-                Box(
-                    modifier = Modifier
-                        .zIndex(1f)
-                        .weight(1f),
-                    contentAlignment = Alignment.CenterStart,
-                ) {
-                    AnimatedContent(
-                        targetState = title,
-                        transitionSpec = { ElovaireMotion.titleSwapTransform() },
-                        label = "detailTopBarTitleOnly",
-                    ) { currentTitle ->
-                        Text(
-                            text = currentTitle,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontSize = elovaireScaledSp(19f),
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            } else {
-                Column(
-                    modifier = Modifier
-                        .zIndex(1f)
-                        .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
-                ) {
-                    AnimatedContent(
-                        targetState = title,
-                        transitionSpec = { ElovaireMotion.titleSwapTransform() },
-                        label = "detailTopBarTitleWithSubtitle",
-                    ) { currentTitle ->
-                        Text(
-                            text = currentTitle,
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontSize = elovaireScaledSp(19f),
-                                fontWeight = FontWeight.SemiBold,
-                            ),
-                            color = MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    Text(
-                        text = subtitle,
-                        style = MaterialTheme.typography.labelLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
+            DetailListTopBarTitle(
+                title = title,
+                subtitle = subtitle,
+                modifier = Modifier
+                    .zIndex(1f)
+                    .weight(1f),
+            )
             if (actions.isNotEmpty()) {
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -214,5 +165,64 @@ internal fun DetailListTopBar(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DetailListTopBarTitle(
+    title: String,
+    subtitle: String?,
+    modifier: Modifier = Modifier,
+) {
+    if (subtitle.isNullOrBlank()) {
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            DetailListTopBarAnimatedTitle(
+                title = title,
+                label = "detailTopBarTitleOnly",
+            )
+        }
+    } else {
+        Column(
+            modifier = modifier,
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            DetailListTopBarAnimatedTitle(
+                title = title,
+                label = "detailTopBarTitleWithSubtitle",
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailListTopBarAnimatedTitle(
+    title: String,
+    label: String,
+) {
+    AnimatedContent(
+        targetState = title,
+        transitionSpec = { ElovaireMotion.titleSwapTransform() },
+        label = label,
+    ) { currentTitle ->
+        Text(
+            text = currentTitle,
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontSize = elovaireScaledSp(19f),
+                fontWeight = FontWeight.SemiBold,
+            ),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.domain.search
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
-import elovaire.music.droidbeauty.app.ui.screens.SearchSongSortMode
 
 internal data class SearchablePlaylist(
     val playlist: Playlist,
@@ -38,7 +37,7 @@ internal fun searchSongsForPicker(
     if (query.value.isBlank()) {
         return if (preserveInputOrderWhenBlank) songs else sortRankedSongs(
             ranked = songs.map(Song::toSearchableSong).map { RankedResult(it, 0) },
-            sortMode = SearchSongSortMode.Title,
+            sortMode = SearchSortMode.Title,
         )
     }
 
@@ -52,7 +51,7 @@ internal fun searchSongsForPicker(
                 normalizedAlbum = SearchableSong::normalizedAlbum,
                 normalizedComposite = SearchableSong::normalizedComposite,
             ),
-        sortMode = SearchSongSortMode.Title,
+        sortMode = SearchSortMode.Title,
     )
 }
 

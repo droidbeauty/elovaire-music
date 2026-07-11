@@ -13,6 +13,8 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
 import elovaire.music.droidbeauty.app.data.tags.OnlineTagMatchOutcome
+import elovaire.music.droidbeauty.app.data.tags.mutatedUris
+import elovaire.music.droidbeauty.app.data.tags.retryForFailures
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -264,7 +266,7 @@ internal class AlbumTagEditorViewModel(
             _events.emit(
                 AlbumTagEditorEvent.RequestWritePermission(
                     request = request,
-                    uris = request.album.songs.map { it.uri },
+                    uris = request.mutatedUris(),
                 ),
             )
         }
@@ -348,10 +350,13 @@ internal class AlbumTagEditorViewModel(
                 },
             ).recalculateFlags()
             if (result.permissionRequest != null) {
-                pendingWriteRequest = request
+                val retryRequest = request.retryForFailures(
+                    failedSongIds = result.failures.map { it.songId }.toSet(),
+                )
+                pendingWriteRequest = retryRequest
                 _events.emit(
                     AlbumTagEditorEvent.RequestRecoverableWritePermission(
-                        request = request,
+                        request = retryRequest,
                         intentSender = result.permissionRequest.intentSender,
                     ),
                 )

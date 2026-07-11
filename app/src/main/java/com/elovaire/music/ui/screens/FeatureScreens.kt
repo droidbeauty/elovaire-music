@@ -2619,7 +2619,7 @@ private fun SearchScreen(
             ) {
                 searchBar()
                 SearchSongsResultsHeader(
-                    resultCount = state.allMatchingSongs.size,
+                    resultCount = state.totalSongMatchCount,
                     selected = state.searchSongSortMode,
                     expanded = state.showSearchSongSortOptions,
                     onToggleExpanded = {
@@ -2847,8 +2847,8 @@ private fun SearchScreen(
 
                                     if (state.matchingSongs.isNotEmpty()) {
                                         SearchSongsPreviewHeader(
-                                            resultCount = state.allMatchingSongs.size,
-                                            showSeeAll = state.allMatchingSongs.size > state.matchingSongs.size,
+                                            resultCount = state.totalSongMatchCount,
+                                            showSeeAll = state.totalSongMatchCount > state.matchingSongs.size,
                                             onShowAll = {
                                                 focusManager.clearFocus(force = true)
                                                 keyboardController?.hide()

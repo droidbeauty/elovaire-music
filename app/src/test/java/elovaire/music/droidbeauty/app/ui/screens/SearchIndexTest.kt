@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.domain.search
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -48,6 +49,30 @@ class SearchIndexTest {
     }
 
     @Test
+    fun scoreMatch_matchesArtistAcronym() {
+        val score = scoreMatch(
+            query = NormalizedSearchQuery.from("rhcp"),
+            normalizedTitle = normalizeSearchText("Californication"),
+            normalizedArtist = normalizeSearchText("Red Hot Chili Peppers"),
+            normalizedAlbum = normalizeSearchText("Californication"),
+        )
+
+        assertNotNull(score)
+    }
+
+    @Test
+    fun scoreMatch_allowsConservativeSingleCharacterTypoForLongTokens() {
+        val score = scoreMatch(
+            query = NormalizedSearchQuery.from("californicaton"),
+            normalizedTitle = normalizeSearchText("Californication"),
+            normalizedArtist = normalizeSearchText("Red Hot Chili Peppers"),
+            normalizedAlbum = normalizeSearchText("Californication"),
+        )
+
+        assertNotNull(score)
+    }
+
+    @Test
     fun scoreMatch_rejectsQueryWhenAnyTokenIsMissing() {
         val score = scoreMatch(
             query = NormalizedSearchQuery.from("kind coltrane blue"),
@@ -74,14 +99,42 @@ class SearchIndexTest {
         assertEquals(2, index.artists.single().songCount)
     }
 
+    @Test
+    fun buildSearchResults_previewDoesNotRetainFullSongList() {
+        val songs = (1L..30L).map { id ->
+            song(
+                id = id,
+                title = "Dream Song $id",
+                artist = "Dream Artist",
+                albumArtist = "Dream Artist",
+            )
+        }
+        val index = buildSearchIndex(
+            songs = songs,
+            albums = listOf(album(songs)),
+        )
+
+        val results = buildSearchResults(
+            query = NormalizedSearchQuery.from("dream"),
+            sortMode = SearchSortMode.Title,
+            index = index,
+            includeAllSongs = false,
+        )
+
+        assertEquals(30, results.totalSongMatchCount)
+        assertEquals(20, results.matchingSongs.size)
+        assertEquals(emptyList<Song>(), results.allMatchingSongs)
+    }
+
     private fun song(
         id: Long,
+        title: String = "Song $id",
         artist: String,
         albumArtist: String?,
     ): Song {
         return Song(
             id = id,
-            title = "Song $id",
+            title = title,
             isExplicit = false,
             artist = artist,
             album = "Album",
@@ -98,6 +151,18 @@ class SearchIndexTest {
             uri = TestUri(),
             artUri = null,
             albumArtist = albumArtist,
+        )
+    }
+
+    private fun album(songs: List<Song>): Album {
+        return Album(
+            id = 1L,
+            title = "Dream Album",
+            artist = "Dream Artist",
+            artUri = null,
+            songCount = songs.size,
+            durationMs = songs.sumOf(Song::durationMs),
+            songs = songs,
         )
     }
 }

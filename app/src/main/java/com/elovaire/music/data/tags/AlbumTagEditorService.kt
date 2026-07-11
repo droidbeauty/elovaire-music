@@ -96,7 +96,24 @@ internal data class TagEditFailure(
     val songId: Long,
     val fileName: String,
     val reason: String,
+    val cause: TagEditFailureCause = TagEditFailureCause.Unknown(reason),
 )
+
+internal sealed interface TagEditFailureCause {
+    data object UnsupportedFormat : TagEditFailureCause
+    data object UnsupportedArtworkFormat : TagEditFailureCause
+    data object CannotReadArtwork : TagEditFailureCause
+    data object CannotOpenInput : TagEditFailureCause
+    data object CannotOpenOutput : TagEditFailureCause
+    data object TempWriteFailed : TagEditFailureCause
+    data object TempVerificationFailed : TagEditFailureCause
+    data object PersistedVerificationFailed : TagEditFailureCause
+    data object PermissionRequired : TagEditFailureCause
+    data object PermissionDeniedAfterGrant : TagEditFailureCause
+    data object RollbackFailed : TagEditFailureCause
+    data class TagLibraryFailure(val message: String) : TagEditFailureCause
+    data class Unknown(val message: String?) : TagEditFailureCause
+}
 
 internal class AlbumTagEditorService(
     context: Context,
@@ -155,7 +172,7 @@ internal class AlbumTagEditorService(
         writeConsentGranted: Boolean = false,
     ): TagEditApplyResult = withContext(ioDispatcher) {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
-        val trackEditsById = request.tracks.associateBy { it.songId }
+        val plans = TagEditPlanner().plansFor(request)
         val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)
         val coverArtMimeType = coverArtBytes?.let(::detectMimeType)
         val editedSongIds = mutableListOf<Long>()
@@ -171,16 +188,19 @@ internal class AlbumTagEditorService(
                 editedFilePaths = emptyList(),
                 editedSongs = emptyList(),
                 artworkChanged = false,
-                failures = request.album.songs.map { song ->
+                failures = plans.map { plan ->
                     TagEditFailure(
-                        songId = song.id,
-                        fileName = song.fileName,
+                        songId = plan.song.id,
+                        fileName = plan.song.fileName,
                         reason = "Unable to read the selected artwork.",
+                        cause = TagEditFailureCause.CannotReadArtwork,
                     )
                 },
             )
         }
-        request.album.songs.forEach { song ->
+        plans.forEach { plan ->
+            val song = plan.song
+            val trackEdit = plan.trackEdit
             val mutationId = mediaMutationJournal?.create(
                 MediaMutationOperation(
                     type = if (coverArtBytes != null) MediaMutationType.ArtworkWrite else MediaMutationType.TagEdit,
@@ -203,6 +223,7 @@ internal class AlbumTagEditorService(
                     songId = song.id,
                     fileName = song.fileName,
                     reason = "This audio format cannot be tagged safely.",
+                    cause = TagEditFailureCause.UnsupportedFormat,
                 )
                 return@forEach
             }
@@ -214,17 +235,8 @@ internal class AlbumTagEditorService(
                     songId = song.id,
                     fileName = song.fileName,
                     reason = "Artwork cannot be embedded safely in this audio format.",
+                    cause = TagEditFailureCause.UnsupportedArtworkFormat,
                 )
-                return@forEach
-            }
-            val trackEdit = trackEditsById[song.id]
-            val hasAlbumLevelChanges = request.albumTitle !is TagFieldEdit.Unchanged ||
-                request.albumArtist !is TagFieldEdit.Unchanged ||
-                request.releaseYear !is TagFieldEdit.Unchanged ||
-                request.genre !is TagFieldEdit.Unchanged ||
-                coverArtBytes != null
-            if (trackEdit == null && !hasAlbumLevelChanges) {
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Cancelled) }
                 return@forEach
             }
             if (trackEdit == null) {
@@ -277,6 +289,7 @@ internal class AlbumTagEditorService(
                         songId = song.id,
                         fileName = song.fileName,
                         reason = verificationFailures.joinToString(),
+                        cause = TagEditFailureCause.TempVerificationFailed,
                     )
                     return@forEach
                 }
@@ -347,6 +360,11 @@ internal class AlbumTagEditorService(
                     } else {
                         "Additional write access is required for this file."
                     },
+                    cause = if (writeConsentGranted) {
+                        TagEditFailureCause.PermissionDeniedAfterGrant
+                    } else {
+                        TagEditFailureCause.PermissionRequired
+                    },
                 )
             } catch (throwable: Throwable) {
                 mutationId?.let {
@@ -356,6 +374,7 @@ internal class AlbumTagEditorService(
                     songId = song.id,
                     fileName = song.fileName,
                     reason = throwable.message ?: "Unable to save tags.",
+                    cause = TagEditFailureCause.Unknown(throwable.message),
                 )
             } finally {
                 runCatching { tempFile?.delete() }

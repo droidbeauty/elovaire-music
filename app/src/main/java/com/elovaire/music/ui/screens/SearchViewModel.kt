@@ -10,7 +10,9 @@ import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.SearchArtistResult
+import elovaire.music.droidbeauty.app.domain.search.SearchIndex
 import elovaire.music.droidbeauty.app.domain.search.SearchLibrarySnapshot
+import elovaire.music.droidbeauty.app.domain.search.SearchSortMode
 import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
 import elovaire.music.droidbeauty.app.domain.search.albumSearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.search.artistSearchHistoryEntry
@@ -21,15 +23,18 @@ import elovaire.music.droidbeauty.app.domain.search.sanitizeSearchHistory
 import elovaire.music.droidbeauty.app.domain.search.toSearchIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.transformLatest
 
 internal data class SearchUiState(
     val query: String = "",
@@ -40,6 +45,7 @@ internal data class SearchUiState(
     val recentSearches: List<SearchHistoryEntry> = emptyList(),
     val allMatchingSongs: List<Song> = emptyList(),
     val matchingSongs: List<Song> = emptyList(),
+    val totalSongMatchCount: Int = 0,
     val matchingAlbums: List<Album> = emptyList(),
     val matchingArtists: List<SearchArtistResult> = emptyList(),
     val suggestedAlbums: List<Album> = emptyList(),
@@ -52,6 +58,7 @@ internal class SearchViewModel(
     private val preferenceStore: PreferenceStore,
     playbackReader: PlaybackReader,
 ) : ViewModel() {
+    private val searchHistoryStore: SearchHistoryStore = PreferenceSearchHistoryStore(preferenceStore)
     private val _query = MutableStateFlow("")
     private val _showAllSongResults = MutableStateFlow(false)
     private val _searchSongSortMode = MutableStateFlow(SearchSongSortMode.Title)
@@ -78,12 +85,18 @@ internal class SearchViewModel(
                 albums = content.albums,
             )
         }
-        .distinctUntilChanged()
+        .distinctUntilChangedBy(SearchLibrarySnapshot::signature)
         .map(SearchLibrarySnapshot::toSearchIndex)
         .flowOn(Dispatchers.Default)
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val normalizedQuery = _query
-        .map(NormalizedSearchQuery::from)
+        .transformLatest { rawQuery ->
+            if (rawQuery.trim().isNotBlank()) {
+                delay(SEARCH_QUERY_DEBOUNCE_MS)
+            }
+            emit(NormalizedSearchQuery.from(rawQuery))
+        }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
 
@@ -92,11 +105,13 @@ internal class SearchViewModel(
         normalizedQuery,
         _searchSongSortMode,
         searchIndex,
-    ) { query, sortMode, index ->
+        _showAllSongResults,
+    ) { query, sortMode, index, showAllSongs ->
         SearchRequest(
             query = query,
-            sortMode = sortMode,
+            sortMode = sortMode.toSearchSortMode(),
             index = index,
+            includeAllSongs = showAllSongs,
         )
     }
         .mapLatest { request ->
@@ -104,6 +119,7 @@ internal class SearchViewModel(
                 query = request.query,
                 sortMode = request.sortMode,
                 index = request.index,
+                includeAllSongs = request.includeAllSongs,
             )
         }
         .distinctUntilChanged()
@@ -134,7 +150,7 @@ internal class SearchViewModel(
         .distinctUntilChanged()
 
     private val recentSearches = combine(
-        preferenceStore.searchHistory,
+        searchHistoryStore.searchHistory,
         searchIndex,
     ) { history, index ->
         sanitizeSearchHistory(
@@ -165,6 +181,7 @@ internal class SearchViewModel(
             recentSearches = history,
             allMatchingSongs = results.allMatchingSongs,
             matchingSongs = results.matchingSongs,
+            totalSongMatchCount = results.totalSongMatchCount,
             matchingAlbums = results.matchingAlbums,
             matchingArtists = results.matchingArtists,
             suggestedAlbums = if (trimmedQuery.isBlank()) suggested else emptyList(),
@@ -206,15 +223,15 @@ internal class SearchViewModel(
     }
 
     fun clearSearchHistory() {
-        preferenceStore.clearSearchHistory()
+        searchHistoryStore.clear()
     }
 
     fun rememberAlbumSearch(album: Album) {
-        preferenceStore.addSearchHistoryEntry(albumSearchHistoryEntry(album))
+        searchHistoryStore.add(albumSearchHistoryEntry(album))
     }
 
     fun rememberArtistSearch(song: Song) {
-        preferenceStore.addSearchHistoryEntry(artistSearchHistoryEntry(song))
+        searchHistoryStore.add(artistSearchHistoryEntry(song))
     }
 
     fun playbackSourceLabelFor(queue: List<Song>, fallbackAlbum: String): String {
@@ -236,8 +253,38 @@ internal class SearchViewModel(
 
         data class SearchRequest(
             val query: NormalizedSearchQuery,
-            val sortMode: SearchSongSortMode,
-            val index: elovaire.music.droidbeauty.app.domain.search.SearchIndex,
+            val sortMode: SearchSortMode,
+            val index: SearchIndex,
+            val includeAllSongs: Boolean,
         )
+
+        const val SEARCH_QUERY_DEBOUNCE_MS = 150L
+    }
+}
+
+internal interface SearchHistoryStore {
+    val searchHistory: StateFlow<List<SearchHistoryEntry>>
+    fun add(entry: SearchHistoryEntry)
+    fun clear()
+}
+
+private class PreferenceSearchHistoryStore(
+    private val preferenceStore: PreferenceStore,
+) : SearchHistoryStore {
+    override val searchHistory: StateFlow<List<SearchHistoryEntry>> = preferenceStore.searchHistory
+
+    override fun add(entry: SearchHistoryEntry) {
+        preferenceStore.addSearchHistoryEntry(entry)
+    }
+
+    override fun clear() {
+        preferenceStore.clearSearchHistory()
+    }
+}
+
+private fun SearchSongSortMode.toSearchSortMode(): SearchSortMode {
+    return when (this) {
+        SearchSongSortMode.Title -> SearchSortMode.Title
+        SearchSongSortMode.Artist -> SearchSortMode.Artist
     }
 }
