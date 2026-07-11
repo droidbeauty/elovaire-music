@@ -508,8 +508,8 @@ private fun AlbumTagEditorTopBar(
             modifier = Modifier
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             EditorTopBarIconButton(

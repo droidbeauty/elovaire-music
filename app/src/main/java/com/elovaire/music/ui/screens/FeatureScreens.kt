@@ -2147,19 +2147,17 @@ private fun GenreCollectionScreen(
                     top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailSectionTopGap,
                     end = 20.dp,
                     bottom = bottomPadding,
-                ),
+            ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ModuleCard {
-                Column {
-                    genres.forEachIndexed { index, genre ->
-                        GenreRow(
-                            genre = genre,
-                            onClick = { onGenreSelected(genre.name) },
-                        )
-                        if (index != genres.lastIndex) {
-                            DividerLine()
-                        }
+            Column {
+                genres.forEachIndexed { index, genre ->
+                    GenreRow(
+                        genre = genre,
+                        onClick = { onGenreSelected(genre.name) },
+                    )
+                    if (index != genres.lastIndex) {
+                        DividerLine()
                     }
                 }
             }
@@ -3386,7 +3384,10 @@ internal fun SectionTitleRow(
         Text(
             text = title,
             style = if (compact) {
-                MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(16f))
+                MaterialTheme.typography.titleLarge.copy(
+                    fontSize = elovaireScaledSp(16f),
+                    fontWeight = FontWeight.SemiBold,
+                )
             } else {
                 MaterialTheme.typography.headlineMedium
             },

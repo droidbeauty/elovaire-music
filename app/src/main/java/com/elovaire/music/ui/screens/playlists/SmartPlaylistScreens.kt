@@ -163,6 +163,11 @@ internal fun SmartPlaylistDetailScreen(
             onDelete = { showDeleteConfirm = true },
             modifier = Modifier.align(Alignment.TopCenter),
         )
+        FastScrollbar(
+            state = listState,
+            topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
+            bottomInset = bottomPadding + 16.dp,
+        )
         if (showDeleteConfirm) {
             SimpleConfirmDialog(
                 title = "Delete smart playlist?",

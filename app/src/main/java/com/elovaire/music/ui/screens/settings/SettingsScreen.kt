@@ -943,11 +943,6 @@ private fun TextSizeStepper(
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.size(14.dp),
             )
-            Text(
-                text = selectedPreset.name,
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
-            )
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_a_large_small),
                 contentDescription = "Larger text",

@@ -292,7 +292,7 @@ internal fun PinnedBackTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
+                    .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
                     .height(40.dp),
             ) {
                 HeaderIconButton(
@@ -322,8 +322,8 @@ internal fun PinnedBackTopBar(
                 modifier = Modifier
                     .fillMaxWidth()
                     .statusBarsPadding()
-                    .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 HeaderIconButton(
@@ -451,7 +451,7 @@ internal fun SharedTopBarOverlay(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .statusBarsPadding()
-                                .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
+                                .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp)
                                 .height(40.dp),
                         ) {
                             HeaderIconButton(
@@ -490,8 +490,8 @@ internal fun SharedTopBarOverlay(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .statusBarsPadding()
-                                .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-                            horizontalArrangement = Arrangement.spacedBy(14.dp),
+                                .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             ElovaireAnimatedContent(
@@ -537,8 +537,8 @@ internal fun SharedTopBarOverlay(
                         modifier = Modifier
                             .fillMaxWidth()
                             .statusBarsPadding()
-                            .padding(start = 14.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
-                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                            .padding(start = 10.dp, end = 14.dp, top = 3.dp, bottom = 13.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         ElovaireAnimatedContent(

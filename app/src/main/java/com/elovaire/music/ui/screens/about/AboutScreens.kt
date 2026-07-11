@@ -179,6 +179,7 @@ internal fun ChangelogBottomSheetOverlay(
         Box(
             modifier = Modifier
                 .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.46f))
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
@@ -747,6 +748,7 @@ private fun aboutIconForUrl(url: String): Int {
         "twitter.com" in normalizedUrl || "x.com" in normalizedUrl -> R.drawable.ic_about_twitter
         "github.com" in normalizedUrl -> R.drawable.ic_about_github
         "ko-fi.com" in normalizedUrl || "kofi.com" in normalizedUrl -> R.drawable.ic_about_coffee
+        "play.google.com" in normalizedUrl -> R.drawable.ic_lucide_store
         else -> R.drawable.ic_about_globe
     }
 }

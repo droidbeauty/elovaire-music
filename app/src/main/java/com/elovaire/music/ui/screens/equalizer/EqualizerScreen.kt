@@ -154,12 +154,12 @@ internal fun EqualizerScreen(
                             .width(EQ_DB_SCALE_WIDTH)
                             .height(EQ_BAND_PANEL_HEIGHT),
                     )
-                    Column(
-                        modifier = Modifier
-                            .horizontalGestureSafe()
-                            .horizontalScroll(graphScrollState),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
+                        Column(
+                            modifier = Modifier
+                                .horizontalGestureSafe()
+                                .horizontalScroll(graphScrollState),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
                         EqResponseGraph(
                             settings = settings,
                             onBandChanged = onBandChanged,
@@ -172,12 +172,12 @@ internal fun EqualizerScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(14.dp))
                 EqHorizontalScrollbar(
                     scrollState = graphScrollState,
                     contentWidth = graphContentWidth,
                 )
-                Spacer(modifier = Modifier.height(4.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 EqMiniResponseGraph(
                     settings = settings,
                     modifier = Modifier

@@ -7,6 +7,8 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.5">
+        <item>Minor UI tweaks in many places</item>
+        <item>Added fast scrollbar to playlists, search results UI and other places where it was previously missing</item>
         <item>Bug fixes and optimizations</item>
     </release>
 </changelog>
