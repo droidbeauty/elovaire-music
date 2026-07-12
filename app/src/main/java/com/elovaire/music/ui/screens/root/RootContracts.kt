@@ -151,6 +151,33 @@ internal data class NavHostTransitionResolution(
     val topLevelTransition: TopLevelRouteTransitionResolution,
 )
 
+internal data class NavigationMotionKey(
+    val initialRoute: String?,
+    val targetRoute: String?,
+    val initialFallbackTopLevelRoute: String?,
+    val targetFallbackTopLevelRoute: String?,
+    val detailMode: DetailRouteTransitionMode,
+)
+
+internal class NavigationMotionResolver {
+    private var cachedKey: NavigationMotionKey? = null
+    private var cachedResolution: NavHostTransitionResolution? = null
+
+    fun resolve(key: NavigationMotionKey): NavHostTransitionResolution {
+        if (key == cachedKey) return checkNotNull(cachedResolution)
+        return ElovaireNavigationTransitions.resolveNavHostTransition(
+            initialRoute = key.initialRoute,
+            targetRoute = key.targetRoute,
+            initialFallbackTopLevelRoute = key.initialFallbackTopLevelRoute,
+            targetFallbackTopLevelRoute = key.targetFallbackTopLevelRoute,
+            detailRouteTransitionMode = key.detailMode,
+        ).also { resolution ->
+            cachedKey = key
+            cachedResolution = resolution
+        }
+    }
+}
+
 internal enum class DetailRouteTransitionMode {
     TileExpand,
     Standard,

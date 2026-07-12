@@ -14,23 +14,42 @@ import androidx.compose.runtime.remember
 class MotionSpecs internal constructor(
     private val runtime: MotionRuntime,
 ) {
+    private val tweenSpecs = mutableMapOf<TweenKey, TweenSpec<*>>()
+    private val springSpecs = mutableMapOf<SpringKey, FiniteAnimationSpec<*>>()
+
+    @Suppress("UNCHECKED_CAST")
     fun <T> tween(
         durationMillis: Int = MotionDuration.Standard,
         delayMillis: Int = 0,
         easing: Easing = MotionEasing.SoftOut,
-    ): TweenSpec<T> = composeTween(
-        durationMillis = runtime.duration(durationMillis),
-        delayMillis = runtime.delay(delayMillis),
-        easing = easing,
-    )
+    ): TweenSpec<T> {
+        val key = TweenKey(
+            durationMillis = runtime.duration(durationMillis),
+            delayMillis = runtime.delay(delayMillis),
+            easing = easing,
+        )
+        return tweenSpecs.getOrPut(key) {
+            composeTween<Any?>(
+                durationMillis = key.durationMillis,
+                delayMillis = key.delayMillis,
+                easing = key.easing,
+            )
+        } as TweenSpec<T>
+    }
 
+    @Suppress("UNCHECKED_CAST")
     fun <T> spring(
         dampingRatio: Float = Spring.DampingRatioNoBouncy,
         stiffness: Float = 520f,
-    ): FiniteAnimationSpec<T> = composeSpring(
-        dampingRatio = dampingRatio,
-        stiffness = stiffness,
-    )
+    ): FiniteAnimationSpec<T> {
+        val key = SpringKey(dampingRatio, stiffness)
+        return springSpecs.getOrPut(key) {
+            composeSpring<Any?>(
+                dampingRatio = dampingRatio,
+                stiffness = stiffness,
+            )
+        } as FiniteAnimationSpec<T>
+    }
 
     fun <T> fadeIn(
         durationMillis: Int = MotionDuration.ScreenFade,
@@ -94,6 +113,17 @@ class MotionSpecs internal constructor(
         stiffness = 620f,
     )
 }
+
+private data class TweenKey(
+    val durationMillis: Int,
+    val delayMillis: Int,
+    val easing: Easing,
+)
+
+private data class SpringKey(
+    val dampingRatio: Float,
+    val stiffness: Float,
+)
 
 @Composable
 fun rememberMotionSpecs(): MotionSpecs {

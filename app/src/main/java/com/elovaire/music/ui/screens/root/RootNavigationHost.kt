@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
@@ -14,18 +15,21 @@ internal fun RootNavigationHost(
     content: NavGraphBuilder.() -> Unit,
 ) {
     val motionTransitions = rememberMotionTransitions()
+    val navigationMotionResolver = remember { NavigationMotionResolver() }
     NavHost(
         navController = navState.navController,
         startDestination = HOME_ROUTE,
         modifier = modifier,
         enterTransition = {
             resolveForwardEnterTransition(
-                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                    initialRoute = initialState.destination.route,
-                    targetRoute = targetState.destination.route,
-                    initialFallbackTopLevelRoute = navState.browsingOriginRoute,
-                    targetFallbackTopLevelRoute = navState.selectedBottomRoute,
-                    detailRouteTransitionMode = navState.detailRouteTransitionMode,
+                transition = navigationMotionResolver.resolve(
+                    NavigationMotionKey(
+                        initialRoute = initialState.destination.route,
+                        targetRoute = targetState.destination.route,
+                        initialFallbackTopLevelRoute = navState.browsingOriginRoute,
+                        targetFallbackTopLevelRoute = navState.selectedBottomRoute,
+                        detailMode = navState.detailRouteTransitionMode,
+                    ),
                 ),
                 expandOrigin = navState.detailExpandOrigin,
                 motionTransitions = motionTransitions,
@@ -33,36 +37,42 @@ internal fun RootNavigationHost(
         },
         exitTransition = {
             resolveForwardExitTransition(
-                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                    initialRoute = initialState.destination.route,
-                    targetRoute = targetState.destination.route,
-                    initialFallbackTopLevelRoute = navState.browsingOriginRoute,
-                    targetFallbackTopLevelRoute = navState.selectedBottomRoute,
-                    detailRouteTransitionMode = navState.detailRouteTransitionMode,
+                transition = navigationMotionResolver.resolve(
+                    NavigationMotionKey(
+                        initialRoute = initialState.destination.route,
+                        targetRoute = targetState.destination.route,
+                        initialFallbackTopLevelRoute = navState.browsingOriginRoute,
+                        targetFallbackTopLevelRoute = navState.selectedBottomRoute,
+                        detailMode = navState.detailRouteTransitionMode,
+                    ),
                 ),
                 motionTransitions = motionTransitions,
             )
         },
         popEnterTransition = {
             resolvePopEnterTransition(
-                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                    initialRoute = initialState.destination.route,
-                    targetRoute = targetState.destination.route,
-                    initialFallbackTopLevelRoute = navState.browsingOriginRoute,
-                    targetFallbackTopLevelRoute = navState.selectedBottomRoute,
-                    detailRouteTransitionMode = navState.detailRouteTransitionMode,
+                transition = navigationMotionResolver.resolve(
+                    NavigationMotionKey(
+                        initialRoute = initialState.destination.route,
+                        targetRoute = targetState.destination.route,
+                        initialFallbackTopLevelRoute = navState.browsingOriginRoute,
+                        targetFallbackTopLevelRoute = navState.selectedBottomRoute,
+                        detailMode = navState.detailRouteTransitionMode,
+                    ),
                 ),
                 motionTransitions = motionTransitions,
             )
         },
         popExitTransition = {
             resolvePopExitTransition(
-                transition = ElovaireNavigationTransitions.resolveNavHostTransition(
-                    initialRoute = initialState.destination.route,
-                    targetRoute = targetState.destination.route,
-                    initialFallbackTopLevelRoute = navState.browsingOriginRoute,
-                    targetFallbackTopLevelRoute = navState.selectedBottomRoute,
-                    detailRouteTransitionMode = navState.detailRouteTransitionMode,
+                transition = navigationMotionResolver.resolve(
+                    NavigationMotionKey(
+                        initialRoute = initialState.destination.route,
+                        targetRoute = targetState.destination.route,
+                        initialFallbackTopLevelRoute = navState.browsingOriginRoute,
+                        targetFallbackTopLevelRoute = navState.selectedBottomRoute,
+                        detailMode = navState.detailRouteTransitionMode,
+                    ),
                 ),
                 expandOrigin = navState.detailExpandOrigin,
                 motionTransitions = motionTransitions,

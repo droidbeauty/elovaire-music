@@ -28,8 +28,10 @@ fun MotionVisibilityHost(
     content: @Composable AnimatedVisibilityScope.() -> Unit,
 ) {
     val state = remember { MutableTransitionState(false) }
+    val exitCallbackGate = remember { MotionExitCallbackGate() }
     val currentOnExitFinished by rememberUpdatedState(onExitFinished)
     LaunchedEffect(visible) {
+        exitCallbackGate.onVisibilityTargetChanged(visible)
         state.targetState = visible
     }
     AnimatedVisibility(
@@ -40,9 +42,28 @@ fun MotionVisibilityHost(
         content = content,
     )
     LaunchedEffect(state.currentState, state.targetState, state.isIdle) {
-        if (state.isIdle && !state.currentState && !state.targetState) {
+        if (
+            state.isIdle &&
+            !state.currentState &&
+            !state.targetState &&
+            exitCallbackGate.consumeFinishedExit()
+        ) {
             currentOnExitFinished?.invoke()
         }
+    }
+}
+
+internal class MotionExitCallbackGate {
+    private var exitArmed = false
+
+    fun onVisibilityTargetChanged(visible: Boolean) {
+        if (visible) exitArmed = true
+    }
+
+    fun consumeFinishedExit(): Boolean {
+        if (!exitArmed) return false
+        exitArmed = false
+        return true
     }
 }
 

@@ -18,7 +18,21 @@ class MotionTokensTest {
         assertEquals(420, MotionDuration.ScreenSlide)
         assertEquals(440, MotionDuration.ScreenExpand)
         assertEquals(540, MotionDuration.Player)
+        assertEquals(260, MotionDuration.PlayerFade)
+        assertEquals(240, MotionDuration.Component)
+        assertEquals(220, MotionDuration.ChromeResize)
+        assertEquals(460, MotionDuration.Emphasized)
+        assertEquals(320, MotionDuration.TopLevelEnter)
+        assertEquals(240, MotionDuration.TopLevelExit)
+        assertEquals(480, MotionDuration.DetailEnter)
+        assertEquals(340, MotionDuration.DetailExit)
+        assertEquals(540, MotionDuration.AlbumDetail)
+        assertEquals(440, MotionDuration.FullScreenEnter)
+        assertEquals(320, MotionDuration.FullScreenExit)
+        assertEquals(480, MotionDuration.QueueMenuEnter)
+        assertEquals(340, MotionDuration.QueueMenuExit)
         assertEquals(320, MotionDuration.ListReveal)
+        assertEquals(320, MotionDuration.ListPlacement)
     }
 
     @Test
