@@ -42,9 +42,7 @@ internal object DebugStrictModeInstaller {
             .detectImplicitDirectBoot()
             .penaltyLog()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            builder.detectNonSdkApiUsage()
-        }
+        builder.detectNonSdkApiUsage()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             builder.detectIncorrectContextUse()
             builder.detectUnsafeIntentLaunch()

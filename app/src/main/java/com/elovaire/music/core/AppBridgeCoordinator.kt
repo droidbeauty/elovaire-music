@@ -13,21 +13,12 @@ internal class AppBridgeCoordinator(
 ) {
     private val bridgeJob = SupervisorJob(scope.coroutineContext[Job])
     private val bridgeScope = CoroutineScope(scope.coroutineContext + bridgeJob)
-    private val playbackSettingsBridge = PlaybackSettingsBridge(
+    private val playbackIntegration = PlaybackIntegrationCoordinator(
         scope = bridgeScope,
-        preferenceStore = services.preferenceStore,
-        playbackManager = services.playbackManager,
-        playbackEffectsController = services.playbackEffectsController,
-    )
-    private val playbackHistoryBridge = PlaybackHistoryBridge(
-        scope = bridgeScope,
-        preferenceStore = services.preferenceStore,
-        playbackManager = services.playbackManager,
-    )
-    private val libraryPlaybackBridge = LibraryPlaybackBridge(
-        scope = bridgeScope,
-        libraryRepository = services.libraryRepository,
-        playbackManager = services.playbackManager,
+        preferences = services.preferenceStore,
+        library = services.libraryRepository,
+        playback = services.playbackManager,
+        effects = services.playbackEffectsController,
     )
     private val librarySettingsBridge = LibrarySettingsBridge(
         scope = bridgeScope,
@@ -41,9 +32,7 @@ internal class AppBridgeCoordinator(
     fun start() {
         if (started || released) return
         started = true
-        playbackSettingsBridge.start()
-        playbackHistoryBridge.start()
-        libraryPlaybackBridge.start()
+        playbackIntegration.start()
         librarySettingsBridge.start()
         startupCoordinator.start()
     }

@@ -4,6 +4,7 @@ import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 
 internal class LibrarySettingsBridge(
@@ -14,6 +15,7 @@ internal class LibrarySettingsBridge(
     fun start() {
         scope.launch {
             preferenceStore.libraryFolders
+                .distinctUntilChanged()
                 .collect(libraryRepository::setLibraryFolders)
         }
     }

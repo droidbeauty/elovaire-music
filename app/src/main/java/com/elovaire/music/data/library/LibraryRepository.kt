@@ -100,7 +100,6 @@ class LibraryRepository internal constructor(
     private var didBootstrapLibrary = false
     override val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     override val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
-    internal val runtimeState: StateFlow<LibraryRuntimeState> = _runtimeState.asStateFlow()
     val state: StateFlow<LibraryUiState> = combine(contentState, scanState) { content, scan ->
         LibraryUiState(
             permissionGranted = scan.permissionGranted,

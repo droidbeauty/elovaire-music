@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.TrafficStats
 import android.net.Uri
-import android.os.Build
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.FileProvider
@@ -608,9 +607,7 @@ internal class AppUpdateManager(
     }
 
     private fun ensureInstallerPermission(apkFile: File): Boolean {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            !appContext.packageManager.canRequestPackageInstalls()
-        ) {
+        if (!appContext.packageManager.canRequestPackageInstalls()) {
             pendingInstallApk = apkFile
             resumeInstallAfterPermissionGrant = true
             _uiState.update {
@@ -641,9 +638,7 @@ internal class AppUpdateManager(
         if (!resumeInstallAfterPermissionGrant) return false
         val release = _uiState.value.availableRelease
         if (release != null && !verifyDownloadedApkOrReport(apkFile, release)) return false
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
-            !appContext.packageManager.canRequestPackageInstalls()
-        ) {
+        if (!appContext.packageManager.canRequestPackageInstalls()) {
             return false
         }
         resumeInstallAfterPermissionGrant = false
