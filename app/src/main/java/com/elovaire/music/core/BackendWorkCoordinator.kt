@@ -62,6 +62,25 @@ internal class BackendWorkCoordinator {
     }
 
     @Synchronized
+    fun takeMetadataEnrichment(): Set<Long> = pendingMetadataSongIds.also {
+        pendingMetadataSongIds = emptySet()
+    }
+
+    @Synchronized
+    fun takeAutomaticUpdateCheck(startupSettled: Boolean): Boolean {
+        if (!startupSettled || !automaticUpdatePending) return false
+        automaticUpdatePending = false
+        return true
+    }
+
+    @Synchronized
+    fun takeStartupCleanup(): Boolean {
+        if (!startupCleanupPending) return false
+        startupCleanupPending = false
+        return true
+    }
+
+    @Synchronized
     fun clear() {
         pendingLibraryRefresh = null
         pendingMetadataSongIds = emptySet()

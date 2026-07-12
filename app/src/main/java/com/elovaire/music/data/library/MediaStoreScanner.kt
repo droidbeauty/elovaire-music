@@ -159,12 +159,16 @@ class MediaStoreScanner(
                     }
                     val uriKey = row.uri.toString()
                     val cachedMetadata = metadataCache[uriKey]
-                        ?.takeIf {
-                            it.fileName == row.fileName &&
-                                (it.filePath == null || row.filePath == null || it.filePath == row.filePath) &&
-                                it.dateAddedSeconds == row.dateAddedSeconds &&
-                                it.dateModifiedSeconds == row.dateModifiedSeconds &&
-                                (!enrichMetadata || it.isEnriched)
+                        ?.takeIf { cached ->
+                            cached.matches(
+                                fileName = row.fileName,
+                                filePath = row.filePath,
+                                dateAddedSeconds = row.dateAddedSeconds,
+                                dateModifiedSeconds = row.dateModifiedSeconds,
+                                fileSizeBytes = row.fileSizeBytes,
+                                durationMs = row.durationMs,
+                                requireEnriched = enrichMetadata,
+                            )
                         }
                     val songMetadata = cachedMetadata
                         ?.metadata
@@ -210,6 +214,8 @@ class MediaStoreScanner(
                         dateModifiedSeconds = row.dateModifiedSeconds,
                         isEnriched = enrichMetadata || cachedMetadata?.isEnriched == true,
                         metadata = songMetadata,
+                        fileSizeBytes = row.fileSizeBytes,
+                        durationMs = row.durationMs,
                     )
                     val rawTrack = row.track
                     songs += Song(

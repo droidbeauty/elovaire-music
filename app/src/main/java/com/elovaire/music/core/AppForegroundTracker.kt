@@ -4,6 +4,7 @@ import android.app.Activity
 import android.app.Application
 import android.os.Bundle
 import java.io.Closeable
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,7 @@ internal class AppForegroundTracker(
     private val _isForeground = MutableStateFlow(false)
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
     private var startedCount = 0
+    private val closed = AtomicBoolean(false)
 
     init {
         application.registerActivityLifecycleCallbacks(this)
@@ -51,6 +53,7 @@ internal class AppForegroundTracker(
     override fun onActivityDestroyed(activity: Activity) = Unit
 
     override fun close() {
+        if (!closed.compareAndSet(false, true)) return
         application.unregisterActivityLifecycleCallbacks(this)
     }
 }

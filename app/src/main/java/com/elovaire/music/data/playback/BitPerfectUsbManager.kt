@@ -63,6 +63,22 @@ internal data class BitPerfectPlaybackStatus(
     val directPlaybackSupport: Int = AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED,
     val supportClassification: DirectPlaybackSupportClassification = DirectPlaybackSupportClassification.notSupported,
     val evaluationKey: DirectPlaybackEvaluationKey? = null,
+    val confidence: BitPerfectConfidence = BitPerfectConfidence.Unsupported,
+    val capability: DirectPlaybackCapability = DirectPlaybackCapability(
+        platformSupported = false,
+        routeEligible = false,
+        formatSupported = false,
+        directSupportFlags = AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED,
+        supportKinds = emptySet(),
+    ),
+    val configuration: DirectPlaybackConfiguration = DirectPlaybackConfiguration(
+        directModeRequested = false,
+        preferredDeviceApplied = false,
+        signalProcessingDisabled = false,
+        offloadActive = false,
+        tunnelingActive = false,
+        currentTrackConfigKnown = false,
+    ),
 ) {
     val shouldPreferDirectPlayback: Boolean
         get() = directive == BitPerfectPlaybackDirective.PreferDirect
@@ -228,7 +244,8 @@ internal class BitPerfectUsbManager(
         logDebug(
             "status=${nextStatus.state} mode=${nextStatus.mode} directive=${nextStatus.directive} " +
                 "route=${nextStatus.activeRouteType}:${nextStatus.activeRouteDeviceId} " +
-                "support=${nextStatus.directPlaybackSupport} class=${nextStatus.supportClassification.summary} key=${nextStatus.evaluationKey}",
+                "support=${nextStatus.directPlaybackSupport} class=${nextStatus.supportClassification.summary} " +
+                "confidence=${nextStatus.confidence} key=${nextStatus.evaluationKey}",
         )
     }
 
@@ -270,6 +287,7 @@ private data class DirectPlaybackRouteSnapshot(
             activeRouteDeviceId = reportedDevice?.safeId(),
             activeRouteType = reportedDevice?.safeType(),
             activeRouteSignature = reportedFingerprint?.hashCode(),
+            platformRoutingSupported = isRouteVerified,
         )
     }
 }

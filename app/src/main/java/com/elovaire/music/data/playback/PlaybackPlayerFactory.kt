@@ -28,7 +28,8 @@ internal class PlaybackPlayerFactory(
         return ElovaireTrace.section("playback_player_create") {
             runCatching {
                 createConfiguredPlayer(enableSignalProcessing)
-            }.getOrElse {
+            }.getOrElse { failure ->
+                if (!enableSignalProcessing) throw failure
                 createFallbackPlayer()
             }
         }

@@ -44,4 +44,14 @@ class BackendWorkCoordinatorTest {
 
         assertNull(coordinator.takeLibraryRefresh())
     }
+
+    @Test
+    fun automaticUpdateWaitsForStartupToSettle() {
+        val coordinator = BackendWorkCoordinator()
+        coordinator.enqueue(BackendWorkRequest.AutomaticUpdateCheck)
+
+        assertEquals(false, coordinator.takeAutomaticUpdateCheck(startupSettled = false))
+        assertEquals(true, coordinator.takeAutomaticUpdateCheck(startupSettled = true))
+        assertEquals(false, coordinator.takeAutomaticUpdateCheck(startupSettled = true))
+    }
 }

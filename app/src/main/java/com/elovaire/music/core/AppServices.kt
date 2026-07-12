@@ -4,12 +4,14 @@ import android.content.Context
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import kotlinx.coroutines.CoroutineScope
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class AppServices(
     applicationContext: Context,
     appScope: CoroutineScope,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
+    private val released = AtomicBoolean(false)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
     private val settingsComponent = SettingsComponent(applicationContext)
@@ -53,10 +55,11 @@ internal class AppServices(
     val libraryRepository get() = libraryComponent.libraryRepository
 
     fun release() {
-        updateComponent.release()
-        lyricsComponent.release()
-        libraryComponent.release()
+        if (!released.compareAndSet(false, true)) return
         playbackComponent.release()
+        libraryComponent.release()
+        lyricsComponent.release()
+        updateComponent.release()
         settingsComponent.release()
         database.close()
     }

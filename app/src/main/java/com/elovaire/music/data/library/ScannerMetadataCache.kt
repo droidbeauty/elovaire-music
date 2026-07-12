@@ -39,6 +39,8 @@ internal class ScannerMetadataCache {
                 dateModifiedSeconds = song.dateModifiedSeconds,
                 isEnriched = song.metadataResolved,
                 metadata = cachedMetadata,
+                fileSizeBytes = null,
+                durationMs = song.durationMs,
             )
         }
     }
@@ -79,7 +81,25 @@ internal data class CachedSongMetadata(
     val dateModifiedSeconds: Long?,
     val isEnriched: Boolean,
     val metadata: SongMetadata,
-)
+    val fileSizeBytes: Long? = null,
+    val durationMs: Long? = null,
+) {
+    fun matches(
+        fileName: String,
+        filePath: String?,
+        dateAddedSeconds: Long,
+        dateModifiedSeconds: Long?,
+        fileSizeBytes: Long?,
+        durationMs: Long,
+        requireEnriched: Boolean,
+    ): Boolean = this.fileName == fileName &&
+        (this.filePath == null || filePath == null || this.filePath == filePath) &&
+        this.dateAddedSeconds == dateAddedSeconds &&
+        this.dateModifiedSeconds == dateModifiedSeconds &&
+        (this.fileSizeBytes == null || fileSizeBytes == null || this.fileSizeBytes == fileSizeBytes) &&
+        (this.durationMs == null || this.durationMs == durationMs) &&
+        (!requireEnriched || isEnriched)
+}
 
 internal data class SongMetadata(
     val title: String?,

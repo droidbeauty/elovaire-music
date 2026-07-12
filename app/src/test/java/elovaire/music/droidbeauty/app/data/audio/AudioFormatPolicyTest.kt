@@ -187,6 +187,25 @@ class AudioFormatPolicyTest {
         assertFalse(AudioDecoderAvailability.isImplicitlyAvailable("audio/alac"))
     }
 
+    @Test
+    fun resolvedCapabilitiesKeepPlaybackAndMutationDimensionsSeparate() {
+        val mp4 = requireNotNull(AudioFormatPolicy.resolvedCapability(AudioContainerFormat.Mp4Audio))
+
+        assertEquals(CapabilityLevel.Strong, mp4.playback.extractorSupport)
+        assertEquals(CapabilityLevel.Strong, mp4.metadata.textWrite)
+        assertEquals(CapabilityLevel.Strong, mp4.metadata.lyricsWrite.unsynced)
+        assertEquals(CapabilityLevel.Unsupported, mp4.metadata.lyricsWrite.synced)
+    }
+
+    @Test
+    fun eligibilityRejectsVideoAndMissingDeviceDecoder() {
+        val audio = detected(AudioContainerFormat.Mp4Audio, "audio/mp4a-latm")
+
+        assertTrue(AudioFormatPolicy.eligibility(audio.copy(hasVideoTrack = true)) is FormatEligibility.Unsupported)
+        assertTrue(AudioFormatPolicy.eligibility(audio.copy(decoderAvailable = false)) is FormatEligibility.Unsupported)
+        assertTrue(AudioFormatPolicy.eligibility(audio) is FormatEligibility.Supported)
+    }
+
     private fun detected(
         container: AudioContainerFormat,
         codecMimeType: String,

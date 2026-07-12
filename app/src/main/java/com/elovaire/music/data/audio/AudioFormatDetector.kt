@@ -21,11 +21,23 @@ internal data class DetectedAudioFormat(
     val bitrate: Int?,
     val bitDepth: Int?,
     val durationMs: Long? = null,
+    val evidence: DetectionEvidence = DetectionEvidence.ExtensionFallback,
+)
+
+internal enum class DetectionEvidence {
+    Extractor,
+    ExtensionFallback,
+}
+
+internal data class DeviceCodecProbeKey(
+    val mimeType: String,
+    val sampleRate: Int?,
+    val channelCount: Int?,
 )
 
 internal class AudioFormatDetector(context: Context) {
     private val appContext = context.applicationContext
-    private val decoderAvailabilityCache = mutableMapOf<String, Boolean>()
+    private val decoderAvailabilityCache = mutableMapOf<DeviceCodecProbeKey, Boolean>()
 
     fun detect(uri: Uri, fileName: String, mediaStoreMimeType: String?): DetectedAudioFormat {
         val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
@@ -55,7 +67,7 @@ internal class AudioFormatDetector(context: Context) {
                 hasAudioTrack = audioFormat != null,
                 hasVideoTrack = hasVideo,
                 decoderAvailable = codecMime?.let { mime ->
-                    AudioDecoderAvailability.isImplicitlyAvailable(mime) || hasDecoder(mime)
+                    AudioDecoderAvailability.isImplicitlyAvailable(mime) || hasDecoder(audioFormat, mime)
                 },
                 sampleRate = audioFormat?.integerOrNull(MediaFormat.KEY_SAMPLE_RATE),
                 channelCount = audioFormat?.integerOrNull(MediaFormat.KEY_CHANNEL_COUNT),
@@ -64,6 +76,7 @@ internal class AudioFormatDetector(context: Context) {
                 durationMs = audioFormat?.longOrNull(MediaFormat.KEY_DURATION)
                     ?.takeIf { it > 0L }
                     ?.div(1_000L),
+                evidence = DetectionEvidence.Extractor,
             )
         } catch (_: Throwable) {
             val container = AudioFormatPolicy.resolveContainer(extension, mediaStoreMimeType, null)
@@ -80,6 +93,7 @@ internal class AudioFormatDetector(context: Context) {
                 channelCount = null,
                 bitrate = null,
                 bitDepth = null,
+                evidence = DetectionEvidence.ExtensionFallback,
             )
         } finally {
             runCatching { extractor.release() }
@@ -87,13 +101,15 @@ internal class AudioFormatDetector(context: Context) {
     }
 
     @Synchronized
-    private fun hasDecoder(mimeType: String): Boolean {
-        val key = mimeType.lowercase(Locale.ROOT)
+    private fun hasDecoder(format: MediaFormat, mimeType: String): Boolean {
+        val key = DeviceCodecProbeKey(
+            mimeType = mimeType.lowercase(Locale.ROOT),
+            sampleRate = format.integerOrNull(MediaFormat.KEY_SAMPLE_RATE),
+            channelCount = format.integerOrNull(MediaFormat.KEY_CHANNEL_COUNT),
+        )
         return decoderAvailabilityCache.getOrPut(key) {
             runCatching {
-                MediaCodecList(MediaCodecList.REGULAR_CODECS).codecInfos.any { codecInfo ->
-                    !codecInfo.isEncoder && codecInfo.supportedTypes.any { it.equals(key, true) }
-                }
+                MediaCodecList(MediaCodecList.REGULAR_CODECS).findDecoderForFormat(format) != null
             }.getOrDefault(false)
         }
     }

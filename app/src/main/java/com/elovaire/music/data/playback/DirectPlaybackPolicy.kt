@@ -18,6 +18,50 @@ internal enum class DirectPlaybackSupportKind {
     BitstreamPassThrough,
 }
 
+internal enum class BitPerfectConfidence {
+    Unsupported,
+    NotEligible,
+    DirectCapable,
+    DirectConfigured,
+    RouteConfirmed,
+    ExternallyUnverified,
+}
+
+internal data class DirectPlaybackCapability(
+    val platformSupported: Boolean,
+    val routeEligible: Boolean,
+    val formatSupported: Boolean,
+    val directSupportFlags: Int,
+    val supportKinds: Set<DirectPlaybackSupportKind>,
+)
+
+internal data class DirectPlaybackConfiguration(
+    val directModeRequested: Boolean,
+    val preferredDeviceApplied: Boolean,
+    val signalProcessingDisabled: Boolean,
+    val offloadActive: Boolean,
+    val tunnelingActive: Boolean,
+    val currentTrackConfigKnown: Boolean,
+)
+
+internal data class SignalProcessingState(
+    val equalizerActive: Boolean = false,
+    val reverbActive: Boolean = false,
+    val volumeNormalizationActive: Boolean = false,
+    val softwareGainActive: Boolean = false,
+    val channelMappingActive: Boolean = false,
+    val customAudioProcessorActive: Boolean = false,
+) {
+    val active: Boolean
+        get() = equalizerActive || reverbActive || volumeNormalizationActive || softwareGainActive ||
+            channelMappingActive || customAudioProcessorActive
+
+    companion object {
+        fun fromAggregate(active: Boolean): SignalProcessingState =
+            SignalProcessingState(customAudioProcessorActive = active)
+    }
+}
+
 internal data class DirectPlaybackSupportClassification(
     val rawFlags: Int,
     val kinds: Set<DirectPlaybackSupportKind>,
@@ -83,6 +127,7 @@ internal data class DirectPlaybackRouteContext(
     val activeRouteDeviceId: Int? = null,
     val activeRouteType: Int? = null,
     val activeRouteSignature: Int? = null,
+    val platformRoutingSupported: Boolean = hasVerifiedRoutedUsbRoute || hasVerifiedBluetoothRoute,
 )
 
 internal object BitPerfectEligibilityPolicy {
@@ -217,6 +262,7 @@ internal object BitPerfectEligibilityPolicy {
             directPlaybackSupport = directPlaybackSupport,
             evaluationKey = evaluationKey,
             shouldUseDirectPlayback = true,
+            confidence = BitPerfectConfidence.ExternallyUnverified,
         )
     }
 
@@ -244,6 +290,11 @@ internal object BitPerfectEligibilityPolicy {
         directPlaybackSupport: Int,
         evaluationKey: DirectPlaybackEvaluationKey? = null,
         shouldUseDirectPlayback: Boolean = false,
+        confidence: BitPerfectConfidence = defaultConfidence(
+            routeContext = routeContext,
+            supportClassification = supportClassification,
+            shouldUseDirectPlayback = shouldUseDirectPlayback,
+        ),
     ): BitPerfectPlaybackStatus {
         return BitPerfectPlaybackStatus(
             state = state,
@@ -255,6 +306,33 @@ internal object BitPerfectEligibilityPolicy {
             directPlaybackSupport = directPlaybackSupport,
             supportClassification = supportClassification,
             evaluationKey = evaluationKey,
+            confidence = confidence,
+            capability = DirectPlaybackCapability(
+                platformSupported = routeContext.platformRoutingSupported,
+                routeEligible = routeContext.hasVerifiedRoutedUsbRoute,
+                formatSupported = evaluationKey != null,
+                directSupportFlags = directPlaybackSupport,
+                supportKinds = supportClassification.kinds,
+            ),
+            configuration = DirectPlaybackConfiguration(
+                directModeRequested = shouldUseDirectPlayback,
+                preferredDeviceApplied = routeContext.hasVerifiedRoutedUsbRoute,
+                signalProcessingDisabled = shouldUseDirectPlayback,
+                offloadActive = false,
+                tunnelingActive = false,
+                currentTrackConfigKnown = evaluationKey != null,
+            ),
         )
+    }
+
+    private fun defaultConfidence(
+        routeContext: DirectPlaybackRouteContext,
+        supportClassification: DirectPlaybackSupportClassification,
+        shouldUseDirectPlayback: Boolean,
+    ): BitPerfectConfidence = when {
+        !routeContext.hasEligibleUsbRoute -> BitPerfectConfidence.NotEligible
+        !supportClassification.isSupported -> BitPerfectConfidence.Unsupported
+        shouldUseDirectPlayback -> BitPerfectConfidence.ExternallyUnverified
+        else -> BitPerfectConfidence.DirectCapable
     }
 }

@@ -37,6 +37,57 @@ internal enum class TagWriteSupport {
     Unsupported,
 }
 
+internal enum class CapabilityLevel {
+    Strong,
+    Partial,
+    Weak,
+    Unsupported,
+}
+
+internal enum class DecoderRequirement {
+    Platform,
+    None,
+}
+
+internal data class ContainerCapability(
+    val container: AudioContainerFormat,
+    val extensions: Set<String>,
+    val mimeTypes: Set<String>,
+    val requiresInspection: Boolean,
+)
+
+internal data class PlaybackCapability(
+    val extractorSupport: CapabilityLevel,
+    val decoderRequirement: DecoderRequirement,
+    val platformDependent: Boolean,
+    val supportedCodecMimeTypes: Set<String>,
+)
+
+internal data class MetadataCapability(
+    val read: CapabilityLevel,
+    val textWrite: CapabilityLevel,
+    val artworkWrite: CapabilityLevel,
+    val lyricsWrite: LyricsWriteCapability,
+)
+
+internal data class LyricsWriteCapability(
+    val unsynced: CapabilityLevel,
+    val synced: CapabilityLevel,
+)
+
+internal data class ResolvedFormatCapability(
+    val container: ContainerCapability,
+    val playback: PlaybackCapability,
+    val metadata: MetadataCapability,
+)
+
+internal sealed interface FormatEligibility {
+    data class Supported(val capability: ResolvedFormatCapability) : FormatEligibility
+    data class PlatformDependent(val reason: String) : FormatEligibility
+    data class Unsupported(val reason: String) : FormatEligibility
+    data class Malformed(val cause: Throwable?) : FormatEligibility
+}
+
 internal data class AudioFormatCapability(
     val format: AudioContainerFormat,
     val displayName: String,
@@ -328,6 +379,62 @@ internal object AudioFormatPolicy {
         return capabilityFor(detected.container)?.playbackSupport ?: PlaybackSupport.Unsupported
     }
 
+    fun resolvedCapability(format: AudioContainerFormat): ResolvedFormatCapability? {
+        val capability = capabilityFor(format) ?: return null
+        return ResolvedFormatCapability(
+            container = ContainerCapability(
+                container = capability.format,
+                extensions = capability.extensions,
+                mimeTypes = capability.mimeTypes,
+                requiresInspection = capability.requiresContainerValidation,
+            ),
+            playback = PlaybackCapability(
+                extractorSupport = when (capability.playbackSupport) {
+                    PlaybackSupport.Supported -> CapabilityLevel.Strong
+                    PlaybackSupport.PlatformDependent -> CapabilityLevel.Partial
+                    PlaybackSupport.Unsupported -> CapabilityLevel.Unsupported
+                },
+                decoderRequirement = DecoderRequirement.Platform,
+                platformDependent = capability.playbackSupport == PlaybackSupport.PlatformDependent,
+                supportedCodecMimeTypes = capability.allowedCodecMimeTypes,
+            ),
+            metadata = MetadataCapability(
+                read = capability.metadataReadSupport.toCapabilityLevel(),
+                textWrite = capability.tagWriteSupport.toCapabilityLevel(),
+                artworkWrite = if (capability.canEmbedArtwork) CapabilityLevel.Strong else CapabilityLevel.Unsupported,
+                lyricsWrite = when (capability.format) {
+                    AudioContainerFormat.Mp3,
+                    AudioContainerFormat.Flac,
+                    -> LyricsWriteCapability(CapabilityLevel.Strong, CapabilityLevel.Strong)
+                    AudioContainerFormat.Mp4Audio -> LyricsWriteCapability(
+                        unsynced = capability.tagWriteSupport.toCapabilityLevel(),
+                        synced = CapabilityLevel.Unsupported,
+                    )
+                    else -> LyricsWriteCapability(CapabilityLevel.Unsupported, CapabilityLevel.Unsupported)
+                },
+            ),
+        )
+    }
+
+    fun eligibility(detected: DetectedAudioFormat): FormatEligibility {
+        if (!detected.detectionSucceeded) return FormatEligibility.Malformed(null)
+        if (!detected.hasAudioTrack || detected.hasVideoTrack) {
+            return FormatEligibility.Unsupported("The file is not audio-only.")
+        }
+        val capability = resolvedCapability(detected.container)
+            ?: return FormatEligibility.Unsupported("The audio container is unsupported.")
+        if (!isCodecAllowed(detected.container, detected.codecMimeType)) {
+            return FormatEligibility.Unsupported("The audio codec is unsupported in this container.")
+        }
+        if (detected.decoderAvailable == false) {
+            return FormatEligibility.Unsupported("No decoder is available on this device.")
+        }
+        if (capability.playback.platformDependent || detected.decoderAvailable == null) {
+            return FormatEligibility.PlatformDependent("Playback depends on this device's decoder.")
+        }
+        return FormatEligibility.Supported(capability)
+    }
+
     fun tagWriteSupport(
         detected: DetectedAudioFormat?,
         fileName: String,
@@ -415,5 +522,18 @@ internal object AudioFormatPolicy {
 
     private fun AudioFormatCapability?.orEmptyAllowedCodecs(): Set<String> {
         return this?.allowedCodecMimeTypes.orEmpty()
+    }
+
+    private fun MetadataReadSupport.toCapabilityLevel(): CapabilityLevel = when (this) {
+        MetadataReadSupport.Strong -> CapabilityLevel.Strong
+        MetadataReadSupport.Partial -> CapabilityLevel.Partial
+        MetadataReadSupport.Weak -> CapabilityLevel.Weak
+        MetadataReadSupport.Unsupported -> CapabilityLevel.Unsupported
+    }
+
+    private fun TagWriteSupport.toCapabilityLevel(): CapabilityLevel = when (this) {
+        TagWriteSupport.Safe -> CapabilityLevel.Strong
+        TagWriteSupport.Partial -> CapabilityLevel.Partial
+        TagWriteSupport.Unsupported -> CapabilityLevel.Unsupported
     }
 }

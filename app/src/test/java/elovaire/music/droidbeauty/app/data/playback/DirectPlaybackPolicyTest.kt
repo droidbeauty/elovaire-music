@@ -136,6 +136,7 @@ class DirectPlaybackPolicyTest {
         assertEquals(DirectPlaybackMode.RegularPlaybackRequired, status.mode)
         assertEquals(BitPerfectPlaybackDirective.PreferRegular, status.directive)
         assertFalse(status.shouldUseDirectPlayback)
+        assertEquals(BitPerfectConfidence.DirectCapable, status.confidence)
     }
 
     @Test
@@ -182,6 +183,9 @@ class DirectPlaybackPolicyTest {
         assertEquals(DirectPlaybackMode.DirectUsbPlaybackEligible, status.mode)
         assertEquals(BitPerfectPlaybackDirective.PreferDirect, status.directive)
         assertTrue(status.shouldUseDirectPlayback)
+        assertEquals(BitPerfectConfidence.ExternallyUnverified, status.confidence)
+        assertTrue(status.capability.platformSupported)
+        assertTrue(status.configuration.signalProcessingDisabled)
     }
 
     private fun usbRouteContext(): DirectPlaybackRouteContext {
