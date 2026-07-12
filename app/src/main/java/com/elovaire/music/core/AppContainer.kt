@@ -31,47 +31,19 @@ class AppContainer(
         )
     }
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)
+    private val featureGraph = AppFeatureGraph(services, backgroundWorkPolicy)
     val preferenceStore get() = services.preferenceStore
     internal val appUpdateManager get() = services.appUpdateManager
     val lyricsService get() = services.lyricsService
     internal val albumTagEditorService get() = services.albumTagEditorService
     val playbackManager get() = services.playbackManager
     val libraryRepository get() = services.libraryRepository
-    internal val rootReadDependencies: RootReadDependencies = object : RootReadDependencies {
-        override val libraryReader get() = services.libraryRepository
-        override val rootSettingsReader get() = services.preferenceStore
-        override val playbackReader get() = services.playbackManager
-        override val updateReader get() = services.appUpdateManager
-    }
-    internal val playbackActionDependencies: PlaybackActionDependencies = object : PlaybackActionDependencies {
-        override val playbackController get() = services.playbackManager
-    }
-    internal val libraryActionDependencies: LibraryActionDependencies = object : LibraryActionDependencies {
-        override val libraryRepository get() = services.libraryRepository
-    }
-    internal val settingsActionDependencies: SettingsActionDependencies = object : SettingsActionDependencies {
-        override val appearanceSettings get() = services.preferenceStore
-        override val librarySettings get() = services.preferenceStore
-        override val playbackSettings get() = services.preferenceStore
-        override val setOnlineLyricsLookupEnabled = services.preferenceStore::setOnlineLyricsLookupEnabled
-    }
-    internal val playlistActionDependencies: PlaylistActionDependencies = object : PlaylistActionDependencies {
-        override val playlistStore get() = services.preferenceStore
-        override val favoritesStore get() = services.preferenceStore
-    }
-    internal val viewModelDependencies: ElovaireViewModelDependencies = object : ElovaireViewModelDependencies {
-        override val libraryReader get() = services.libraryRepository
-        override val libraryRepository get() = services.libraryRepository
-        override val rootSettingsReader get() = services.preferenceStore
-        override val preferenceStore get() = services.preferenceStore
-        override val playbackReader get() = services.playbackManager
-        override val playbackManager get() = services.playbackManager
-        override val updateReader get() = services.appUpdateManager
-        override val lyricsService get() = services.lyricsService
-        override val albumTagEditorService get() = services.albumTagEditorService
-        override val appUpdateManager get() = services.appUpdateManager
-        override val backgroundWorkPolicy get() = this@AppContainer.backgroundWorkPolicy
-    }
+    internal val rootReadDependencies get() = featureGraph.rootReadDependencies
+    internal val playbackActionDependencies get() = featureGraph.playbackActionDependencies
+    internal val libraryActionDependencies get() = featureGraph.libraryActionDependencies
+    internal val settingsActionDependencies get() = featureGraph.settingsActionDependencies
+    internal val playlistActionDependencies get() = featureGraph.playlistActionDependencies
+    internal val viewModelDependencies get() = featureGraph.viewModelDependencies
     private val notificationControllerHolder = NotificationControllerHolder {
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
         PlaybackNotificationController(
@@ -80,13 +52,19 @@ class AppContainer(
             scope = appScope,
         )
     }
+    private val lifecycleCoordinator = AppLifecycleCoordinator(
+        bridges = bridgeCoordinator,
+        notifications = notificationControllerHolder,
+        services = services,
+        runtimeScope = appRuntimeScope,
+        foregroundTracker = appForegroundTracker,
+    )
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
-    private val released = AtomicBoolean(false)
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
 
     init {
-        bridgeCoordinator.start()
+        lifecycleCoordinator.start()
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
@@ -110,13 +88,8 @@ class AppContainer(
     }
 
     fun release() {
-        if (!released.compareAndSet(false, true)) return
         openNowPlayingChannel.close()
-        bridgeCoordinator.release()
-        notificationControllerHolder.release()
-        appRuntimeScope.close()
-        services.release()
-        appForegroundTracker.close()
+        lifecycleCoordinator.release()
     }
 
     private fun notificationController(): PlaybackNotificationController {

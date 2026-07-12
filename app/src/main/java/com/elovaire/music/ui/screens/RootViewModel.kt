@@ -12,18 +12,14 @@ import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.stateIn
 
-internal data class RootPreferenceState(
+internal data class RootAppearanceState(
     val eqSettings: EqSettings,
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
-    val playlists: List<Playlist>,
-    val smartPlaylists: List<SmartPlaylist>,
-    val favoriteSongIds: Set<Long>,
-    val albumPlayCounts: Map<Long, Int>,
-    val songPlayCounts: Map<Long, Int>,
     val albumCollectionLayoutModeName: String,
     val songCollectionGridEnabled: Boolean,
     val albumCollectionSortModeName: String,
@@ -32,152 +28,193 @@ internal data class RootPreferenceState(
     val volumeNormalizationEnabled: Boolean,
 )
 
+internal data class RootCollectionState(
+    val playlists: List<Playlist>,
+    val smartPlaylists: List<SmartPlaylist>,
+    val favoriteSongIds: Set<Long>,
+    val albumPlayCounts: Map<Long, Int>,
+    val songPlayCounts: Map<Long, Int>,
+)
+
 internal class RootViewModel(
     dependencies: ElovaireViewModelDependencies,
 ) : ViewModel() {
-    private val libraryState = combine(
+    val libraryState = combine(
         dependencies.libraryReader.contentState,
         dependencies.libraryReader.scanState,
         ::libraryUiStateOf,
+    ).distinctUntilChanged().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = libraryUiStateOf(
+            dependencies.libraryReader.contentState.value,
+            dependencies.libraryReader.scanState.value,
+        ),
     )
 
-    private val playbackState = combine(
+    val playbackState = combine(
         dependencies.playbackReader.nowPlayingState,
         dependencies.playbackReader.transportState,
         dependencies.playbackReader.queueState,
         dependencies.playbackReader.volumeState,
         dependencies.playbackReader.recentPlaybackState,
         ::playbackUiStateOf,
+    ).distinctUntilChanged().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = playbackUiStateOf(
+            dependencies.playbackReader.nowPlayingState.value,
+            dependencies.playbackReader.transportState.value,
+            dependencies.playbackReader.queueState.value,
+            dependencies.playbackReader.volumeState.value,
+            dependencies.playbackReader.recentPlaybackState.value,
+        ),
     )
 
-    private val preferenceState = combine(
+    val appearanceState = combine(
         combine(
             dependencies.rootSettingsReader.eqSettings,
             dependencies.rootSettingsReader.themeMode,
             dependencies.rootSettingsReader.textSizePreset,
             dependencies.rootSettingsReader.appLanguage,
-            dependencies.rootSettingsReader.playlists,
-        ) { eq, theme, textSize, language, playlists ->
-            PartialRootPreferenceStateA(eq, theme, textSize, language, playlists)
+        ) { eq, theme, textSize, language ->
+            AppearanceCore(eq, theme, textSize, language)
         },
         combine(
-            dependencies.rootSettingsReader.favoriteSongIds,
-            dependencies.rootSettingsReader.albumPlayCounts,
-            dependencies.rootSettingsReader.songPlayCounts,
             dependencies.rootSettingsReader.albumCollectionLayoutMode,
             dependencies.rootSettingsReader.songCollectionGridEnabled,
-        ) { favorites, albumCounts, songCounts, albumLayout, songGrid ->
-            PartialRootPreferenceStateB(favorites.toHashSet(), albumCounts, songCounts, albumLayout, songGrid)
-        },
-        combine(
             dependencies.rootSettingsReader.albumCollectionSortMode,
             dependencies.rootSettingsReader.songCollectionSortMode,
             dependencies.rootSettingsReader.onlineLyricsLookupEnabled,
-            dependencies.rootSettingsReader.volumeNormalizationEnabled,
-        ) { albumSort, songSort, onlineLyrics, volumeNormalization ->
-            PartialRootPreferenceStateC(albumSort, songSort, onlineLyrics, volumeNormalization)
+        ) { albumLayout, songGrid, albumSort, songSort, onlineLyrics ->
+            AppearanceLayout(albumLayout, songGrid, albumSort, songSort, onlineLyrics)
         },
-        dependencies.rootSettingsReader.smartPlaylists,
-    ) { a, b, sorts, smartPlaylists ->
-        RootPreferenceState(
-            eqSettings = a.eqSettings,
-            themeMode = a.themeMode,
-            textSizePreset = a.textSizePreset,
-            appLanguage = a.appLanguage,
-            playlists = a.playlists,
-            smartPlaylists = smartPlaylists,
-            favoriteSongIds = b.favoriteSongIds,
-            albumPlayCounts = b.albumPlayCounts,
-            songPlayCounts = b.songPlayCounts,
-            albumCollectionLayoutModeName = b.albumCollectionLayoutModeName,
-            songCollectionGridEnabled = b.songCollectionGridEnabled,
-            albumCollectionSortModeName = sorts.albumCollectionSortModeName,
-            songCollectionSortModeName = sorts.songCollectionSortModeName,
-            onlineLyricsLookupEnabled = sorts.onlineLyricsLookupEnabled,
-            volumeNormalizationEnabled = sorts.volumeNormalizationEnabled,
+        dependencies.rootSettingsReader.volumeNormalizationEnabled,
+    ) { core, layout, volumeNormalization ->
+        RootAppearanceState(
+            eqSettings = core.eqSettings,
+            themeMode = core.themeMode,
+            textSizePreset = core.textSizePreset,
+            appLanguage = core.appLanguage,
+            albumCollectionLayoutModeName = layout.albumCollectionLayoutModeName,
+            songCollectionGridEnabled = layout.songCollectionGridEnabled,
+            albumCollectionSortModeName = layout.albumCollectionSortModeName,
+            songCollectionSortModeName = layout.songCollectionSortModeName,
+            onlineLyricsLookupEnabled = layout.onlineLyricsLookupEnabled,
+            volumeNormalizationEnabled = volumeNormalization,
         )
-    }
-
-    val appState: StateFlow<RootAppState> = combine(
-        libraryState,
-        playbackState,
-        preferenceState,
-        dependencies.updateReader.uiState,
-    ) { library, playback, prefs, update ->
-        RootAppState(
-            library = library,
-            playback = playback,
-            eqSettings = prefs.eqSettings,
-            themeMode = prefs.themeMode,
-            textSizePreset = prefs.textSizePreset,
-            appLanguage = prefs.appLanguage,
-            playlists = prefs.playlists,
-            smartPlaylists = prefs.smartPlaylists,
-            favoriteSongIds = prefs.favoriteSongIds,
-            albumPlayCounts = prefs.albumPlayCounts,
-            songPlayCounts = prefs.songPlayCounts,
-            albumCollectionLayoutModeName = prefs.albumCollectionLayoutModeName,
-            songCollectionGridEnabled = prefs.songCollectionGridEnabled,
-            albumCollectionSortModeName = prefs.albumCollectionSortModeName,
-            songCollectionSortModeName = prefs.songCollectionSortModeName,
-            onlineLyricsLookupEnabled = prefs.onlineLyricsLookupEnabled,
-            volumeNormalizationEnabled = prefs.volumeNormalizationEnabled,
-            appUpdateState = update,
-        )
-    }.stateIn(
+    }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = RootAppState(
-            library = libraryUiStateOf(
-                dependencies.libraryRepository.contentState.value,
-                dependencies.libraryRepository.scanState.value,
-            ),
-            playback = playbackUiStateOf(
-                dependencies.playbackReader.nowPlayingState.value,
-                dependencies.playbackReader.transportState.value,
-                dependencies.playbackReader.queueState.value,
-                dependencies.playbackReader.volumeState.value,
-                dependencies.playbackReader.recentPlaybackState.value,
-            ),
-            eqSettings = dependencies.rootSettingsReader.eqSettings.value,
-            themeMode = dependencies.rootSettingsReader.themeMode.value,
-            textSizePreset = dependencies.rootSettingsReader.textSizePreset.value,
-            appLanguage = dependencies.rootSettingsReader.appLanguage.value,
+        initialValue = rootAppearanceStateOf(dependencies.rootSettingsReader),
+    )
+
+    val collectionState = combine(
+        dependencies.rootSettingsReader.playlists,
+        dependencies.rootSettingsReader.smartPlaylists,
+        dependencies.rootSettingsReader.favoriteSongIds,
+        dependencies.rootSettingsReader.albumPlayCounts,
+        dependencies.rootSettingsReader.songPlayCounts,
+    ) { playlists, smartPlaylists, favorites, albumCounts, songCounts ->
+        RootCollectionState(
+            playlists = playlists,
+            smartPlaylists = smartPlaylists,
+            favoriteSongIds = favorites.toHashSet(),
+            albumPlayCounts = albumCounts,
+            songPlayCounts = songCounts,
+        )
+    }.distinctUntilChanged().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = RootCollectionState(
             playlists = dependencies.rootSettingsReader.playlists.value,
             smartPlaylists = dependencies.rootSettingsReader.smartPlaylists.value,
             favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds.value.toHashSet(),
             albumPlayCounts = dependencies.rootSettingsReader.albumPlayCounts.value,
             songPlayCounts = dependencies.rootSettingsReader.songPlayCounts.value,
-            albumCollectionLayoutModeName = dependencies.rootSettingsReader.albumCollectionLayoutMode.value,
-            songCollectionGridEnabled = dependencies.rootSettingsReader.songCollectionGridEnabled.value,
-            albumCollectionSortModeName = dependencies.rootSettingsReader.albumCollectionSortMode.value,
-            songCollectionSortModeName = dependencies.rootSettingsReader.songCollectionSortMode.value,
-            onlineLyricsLookupEnabled = dependencies.rootSettingsReader.onlineLyricsLookupEnabled.value,
-            volumeNormalizationEnabled = dependencies.rootSettingsReader.volumeNormalizationEnabled.value,
-            appUpdateState = dependencies.updateReader.uiState.value,
+        ),
+    )
+
+    val updateState = dependencies.updateReader.uiState
+
+    val appState: StateFlow<RootAppState> = combine(
+        libraryState,
+        playbackState,
+        appearanceState,
+        collectionState,
+        updateState,
+    ) { library, playback, appearance, collections, update ->
+        RootAppState(
+            library = library,
+            playback = playback,
+            eqSettings = appearance.eqSettings,
+            themeMode = appearance.themeMode,
+            textSizePreset = appearance.textSizePreset,
+            appLanguage = appearance.appLanguage,
+            playlists = collections.playlists,
+            smartPlaylists = collections.smartPlaylists,
+            favoriteSongIds = collections.favoriteSongIds,
+            albumPlayCounts = collections.albumPlayCounts,
+            songPlayCounts = collections.songPlayCounts,
+            albumCollectionLayoutModeName = appearance.albumCollectionLayoutModeName,
+            songCollectionGridEnabled = appearance.songCollectionGridEnabled,
+            albumCollectionSortModeName = appearance.albumCollectionSortModeName,
+            songCollectionSortModeName = appearance.songCollectionSortModeName,
+            onlineLyricsLookupEnabled = appearance.onlineLyricsLookupEnabled,
+            volumeNormalizationEnabled = appearance.volumeNormalizationEnabled,
+            appUpdateState = update,
+        )
+    }.distinctUntilChanged().stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000L),
+        initialValue = RootAppState(
+            library = libraryState.value,
+            playback = playbackState.value,
+            eqSettings = appearanceState.value.eqSettings,
+            themeMode = appearanceState.value.themeMode,
+            textSizePreset = appearanceState.value.textSizePreset,
+            appLanguage = appearanceState.value.appLanguage,
+            playlists = collectionState.value.playlists,
+            smartPlaylists = collectionState.value.smartPlaylists,
+            favoriteSongIds = collectionState.value.favoriteSongIds,
+            albumPlayCounts = collectionState.value.albumPlayCounts,
+            songPlayCounts = collectionState.value.songPlayCounts,
+            albumCollectionLayoutModeName = appearanceState.value.albumCollectionLayoutModeName,
+            songCollectionGridEnabled = appearanceState.value.songCollectionGridEnabled,
+            albumCollectionSortModeName = appearanceState.value.albumCollectionSortModeName,
+            songCollectionSortModeName = appearanceState.value.songCollectionSortModeName,
+            onlineLyricsLookupEnabled = appearanceState.value.onlineLyricsLookupEnabled,
+            volumeNormalizationEnabled = appearanceState.value.volumeNormalizationEnabled,
+            appUpdateState = updateState.value,
         ),
     )
 }
 
-private data class PartialRootPreferenceStateA(
+private data class AppearanceCore(
     val eqSettings: EqSettings,
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
-    val playlists: List<Playlist>,
 )
 
-private data class PartialRootPreferenceStateB(
-    val favoriteSongIds: Set<Long>,
-    val albumPlayCounts: Map<Long, Int>,
-    val songPlayCounts: Map<Long, Int>,
+private data class AppearanceLayout(
     val albumCollectionLayoutModeName: String,
     val songCollectionGridEnabled: Boolean,
-)
-
-private data class PartialRootPreferenceStateC(
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
     val onlineLyricsLookupEnabled: Boolean,
-    val volumeNormalizationEnabled: Boolean,
 )
+
+private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.settings.RootSettingsReader) =
+    RootAppearanceState(
+        eqSettings = settings.eqSettings.value,
+        themeMode = settings.themeMode.value,
+        textSizePreset = settings.textSizePreset.value,
+        appLanguage = settings.appLanguage.value,
+        albumCollectionLayoutModeName = settings.albumCollectionLayoutMode.value,
+        songCollectionGridEnabled = settings.songCollectionGridEnabled.value,
+        albumCollectionSortModeName = settings.albumCollectionSortMode.value,
+        songCollectionSortModeName = settings.songCollectionSortMode.value,
+        onlineLyricsLookupEnabled = settings.onlineLyricsLookupEnabled.value,
+        volumeNormalizationEnabled = settings.volumeNormalizationEnabled.value,
+    )

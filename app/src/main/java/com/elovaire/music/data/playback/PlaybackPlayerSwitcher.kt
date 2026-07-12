@@ -26,6 +26,7 @@ internal class PlaybackPlayerSwitcher(
             replacementObserversAttached = true
             replacement.repeatMode = currentPlayer.repeatMode
             replacement.shuffleModeEnabled = currentPlayer.shuffleModeEnabled
+            replacement.playbackParameters = playbackSnapshot.playbackParameters
             if (queueSnapshot.isNotEmpty()) {
                 replacement.setMediaItems(
                     queueSnapshot.map(Song::toPlaybackMediaItem),

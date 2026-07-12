@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 
 data class LibraryContentState(
     val songs: List<Song> = emptyList(),
@@ -89,14 +90,17 @@ class LibraryRepository internal constructor(
     private var scanJob: Job? = null
     private var bootstrapJob: Job? = null
     private var refreshDebounceJob: Job? = null
+    private var foregroundObserverJob: Job? = null
     private val refreshRequests = LibraryRefreshRequests()
-    private var backgroundLibraryDirty = false
+    private val _runtimeState = MutableStateFlow<LibraryRuntimeState>(LibraryRuntimeState.NoPermission)
     private val deletionMarkers = LibraryDeletionMarkers()
+    private val released = AtomicBoolean(false)
     @Volatile
     private var permissionChangeVersion = 0L
     private var didBootstrapLibrary = false
     override val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     override val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
+    internal val runtimeState: StateFlow<LibraryRuntimeState> = _runtimeState.asStateFlow()
     val state: StateFlow<LibraryUiState> = combine(contentState, scanState) { content, scan ->
         LibraryUiState(
             permissionGranted = scan.permissionGranted,
@@ -121,44 +125,49 @@ class LibraryRepository internal constructor(
     )
 
     init {
-        scope.launch {
+        foregroundObserverJob = scope.launch {
             backgroundWorkPolicy.isForeground.collect { isForeground ->
+                if (released.get()) return@collect
                 updateObserverRegistration()
-                if (isForeground && backgroundLibraryDirty && _scanState.value.permissionGranted) {
-                    backgroundLibraryDirty = false
-                    refresh(
-                        forceMediaIndex = false,
-                        enrichMetadata = false,
-                        showLoadingIndicator = false,
-                    )
+                val runtime = _runtimeState.value
+                if (isForeground && runtime is LibraryRuntimeState.BackgroundDirty && _scanState.value.permissionGranted) {
+                    startRefresh(runtime.pending, showLoadingIndicator = false)
                 }
             }
         }
     }
 
     fun onPermissionChanged(granted: Boolean) {
+        if (released.get()) return
         permissionChangeVersion += 1L
         _scanState.update { current ->
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
         }
         if (granted) {
+            _runtimeState.value = LibraryRuntimeState.Idle
             updateObserverRegistration()
             bootstrapLibrary()
         } else {
+            _runtimeState.value = LibraryRuntimeState.NoPermission
             didBootstrapLibrary = false
             releaseObserversAndJobs(clearPermissionState = false)
         }
     }
 
     fun release() {
+        if (!released.compareAndSet(false, true)) return
         didBootstrapLibrary = false
         releaseObserversAndJobs(clearPermissionState = true)
+        foregroundObserverJob?.cancel()
+        foregroundObserverJob = null
+        _runtimeState.value = LibraryRuntimeState.Released
     }
 
     private fun bootstrapLibrary() {
         if (didBootstrapLibrary) return
         didBootstrapLibrary = true
         val bootstrapPermissionVersion = permissionChangeVersion
+        _runtimeState.value = LibraryRuntimeState.Bootstrapping(bootstrapPermissionVersion)
         bootstrapJob = scope.launch {
             try {
                 val cachedSnapshot = withContext(Dispatchers.IO) {
@@ -224,6 +233,9 @@ class LibraryRepository internal constructor(
                 if (bootstrapJob === currentCoroutineContext()[Job]) {
                     bootstrapJob = null
                 }
+                if (hasCurrentPermission(bootstrapPermissionVersion) && _runtimeState.value is LibraryRuntimeState.Bootstrapping) {
+                    _runtimeState.value = LibraryRuntimeState.Idle
+                }
             }
         }
     }
@@ -237,7 +249,7 @@ class LibraryRepository internal constructor(
         enrichMetadata: Boolean = false,
         showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
     ) {
-        if (!_scanState.value.permissionGranted) return
+        if (released.get() || !_scanState.value.permissionGranted) return
         val request = LibraryRefreshRequest(
             forceMediaIndex = forceMediaIndex,
             enrichMetadata = enrichMetadata,
@@ -272,6 +284,7 @@ class LibraryRepository internal constructor(
             val currentScanJob = currentCoroutineContext()[Job]
             val scanPermissionVersion = permissionChangeVersion
             val refreshRequest = refreshRequests.takeForImmediateScan(request)
+            _runtimeState.value = LibraryRuntimeState.Scanning(refreshRequest, scanPermissionVersion)
             backendEventSink.emit(
                 BackendEvent.LibraryScanStarted(
                     mapOf(
@@ -342,11 +355,13 @@ class LibraryRepository internal constructor(
                         ),
                     )
                     if (hasCurrentPermission(scanPermissionVersion)) {
+                        val failure = throwable.toLibraryScanFailure("refresh")
+                        _runtimeState.value = LibraryRuntimeState.Failed(failure, recoverable = true)
                         _scanState.update {
                             it.copy(
                                 isLoading = false,
                                 scanProgress = 0f,
-                                errorMessage = throwable.toLibraryScanFailure("refresh").toUserMessage(),
+                                errorMessage = failure.toUserMessage(),
                             )
                         }
                     }
@@ -361,6 +376,8 @@ class LibraryRepository internal constructor(
             val pendingRequest = refreshRequests.takePendingAfterScan()
             if (pendingRequest != null && _scanState.value.permissionGranted) {
                 startRefresh(pendingRequest, showLoadingIndicator = false)
+            } else if (_runtimeState.value is LibraryRuntimeState.Scanning) {
+                _runtimeState.value = LibraryRuntimeState.Idle
             }
         }
     }
@@ -606,13 +623,14 @@ class LibraryRepository internal constructor(
         forceMediaIndex: Boolean = false,
         changedFilePath: String? = null,
     ) {
-        if (!_scanState.value.permissionGranted) return
+        if (released.get() || !_scanState.value.permissionGranted) return
         refreshRequests.enqueue(
             forceMediaIndex = forceMediaIndex,
             targetedPaths = listOfNotNull(changedFilePath),
         )
         if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
-            backgroundLibraryDirty = true
+            val pending = refreshRequests.takePendingAfterScan() ?: return
+            _runtimeState.value = LibraryRuntimeState.BackgroundDirty(pending)
             return
         }
         refreshDebounceJob?.cancel()
@@ -665,7 +683,6 @@ class LibraryRepository internal constructor(
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         refreshRequests.clear()
-        backgroundLibraryDirty = false
         deletionMarkers.clear()
         _contentState.update { current ->
             current.copy(removingSongIds = emptySet(), removingAlbumIds = emptySet())

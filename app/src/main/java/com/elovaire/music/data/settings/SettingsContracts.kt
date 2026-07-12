@@ -10,27 +10,32 @@ import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.StateFlow
 
-internal interface RootSettingsReader {
+internal interface AppearanceSettingsStore {
     val eqSettings: StateFlow<EqSettings>
     val themeMode: StateFlow<ThemeMode>
     val textSizePreset: StateFlow<TextSizePreset>
     val appLanguage: StateFlow<AppLanguage>
-    val playlists: StateFlow<List<Playlist>>
-    val smartPlaylists: StateFlow<List<SmartPlaylist>>
-    val favoriteSongIds: StateFlow<List<Long>>
-    val albumPlayCounts: StateFlow<Map<Long, Int>>
-    val songPlayCounts: StateFlow<Map<Long, Int>>
     val albumCollectionLayoutMode: StateFlow<String>
     val songCollectionGridEnabled: StateFlow<Boolean>
     val albumCollectionSortMode: StateFlow<String>
     val songCollectionSortMode: StateFlow<String>
     val onlineLyricsLookupEnabled: StateFlow<Boolean>
     val volumeNormalizationEnabled: StateFlow<Boolean>
+}
+
+internal interface CollectionSettingsStore {
+    val playlists: StateFlow<List<Playlist>>
+    val smartPlaylists: StateFlow<List<SmartPlaylist>>
+    val favoriteSongIds: StateFlow<List<Long>>
+    val albumPlayCounts: StateFlow<Map<Long, Int>>
+    val songPlayCounts: StateFlow<Map<Long, Int>>
     val recentSongIds: StateFlow<List<Long>>
     val recentAlbumIds: StateFlow<List<Long>>
     val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?>
     val lastPlayedCollectionId: StateFlow<Long?>
 }
+
+internal interface RootSettingsReader : AppearanceSettingsStore, CollectionSettingsStore
 
 internal interface AppearanceSettingsWriter {
     fun setThemeMode(themeMode: ThemeMode)

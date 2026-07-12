@@ -22,6 +22,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.exoplayer.ExoPlayer
@@ -51,6 +52,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlin.math.roundToInt
 
@@ -221,7 +223,7 @@ class PlaybackManager(
     private val playbackHandler = Handler(Looper.getMainLooper())
     private var pendingAudioPathReason: String? = null
     private var isDirectPlaybackActive = false
-    private var isSwitchingAudioPath = false
+    private var runtimeTransition: PlaybackRuntimeTransition = PlaybackRuntimeTransition.Idle
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var gaplessPlaybackEnabled = false
@@ -277,7 +279,7 @@ class PlaybackManager(
     private var pendingResumeAfterExternalInterruption = false
     private var interruptionResumeState = InterruptionResumeState()
     private var isStoppingQueue = false
-    private var isRecoveringPlayback = false
+    private val released = AtomicBoolean(false)
     private val failedPlaybackSongIds = mutableSetOf<Long>()
     private var unexpectedIdleRecoveryCount = 0
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
@@ -352,7 +354,7 @@ class PlaybackManager(
                 playbackState == Player.STATE_IDLE &&
                 !isStoppingQueue &&
                 _state.value.queue.isNotEmpty() &&
-                !isRecoveringPlayback
+                runtimeTransition !is PlaybackRuntimeTransition.Recovering
             ) {
                 recoverUnexpectedIdleState(shouldAutoPlay = shouldAutoResumeAfterUnexpectedIdle())
             } else {
@@ -367,7 +369,7 @@ class PlaybackManager(
             if (error.isUnsupportedFormatError() && handleUnsupportedPlaybackFormat(error)) {
                 return
             }
-            if (_state.value.queue.isNotEmpty() && !isStoppingQueue && !isRecoveringPlayback) {
+            if (_state.value.queue.isNotEmpty() && !isStoppingQueue && runtimeTransition !is PlaybackRuntimeTransition.Recovering) {
                 recoverUnexpectedIdleState(shouldAutoPlay = shouldAutoResumeAfterUnexpectedIdle())
             } else {
                 scheduleStatePublish()
@@ -884,6 +886,8 @@ class PlaybackManager(
     }
 
     fun release() {
+        if (!released.compareAndSet(false, true)) return
+        runtimeTransition = PlaybackRuntimeTransition.Released
         pauseFadeJob?.cancel()
         sleepTimerController.release()
         progressDemandController.clear()
@@ -940,7 +944,7 @@ class PlaybackManager(
     }
 
     private fun maybeRebuildPlayerForAudioPath(reason: String) {
-        if (isSwitchingAudioPath) return
+        if (runtimeTransition !is PlaybackRuntimeTransition.Idle) return
         if (_state.value.queue.isEmpty() && player.mediaItemCount == 0) {
             lastAppliedAudioPathDecisionKey = null
             player.volume = targetPlayerOutputGain()
@@ -1004,7 +1008,7 @@ class PlaybackManager(
         reason: String,
         decisionKey: AudioPathDecisionKey,
     ) {
-        isSwitchingAudioPath = true
+        runtimeTransition = PlaybackRuntimeTransition.Rebuilding(reason)
         try {
             val previousPlayer = player
             val playbackSnapshot = PlaybackSnapshot.from(previousPlayer)
@@ -1025,7 +1029,9 @@ class PlaybackManager(
             lastAppliedPreferredDeviceKey = null
             lastAppliedAudioPathDecisionKey = decisionKey
         } finally {
-            isSwitchingAudioPath = false
+            if (runtimeTransition !is PlaybackRuntimeTransition.Released) {
+                runtimeTransition = PlaybackRuntimeTransition.Idle
+            }
         }
     }
 
@@ -1371,7 +1377,7 @@ class PlaybackManager(
         bitPerfectUsbManager.clearPlaybackFormat()
         lastAppliedAudioPathDecisionKey = null
         scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
-        isRecoveringPlayback = true
+        runtimeTransition = PlaybackRuntimeTransition.Recovering(unexpectedIdleRecoveryCount)
         scope.launch {
             val mediaItems = snapshot.queue.mapTo(ArrayList(snapshot.queue.size)) { song ->
                 song.toPlaybackMediaItem()
@@ -1385,7 +1391,10 @@ class PlaybackManager(
                 player.playWhenReady = true
                 player.play()
             }
-            isRecoveringPlayback = false
+            if (runtimeTransition !is PlaybackRuntimeTransition.Released) {
+                runtimeTransition = PlaybackRuntimeTransition.Idle
+                scheduleAudioPathReevaluation("recovery-completed")
+            }
             updateState()
         }
     }
@@ -1415,7 +1424,9 @@ class PlaybackManager(
         pausedForAudioFocusLoss = false
         isManualPausePending = false
         isPauseTransitioningToStopped = false
-        isRecoveringPlayback = false
+        if (runtimeTransition !is PlaybackRuntimeTransition.Released) {
+            runtimeTransition = PlaybackRuntimeTransition.Idle
+        }
         player.pause()
         player.playWhenReady = false
         abandonAudioFocus()
@@ -1964,6 +1975,7 @@ internal data class PlaybackSnapshot(
     val currentIndex: Int,
     val positionMs: Long,
     val playWhenReady: Boolean,
+    val playbackParameters: PlaybackParameters,
 ) {
     companion object {
         fun from(player: Player): PlaybackSnapshot {
@@ -1971,9 +1983,17 @@ internal data class PlaybackSnapshot(
                 currentIndex = player.currentMediaItemIndex.coerceAtLeast(0),
                 positionMs = player.currentPosition.coerceAtLeast(0L),
                 playWhenReady = player.playWhenReady,
+                playbackParameters = player.playbackParameters,
             )
         }
     }
+}
+
+internal sealed interface PlaybackRuntimeTransition {
+    data object Idle : PlaybackRuntimeTransition
+    data class Rebuilding(val reason: String) : PlaybackRuntimeTransition
+    data class Recovering(val attempt: Int) : PlaybackRuntimeTransition
+    data object Released : PlaybackRuntimeTransition
 }
 
 private data class PreferredAudioDeviceKey(
