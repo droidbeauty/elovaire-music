@@ -18,6 +18,8 @@ internal class ElovaireMediaTree(
     private val libraryRepository: LibraryRepository,
     private val preferenceStore: PreferenceStore,
 ) {
+    private val snapshotCache = MediaTreeSnapshotCache()
+
     fun rootChildren(): List<MediaItem> {
         val snapshot = snapshot()
         return when {
@@ -175,10 +177,10 @@ internal class ElovaireMediaTree(
             return defaultQueue(snapshot)?.queue.orEmpty().take(limit).map(ElovaireMediaItems::song)
         }
         val artistRows = snapshot.artistNames().map { name ->
-            NamedSongs(name = name, songs = snapshot.songs.filter { it.artist.equals(name, ignoreCase = true) })
+            NamedSongs(name = name, songs = snapshot.songsForArtist(name))
         }
         val genreRows = snapshot.genreNames().map { name ->
-            NamedSongs(name = name, songs = snapshot.songs.filter { it.genre.equals(name, ignoreCase = true) })
+            NamedSongs(name = name, songs = snapshot.songsForGenre(name))
         }
         val exactAndStrongTitleSongs = snapshot.songs
             .filter {
@@ -261,12 +263,12 @@ internal class ElovaireMediaTree(
     private fun snapshot(): MediaTreeSnapshot {
         val content = libraryRepository.contentState.value
         val scan = libraryRepository.scanState.value
-        return MediaTreeSnapshot(
+        return snapshotCache.snapshot(
             permissionGranted = scan.permissionGranted,
             songs = content.songs,
             albums = content.albums,
             playlists = preferenceStore.playlists.value,
-            favoriteSongIds = preferenceStore.favoriteSongIds.value.toSet(),
+            favoriteSongIds = preferenceStore.favoriteSongIds.value,
             recentSongIds = preferenceStore.recentSongIds.value,
             lastPlayedCollectionKind = preferenceStore.lastPlayedCollectionKind.value,
             lastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
@@ -368,30 +370,44 @@ internal class ElovaireMediaTree(
         }
     }
 
-    private data class MediaTreeSnapshot(
+    internal data class MediaTreeSnapshot(
         val permissionGranted: Boolean,
         val songs: List<Song>,
         val albums: List<Album>,
         val playlists: List<Playlist>,
+        val favoriteSongIdSource: List<Long>,
         val favoriteSongIds: Set<Long>,
         val recentSongIds: List<Long>,
         val lastPlayedCollectionKind: PlaybackCollectionKind?,
         val lastPlayedCollectionId: Long?,
     ) {
-        fun favoriteSongs(): List<Song> = songs.filter { it.id in favoriteSongIds }
-        fun recentlyAddedSongs(): List<Song> = songs.sortedByDescending { song -> song.dateAddedSeconds }
-        fun artistNames(): List<String> = songs
-            .map { it.libraryArtistName() }
-            .distinct()
-            .sortedBy { name -> name.lowercase() }
-        fun genreNames(): List<String> = songs
-            .map { it.genre.ifBlank { UNKNOWN_GENRE } }
-            .distinct()
-            .sortedBy { name -> name.lowercase() }
+        private val favoriteSongs by lazy(LazyThreadSafetyMode.NONE) { songs.filter { it.id in favoriteSongIds } }
+        private val recentlyAddedSongs by lazy(LazyThreadSafetyMode.NONE) {
+            songs.sortedByDescending(Song::dateAddedSeconds)
+        }
+        private val artistNames by lazy(LazyThreadSafetyMode.NONE) {
+            songs.map(Song::libraryArtistName).distinct().sortedBy(String::lowercase)
+        }
+        private val genreNames by lazy(LazyThreadSafetyMode.NONE) {
+            songs.map { it.genre.ifBlank { UNKNOWN_GENRE } }.distinct().sortedBy(String::lowercase)
+        }
+        private val songsById by lazy(LazyThreadSafetyMode.NONE) { songs.associateBy(Song::id) }
+        private val songsByArtist by lazy(LazyThreadSafetyMode.NONE) {
+            songs.groupBy { it.libraryArtistName().lowercase() }
+        }
+        private val songsByGenre by lazy(LazyThreadSafetyMode.NONE) {
+            songs.groupBy { it.genre.lowercase() }
+        }
+
+        fun favoriteSongs(): List<Song> = favoriteSongs
+        fun recentlyAddedSongs(): List<Song> = recentlyAddedSongs
+        fun artistNames(): List<String> = artistNames
+        fun genreNames(): List<String> = genreNames
+        fun songsForArtist(name: String): List<Song> = songsByArtist[name.lowercase()].orEmpty()
+        fun songsForGenre(name: String): List<Song> = songsByGenre[name.lowercase()].orEmpty()
         fun hasUsefulGenres(): Boolean = songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }
         fun playlistSongs(playlistId: Long): List<Song> {
             val playlist = playlists.firstOrNull { it.id == playlistId } ?: return emptyList()
-            val songsById = songs.associateBy { song -> song.id }
             return playlist.songIds.mapNotNull(songsById::get)
         }
     }
@@ -410,6 +426,43 @@ internal class ElovaireMediaTree(
         const val SYMBOL_BUCKET = "#"
         const val UNKNOWN_ARTIST = "Unknown Artist"
         const val UNKNOWN_GENRE = "Unknown Genre"
+    }
+}
+
+internal class MediaTreeSnapshotCache {
+    private var snapshot: ElovaireMediaTree.MediaTreeSnapshot? = null
+
+    fun snapshot(
+        permissionGranted: Boolean,
+        songs: List<Song>,
+        albums: List<Album>,
+        playlists: List<Playlist>,
+        favoriteSongIds: List<Long>,
+        recentSongIds: List<Long>,
+        lastPlayedCollectionKind: PlaybackCollectionKind?,
+        lastPlayedCollectionId: Long?,
+    ): ElovaireMediaTree.MediaTreeSnapshot {
+        snapshot?.takeIf {
+            it.permissionGranted == permissionGranted &&
+                it.songs === songs &&
+                it.albums === albums &&
+                it.playlists === playlists &&
+                it.favoriteSongIdSource === favoriteSongIds &&
+                it.recentSongIds === recentSongIds &&
+                it.lastPlayedCollectionKind == lastPlayedCollectionKind &&
+                it.lastPlayedCollectionId == lastPlayedCollectionId
+        }?.let { return it }
+        return ElovaireMediaTree.MediaTreeSnapshot(
+            permissionGranted = permissionGranted,
+            songs = songs,
+            albums = albums,
+            playlists = playlists,
+            favoriteSongIdSource = favoriteSongIds,
+            favoriteSongIds = favoriteSongIds.toSet(),
+            recentSongIds = recentSongIds,
+            lastPlayedCollectionKind = lastPlayedCollectionKind,
+            lastPlayedCollectionId = lastPlayedCollectionId,
+        ).also { snapshot = it }
     }
 }
 
