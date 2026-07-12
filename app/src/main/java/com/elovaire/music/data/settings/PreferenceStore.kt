@@ -520,6 +520,8 @@ class PreferenceStore(context: Context) :
         immediate: Boolean = true,
     ) {
         val normalizedSettings = EqValuePolicy.sanitize(settings)
+        if (_eqSettings.value == normalizedSettings && pendingEqSettings == normalizedSettings) return
+        if (_eqSettings.value == normalizedSettings && pendingEqSettings == null) return
         _eqSettings.value = normalizedSettings
         if (immediate) {
             flushEqSettingsPersistence(commit = false)
@@ -906,6 +908,7 @@ class PreferenceStore(context: Context) :
         playlists: List<Playlist>,
         nextPlaylistId: Long? = null,
     ) {
+        if (_userPlaylists.value == playlists && nextPlaylistId == null) return
         preferences.edit {
             putString(KEY_PLAYLISTS, serializePlaylists(playlists))
             nextPlaylistId?.let { putLong(KEY_NEXT_PLAYLIST_ID, it) }
@@ -918,6 +921,7 @@ class PreferenceStore(context: Context) :
         playlists: List<SmartPlaylist>,
         nextSmartPlaylistId: Long? = null,
     ) {
+        if (_userSmartPlaylists.value == playlists && nextSmartPlaylistId == null) return
         preferences.edit {
             putString(KEY_SMART_PLAYLISTS, serializeSmartPlaylists(playlists))
             nextSmartPlaylistId?.let { putLong(KEY_NEXT_SMART_PLAYLIST_ID, it) }
@@ -928,6 +932,7 @@ class PreferenceStore(context: Context) :
 
     private fun persistFavoriteSongIds(songIds: List<Long>) {
         val normalizedSongIds = normalizeFavoriteSongIds(songIds)
+        if (_favoriteSongIds.value == normalizedSongIds) return
         preferences.edit {
             putString(KEY_FAVORITE_SONG_IDS, normalizedSongIds.joinToString(","))
         }

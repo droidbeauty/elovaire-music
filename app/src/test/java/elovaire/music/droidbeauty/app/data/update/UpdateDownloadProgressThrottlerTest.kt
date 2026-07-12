@@ -17,4 +17,15 @@ class UpdateDownloadProgressThrottlerTest {
         assertTrue(throttler.shouldEmit(progress = 0.005f, nowMs = 150L))
         assertTrue(throttler.shouldEmit(progress = 1f, nowMs = 151L))
     }
+
+    @Test
+    fun ignoresRegressingProgressValues() {
+        val throttler = UpdateDownloadProgressThrottler(
+            minimumProgressDelta = 0.01f,
+            minimumIntervalMs = 150L,
+        )
+
+        assertTrue(throttler.shouldEmit(progress = 0.5f, nowMs = 0L))
+        assertFalse(throttler.shouldEmit(progress = 0.4f, nowMs = 500L))
+    }
 }

@@ -43,6 +43,20 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun tooManyTargetedPaths_fallsBackToFullFastScan() {
+        val requests = LibraryRefreshRequests()
+
+        requests.enqueue(
+            targetedPaths = (1..65).map { index -> "/music/$index.mp3" },
+        )
+
+        assertEquals(
+            LibraryRefreshRequest(forceMediaIndex = true),
+            requests.takePendingAfterScan(),
+        )
+    }
+
+    @Test
     fun clearIndexRefresh_keepsPendingMetadataEnrichmentOnly() {
         val requests = LibraryRefreshRequests()
         requests.enqueue(

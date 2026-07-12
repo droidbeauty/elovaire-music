@@ -820,6 +820,7 @@ internal class UpdateDownloadProgressThrottler(
         nowMs: Long,
     ): Boolean {
         val normalizedProgress = progress.coerceIn(0f, 1f)
+        if (normalizedProgress < lastProgress) return false
         if (normalizedProgress >= 1f || normalizedProgress - lastProgress >= minimumProgressDelta) {
             lastProgress = normalizedProgress
             lastUpdateMs = nowMs

@@ -7,35 +7,53 @@ internal data class LibraryRefreshRequest(
 ) {
     fun mergedWith(other: LibraryRefreshRequest): LibraryRefreshRequest {
         val force = forceMediaIndex || other.forceMediaIndex
+        val mergedPaths = if (force) {
+            emptyList()
+        } else {
+            (targetedPaths + other.targetedPaths)
+                .asSequence()
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .distinct()
+                .toList()
+        }
+        if (mergedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
+            return LibraryRefreshRequest(
+                forceMediaIndex = true,
+                enrichMetadata = enrichMetadata || other.enrichMetadata,
+            )
+        }
         return LibraryRefreshRequest(
             forceMediaIndex = force,
             enrichMetadata = enrichMetadata || other.enrichMetadata,
-            targetedPaths = if (force) {
-                emptyList()
-            } else {
-                (targetedPaths + other.targetedPaths)
-                    .asSequence()
-                    .map(String::trim)
-                    .filter(String::isNotBlank)
-                    .distinct()
-                    .toList()
-            },
+            targetedPaths = mergedPaths,
         )
     }
 
     fun normalized(): LibraryRefreshRequest {
+        val normalizedPaths = if (forceMediaIndex) {
+            emptyList()
+        } else {
+            targetedPaths
+                .asSequence()
+                .map(String::trim)
+                .filter(String::isNotBlank)
+                .distinct()
+                .toList()
+        }
+        if (normalizedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
+            return copy(
+                forceMediaIndex = true,
+                targetedPaths = emptyList(),
+            )
+        }
         return copy(
-            targetedPaths = if (forceMediaIndex) {
-                emptyList()
-            } else {
-                targetedPaths
-                    .asSequence()
-                    .map(String::trim)
-                    .filter(String::isNotBlank)
-                    .distinct()
-                    .toList()
-            },
+            targetedPaths = normalizedPaths,
         )
+    }
+
+    private companion object {
+        const val MAX_TARGETED_REFRESH_PATHS = 64
     }
 }
 
