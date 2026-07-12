@@ -5,6 +5,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 
 @SuppressLint("UnsafeOptInUsageError")
 internal class AppBridgeCoordinator(
@@ -20,11 +22,8 @@ internal class AppBridgeCoordinator(
         playback = services.playbackManager,
         effects = services.playbackEffectsController,
     )
-    private val librarySettingsBridge = LibrarySettingsBridge(
-        scope = bridgeScope,
-        preferenceStore = services.preferenceStore,
-        libraryRepository = services.libraryRepository,
-    )
+    private val preferences = services.preferenceStore
+    private val library = services.libraryRepository
     private val startupCoordinator = StartupCoordinator(services.appUpdateManager)
     private var started = false
     private var released = false
@@ -33,7 +32,9 @@ internal class AppBridgeCoordinator(
         if (started || released) return
         started = true
         playbackIntegration.start()
-        librarySettingsBridge.start()
+        bridgeScope.launch {
+            preferences.libraryFolders.collect(library::setLibraryFolders)
+        }
         startupCoordinator.start()
     }
 

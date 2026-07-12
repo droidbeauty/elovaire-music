@@ -31,19 +31,19 @@ class AppContainer(
         )
     }
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)
-    private val featureGraph = AppFeatureGraph(services, backgroundWorkPolicy)
+    private val dependencies = AppDependencies(services, backgroundWorkPolicy)
     val preferenceStore get() = services.preferenceStore
     internal val appUpdateManager get() = services.appUpdateManager
     val lyricsService get() = services.lyricsService
     internal val albumTagEditorService get() = services.albumTagEditorService
     val playbackManager get() = services.playbackManager
     val libraryRepository get() = services.libraryRepository
-    internal val rootReadDependencies get() = featureGraph.rootReadDependencies
-    internal val playbackActionDependencies get() = featureGraph.playbackActionDependencies
-    internal val libraryActionDependencies get() = featureGraph.libraryActionDependencies
-    internal val settingsActionDependencies get() = featureGraph.settingsActionDependencies
-    internal val playlistActionDependencies get() = featureGraph.playlistActionDependencies
-    internal val viewModelDependencies get() = featureGraph.viewModelDependencies
+    internal val rootReadDependencies get() = dependencies.rootReadDependencies
+    internal val playbackActionDependencies get() = dependencies.playbackActionDependencies
+    internal val libraryActionDependencies get() = dependencies.libraryActionDependencies
+    internal val settingsActionDependencies get() = dependencies.settingsActionDependencies
+    internal val playlistActionDependencies get() = dependencies.playlistActionDependencies
+    internal val viewModelDependencies get() = dependencies.viewModelDependencies
     private val notificationControllerHolder = NotificationControllerHolder {
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
         PlaybackNotificationController(
@@ -52,19 +52,13 @@ class AppContainer(
             scope = appScope,
         )
     }
-    private val lifecycleCoordinator = AppLifecycleCoordinator(
-        bridges = bridgeCoordinator,
-        notifications = notificationControllerHolder,
-        services = services,
-        runtimeScope = appRuntimeScope,
-        foregroundTracker = appForegroundTracker,
-    )
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
+    private val released = AtomicBoolean(false)
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
 
     init {
-        lifecycleCoordinator.start()
+        bridgeCoordinator.start()
     }
 
     fun setNotificationsEnabled(enabled: Boolean) {
@@ -88,8 +82,13 @@ class AppContainer(
     }
 
     fun release() {
+        if (!released.compareAndSet(false, true)) return
         openNowPlayingChannel.close()
-        lifecycleCoordinator.release()
+        bridgeCoordinator.release()
+        notificationControllerHolder.release()
+        services.release()
+        appRuntimeScope.close()
+        appForegroundTracker.close()
     }
 
     private fun notificationController(): PlaybackNotificationController {

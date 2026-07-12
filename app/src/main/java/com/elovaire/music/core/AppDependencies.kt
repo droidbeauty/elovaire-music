@@ -1,6 +1,6 @@
 package elovaire.music.droidbeauty.app.core
 
-internal class AppFeatureGraph(
+internal class AppDependencies(
     services: AppServices,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {

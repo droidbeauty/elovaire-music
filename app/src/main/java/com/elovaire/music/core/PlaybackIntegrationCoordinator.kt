@@ -33,12 +33,10 @@ internal class PlaybackIntegrationCoordinator(
         }
         scope.launch {
             preferences.gaplessPlaybackEnabled
-                .distinctUntilChanged()
                 .collect(playback::setGaplessPlaybackEnabled)
         }
         scope.launch {
             preferences.volumeNormalizationEnabled
-                .distinctUntilChanged()
                 .collect(playback::setVolumeNormalizationEnabled)
         }
         scope.launch {
