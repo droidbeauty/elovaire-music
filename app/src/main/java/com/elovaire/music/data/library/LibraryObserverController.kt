@@ -7,6 +7,8 @@ import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.provider.MediaStore
+import android.util.Log
+import elovaire.music.droidbeauty.app.BuildConfig
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -230,6 +232,17 @@ internal class LibraryObserverController(
                 .filter(File::isDirectory)
                 .map(File::getAbsolutePath)
                 .toList()
+            if (nextDirectories.size > MAX_RECURSIVE_DIRECTORY_OBSERVERS) {
+                if (lastTreeSignature != OBSERVER_BUDGET_EXCEEDED_SIGNATURE) {
+                    logDebug(
+                        "recursive observers disabled count=${nextDirectories.size} " +
+                            "limit=$MAX_RECURSIVE_DIRECTORY_OBSERVERS",
+                    )
+                }
+                lastTreeSignature = OBSERVER_BUDGET_EXCEEDED_SIGNATURE
+                stopWatching()
+                return
+            }
             val nextSignature = nextDirectories
                 .sorted()
                 .fold(17) { acc, path -> 31 * acc + path.hashCode() }
@@ -239,6 +252,7 @@ internal class LibraryObserverController(
             nextDirectories.forEach { path ->
                 observeDirectory(File(path))
             }
+            logDebug("recursive observers active count=${nextDirectories.size}")
         }
 
         private fun observeDirectory(directory: File) {
@@ -263,9 +277,16 @@ internal class LibraryObserverController(
             ?.absolutePath
     }
 
+    private fun logDebug(message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, message)
+    }
+
     private companion object {
+        const val TAG = "LibraryObserver"
         const val AUTO_REFRESH_DEBOUNCE_MS = 350L
         const val OBSERVED_PATH_COALESCE_WINDOW_MS = 900L
+        const val MAX_RECURSIVE_DIRECTORY_OBSERVERS = 512
+        const val OBSERVER_BUDGET_EXCEEDED_SIGNATURE = Int.MIN_VALUE
         const val OBSERVER_MASK =
             FileObserver.CREATE or
                 FileObserver.CLOSE_WRITE or

@@ -81,8 +81,12 @@ internal class LyricsRepository(
         if (!onlineLookupEnabled.value) return
         if (!isNetworkSuitableForPrefetch()) return
         val identity = song.toLyricsIdentity()
-        val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = false)
-        if (cachedResult is LyricsResult.Found || inFlightRequests.keys.any { it.identityPart() == identity.normalizedLookupKey }) {
+        val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = true)
+        if (
+            cachedResult != null ||
+            inFlightRequests.keys.any { it.identityPart() == identity.normalizedLookupKey } ||
+            inFlightRequests.keys.any { it.endsWith("${REQUEST_KEY_SEPARATOR}${LyricsLookupMode.FastPresenceCheck.name}") }
+        ) {
             return
         }
         serviceScope.launch {

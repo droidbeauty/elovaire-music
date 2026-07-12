@@ -13,7 +13,7 @@ class PlaybackProgressDemandControllerTest {
         controller.setActive(PlaybackProgressConsumer.CompactDock, true)
 
         assertTrue(controller.hasAnyDemand())
-        assertEquals(500L, controller.pollingIntervalMs())
+        assertEquals(1_000L, controller.pollingIntervalMs())
     }
 
     @Test
@@ -28,7 +28,7 @@ class PlaybackProgressDemandControllerTest {
         controller.setActive(PlaybackProgressConsumer.NowPlaying, false)
         controller.setActive(PlaybackProgressConsumer.SyncedLyrics, true)
 
-        assertEquals(250L, controller.pollingIntervalMs())
+        assertEquals(200L, controller.pollingIntervalMs())
     }
 
     @Test
@@ -38,7 +38,33 @@ class PlaybackProgressDemandControllerTest {
         controller.setActive(PlaybackProgressConsumer.CompactDock, true)
         controller.setActive(PlaybackProgressConsumer.Scrubbing, true)
 
-        assertEquals(120L, controller.pollingIntervalMs())
+        assertEquals(100L, controller.pollingIntervalMs())
+    }
+
+    @Test
+    fun pollingPolicy_prefersHighValueVisibleConsumers() {
+        assertEquals(
+            "scrubbing",
+            ProgressPollingPolicy.decide(
+                ProgressPollingPolicyInput(
+                    isScrubbing = true,
+                    nowPlayingVisible = true,
+                    compactDockVisible = true,
+                    syncedLyricsVisible = true,
+                ),
+            ).reason,
+        )
+        assertEquals(
+            1_000L,
+            ProgressPollingPolicy.decide(
+                ProgressPollingPolicyInput(
+                    isScrubbing = false,
+                    nowPlayingVisible = false,
+                    compactDockVisible = true,
+                    syncedLyricsVisible = false,
+                ),
+            ).intervalMs,
+        )
     }
 
     @Test

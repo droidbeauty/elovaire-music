@@ -21,6 +21,7 @@ import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
@@ -240,7 +242,7 @@ internal class NowPlayingViewModel(
                 )
             }
                 .distinctUntilChanged()
-                .collect { request ->
+                .collectLatest { request ->
                     lyricsService.cancelObsoleteRequests(
                         if (request.visible) {
                             listOf(
@@ -252,8 +254,9 @@ internal class NowPlayingViewModel(
                             emptyList()
                         },
                     )
-                    if (!request.visible) return@collect
+                    if (!request.visible) return@collectLatest
                     request.currentSong?.let(lyricsService::prefetchLyrics)
+                    delay(LYRICS_QUEUE_PREFETCH_STABILITY_DELAY_MS)
                     request.queue.getOrNull(request.currentIndex + 1)?.let(lyricsService::prefetchLyrics)
                     request.queue.getOrNull(request.currentIndex - 1)?.let(lyricsService::prefetchLyrics)
                 }
@@ -434,6 +437,7 @@ internal class NowPlayingViewModel(
 
     private companion object {
         const val LYRICS_SWITCH_GRACE_MS = 120L
+        const val LYRICS_QUEUE_PREFETCH_STABILITY_DELAY_MS = 450L
         const val TAG = "LyricsPipeline"
     }
 

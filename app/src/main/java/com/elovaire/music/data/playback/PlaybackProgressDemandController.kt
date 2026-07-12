@@ -24,16 +24,41 @@ internal class PlaybackProgressDemandController {
     fun hasAnyDemand(): Boolean = activeConsumers.isNotEmpty()
 
     fun pollingIntervalMs(): Long {
-        return when {
-            PlaybackProgressConsumer.Scrubbing in activeConsumers -> 120L
-            PlaybackProgressConsumer.NowPlaying in activeConsumers -> 250L
-            PlaybackProgressConsumer.SyncedLyrics in activeConsumers -> 250L
-            PlaybackProgressConsumer.CompactDock in activeConsumers -> 500L
-            else -> 1_000L
-        }
+        return ProgressPollingPolicy.decide(
+            ProgressPollingPolicyInput(
+                isScrubbing = PlaybackProgressConsumer.Scrubbing in activeConsumers,
+                nowPlayingVisible = PlaybackProgressConsumer.NowPlaying in activeConsumers,
+                compactDockVisible = PlaybackProgressConsumer.CompactDock in activeConsumers,
+                syncedLyricsVisible = PlaybackProgressConsumer.SyncedLyrics in activeConsumers,
+            ),
+        ).intervalMs
     }
 
     fun clear() {
         activeConsumers.clear()
+    }
+}
+
+internal data class ProgressPollingPolicyInput(
+    val isScrubbing: Boolean,
+    val nowPlayingVisible: Boolean,
+    val compactDockVisible: Boolean,
+    val syncedLyricsVisible: Boolean,
+)
+
+internal data class ProgressPollingDecision(
+    val intervalMs: Long,
+    val reason: String,
+)
+
+internal object ProgressPollingPolicy {
+    fun decide(input: ProgressPollingPolicyInput): ProgressPollingDecision {
+        return when {
+            input.isScrubbing -> ProgressPollingDecision(100L, "scrubbing")
+            input.syncedLyricsVisible -> ProgressPollingDecision(200L, "synced_lyrics")
+            input.nowPlayingVisible -> ProgressPollingDecision(250L, "now_playing")
+            input.compactDockVisible -> ProgressPollingDecision(1_000L, "compact_dock")
+            else -> ProgressPollingDecision(1_000L, "idle")
+        }
     }
 }

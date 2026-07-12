@@ -75,6 +75,7 @@ internal class AppUpdateManager(
     private var pendingAutomaticStartupCheck = false
     private var pendingInstallApk: File? = null
     private var resumeInstallAfterPermissionGrant = false
+    private var lastAutomaticCheckFailureElapsedMs: Long? = null
 
     init {
         scope.launch {
@@ -101,6 +102,10 @@ internal class AppUpdateManager(
     
         val automaticCheckStartedAtMs = if (!force) {
             val nowMs = System.currentTimeMillis()
+            val nowElapsedMs = SystemClock.elapsedRealtime()
+            lastAutomaticCheckFailureElapsedMs
+                ?.takeIf { nowElapsedMs - it < AUTOMATIC_CHECK_FAILURE_BACKOFF_MS }
+                ?.let { return }
             val elapsedMs = nowMs - preferenceStore.lastAutomaticUpdateCheckAtMs()
             if (elapsedMs in 0 until AUTOMATIC_CHECK_INTERVAL_MS) return
             nowMs
@@ -128,7 +133,10 @@ internal class AppUpdateManager(
                 if (throwable is CancellationException) throw throwable
             }
             if (automaticCheckStartedAtMs != null && latestReleaseResult.isSuccess) {
+                lastAutomaticCheckFailureElapsedMs = null
                 preferenceStore.setLastAutomaticUpdateCheckAtMs(automaticCheckStartedAtMs)
+            } else if (automaticCheckStartedAtMs != null) {
+                lastAutomaticCheckFailureElapsedMs = SystemClock.elapsedRealtime()
             }
             val latestRelease = latestReleaseResult.getOrNull()
             val shouldShow = latestRelease != null && (force || dismissedVersion != latestRelease.versionName)
@@ -266,8 +274,12 @@ internal class AppUpdateManager(
     }
 
     fun clearDownloadedInstallers() {
+        val keepPendingInstall = pendingInstallApk
+            ?.takeIf { resumeInstallAfterPermissionGrant || _uiState.value.installPermissionRequired || _uiState.value.isInstalling }
+            ?.canonicalFile
         runCatching {
             updatesDirectory().listFiles()?.forEach { file ->
+                if (keepPendingInstall != null && file.canonicalFile == keepPendingInstall) return@forEach
                 if (file.isFile && (
                         file.extension.equals("apk", ignoreCase = true) ||
                             file.extension.equals("part", ignoreCase = true)
@@ -277,14 +289,17 @@ internal class AppUpdateManager(
                 }
             }
         }
-        pendingInstallApk = null
-        resumeInstallAfterPermissionGrant = false
+        if (keepPendingInstall == null) {
+            pendingInstallApk = null
+            resumeInstallAfterPermissionGrant = false
+        }
     }
 
     override fun scheduleStartupMaintenance() {
         if (startupMaintenanceScheduled) return
         startupMaintenanceScheduled = true
         startupCleanupJob = scope.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(STARTUP_CLEANUP_DELAY_MS)
             clearDownloadedInstallers()
         }
         startupUpdateCheckJob = scope.launch {
@@ -796,6 +811,8 @@ internal class AppUpdateManager(
         const val RELEASES_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases"
         const val AUTOMATIC_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1_000L
         const val STARTUP_UPDATE_CHECK_DELAY_MS = 4_500L
+        const val STARTUP_CLEANUP_DELAY_MS = 8_000L
+        const val AUTOMATIC_CHECK_FAILURE_BACKOFF_MS = 30 * 60 * 1_000L
         const val NETWORK_TIMEOUT_MS = 12_000
         const val MAX_RELEASE_METADATA_BYTES = 1 * 1024 * 1024
         const val MAX_CHECKSUM_TEXT_CHARS = 64 * 1024
