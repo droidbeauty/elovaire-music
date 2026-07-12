@@ -56,8 +56,22 @@ internal class MediaFileMutationRunner(
         source: File,
     ) {
         requireWritable(uri)
+        val target = MediaWriteTargetClassifier.classify(appContext, uri)
+        if (target is MediaWriteTarget.FileUri) {
+            val destination = target.uri.path?.let(::File) ?: error("The file path is unavailable.")
+            FileInputStream(source).use { input ->
+                FileOutputStream(destination, false).use { output ->
+                    input.copyTo(output)
+                    output.fd.sync()
+                }
+            }
+            check(destination.length() == source.length()) { "Unable to replace the complete song file." }
+            return
+        }
         val descriptor = try {
             contentResolver.openFileDescriptor(uri, "rwt")
+        } catch (_: java.io.FileNotFoundException) {
+            contentResolver.openFileDescriptor(uri, "rw")
         } catch (_: IllegalArgumentException) {
             contentResolver.openFileDescriptor(uri, "rw")
         } ?: error("Unable to open the song for writing.")
@@ -77,6 +91,10 @@ internal class MediaFileMutationRunner(
                 }
                 output.force(true)
             }
+        }
+        val persistedSize = contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
+        check(persistedSize == null || persistedSize < 0L || persistedSize == source.length()) {
+            "Unable to replace the complete song file."
         }
     }
 }

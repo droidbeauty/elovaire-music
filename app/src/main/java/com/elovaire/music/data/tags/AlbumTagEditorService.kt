@@ -30,6 +30,7 @@ import elovaire.music.droidbeauty.app.data.tags.matching.TidalArtworkProvider
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
+import java.text.Normalizer
 import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
@@ -246,6 +247,8 @@ internal class AlbumTagEditorService(
             var tempFile: File? = null
             var backupFile: File? = null
             var persistedVerificationFile: File? = null
+            var phase = TagEditWritePhase.SourceRead
+            var rollbackFailed = false
             try {
                 mutationRunner.requireWritable(song.uri)
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
@@ -255,6 +258,7 @@ internal class AlbumTagEditorService(
                     originalBackup.copyTo(file, overwrite = true)
                 }
                 tempFile = workingFile
+                phase = TagEditWritePhase.TempWrite
                 updateTagFile(
                     tempFile = workingFile,
                     originalSong = song,
@@ -264,6 +268,7 @@ internal class AlbumTagEditorService(
                     coverArtMimeType = coverArtMimeType,
                 )
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
+                phase = TagEditWritePhase.TempVerification
                 val verificationFailures = verifyWrittenTags(
                     tempFile = workingFile,
                     expected = ExpectedTagValues(
@@ -295,13 +300,17 @@ internal class AlbumTagEditorService(
                     return@forEach
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
+                phase = TagEditWritePhase.OriginalOverwrite
                 try {
                     mutationRunner.overwriteOriginal(song.uri, tempFile)
                 } catch (writeFailure: Throwable) {
-                    runCatching { mutationRunner.overwriteOriginal(song.uri, originalBackup) }
+                    rollbackFailed = runCatching {
+                        mutationRunner.overwriteOriginal(song.uri, originalBackup)
+                    }.isFailure
                     throw writeFailure
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
+                phase = TagEditWritePhase.PersistedVerification
                 persistedVerificationFile = mutationRunner.copySongToTemp(song, "verify")
                 val persistedFailures = verifyWrittenTags(
                     tempFile = persistedVerificationFile,
@@ -325,7 +334,9 @@ internal class AlbumTagEditorService(
                     mutationId?.let {
                         mediaMutationJournal.mark(it, MediaMutationStatus.NeedsRepair, persistedFailures.joinToString())
                     }
-                    mutationRunner.overwriteOriginal(song.uri, originalBackup)
+                    rollbackFailed = runCatching {
+                        mutationRunner.overwriteOriginal(song.uri, originalBackup)
+                    }.isFailure
                     error("Persisted tag verification failed: ${persistedFailures.joinToString()}")
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
@@ -368,14 +379,24 @@ internal class AlbumTagEditorService(
                     },
                 )
             } catch (throwable: Throwable) {
+                val failureCause = if (rollbackFailed) TagEditFailureCause.RollbackFailed else phase.cause
+                val reason = if (rollbackFailed) {
+                    "The song could not be restored after the tag write failed."
+                } else {
+                    phase.userMessage
+                }
                 mutationId?.let {
-                    mediaMutationJournal.mark(it, MediaMutationStatus.Failed, throwable.message)
+                    mediaMutationJournal.mark(
+                        it,
+                        if (rollbackFailed) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Failed,
+                        "${phase.name}:${throwable.javaClass.simpleName}:${throwable.message.orEmpty()}",
+                    )
                 }
                 failures += TagEditFailure(
                     songId = song.id,
                     fileName = song.fileName,
-                    reason = throwable.message ?: "Unable to save tags.",
-                    cause = TagEditFailureCause.Unknown(throwable.message),
+                    reason = reason,
+                    cause = failureCause,
                 )
             } finally {
                 runCatching { tempFile?.delete() }
@@ -487,7 +508,7 @@ internal class AlbumTagEditorService(
             val normalizedExpected = expectedValue.orEmpty().trim()
             if (normalizedExpected.isBlank()) return
             val actual = tag.getFirst(field).orEmpty().trim()
-            if (actual != normalizedExpected) {
+            if (!tagValuesMatch(field, normalizedExpected, actual)) {
                 failures += "$label expected '$normalizedExpected' but was '$actual'"
             }
         }
@@ -517,6 +538,21 @@ internal class AlbumTagEditorService(
         }
         return failures
     }
+
+    private fun tagValuesMatch(field: FieldKey, expected: String, actual: String): Boolean {
+        if (field == FieldKey.TRACK || field == FieldKey.DISC_NO) {
+            return actual.substringBefore('/').trim().toIntOrNull() == expected.toIntOrNull()
+        }
+        if (field == FieldKey.YEAR) {
+            val expectedYear = YEAR_PATTERN.find(expected)?.value
+            val actualYear = YEAR_PATTERN.find(actual)?.value
+            return expectedYear != null && expectedYear == actualYear
+        }
+        return normalizeTagText(actual) == normalizeTagText(expected)
+    }
+
+    private fun normalizeTagText(value: String): String =
+        Normalizer.normalize(value.trim(), Normalizer.Form.NFC)
 
     private fun resolveFilePath(song: Song): String? {
         return contentResolver.queryMediaStoreFilePath(appContext, song.uri)
@@ -607,6 +643,7 @@ internal class AlbumTagEditorService(
     }
 
     private companion object {
+        val YEAR_PATTERN = Regex("""\b\d{4}\b""")
         const val TEMP_TAG_EDIT_DIR_NAME = "album-tag-edits"
         const val TAG = "AlbumTagEditor"
         const val MIN_RELEASE_YEAR = 1
@@ -618,4 +655,18 @@ internal class AlbumTagEditorService(
         if (!BuildConfig.DEBUG) return
         Log.d(TAG, message)
     }
+}
+
+private enum class TagEditWritePhase(
+    val cause: TagEditFailureCause,
+    val userMessage: String,
+) {
+    SourceRead(TagEditFailureCause.CannotOpenInput, "Unable to read this song for tag editing."),
+    TempWrite(TagEditFailureCause.TempWriteFailed, "Unable to write tags safely."),
+    TempVerification(TagEditFailureCause.TempVerificationFailed, "Changed tags could not be verified before saving."),
+    OriginalOverwrite(TagEditFailureCause.CannotOpenOutput, "Unable to save tags to the song file."),
+    PersistedVerification(
+        TagEditFailureCause.PersistedVerificationFailed,
+        "Changed tags could not be verified after saving.",
+    ),
 }

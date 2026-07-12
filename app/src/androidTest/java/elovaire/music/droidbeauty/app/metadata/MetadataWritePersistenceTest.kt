@@ -10,7 +10,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriter
 import elovaire.music.droidbeauty.app.data.lyrics.LocalLyricsResolver
-import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
@@ -47,12 +46,13 @@ class MetadataWritePersistenceTest {
         val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
 
         assertTrue(result is EmbeddedLyricsWriteResult.Success)
-        val persisted = LocalLyricsResolver(context)
-            .resolve(song)
-            ?.payload
-            ?.toEmbeddedLyricsText()
-            .orEmpty()
-        assertEquals(lyrics, persisted)
+        val persisted = LocalLyricsResolver(context).resolve(song)?.payload
+        assertTrue(persisted?.isSynced == true)
+        assertEquals(listOf(1_000L, 2_000L), persisted?.lines?.map { it.startTimeMs })
+        assertEquals(
+            listOf("Elovaire metadata write test", "Lyrics persisted line"),
+            persisted?.lines?.map { it.text },
+        )
     }
 
     @Test
@@ -63,12 +63,22 @@ class MetadataWritePersistenceTest {
         val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
 
         assertTrue(result is EmbeddedLyricsWriteResult.Success)
-        val persisted = LocalLyricsResolver(context)
-            .resolve(song)
-            ?.payload
-            ?.toEmbeddedLyricsText()
-            .orEmpty()
-        assertEquals(lyrics, persisted)
+        val persisted = LocalLyricsResolver(context).resolve(song)?.payload
+        assertTrue(persisted?.isSynced == true)
+        assertEquals(listOf(1_000L, 2_000L), persisted?.lines?.map { it.startTimeMs })
+    }
+
+    @Test
+    fun mediaStoreM4aPlainLyricsPersistInEmbeddedMetadata() {
+        val song = insertFixtureSong("write-fixture.m4a", id = 103L)
+        val lyrics = "Plain embedded lyrics\nSecond line"
+
+        val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
+
+        assertTrue(result is EmbeddedLyricsWriteResult.Success)
+        val persisted = LocalLyricsResolver(context).resolve(song)?.payload
+        assertTrue(persisted?.isSynced == false)
+        assertEquals(listOf("Plain embedded lyrics", "Second line"), persisted?.lines?.map { it.text })
     }
 
     @Test
@@ -105,11 +115,32 @@ class MetadataWritePersistenceTest {
         assertEquals("Persistence Genre", tag.getFirst(FieldKey.GENRE))
     }
 
+    @Test
+    fun mediaStoreM4aTagEditsPersistInEmbeddedMetadata() {
+        val song = insertFixtureSong("write-fixture.m4a", id = 203L)
+
+        val result = runBlocking { AlbumTagEditorService(context).applyEdits(editRequest(song)) }
+
+        assertTrue(result.failures.joinToString { it.reason }, result.failures.isEmpty())
+        assertEquals(listOf(song.id), result.editedSongIds)
+        val tag = persistedTag(song)
+        assertEquals("Persisted Track Title", tag.getFirst(FieldKey.TITLE))
+        assertEquals("Persisted Track Artist", tag.getFirst(FieldKey.ARTIST))
+        assertEquals("Persisted Album Title", tag.getFirst(FieldKey.ALBUM))
+        assertEquals("Persisted Album Artist", tag.getFirst(FieldKey.ALBUM_ARTIST))
+        assertEquals("2026", tag.getFirst(FieldKey.YEAR))
+        assertEquals("Persistence Genre", tag.getFirst(FieldKey.GENRE))
+    }
+
     private fun insertFixtureSong(
         assetName: String,
         id: Long,
     ): Song {
-        val mimeType = if (assetName.endsWith(".flac")) "audio/flac" else "audio/mpeg"
+        val mimeType = when {
+            assetName.endsWith(".flac") -> "audio/flac"
+            assetName.endsWith(".m4a") -> "audio/mp4"
+            else -> "audio/mpeg"
+        }
         val values = ContentValues().apply {
             put(MediaStore.Audio.Media.DISPLAY_NAME, "elovaire-$id-$assetName")
             put(MediaStore.Audio.Media.MIME_TYPE, mimeType)

@@ -18,8 +18,6 @@ import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import org.jaudiotagger.audio.AudioFileIO
-import org.jaudiotagger.tag.FieldKey
 
 internal enum class EmbeddedLyricsWriteFailure {
     UnsupportedFormat,
@@ -59,6 +57,12 @@ internal class EmbeddedLyricsWriter(
 
     private suspend fun writeLocked(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
         val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
+        val request = EmbeddedLyricsWriteRequest(
+            song = song,
+            rawLyrics = rawLyrics,
+            canonicalLyrics = lyrics,
+            tagKind = classifyLyricsTagKind(lyrics),
+        )
         val mutationId = mediaMutationJournal?.create(
             MediaMutationOperation(
                 type = MediaMutationType.EmbeddedLyricsWrite,
@@ -71,7 +75,9 @@ internal class EmbeddedLyricsWriter(
         val detectedFormat = song.fileName
             .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
             ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
-        if (AudioFormatPolicy.embeddedLyricsWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
+        val extension = song.fileName.substringAfterLast('.', "").lowercase()
+        val targetSupported = request.tagKind == EmbeddedLyricsTagKind.UnsyncedLyrics || extension in setOf("mp3", "flac")
+        if (!targetSupported || AudioFormatPolicy.embeddedLyricsWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
             trace(song, "unsupported_format")
             mutationId?.let {
                 mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported lyrics write format")
@@ -98,18 +104,12 @@ internal class EmbeddedLyricsWriter(
             workingFile = mutationRunner.createTempFile(song, "working").also { backupFile.copyTo(it, overwrite = true) }
 
             phase = LyricsWritePhase.TagCommit
-            trace(song, "tag_commit")
-            val audioFile = AudioFileIO.read(workingFile)
-            val tag = audioFile.tagOrCreateAndSetDefault
-            runCatching { tag.deleteField(FieldKey.LYRICS) }
-            if (lyrics.isNotBlank()) {
-                tag.setField(tag.createField(FieldKey.LYRICS, lyrics))
-            }
-            audioFile.commit()
+            trace(song, "tag_commit:${request.tagKind.name}")
+            EmbeddedLyricsMetadata.write(workingFile, request)
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
             phase = LyricsWritePhase.TempVerification
             trace(song, "temp_verify")
-            verifyLyrics(workingFile, lyrics)
+            verifyLyrics(workingFile, request)
             mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
 
             phase = LyricsWritePhase.OriginalOverwrite
@@ -126,7 +126,7 @@ internal class EmbeddedLyricsWriter(
             trace(song, "persisted_verify")
             persistedFile = mutationRunner.copySongToTemp(song, "verify")
             try {
-                verifyLyrics(persistedFile, lyrics)
+                verifyLyrics(persistedFile, request)
             } catch (throwable: Throwable) {
                 needsRepair = runCatching { mutationRunner.overwriteOriginal(song.uri, backupFile) }.isFailure
                 throw throwable
@@ -169,7 +169,7 @@ internal class EmbeddedLyricsWriter(
         }
     }
 
-    private fun verifyLyrics(file: File, expected: String) {
+    private fun verifyLyrics(file: File, request: EmbeddedLyricsWriteRequest) {
         val verificationSong = Song(
             id = Long.MIN_VALUE,
             title = file.nameWithoutExtension,
@@ -190,11 +190,19 @@ internal class EmbeddedLyricsWriter(
             uri = Uri.fromFile(file),
             artUri = null,
         )
-        val actual = localLyricsResolver.resolve(verificationSong)
-            ?.payload
-            ?.toEmbeddedLyricsText()
-            .orEmpty()
-        check(actual == expected.canonicalEmbeddedLyricsText()) { "Lyrics verification failed after writing metadata." }
+        val actualPayload = localLyricsResolver.resolve(verificationSong)?.payload
+        check(actualPayload != null) { "Lyrics verification failed after writing metadata." }
+        if (request.tagKind == EmbeddedLyricsTagKind.SyncedLyrics) {
+            val expectedPayload = parseLrcOrPlain(request.canonicalLyrics, providerName = null, confidence = 100)
+            check(actualPayload.isSynced && expectedPayload?.isSynced == true)
+            val actualLines = actualPayload.lines.map { it.startTimeMs to it.text.trim() }
+            val expectedLines = expectedPayload.lines.map { it.startTimeMs to it.text.trim() }
+            check(actualLines == expectedLines) { "Synchronized lyrics verification failed after writing metadata." }
+        } else {
+            check(actualPayload.toEmbeddedLyricsText() == request.canonicalLyrics) {
+                "Unsynchronized lyrics verification failed after writing metadata."
+            }
+        }
     }
 
     private fun trace(
@@ -205,8 +213,10 @@ internal class EmbeddedLyricsWriter(
         if (!BuildConfig.DEBUG) return
         Log.d(
             LOG_TAG,
-            "song=${song.id} scheme=${song.uri.scheme} extension=${song.fileName.substringAfterLast('.', "")} " +
-                "phase=$phase error=${throwable?.javaClass?.simpleName.orEmpty()}",
+            "song=${song.id} scheme=${song.uri.scheme} authority=${song.uri.authority.orEmpty()} " +
+                "extension=${song.fileName.substringAfterLast('.', "")} " +
+                "phase=$phase error=${throwable?.javaClass?.simpleName.orEmpty()} " +
+                "message=${throwable?.message.orEmpty()}",
         )
     }
 

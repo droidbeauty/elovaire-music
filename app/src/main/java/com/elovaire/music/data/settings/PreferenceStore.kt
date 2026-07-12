@@ -24,7 +24,6 @@ import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
-import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
@@ -167,7 +166,12 @@ class PreferenceStore(context: Context) :
         }
         if (_searchHistory.value == updated) return
         preferences.edit {
-            putString(KEY_SEARCH_HISTORY, updated.joinToString(RECORD_SEPARATOR) { it.serialize() })
+            putString(
+                KEY_SEARCH_HISTORY,
+                updated.joinToString(PreferenceCollectionCodec.RECORD_SEPARATOR) {
+                    PreferenceCollectionCodec.serializeSearchHistory(it)
+                },
+            )
         }
         _searchHistory.value = updated
     }
@@ -487,7 +491,12 @@ class PreferenceStore(context: Context) :
         val normalized = LibraryFolderSelectionResolver.normalize(selections)
         if (_libraryFolders.value == normalized) return
         preferences.edit {
-            putString(KEY_LIBRARY_FOLDERS, normalized.joinToString(RECORD_SEPARATOR) { it.serialize() })
+            putString(
+                KEY_LIBRARY_FOLDERS,
+                normalized.joinToString(PreferenceCollectionCodec.RECORD_SEPARATOR) {
+                    PreferenceCollectionCodec.serializeLibraryFolder(it)
+                },
+            )
         }
         _libraryFolders.value = normalized
     }
@@ -544,8 +553,8 @@ class PreferenceStore(context: Context) :
         playbackHistoryPersistJob?.cancel()
         playbackHistoryPersistJob = null
         preferences.edit(commit = commit) {
-            putString(KEY_ALBUM_PLAY_COUNTS, _albumPlayCounts.value.serializePlayCounts())
-            putString(KEY_SONG_PLAY_COUNTS, _songPlayCounts.value.serializePlayCounts())
+            putString(KEY_ALBUM_PLAY_COUNTS, PreferenceCollectionCodec.serializePlayCounts(_albumPlayCounts.value))
+            putString(KEY_SONG_PLAY_COUNTS, PreferenceCollectionCodec.serializePlayCounts(_songPlayCounts.value))
             putString(KEY_RECENT_SONG_IDS, _recentSongIds.value.joinToString(","))
             putString(KEY_RECENT_ALBUM_IDS, _recentAlbumIds.value.joinToString(","))
             putString(KEY_LAST_PLAYED_COLLECTION_KIND, _lastPlayedCollectionKind.value?.name)
@@ -735,8 +744,8 @@ class PreferenceStore(context: Context) :
         if (stored != null) {
             return stored
                 .takeIf { it.isNotBlank() }
-                ?.split(RECORD_SEPARATOR)
-                ?.mapNotNull { it.deserializeLibraryFolderSelection() }
+                ?.split(PreferenceCollectionCodec.RECORD_SEPARATOR)
+                ?.mapNotNull(PreferenceCollectionCodec::deserializeLibraryFolder)
                 ?.let(LibraryFolderSelectionResolver::normalize)
                 .orEmpty()
         }
@@ -759,15 +768,20 @@ class PreferenceStore(context: Context) :
         }
         val normalized = LibraryFolderSelectionResolver.normalize(listOf(migrated))
         preferences.edit {
-            putString(KEY_LIBRARY_FOLDERS, normalized.joinToString(RECORD_SEPARATOR) { it.serialize() })
+            putString(
+                KEY_LIBRARY_FOLDERS,
+                normalized.joinToString(PreferenceCollectionCodec.RECORD_SEPARATOR) {
+                    PreferenceCollectionCodec.serializeLibraryFolder(it)
+                },
+            )
         }
         return normalized
     }
 
     private fun loadSearchHistory(): List<SearchHistoryEntry> {
         return preferences.getString(KEY_SEARCH_HISTORY, null)
-            ?.split(RECORD_SEPARATOR)
-            ?.mapNotNull { it.deserializeSearchHistoryEntry() }
+            ?.split(PreferenceCollectionCodec.RECORD_SEPARATOR)
+            ?.mapNotNull(PreferenceCollectionCodec::deserializeSearchHistory)
             .orEmpty()
     }
 
@@ -816,14 +830,14 @@ class PreferenceStore(context: Context) :
     private fun loadAlbumPlayCounts(): Map<Long, Int> {
         return preferences.getString(KEY_ALBUM_PLAY_COUNTS, null)
             ?.takeIf { it.isNotBlank() }
-            ?.deserializePlayCounts()
+            ?.let(PreferenceCollectionCodec::deserializePlayCounts)
             .orEmpty()
     }
 
     private fun loadSongPlayCounts(): Map<Long, Int> {
         return preferences.getString(KEY_SONG_PLAY_COUNTS, null)
             ?.takeIf { it.isNotBlank() }
-            ?.deserializePlayCounts()
+            ?.let(PreferenceCollectionCodec::deserializePlayCounts)
             .orEmpty()
     }
 
@@ -852,56 +866,6 @@ class PreferenceStore(context: Context) :
         return preferences.takeIf { it.contains(KEY_LAST_PLAYED_COLLECTION_ID) }
             ?.getLong(KEY_LAST_PLAYED_COLLECTION_ID, -1L)
             ?.takeIf { it != 0L }
-    }
-
-    private fun SearchHistoryEntry.serialize(): String {
-        return listOf(
-            key,
-            kind.name,
-            title,
-            subtitle,
-            artUri?.toString().orEmpty(),
-            albumId?.toString().orEmpty(),
-            query.orEmpty(),
-        ).joinToString(FIELD_SEPARATOR)
-    }
-
-    private fun LibraryFolderSelection.serialize(): String {
-        return listOf(
-            uri?.toString().orEmpty(),
-            path,
-            displayName,
-            isDefaultMusicFolder.toString(),
-        ).joinToString(FIELD_SEPARATOR)
-    }
-
-    private fun String.deserializeLibraryFolderSelection(): LibraryFolderSelection? {
-        val parts = split(FIELD_SEPARATOR)
-        if (parts.size < 4) return null
-        val path = parts[1].trim()
-        val uri = parts[0].takeIf { it.isNotBlank() }?.let(Uri::parse)
-        if (path.isBlank() && uri == null) return null
-        return LibraryFolderSelection(
-            uri = uri,
-            path = path.ifBlank { uri.toString() },
-            displayName = parts[2].trim().ifBlank { "Library folder" },
-            isDefaultMusicFolder = parts[3].toBooleanStrictOrNull() == true,
-        )
-    }
-
-    private fun String.deserializeSearchHistoryEntry(): SearchHistoryEntry? {
-        val parts = split(FIELD_SEPARATOR)
-        if (parts.size < 7) return null
-        val kind = SearchHistoryKind.entries.firstOrNull { it.name == parts[1] } ?: return null
-        return SearchHistoryEntry(
-            key = parts[0],
-            kind = kind,
-            title = parts[2],
-            subtitle = parts[3],
-            artUri = parts[4].takeIf { it.isNotBlank() }?.let(Uri::parse),
-            albumId = parts[5].toLongOrNull(),
-            query = parts[6].takeIf { it.isNotBlank() },
-        )
     }
 
     private fun persistPlaylists(
@@ -952,21 +916,6 @@ class PreferenceStore(context: Context) :
         _userPlaylists.value = playlists
         _favoriteSongIds.value = normalizedFavoriteSongIds
         _playlists.value = assemblePlaylists(playlists, normalizedFavoriteSongIds)
-    }
-
-    private fun Map<Long, Int>.serializePlayCounts(): String {
-        return entries.joinToString(",") { "${it.key}:${it.value}" }
-    }
-
-    private fun String.deserializePlayCounts(): Map<Long, Int> {
-        return split(",")
-            .mapNotNull { entry ->
-                val parts = entry.split(":")
-                val id = parts.getOrNull(0)?.toLongOrNull() ?: return@mapNotNull null
-                val count = parts.getOrNull(1)?.toIntOrNull()?.coerceAtLeast(0) ?: return@mapNotNull null
-                id to count
-            }
-            .toMap()
     }
 
     private fun assemblePlaylists(
@@ -1025,8 +974,6 @@ class PreferenceStore(context: Context) :
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
         const val PLAYBACK_HISTORY_PERSIST_DEBOUNCE_MS = 350L
         const val EQ_SETTINGS_PERSIST_DEBOUNCE_MS = 120L
-        const val RECORD_SEPARATOR = "\u001E"
-        const val FIELD_SEPARATOR = "\u001F"
     }
 }
 

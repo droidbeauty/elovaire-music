@@ -1298,8 +1298,8 @@ class PlaybackManager(
     }
 
     private fun handleAudioFocusChange(focusChange: Int) {
-        when (focusChange) {
-            AudioManager.AUDIOFOCUS_GAIN -> {
+        when (AudioFocusStateMachine.actionFor(focusChange)) {
+            AudioFocusAction.Gain -> {
                 hasAudioFocus = true
                 pendingAutoResumeRetryJob?.cancel()
                 pendingAutoResumeRetryJob = null
@@ -1315,15 +1315,11 @@ class PlaybackManager(
                 }
             }
 
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+            AudioFocusAction.TransientLoss -> {
                 handleTransientFocusLoss()
             }
 
-            AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                handleTransientFocusLoss()
-            }
-
-            AudioManager.AUDIOFOCUS_LOSS -> {
+            AudioFocusAction.PermanentLoss -> {
                 val wasAudiblyPlaying = player.isPlaying ||
                     player.playWhenReady ||
                     _state.value.transportShowsPause
@@ -1341,6 +1337,8 @@ class PlaybackManager(
                 beginPauseFadeOut(PauseFadeReason.AudioInterruption)
                 abandonAudioFocus()
             }
+
+            AudioFocusAction.Ignore -> Unit
         }
     }
 

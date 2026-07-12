@@ -22,6 +22,18 @@ internal interface LibraryDao {
     @Query("SELECT * FROM media_mutations WHERE mutationId = :mutationId")
     suspend fun mutation(mutationId: String): LibraryMutationEntity?
 
+    @Query("SELECT * FROM songs WHERE songId = :songId AND removedAtMs IS NULL")
+    suspend fun songById(songId: Long): SongEntity?
+
+    @Query("SELECT * FROM songs WHERE uri = :uri AND removedAtMs IS NULL")
+    suspend fun songByUri(uri: String): SongEntity?
+
+    @Query("SELECT * FROM media_files WHERE stableFileKey = :stableFileKey")
+    suspend fun mediaFileByStableKey(stableFileKey: String): MediaFileEntity?
+
+    @Query("SELECT * FROM songs WHERE albumId = :albumId AND removedAtMs IS NULL ORDER BY discNumber, trackNumber, title")
+    suspend fun activeSongsForAlbum(albumId: Long): List<SongEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertScanGeneration(generation: LibraryScanGenerationEntity)
 
@@ -42,6 +54,33 @@ internal interface LibraryDao {
 
     @Query("UPDATE albums SET removedAtMs = :removedAtMs WHERE lastSeenGenerationId != :generationId AND removedAtMs IS NULL")
     suspend fun markAlbumsMissingFromGeneration(generationId: Long, removedAtMs: Long)
+
+    @Query("UPDATE songs SET removedAtMs = :removedAtMs WHERE songId IN (:songIds)")
+    suspend fun markSongsRemoved(songIds: Set<Long>, removedAtMs: Long)
+
+    @Query("UPDATE albums SET removedAtMs = :removedAtMs WHERE albumId IN (:albumIds)")
+    suspend fun markAlbumsRemoved(albumIds: Set<Long>, removedAtMs: Long)
+
+    @Transaction
+    suspend fun applyIncrementalUpdate(
+        songs: List<SongEntity>,
+        albums: List<AlbumEntity>,
+        files: List<MediaFileEntity>,
+    ) {
+        if (songs.isNotEmpty()) upsertSongs(songs)
+        if (albums.isNotEmpty()) upsertAlbums(albums)
+        if (files.isNotEmpty()) upsertMediaFiles(files)
+    }
+
+    @Transaction
+    suspend fun applyIncrementalRemoval(
+        songIds: Set<Long>,
+        albumIds: Set<Long>,
+        removedAtMs: Long,
+    ) {
+        if (songIds.isNotEmpty()) markSongsRemoved(songIds, removedAtMs)
+        if (albumIds.isNotEmpty()) markAlbumsRemoved(albumIds, removedAtMs)
+    }
 
     @Transaction
     suspend fun replaceGeneration(

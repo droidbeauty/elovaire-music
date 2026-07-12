@@ -1,5 +1,8 @@
 package elovaire.music.droidbeauty.app.data.library
 
+import elovaire.music.droidbeauty.app.core.BackendWorkCoordinator
+import elovaire.music.droidbeauty.app.core.BackendWorkRequest
+
 internal data class LibraryRefreshRequest(
     val forceMediaIndex: Boolean = false,
     val enrichMetadata: Boolean = false,
@@ -58,11 +61,10 @@ internal data class LibraryRefreshRequest(
 }
 
 internal class LibraryRefreshRequests {
-    private var pending: LibraryRefreshRequest? = null
+    private val coordinator = BackendWorkCoordinator()
 
     fun enqueue(request: LibraryRefreshRequest) {
-        val normalized = request.normalized()
-        pending = pending?.mergedWith(normalized) ?: normalized
+        coordinator.enqueue(BackendWorkRequest.LibraryRefresh(request))
     }
 
     fun enqueue(
@@ -80,25 +82,18 @@ internal class LibraryRefreshRequests {
     }
 
     fun takeForImmediateScan(request: LibraryRefreshRequest): LibraryRefreshRequest {
-        val merged = pending?.let(request::mergedWith) ?: request
-        pending = null
-        return merged.normalized()
+        return coordinator.takeLibraryRefresh(request) ?: request.normalized()
     }
 
     fun takePendingAfterScan(): LibraryRefreshRequest? {
-        val next = pending?.normalized()
-        pending = null
-        return next
+        return coordinator.takeLibraryRefresh()
     }
 
     fun clearIndexRefresh() {
-        pending = pending?.copy(
-            forceMediaIndex = false,
-            targetedPaths = emptyList(),
-        )?.takeIf { it.enrichMetadata }
+        coordinator.clearLibraryIndexRefresh()
     }
 
     fun clear() {
-        pending = null
+        coordinator.clear()
     }
 }

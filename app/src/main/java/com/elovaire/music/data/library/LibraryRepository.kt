@@ -346,7 +346,7 @@ class LibraryRepository internal constructor(
                             it.copy(
                                 isLoading = false,
                                 scanProgress = 0f,
-                                errorMessage = throwable.message ?: "Unable to scan local music.",
+                                errorMessage = throwable.toLibraryScanFailure("refresh").toUserMessage(),
                             )
                         }
                     }
@@ -490,8 +490,9 @@ class LibraryRepository internal constructor(
         val remainingSongs = _contentState.value.songs.filterNot { it.id in request.songIds }
         val updatedState = publishLibraryContent(remainingSongs)
         withContext(Dispatchers.IO) {
+            val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
             snapshotStore.save(
-                snapshot = snapshotPublisher.snapshotOf(updatedState),
+                snapshot = updatedSnapshot,
                 filterFingerprint = scanner.currentFilterFingerprint(),
                 syncState = scanner.currentSyncState(),
             )
@@ -502,6 +503,21 @@ class LibraryRepository internal constructor(
             scanner.findExistingSongIds(request.songIds)
         }
         val deletedSongIds = request.songIds - stillPresent
+        val affectedAlbumIds = current.songs
+            .asSequence()
+            .filter { it.id in deletedSongIds }
+            .map(Song::albumId)
+            .toSet()
+        val deletedAlbumIds = fullyDeletedAlbumIds.filterTo(linkedSetOf()) { albumId ->
+            updatedState.albums.none { it.id == albumId }
+        }
+        withContext(Dispatchers.IO) {
+            indexStore?.markRemoved(deletedSongIds, deletedAlbumIds)
+            indexStore?.applyChangedSongs(
+                songs = emptyList(),
+                albums = updatedState.albums.filter { it.id in affectedAlbumIds },
+            )
+        }
         deletionMarkers.confirmDeletedSongs(deletedSongIds)
         clearPendingDeletedSongs(request.songIds)
         clearPendingDeletedAlbums(fullyDeletedAlbumIds)
@@ -517,9 +533,7 @@ class LibraryRepository internal constructor(
         }
         return LibraryDeleteResult(
             deletedSongIds = deletedSongIds,
-            deletedAlbumIds = fullyDeletedAlbumIds.filterTo(linkedSetOf()) { albumId ->
-                updatedState.albums.none { it.id == albumId }
-            },
+            deletedAlbumIds = deletedAlbumIds,
             failed = stillPresent.map { songId ->
                 LibraryDeleteFailure(
                     songId = songId,
@@ -551,10 +565,16 @@ class LibraryRepository internal constructor(
             removingAlbumIds = current.removingAlbumIds,
         )
         withContext(Dispatchers.IO) {
+            val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
             snapshotStore.save(
-                snapshot = snapshotPublisher.snapshotOf(updatedState),
+                snapshot = updatedSnapshot,
                 filterFingerprint = scanner.currentFilterFingerprint(),
                 syncState = scanner.currentSyncState(),
+            )
+            val affectedAlbumIds = editedSongs.mapTo(hashSetOf(), Song::albumId)
+            indexStore?.applyChangedSongs(
+                songs = editedSongs,
+                albums = updatedSnapshot.albums.filter { it.id in affectedAlbumIds },
             )
         }
     }
