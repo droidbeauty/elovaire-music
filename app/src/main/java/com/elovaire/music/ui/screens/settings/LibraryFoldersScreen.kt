@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.activity.compose.BackHandler
-import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -61,6 +60,8 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
+import elovaire.music.droidbeauty.app.platform.takePersistableTreePermission
+import elovaire.music.droidbeauty.app.platform.releasePersistableTreePermission
 
 @Composable
 internal fun LibraryFoldersScreen(
@@ -85,12 +86,7 @@ internal fun LibraryFoldersScreen(
     }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        runCatching {
-            context.contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-        }
+        takePersistableTreePermission(context, uri)
         onAddFolder(uri)
     }
 
@@ -156,14 +152,7 @@ internal fun LibraryFoldersScreen(
                         onClick = {},
                         onLongClick = { editMode = true },
                         onRemove = {
-                            folder.uri?.let { uri ->
-                                runCatching {
-                                    context.contentResolver.releasePersistableUriPermission(
-                                        uri,
-                                        Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                                    )
-                                }
-                            }
+                            folder.uri?.let { uri -> releasePersistableTreePermission(context, uri) }
                             onRemoveFolder(folder)
                         },
                     )

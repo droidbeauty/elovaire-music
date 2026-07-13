@@ -21,6 +21,7 @@ import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -81,6 +82,7 @@ internal class NowPlayingViewModel(
     private val _lyricsEditorEvents = MutableSharedFlow<LyricsEditorEvent>(extraBufferCapacity = 1)
     val lyricsEditorEvents = _lyricsEditorEvents.asSharedFlow()
     private var pendingLyricsSave: PendingLyricsSave? = null
+    private var lyricsSaveJob: Job? = null
 
     val uiState: StateFlow<PlayerUiState> = combine(
         combine(
@@ -229,6 +231,21 @@ internal class NowPlayingViewModel(
 
     init {
         viewModelScope.launch {
+            playbackManager.nowPlayingState
+                .map { it.currentSong?.id }
+                .distinctUntilChanged()
+                .collect { currentSongId ->
+                    val pending = pendingLyricsSave ?: return@collect
+                    if (pending.song.id == currentSongId) return@collect
+                    lyricsSaveJob?.cancel()
+                    lyricsSaveJob = null
+                    pendingLyricsSave = null
+                    _lyricsEditorUiState.value = LyricsEditorUiState(
+                        savedRevision = _lyricsEditorUiState.value.savedRevision,
+                    )
+                }
+        }
+        viewModelScope.launch {
             combine(
                 lyricsVisible,
                 playbackManager.nowPlayingState,
@@ -319,7 +336,7 @@ internal class NowPlayingViewModel(
             isSaving = true,
             errorMessage = null,
         )
-        viewModelScope.launch {
+        lyricsSaveJob = viewModelScope.launch {
             when (val result = lyricsService.saveEmbeddedLyrics(pending.song, pending.lyrics)) {
                 is EmbeddedLyricsWriteResult.Success -> {
                     pendingLyricsSave = null
@@ -352,6 +369,7 @@ internal class NowPlayingViewModel(
                 }
 
                 is EmbeddedLyricsWriteResult.Failure -> {
+                    pendingLyricsSave = null
                     _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
                         isSaving = false,
                         errorMessage = result.reason,

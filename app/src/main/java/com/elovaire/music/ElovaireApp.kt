@@ -13,7 +13,7 @@ class ElovaireApp : Application() {
         super.onCreate()
         PlatformCompatibilityGuard.install()
         container = ElovaireTrace.section("app_container_create") {
-            AppContainer(this)
+            AppContainer(this).also(AppContainer::start)
         }
     }
 

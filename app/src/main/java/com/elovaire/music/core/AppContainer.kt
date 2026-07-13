@@ -54,10 +54,12 @@ class AppContainer(
     }
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
+    private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
 
-    init {
+    fun start() {
+        if (released.get() || !started.compareAndSet(false, true)) return
         bridgeCoordinator.start()
     }
 
@@ -83,6 +85,7 @@ class AppContainer(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
+        started.set(false)
         openNowPlayingChannel.close()
         bridgeCoordinator.release()
         notificationControllerHolder.release()

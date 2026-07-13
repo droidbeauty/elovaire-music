@@ -13,6 +13,7 @@ import java.io.File
 import java.security.MessageDigest
 import java.util.ArrayDeque
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
@@ -162,7 +163,7 @@ internal class SafTreeLibraryScanner(
         documentId: String,
     ): List<SafDocument> {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
-        return runCatching {
+        return try {
             context.contentResolver.query(
                 childrenUri,
                 DOCUMENT_PROJECTION,
@@ -200,11 +201,15 @@ internal class SafTreeLibraryScanner(
                     }
                 }
             }.orEmpty()
-        }.getOrDefault(emptyList())
+        } catch (throwable: CancellationException) {
+            throw throwable
+        } catch (_: Exception) {
+            emptyList()
+        }
     }
 
     private fun readMetadata(uri: Uri): SafMetadata {
-        return runCatching {
+        return try {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, uri)
@@ -234,7 +239,11 @@ internal class SafTreeLibraryScanner(
             } finally {
                 runCatching { retriever.release() }
             }
-        }.getOrDefault(SafMetadata())
+        } catch (throwable: CancellationException) {
+            throw throwable
+        } catch (_: Exception) {
+            SafMetadata()
+        }
     }
 
     private fun MediaMetadataRetriever.metadata(keyCode: Int): String? {

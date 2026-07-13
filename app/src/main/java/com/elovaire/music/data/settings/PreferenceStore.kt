@@ -300,7 +300,7 @@ class PreferenceStore(context: Context) :
     }
 
     override fun toggleFavoriteSong(songId: Long) {
-        if (songId <= 0L) return
+        if (songId == 0L) return
         val updated = if (songId in _favoriteSongIds.value) {
             _favoriteSongIds.value.filterNot { it == songId }
         } else {
@@ -982,5 +982,5 @@ internal fun incrementPlayCount(current: Int?): Int {
 }
 
 internal fun normalizeFavoriteSongIds(songIds: Iterable<Long>): List<Long> {
-    return songIds.asSequence().filter { it > 0L }.distinct().toList()
+    return songIds.asSequence().filter { it != 0L }.distinct().toList()
 }

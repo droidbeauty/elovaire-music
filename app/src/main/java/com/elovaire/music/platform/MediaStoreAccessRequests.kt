@@ -1,11 +1,11 @@
 package elovaire.music.droidbeauty.app.platform
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.activity.result.IntentSenderRequest
-import java.io.File
 
 internal sealed interface MediaWriteTarget {
     val uri: Uri
@@ -74,20 +74,6 @@ internal object MediaWriteTargetClassifier {
             .map(MediaWriteTarget.MediaStoreItem::uri)
     }
 
-    fun isWritableWithoutMediaStoreApproval(
-        context: Context,
-        uri: Uri,
-    ): Boolean {
-        return when (classify(context, uri)) {
-            is MediaWriteTarget.FileUri -> uri.path?.let { File(it).canWrite() } == true
-            is MediaWriteTarget.SafDocument -> runCatching {
-                context.contentResolver.openFileDescriptor(uri, "rw")?.use { true } == true
-            }.getOrDefault(false)
-            is MediaWriteTarget.MediaStoreItem -> true
-            is MediaWriteTarget.Unsupported -> false
-        }
-    }
-
     private fun isSafDocumentUri(
         authority: String?,
         pathSegments: List<String>,
@@ -120,6 +106,36 @@ internal fun mediaStoreDeleteRequest(
     return IntentSenderRequest.Builder(
         MediaStore.createDeleteRequest(context.contentResolver, requestUris).intentSender,
     ).build()
+}
+
+internal fun takePersistableTreePermission(
+    context: Context,
+    uri: Uri,
+): Boolean {
+    val resolver = context.contentResolver
+    val read = Intent.FLAG_GRANT_READ_URI_PERMISSION
+    return runCatching {
+        resolver.takePersistableUriPermission(uri, read or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
+    }.recoverCatching {
+        resolver.takePersistableUriPermission(uri, read)
+    }.isSuccess
+}
+
+internal fun releasePersistableTreePermission(
+    context: Context,
+    uri: Uri,
+): Boolean {
+    val resolver = context.contentResolver
+    val permission = runCatching {
+        resolver.persistedUriPermissions.firstOrNull { it.uri == uri }
+    }.getOrNull() ?: return true
+    var flags = 0
+    if (permission.isReadPermission) flags = flags or Intent.FLAG_GRANT_READ_URI_PERMISSION
+    if (permission.isWritePermission) flags = flags or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+    if (flags == 0) return true
+    return runCatching {
+        resolver.releasePersistableUriPermission(uri, flags)
+    }.isSuccess
 }
 
 internal fun Uri.isContentUri(): Boolean {

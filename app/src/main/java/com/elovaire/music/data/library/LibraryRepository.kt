@@ -138,6 +138,7 @@ class LibraryRepository internal constructor(
 
     fun onPermissionChanged(granted: Boolean) {
         if (released.get()) return
+        if (_scanState.value.permissionGranted == granted) return
         permissionChangeVersion += 1L
         _scanState.update { current ->
             current.copy(permissionGranted = granted, errorMessage = if (granted) current.errorMessage else null)
@@ -150,6 +151,7 @@ class LibraryRepository internal constructor(
             _runtimeState.value = LibraryRuntimeState.NoPermission
             didBootstrapLibrary = false
             releaseObserversAndJobs(clearPermissionState = false)
+            _scanState.value = LibraryScanState(permissionGranted = false)
         }
     }
 

@@ -36,17 +36,25 @@ internal class MediaFileMutationRunner(
         purpose: String,
     ): File {
         val destination = createTempFile(song, purpose)
-        contentResolver.openInputStream(song.uri)?.use { input ->
-            destination.outputStream().use(input::copyTo)
-        } ?: error("Unable to open ${song.fileName}")
-        return destination
+        var complete = false
+        try {
+            contentResolver.openInputStream(song.uri)?.use { input ->
+                destination.outputStream().use(input::copyTo)
+            } ?: error("Unable to open ${song.fileName}")
+            check(destination.length() > 0L) { "The song file is empty." }
+            complete = true
+            return destination
+        } finally {
+            if (!complete) destination.delete()
+        }
     }
 
     fun createTempFile(
         song: Song,
         purpose: String,
     ): File {
-        val directory = File(appContext.cacheDir, tempDirectoryName).apply { mkdirs() }
+        val directory = File(appContext.cacheDir, tempDirectoryName)
+        check(directory.isDirectory || directory.mkdirs()) { "Unable to create the metadata edit directory." }
         val extension = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
         return File(directory, "${song.id}-$purpose-${System.nanoTime()}.$extension")
     }
@@ -55,8 +63,9 @@ internal class MediaFileMutationRunner(
         uri: Uri,
         source: File,
     ) {
-        requireWritable(uri)
+        check(source.isFile && source.length() > 0L) { "The replacement song file is empty." }
         val target = MediaWriteTargetClassifier.classify(appContext, uri)
+        if (target is MediaWriteTarget.Unsupported) error(target.reason)
         if (target is MediaWriteTarget.FileUri) {
             val destination = target.uri.path?.let(::File) ?: error("The file path is unavailable.")
             FileInputStream(source).use { input ->
@@ -73,6 +82,8 @@ internal class MediaFileMutationRunner(
         } catch (_: java.io.FileNotFoundException) {
             contentResolver.openFileDescriptor(uri, "rw")
         } catch (_: IllegalArgumentException) {
+            contentResolver.openFileDescriptor(uri, "rw")
+        } catch (_: UnsupportedOperationException) {
             contentResolver.openFileDescriptor(uri, "rw")
         } ?: error("Unable to open the song for writing.")
 

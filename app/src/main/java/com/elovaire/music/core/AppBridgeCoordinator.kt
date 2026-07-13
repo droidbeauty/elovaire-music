@@ -24,7 +24,7 @@ internal class AppBridgeCoordinator(
     )
     private val preferences = services.preferenceStore
     private val library = services.libraryRepository
-    private val startupCoordinator = StartupCoordinator(services.appUpdateManager)
+    private val appUpdateManager = services.appUpdateManager
     private var started = false
     private var released = false
 
@@ -35,12 +35,11 @@ internal class AppBridgeCoordinator(
         bridgeScope.launch {
             preferences.libraryFolders.collect(library::setLibraryFolders)
         }
-        startupCoordinator.start()
     }
 
     fun scheduleDeferredStartupWork() {
         if (!started) return
-        startupCoordinator.scheduleDeferredStartupWork()
+        appUpdateManager.scheduleStartupMaintenance()
     }
 
     fun release() {

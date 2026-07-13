@@ -227,7 +227,6 @@ dependencies {
     implementation(libs.androidx.metrics.performance)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
-    implementation(libs.androidx.work.runtime.ktx)
     implementation(libs.haze)
     implementation(libs.jaudiotagger)
     ksp(libs.androidx.room.compiler)

@@ -29,9 +29,11 @@ internal class LibraryObserverController(
     private var mediaObserverRegistered = false
     private var libraryFolderObservers: List<RecursiveMusicDirectoryObserver> = emptyList()
     private var observerRebuildJob: Job? = null
+    @Volatile
     private var directoryObserversEnabled = false
     private val recentObservedPaths = linkedMapOf<String, Long>()
     private val recentObservedPathsLock = Any()
+    @Volatile
     private var suppressObserverRefreshUntilMs = 0L
 
     private val mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
@@ -62,7 +64,9 @@ internal class LibraryObserverController(
     fun release() {
         observerRebuildJob?.cancel()
         observerRebuildJob = null
-        recentObservedPaths.clear()
+        synchronized(recentObservedPathsLock) {
+            recentObservedPaths.clear()
+        }
         suppressObserverRefreshUntilMs = 0L
         releaseLibraryFolderObservers()
         unregisterMediaObserver()

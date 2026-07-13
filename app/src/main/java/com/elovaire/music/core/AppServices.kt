@@ -1,11 +1,26 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.content.Context
+import androidx.annotation.OptIn
+import androidx.media3.common.util.UnstableApi
+import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
+import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
+import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
+import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
+import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
+import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
+import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
+import elovaire.music.droidbeauty.app.data.update.UpdateController
 import kotlinx.coroutines.CoroutineScope
 import java.util.concurrent.atomic.AtomicBoolean
 
+@OptIn(UnstableApi::class)
 internal class AppServices(
     applicationContext: Context,
     appScope: CoroutineScope,
@@ -14,53 +29,59 @@ internal class AppServices(
     private val released = AtomicBoolean(false)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
-    private val settingsComponent = SettingsComponent(applicationContext)
-    private val updateComponent = UpdateComponent(
+    val preferenceStore = PreferenceStore(applicationContext)
+    val appUpdateManager: UpdateController = AppUpdateManager(
         context = applicationContext,
         scope = appScope,
         preferenceStore = preferenceStore,
         backgroundWorkPolicy = backgroundWorkPolicy,
     )
-    private val lyricsComponent = LyricsComponent(
+    val lyricsService = LyricsService(
         context = applicationContext,
-        preferenceStore = preferenceStore,
+        onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
         backgroundWorkPolicy = backgroundWorkPolicy,
         mediaMutationJournal = mediaMutationJournal,
     )
-    private val tagEditingComponent = TagEditingComponent(applicationContext, mediaMutationJournal)
-    private val playbackComponent = PlaybackComponent(
-        context = applicationContext,
-        scope = appScope,
-        preferenceStore = preferenceStore,
+    val albumTagEditorService = AlbumTagEditorService(
+        applicationContext,
+        mediaMutationJournal = mediaMutationJournal,
     )
-    private val libraryComponent = LibraryComponent(
+    val playbackEffectsController = PlaybackEffectsController()
+    val playbackManager = PlaybackManager(
         context = applicationContext,
-        database = database,
         scope = appScope,
-        preferenceStore = preferenceStore,
+        audioProcessorsProvider = playbackEffectsController::audioProcessors,
+        hasSignalAlteringEffects = playbackEffectsController::hasSignalAlteringEffects,
+        initialRecentSongIds = preferenceStore.recentSongIds.value,
+        initialRecentAlbumIds = preferenceStore.recentAlbumIds.value,
+        initialLastPlayedCollectionKind = preferenceStore.lastPlayedCollectionKind.value,
+        initialLastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
+        onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
+    )
+    val libraryRepository = LibraryRepository(
+        appContext = applicationContext,
+        scanner = MediaStoreScanner(applicationContext),
+        scope = appScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
-    )
-    private val mediaLibraryComponent = MediaLibraryComponent(
-        libraryRepository = libraryRepository,
-        preferenceStore = preferenceStore,
-        playbackManager = playbackManager,
-    )
+        indexStore = LibraryIndexStore(database.libraryDao()),
+    ).also { it.setLibraryFolders(preferenceStore.libraryFolders.value) }
 
-    val preferenceStore get() = settingsComponent.preferenceStore
-    val appUpdateManager get() = updateComponent.appUpdateManager
-    val lyricsService get() = lyricsComponent.lyricsService
-    val albumTagEditorService get() = tagEditingComponent.albumTagEditorService
-    val playbackEffectsController get() = playbackComponent.playbackEffectsController
-    val playbackManager get() = playbackComponent.playbackManager
-    val libraryRepository get() = libraryComponent.libraryRepository
+    init {
+        playbackManager.setMediaLibrarySessionCallback(
+            ElovaireMediaLibrarySessionCallback(
+                mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore),
+                playbackManager = playbackManager,
+            ),
+        )
+    }
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        playbackComponent.release()
-        libraryComponent.release()
-        lyricsComponent.release()
-        updateComponent.release()
-        settingsComponent.release()
+        playbackManager.release()
+        libraryRepository.release()
+        lyricsService.release()
+        appUpdateManager.release()
+        preferenceStore.release()
         database.close()
     }
 }

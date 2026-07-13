@@ -13,9 +13,9 @@ class PreferenceStorePolicyTest {
     }
 
     @Test
-    fun normalizeFavoriteSongIds_dropsInvalidIdsAndKeepsOrder() {
+    fun normalizeFavoriteSongIds_keepsSafIdsAndDropsZero() {
         assertEquals(
-            listOf(8L, 3L),
+            listOf(-1L, 8L, 3L),
             normalizeFavoriteSongIds(listOf(0L, -1L, 8L, 3L, 8L, 0L)),
         )
     }
