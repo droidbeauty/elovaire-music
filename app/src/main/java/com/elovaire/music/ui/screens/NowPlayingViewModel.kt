@@ -232,14 +232,14 @@ internal class NowPlayingViewModel(
     init {
         viewModelScope.launch {
             playbackManager.nowPlayingState
-                .map { it.currentSong?.id }
+                .map { state -> state.currentSong?.let { it.id to it.uri } }
                 .distinctUntilChanged()
-                .collect { currentSongId ->
+                .collect { currentSongIdentity ->
                     val pending = pendingLyricsSave ?: return@collect
-                    if (pending.song.id == currentSongId) return@collect
-                    lyricsSaveJob?.cancel()
-                    lyricsSaveJob = null
-                    pendingLyricsSave = null
+                    if ((pending.song.id to pending.song.uri) == currentSongIdentity) return@collect
+                    if (lyricsSaveJob?.isActive != true) {
+                        pendingLyricsSave = null
+                    }
                     _lyricsEditorUiState.value = LyricsEditorUiState(
                         savedRevision = _lyricsEditorUiState.value.savedRevision,
                     )
@@ -337,7 +337,13 @@ internal class NowPlayingViewModel(
             errorMessage = null,
         )
         lyricsSaveJob = viewModelScope.launch {
-            when (val result = lyricsService.saveEmbeddedLyrics(pending.song, pending.lyrics)) {
+            val result = lyricsService.saveEmbeddedLyrics(pending.song, pending.lyrics)
+            val currentSong = playbackManager.nowPlayingState.value.currentSong
+            if (currentSong?.id != pending.song.id || currentSong.uri != pending.song.uri) {
+                if (pendingLyricsSave == pending) pendingLyricsSave = null
+                return@launch
+            }
+            when (result) {
                 is EmbeddedLyricsWriteResult.Success -> {
                     pendingLyricsSave = null
                     val displayPayload = result.payload.toDisplayPayload()

@@ -19,6 +19,7 @@ class LyricsService internal constructor(
     onlineLookupEnabled: StateFlow<Boolean>,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
     mediaMutationJournal: MediaMutationJournal? = null,
+    private val onEmbeddedLyricsChanged: (Song) -> Unit = {},
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val embeddedLyricsWriter = EmbeddedLyricsWriter(context.applicationContext, mediaMutationJournal)
@@ -47,6 +48,7 @@ class LyricsService internal constructor(
         embeddedLyricsWriter.write(song, lyrics).also { result ->
             if (result is EmbeddedLyricsWriteResult.Success) {
                 repository.clearCacheFor(song)
+                onEmbeddedLyricsChanged(song)
             }
         }
     }

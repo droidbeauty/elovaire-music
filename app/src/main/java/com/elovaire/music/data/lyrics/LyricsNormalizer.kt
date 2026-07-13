@@ -17,10 +17,11 @@ internal fun Song.toLyricsIdentity(): LyricsIdentity {
     ).joinToString("::")
 
     val cacheKeys = buildList {
-        add(normalizedLookupKey)
         val metadataSignature = "$normalizedArtist::$normalizedTitle::$durationBucketSeconds"
-        if (id > 0L) add("media::$id::$metadataSignature")
-        uri.toString().takeIf { it.isNotBlank() }?.let { add("uri::${it.hashCode()}::$metadataSignature") }
+        val sourceRevision = dateModifiedSeconds?.coerceAtLeast(0L) ?: 0L
+        uri.toString().takeIf { it.isNotBlank() }?.let { add("uri::$it::$sourceRevision::$metadataSignature") }
+        if (id > 0L) add("media::$id::$sourceRevision::$metadataSignature")
+        add(normalizedLookupKey)
     }.distinct()
 
     return LyricsIdentity(

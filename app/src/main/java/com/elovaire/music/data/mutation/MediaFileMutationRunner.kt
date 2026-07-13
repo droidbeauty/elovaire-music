@@ -9,6 +9,8 @@ import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.InputStream
+import java.security.MessageDigest
 
 internal class MediaFileMutationRunner(
     context: Context,
@@ -107,5 +109,30 @@ internal class MediaFileMutationRunner(
         check(persistedSize == null || persistedSize < 0L || persistedSize == source.length()) {
             "Unable to replace the complete song file."
         }
+    }
+
+    fun verifyOriginalBytes(
+        uri: Uri,
+        expected: File,
+    ) {
+        val actualDigest = contentResolver.openInputStream(uri)?.use(::sha256)
+            ?: error("Unable to verify the restored song.")
+        val expectedDigest = expected.inputStream().use(::sha256)
+        check(actualDigest.contentEquals(expectedDigest)) { "The restored song does not match the backup." }
+    }
+
+    private fun sha256(input: InputStream): ByteArray {
+        val digest = MessageDigest.getInstance("SHA-256")
+        val buffer = ByteArray(COMPARE_BUFFER_SIZE)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            if (count > 0) digest.update(buffer, 0, count)
+        }
+        return digest.digest()
+    }
+
+    private companion object {
+        const val COMPARE_BUFFER_SIZE = 64 * 1024
     }
 }

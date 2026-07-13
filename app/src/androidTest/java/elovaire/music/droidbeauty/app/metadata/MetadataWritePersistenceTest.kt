@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriter
+import elovaire.music.droidbeauty.app.data.lyrics.AudioFileLyricsInspection
 import elovaire.music.droidbeauty.app.data.lyrics.LocalLyricsResolver
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
@@ -41,6 +42,14 @@ class MetadataWritePersistenceTest {
     @Test
     fun mediaStoreMp3LyricsPersistInEmbeddedMetadata() {
         val song = insertFixtureSong("write-fixture.mp3", id = 101L)
+        val plainLyrics = "Plain embedded lyrics\nSecond line"
+        val plainResult = runBlocking { EmbeddedLyricsWriter(context).write(song, plainLyrics) }
+        assertTrue(plainResult is EmbeddedLyricsWriteResult.Success)
+        assertEquals(
+            listOf(plainLyrics),
+            AudioFileLyricsInspection.inspect(copyPersistedToTemp(song)).unsynced,
+        )
+
         val lyrics = "[00:01.00]Elovaire metadata write test\n[00:02.00]Lyrics persisted line"
 
         val result = runBlocking { EmbeddedLyricsWriter(context).write(song, lyrics) }
@@ -53,6 +62,9 @@ class MetadataWritePersistenceTest {
             listOf("Elovaire metadata write test", "Lyrics persisted line"),
             persisted?.lines?.map { it.text },
         )
+        val raw = AudioFileLyricsInspection.inspect(copyPersistedToTemp(song))
+        assertEquals(listOf(1_000L, 2_000L), raw.synced.single().map { it.startTimeMs })
+        assertTrue(raw.unsynced.isEmpty())
     }
 
     @Test
@@ -66,6 +78,9 @@ class MetadataWritePersistenceTest {
         val persisted = LocalLyricsResolver(context).resolve(song)?.payload
         assertTrue(persisted?.isSynced == true)
         assertEquals(listOf(1_000L, 2_000L), persisted?.lines?.map { it.startTimeMs })
+        val raw = AudioFileLyricsInspection.inspect(copyPersistedToTemp(song))
+        assertEquals(listOf(1_000L, 2_000L), raw.synced.single().map { it.startTimeMs })
+        assertTrue(raw.unsynced.isEmpty())
     }
 
     @Test
@@ -79,6 +94,7 @@ class MetadataWritePersistenceTest {
         val persisted = LocalLyricsResolver(context).resolve(song)?.payload
         assertTrue(persisted?.isSynced == false)
         assertEquals(listOf("Plain embedded lyrics", "Second line"), persisted?.lines?.map { it.text })
+        assertEquals(listOf(lyrics), AudioFileLyricsInspection.inspect(copyPersistedToTemp(song)).unsynced)
     }
 
     @Test

@@ -18,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(UnstableApi::class)
@@ -35,12 +36,6 @@ internal class AppServices(
         scope = appScope,
         preferenceStore = preferenceStore,
         backgroundWorkPolicy = backgroundWorkPolicy,
-    )
-    val lyricsService = LyricsService(
-        context = applicationContext,
-        onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
-        backgroundWorkPolicy = backgroundWorkPolicy,
-        mediaMutationJournal = mediaMutationJournal,
     )
     val albumTagEditorService = AlbumTagEditorService(
         applicationContext,
@@ -65,6 +60,25 @@ internal class AppServices(
         backgroundWorkPolicy = backgroundWorkPolicy,
         indexStore = LibraryIndexStore(database.libraryDao()),
     ).also { it.setLibraryFolders(preferenceStore.libraryFolders.value) }
+    val lyricsService = LyricsService(
+        context = applicationContext,
+        onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
+        backgroundWorkPolicy = backgroundWorkPolicy,
+        mediaMutationJournal = mediaMutationJournal,
+        onEmbeddedLyricsChanged = { song ->
+            appScope.launch {
+                song.libraryPath
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { path ->
+                        libraryRepository.refreshChangedFiles(
+                            filePaths = listOf(path),
+                            songIds = listOf(song.id),
+                            enrichMetadata = false,
+                        )
+                    }
+            }
+        },
+    )
 
     init {
         playbackManager.setMediaLibrarySessionCallback(
