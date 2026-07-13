@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.motion
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ContentTransform
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.fadeIn
@@ -17,6 +18,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
 import elovaire.music.droidbeauty.app.BuildConfig
 import kotlin.math.roundToInt
@@ -259,12 +261,20 @@ class MotionTransitions internal constructor(
                 initialAlpha = 0.01f,
             ) }
         }
-        return cached(StaticMotionTransition.CompactBarEnter) { fadeSlideVerticalEnter(
-            fadeDuration = MotionDuration.Emphasized,
-            slideDuration = MotionDuration.Emphasized,
-            initialAlpha = 0.68f,
-            initialOffsetY = { it / 8 },
-        ) }
+        return cached(StaticMotionTransition.CompactBarEnter) {
+            fadeSlideVerticalEnter(
+                fadeDuration = MotionDuration.Emphasized,
+                slideDuration = MotionDuration.Emphasized,
+                initialAlpha = 0.52f,
+                initialOffsetY = { it / 10 },
+            ) + expandVertically(
+                expandFrom = Alignment.Bottom,
+                animationSpec = specs.tween(
+                    durationMillis = MotionDuration.Emphasized,
+                    easing = MotionEasing.RefinedDecelerate,
+                ),
+            )
+        }
     }
 
     fun compactBarExit(): ExitTransition = cached(StaticMotionTransition.CompactBarExit) { fadeSlideVerticalExit(

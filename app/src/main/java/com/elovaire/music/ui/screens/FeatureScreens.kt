@@ -285,6 +285,7 @@ import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
@@ -2642,7 +2643,7 @@ private fun SearchScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .ensureSingleItemRubberBand(allSongsListState),
-                            contentPadding = PaddingValues(bottom = bottomPadding + 84.dp),
+                            contentPadding = PaddingValues(bottom = bottomPadding + 20.dp),
                         ) {
                             itemsIndexed(
                                 items = state.allMatchingSongs,
@@ -2678,7 +2679,7 @@ private fun SearchScreen(
                     FastScrollbar(
                         state = allSongsListState,
                         topInset = 8.dp,
-                        bottomInset = bottomPadding + 48.dp,
+                        bottomInset = bottomPadding + 20.dp,
                     )
                 }
             }
@@ -2693,7 +2694,7 @@ private fun SearchScreen(
                     start = 20.dp,
                     top = topPadding + 8.dp,
                     end = 20.dp,
-                    bottom = bottomPadding + if (isSearchUiActive) 84.dp else 12.dp,
+                    bottom = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
                 ),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
@@ -2895,7 +2896,7 @@ private fun SearchScreen(
                 FastScrollbar(
                     state = listState,
                     topInset = topPadding + 16.dp,
-                    bottomInset = bottomPadding + if (isSearchUiActive) 84.dp else 12.dp,
+                    bottomInset = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
                 )
             }
         }
@@ -4882,6 +4883,11 @@ internal fun AlbumScreen(
                 }
             }
         }
+        FastScrollbar(
+            state = listState,
+            topInset = detailTopPadding + 16.dp,
+            bottomInset = bottomPadding + 16.dp,
+        )
 
         DetailListTopBar(
             title = detailTopBarTitle,
@@ -5989,17 +5995,24 @@ internal fun NowPlayingScreen(
         )
     }
     val expandSettleAnimationSpec = motionSpecs.tween<Float>(
-        durationMillis = 360,
-        easing = LinearOutSlowInEasing,
+        durationMillis = 420,
+        easing = MotionEasing.RefinedDecelerate,
     )
     val collapseSettleAnimationSpec = motionSpecs.tween<Float>(
-        durationMillis = 360,
-        easing = androidx.compose.animation.core.Easing { fraction ->
-            1f - LinearOutSlowInEasing.transform(1f - fraction)
-        },
+        durationMillis = 340,
+        easing = MotionEasing.RefinedAccelerate,
     )
     var interactiveTransitionProgress by remember(liveCurrentSong?.id) { mutableStateOf<Float?>(null) }
     var dismissAnimationRunning by remember(liveCurrentSong?.id) { mutableStateOf(false) }
+    var artworkSwipePushTarget by remember(liveCurrentSong?.id) { mutableFloatStateOf(0f) }
+    val artworkSwipePushProgress by animateFloatAsState(
+        targetValue = artworkSwipePushTarget,
+        animationSpec = motionSpecs.tween(
+            durationMillis = if (artworkSwipePushTarget > 0f) 80 else 220,
+            easing = if (artworkSwipePushTarget > 0f) LinearOutSlowInEasing else MotionEasing.RefinedDecelerate,
+        ),
+        label = "artwork_swipe_push_progress",
+    )
     val effectiveTransitionProgress = interactiveTransitionProgress ?: transitionProgress.value
     val transitionInFlight = transitionState != PlayerOverlayTransitionState.Expanded || interactiveTransitionProgress != null || dismissAnimationRunning
     val adaptivePalette = remember(gradient, appBackground) {
@@ -6326,13 +6339,23 @@ internal fun NowPlayingScreen(
             )
             fun Modifier.nowPlayingDismissGesture(): Modifier = pointerInput(currentSong.id) {
                 var dragDistance = 0f
+                var upwardPushDistance = 0f
                 val dismissDistance = with(density) { 320.dp.toPx() }
+                val pushDistance = with(density) { 132.dp.toPx() }
                 detectVerticalDragGestures(
                     onVerticalDrag = { change, dragAmount ->
                         if (dismissAnimationRunning) return@detectVerticalDragGestures
                         val continuingDismissDrag = dragDistance > 0f
+                        if (dragAmount < 0f && !continuingDismissDrag) {
+                            change.consume()
+                            upwardPushDistance = (upwardPushDistance - dragAmount).coerceIn(0f, pushDistance)
+                            artworkSwipePushTarget = (upwardPushDistance / pushDistance).coerceIn(0f, 1f)
+                            return@detectVerticalDragGestures
+                        }
                         if (dragAmount <= 0f && !continuingDismissDrag) return@detectVerticalDragGestures
                         change.consume()
+                        upwardPushDistance = 0f
+                        artworkSwipePushTarget = 0f
                         dragDistance = (dragDistance + dragAmount).coerceAtLeast(0f)
                         if (dragDistance <= 0f) {
                             interactiveTransitionProgress = 1f
@@ -6346,6 +6369,8 @@ internal fun NowPlayingScreen(
                     onDragEnd = {
                         val progress = interactiveTransitionProgress ?: 1f
                         dragDistance = 0f
+                        upwardPushDistance = 0f
+                        artworkSwipePushTarget = 0f
                         if (progress < 0.6f) {
                             dismissNowPlaying(null)
                         } else {
@@ -6361,6 +6386,8 @@ internal fun NowPlayingScreen(
                     onDragCancel = {
                         if (dismissAnimationRunning) return@detectVerticalDragGestures
                         dragDistance = 0f
+                        upwardPushDistance = 0f
+                        artworkSwipePushTarget = 0f
                         scope.launch {
                             settlePlayerTransition(
                                 targetValue = 1f,
@@ -6370,6 +6397,12 @@ internal fun NowPlayingScreen(
                         }
                     },
                 )
+            }
+            val playerSwipePushModifier = Modifier.graphicsLayer {
+                translationY = with(density) { 22.dp.toPx() } * artworkSwipePushProgress
+                scaleX = 1f - (0.012f * artworkSwipePushProgress)
+                scaleY = 1f - (0.012f * artworkSwipePushProgress)
+                alpha = 1f - (0.1f * artworkSwipePushProgress)
             }
 
             Box(
@@ -6524,6 +6557,7 @@ internal fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth(centeredInfoWidth)
                         .align(Alignment.Center)
+                        .then(playerSwipePushModifier)
                         .graphicsLayer {
                             alpha = if (showQueueSheet) 0f else metadataSectionProgress
                         },
@@ -6618,6 +6652,7 @@ internal fun NowPlayingScreen(
                 modifier = Modifier
                     .fillMaxWidth(centeredInfoWidth)
                     .align(Alignment.CenterHorizontally)
+                    .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
                 val queueSheetTopExtension = 562.dp
@@ -6825,6 +6860,7 @@ internal fun NowPlayingScreen(
                 contentColor = contentColor,
                 onVolumeChanged = onVolumeChanged,
                 modifier = Modifier
+                    .then(playerSwipePushModifier)
                     .graphicsLayer {
                         alpha = volumeSectionProgress
                     }
@@ -8955,7 +8991,7 @@ private fun LyricsOverlay(
                 .clipToBounds()
                 .zIndex(3f),
         ) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            if (!isEditingLyrics && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
