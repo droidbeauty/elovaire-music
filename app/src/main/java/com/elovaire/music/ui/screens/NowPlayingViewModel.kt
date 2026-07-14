@@ -4,6 +4,8 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.OperationIdGenerator
+import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
@@ -19,6 +21,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackSleepTimerState
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.platform.matchesPlatformActionResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,7 +50,10 @@ internal data class LyricsEditorUiState(
 )
 
 internal sealed interface LyricsEditorEvent {
-    data class RequestWritePermission(val request: android.app.PendingIntent) : LyricsEditorEvent
+    data class RequestWritePermission(
+        val operationId: String,
+        val request: android.app.PendingIntent,
+    ) : LyricsEditorEvent
 }
 
 internal data class PlayerUiState(
@@ -74,6 +80,7 @@ internal class NowPlayingViewModel(
     private val playbackManager: PlaybackManager,
     private val preferenceStore: PreferenceStore,
     private val lyricsService: LyricsService,
+    private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : ViewModel() {
     private val lyricsVisible = MutableStateFlow(false)
     private val manualLyricsOverride = MutableStateFlow<ManualLyricsOverride?>(null)
@@ -308,11 +315,16 @@ internal class NowPlayingViewModel(
         if (_lyricsEditorUiState.value.isSaving) return
         val song = playbackManager.nowPlayingState.value.currentSong ?: return
         val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
-        pendingLyricsSave = PendingLyricsSave(song, lyrics)
+        pendingLyricsSave = PendingLyricsSave(
+            operationId = operationIdGenerator.nextId(),
+            song = song,
+            lyrics = lyrics,
+        )
         savePendingLyrics()
     }
 
-    fun onLyricsWritePermissionResult(granted: Boolean) {
+    fun onLyricsWritePermissionResult(operationId: String, granted: Boolean) {
+        if (!matchesPlatformActionResult(pendingLyricsSave?.operationId, operationId)) return
         if (!granted) {
             pendingLyricsSave = null
             _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
@@ -370,7 +382,12 @@ internal class NowPlayingViewModel(
                     } else {
                         pendingLyricsSave = pending.copy(permissionRequested = true)
                         _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(isSaving = false)
-                        _lyricsEditorEvents.emit(LyricsEditorEvent.RequestWritePermission(result.request))
+                        _lyricsEditorEvents.emit(
+                            LyricsEditorEvent.RequestWritePermission(
+                                operationId = pending.operationId,
+                                request = result.request,
+                            ),
+                        )
                     }
                 }
 
@@ -447,6 +464,7 @@ internal class NowPlayingViewModel(
     )
 
     private data class PendingLyricsSave(
+        val operationId: String,
         val song: Song,
         val lyrics: String,
         val permissionRequested: Boolean = false,

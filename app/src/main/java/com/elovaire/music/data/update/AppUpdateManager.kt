@@ -12,7 +12,8 @@ import elovaire.music.droidbeauty.app.core.AppWorkKind
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
-import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
+import elovaire.music.droidbeauty.app.data.network.HttpRequest
+import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
 import java.io.File
 import java.net.HttpURLConnection
@@ -67,6 +68,7 @@ internal class AppUpdateManager(
     private val clock: AppClock = AndroidAppClock,
 ) : UpdateController {
     private val appContext = context.applicationContext
+    private val httpTransport = HttpTransport()
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     override val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
     private var checkJob: Job? = null
@@ -78,10 +80,12 @@ internal class AppUpdateManager(
     private var pendingInstallApk: File? = null
     private var resumeInstallAfterPermissionGrant = false
     private var lastAutomaticCheckFailureElapsedMs: Long? = null
+    private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
-    private val foregroundJob: Job
+    private var foregroundJob: Job? = null
 
-    init {
+    override fun start() {
+        if (released.get() || !started.compareAndSet(false, true)) return
         foregroundJob = scope.launch {
             backgroundWorkPolicy.isForeground.collect { isForeground ->
                 if (released.get()) return@collect
@@ -325,7 +329,9 @@ internal class AppUpdateManager(
 
     override fun release() {
         if (!released.compareAndSet(false, true)) return
-        foregroundJob.cancel()
+        started.set(false)
+        foregroundJob?.cancel()
+        foregroundJob = null
         checkJob?.cancel()
         checkJob = null
         downloadJob?.cancel()
@@ -357,7 +363,7 @@ internal class AppUpdateManager(
 
     private fun fetchLatestRelease(installedVersion: String): AppReleaseInfo? {
         return withUpdateTrafficStatsTag {
-            val releases = openGithubConnection(RELEASES_URL).useJsonArray { json ->
+            val releases = JSONArray(fetchText(RELEASES_URL, GITHUB_ACCEPT)).let { json ->
                 (0 until json.length())
                     .mapNotNull(json::optJSONObject)
                     .mapNotNull(::parseReleaseInfo)
@@ -365,22 +371,8 @@ internal class AppUpdateManager(
             releases
                 .filter { release -> AppVersionPolicy.isNewer(release.versionName, installedVersion) }
                 .maxWithOrNull { left, right -> AppVersionPolicy.compare(left.versionName, right.versionName) }
-                ?: openGithubConnection(LATEST_RELEASE_URL).useJsonObject(::parseReleaseInfo)
+                ?: parseReleaseInfo(JSONObject(fetchText(LATEST_RELEASE_URL, GITHUB_ACCEPT)))
                     ?.takeIf { release -> AppVersionPolicy.isNewer(release.versionName, installedVersion) }
-        }
-    }
-
-    private fun openGithubConnection(url: String): HttpURLConnection {
-        val parsedUrl = URL(url)
-        require(parsedUrl.protocol == "https") { "Update source is invalid" }
-        return (parsedUrl.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = NETWORK_TIMEOUT_MS
-            readTimeout = NETWORK_TIMEOUT_MS
-            setRequestProperty("Accept", "application/vnd.github+json")
-            setRequestProperty("User-Agent", "Elovaire/${BuildConfig.VERSION_NAME}")
-            setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-            instanceFollowRedirects = true
         }
     }
 
@@ -574,40 +566,29 @@ internal class AppUpdateManager(
     }
 
     private fun fetchChecksumText(url: String): String {
-        val parsedUrl = URL(url)
-        require(parsedUrl.protocol == "https") { "Update source is invalid" }
-        val connection = (parsedUrl.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = NETWORK_TIMEOUT_MS
-            readTimeout = NETWORK_TIMEOUT_MS
-            setRequestProperty("User-Agent", "Elovaire/${BuildConfig.VERSION_NAME}")
-            instanceFollowRedirects = true
+        return withUpdateTrafficStatsTag {
+            fetchText(url, "text/plain", MAX_CHECKSUM_TEXT_CHARS)
         }
-        val previousTrafficStatsTag = TrafficStats.getThreadStatsTag()
-        return try {
-            TrafficStats.setThreadStatsTag(UPDATE_TRAFFIC_STATS_TAG)
-            connection.connect()
-            if (connection.url.protocol != "https") {
-                throw IllegalStateException("Update source is invalid")
-            }
-            if (connection.responseCode !in 200..299) {
-                throw IllegalStateException("Update verification failed")
-            }
-            connection.inputStream.bufferedReader().use { reader ->
-                buildString {
-                    val buffer = CharArray(DEFAULT_BUFFER_SIZE)
-                    while (length < MAX_CHECKSUM_TEXT_CHARS) {
-                        val remaining = MAX_CHECKSUM_TEXT_CHARS - length
-                        val read = reader.read(buffer, 0, minOf(buffer.size, remaining))
-                        if (read <= 0) break
-                        append(buffer, 0, read)
-                    }
-                }
-            }
-        } finally {
-            TrafficStats.setThreadStatsTag(previousTrafficStatsTag)
-            connection.disconnect()
-        }
+    }
+
+    private fun fetchText(
+        url: String,
+        accept: String,
+        maxBytes: Int = MAX_RELEASE_METADATA_BYTES,
+    ): String {
+        return httpTransport.getText(
+            request = HttpRequest(
+                url = url,
+                accept = accept,
+                headers = mapOf(
+                    "User-Agent" to "Elovaire/${BuildConfig.VERSION_NAME}",
+                    "X-GitHub-Api-Version" to "2022-11-28",
+                ),
+                connectTimeoutMs = NETWORK_TIMEOUT_MS,
+                readTimeoutMs = NETWORK_TIMEOUT_MS,
+            ),
+            maxBytes = maxBytes,
+        )
     }
 
     private inline fun <T> withUpdateTrafficStatsTag(block: () -> T): T {
@@ -730,47 +711,12 @@ internal class AppUpdateManager(
         appContext.startActivity(intent)
     }
 
-    private inline fun <T> HttpURLConnection.useJsonArray(block: (JSONArray) -> T): T {
-        return try {
-            connect()
-            if (url.protocol != "https") {
-                throw IllegalStateException("Release check failed")
-            }
-            if (responseCode !in 200..299) {
-                throw IllegalStateException("Release check failed")
-            }
-            val payload = inputStream.use { input ->
-                input.readUtf8Bounded(MAX_RELEASE_METADATA_BYTES, contentLengthLong)
-            }
-            block(JSONArray(payload))
-        } finally {
-            disconnect()
-        }
-    }
-
-    private inline fun <T> HttpURLConnection.useJsonObject(block: (JSONObject) -> T): T {
-        return try {
-            connect()
-            if (url.protocol != "https") {
-                throw IllegalStateException("Release check failed")
-            }
-            if (responseCode !in 200..299) {
-                throw IllegalStateException("Release check failed")
-            }
-            val payload = inputStream.use { input ->
-                input.readUtf8Bounded(MAX_RELEASE_METADATA_BYTES, contentLengthLong)
-            }
-            block(JSONObject(payload))
-        } finally {
-            disconnect()
-        }
-    }
-
     private fun updatesDirectory(): File = File(appContext.cacheDir, "updates")
 
     private companion object {
         const val LATEST_RELEASE_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases/latest"
         const val RELEASES_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases"
+        const val GITHUB_ACCEPT = "application/vnd.github+json"
         const val AUTOMATIC_CHECK_INTERVAL_MS = 12 * 60 * 60 * 1_000L
         const val STARTUP_UPDATE_CHECK_DELAY_MS = 4_500L
         const val STARTUP_CLEANUP_DELAY_MS = 8_000L

@@ -19,6 +19,7 @@ import androidx.room.RoomDatabase
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
     abstract fun libraryDao(): LibraryDao
+    abstract fun persistenceMaintenanceDao(): PersistenceMaintenanceDao
 
     companion object {
         fun create(context: Context): ElovaireDatabase {

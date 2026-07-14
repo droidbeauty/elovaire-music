@@ -2,16 +2,16 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
-import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
+import elovaire.music.droidbeauty.app.data.network.HttpRequest
+import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
 internal class LyricsOvhProvider : LyricsProvider {
     override val providerName: String = "lyrics.ovh"
+    private val httpTransport = HttpTransport()
 
     override suspend fun findBestLyrics(
         song: Song,
@@ -92,31 +92,24 @@ internal class LyricsOvhProvider : LyricsProvider {
     private fun getJsonObject(url: String): JSONObject? = getText(url)?.let(::JSONObject)
 
     private fun getText(url: String): String? {
-        val connection = (URL(url).openConnection() as? HttpURLConnection) ?: return null
         return runCatching {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = CONNECT_TIMEOUT_MS
-            connection.readTimeout = READ_TIMEOUT_MS
-            connection.setRequestProperty(
-                "User-Agent",
-                "Elovaire/${BuildConfig.VERSION_NAME} (Android; Music Player)",
+            httpTransport.getText(
+                request = HttpRequest(
+                    url = url,
+                    accept = "application/json",
+                    headers = mapOf(
+                        "User-Agent" to "Elovaire/${BuildConfig.VERSION_NAME} (Android; Music Player)",
+                    ),
+                    connectTimeoutMs = CONNECT_TIMEOUT_MS,
+                    readTimeoutMs = READ_TIMEOUT_MS,
+                ),
+                maxBytes = MAX_RESPONSE_BYTES,
             )
-            connection.setRequestProperty("Accept", "application/json")
-            val code = connection.responseCode
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "lyrics.ovh status=$code")
-            }
-            if (code !in 200..299) return@runCatching null
-            connection.inputStream.use { input ->
-                input.readUtf8Bounded(MAX_RESPONSE_BYTES, connection.contentLengthLong)
-            }
         }.getOrElse { throwable ->
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "lyrics.ovh request failed", throwable)
             }
             null
-        }.also {
-            connection.disconnect()
         }
     }
 

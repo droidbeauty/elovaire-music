@@ -8,6 +8,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavBackStackEntry
@@ -33,12 +36,17 @@ internal fun AlbumTagEditorRouteHost(
     val tagEditorState by tagEditorViewModel.uiState.collectAsStateWithLifecycle()
 
     val context = androidx.compose.ui.platform.LocalContext.current
+    var pendingWriteOperationId by rememberSaveable { mutableStateOf<String?>(null) }
     val albumTagWriteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
-        tagEditorViewModel.onWritePermissionResult(
-            granted = result.resultCode == Activity.RESULT_OK,
-        )
+        pendingWriteOperationId?.let { operationId ->
+            tagEditorViewModel.onWritePermissionResult(
+                operationId = operationId,
+                granted = result.resultCode == Activity.RESULT_OK,
+            )
+        }
+        pendingWriteOperationId = null
     }
 
     val coverArtPickerLauncher = rememberLauncherForActivityResult(
@@ -59,6 +67,7 @@ internal fun AlbumTagEditorRouteHost(
         tagEditorViewModel.events.collect { event ->
             when (event) {
                 is AlbumTagEditorEvent.RequestWritePermission -> {
+                    pendingWriteOperationId = event.operationId
                     val requestResult = runCatching {
                         mediaStoreWriteRequest(
                             context = context,
@@ -67,35 +76,44 @@ internal fun AlbumTagEditorRouteHost(
                     }
                     if (requestResult.isFailure) {
                         tagEditorViewModel.onWritePermissionResult(
+                            operationId = event.operationId,
                             granted = false,
                         )
+                        pendingWriteOperationId = null
                         return@collect
                     }
                     when (val request = requestResult.getOrNull()) {
                         null -> {
                             tagEditorViewModel.onWritePermissionResult(
+                                operationId = event.operationId,
                                 granted = true,
                             )
+                            pendingWriteOperationId = null
                         }
                         else -> runCatching {
                             albumTagWriteLauncher.launch(request)
                         }.onFailure {
                             tagEditorViewModel.onWritePermissionResult(
+                                operationId = event.operationId,
                                 granted = false,
                             )
+                            pendingWriteOperationId = null
                         }
                     }
                 }
 
                 is AlbumTagEditorEvent.RequestRecoverableWritePermission -> {
+                    pendingWriteOperationId = event.operationId
                     runCatching {
                         albumTagWriteLauncher.launch(
                             IntentSenderRequest.Builder(event.intentSender).build(),
                         )
                     }.onFailure {
                         tagEditorViewModel.onWritePermissionResult(
+                            operationId = event.operationId,
                             granted = false,
                         )
+                        pendingWriteOperationId = null
                     }
                 }
 

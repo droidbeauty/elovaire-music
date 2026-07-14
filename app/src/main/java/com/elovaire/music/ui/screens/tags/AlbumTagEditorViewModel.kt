@@ -7,6 +7,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppWorkKind
+import elovaire.music.droidbeauty.app.core.OperationIdGenerator
+import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtworkCache
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
@@ -16,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.tags.OnlineTagMatchOutcome
 import elovaire.music.droidbeauty.app.data.tags.mutatedUris
 import elovaire.music.droidbeauty.app.data.tags.retryForFailures
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
+import elovaire.music.droidbeauty.app.platform.matchesPlatformActionResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,11 +35,13 @@ import kotlinx.coroutines.withContext
 
 internal sealed interface AlbumTagEditorEvent {
     data class RequestWritePermission(
+        val operationId: String,
         val request: AlbumTagEditRequest,
         val uris: List<Uri>,
     ) : AlbumTagEditorEvent
 
     data class RequestRecoverableWritePermission(
+        val operationId: String,
         val request: AlbumTagEditRequest,
         val intentSender: IntentSender,
     ) : AlbumTagEditorEvent
@@ -52,6 +57,7 @@ internal class AlbumTagEditorViewModel(
     private val libraryRepository: LibraryRepository,
     private val tagEditorService: AlbumTagEditorService,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
+    private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : ViewModel() {
     private val albumId = MutableStateFlow<Long?>(null)
     private val _uiState = MutableStateFlow(AlbumTagEditorUiState())
@@ -60,7 +66,7 @@ internal class AlbumTagEditorViewModel(
     private val _events = MutableSharedFlow<AlbumTagEditorEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<AlbumTagEditorEvent> = _events.asSharedFlow()
     private var matchJob: Job? = null
-    private var pendingWriteRequest: AlbumTagEditRequest? = null
+    private var pendingWriteRequest: PendingTagWrite? = null
 
     init {
         viewModelScope.launch {
@@ -261,10 +267,12 @@ internal class AlbumTagEditorViewModel(
             statusMessage = null,
             saveFailures = emptyList(),
         ).recalculateFlags()
-        pendingWriteRequest = request
+        val pending = PendingTagWrite(operationIdGenerator.nextId(), request)
+        pendingWriteRequest = pending
         viewModelScope.launch {
             _events.emit(
                 AlbumTagEditorEvent.RequestWritePermission(
+                    operationId = pending.operationId,
                     request = request,
                     uris = request.mutatedUris(),
                 ),
@@ -273,10 +281,12 @@ internal class AlbumTagEditorViewModel(
     }
 
     fun onWritePermissionResult(
+        operationId: String,
         granted: Boolean,
-        request: AlbumTagEditRequest? = pendingWriteRequest,
     ) {
-        if (!granted || request == null) {
+        if (!matchesPlatformActionResult(pendingWriteRequest?.operationId, operationId)) return
+        val pending = pendingWriteRequest ?: return
+        if (!granted) {
             pendingWriteRequest = null
             _uiState.value = _uiState.value.copy(
                 isSaving = false,
@@ -286,7 +296,7 @@ internal class AlbumTagEditorViewModel(
         }
         pendingWriteRequest = null
         viewModelScope.launch {
-            performSave(request, writeConsentGranted = true)
+            performSave(pending.request, writeConsentGranted = true)
         }
     }
 
@@ -353,9 +363,11 @@ internal class AlbumTagEditorViewModel(
                 val retryRequest = request.retryForFailures(
                     failedSongIds = result.failures.map { it.songId }.toSet(),
                 )
-                pendingWriteRequest = retryRequest
+                val pending = PendingTagWrite(operationIdGenerator.nextId(), retryRequest)
+                pendingWriteRequest = pending
                 _events.emit(
                     AlbumTagEditorEvent.RequestRecoverableWritePermission(
+                        operationId = pending.operationId,
                         request = retryRequest,
                         intentSender = result.permissionRequest.intentSender,
                     ),
@@ -374,13 +386,15 @@ internal class AlbumTagEditorViewModel(
                 else -> null
             }
             if (recoverableIntentSender != null) {
-                pendingWriteRequest = request
+                val pending = PendingTagWrite(operationIdGenerator.nextId(), request)
+                pendingWriteRequest = pending
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     statusMessage = null,
                 ).recalculateFlags()
                 _events.emit(
                     AlbumTagEditorEvent.RequestRecoverableWritePermission(
+                        operationId = pending.operationId,
                         request = request,
                         intentSender = recoverableIntentSender,
                     ),
@@ -393,6 +407,11 @@ internal class AlbumTagEditorViewModel(
             }
         }
     }
+
+    private data class PendingTagWrite(
+        val operationId: String,
+        val request: AlbumTagEditRequest,
+    )
 
     private fun AlbumTagEditorUiState.applyMatchSuggestionSafely(
         suggestion: AlbumTagMatchSuggestion,

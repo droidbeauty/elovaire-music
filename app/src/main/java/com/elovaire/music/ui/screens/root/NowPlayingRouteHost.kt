@@ -8,6 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
@@ -43,15 +46,23 @@ internal fun NowPlayingRouteHost(
         key = "interaction",
         value = if (lyricsUiState is LyricsUiState.Ready) "lyrics" else "playback_progress_active",
     )
+    var pendingLyricsOperationId by rememberSaveable { mutableStateOf<String?>(null) }
     val lyricsWriteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
-        viewModel.onLyricsWritePermissionResult(result.resultCode == Activity.RESULT_OK)
+        pendingLyricsOperationId?.let { operationId ->
+            viewModel.onLyricsWritePermissionResult(
+                operationId = operationId,
+                granted = result.resultCode == Activity.RESULT_OK,
+            )
+        }
+        pendingLyricsOperationId = null
     }
     LaunchedEffect(viewModel) {
         viewModel.lyricsEditorEvents.collect { event ->
             when (event) {
                 is LyricsEditorEvent.RequestWritePermission -> {
+                    pendingLyricsOperationId = event.operationId
                     lyricsWriteLauncher.launch(
                         IntentSenderRequest.Builder(event.request.intentSender).build(),
                     )

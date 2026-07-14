@@ -16,7 +16,7 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationStatus
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
-import elovaire.music.droidbeauty.app.data.network.readBytesBounded
+import elovaire.music.droidbeauty.app.platform.ContentIo
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumTagMatchResult
 import elovaire.music.droidbeauty.app.data.tags.matching.AndroidChromaprintFingerprintProvider
@@ -123,6 +123,7 @@ internal class AlbumTagEditorService(
 ) {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
+    private val contentIo = ContentIo(contentResolver)
     private val audioFormatDetector = AudioFormatDetector(appContext)
     private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME)
     private val matchCache = TagMatchCache(appContext)
@@ -574,9 +575,7 @@ internal class AlbumTagEditorService(
     }
 
     private fun readBytes(uri: Uri): ByteArray? {
-        return contentResolver.openInputStream(uri)?.use { input ->
-            input.readBytesBounded(MAX_SELECTED_ARTWORK_BYTES)
-        }
+        return runCatching { contentIo.readBytesBounded(uri, MAX_SELECTED_ARTWORK_BYTES) }.getOrNull()
     }
 
     private fun detectMimeType(bytes: ByteArray): String {

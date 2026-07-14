@@ -52,13 +52,13 @@ internal class ElovaireMediaTree(
             -> emptyList()
             ElovaireMediaId.Songs -> bucketIfLarge(
                 parent = BUCKET_PARENT_SONGS,
-                rows = snapshot.songs.sortedSongsByTitle(),
+                rows = snapshot.songsByTitle(),
                 label = Song::title,
                 item = ElovaireMediaItems::song,
             )
             ElovaireMediaId.Albums -> bucketIfLarge(
                 parent = BUCKET_PARENT_ALBUMS,
-                rows = snapshot.albums.sortedAlbumsByTitle(),
+                rows = snapshot.albumsByTitle(),
                 label = Album::title,
                 item = ElovaireMediaItems::album,
             )
@@ -69,11 +69,9 @@ internal class ElovaireMediaTree(
                 item = ElovaireMediaItems::artist,
             )
             ElovaireMediaId.Genres -> snapshot.genreNames().map(ElovaireMediaItems::genre)
-            ElovaireMediaId.Playlists -> snapshot.playlists
-                .filter { it.songIds.isNotEmpty() }
-                .sortedBy { it.name.lowercase() }
+            ElovaireMediaId.Playlists -> snapshot.nonEmptyPlaylistsByName()
                 .map(ElovaireMediaItems::playlist)
-            ElovaireMediaId.Favorites -> snapshot.favoriteSongs().sortedSongsByTitle().map(ElovaireMediaItems::song)
+            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().map(ElovaireMediaItems::song)
             ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().map(ElovaireMediaItems::song)
             is ElovaireMediaId.Song -> emptyList()
             is ElovaireMediaId.Album -> snapshot.albums.firstOrNull { it.id == id.albumId }
@@ -123,8 +121,8 @@ internal class ElovaireMediaTree(
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
         return when (parsed) {
-            ElovaireMediaId.Songs -> snapshot.songs.sortedSongsByTitle().toQueue("Songs")
-            ElovaireMediaId.Favorites -> snapshot.favoriteSongs().sortedSongsByTitle().toQueue("Favorites")
+            ElovaireMediaId.Songs -> snapshot.songsByTitle().toQueue("Songs")
+            ElovaireMediaId.Favorites -> snapshot.favoriteSongsByTitle().toQueue("Favorites")
             ElovaireMediaId.RecentlyAdded -> snapshot.recentlyAddedSongs().toQueue("Recently added")
             is ElovaireMediaId.Song -> {
                 val song = snapshot.songs.firstOrNull { it.id == parsed.songId } ?: return null
@@ -132,7 +130,7 @@ internal class ElovaireMediaTree(
                 if (album != null) {
                     ResolvedPlayableQueue(song, album.songs, album.title, null)
                 } else {
-                    ResolvedPlayableQueue(song, snapshot.songs.sortedSongsByTitle(), song.album, null)
+                    ResolvedPlayableQueue(song, snapshot.songsByTitle(), song.album, null)
                 }
             }
             is ElovaireMediaId.Album -> {
@@ -187,7 +185,7 @@ internal class ElovaireMediaTree(
                 val normalizedTitle = normalizeSearchText(it.title)
                 normalizedTitle == normalizedQuery.value || normalizedTitle.startsWith(normalizedQuery.value)
             }
-            .sortedSongsByTitle()
+            .sortedBy { it.title.lowercase() }
         val broaderSongs = searchSongsForPicker(snapshot.songs, normalizedQuery)
         return mutableListOf<MediaItem>().apply {
             addDistinctItems(exactAndStrongTitleSongs, limit, ElovaireMediaItems::song)
@@ -257,7 +255,7 @@ internal class ElovaireMediaTree(
             null -> null
         } ?: snapshot.albums.firstOrNull { it.id == recentSong.albumId }
             ?.let { album -> ResolvedPlayableQueue(recentSong, album.songs, album.title, null) }
-            ?: ResolvedPlayableQueue(recentSong, snapshot.songs.sortedSongsByTitle(), "Songs", null)
+            ?: ResolvedPlayableQueue(recentSong, snapshot.songsByTitle(), "Songs", null)
     }
 
     private fun snapshot(): MediaTreeSnapshot {
@@ -283,7 +281,6 @@ internal class ElovaireMediaTree(
         return ResolvedPlayableQueue(startSong, this, sourceLabel, sourcePlaylistId)
     }
 
-    private fun List<Song>.sortedSongsByTitle(): List<Song> = sortedBy { it.title.lowercase() }
     private fun List<Song>.sortedSongsForContext(): List<Song> = sortedWith(
         compareBy<Song>(
             { it.album.lowercase() },
@@ -293,19 +290,16 @@ internal class ElovaireMediaTree(
             { it.id },
         ),
     )
-    private fun List<Album>.sortedAlbumsByTitle(): List<Album> = sortedBy { it.title.lowercase() }
 
     private fun bucketChildren(
         id: ElovaireMediaId.Bucket,
         snapshot: MediaTreeSnapshot,
     ): List<MediaItem> {
         return when (id.parent) {
-            BUCKET_PARENT_SONGS -> snapshot.songs
-                .sortedSongsByTitle()
+            BUCKET_PARENT_SONGS -> snapshot.songsByTitle()
                 .filter { bucketKey(it.title) == id.key }
                 .map(ElovaireMediaItems::song)
-            BUCKET_PARENT_ALBUMS -> snapshot.albums
-                .sortedAlbumsByTitle()
+            BUCKET_PARENT_ALBUMS -> snapshot.albumsByTitle()
                 .filter { bucketKey(it.title) == id.key }
                 .map(ElovaireMediaItems::album)
             BUCKET_PARENT_ARTISTS -> snapshot.artistNames()
@@ -320,8 +314,7 @@ internal class ElovaireMediaTree(
         snapshot: MediaTreeSnapshot,
     ): ResolvedPlayableQueue? {
         return when (id.parent) {
-            BUCKET_PARENT_SONGS -> snapshot.songs
-                .sortedSongsByTitle()
+            BUCKET_PARENT_SONGS -> snapshot.songsByTitle()
                 .filter { bucketKey(it.title) == id.key }
                 .toQueue("Songs ${id.key}")
             else -> null
@@ -348,9 +341,9 @@ internal class ElovaireMediaTree(
     }
 
     private fun defaultQueue(snapshot: MediaTreeSnapshot): ResolvedPlayableQueue? {
-        return snapshot.favoriteSongs().sortedSongsByTitle().toQueue("Favorites")
+        return snapshot.favoriteSongsByTitle().toQueue("Favorites")
             ?: snapshot.recentlyAddedSongs().toQueue("Recently added")
-            ?: snapshot.songs.sortedSongsByTitle().toQueue("Songs")
+            ?: snapshot.songsByTitle().toQueue("Songs")
     }
 
     private fun MutableList<MediaItem>.addDistinct(item: MediaItem) {
@@ -382,6 +375,14 @@ internal class ElovaireMediaTree(
         val lastPlayedCollectionId: Long?,
     ) {
         private val favoriteSongs by lazy(LazyThreadSafetyMode.NONE) { songs.filter { it.id in favoriteSongIds } }
+        private val favoriteSongsByTitle by lazy(LazyThreadSafetyMode.NONE) {
+            favoriteSongs.sortedBy { it.title.lowercase() }
+        }
+        private val songsByTitle by lazy(LazyThreadSafetyMode.NONE) { songs.sortedBy { it.title.lowercase() } }
+        private val albumsByTitle by lazy(LazyThreadSafetyMode.NONE) { albums.sortedBy { it.title.lowercase() } }
+        private val nonEmptyPlaylistsByName by lazy(LazyThreadSafetyMode.NONE) {
+            playlists.filter { it.songIds.isNotEmpty() }.sortedBy { it.name.lowercase() }
+        }
         private val recentlyAddedSongs by lazy(LazyThreadSafetyMode.NONE) {
             songs.sortedByDescending(Song::dateAddedSeconds)
         }
@@ -400,6 +401,10 @@ internal class ElovaireMediaTree(
         }
 
         fun favoriteSongs(): List<Song> = favoriteSongs
+        fun favoriteSongsByTitle(): List<Song> = favoriteSongsByTitle
+        fun songsByTitle(): List<Song> = songsByTitle
+        fun albumsByTitle(): List<Album> = albumsByTitle
+        fun nonEmptyPlaylistsByName(): List<Playlist> = nonEmptyPlaylistsByName
         fun recentlyAddedSongs(): List<Song> = recentlyAddedSongs
         fun artistNames(): List<String> = artistNames
         fun genreNames(): List<String> = genreNames

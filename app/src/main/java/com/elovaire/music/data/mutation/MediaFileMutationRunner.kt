@@ -6,6 +6,7 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
+import elovaire.music.droidbeauty.app.platform.ContentIo
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -18,13 +19,12 @@ internal class MediaFileMutationRunner(
 ) {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
+    private val contentIo = ContentIo(contentResolver)
 
     fun requireWritable(uri: Uri) {
         when (val target = MediaWriteTargetClassifier.classify(appContext, uri)) {
             is MediaWriteTarget.MediaStoreItem -> Unit
-            is MediaWriteTarget.SafDocument -> contentResolver.openFileDescriptor(target.uri, "rw")
-                ?.use { }
-                ?: error("The selected document is not writable.")
+            is MediaWriteTarget.SafDocument -> contentIo.openReadWriteDescriptor(target.uri).use { }
             is MediaWriteTarget.FileUri -> {
                 val path = target.uri.path ?: error("The file path is unavailable.")
                 check(File(path).canWrite()) { "The song file is not writable." }
@@ -40,9 +40,7 @@ internal class MediaFileMutationRunner(
         val destination = createTempFile(song, purpose)
         var complete = false
         try {
-            contentResolver.openInputStream(song.uri)?.use { input ->
-                destination.outputStream().use(input::copyTo)
-            } ?: error("Unable to open ${song.fileName}")
+            contentIo.copyToFile(song.uri, destination)
             check(destination.length() > 0L) { "The song file is empty." }
             complete = true
             return destination
@@ -58,7 +56,7 @@ internal class MediaFileMutationRunner(
         val directory = File(appContext.cacheDir, tempDirectoryName)
         check(directory.isDirectory || directory.mkdirs()) { "Unable to create the metadata edit directory." }
         val extension = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
-        return File(directory, "${song.id}-$purpose-${System.nanoTime()}.$extension")
+        return File.createTempFile("${song.id}-$purpose-", ".$extension", directory)
     }
 
     fun overwriteOriginal(
@@ -79,36 +77,7 @@ internal class MediaFileMutationRunner(
             check(destination.length() == source.length()) { "Unable to replace the complete song file." }
             return
         }
-        val descriptor = try {
-            contentResolver.openFileDescriptor(uri, "rwt")
-        } catch (_: java.io.FileNotFoundException) {
-            contentResolver.openFileDescriptor(uri, "rw")
-        } catch (_: IllegalArgumentException) {
-            contentResolver.openFileDescriptor(uri, "rw")
-        } catch (_: UnsupportedOperationException) {
-            contentResolver.openFileDescriptor(uri, "rw")
-        } ?: error("Unable to open the song for writing.")
-
-        descriptor.use {
-            FileOutputStream(it.fileDescriptor).channel.use { output ->
-                output.position(0L)
-                output.truncate(0L)
-                FileInputStream(source).channel.use { input ->
-                    var transferred = 0L
-                    val totalBytes = input.size()
-                    while (transferred < totalBytes) {
-                        val copied = input.transferTo(transferred, totalBytes - transferred, output)
-                        check(copied > 0L) { "Unable to replace the song metadata." }
-                        transferred += copied
-                    }
-                }
-                output.force(true)
-            }
-        }
-        val persistedSize = contentResolver.openFileDescriptor(uri, "r")?.use { it.statSize }
-        check(persistedSize == null || persistedSize < 0L || persistedSize == source.length()) {
-            "Unable to replace the complete song file."
-        }
+        contentIo.replaceFromFile(uri, source)
     }
 
     fun verifyOriginalBytes(

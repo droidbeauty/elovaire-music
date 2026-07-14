@@ -11,6 +11,44 @@ internal enum class AppWorkKind {
     PersistentScheduledWork,
 }
 
+internal data class WorkEnvironment(
+    val foreground: Boolean,
+    val networkAvailable: Boolean = true,
+    val metered: Boolean = false,
+    val batterySaver: Boolean = false,
+    val criticalUserOperationActive: Boolean = false,
+)
+
+internal enum class WorkDecision {
+    Admit,
+    Defer,
+    Reject,
+}
+
+internal fun decideWorkAdmission(
+    kind: AppWorkKind,
+    userInitiated: Boolean,
+    environment: WorkEnvironment,
+): WorkDecision {
+    if (kind == AppWorkKind.PersistentScheduledWork) return WorkDecision.Reject
+    if (kind == AppWorkKind.MediaPlaybackRuntime) return WorkDecision.Admit
+    if (!environment.foreground) return WorkDecision.Defer
+    if (userInitiated) return WorkDecision.Admit
+    if (environment.criticalUserOperationActive) return WorkDecision.Defer
+    if (environment.batterySaver && kind == AppWorkKind.ForegroundOnlyMaintenance) return WorkDecision.Defer
+    return when (kind) {
+        AppWorkKind.ForegroundOnlyUiWork,
+        AppWorkKind.ForegroundOnlyMaintenance,
+        -> WorkDecision.Admit
+        AppWorkKind.UserInitiatedShortWork,
+        AppWorkKind.UserInitiatedLongTransfer,
+        -> WorkDecision.Reject
+        AppWorkKind.MediaPlaybackRuntime,
+        AppWorkKind.PersistentScheduledWork,
+        -> error("Handled above")
+    }
+}
+
 internal class AppBackgroundWorkPolicy(
     val isForeground: StateFlow<Boolean>,
 ) {
@@ -18,18 +56,11 @@ internal class AppBackgroundWorkPolicy(
         kind: AppWorkKind,
         userInitiated: Boolean = false,
     ): Boolean {
-        return when (kind) {
-            AppWorkKind.ForegroundOnlyUiWork,
-            AppWorkKind.ForegroundOnlyMaintenance,
-            -> isForeground.value
-
-            AppWorkKind.UserInitiatedShortWork,
-            AppWorkKind.UserInitiatedLongTransfer,
-            -> userInitiated && isForeground.value
-
-            AppWorkKind.MediaPlaybackRuntime -> true
-            AppWorkKind.PersistentScheduledWork -> false
-        }
+        return decideWorkAdmission(
+            kind = kind,
+            userInitiated = userInitiated,
+            environment = WorkEnvironment(foreground = isForeground.value),
+        ) == WorkDecision.Admit
     }
 
     fun shouldKeepMediaStoreObserver(permissionGranted: Boolean): Boolean = permissionGranted

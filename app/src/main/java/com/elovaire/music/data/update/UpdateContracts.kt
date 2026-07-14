@@ -7,6 +7,7 @@ internal interface UpdateReader {
 }
 
 internal interface UpdateController : UpdateReader {
+    fun start()
     fun checkForUpdates(force: Boolean = false)
     fun dismissAvailableUpdate()
     fun startUpdate()

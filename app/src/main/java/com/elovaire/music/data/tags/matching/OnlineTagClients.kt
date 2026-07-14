@@ -1,9 +1,7 @@
 package elovaire.music.droidbeauty.app.data.tags.matching
 
-import elovaire.music.droidbeauty.app.data.network.readBytesBounded
-import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
-import java.net.HttpURLConnection
-import java.net.URL
+import elovaire.music.droidbeauty.app.data.network.HttpRequest
+import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import java.net.URLEncoder
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -224,58 +222,31 @@ internal class RequestRateLimiter(
 }
 
 internal fun getText(url: String): String {
-    val connection = URL(url).openConnection() as HttpURLConnection
-    return connection.useRequest("application/json") { input ->
-        input.readUtf8Bounded(MAX_TEXT_RESPONSE_BYTES, connection.contentLengthLong)
-    }
+    return HTTP_TRANSPORT.getText(httpRequest(url, "application/json"), MAX_TEXT_RESPONSE_BYTES)
 }
 
 internal fun getBytes(url: String): ByteArray {
-    val connection = URL(url).openConnection() as HttpURLConnection
-    return connection.useRequest("*/*") { input ->
-        input.readBytesBounded(MAX_BINARY_RESPONSE_BYTES, connection.contentLengthLong)
-    }
+    return HTTP_TRANSPORT.getBytes(httpRequest(url, "*/*"), MAX_BINARY_RESPONSE_BYTES)
 }
 
 private fun postForm(url: String, values: Map<String, String>): String {
     val body = values.entries.joinToString("&") { (key, value) ->
         "${key.urlEncode()}=${value.urlEncode()}"
     }.toByteArray()
-    val connection = URL(url).openConnection() as HttpURLConnection
-    connection.connectTimeout = NETWORK_TIMEOUT_MS
-    connection.readTimeout = NETWORK_TIMEOUT_MS
-    connection.requestMethod = "POST"
-    connection.doOutput = true
-    connection.setRequestProperty("Accept", "application/json")
-    connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-    connection.setRequestProperty("User-Agent", USER_AGENT)
-    connection.setFixedLengthStreamingMode(body.size)
-    return try {
-        connection.outputStream.use { it.write(body) }
-        connection.inputStream.use { input ->
-            input.readUtf8Bounded(MAX_TEXT_RESPONSE_BYTES, connection.contentLengthLong)
-        }
-    } finally {
-        connection.disconnect()
-    }
+    return HTTP_TRANSPORT.postForm(
+        request = httpRequest(url, "application/json"),
+        body = body,
+        maxBytes = MAX_TEXT_RESPONSE_BYTES,
+    )
 }
 
-private inline fun <T> HttpURLConnection.useRequest(
-    accept: String,
-    block: (java.io.InputStream) -> T,
-): T {
-    connectTimeout = NETWORK_TIMEOUT_MS
-    readTimeout = NETWORK_TIMEOUT_MS
-    requestMethod = "GET"
-    setRequestProperty("Accept", accept)
-    setRequestProperty("User-Agent", USER_AGENT)
-    instanceFollowRedirects = true
-    return try {
-        inputStream.use(block)
-    } finally {
-        disconnect()
-    }
-}
+private fun httpRequest(url: String, accept: String) = HttpRequest(
+    url = url,
+    accept = accept,
+    headers = mapOf("User-Agent" to USER_AGENT),
+    connectTimeoutMs = NETWORK_TIMEOUT_MS,
+    readTimeoutMs = NETWORK_TIMEOUT_MS,
+)
 
 private fun String.urlEncode(): String = URLEncoder.encode(this, Charsets.UTF_8.name())
 
@@ -325,3 +296,4 @@ private const val NETWORK_TIMEOUT_MS = 8_000
 private const val MAX_TEXT_RESPONSE_BYTES = 1 * 1024 * 1024
 private const val MAX_BINARY_RESPONSE_BYTES = 16 * 1024 * 1024
 private const val USER_AGENT = "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)"
+private val HTTP_TRANSPORT = HttpTransport()

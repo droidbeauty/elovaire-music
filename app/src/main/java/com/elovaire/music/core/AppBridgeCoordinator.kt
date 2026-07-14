@@ -35,12 +35,14 @@ internal class AppBridgeCoordinator(
     private val preferences = services.preferenceStore
     private val library = services.libraryRepository
     private val appUpdateManager = services.appUpdateManager
+    private val schedulePersistenceMaintenance = services::scheduleDeferredMaintenance
     private var started = false
     private var released = false
 
     fun start() {
         if (started || released) return
         started = true
+        appUpdateManager.start()
         playbackIntegration.start()
         bridgeScope.launch {
             preferences.libraryFolders.collect(library::setLibraryFolders)
@@ -49,6 +51,7 @@ internal class AppBridgeCoordinator(
 
     fun scheduleDeferredStartupWork() {
         if (!started) return
+        schedulePersistenceMaintenance()
         appUpdateManager.scheduleStartupMaintenance()
     }
 

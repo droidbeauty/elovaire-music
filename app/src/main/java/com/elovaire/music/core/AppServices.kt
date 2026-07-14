@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
+import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenance
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
@@ -25,15 +26,13 @@ import java.util.concurrent.atomic.AtomicBoolean
 @OptIn(UnstableApi::class)
 internal class AppServices(
     applicationContext: Context,
-    appScope: CoroutineScope,
+    private val appScope: CoroutineScope,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
     private val released = AtomicBoolean(false)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
-    private val mutationRecoveryJob: Job = appScope.launch {
-        mediaMutationJournal.recoverIncomplete()
-    }
+    private var persistenceMaintenanceJob: Job? = null
     val preferenceStore = PreferenceStore(applicationContext)
     val appUpdateManager: UpdateController = AppUpdateManager(
         context = applicationContext,
@@ -41,10 +40,12 @@ internal class AppServices(
         preferences = preferenceStore,
         backgroundWorkPolicy = backgroundWorkPolicy,
     )
-    val albumTagEditorService = AlbumTagEditorService(
-        applicationContext,
-        mediaMutationJournal = mediaMutationJournal,
-    )
+    val albumTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        AlbumTagEditorService(
+            applicationContext,
+            mediaMutationJournal = mediaMutationJournal,
+        )
+    }
     val playbackEffectsController = PlaybackEffectsController()
     val playbackManager = PlaybackManager(
         context = applicationContext,
@@ -93,6 +94,13 @@ internal class AppServices(
         )
     }
 
+    fun scheduleDeferredMaintenance() {
+        if (released.get() || persistenceMaintenanceJob?.isActive == true) return
+        persistenceMaintenanceJob = appScope.launch {
+            PersistenceMaintenance(database.persistenceMaintenanceDao(), mediaMutationJournal).recoverAndPrune()
+        }
+    }
+
     fun release() {
         if (!released.compareAndSet(false, true)) return
         appUpdateManager.release()
@@ -100,7 +108,7 @@ internal class AppServices(
         playbackManager.release()
         libraryRepository.release()
         preferenceStore.release()
-        mutationRecoveryJob.cancel()
+        persistenceMaintenanceJob?.cancel()
         database.close()
     }
 }

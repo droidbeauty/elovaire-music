@@ -39,7 +39,6 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackFailureClassifier
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
-import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationPolicy
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -1683,20 +1682,22 @@ class PlaybackManager(
 
     private fun effectivePlayerGain(): Float {
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
-        return VolumeNormalizationPolicy.effectivePlayerGain(
-            baseGain = baseGain,
-            metadata = currentSong()?.volumeNormalization,
-            enabled = volumeNormalizationEnabled,
-            softwareGainAllowed = !isDirectPlaybackActive && !usbDacHardwareVolumeManager.shouldBypassSoftwareVolume(),
-        )
+        return effectiveDspState(baseGain).fineGain
     }
 
     private fun hasActiveSignalAlteringEffects(): Boolean {
-        return hasSignalAlteringEffects() ||
-            VolumeNormalizationPolicy.isSignalAltering(
-                metadata = currentSong()?.volumeNormalization,
-                enabled = volumeNormalizationEnabled,
-            )
+        return effectiveDspState(baseGain = 1f).altersSignal
+    }
+
+    private fun effectiveDspState(baseGain: Float): EffectiveDspState {
+        return resolveEffectiveDspState(
+            effectsRequested = hasSignalAlteringEffects(),
+            normalizationRequested = volumeNormalizationEnabled,
+            normalizationMetadata = currentSong()?.volumeNormalization,
+            directPlaybackActive = isDirectPlaybackActive,
+            softwareGainAllowed = !usbDacHardwareVolumeManager.shouldBypassSoftwareVolume(),
+            baseGain = baseGain,
+        )
     }
 
     private fun audioPathReevaluationDelayForTransition(): Long {
