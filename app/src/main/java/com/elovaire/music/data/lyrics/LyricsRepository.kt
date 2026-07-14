@@ -5,6 +5,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
@@ -27,9 +29,10 @@ internal class LyricsRepository(
     private val onlineLookupEnabled: StateFlow<Boolean>,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private val applicationContext = appContext.applicationContext
-    private val cache = LyricsCache(applicationContext)
+    private val cache = LyricsCache(applicationContext, clock)
     private val localLyricsResolver = LocalLyricsResolver(applicationContext)
     private val lrcLibLyricsProvider = LrcLibLyricsProvider(ioDispatcher = ioDispatcher)
     private val lyricsOvhProvider = LyricsOvhProvider()
@@ -163,7 +166,7 @@ internal class LyricsRepository(
         outcome.cacheTtlMs?.let { ttl ->
             val entry = LyricsCacheEntry(
                 result = result,
-                expiresAtMillis = System.currentTimeMillis() + ttl,
+                expiresAtMillis = clock.wallTimeMs() + ttl,
                 providerName = outcome.providerName,
                 confidence = outcome.confidence,
             )
@@ -268,14 +271,14 @@ internal class LyricsRepository(
     private fun LocalLyricsMatch.toCacheEntry(): LyricsCacheEntry {
         return LyricsCacheEntry(
             result = LyricsResult.Found(payload),
-            expiresAtMillis = System.currentTimeMillis() + POSITIVE_CACHE_TTL_MS,
+            expiresAtMillis = clock.wallTimeMs() + POSITIVE_CACHE_TTL_MS,
             providerName = payload.providerName,
             confidence = payload.confidence,
         )
     }
 
     private fun memoryCachedLyrics(identity: LyricsIdentity): LyricsResult? {
-        val now = System.currentTimeMillis()
+        val now = clock.wallTimeMs()
         val entry = identity.cacheKeys.firstNotNullOfOrNull { key ->
             memoryPositiveCache[key]?.takeUnless { it.isExpired(now) }
         }
@@ -300,7 +303,7 @@ internal class LyricsRepository(
 
     private fun trimMemoryCache() {
         if (memoryPositiveCache.size <= MAX_MEMORY_CACHE_KEYS) return
-        val now = System.currentTimeMillis()
+        val now = clock.wallTimeMs()
         memoryPositiveCache.entries.removeIf { (_, entry) -> entry.isExpired(now) }
         val overflow = memoryPositiveCache.size - MAX_MEMORY_CACHE_KEYS
         if (overflow > 0) {

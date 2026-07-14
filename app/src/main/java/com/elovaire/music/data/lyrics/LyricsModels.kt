@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
+import elovaire.music.droidbeauty.app.data.library.MediaRevision
+
 enum class SyncedLyricsTimingProfile {
     ExactIntervals,
 }
@@ -12,7 +14,7 @@ enum class LyricsLookupMode {
 internal data class LyricsRequestKey(
     val songId: Long,
     val sourceKey: String,
-    val revision: Long,
+    val revision: MediaRevision,
     val lookupMode: LyricsLookupMode,
 ) {
     val sourceIdentity: LyricsSourceIdentity
@@ -22,7 +24,7 @@ internal data class LyricsRequestKey(
 internal data class LyricsSourceIdentity(
     val songId: Long,
     val sourceKey: String,
-    val revision: Long,
+    val revision: MediaRevision,
 )
 
 data class LyricsIdentity(
@@ -181,7 +183,7 @@ internal data class LyricsCacheEntry(
     val providerName: String? = null,
     val confidence: Int = 0,
 ) {
-    fun isExpired(nowMillis: Long = System.currentTimeMillis()): Boolean = nowMillis >= expiresAtMillis
+    fun isExpired(nowMillis: Long): Boolean = nowMillis >= expiresAtMillis
 }
 
 internal data class ProviderLyricsMatch(

@@ -31,7 +31,12 @@ internal class PlaybackStateReducer(
         isPauseTransitioningToStopped: Boolean,
     ): PlaybackUiState {
         val player = playerProvider()
-        val currentIndex = resolveCurrentQueueIndex(existingState)
+        val normalizedQueue = normalizePlaybackQueue(
+            queueSize = existingState.queue.size,
+            currentIndex = resolveCurrentQueueIndex(existingState),
+            sourcePlaylistId = existingState.sourcePlaylistId,
+        )
+        val currentIndex = normalizedQueue.currentIndex
         val currentSong = existingState.queue.getOrNull(currentIndex)
         if (currentIndex >= 0) {
             lastKnownQueueIndex = currentIndex
@@ -50,12 +55,12 @@ internal class PlaybackStateReducer(
             existingState.recentAlbumIds
         }
         val lastPlayedCollectionKind = if (hasNewSong) {
-            if (existingState.sourcePlaylistId != null) PlaybackCollectionKind.Playlist else PlaybackCollectionKind.Album
+            if (normalizedQueue.sourcePlaylistId != null) PlaybackCollectionKind.Playlist else PlaybackCollectionKind.Album
         } else {
             existingState.lastPlayedCollectionKind
         }
         val lastPlayedCollectionId = if (hasNewSong) {
-            existingState.sourcePlaylistId ?: currentSong.albumId
+            normalizedQueue.sourcePlaylistId ?: currentSong.albumId
         } else {
             existingState.lastPlayedCollectionId
         }
@@ -65,6 +70,7 @@ internal class PlaybackStateReducer(
 
         return existingState.copy(
             currentIndex = currentIndex,
+            sourcePlaylistId = normalizedQueue.sourcePlaylistId,
             isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
             transportShowsPause = !isPauseTransitioningToStopped &&
                 currentSong != null &&

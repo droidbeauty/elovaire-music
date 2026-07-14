@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
@@ -211,7 +213,9 @@ internal class LrcLibLyricsProvider(
     }
 }
 
-private class DefaultLrcLibApi : LrcLibApi {
+private class DefaultLrcLibApi(
+    private val clock: AppClock = AndroidAppClock,
+) : LrcLibApi {
     private val rateLimitMutex = Mutex()
     private val requestTimestampsMs = ArrayDeque<Long>()
 
@@ -289,7 +293,7 @@ private class DefaultLrcLibApi : LrcLibApi {
     private suspend fun awaitRateLimitSlot() {
         while (true) {
             val waitMs = rateLimitMutex.withLock {
-                val now = System.currentTimeMillis()
+                val now = clock.elapsedTimeMs()
                 while (requestTimestampsMs.isNotEmpty() && now - requestTimestampsMs.first() >= 60_000L) {
                     requestTimestampsMs.removeFirst()
                 }

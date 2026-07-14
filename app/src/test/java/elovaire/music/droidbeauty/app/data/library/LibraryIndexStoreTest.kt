@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.core.FakeAppClock
 import elovaire.music.droidbeauty.app.data.library.db.AlbumEntity
 import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
@@ -21,7 +22,7 @@ class LibraryIndexStoreTest {
     @Test
     fun indexSnapshot_skipsIdenticalCompletedGeneration() = runBlocking {
         val dao = RecordingLibraryDao()
-        val store = LibraryIndexStore(dao, clock = { 42L })
+        val store = LibraryIndexStore(dao, clock = FakeAppClock(wallTime = 42L))
         val snapshot = LibrarySnapshot(emptyList(), emptyList())
 
         store.indexSnapshot(snapshot, filterFingerprint = "folders", source = "MediaStore")
@@ -33,7 +34,7 @@ class LibraryIndexStoreTest {
     @Test
     fun indexSnapshot_replacesGenerationWhenFilterChanges() = runBlocking {
         val dao = RecordingLibraryDao()
-        val store = LibraryIndexStore(dao, clock = { 42L })
+        val store = LibraryIndexStore(dao, clock = FakeAppClock(wallTime = 42L))
         val snapshot = LibrarySnapshot(emptyList(), emptyList())
 
         store.indexSnapshot(snapshot, filterFingerprint = "music", source = "MediaStore")
@@ -45,7 +46,7 @@ class LibraryIndexStoreTest {
     @Test
     fun applyChangedSongsOnlyUpsertsAffectedRows() = runBlocking {
         val dao = RecordingLibraryDao()
-        val store = LibraryIndexStore(dao, clock = { 50L })
+        val store = LibraryIndexStore(dao, clock = FakeAppClock(wallTime = 50L))
         val song = song(1L, 2L)
         val album = Album(2L, "Album", "Artist", null, 1, 1_000L, listOf(song))
 
@@ -58,7 +59,7 @@ class LibraryIndexStoreTest {
     @Test
     fun markRemovedOnlyTouchesRequestedRows() = runBlocking {
         val dao = RecordingLibraryDao()
-        val store = LibraryIndexStore(dao, clock = { 50L })
+        val store = LibraryIndexStore(dao, clock = FakeAppClock(wallTime = 50L))
 
         store.markRemoved(setOf(1L), setOf(2L))
 

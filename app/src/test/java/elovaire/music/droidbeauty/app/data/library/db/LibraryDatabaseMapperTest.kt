@@ -42,7 +42,7 @@ class LibraryDatabaseMapperTest {
             scannedAtMs = 2L,
         )
 
-        assertEquals("content://song/5", entity.stableFileKey)
+        assertEquals("uri:content://song/5", entity.stableFileKey)
         assertNull(entity.filePath)
     }
 

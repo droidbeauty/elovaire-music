@@ -4,13 +4,14 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
+import elovaire.music.droidbeauty.app.data.library.MediaSourceIdentity
 import java.util.Locale
 
 internal object LibraryDatabaseMapper {
     fun songEntity(song: Song, generationId: Long): SongEntity {
         return SongEntity(
             songId = song.id,
-            mediaStoreId = song.id.takeIf { it > 0L },
+            mediaStoreId = (MediaIdentityResolver.resolve(song) as? MediaSourceIdentity.MediaStoreItem)?.mediaId,
             uri = song.uri.toString(),
             filePath = song.libraryPath,
             fileName = song.fileName,
@@ -56,7 +57,7 @@ internal object LibraryDatabaseMapper {
         val stableFileKey = MediaIdentityResolver.stableKey(song)
         return MediaFileEntity(
             stableFileKey = stableFileKey,
-            mediaStoreId = song.id.takeIf { it > 0L },
+            mediaStoreId = (MediaIdentityResolver.resolve(song) as? MediaSourceIdentity.MediaStoreItem)?.mediaId,
             uri = song.uri.toString(),
             filePath = song.libraryPath,
             displayName = song.fileName,

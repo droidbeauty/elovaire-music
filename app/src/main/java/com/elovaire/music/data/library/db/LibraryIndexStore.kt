@@ -3,10 +3,12 @@ package elovaire.music.droidbeauty.app.data.library.db
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 
 internal class LibraryIndexStore(
     private val dao: LibraryDao,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private var lastIndexedInput: LibraryIndexInput? = null
 
@@ -17,7 +19,7 @@ internal class LibraryIndexStore(
     ) {
         val input = LibraryIndexInput(snapshot, filterFingerprint, source)
         if (input == lastIndexedInput) return
-        val now = clock()
+        val now = clock.wallTimeMs()
         val generationId = now
         val indexed = LibraryDatabaseMapper.indexedSnapshot(snapshot, generationId, now)
         dao.replaceGeneration(
@@ -43,7 +45,7 @@ internal class LibraryIndexStore(
         albums: List<Album>,
     ) {
         if (songs.isEmpty() && albums.isEmpty()) return
-        val now = clock()
+        val now = clock.wallTimeMs()
         dao.applyIncrementalUpdate(
             songs = songs.map { LibraryDatabaseMapper.songEntity(it, now) },
             albums = albums.map { LibraryDatabaseMapper.albumEntity(it, now) },
@@ -57,7 +59,7 @@ internal class LibraryIndexStore(
         albumIds: Set<Long>,
     ) {
         if (songIds.isEmpty() && albumIds.isEmpty()) return
-        dao.applyIncrementalRemoval(songIds, albumIds, clock())
+        dao.applyIncrementalRemoval(songIds, albumIds, clock.wallTimeMs())
         lastIndexedInput = null
     }
 }

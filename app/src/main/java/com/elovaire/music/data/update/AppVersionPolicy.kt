@@ -39,3 +39,17 @@ internal object AppVersionPolicy {
 
     private val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")
 }
+
+internal fun shouldRunAutomaticUpdateCheck(
+    lastSuccessfulWallTimeMs: Long,
+    nowWallTimeMs: Long,
+    lastFailureElapsedTimeMs: Long?,
+    nowElapsedTimeMs: Long,
+    successIntervalMs: Long,
+    failureBackoffMs: Long,
+): Boolean {
+    val failureAge = lastFailureElapsedTimeMs?.let { nowElapsedTimeMs - it }
+    if (failureAge != null && failureAge in 0 until failureBackoffMs) return false
+    val successAge = nowWallTimeMs - lastSuccessfulWallTimeMs
+    return successAge !in 0 until successIntervalMs
+}

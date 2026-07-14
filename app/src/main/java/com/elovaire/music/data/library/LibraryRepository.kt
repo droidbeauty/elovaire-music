@@ -2,10 +2,15 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.net.Uri
-import android.os.SystemClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.OperationIdGenerator
+import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.core.backend.BackendEvent
 import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
+import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
+import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
@@ -79,6 +84,8 @@ class LibraryRepository internal constructor(
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val indexStore: LibraryIndexStore? = null,
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
+    private val clock: AppClock = AndroidAppClock,
+    private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : LibraryReader {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
@@ -121,6 +128,7 @@ class LibraryRepository internal constructor(
         scanner = scanner,
         scope = scope,
         onObservedRefresh = ::scheduleMediaRefresh,
+        clock = clock,
     )
 
     init {
@@ -282,20 +290,25 @@ class LibraryRepository internal constructor(
             _scanState.update { it.copy(errorMessage = null) }
         }
         scanJob = scope.launch {
+            val operation = BackendOperationContext(operationIdGenerator.nextId(), BackendSubsystem.Library, clock.elapsedTimeMs())
             val currentScanJob = currentCoroutineContext()[Job]
             val scanPermissionVersion = permissionChangeVersion
             val refreshRequest = refreshRequests.takeForImmediateScan(request)
             _runtimeState.value = LibraryRuntimeState.Scanning(refreshRequest, scanPermissionVersion)
             backendEventSink.emit(
                 BackendEvent.LibraryScanStarted(
-                    mapOf(
-                        "force_index" to refreshRequest.forceMediaIndex.toString(),
-                        "enrich_metadata" to refreshRequest.enrichMetadata.toString(),
-                        "targeted_paths" to refreshRequest.targetedPaths.size.toString(),
+                    operation.fields(
+                        phase = "scan_started",
+                        elapsedTimeMs = clock.elapsedTimeMs(),
+                        extra = mapOf(
+                            "force_index" to refreshRequest.forceMediaIndex.toString(),
+                            "enrich_metadata" to refreshRequest.enrichMetadata.toString(),
+                            "targeted_paths" to refreshRequest.targetedPaths.size.toString(),
+                        ),
                     ),
                 ),
             )
-            val progressThrottler = LibraryScanProgressThrottler()
+            val progressThrottler = LibraryScanProgressThrottler(clock)
             try {
                 runCatching {
                     scanLibrary(refreshRequest, showLoadingIndicator, scanPermissionVersion, progressThrottler)
@@ -342,9 +355,13 @@ class LibraryRepository internal constructor(
                     }
                     backendEventSink.emit(
                         BackendEvent.LibraryScanCompleted(
-                            mapOf(
-                                "songs" to visibleSnapshot.songs.size.toString(),
-                                "albums" to visibleSnapshot.albums.size.toString(),
+                            operation.fields(
+                                phase = "scan_completed",
+                                elapsedTimeMs = clock.elapsedTimeMs(),
+                                extra = mapOf(
+                                    "songs" to visibleSnapshot.songs.size.toString(),
+                                    "albums" to visibleSnapshot.albums.size.toString(),
+                                ),
                             ),
                         ),
                     )
@@ -352,7 +369,11 @@ class LibraryRepository internal constructor(
                     if (throwable is CancellationException) throw throwable
                     backendEventSink.emit(
                         BackendEvent.LibraryScanFailed(
-                            mapOf("error_type" to (throwable::class.simpleName ?: "Unknown")),
+                            operation.fields(
+                                phase = "scan_failed",
+                                elapsedTimeMs = clock.elapsedTimeMs(),
+                                extra = mapOf("error_type" to (throwable::class.simpleName ?: "Unknown")),
+                            ),
                         ),
                     )
                     if (hasCurrentPermission(scanPermissionVersion)) {
@@ -368,9 +389,7 @@ class LibraryRepository internal constructor(
                     }
                 }
             } finally {
-                if (scanJob === currentScanJob) {
-                    scanJob = null
-                }
+                if (scanJob === currentScanJob) scanJob = null
             }
 
             if (scanJob != null || !hasCurrentPermission(scanPermissionVersion)) return@launch
@@ -498,7 +517,7 @@ class LibraryRepository internal constructor(
         }
         markDeletingSongs(request.songIds)
         markDeletingAlbums(fullyDeletedAlbumIds)
-        observerController.setSuppressRefreshUntil(System.currentTimeMillis() + DELETE_OBSERVER_SUPPRESSION_MS)
+        observerController.suppressRefreshFor(DELETE_OBSERVER_SUPPRESSION_MS)
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         refreshRequests.clearIndexRefresh()
@@ -702,6 +721,7 @@ class LibraryRepository internal constructor(
 }
 
 private class LibraryScanProgressThrottler(
+    private val clock: AppClock = AndroidAppClock,
     private val minStep: Float = 0.01f,
     private val minIntervalMs: Long = 80L,
 ) {
@@ -709,7 +729,7 @@ private class LibraryScanProgressThrottler(
     private var lastEmitMs = 0L
 
     fun shouldEmit(progress: Float): Boolean {
-        val now = SystemClock.elapsedRealtime()
+        val now = clock.elapsedTimeMs()
         if (progress >= 1f) return true
         if (lastProgress < 0f) {
             lastProgress = progress

@@ -53,9 +53,6 @@ internal object LibrarySongDuplicateResolver {
             .lowercase(Locale.ROOT)
             .takeIf { it.isNotBlank() }
             ?.let { add("uri:$it") }
-        if (song.id < 0L) {
-            safDocumentIdentity(song.uri)?.let { add("saf-document:$it") }
-        }
     }
 
     internal fun fallbackKeys(song: Song): Set<String> = buildSet {

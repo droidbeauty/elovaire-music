@@ -4,12 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.TrafficStats
 import android.net.Uri
-import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppWorkKind
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
@@ -63,6 +64,7 @@ internal class AppUpdateManager(
     private val scope: CoroutineScope,
     private val preferences: UpdatePreferencesStore,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
+    private val clock: AppClock = AndroidAppClock,
 ) : UpdateController {
     private val appContext = context.applicationContext
     private val _uiState = MutableStateFlow(AppUpdateUiState())
@@ -105,13 +107,17 @@ internal class AppUpdateManager(
         if (checkJob?.isActive == true || _uiState.value.isDownloading || _uiState.value.isInstalling) return
     
         val automaticCheckStartedAtMs = if (!force) {
-            val nowMs = System.currentTimeMillis()
-            val nowElapsedMs = SystemClock.elapsedRealtime()
-            lastAutomaticCheckFailureElapsedMs
-                ?.takeIf { nowElapsedMs - it < AUTOMATIC_CHECK_FAILURE_BACKOFF_MS }
-                ?.let { return }
-            val elapsedMs = nowMs - preferences.lastAutomaticUpdateCheckAtMs()
-            if (elapsedMs in 0 until AUTOMATIC_CHECK_INTERVAL_MS) return
+            val nowMs = clock.wallTimeMs()
+            val nowElapsedMs = clock.elapsedTimeMs()
+            val shouldRun = shouldRunAutomaticUpdateCheck(
+                lastSuccessfulWallTimeMs = preferences.lastAutomaticUpdateCheckAtMs(),
+                nowWallTimeMs = nowMs,
+                lastFailureElapsedTimeMs = lastAutomaticCheckFailureElapsedMs,
+                nowElapsedTimeMs = nowElapsedMs,
+                successIntervalMs = AUTOMATIC_CHECK_INTERVAL_MS,
+                failureBackoffMs = AUTOMATIC_CHECK_FAILURE_BACKOFF_MS,
+            )
+            if (!shouldRun) return
             nowMs
         } else {
             null
@@ -140,7 +146,7 @@ internal class AppUpdateManager(
                 lastAutomaticCheckFailureElapsedMs = null
                 preferences.setLastAutomaticUpdateCheckAtMs(automaticCheckStartedAtMs)
             } else if (automaticCheckStartedAtMs != null) {
-                lastAutomaticCheckFailureElapsedMs = SystemClock.elapsedRealtime()
+                lastAutomaticCheckFailureElapsedMs = clock.elapsedTimeMs()
             }
             val latestRelease = latestReleaseResult.getOrNull()
             val shouldShow = latestRelease != null && (force || dismissedVersion != latestRelease.versionName)
@@ -480,7 +486,7 @@ internal class AppUpdateManager(
                             val normalizedProgress = progress?.coerceIn(0f, 1f)
                             if (normalizedProgress != null && progressThrottler.shouldEmit(
                                     progress = normalizedProgress,
-                                    nowMs = SystemClock.elapsedRealtime(),
+                                    nowMs = clock.elapsedTimeMs(),
                                 )
                             ) {
                                 _uiState.update { state ->

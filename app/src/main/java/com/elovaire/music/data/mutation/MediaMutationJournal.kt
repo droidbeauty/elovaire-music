@@ -3,7 +3,17 @@ package elovaire.music.droidbeauty.app.data.mutation
 import android.net.Uri
 import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
-import java.util.UUID
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.OperationIdGenerator
+import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
+import elovaire.music.droidbeauty.app.core.backend.BackendEvent
+import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
+import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
+import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
+import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.first
 
 internal enum class MediaMutationType {
     TagEdit,
@@ -29,7 +39,7 @@ internal enum class MediaMutationStatus {
 }
 
 internal data class MediaMutationOperation(
-    val mutationId: String = UUID.randomUUID().toString(),
+    val mutationId: String? = null,
     val type: MediaMutationType,
     val songId: Long? = null,
     val albumId: Long? = null,
@@ -39,13 +49,16 @@ internal data class MediaMutationOperation(
 
 internal class MediaMutationJournal(
     private val dao: LibraryDao,
-    private val clock: () -> Long = System::currentTimeMillis,
+    private val clock: AppClock = AndroidAppClock,
+    private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
+    private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
 ) {
     suspend fun create(operation: MediaMutationOperation): String {
-        val now = clock()
+        val now = clock.wallTimeMs()
+        val mutationId = operation.mutationId?.takeIf { it.isNotBlank() } ?: operationIdGenerator.nextId()
         dao.upsertMutation(
             LibraryMutationEntity(
-                mutationId = operation.mutationId,
+                mutationId = mutationId,
                 type = operation.type.name,
                 status = MediaMutationStatus.Created.name,
                 songId = operation.songId,
@@ -58,7 +71,16 @@ internal class MediaMutationJournal(
                 error = null,
             ),
         )
-        return operation.mutationId
+        backendEventSink.emit(
+            BackendEvent.MediaMutationStarted(
+                BackendOperationContext(mutationId, BackendSubsystem.MediaMutation, clock.elapsedTimeMs()).fields(
+                    phase = MediaMutationStatus.Created.name,
+                    elapsedTimeMs = clock.elapsedTimeMs(),
+                    extra = mapOf("type" to operation.type.name),
+                ),
+            ),
+        )
+        return mutationId
     }
 
     suspend fun mark(
@@ -72,7 +94,7 @@ internal class MediaMutationJournal(
         dao.upsertMutation(
             current.copy(
                 status = status.name,
-                updatedAtMs = clock(),
+                updatedAtMs = clock.wallTimeMs(),
                 attemptCount = if (status == MediaMutationStatus.Failed || status == MediaMutationStatus.NeedsRepair) {
                     current.attemptCount + 1
                 } else {
@@ -81,6 +103,74 @@ internal class MediaMutationJournal(
                 error = error,
             ),
         )
+    }
+
+    suspend fun recoverIncomplete(): MediaMutationRecoveryResult {
+        val operation = BackendOperationContext(
+            operationIdGenerator.nextId(), BackendSubsystem.MediaMutation, clock.elapsedTimeMs(),
+        )
+        val recovery = runCatching {
+            var recoveredCount = 0
+            dao.activeMutations().first().forEach { mutation ->
+                val current = mutation.status.toMediaMutationStatusOrNull() ?: return@forEach
+                recoveryStatusFor(current)?.let { recoveredStatus ->
+                    mark(mutation.mutationId, recoveredStatus, mutation.error)
+                    recoveredCount += 1
+                }
+            }
+            recoveredCount
+        }
+        val failure = recovery.exceptionOrNull()
+        if (failure is CancellationException) throw failure
+        if (failure != null) {
+            backendEventSink.emit(
+                BackendEvent.MediaMutationFailed(
+                    operation.fields(
+                        phase = "startup_recovery",
+                        elapsedTimeMs = clock.elapsedTimeMs(),
+                        extra = mapOf("error_type" to (failure::class.simpleName ?: "Unknown")),
+                    ),
+                ),
+            )
+            return MediaMutationRecoveryResult.Failure(failure)
+        }
+        val recoveredCount = recovery.getOrThrow()
+        backendEventSink.emit(
+            BackendEvent.MediaMutationCompleted(
+                operation.fields(
+                    phase = "startup_recovery",
+                    elapsedTimeMs = clock.elapsedTimeMs(),
+                    extra = mapOf("recovered" to recoveredCount.toString()),
+                ),
+            ),
+        )
+        return MediaMutationRecoveryResult.Success(recoveredCount)
+    }
+}
+
+internal sealed interface MediaMutationRecoveryResult {
+    data class Success(val recoveredCount: Int) : MediaMutationRecoveryResult
+    data class Failure(val cause: Throwable) : MediaMutationRecoveryResult
+}
+
+internal fun recoveryStatusFor(status: MediaMutationStatus): MediaMutationStatus? {
+    return when (status) {
+        MediaMutationStatus.Created,
+        MediaMutationStatus.PreflightPassed,
+        MediaMutationStatus.NeedsPermission,
+        MediaMutationStatus.PermissionGranted,
+        MediaMutationStatus.TempWritten,
+        MediaMutationStatus.TempVerified,
+        -> MediaMutationStatus.Cancelled
+        MediaMutationStatus.Committed -> MediaMutationStatus.NeedsRepair
+        MediaMutationStatus.PersistedVerified,
+        MediaMutationStatus.Published,
+        -> MediaMutationStatus.Completed
+        MediaMutationStatus.Failed,
+        MediaMutationStatus.NeedsRepair,
+        MediaMutationStatus.Completed,
+        MediaMutationStatus.Cancelled,
+        -> null
     }
 }
 

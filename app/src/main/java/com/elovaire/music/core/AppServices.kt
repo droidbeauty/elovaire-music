@@ -18,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -30,6 +31,9 @@ internal class AppServices(
     private val released = AtomicBoolean(false)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
+    private val mutationRecoveryJob: Job = appScope.launch {
+        mediaMutationJournal.recoverIncomplete()
+    }
     val preferenceStore = PreferenceStore(applicationContext)
     val appUpdateManager: UpdateController = AppUpdateManager(
         context = applicationContext,
@@ -96,6 +100,7 @@ internal class AppServices(
         playbackManager.release()
         libraryRepository.release()
         preferenceStore.release()
+        mutationRecoveryJob.cancel()
         database.close()
     }
 }

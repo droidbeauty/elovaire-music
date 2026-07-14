@@ -33,6 +33,14 @@ class LyricsRequestKeyTest {
         assertEquals(full.sourceIdentity, fast.sourceIdentity)
     }
 
+    @Test
+    fun cacheKeysDoNotCrossSourceRevision() {
+        val original = song(uri = "content://media/song/1", revision = 10L).toLyricsIdentity()
+        val edited = song(uri = "content://media/song/1", revision = 11L).toLyricsIdentity()
+
+        assertEquals(emptySet<String>(), original.cacheKeys.toSet().intersect(edited.cacheKeys.toSet()))
+    }
+
     private fun song(uri: String, revision: Long): Song {
         return Song(
             id = 1L,

@@ -24,4 +24,38 @@ class AppVersionPolicyTest {
     fun resolve_rejectsLabelsWithoutVersion() {
         assertEquals("", AppVersionPolicy.resolve("stable", "release", "app.apk"))
     }
+
+    @Test
+    fun automaticCheckUsesWallTimeForPersistedIntervalAndElapsedTimeForBackoff() {
+        assertFalse(
+            shouldRunAutomaticUpdateCheck(
+                lastSuccessfulWallTimeMs = 1_000L,
+                nowWallTimeMs = 1_500L,
+                lastFailureElapsedTimeMs = null,
+                nowElapsedTimeMs = 20L,
+                successIntervalMs = 1_000L,
+                failureBackoffMs = 100L,
+            ),
+        )
+        assertFalse(
+            shouldRunAutomaticUpdateCheck(
+                lastSuccessfulWallTimeMs = 0L,
+                nowWallTimeMs = 5_000L,
+                lastFailureElapsedTimeMs = 50L,
+                nowElapsedTimeMs = 100L,
+                successIntervalMs = 1_000L,
+                failureBackoffMs = 100L,
+            ),
+        )
+        assertTrue(
+            shouldRunAutomaticUpdateCheck(
+                lastSuccessfulWallTimeMs = 0L,
+                nowWallTimeMs = 5_000L,
+                lastFailureElapsedTimeMs = null,
+                nowElapsedTimeMs = 1L,
+                successIntervalMs = 1_000L,
+                failureBackoffMs = 100L,
+            ),
+        )
+    }
 }

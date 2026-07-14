@@ -1,11 +1,13 @@
 package elovaire.music.droidbeauty.app.data.library
 
-import android.os.SystemClock
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 
 internal class ScannerProgressEmitter(
     private val onProgress: ((current: Int, total: Int) -> Unit)?,
+    clock: AppClock = AndroidAppClock,
 ) {
-    private val throttler = ScannerProgressThrottler()
+    private val throttler = ScannerProgressThrottler(clock)
 
     fun emit(
         current: Int,
@@ -21,6 +23,7 @@ internal class ScannerProgressEmitter(
 }
 
 private class ScannerProgressThrottler(
+    private val clock: AppClock,
     private val minStep: Float = 0.01f,
     private val minIntervalMs: Long = 80L,
 ) {
@@ -28,7 +31,7 @@ private class ScannerProgressThrottler(
     private var lastEmitMs = 0L
 
     fun shouldEmit(progress: Float): Boolean {
-        val now = SystemClock.elapsedRealtime()
+        val now = clock.elapsedTimeMs()
         if (progress >= 1f) return true
         if (lastProgress < 0f) {
             lastProgress = progress

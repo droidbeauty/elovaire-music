@@ -5,10 +5,11 @@ import android.database.ContentObserver
 import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.provider.MediaStore
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -24,6 +25,7 @@ internal class LibraryObserverController(
     private val scanner: MediaStoreScanner,
     private val scope: CoroutineScope,
     private val onObservedRefresh: (forceMediaIndex: Boolean, changedFilePath: String?) -> Unit,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private val contentResolver = appContext.contentResolver
     private var mediaObserverRegistered = false
@@ -72,12 +74,12 @@ internal class LibraryObserverController(
         unregisterMediaObserver()
     }
 
-    fun setSuppressRefreshUntil(timestampMs: Long) {
-        suppressObserverRefreshUntilMs = timestampMs
+    fun suppressRefreshFor(durationMs: Long) {
+        suppressObserverRefreshUntilMs = clock.elapsedTimeMs() + durationMs.coerceAtLeast(0L)
     }
 
     private fun onObservedMediaChange() {
-        if (System.currentTimeMillis() < suppressObserverRefreshUntilMs) return
+        if (clock.elapsedTimeMs() < suppressObserverRefreshUntilMs) return
         onObservedRefresh(false, null)
     }
 
@@ -157,7 +159,7 @@ internal class LibraryObserverController(
     }
 
     private fun shouldCoalesceObservedPath(path: String): Boolean {
-        val nowMs = SystemClock.elapsedRealtime()
+        val nowMs = clock.elapsedTimeMs()
         synchronized(recentObservedPathsLock) {
             recentObservedPaths.entries.removeIf { (_, observedAtMs) ->
                 nowMs - observedAtMs > OBSERVED_PATH_COALESCE_WINDOW_MS
@@ -182,7 +184,7 @@ internal class LibraryObserverController(
         event: Int,
         changedFile: File?,
     ) {
-        if (!directoryObserversEnabled || System.currentTimeMillis() < suppressObserverRefreshUntilMs) return
+        if (!directoryObserversEnabled || clock.elapsedTimeMs() < suppressObserverRefreshUntilMs) return
         if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
             requestMusicDirectoryObserverRebuild()
         }

@@ -2,12 +2,15 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import org.json.JSONArray
 import org.json.JSONObject
 
 internal class LyricsCache(
     appContext: Context,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private val cacheFile = allowStrictModeDiskReads {
         // The lazy cache only needs its app-private file handle during service construction.
@@ -22,7 +25,7 @@ internal class LyricsCache(
         includeNotFound: Boolean,
     ): LyricsResult? = synchronized(cacheLock) {
         ensureLoadedLocked()
-        val now = System.currentTimeMillis()
+        val now = clock.wallTimeMs()
         val staleKeys = mutableListOf<String>()
         val entry = identity.cacheKeys.firstNotNullOfOrNull { key ->
             cacheEntries[key]?.also { cached ->
@@ -56,7 +59,7 @@ internal class LyricsCache(
 
     fun clearExpired() = synchronized(cacheLock) {
         ensureLoadedLocked()
-        val now = System.currentTimeMillis()
+        val now = clock.wallTimeMs()
         val removed = cacheEntries.entries.removeIf { (_, entry) -> entry.isExpired(now) }
         if (removed) {
             persistLocked()

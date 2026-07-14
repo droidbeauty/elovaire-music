@@ -17,13 +17,11 @@ internal fun Song.toLyricsIdentity(): LyricsIdentity {
         normalizedAlbum,
     ).joinToString("::")
 
-    val cacheKeys = buildList {
-        val metadataSignature = "$normalizedArtist::$normalizedTitle::$durationBucketSeconds"
-        val sourceRevision = dateModifiedSeconds?.coerceAtLeast(0L) ?: 0L
-        uri.toString().takeIf { it.isNotBlank() }?.let { add("uri::$it::$sourceRevision::$metadataSignature") }
-        if (id > 0L) add("media::$id::$sourceRevision::$metadataSignature")
-        add(normalizedLookupKey)
-    }.distinct()
+    val metadataSignature = "$normalizedArtist::$normalizedTitle::$durationBucketSeconds"
+    val sourceRevision = MediaIdentityResolver.revision(this)
+    val cacheKeys = listOf(
+        "source::${MediaIdentityResolver.stableKey(this)}::${sourceRevision.stableKey}::$metadataSignature",
+    )
 
     return LyricsIdentity(
         title = title,
@@ -44,7 +42,7 @@ internal fun Song.toLyricsRequestKey(lookupMode: LyricsLookupMode): LyricsReques
     return LyricsRequestKey(
         songId = id,
         sourceKey = MediaIdentityResolver.stableKey(this),
-        revision = MediaIdentityResolver.revision(this).stableKey.hashCode().toLong(),
+        revision = MediaIdentityResolver.revision(this),
         lookupMode = lookupMode,
     )
 }

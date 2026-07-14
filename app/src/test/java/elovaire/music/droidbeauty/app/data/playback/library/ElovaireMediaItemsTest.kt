@@ -17,6 +17,19 @@ class ElovaireMediaItemsTest {
     }
 
     @Test
+    fun mediaIdsRoundTripWithoutCrossingDomains() {
+        val ids = listOf(
+            ElovaireMediaId.Song(42L),
+            ElovaireMediaId.Album(42L),
+            ElovaireMediaId.Playlist(42L),
+            ElovaireMediaId.Root,
+            ElovaireMediaId.Favorites,
+        )
+
+        ids.forEach { id -> assertEquals(id, ElovaireMediaIds.parse(id.value)) }
+    }
+
+    @Test
     fun playbackMediaItem_containsSystemFacingMusicMetadata() {
         val mediaItem = testSong().toPlaybackMediaItem()
         val metadata = mediaItem.mediaMetadata

@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.data.mutation
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class MediaMutationJournalTest {
@@ -28,5 +30,13 @@ class MediaMutationJournalTest {
         assertTrue(isValidMutationTransition(MediaMutationStatus.PreflightPassed, MediaMutationStatus.Failed))
         assertTrue(isValidMutationTransition(MediaMutationStatus.Committed, MediaMutationStatus.NeedsRepair))
         assertTrue(isValidMutationTransition(MediaMutationStatus.Failed, MediaMutationStatus.NeedsRepair))
+    }
+
+    @Test
+    fun recoveryClassifiesInterruptedMutationByDurabilityPhase() {
+        assertEquals(MediaMutationStatus.Cancelled, recoveryStatusFor(MediaMutationStatus.TempVerified))
+        assertEquals(MediaMutationStatus.NeedsRepair, recoveryStatusFor(MediaMutationStatus.Committed))
+        assertEquals(MediaMutationStatus.Completed, recoveryStatusFor(MediaMutationStatus.PersistedVerified))
+        assertNull(recoveryStatusFor(MediaMutationStatus.NeedsRepair))
     }
 }

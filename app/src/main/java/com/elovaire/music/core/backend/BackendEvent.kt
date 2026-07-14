@@ -3,6 +3,31 @@ package elovaire.music.droidbeauty.app.core.backend
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 
+internal enum class BackendSubsystem {
+    Library,
+    MediaMutation,
+    Playback,
+    Update,
+}
+
+internal data class BackendOperationContext(
+    val id: String,
+    val subsystem: BackendSubsystem,
+    val startedAtElapsedMs: Long,
+) {
+    fun fields(
+        phase: String,
+        elapsedTimeMs: Long,
+        extra: Map<String, String> = emptyMap(),
+    ): Map<String, String> = buildMap(extra.size + 4) {
+        put("operation_id", id)
+        put("subsystem", subsystem.name)
+        put("phase", phase)
+        put("elapsed_ms", (elapsedTimeMs - startedAtElapsedMs).coerceAtLeast(0L).toString())
+        putAll(extra)
+    }
+}
+
 internal sealed interface BackendEvent {
     val name: String
     val fields: Map<String, String>

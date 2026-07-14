@@ -81,8 +81,11 @@ internal object MediaIdentityResolver {
     }
 
     fun revision(song: Song, sizeBytes: Long? = null, providerGeneration: Long? = null): MediaRevision {
+        val modifiedAtMs = song.dateModifiedSeconds
+            ?.takeIf { it in 0L..Long.MAX_VALUE / 1_000L }
+            ?.times(1_000L)
         return MediaRevision(
-            modifiedAtMs = song.dateModifiedSeconds?.coerceAtLeast(0L)?.times(1_000L),
+            modifiedAtMs = modifiedAtMs,
             sizeBytes = sizeBytes?.takeIf { it >= 0L },
             providerGeneration = providerGeneration?.takeIf { it >= 0L },
             metadataRevision = if (song.metadataResolved) 1L else 0L,
