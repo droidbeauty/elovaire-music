@@ -40,7 +40,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -82,6 +84,12 @@ internal fun ChangelogScreen(
     val release = remember(releases) {
         releases.firstOrNull { it.version == BuildConfig.VERSION_NAME } ?: releases.firstOrNull()
     }
+    val backgroundFilter = remember {
+        ColorFilter.tint(
+            color = Color.Black.copy(alpha = 0.7f),
+            blendMode = BlendMode.SrcOver,
+        )
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -91,12 +99,8 @@ internal fun ChangelogScreen(
             painter = painterResource(id = R.drawable.changelog_background),
             contentDescription = null,
             contentScale = ContentScale.Crop,
+            colorFilter = backgroundFilter,
             modifier = Modifier.fillMaxSize(),
-        )
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .background(Color.Black.copy(alpha = 0.6f)),
         )
         LazyColumn(
             state = listState,
@@ -105,21 +109,11 @@ internal fun ChangelogScreen(
                 .fillMaxSize()
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
+                top = topBarOccupiedHeight() + 24.dp,
                 bottom = navigationBarInsetDp() + 24.dp,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
-            item {
-                Image(
-                    painter = painterResource(id = R.drawable.changelog_header),
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(354.dp),
-                )
-            }
-
             item {
                 Row(
                     modifier = Modifier

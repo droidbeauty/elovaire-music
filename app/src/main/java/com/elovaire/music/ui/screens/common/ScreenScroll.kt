@@ -1,10 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
@@ -26,18 +23,20 @@ import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -46,6 +45,9 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
@@ -56,33 +58,20 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.InkText
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlin.math.ceil
-import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
 
-private data class FastListScrollbarMetrics(
+private data class FastScrollbarMetrics(
     val scrollFraction: Float,
-    val visibleFraction: Float,
+    val viewportFraction: Float,
     val totalItems: Int,
-    val visibleItemsCount: Int,
-    val averageItemHeightPx: Float,
-    val scrollableContentHeightPx: Float,
-)
-
-private data class FastGridScrollbarMetrics(
-    val scrollFraction: Float,
-    val visibleFraction: Float,
-    val totalItems: Int,
-    val visibleItemsCount: Int,
-    val visibleRows: Int,
-    val totalRows: Int,
-    val spanCount: Int,
-    val averageRowHeightPx: Float,
-    val scrollableContentHeightPx: Float,
+    val estimatedUnits: Int,
+    val scrollableContentPx: Float,
+    val beforeContentPaddingPx: Int,
+    val estimator: LazyItemSizeEstimator,
 )
 
 internal val FastScrollbarTouchWidth = 40.dp
@@ -91,43 +80,46 @@ internal val FastScrollbarTrackWidth = 1.dp
 internal val FastScrollbarThumbWidth = 3.dp
 internal val FastScrollbarMinThumbHeight = 40.dp
 
-private class FastScrollbarRuntime {
-    var scrollJob: Job? = null
-    var lastRequestedFraction: Float = -1f
-}
-
 @Composable
 internal fun BoxScope.FastScrollbar(
-    state: androidx.compose.foundation.lazy.LazyListState,
+    state: LazyListState,
     topInset: Dp,
     bottomInset: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val metrics by remember(state) {
+    val estimator = remember(state) { LazyItemSizeEstimator() }
+    val metrics by remember(state, estimator) {
         derivedStateOf {
             val layoutInfo = state.layoutInfo
             val visibleItems = layoutInfo.visibleItemsInfo
             val totalItems = layoutInfo.totalItemsCount
-            if (visibleItems.isEmpty() || totalItems <= visibleItems.size) {
+            if (visibleItems.isEmpty() || (!state.canScrollBackward && !state.canScrollForward)) {
                 null
             } else {
-                val viewportHeightPx =
-                    (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat().coerceAtLeast(1f)
-                val averageItemHeightPx = visibleItems.averageHeightPx { it.size }
-                val estimatedContentHeightPx = max(viewportHeightPx, averageItemHeightPx * totalItems)
-                val scrollableContentHeightPx = max(estimatedContentHeightPx - viewportHeightPx, 1f)
-                val currentScrollPx =
-                    (state.firstVisibleItemIndex * averageItemHeightPx + state.firstVisibleItemScrollOffset)
-                        .coerceAtLeast(0f)
-                val visibleFraction = viewportHeightPx / estimatedContentHeightPx
-                if (visibleFraction >= 0.85f) return@derivedStateOf null
-                FastListScrollbarMetrics(
-                    scrollFraction = (currentScrollPx / scrollableContentHeightPx).coerceIn(0f, 1f),
-                    visibleFraction = visibleFraction.coerceIn(0.12f, 0.5f),
+                estimator.prepare(totalItems, layoutInfo.mainAxisItemSpacing)
+                visibleItems.forEach { estimator.record(it.index, it.size, it.key) }
+                val viewportPx = layoutInfo.viewportSize.height.toFloat().coerceAtLeast(1f)
+                val contentPx = (
+                    estimator.estimatedTotalPx() +
+                        layoutInfo.beforeContentPadding +
+                        layoutInfo.afterContentPadding
+                    ).coerceAtLeast(viewportPx)
+                val scrollablePx = (contentPx - viewportPx).coerceAtLeast(1f)
+                val estimatedScrollPx = estimator.estimatedPrefixPx(state.firstVisibleItemIndex) +
+                    state.firstVisibleItemScrollOffset
+                val fraction = when {
+                    !state.canScrollBackward -> 0f
+                    !state.canScrollForward -> 1f
+                    else -> estimatedScrollPx / scrollablePx
+                }
+                FastScrollbarMetrics(
+                    scrollFraction = fraction.coerceIn(0f, 1f),
+                    viewportFraction = (viewportPx / contentPx).coerceIn(0f, 1f),
                     totalItems = totalItems,
-                    visibleItemsCount = visibleItems.size,
-                    averageItemHeightPx = averageItemHeightPx,
-                    scrollableContentHeightPx = scrollableContentHeightPx,
+                    estimatedUnits = totalItems,
+                    scrollableContentPx = scrollablePx,
+                    beforeContentPaddingPx = layoutInfo.beforeContentPadding,
+                    estimator = estimator,
                 )
             }
         }
@@ -136,23 +128,18 @@ internal fun BoxScope.FastScrollbar(
 
     FastScrollbarTrack(
         scrollFraction = resolvedMetrics.scrollFraction,
-        visibleFraction = resolvedMetrics.visibleFraction,
+        viewportFraction = resolvedMetrics.viewportFraction,
         totalItems = resolvedMetrics.totalItems,
-        visibleItemsCount = resolvedMetrics.visibleItemsCount,
         topInset = topInset,
         bottomInset = bottomInset,
         modifier = modifier,
         isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
-            val maxFirstVisibleIndex = (resolvedMetrics.totalItems - resolvedMetrics.visibleItemsCount).coerceAtLeast(0)
-            val targetScrollPx = resolvedMetrics.scrollableContentHeightPx * fraction
-            val rawIndex = floor(targetScrollPx / resolvedMetrics.averageItemHeightPx).toInt()
-            val targetIndex = rawIndex
-                .coerceIn(0, maxFirstVisibleIndex)
-            val targetOffset = (targetScrollPx - (targetIndex * resolvedMetrics.averageItemHeightPx))
-                .roundToInt()
-                .coerceAtLeast(0)
-            state.scrollToItem(targetIndex, targetOffset)
+            val position = resolvedMetrics.estimator.positionForOffset(
+                (resolvedMetrics.scrollableContentPx * fraction - resolvedMetrics.beforeContentPaddingPx)
+                    .coerceAtLeast(0f),
+            )
+            state.scrollToItem(position.index, position.offsetPx)
         },
     )
 }
@@ -169,18 +156,16 @@ internal fun BoxScope.FastScrollbar(
             .matchParentSize(),
     ) {
         val viewportHeightPx = with(LocalDensity.current) { maxHeight.toPx() }.coerceAtLeast(1f)
-        val scrollableContentHeightPx = state.maxValue.toFloat().coerceAtLeast(0f)
-        if (scrollableContentHeightPx <= viewportHeightPx * 0.35f) return@BoxWithConstraints
+        val scrollableContentHeightPx = state.maxValue.toFloat()
+        if (scrollableContentHeightPx <= 0f) return@BoxWithConstraints
 
         val estimatedContentHeightPx = viewportHeightPx + scrollableContentHeightPx
         FastScrollbarTrack(
             scrollFraction = (state.value / scrollableContentHeightPx).coerceIn(0f, 1f),
-            visibleFraction = (viewportHeightPx / estimatedContentHeightPx).coerceIn(0.12f, 0.5f),
+            viewportFraction = (viewportHeightPx / estimatedContentHeightPx).coerceIn(0f, 1f),
             totalItems = 2,
-            visibleItemsCount = 1,
             topInset = topInset,
             bottomInset = bottomInset,
-            modifier = modifier,
             isScrollInProgress = state.isScrollInProgress,
             onJumpToFraction = { fraction ->
                 state.scrollTo((scrollableContentHeightPx * fraction).roundToInt())
@@ -196,41 +181,57 @@ internal fun BoxScope.FastScrollbar(
     bottomInset: Dp,
     modifier: Modifier = Modifier,
 ) {
-    val metrics by remember(state) {
+    val rowEstimator = remember(state) { LazyItemSizeEstimator() }
+    val metrics by remember(state, rowEstimator) {
         derivedStateOf {
             val layoutInfo = state.layoutInfo
             val visibleItems = layoutInfo.visibleItemsInfo
             val totalItems = layoutInfo.totalItemsCount
-            if (visibleItems.isEmpty() || totalItems <= visibleItems.size) {
+            if (visibleItems.isEmpty() || (!state.canScrollBackward && !state.canScrollForward)) {
                 null
             } else {
-                val viewportHeightPx =
-                    (layoutInfo.viewportEndOffset - layoutInfo.viewportStartOffset).toFloat().coerceAtLeast(1f)
-                val averageItemHeightPx = visibleItems.averageHeightPx { it.size.height }
-                val firstRowOffsetY = visibleItems.firstOrNull()?.offset?.y
-                val spanCount = visibleItems
-                    .takeWhile { it.offset.y == firstRowOffsetY }
-                    .size
-                    .coerceAtLeast(1)
-                val totalRows = ceil(totalItems.toFloat() / spanCount.toFloat()).toInt().coerceAtLeast(1)
-                val visibleRows = ceil(visibleItems.size.toFloat() / spanCount.toFloat()).toInt().coerceAtLeast(1)
-                val estimatedContentHeightPx = max(viewportHeightPx, averageItemHeightPx * totalRows)
-                val scrollableContentHeightPx = max(estimatedContentHeightPx - viewportHeightPx, 1f)
-                val currentScrollPx =
-                    ((state.firstVisibleItemIndex / spanCount) * averageItemHeightPx + state.firstVisibleItemScrollOffset)
-                        .coerceAtLeast(0f)
-                val visibleFraction = viewportHeightPx / estimatedContentHeightPx
-                if (visibleFraction >= 0.85f) return@derivedStateOf null
-                FastGridScrollbarMetrics(
-                    scrollFraction = (currentScrollPx / scrollableContentHeightPx).coerceIn(0f, 1f),
-                    visibleFraction = visibleFraction.coerceIn(0.12f, 0.5f),
+                val spanCount = layoutInfo.maxSpan.coerceAtLeast(1)
+                val totalRows = ceil(totalItems.toFloat() / spanCount).toInt().coerceAtLeast(1)
+                rowEstimator.prepare(totalRows, layoutInfo.mainAxisItemSpacing)
+                var measuredRow = -1
+                var measuredRowHeight = 0
+                visibleItems.forEach { item ->
+                    if (item.row >= 0 && item.row != measuredRow) {
+                        if (measuredRow >= 0) rowEstimator.record(measuredRow, measuredRowHeight)
+                        measuredRow = item.row
+                        measuredRowHeight = item.size.height
+                    } else if (item.row == measuredRow) {
+                        measuredRowHeight = max(measuredRowHeight, item.size.height)
+                    }
+                }
+                if (measuredRow >= 0) rowEstimator.record(measuredRow, measuredRowHeight)
+                val viewportPx = layoutInfo.viewportSize.height.toFloat().coerceAtLeast(1f)
+                val contentPx = (
+                    rowEstimator.estimatedTotalPx() +
+                        layoutInfo.beforeContentPadding +
+                        layoutInfo.afterContentPadding
+                    ).coerceAtLeast(viewportPx)
+                val scrollablePx = (contentPx - viewportPx).coerceAtLeast(1f)
+                val firstRow = visibleItems
+                    .firstOrNull { it.index == state.firstVisibleItemIndex }
+                    ?.row
+                    ?.takeIf { it >= 0 }
+                    ?: (state.firstVisibleItemIndex / spanCount)
+                val estimatedScrollPx = rowEstimator.estimatedPrefixPx(firstRow) +
+                    state.firstVisibleItemScrollOffset
+                val fraction = when {
+                    !state.canScrollBackward -> 0f
+                    !state.canScrollForward -> 1f
+                    else -> estimatedScrollPx / scrollablePx
+                }
+                FastScrollbarMetrics(
+                    scrollFraction = fraction.coerceIn(0f, 1f),
+                    viewportFraction = (viewportPx / contentPx).coerceIn(0f, 1f),
                     totalItems = totalItems,
-                    visibleItemsCount = visibleItems.size,
-                    visibleRows = visibleRows,
-                    totalRows = totalRows,
-                    spanCount = spanCount,
-                    averageRowHeightPx = averageItemHeightPx,
-                    scrollableContentHeightPx = scrollableContentHeightPx,
+                    estimatedUnits = totalRows,
+                    scrollableContentPx = scrollablePx,
+                    beforeContentPaddingPx = layoutInfo.beforeContentPadding,
+                    estimator = rowEstimator,
                 )
             }
         }
@@ -239,24 +240,21 @@ internal fun BoxScope.FastScrollbar(
 
     FastScrollbarTrack(
         scrollFraction = resolvedMetrics.scrollFraction,
-        visibleFraction = resolvedMetrics.visibleFraction,
+        viewportFraction = resolvedMetrics.viewportFraction,
         totalItems = resolvedMetrics.totalItems,
-        visibleItemsCount = resolvedMetrics.visibleItemsCount,
         topInset = topInset,
         bottomInset = bottomInset,
         modifier = modifier,
         isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
-            val maxFirstVisibleRow = (resolvedMetrics.totalRows - resolvedMetrics.visibleRows).coerceAtLeast(0)
-            val targetScrollPx = resolvedMetrics.scrollableContentHeightPx * fraction
-            val targetRow = floor(targetScrollPx / resolvedMetrics.averageRowHeightPx).toInt()
-                .coerceIn(0, maxFirstVisibleRow)
-            val targetOffset = (targetScrollPx - (targetRow * resolvedMetrics.averageRowHeightPx))
-                .roundToInt()
-                .coerceAtLeast(0)
-            val targetIndex =
-                (targetRow * resolvedMetrics.spanCount).coerceIn(0, (resolvedMetrics.totalItems - 1).coerceAtLeast(0))
-            state.scrollToItem(targetIndex, targetOffset)
+            val position = resolvedMetrics.estimator.positionForOffset(
+                (resolvedMetrics.scrollableContentPx * fraction - resolvedMetrics.beforeContentPaddingPx)
+                    .coerceAtLeast(0f),
+            )
+            val targetIndex = (
+                position.index.toFloat() / resolvedMetrics.estimatedUnits * resolvedMetrics.totalItems
+                ).roundToInt().coerceIn(0, resolvedMetrics.totalItems - 1)
+            state.scrollToItem(targetIndex, position.offsetPx)
         },
     )
 }
@@ -264,35 +262,37 @@ internal fun BoxScope.FastScrollbar(
 @Composable
 private fun BoxScope.FastScrollbarTrack(
     scrollFraction: Float,
-    visibleFraction: Float,
+    viewportFraction: Float,
     totalItems: Int,
-    visibleItemsCount: Int,
     topInset: Dp,
     bottomInset: Dp,
     isScrollInProgress: Boolean,
     onJumpToFraction: suspend (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    if (totalItems <= visibleItemsCount) return
-
     val motionSpecs = rememberMotionSpecs()
-    val scope = rememberCoroutineScope()
-    val runtime = remember { FastScrollbarRuntime() }
+    val targetFractions = remember { Channel<Float>(Channel.CONFLATED) }
+    val currentJump by rememberUpdatedState(onJumpToFraction)
     var isDragging by remember { mutableStateOf(false) }
     var visible by remember { mutableStateOf(true) }
     var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
+    var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
+    var dragThumbLengthPx by remember { mutableFloatStateOf(0f) }
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
-    val trackColor = if (darkTheme) {
-        Color.White.copy(alpha = 0.12f)
-    } else {
-        InkText.copy(alpha = 0.12f)
+    val trackColor = fastScrollbarTrackColor(darkTheme)
+    val thumbColor = fastScrollbarThumbColor(darkTheme)
+    val displayedScrollFraction = if (isDragging) dragFraction else scrollFraction.coerceIn(0f, 1f)
+    val chromeAlpha by animateFloatAsState(
+        targetValue = if (visible || isDragging) 1f else 0f,
+        animationSpec = motionSpecs.tween(if (visible || isDragging) 120 else 220),
+        label = "fast_scrollbar_visibility",
+    )
+    LaunchedEffect(targetFractions) {
+        for (fraction in targetFractions) currentJump(fraction)
     }
-    val thumbColor = if (darkTheme) {
-        Color.White.copy(alpha = 0.78f)
-    } else {
-        InkText.copy(alpha = 0.72f)
+    DisposableEffect(targetFractions) {
+        onDispose { targetFractions.close() }
     }
-    val displayedScrollFraction = if (isDragging) dragFraction.coerceIn(0f, 1f) else scrollFraction.coerceIn(0f, 1f)
     LaunchedEffect(isScrollInProgress, isDragging) {
         if (isScrollInProgress || isDragging) {
             visible = true
@@ -311,69 +311,75 @@ private fun BoxScope.FastScrollbarTrack(
     ) {
         val density = LocalDensity.current
         val trackHeightPx = with(density) { maxHeight.toPx() }.coerceAtLeast(1f)
-        val thumbHeightPx = max(with(density) { FastScrollbarMinThumbHeight.toPx() }, trackHeightPx * visibleFraction)
-        val trackTravelPx = max(trackHeightPx - thumbHeightPx, 1f)
-        val thumbOffsetPx = trackTravelPx * displayedScrollFraction
-        val fractionForPosition: (Float) -> Float = { y ->
-            (y / trackHeightPx).coerceIn(0f, 1f)
+        val passiveLayout = scrollbarLayout(
+            trackLengthPx = trackHeightPx,
+            minThumbPx = with(density) { FastScrollbarMinThumbHeight.toPx() },
+            scrollFraction = displayedScrollFraction,
+            viewportFraction = viewportFraction,
+        )
+        val layout = if (isDragging && dragThumbLengthPx > 0f) {
+            passiveLayout.copy(
+                thumbLengthPx = dragThumbLengthPx,
+                thumbOffsetPx = displayedScrollFraction * (trackHeightPx - dragThumbLengthPx).coerceAtLeast(0f),
+            )
+        } else {
+            passiveLayout
         }
-        val jumpToFraction: (Float) -> Unit = { fraction ->
-            val normalized = fraction.coerceIn(0f, 1f)
-            dragFraction = normalized
-            if (kotlin.math.abs(normalized - runtime.lastRequestedFraction) >= 0.0025f) {
-                runtime.lastRequestedFraction = normalized
-                runtime.scrollJob?.cancel()
-                runtime.scrollJob = scope.launch {
-                    onJumpToFraction(normalized)
+        val jumpToPointer: (Float, Float) -> Unit = { pointerY, grabOffset ->
+            val fraction = scrollbarFractionForPointer(pointerY, layout, grabOffset)
+            dragFraction = fraction
+            targetFractions.trySend(fraction)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(displayedScrollFraction, 0f..1f)
                 }
-            }
-        }
-
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(animationSpec = motionSpecs.tween(120)),
-            exit = fadeOut(animationSpec = motionSpecs.tween(220)),
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
-                        detectTapGestures { offset ->
+                .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
+                    detectTapGestures { offset ->
+                        jumpToPointer(offset.y, layout.thumbLengthPx / 2f)
+                    }
+                }
+                .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
+                    detectVerticalDragGestures(
+                        onDragStart = { offset ->
                             isDragging = true
-                            jumpToFraction(fractionForPosition(offset.y))
-                            isDragging = false
-                        }
-                    },
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .pointerInput(totalItems, visibleItemsCount, trackTravelPx, thumbHeightPx) {
-                            detectVerticalDragGestures(
-                                onDragStart = { offset ->
-                                    isDragging = true
-                                    jumpToFraction(fractionForPosition(offset.y))
-                                },
-                                onVerticalDrag = { change, _ ->
-                                    change.consume()
-                                    jumpToFraction(fractionForPosition(change.position.y))
-                                },
-                                onDragEnd = {
-                                    isDragging = false
-                                },
-                                onDragCancel = {
-                                    isDragging = false
-                                },
-                            )
+                            visible = true
+                            dragThumbLengthPx = layout.thumbLengthPx
+                            dragGrabOffsetPx = if (offset.y in layout.thumbOffsetPx..(
+                                    layout.thumbOffsetPx + layout.thumbLengthPx
+                                    )
+                            ) {
+                                offset.y - layout.thumbOffsetPx
+                            } else {
+                                layout.thumbLengthPx / 2f
+                            }
+                            jumpToPointer(offset.y, dragGrabOffsetPx)
                         },
-                )
-                FastScrollbarChrome(
-                    trackColor = trackColor,
-                    thumbColor = thumbColor,
-                    thumbHeight = with(density) { thumbHeightPx.toDp() },
-                    thumbOffsetPx = thumbOffsetPx,
-                )
-            }
+                        onVerticalDrag = { change, _ ->
+                            change.consume()
+                            jumpToPointer(change.position.y, dragGrabOffsetPx)
+                        },
+                        onDragEnd = {
+                            isDragging = false
+                            dragThumbLengthPx = 0f
+                        },
+                        onDragCancel = {
+                            isDragging = false
+                            dragThumbLengthPx = 0f
+                        },
+                    )
+                },
+        ) {
+            FastScrollbarChrome(
+                trackColor = trackColor,
+                thumbColor = thumbColor,
+                thumbHeight = with(density) { layout.thumbLengthPx.toDp() },
+                thumbOffsetPx = layout.thumbOffsetPx,
+                thumbWidth = if (isDragging) 5.dp else FastScrollbarThumbWidth,
+                alpha = chromeAlpha,
+            )
         }
     }
 }
@@ -384,21 +390,25 @@ private fun BoxScope.FastScrollbarChrome(
     thumbColor: Color,
     thumbHeight: Dp,
     thumbOffsetPx: Float,
+    thumbWidth: Dp,
+    alpha: Float,
 ) {
     Box(
         modifier = Modifier
             .align(Alignment.CenterEnd)
             .fillMaxHeight()
             .width(FastScrollbarTrackWidth)
+            .alpha(alpha)
             .clip(RoundedCornerShape(ElovaireRadii.pill))
             .background(trackColor),
     )
     Box(
         modifier = Modifier
             .align(Alignment.TopEnd)
-            .width(FastScrollbarThumbWidth)
+            .width(thumbWidth)
             .height(thumbHeight)
             .graphicsLayer {
+                this.alpha = alpha
                 translationY = thumbOffsetPx
             }
             .clip(RoundedCornerShape(ElovaireRadii.pill))
@@ -406,13 +416,12 @@ private fun BoxScope.FastScrollbarChrome(
     )
 }
 
-private inline fun <T> List<T>.averageHeightPx(sizeOf: (T) -> Int): Float {
-    if (isEmpty()) return 1f
-    var total = 0
-    for (item in this) {
-        total += sizeOf(item)
-    }
-    return (total.toFloat() / size).coerceAtLeast(1f)
+private fun fastScrollbarTrackColor(darkTheme: Boolean): Color {
+    return (if (darkTheme) Color.White else InkText).copy(alpha = 0.12f)
+}
+
+private fun fastScrollbarThumbColor(darkTheme: Boolean): Color {
+    return (if (darkTheme) Color.White else InkText).copy(alpha = if (darkTheme) 0.78f else 0.72f)
 }
 
 internal fun Modifier.ensureSingleItemRubberBand(state: androidx.compose.foundation.lazy.LazyListState): Modifier = composed {

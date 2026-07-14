@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.artwork
 
+import android.graphics.Bitmap
 import android.net.TestUri
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
@@ -23,5 +24,12 @@ class ArtworkLoaderTest {
         assertEquals(96, normalizeArtworkRequestSize(1))
         assertEquals(256, normalizeArtworkRequestSize(240))
         assertEquals(1024, normalizeArtworkRequestSize(2048))
+    }
+
+    @Test
+    fun bitmapConfig_preservesQualityForLargeAndEditorArtwork() {
+        assertEquals(Bitmap.Config.RGB_565, bitmapConfigForPurpose(ArtworkPurpose.UiGrid))
+        assertEquals(Bitmap.Config.ARGB_8888, bitmapConfigForPurpose(ArtworkPurpose.UiLarge))
+        assertEquals(Bitmap.Config.ARGB_8888, bitmapConfigForPurpose(ArtworkPurpose.TagEditorPreview))
     }
 }

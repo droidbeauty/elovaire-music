@@ -8,8 +8,8 @@
     -->
     <release version="2.5.2">
         <item>Minor UI improvements in many places</item>
-        <item>Performance focused optimizations</item>
         <item>Improved touch interactions with fast scrollbars</item>
+        <item>Performance focused optimizations</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

@@ -24,6 +24,11 @@ internal enum class ArtworkPurpose {
     TagEditorPreview,
 }
 
+internal data class ImageTargetSize(
+    val widthPx: Int,
+    val heightPx: Int,
+)
+
 internal fun artworkRequestKey(
     uri: Uri?,
     targetPx: Int,
@@ -54,29 +59,32 @@ internal fun loadArtworkBitmap(
     context: Context,
     uri: Uri?,
     targetPx: Int,
+    purpose: ArtworkPurpose = if (targetPx <= 256) ArtworkPurpose.UiGrid else ArtworkPurpose.UiLarge,
 ): Bitmap? {
     val requestUri = uri ?: return null
     val size = normalizeArtworkRequestSize(targetPx)
+    val targetSize = ImageTargetSize(size, size)
 
     runCatching {
         context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
     }.getOrNull()?.let { return it }
 
-    decodeBitmapStream(context, requestUri, size)?.let { return it }
+    decodeBitmapStream(context, requestUri, targetSize, purpose)?.let { return it }
 
-    return decodeEmbeddedArtwork(context, requestUri, size)
+    return decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
 }
 
 internal fun loadArtworkBitmap(
     context: Context,
     key: ArtworkRequestKey,
 ): Bitmap? {
-    return loadArtworkBitmap(context, Uri.parse(key.uri), key.targetPx)
+    return loadArtworkBitmap(context, Uri.parse(key.uri), key.targetPx, key.purpose)
 }
 
 internal fun decodeArtworkBytes(
     bytes: ByteArray,
     targetPx: Int,
+    purpose: ArtworkPurpose = ArtworkPurpose.TagEditorPreview,
 ): Bitmap? {
     if (bytes.isEmpty()) return null
     val size = normalizeArtworkRequestSize(targetPx)
@@ -84,11 +92,11 @@ internal fun decodeArtworkBytes(
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         val sampledOptions = BitmapFactory.Options().apply {
-            inPreferredConfig = Bitmap.Config.RGB_565
+            inPreferredConfig = bitmapConfigForPurpose(purpose)
             inSampleSize = calculateInSampleSize(
                 outWidth = bounds.outWidth,
                 outHeight = bounds.outHeight,
-                targetSize = size,
+                targetSize = ImageTargetSize(size, size),
             )
         }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
@@ -98,7 +106,8 @@ internal fun decodeArtworkBytes(
 private fun decodeBitmapStream(
     context: Context,
     uri: Uri,
-    targetSize: Int,
+    targetSize: ImageTargetSize,
+    purpose: ArtworkPurpose,
 ): Bitmap? {
     return runCatching {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -106,7 +115,7 @@ private fun decodeBitmapStream(
             BitmapFactory.decodeStream(inputStream, null, options)
         }
         val sampledOptions = BitmapFactory.Options().apply {
-            inPreferredConfig = Bitmap.Config.RGB_565
+            inPreferredConfig = bitmapConfigForPurpose(purpose)
             inSampleSize = calculateInSampleSize(
                 outWidth = options.outWidth,
                 outHeight = options.outHeight,
@@ -122,7 +131,8 @@ private fun decodeBitmapStream(
 private fun decodeEmbeddedArtwork(
     context: Context,
     uri: Uri,
-    targetSize: Int,
+    targetSize: ImageTargetSize,
+    purpose: ArtworkPurpose,
 ): Bitmap? {
     return runCatching {
         val retriever = MediaMetadataRetriever()
@@ -132,7 +142,7 @@ private fun decodeEmbeddedArtwork(
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
             val sampledOptions = BitmapFactory.Options().apply {
-                inPreferredConfig = Bitmap.Config.RGB_565
+                inPreferredConfig = bitmapConfigForPurpose(purpose)
                 inSampleSize = calculateInSampleSize(
                     outWidth = bounds.outWidth,
                     outHeight = bounds.outHeight,
@@ -149,14 +159,30 @@ private fun decodeEmbeddedArtwork(
 private fun calculateInSampleSize(
     outWidth: Int,
     outHeight: Int,
-    targetSize: Int,
+    targetSize: ImageTargetSize,
 ): Int {
-    if (outWidth <= 0 || outHeight <= 0 || targetSize <= 0) return 1
+    if (outWidth <= 0 || outHeight <= 0 || targetSize.widthPx <= 0 || targetSize.heightPx <= 0) return 1
     var sampleSize = 1
     val halfWidth = outWidth / 2
     val halfHeight = outHeight / 2
-    while (halfWidth / sampleSize >= targetSize && halfHeight / sampleSize >= targetSize) {
+    while (
+        halfWidth / sampleSize >= targetSize.widthPx &&
+        halfHeight / sampleSize >= targetSize.heightPx
+    ) {
         sampleSize *= 2
     }
     return sampleSize.coerceAtLeast(1)
+}
+
+internal fun bitmapConfigForPurpose(purpose: ArtworkPurpose): Bitmap.Config {
+    return when (purpose) {
+        ArtworkPurpose.UiGrid,
+        ArtworkPurpose.Notification,
+        ArtworkPurpose.PlaylistPreview,
+        -> Bitmap.Config.RGB_565
+
+        ArtworkPurpose.UiLarge,
+        ArtworkPurpose.TagEditorPreview,
+        -> Bitmap.Config.ARGB_8888
+    }
 }

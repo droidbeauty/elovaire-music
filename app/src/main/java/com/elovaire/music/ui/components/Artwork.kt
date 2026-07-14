@@ -180,7 +180,7 @@ fun rememberArtworkBitmap(
         }
         value = value ?: ArtworkMemoryCache.bestImageForUri(uriKey, normalizedSize)
         val loaded = withContext(Dispatchers.IO) {
-            loadArtworkBitmap(context, uri, normalizedSize)?.also { bitmap ->
+            requestKey?.let { loadArtworkBitmap(context, it) }?.also { bitmap ->
                 bitmap.prepareToDraw()
             }?.asImageBitmap()?.also { image ->
                 ArtworkMemoryCache.putImage(
