@@ -6,10 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.5.1">
-        <item>Improved UI in the artists screen</item>
+    <release version="2.5.2">
+        <item>Minor UI improvements in many places</item>
         <item>Performance focused optimizations</item>
-        <item>Further improved EQ quality</item>
+        <item>Improved touch interactions with fast scrollbars</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

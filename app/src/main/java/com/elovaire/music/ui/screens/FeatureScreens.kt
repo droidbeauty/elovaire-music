@@ -4687,6 +4687,7 @@ internal fun AlbumScreen(
     onPlayAlbum: (Album) -> Unit,
     onShuffleAlbum: (Album) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
+    onArtistSelected: (String) -> Unit,
     onAddSongsToPlaylist: (Long, List<Long>) -> Unit,
     onCreatePlaylist: (String) -> Long,
     onDeleteSongsFromDevice: (List<Song>) -> Unit,
@@ -4935,6 +4936,11 @@ internal fun AlbumScreen(
                             ),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.76f),
                             textAlign = TextAlign.Center,
+                            modifier = Modifier.clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = { onArtistSelected(album.artist.ifBlank { "Unknown Artist" }) },
+                            ),
                         )
                     }
 

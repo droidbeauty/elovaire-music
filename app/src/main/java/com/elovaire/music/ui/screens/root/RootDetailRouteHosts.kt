@@ -70,6 +70,7 @@ internal fun AlbumRouteHost(
                 sourceLabel = album?.title ?: selectedSong.album,
             )
         },
+        onArtistSelected = routeActions::openArtist,
         playlists = appState.playlists,
         onAddSongsToPlaylist = routeActions.playlists::addSongsToPlaylist,
         onCreatePlaylist = routeActions.playlists::createPlaylist,

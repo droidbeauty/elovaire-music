@@ -177,7 +177,7 @@ internal fun EqualizerScreen(
                     scrollState = graphScrollState,
                     contentWidth = graphContentWidth,
                 )
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(8.dp))
                 EqMiniResponseGraph(
                     settings = settings,
                     modifier = Modifier

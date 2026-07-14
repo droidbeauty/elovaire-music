@@ -60,6 +60,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.ceil
+import kotlin.math.floor
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -68,6 +69,8 @@ private data class FastListScrollbarMetrics(
     val visibleFraction: Float,
     val totalItems: Int,
     val visibleItemsCount: Int,
+    val averageItemHeightPx: Float,
+    val scrollableContentHeightPx: Float,
 )
 
 private data class FastGridScrollbarMetrics(
@@ -78,9 +81,11 @@ private data class FastGridScrollbarMetrics(
     val visibleRows: Int,
     val totalRows: Int,
     val spanCount: Int,
+    val averageRowHeightPx: Float,
+    val scrollableContentHeightPx: Float,
 )
 
-internal val FastScrollbarTouchWidth = 28.dp
+internal val FastScrollbarTouchWidth = 40.dp
 internal val FastScrollbarEdgePadding = 0.dp
 internal val FastScrollbarTrackWidth = 1.dp
 internal val FastScrollbarThumbWidth = 3.dp
@@ -121,6 +126,8 @@ internal fun BoxScope.FastScrollbar(
                     visibleFraction = visibleFraction.coerceIn(0.12f, 0.5f),
                     totalItems = totalItems,
                     visibleItemsCount = visibleItems.size,
+                    averageItemHeightPx = averageItemHeightPx,
+                    scrollableContentHeightPx = scrollableContentHeightPx,
                 )
             }
         }
@@ -138,10 +145,14 @@ internal fun BoxScope.FastScrollbar(
         isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
             val maxFirstVisibleIndex = (resolvedMetrics.totalItems - resolvedMetrics.visibleItemsCount).coerceAtLeast(0)
-            val targetIndex = (maxFirstVisibleIndex * fraction)
-                .roundToInt()
+            val targetScrollPx = resolvedMetrics.scrollableContentHeightPx * fraction
+            val rawIndex = floor(targetScrollPx / resolvedMetrics.averageItemHeightPx).toInt()
+            val targetIndex = rawIndex
                 .coerceIn(0, maxFirstVisibleIndex)
-            state.scrollToItem(targetIndex)
+            val targetOffset = (targetScrollPx - (targetIndex * resolvedMetrics.averageItemHeightPx))
+                .roundToInt()
+                .coerceAtLeast(0)
+            state.scrollToItem(targetIndex, targetOffset)
         },
     )
 }
@@ -218,6 +229,8 @@ internal fun BoxScope.FastScrollbar(
                     visibleRows = visibleRows,
                     totalRows = totalRows,
                     spanCount = spanCount,
+                    averageRowHeightPx = averageItemHeightPx,
+                    scrollableContentHeightPx = scrollableContentHeightPx,
                 )
             }
         }
@@ -235,12 +248,15 @@ internal fun BoxScope.FastScrollbar(
         isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
             val maxFirstVisibleRow = (resolvedMetrics.totalRows - resolvedMetrics.visibleRows).coerceAtLeast(0)
-            val targetRow = (maxFirstVisibleRow * fraction)
-                .roundToInt()
+            val targetScrollPx = resolvedMetrics.scrollableContentHeightPx * fraction
+            val targetRow = floor(targetScrollPx / resolvedMetrics.averageRowHeightPx).toInt()
                 .coerceIn(0, maxFirstVisibleRow)
+            val targetOffset = (targetScrollPx - (targetRow * resolvedMetrics.averageRowHeightPx))
+                .roundToInt()
+                .coerceAtLeast(0)
             val targetIndex =
                 (targetRow * resolvedMetrics.spanCount).coerceIn(0, (resolvedMetrics.totalItems - 1).coerceAtLeast(0))
-            state.scrollToItem(targetIndex)
+            state.scrollToItem(targetIndex, targetOffset)
         },
     )
 }
