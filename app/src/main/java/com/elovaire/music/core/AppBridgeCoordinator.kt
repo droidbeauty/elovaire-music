@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.annotation.SuppressLint
+import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -15,9 +16,18 @@ internal class AppBridgeCoordinator(
 ) {
     private val bridgeJob = SupervisorJob(scope.coroutineContext[Job])
     private val bridgeScope = CoroutineScope(scope.coroutineContext + bridgeJob)
+    private val playbackSettings = object : PlaybackIntegrationSettings {
+        override val eqSettings get() = services.preferenceStore.eqSettings
+        override val gaplessPlaybackEnabled get() = services.preferenceStore.gaplessPlaybackEnabled
+        override val volumeNormalizationEnabled get() = services.preferenceStore.volumeNormalizationEnabled
+
+        override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
+            services.preferenceStore.recordPlaybackTransition(songId, albumId)
+        }
+    }
     private val playbackIntegration = PlaybackIntegrationCoordinator(
         scope = bridgeScope,
-        preferences = services.preferenceStore,
+        preferences = playbackSettings,
         library = services.libraryRepository,
         playback = services.playbackManager,
         effects = services.playbackEffectsController,

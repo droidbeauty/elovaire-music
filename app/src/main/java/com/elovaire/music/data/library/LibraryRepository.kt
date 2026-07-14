@@ -429,10 +429,11 @@ class LibraryRepository internal constructor(
         if (enrichMetadata && songIds.isNotEmpty()) {
             scanner.invalidateMetadataCacheForSongIds(songIds)
         }
-        val normalizedPaths = filePaths
-            .map(String::trim)
-            .filter(String::isNotBlank)
-            .distinct()
+        val normalizedPaths = resolveTargetedRefreshPaths(
+            requestedPaths = filePaths,
+            songIds = songIds,
+            currentSongs = _contentState.value.songs,
+        )
         if (normalizedPaths.isEmpty()) {
             if (enrichMetadata && songIds.isEmpty()) {
                 scanner.clearMetadataCache()

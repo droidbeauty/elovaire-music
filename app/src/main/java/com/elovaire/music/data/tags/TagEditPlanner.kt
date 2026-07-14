@@ -12,7 +12,7 @@ internal data class TagEditPlan(
     val requiresMutation: Boolean = trackEdit != null || hasAlbumLevelChanges || artworkChanged
 }
 
-internal class TagEditPlanner {
+internal object TagEditPlanner {
     fun plansFor(request: AlbumTagEditRequest): List<TagEditPlan> {
         val trackEditsById = request.tracks.associateBy(EditableAlbumTrack::songId)
         val hasAlbumLevelChanges = request.hasAlbumLevelChanges()
@@ -29,7 +29,7 @@ internal class TagEditPlanner {
 }
 
 internal fun AlbumTagEditRequest.mutatedUris(): List<Uri> {
-    return TagEditPlanner().plansFor(this).map { it.song.uri }
+    return TagEditPlanner.plansFor(this).map { it.song.uri }
 }
 
 internal fun AlbumTagEditRequest.retryForFailures(

@@ -46,6 +46,7 @@ internal object LibrarySongDuplicateResolver {
     }
 
     internal fun strongKeys(song: Song): Set<String> = buildSet {
+        add(MediaIdentityResolver.stableKey(song))
         normalizedRealPath(song.libraryPath)?.let { add("path:$it") }
         song.uri.toString()
             .trim()
@@ -85,16 +86,14 @@ internal object LibrarySongDuplicateResolver {
     internal fun safDocumentIdentity(uri: Uri): String? {
         if (uri.scheme != "content") return null
         val documentId = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
-        return documentIdentity(uri.authority, documentId)
+        return MediaIdentityResolver.safDocument(uri.authority, documentId)?.stableKey
     }
 
     internal fun documentIdentity(
         authority: String?,
         documentId: String?,
     ): String? {
-        val normalizedAuthority = authority.normalizedIdentityPart() ?: return null
-        val normalizedDocumentId = documentId.normalizedIdentityPart() ?: return null
-        return "$normalizedAuthority:$normalizedDocumentId"
+        return MediaIdentityResolver.safDocument(authority, documentId)?.stableKey
     }
 
     private fun dedupeByStrongIdentity(songs: List<Song>): List<Song> {

@@ -127,10 +127,10 @@ internal object MediaCompatibilityDiagnostics {
     ): MediaCompatibilityReason {
         if (capability == null) return MediaCompatibilityReason.UnsupportedExtension
         if (detected == null) {
-            return if (playbackSupport == PlaybackSupport.Unsupported) {
-                MediaCompatibilityReason.UnsupportedCodec
-            } else {
-                MediaCompatibilityReason.Supported
+            return when (playbackSupport) {
+                PlaybackSupport.Supported -> MediaCompatibilityReason.Supported
+                PlaybackSupport.PlatformDependent -> MediaCompatibilityReason.PlatformDependentDecoder
+                PlaybackSupport.Unsupported -> MediaCompatibilityReason.UnsupportedCodec
             }
         }
         return when {

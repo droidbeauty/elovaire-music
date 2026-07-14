@@ -51,7 +51,7 @@ internal class DeviceDeleteCoordinator(
         )
         cleanupEmptyDirectories(plan.parentDirectories)
         playbackManager.removeSongsFromQueue(deleteResult.deletedSongIds)
-        deleteResult.deletedSongIds.forEach(preferenceStore::removeSongReferences)
+        preferenceStore.removeSongReferences(deleteResult.deletedSongIds)
     }
 
     private fun querySongFilePaths(songs: List<Song>): Set<String> {

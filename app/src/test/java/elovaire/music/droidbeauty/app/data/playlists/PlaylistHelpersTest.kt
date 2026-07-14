@@ -102,11 +102,22 @@ class PlaylistHelpersTest {
     fun removeSongReferencesFromPlaylists_removesNegativeSafSongIds() {
         val result = removeSongReferencesFromPlaylists(
             playlists = listOf(Playlist(id = 1L, name = "Test", songIds = listOf(4L, -8L, 2L))),
-            songId = -8L,
+            songIds = setOf(-8L),
         )
 
         requireNotNull(result)
         assertEquals(listOf(4L, 2L), result.single().songIds)
+    }
+
+    @Test
+    fun removeSongReferencesFromPlaylists_removesBatchInOnePass() {
+        val result = removeSongReferencesFromPlaylists(
+            playlists = listOf(Playlist(id = 1L, name = "Test", songIds = listOf(1L, 2L, 3L, 4L))),
+            songIds = setOf(2L, 4L),
+        )
+
+        requireNotNull(result)
+        assertEquals(listOf(1L, 3L), result.single().songIds)
     }
 
     @Test

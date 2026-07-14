@@ -12,9 +12,10 @@ internal class LibrarySnapshotPublisher(
         removingSongIds: Set<Long>,
         removingAlbumIds: Set<Long>,
     ): LibraryContentState {
+        val snapshot = LibrarySnapshotAssembler.assemble(songs)
         val nextState = LibraryContentState(
-            songs = songs,
-            albums = buildAlbumsFromSongs(songs),
+            songs = snapshot.songs,
+            albums = snapshot.albums,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
         )

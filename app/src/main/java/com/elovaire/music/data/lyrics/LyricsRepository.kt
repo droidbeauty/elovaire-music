@@ -34,7 +34,7 @@ internal class LyricsRepository(
     private val lrcLibLyricsProvider = LrcLibLyricsProvider(ioDispatcher = ioDispatcher)
     private val lyricsOvhProvider = LyricsOvhProvider()
     private val serviceScope = CoroutineScope(SupervisorJob() + ioDispatcher)
-    private val inFlightRequests = ConcurrentHashMap<String, Deferred<LyricsLookupOutcome>>()
+    private val inFlightRequests = ConcurrentHashMap<LyricsRequestKey, Deferred<LyricsLookupOutcome>>()
     private val memoryPositiveCache = ConcurrentHashMap<String, LyricsCacheEntry>()
 
     init {
@@ -84,8 +84,8 @@ internal class LyricsRepository(
         val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = true)
         if (
             cachedResult != null ||
-            inFlightRequests.keys.any { it.identityPart() == identity.normalizedLookupKey } ||
-            inFlightRequests.keys.any { it.endsWith("${REQUEST_KEY_SEPARATOR}${LyricsLookupMode.FastPresenceCheck.name}") }
+            inFlightRequests.containsKey(song.toLyricsRequestKey(LyricsLookupMode.FastPresenceCheck)) ||
+            inFlightRequests.size >= MAX_PREFETCH_REQUESTS
         ) {
             return
         }
@@ -101,9 +101,11 @@ internal class LyricsRepository(
     fun cancelObsoleteRequests(keepSongs: List<Song?>) {
         val keepKeys = keepSongs
             .filterNotNull()
-            .mapTo(mutableSetOf()) { it.toLyricsIdentity().normalizedLookupKey }
+            .mapTo(mutableSetOf()) { song ->
+                song.toLyricsRequestKey(LyricsLookupMode.Full).sourceIdentity
+            }
         inFlightRequests.entries.removeIf { (key, request) ->
-            val obsolete = key.identityPart() !in keepKeys
+            val obsolete = key.sourceIdentity !in keepKeys
             if (obsolete) {
                 request.cancel()
             }
@@ -123,7 +125,7 @@ internal class LyricsRepository(
         lookupMode: LyricsLookupMode,
     ): LyricsResult = coroutineScope {
         val identity = song.toLyricsIdentity()
-        val requestKey = identity.requestKey(lookupMode)
+        val requestKey = song.toLyricsRequestKey(lookupMode)
         val cachedResult = memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound = allowCachedNotFound)
         if (cachedResult != null) {
             return@coroutineScope cachedResult
@@ -293,13 +295,18 @@ internal class LyricsRepository(
         identity.cacheKeys.forEach { key ->
             memoryPositiveCache[key] = entry
         }
+        trimMemoryCache()
     }
 
-    private fun LyricsIdentity.requestKey(lookupMode: LyricsLookupMode): String {
-        return "$normalizedLookupKey$REQUEST_KEY_SEPARATOR${lookupMode.name}"
+    private fun trimMemoryCache() {
+        if (memoryPositiveCache.size <= MAX_MEMORY_CACHE_KEYS) return
+        val now = System.currentTimeMillis()
+        memoryPositiveCache.entries.removeIf { (_, entry) -> entry.isExpired(now) }
+        val overflow = memoryPositiveCache.size - MAX_MEMORY_CACHE_KEYS
+        if (overflow > 0) {
+            memoryPositiveCache.keys.take(overflow).forEach(memoryPositiveCache::remove)
+        }
     }
-
-    private fun String.identityPart(): String = substringBeforeLast(REQUEST_KEY_SEPARATOR)
 
     private fun currentNetworkState(): NetworkLookupState {
         val connectivityManager = applicationContext.getSystemService(ConnectivityManager::class.java)
@@ -351,7 +358,8 @@ internal class LyricsRepository(
         const val CACHE_TTL_NOT_FOUND_MS = 30_000L
         const val CACHE_TTL_TIMEOUT_MS = 15_000L
         const val CACHE_TTL_OFFLINE_MS = 90_000L
-        const val REQUEST_KEY_SEPARATOR = "::lookup-mode::"
+        const val MAX_PREFETCH_REQUESTS = 3
+        const val MAX_MEMORY_CACHE_KEYS = 512
     }
 
     private sealed interface RemoteLookupOutcome {

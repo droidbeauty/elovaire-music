@@ -37,6 +37,13 @@ internal interface CollectionSettingsStore {
 
 internal interface RootSettingsReader : AppearanceSettingsStore, CollectionSettingsStore
 
+internal interface PlaybackIntegrationSettings {
+    val eqSettings: StateFlow<EqSettings>
+    val gaplessPlaybackEnabled: StateFlow<Boolean>
+    val volumeNormalizationEnabled: StateFlow<Boolean>
+    fun recordPlaybackTransition(songId: Long?, albumId: Long?)
+}
+
 internal interface AppearanceSettingsWriter {
     fun setThemeMode(themeMode: ThemeMode)
     fun setTextSizePreset(textSizePreset: TextSizePreset)
@@ -71,7 +78,7 @@ internal interface PlaylistStore {
     fun renamePlaylist(playlistId: Long, name: String)
     fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>)
     fun deletePlaylists(playlistIds: Set<Long>)
-    fun removeSongReferences(songId: Long)
+    fun removeSongReferences(songIds: Set<Long>)
     fun createSmartPlaylist(name: String): Long
     fun updateSmartPlaylist(playlist: SmartPlaylist)
     fun deleteSmartPlaylists(playlistIds: Set<Long>)

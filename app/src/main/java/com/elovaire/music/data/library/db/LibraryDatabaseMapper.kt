@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library.db
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
 import java.util.Locale
 
 internal object LibraryDatabaseMapper {
@@ -52,7 +53,7 @@ internal object LibraryDatabaseMapper {
 
     fun mediaFileEntity(song: Song, generationId: Long, scannedAtMs: Long): MediaFileEntity {
         val extension = song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        val stableFileKey = song.libraryPath?.trim()?.takeIf { it.isNotBlank() } ?: song.uri.toString()
+        val stableFileKey = MediaIdentityResolver.stableKey(song)
         return MediaFileEntity(
             stableFileKey = stableFileKey,
             mediaStoreId = song.id.takeIf { it > 0L },

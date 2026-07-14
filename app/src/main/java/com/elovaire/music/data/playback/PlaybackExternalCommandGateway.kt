@@ -8,6 +8,9 @@ import androidx.media3.common.util.UnstableApi
 internal class PlaybackExternalCommandGateway(
     delegate: Player,
     private val dispatchPlaybackCommand: (PlaybackCommand, PlaybackCommandOrigin) -> Unit,
+    private val seek: (Long) -> Unit,
+    private val skipNext: () -> Unit,
+    private val skipPrevious: () -> Unit,
 ) : ForwardingPlayer(delegate) {
     override fun play() {
         dispatchPlaybackCommand(PlaybackCommand.Play, PlaybackCommandOrigin.ExternalController)
@@ -22,5 +25,17 @@ internal class PlaybackExternalCommandGateway(
             if (playWhenReady) PlaybackCommand.Play else PlaybackCommand.Pause,
             PlaybackCommandOrigin.ExternalController,
         )
+    }
+
+    override fun seekTo(positionMs: Long) {
+        seek(positionMs)
+    }
+
+    override fun seekToNextMediaItem() {
+        skipNext()
+    }
+
+    override fun seekToPreviousMediaItem() {
+        skipPrevious()
     }
 }

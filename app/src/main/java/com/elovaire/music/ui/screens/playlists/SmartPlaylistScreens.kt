@@ -63,7 +63,6 @@ internal fun SmartPlaylistDetailScreen(
     songs: List<Song>,
     favoriteSongIds: Set<Long>,
     songPlayCounts: Map<Long, Int>,
-    recentSongIds: List<Long>,
     currentSongId: Long?,
     isCurrentSongPlaying: Boolean,
     bottomPadding: Dp,
@@ -75,14 +74,13 @@ internal fun SmartPlaylistDetailScreen(
     onToggleFavorite: (Long) -> Unit,
 ) {
     val language = LocalAppLanguage.current
-    val result = remember(playlist, songs, favoriteSongIds, songPlayCounts, recentSongIds) {
+    val result = remember(playlist, songs, favoriteSongIds, songPlayCounts) {
         playlist?.let {
-            SmartPlaylistEngine().resolve(
+            SmartPlaylistEngine.resolve(
                 definition = it,
                 songs = songs,
                 favoriteSongIds = favoriteSongIds,
                 playCounts = songPlayCounts,
-                recentSongIds = recentSongIds,
             )
         }
     }
@@ -293,7 +291,6 @@ internal fun SmartPlaylistEditorScreen(
     songs: List<Song>,
     favoriteSongIds: Set<Long>,
     songPlayCounts: Map<Long, Int>,
-    recentSongIds: List<Long>,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onSave: (SmartPlaylist) -> Unit,
@@ -321,8 +318,8 @@ internal fun SmartPlaylistEditorScreen(
         sort = SmartPlaylistSort(sortField, sortDirection),
         limit = limitText.toIntOrNull()?.takeIf { it > 0 },
     )
-    val preview = remember(previewPlaylist, songs, favoriteSongIds, songPlayCounts, recentSongIds) {
-        SmartPlaylistEngine().resolve(previewPlaylist, songs, favoriteSongIds, songPlayCounts, recentSongIds)
+    val preview = remember(previewPlaylist, songs, favoriteSongIds, songPlayCounts) {
+        SmartPlaylistEngine.resolve(previewPlaylist, songs, favoriteSongIds, songPlayCounts)
     }
     Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         SmartPlaylistEditorContent(

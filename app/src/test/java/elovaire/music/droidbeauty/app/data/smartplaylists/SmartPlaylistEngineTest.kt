@@ -6,7 +6,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class SmartPlaylistEngineTest {
-    private val engine = SmartPlaylistEngine()
+    private val engine = SmartPlaylistEngine
 
     @Test
     fun resolve_matchesAllRulesAndSortsBeforeLimit() {
@@ -33,7 +33,6 @@ class SmartPlaylistEngineTest {
             ),
             favoriteSongIds = setOf(1L, 2L),
             playCounts = mapOf(1L to 2, 2L to 7),
-            recentSongIds = emptyList(),
         )
 
         assertEquals(2, result.totalMatchedBeforeLimit)
@@ -55,7 +54,6 @@ class SmartPlaylistEngineTest {
             songs = listOf(song(2L, "Bravo"), song(1L, "Alpha")),
             favoriteSongIds = emptySet(),
             playCounts = emptyMap(),
-            recentSongIds = emptyList(),
         )
 
         assertEquals(listOf(1L, 2L), result.songs.map(Song::id))
@@ -112,4 +110,3 @@ class SmartPlaylistEngineTest {
         )
     }
 }
-

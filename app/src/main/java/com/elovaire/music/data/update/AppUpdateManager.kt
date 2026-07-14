@@ -12,10 +12,11 @@ import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppWorkKind
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,9 +59,9 @@ internal enum class AppUpdateTransientStatus {
 }
 
 internal class AppUpdateManager(
-    private val context: Context,
+    context: Context,
     private val scope: CoroutineScope,
-    private val preferenceStore: PreferenceStore,
+    private val preferences: UpdatePreferencesStore,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) : UpdateController {
     private val appContext = context.applicationContext
@@ -75,10 +76,13 @@ internal class AppUpdateManager(
     private var pendingInstallApk: File? = null
     private var resumeInstallAfterPermissionGrant = false
     private var lastAutomaticCheckFailureElapsedMs: Long? = null
+    private val released = AtomicBoolean(false)
+    private val foregroundJob: Job
 
     init {
-        scope.launch {
+        foregroundJob = scope.launch {
             backgroundWorkPolicy.isForeground.collect { isForeground ->
+                if (released.get()) return@collect
                 if (isForeground) {
                     if (launchPendingInstallIfPermissionGranted()) return@collect
                     if (pendingAutomaticStartupCheck) {
@@ -93,6 +97,7 @@ internal class AppUpdateManager(
     }
 
     override fun checkForUpdates(force: Boolean) {
+        if (released.get()) return
         if (!backgroundWorkPolicy.canStart(AppWorkKind.ForegroundOnlyMaintenance, userInitiated = force)) {
             if (!force) pendingAutomaticStartupCheck = true
             return
@@ -105,7 +110,7 @@ internal class AppUpdateManager(
             lastAutomaticCheckFailureElapsedMs
                 ?.takeIf { nowElapsedMs - it < AUTOMATIC_CHECK_FAILURE_BACKOFF_MS }
                 ?.let { return }
-            val elapsedMs = nowMs - preferenceStore.lastAutomaticUpdateCheckAtMs()
+            val elapsedMs = nowMs - preferences.lastAutomaticUpdateCheckAtMs()
             if (elapsedMs in 0 until AUTOMATIC_CHECK_INTERVAL_MS) return
             nowMs
         } else {
@@ -114,12 +119,12 @@ internal class AppUpdateManager(
 
         checkJob = scope.launch {
             _uiState.update { it.copy(isChecking = true, errorMessage = null, transientStatus = null) }
-            val installedVersion = normalizeVersionLabel(BuildConfig.VERSION_NAME)
-            val dismissedVersion = preferenceStore.dismissedUpdateVersion.value
+            val installedVersion = AppVersionPolicy.normalize(BuildConfig.VERSION_NAME)
+            val dismissedVersion = preferences.dismissedUpdateVersion.value
                 ?.trim()
                 ?.takeIf { it.isNotBlank() }
-            if (dismissedVersion != null && !isVersionNewer(dismissedVersion, installedVersion)) {
-                preferenceStore.setDismissedUpdateVersion(null)
+            if (dismissedVersion != null && !AppVersionPolicy.isNewer(dismissedVersion, installedVersion)) {
+                preferences.setDismissedUpdateVersion(null)
             }
             val latestReleaseResult = runCatching {
                 withContext(Dispatchers.IO) {
@@ -133,7 +138,7 @@ internal class AppUpdateManager(
             }
             if (automaticCheckStartedAtMs != null && latestReleaseResult.isSuccess) {
                 lastAutomaticCheckFailureElapsedMs = null
-                preferenceStore.setLastAutomaticUpdateCheckAtMs(automaticCheckStartedAtMs)
+                preferences.setLastAutomaticUpdateCheckAtMs(automaticCheckStartedAtMs)
             } else if (automaticCheckStartedAtMs != null) {
                 lastAutomaticCheckFailureElapsedMs = SystemClock.elapsedRealtime()
             }
@@ -155,7 +160,7 @@ internal class AppUpdateManager(
         }.also { job ->
             job.invokeOnCompletion { throwable ->
                 checkJob = null
-                if (throwable is CancellationException) {
+                if (!released.get() && throwable is CancellationException) {
                     _uiState.update { it.copy(isChecking = false) }
                 }
             }
@@ -164,11 +169,12 @@ internal class AppUpdateManager(
 
     override fun dismissAvailableUpdate() {
         val version = _uiState.value.availableRelease?.versionName ?: return
-        preferenceStore.setDismissedUpdateVersion(version)
+        preferences.setDismissedUpdateVersion(version)
         _uiState.update { it.copy(availableRelease = null, errorMessage = null) }
     }
 
     override fun startUpdate() {
+        if (released.get()) return
         if (!backgroundWorkPolicy.canStart(AppWorkKind.UserInitiatedLongTransfer, userInitiated = true)) return
         val release = _uiState.value.availableRelease ?: return
         if (downloadJob?.isActive == true) return
@@ -238,7 +244,7 @@ internal class AppUpdateManager(
         }.also { job ->
             job.invokeOnCompletion { throwable ->
                 downloadJob = null
-                if (throwable is CancellationException && _uiState.value.isDownloading) {
+                if (!released.get() && throwable is CancellationException && _uiState.value.isDownloading) {
                     clearDownloadedInstallers()
                     _uiState.update {
                         it.copy(
@@ -295,7 +301,7 @@ internal class AppUpdateManager(
     }
 
     override fun scheduleStartupMaintenance() {
-        if (startupMaintenanceScheduled) return
+        if (released.get() || startupMaintenanceScheduled) return
         startupMaintenanceScheduled = true
         startupCleanupJob = scope.launch(Dispatchers.IO) {
             kotlinx.coroutines.delay(STARTUP_CLEANUP_DELAY_MS)
@@ -312,6 +318,8 @@ internal class AppUpdateManager(
     }
 
     override fun release() {
+        if (!released.compareAndSet(false, true)) return
+        foregroundJob.cancel()
         checkJob?.cancel()
         checkJob = null
         downloadJob?.cancel()
@@ -349,10 +357,10 @@ internal class AppUpdateManager(
                     .mapNotNull(::parseReleaseInfo)
             }
             releases
-                .filter { release -> isVersionNewer(release.versionName, installedVersion) }
-                .maxWithOrNull { left, right -> compareVersions(left.versionName, right.versionName) }
+                .filter { release -> AppVersionPolicy.isNewer(release.versionName, installedVersion) }
+                .maxWithOrNull { left, right -> AppVersionPolicy.compare(left.versionName, right.versionName) }
                 ?: openGithubConnection(LATEST_RELEASE_URL).useJsonObject(::parseReleaseInfo)
-                    ?.takeIf { release -> isVersionNewer(release.versionName, installedVersion) }
+                    ?.takeIf { release -> AppVersionPolicy.isNewer(release.versionName, installedVersion) }
         }
     }
 
@@ -390,7 +398,7 @@ internal class AppUpdateManager(
             ?: return null
         val assetName = asset.optString("name").orEmpty()
         val checksumAsset = findChecksumAsset(assets, assetName)
-        val versionName = resolveReleaseVersionLabel(
+        val versionName = AppVersionPolicy.resolve(
             tagName = tagName,
             releaseName = releaseName,
             assetFileName = assetName,
@@ -689,6 +697,7 @@ internal class AppUpdateManager(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         return runCatching {
+            if (intent.resolveActivity(appContext.packageManager) == null) return@runCatching false
             appContext.startActivity(intent)
             true
         }.getOrDefault(false)
@@ -709,58 +718,10 @@ internal class AppUpdateManager(
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        appContext.startActivity(intent)
-    }
-
-    private fun normalizeVersionLabel(raw: String): String {
-        return raw.trim().removePrefix("v").removePrefix("V")
-    }
-
-    private fun resolveReleaseVersionLabel(
-        tagName: String,
-        releaseName: String,
-        assetFileName: String,
-    ): String {
-        val normalizedTag = normalizeVersionLabel(tagName)
-        if (normalizedTag.looksLikeSemanticVersion()) return normalizedTag
-
-        val normalizedName = normalizeVersionLabel(releaseName)
-        if (normalizedName.looksLikeSemanticVersion()) return normalizedName
-
-        return VERSION_REGEX.find(assetFileName)
-            ?.value
-            ?.let(::normalizeVersionLabel)
-            .orEmpty()
-    }
-
-    private fun isVersionNewer(candidate: String, installed: String): Boolean {
-        return compareVersions(candidate, installed) > 0
-    }
-
-    private fun compareVersions(left: String, right: String): Int {
-        val leftParts = left.normalizeVersionParts()
-        val rightParts = right.normalizeVersionParts()
-        val maxSize = maxOf(leftParts.size, rightParts.size)
-        for (index in 0 until maxSize) {
-            val leftPart = leftParts.getOrElse(index) { 0 }
-            val rightPart = rightParts.getOrElse(index) { 0 }
-            if (leftPart != rightPart) {
-                return leftPart.compareTo(rightPart)
-            }
+        check(intent.resolveActivity(appContext.packageManager) != null) {
+            "No package installer is available"
         }
-        return 0
-    }
-
-    private fun String.normalizeVersionParts(): List<Int> {
-        return trim()
-            .removePrefix("v")
-            .removePrefix("V")
-            .split('.', '-', '_')
-            .mapNotNull { it.toIntOrNull() }
-    }
-
-    private fun String.looksLikeSemanticVersion(): Boolean {
-        return VERSION_REGEX.containsMatchIn(this)
+        appContext.startActivity(intent)
     }
 
     private inline fun <T> HttpURLConnection.useJsonArray(block: (JSONArray) -> T): T {
@@ -813,7 +774,6 @@ internal class AppUpdateManager(
         const val MAX_CHECKSUM_TEXT_CHARS = 64 * 1024
         const val UPDATE_TRAFFIC_STATS_TAG = 0x454C5550
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
-        val VERSION_REGEX = Regex("""\d+(?:\.\d+)+""")
     }
 }
 

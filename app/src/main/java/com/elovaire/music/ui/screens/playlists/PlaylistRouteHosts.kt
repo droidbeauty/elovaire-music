@@ -15,14 +15,12 @@ internal fun PlaylistsRouteHost(
         state.libraryState.songs,
         state.favoriteSongIds,
         state.songPlayCounts,
-        state.recentSongIds,
     ) {
         buildSmartPlaylistSummaries(
             playlists = state.smartPlaylists,
             songs = state.libraryState.songs,
             favoriteSongIds = state.favoriteSongIds,
             songPlayCounts = state.songPlayCounts,
-            recentSongIds = state.recentSongIds,
         )
     }
     PlaylistsScreen(
@@ -52,7 +50,6 @@ internal fun SmartPlaylistDetailRouteHost(
         songs = state.libraryState.songs,
         favoriteSongIds = state.favoriteSongIds,
         songPlayCounts = state.songPlayCounts,
-        recentSongIds = state.recentSongIds,
         currentSongId = state.currentSongId,
         isCurrentSongPlaying = state.isCurrentSongPlaying,
         bottomPadding = padding.detailBottom,
@@ -90,7 +87,6 @@ internal fun SmartPlaylistEditorRouteHost(
         songs = state.libraryState.songs,
         favoriteSongIds = state.favoriteSongIds,
         songPlayCounts = state.songPlayCounts,
-        recentSongIds = state.recentSongIds,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onSave = { smart ->

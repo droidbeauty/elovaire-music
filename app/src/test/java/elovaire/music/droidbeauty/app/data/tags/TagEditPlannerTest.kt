@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TagEditPlannerTest {
-    private val planner = TagEditPlanner()
+    private val planner = TagEditPlanner
 
     @Test
     fun plansFor_noOpRequestProducesNoPlans() {

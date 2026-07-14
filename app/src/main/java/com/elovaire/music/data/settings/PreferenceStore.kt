@@ -325,9 +325,9 @@ class PreferenceStore(context: Context) :
         persistFavoriteSongIds(updated)
     }
 
-    override fun removeSongReferences(songId: Long) {
-        val updatedPlaylists = removeSongReferencesFromPlaylists(_userPlaylists.value, songId) ?: _userPlaylists.value
-        val updatedFavorites = _favoriteSongIds.value.filterNot { it == songId }
+    override fun removeSongReferences(songIds: Set<Long>) {
+        val updatedPlaylists = removeSongReferencesFromPlaylists(_userPlaylists.value, songIds) ?: _userPlaylists.value
+        val updatedFavorites = _favoriteSongIds.value.filterNot { it in songIds }
         if (_userPlaylists.value == updatedPlaylists && _favoriteSongIds.value == updatedFavorites) return
         persistPlaylistAndFavorites(
             playlists = updatedPlaylists,

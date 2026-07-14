@@ -9,6 +9,22 @@ enum class LyricsLookupMode {
     Full,
 }
 
+internal data class LyricsRequestKey(
+    val songId: Long,
+    val sourceKey: String,
+    val revision: Long,
+    val lookupMode: LyricsLookupMode,
+) {
+    val sourceIdentity: LyricsSourceIdentity
+        get() = LyricsSourceIdentity(songId, sourceKey, revision)
+}
+
+internal data class LyricsSourceIdentity(
+    val songId: Long,
+    val sourceKey: String,
+    val revision: Long,
+)
+
 data class LyricsIdentity(
     val title: String,
     val artist: String,

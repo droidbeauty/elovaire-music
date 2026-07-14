@@ -97,10 +97,7 @@ internal class LibrarySnapshotStore(
             )
 
             val cachedSnapshot = CachedLibrarySnapshot(
-                snapshot = LibrarySnapshot(
-                    songs = songs,
-                    albums = buildAlbumsFromSongs(songs),
-                ),
+                snapshot = LibrarySnapshotAssembler.assemble(songs),
                 signature = if (songs.size == signature.songCount) signature else filteredSignature,
                 syncState = syncState,
             )

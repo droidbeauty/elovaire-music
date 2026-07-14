@@ -114,12 +114,13 @@ internal fun deletePlaylistEntries(
 
 internal fun removeSongReferencesFromPlaylists(
     playlists: List<Playlist>,
-    songId: Long,
+    songIds: Set<Long>,
 ): List<Playlist>? {
-    if (songId == 0L) return null
+    val validSongIds = songIds.filterTo(hashSetOf()) { it != 0L }
+    if (validSongIds.isEmpty()) return null
     var changed = false
     val updated = playlists.map { playlist ->
-        val filteredSongIds = playlist.songIds.filterNot { it == songId }
+        val filteredSongIds = playlist.songIds.filterNot { it in validSongIds }
         if (filteredSongIds == playlist.songIds) {
             playlist
         } else {

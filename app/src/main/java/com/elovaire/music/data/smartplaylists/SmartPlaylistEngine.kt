@@ -9,19 +9,17 @@ internal data class SmartPlaylistResult(
     val totalMatchedBeforeLimit: Int,
 )
 
-internal class SmartPlaylistEngine {
+internal object SmartPlaylistEngine {
     fun resolve(
         definition: SmartPlaylist,
         songs: List<Song>,
         favoriteSongIds: Set<Long>,
         playCounts: Map<Long, Int>,
-        recentSongIds: List<Long>,
         nowMs: Long = System.currentTimeMillis(),
     ): SmartPlaylistResult {
         val context = ResolutionContext(
             favoriteSongIds = favoriteSongIds,
             playCounts = playCounts,
-            recentSongOrder = recentSongIds.withIndex().associate { it.value to it.index },
             nowMs = nowMs,
         )
         val normalized = songs.map { NormalizedSong(it) }
@@ -118,7 +116,6 @@ internal class SmartPlaylistEngine {
 private data class ResolutionContext(
     val favoriteSongIds: Set<Long>,
     val playCounts: Map<Long, Int>,
-    val recentSongOrder: Map<Long, Int>,
     val nowMs: Long,
 )
 
@@ -155,8 +152,10 @@ private fun String.matchesTextRule(
 }
 
 internal fun String.normalizeSmartText(): String {
-    return trim().lowercase().replace(Regex("\\s+"), " ")
+    return trim().lowercase().replace(SmartWhitespaceRegex, " ")
 }
+
+private val SmartWhitespaceRegex = Regex("\\s+")
 
 private fun stableRandomKey(
     playlistId: Long,

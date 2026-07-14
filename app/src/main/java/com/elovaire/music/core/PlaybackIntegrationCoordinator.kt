@@ -4,7 +4,7 @@ import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -16,7 +16,7 @@ import kotlinx.coroutines.launch
 @OptIn(FlowPreview::class)
 internal class PlaybackIntegrationCoordinator(
     private val scope: CoroutineScope,
-    private val preferences: PreferenceStore,
+    private val preferences: PlaybackIntegrationSettings,
     private val library: LibraryRepository,
     private val playback: PlaybackManager,
     private val effects: PlaybackEffectsController,

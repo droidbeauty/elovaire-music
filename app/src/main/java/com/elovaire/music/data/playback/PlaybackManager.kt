@@ -238,7 +238,13 @@ class PlaybackManager(
         onTimerFired = ::stopAndClearQueue,
         setPauseAtEndOfMediaItems = { enabled -> player.setPauseAtEndOfMediaItems(enabled) },
     )
-    private var commandGatewayPlayer: Player = PlaybackExternalCommandGateway(player, ::dispatchPlaybackCommand)
+    private var commandGatewayPlayer: Player = PlaybackExternalCommandGateway(
+        delegate = player,
+        dispatchPlaybackCommand = ::dispatchPlaybackCommand,
+        seek = ::seekTo,
+        skipNext = ::skipNext,
+        skipPrevious = ::skipPrevious,
+    )
     private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(
             platformPlaybackAudioAttributes,
@@ -533,7 +539,13 @@ class PlaybackManager(
         onPlayerReplaced = { replacementPlayer ->
             player = replacementPlayer
             replacementPlayer.setPauseAtEndOfMediaItems(sleepTimerState.value.option == SleepTimerOption.EndOfSong)
-            commandGatewayPlayer = PlaybackExternalCommandGateway(replacementPlayer, ::dispatchPlaybackCommand)
+            commandGatewayPlayer = PlaybackExternalCommandGateway(
+                delegate = replacementPlayer,
+                dispatchPlaybackCommand = ::dispatchPlaybackCommand,
+                seek = ::seekTo,
+                skipNext = ::skipNext,
+                skipPrevious = ::skipPrevious,
+            )
             sessionOwner.setPlayer(commandGatewayPlayer)
             _playerInstanceVersion.value += 1L
         },
@@ -1850,7 +1862,7 @@ class PlaybackManager(
 
     private fun currentUsbOutputDescriptor(): UsbAudioDeviceDescriptor? {
         val manager = audioManager ?: return null
-        val routedUsbDevice = if (
+        val outputDevice = if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
         ) {
@@ -1859,13 +1871,11 @@ class PlaybackManager(
                     runCatching { device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
                 }
         } else {
-            null
-        }
-        return (routedUsbDevice ?: manager.safeOutputDevices()
-            .firstOrNull { device ->
+            manager.safeOutputDevices().firstOrNull { device ->
                 runCatching { device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
-            })
-            ?.toUsbAudioDeviceDescriptor()
+            }
+        }
+        return outputDevice?.toUsbAudioDeviceDescriptor()
     }
 
     private fun resolveCurrentQueueIndex(existingState: PlaybackUiState): Int {

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 internal data class RootAppearanceState(
@@ -109,17 +110,26 @@ internal class RootViewModel(
         initialValue = rootAppearanceStateOf(dependencies.rootSettingsReader),
     )
 
+    private val favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds
+        .map { ids -> ids.toSet() }
+        .distinctUntilChanged()
+        .stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            initialValue = dependencies.rootSettingsReader.favoriteSongIds.value.toSet(),
+        )
+
     val collectionState = combine(
         dependencies.rootSettingsReader.playlists,
         dependencies.rootSettingsReader.smartPlaylists,
-        dependencies.rootSettingsReader.favoriteSongIds,
+        favoriteSongIds,
         dependencies.rootSettingsReader.albumPlayCounts,
         dependencies.rootSettingsReader.songPlayCounts,
     ) { playlists, smartPlaylists, favorites, albumCounts, songCounts ->
         RootCollectionState(
             playlists = playlists,
             smartPlaylists = smartPlaylists,
-            favoriteSongIds = favorites.toHashSet(),
+            favoriteSongIds = favorites,
             albumPlayCounts = albumCounts,
             songPlayCounts = songCounts,
         )
@@ -129,7 +139,7 @@ internal class RootViewModel(
         initialValue = RootCollectionState(
             playlists = dependencies.rootSettingsReader.playlists.value,
             smartPlaylists = dependencies.rootSettingsReader.smartPlaylists.value,
-            favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds.value.toHashSet(),
+            favoriteSongIds = favoriteSongIds.value,
             albumPlayCounts = dependencies.rootSettingsReader.albumPlayCounts.value,
             songPlayCounts = dependencies.rootSettingsReader.songPlayCounts.value,
         ),

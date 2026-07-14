@@ -164,13 +164,16 @@ internal fun scoreMatch(
         normalizedArtist,
         normalizedAlbum,
     )
+    val titleAcronym = acronymOf(normalizedTitle)
+    val artistAcronym = acronymOf(normalizedArtist)
+    val albumAcronym = acronymOf(normalizedAlbum)
     if (!tokens.all { token ->
             tokenMatchesAnyField(
                 token = token,
-                normalizedTitle = normalizedTitle,
-                normalizedArtist = normalizedArtist,
-                normalizedAlbum = normalizedAlbum,
                 normalizedComposite = composite,
+                titleAcronym = titleAcronym,
+                artistAcronym = artistAcronym,
+                albumAcronym = albumAcronym,
             )
         }
     ) return null
@@ -196,8 +199,8 @@ internal fun scoreMatch(
         if (wordStartsWith(normalizedTitle, token)) score += 10
         if (wordStartsWith(normalizedArtist, token)) score += 7
         if (wordStartsWith(normalizedAlbum, token)) score += 5
-        if (acronymOf(normalizedArtist).startsWith(token)) score += 12
-        if (acronymOf(normalizedAlbum).startsWith(token)) score += 10
+        if (artistAcronym.startsWith(token)) score += 12
+        if (albumAcronym.startsWith(token)) score += 10
         if (token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)) score += 4
     }
 
@@ -325,15 +328,15 @@ private fun Song.libraryArtistName(): String {
 
 private fun tokenMatchesAnyField(
     token: String,
-    normalizedTitle: String,
-    normalizedArtist: String,
-    normalizedAlbum: String,
     normalizedComposite: String,
+    titleAcronym: String,
+    artistAcronym: String,
+    albumAcronym: String,
 ): Boolean {
     return normalizedComposite.contains(token) ||
-        acronymOf(normalizedTitle).startsWith(token) ||
-        acronymOf(normalizedArtist).startsWith(token) ||
-        acronymOf(normalizedAlbum).startsWith(token) ||
+        titleAcronym.startsWith(token) ||
+        artistAcronym.startsWith(token) ||
+        albumAcronym.startsWith(token) ||
         (token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token))
 }
 

@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
+import elovaire.music.droidbeauty.app.domain.model.Song
+
 internal data class LibraryRefreshRequest(
     val forceMediaIndex: Boolean = false,
     val enrichMetadata: Boolean = false,
@@ -104,4 +106,26 @@ internal class LibraryRefreshRequests {
     fun clear() {
         pending = null
     }
+}
+
+internal fun resolveTargetedRefreshPaths(
+    requestedPaths: Collection<String>,
+    songIds: Collection<Long>,
+    currentSongs: List<Song>,
+): List<String> {
+    if (requestedPaths.isEmpty() && songIds.isEmpty()) return emptyList()
+    val requestedSongIds = songIds.toHashSet()
+    return buildList {
+        addAll(requestedPaths)
+        if (requestedSongIds.isNotEmpty()) {
+            currentSongs.asSequence()
+                .filter { it.id in requestedSongIds }
+                .mapNotNull(Song::libraryPath)
+                .forEach(::add)
+        }
+    }.asSequence()
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .distinct()
+        .toList()
 }

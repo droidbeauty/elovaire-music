@@ -81,7 +81,7 @@ private class FakePlaylistStore : PlaylistStore {
     override fun renamePlaylist(playlistId: Long, name: String) = Unit
     override fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>) = Unit
     override fun deletePlaylists(playlistIds: Set<Long>) = Unit
-    override fun removeSongReferences(songId: Long) = Unit
+    override fun removeSongReferences(songIds: Set<Long>) = Unit
     override fun createSmartPlaylist(name: String): Long = 0L
     override fun updateSmartPlaylist(playlist: SmartPlaylist) = Unit
     override fun deleteSmartPlaylists(playlistIds: Set<Long>) = Unit

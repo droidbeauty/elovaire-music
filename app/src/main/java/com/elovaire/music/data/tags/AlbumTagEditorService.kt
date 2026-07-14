@@ -35,6 +35,7 @@ import java.util.Locale
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
@@ -173,7 +174,7 @@ internal class AlbumTagEditorService(
         writeConsentGranted: Boolean = false,
     ): TagEditApplyResult = withContext(ioDispatcher) {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
-        val plans = TagEditPlanner().plansFor(request)
+        val plans = TagEditPlanner.plansFor(request)
         val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)
         val coverArtMimeType = coverArtBytes?.let(::detectMimeType)
         val editedSongIds = mutableListOf<Long>()
@@ -249,6 +250,7 @@ internal class AlbumTagEditorService(
             var persistedVerificationFile: File? = null
             var phase = TagEditWritePhase.SourceRead
             var rollbackFailed = false
+            var originalOverwritten = false
             try {
                 mutationRunner.requireWritable(song.uri)
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
@@ -303,6 +305,7 @@ internal class AlbumTagEditorService(
                 phase = TagEditWritePhase.OriginalOverwrite
                 try {
                     mutationRunner.overwriteOriginal(song.uri, tempFile)
+                    originalOverwritten = true
                 } catch (writeFailure: Throwable) {
                     rollbackFailed = runCatching {
                         mutationRunner.overwriteOriginal(song.uri, originalBackup)
@@ -357,7 +360,19 @@ internal class AlbumTagEditorService(
                 )
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Completed) }
             } catch (throwable: CancellationException) {
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Cancelled) }
+                withContext(NonCancellable) {
+                    if (originalOverwritten && backupFile != null) {
+                        rollbackFailed = runCatching {
+                            mutationRunner.overwriteOriginal(song.uri, backupFile)
+                        }.isFailure
+                    }
+                    mutationId?.let {
+                        mediaMutationJournal.mark(
+                            it,
+                            if (rollbackFailed) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Cancelled,
+                        )
+                    }
+                }
                 throw throwable
             } catch (throwable: RecoverableSecurityException) {
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.NeedsPermission) }

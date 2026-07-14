@@ -51,6 +51,14 @@ class MediaCompatibilityDiagnosticsTest {
     }
 
     @Test
+    fun extensionOnlyReportDoesNotOverstatePlatformDependentPlayback() {
+        val report = MediaCompatibilityDiagnostics.report(fileName = "recording.amr")
+
+        assertEquals(PlaybackSupport.PlatformDependent, report.playbackSupport)
+        assertEquals(MediaCompatibilityReason.PlatformDependentDecoder, report.playbackSupportReason)
+    }
+
+    @Test
     fun reportPreservesDiscoverySourceFields() {
         val report = MediaCompatibilityDiagnostics.report(
             fileName = "song.flac",

@@ -34,7 +34,7 @@ internal class AppServices(
     val appUpdateManager: UpdateController = AppUpdateManager(
         context = applicationContext,
         scope = appScope,
-        preferenceStore = preferenceStore,
+        preferences = preferenceStore,
         backgroundWorkPolicy = backgroundWorkPolicy,
     )
     val albumTagEditorService = AlbumTagEditorService(
@@ -91,10 +91,10 @@ internal class AppServices(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
+        appUpdateManager.release()
+        lyricsService.release()
         playbackManager.release()
         libraryRepository.release()
-        lyricsService.release()
-        appUpdateManager.release()
         preferenceStore.release()
         database.close()
     }
