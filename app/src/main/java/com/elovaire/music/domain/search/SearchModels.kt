@@ -4,6 +4,7 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.text.Normalizer
+import java.util.Locale
 import kotlin.math.min
 
 internal data class SearchableSong(
@@ -52,10 +53,10 @@ internal data class NormalizedSearchQuery(
 ) {
     companion object {
         fun from(rawQuery: String): NormalizedSearchQuery {
-            val normalized = normalizeSearchText(rawQuery.trim())
+            val normalized = normalizeSearchText(rawQuery)
             return NormalizedSearchQuery(
                 value = normalized,
-                tokens = normalized.split(' ').filter { it.isNotBlank() },
+                tokens = if (normalized.isEmpty()) emptyList() else normalized.split(' '),
             )
         }
     }
@@ -137,7 +138,7 @@ internal fun normalizeSearchText(value: String): String {
         .replace(SEARCH_DIACRITICS_REGEX, "")
 
     return withoutDiacritics
-        .lowercase()
+        .lowercase(Locale.ROOT)
         .replace('&', ' ')
         .replace(SEARCH_APOSTROPHE_REGEX, "")
         .replace(SEARCH_PUNCTUATION_REGEX, " ")
@@ -260,7 +261,13 @@ internal fun sortRankedAlbums(ranked: List<RankedResult<SearchableAlbum>>): List
 }
 
 internal fun buildNormalizedComposite(vararg parts: String): String {
-    return parts.filter { it.isNotBlank() }.joinToString(" ")
+    return buildString {
+        parts.forEach { part ->
+            if (part.isBlank()) return@forEach
+            if (isNotEmpty()) append(' ')
+            append(part)
+        }
+    }
 }
 
 internal fun Song.toSearchableSong(): SearchableSong {

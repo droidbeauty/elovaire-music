@@ -6,18 +6,16 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
-import kotlinx.coroutines.flow.Flow
 
 @Dao
 internal interface LibraryDao {
-    @Query("SELECT * FROM songs WHERE removedAtMs IS NULL ORDER BY dateAddedSeconds DESC")
-    fun songs(): Flow<List<SongEntity>>
-
-    @Query("SELECT * FROM albums WHERE removedAtMs IS NULL ORDER BY title COLLATE NOCASE")
-    fun albums(): Flow<List<AlbumEntity>>
-
-    @Query("SELECT * FROM media_mutations WHERE status NOT IN ('Completed', 'Cancelled') ORDER BY updatedAtMs ASC")
-    fun activeMutations(): Flow<List<LibraryMutationEntity>>
+    @Query(
+        "SELECT * FROM media_mutations " +
+            "WHERE status IN ('Created', 'PreflightPassed', 'NeedsPermission', 'PermissionGranted', " +
+            "'TempWritten', 'TempVerified', 'Committed', 'PersistedVerified', 'Published') " +
+            "ORDER BY updatedAtMs ASC",
+    )
+    suspend fun recoverableMutations(): List<LibraryMutationEntity>
 
     @Query("SELECT * FROM media_mutations WHERE mutationId = :mutationId")
     suspend fun mutation(mutationId: String): LibraryMutationEntity?

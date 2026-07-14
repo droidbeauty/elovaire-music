@@ -9,6 +9,8 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
+import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 @Composable
@@ -163,11 +165,33 @@ internal fun ArtistRouteHost(
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
+    artistImageRepository: ArtistImageRepository,
 ) {
     val appState = routeState.appState
+    val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
+    val artistSongs = remember(normalizedArtist, routeState.libraryState.songs) {
+        routeState.libraryState.songs.filter { song ->
+            song.libraryArtistName().equals(normalizedArtist, ignoreCase = true)
+        }
+    }
+    val artistAlbums = remember(normalizedArtist, routeState.libraryState.albums) {
+        routeState.libraryState.albums
+            .filter { album -> album.artist.equals(normalizedArtist, ignoreCase = true) }
+            .sortedBy { it.title.lowercase() }
+    }
+    val artistBackdropState by remember(normalizedArtist, artistSongs, artistAlbums, artistImageRepository) {
+        artistImageRepository.backdropState(normalizedArtist, artistSongs, artistAlbums)
+    }.collectAsStateWithLifecycle(
+        initialValue = ArtistBackdropState.Fallback(
+            localArtworkUri = artistAlbums.firstOrNull { it.artUri != null }?.artUri
+                ?: artistSongs.firstOrNull { it.artUri != null }?.artUri,
+            artistKey = normalizedArtist,
+        ),
+    )
     ArtistDetailScreen(
         artistName = artistName,
         libraryState = routeState.libraryState,
+        artistBackdropState = artistBackdropState,
         songPlayCounts = appState.songPlayCounts,
         favoriteSongIds = appState.favoriteSongIds,
         currentSongId = routeState.playbackState.currentSong?.id,
@@ -176,6 +200,17 @@ internal fun ArtistRouteHost(
         onBack = routeActions::navigateUp,
         onSongSelected = { song, queue ->
             routeActions.playback.playSongQueue(song, queue, sourceLabel = artistName)
+        },
+        onPlayArtist = { songs ->
+            songs.firstOrNull()?.let { song ->
+                routeActions.playback.playSongQueue(song, songs, sourceLabel = artistName)
+            }
+        },
+        onShuffleArtist = { songs ->
+            val shuffledSongs = songs.shuffled()
+            shuffledSongs.firstOrNull()?.let { song ->
+                routeActions.playback.playSongQueue(song, shuffledSongs, sourceLabel = artistName)
+            }
         },
         onAlbumSelected = { album, origin ->
             routeActions.openAlbum(album, origin, AlbumOpenSource.ArtistDetail)

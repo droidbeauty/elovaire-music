@@ -5,6 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 
 @Composable
 internal fun RootRouteGraph(
@@ -14,6 +15,7 @@ internal fun RootRouteGraph(
     padding: RootRoutePadding,
     searchViewModel: SearchViewModel,
     viewModelFactory: ElovaireViewModelFactory,
+    artistImageRepository: ArtistImageRepository,
     changelogReleases: List<elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease>,
     modifier: Modifier = Modifier,
 ) {
@@ -88,7 +90,7 @@ internal fun RootRouteGraph(
             route = "$ARTIST_ROUTE/{artistName}",
             arguments = listOf(navArgument("artistName") { type = NavType.StringType }),
         ) { backStackEntry ->
-            ArtistRouteHost(backStackEntry.artistRouteArg(), routeState, routeActions, padding)
+            ArtistRouteHost(backStackEntry.artistRouteArg(), routeState, routeActions, padding, artistImageRepository)
         }
         composable(EQUALIZER_ROUTE) {
             EqualizerRouteHost(viewModelFactory, routeActions)

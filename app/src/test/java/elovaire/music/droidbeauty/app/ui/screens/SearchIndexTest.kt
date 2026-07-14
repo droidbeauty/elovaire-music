@@ -7,8 +7,21 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
+import java.util.Locale
 
 class SearchIndexTest {
+    @Test
+    fun normalizeSearchText_isLocaleIndependent() {
+        val previousLocale = Locale.getDefault()
+        try {
+            Locale.setDefault(Locale.forLanguageTag("tr-TR"))
+
+            assertEquals("istanbul", normalizeSearchText("ISTANBUL"))
+        } finally {
+            Locale.setDefault(previousLocale)
+        }
+    }
+
     @Test
     fun scoreMatch_keepsScoreWithPrecomputedComposite() {
         val query = NormalizedSearchQuery.from("dream theater awake")

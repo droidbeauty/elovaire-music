@@ -6,9 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.5">
-        <item>Minor UI tweaks in many places</item>
-        <item>Added fast scrollbar to playlists, search results UI and other places where it was previously missing</item>
-        <item>Bug fixes and optimizations</item>
+    <release version="2.5.1">
+        <item>Improved UI in the artists screen</item>
+        <item>Performance focused optimizations</item>
+        <item>General bug fixes</item>
     </release>
 </changelog>

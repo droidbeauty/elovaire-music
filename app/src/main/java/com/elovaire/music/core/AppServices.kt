@@ -8,6 +8,7 @@ import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenance
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
@@ -34,6 +35,7 @@ internal class AppServices(
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
     private var persistenceMaintenanceJob: Job? = null
     val preferenceStore = PreferenceStore(applicationContext)
+    val artistImageRepository = ArtistImageRepository(applicationContext, backgroundWorkPolicy)
     val appUpdateManager: UpdateController = AppUpdateManager(
         context = applicationContext,
         scope = appScope,

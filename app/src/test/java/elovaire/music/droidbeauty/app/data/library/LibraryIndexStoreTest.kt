@@ -12,8 +12,6 @@ import elovaire.music.droidbeauty.app.data.library.db.SongEntity
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -95,9 +93,7 @@ private class RecordingLibraryDao : LibraryDao {
     var removedSongIds = emptySet<Long>()
     var removedAlbumIds = emptySet<Long>()
 
-    override fun songs(): Flow<List<SongEntity>> = emptyFlow()
-    override fun albums(): Flow<List<AlbumEntity>> = emptyFlow()
-    override fun activeMutations(): Flow<List<LibraryMutationEntity>> = emptyFlow()
+    override suspend fun recoverableMutations(): List<LibraryMutationEntity> = emptyList()
     override suspend fun mutation(mutationId: String): LibraryMutationEntity? = null
     override suspend fun songById(songId: Long): SongEntity? = null
     override suspend fun songByUri(uri: String): SongEntity? = null

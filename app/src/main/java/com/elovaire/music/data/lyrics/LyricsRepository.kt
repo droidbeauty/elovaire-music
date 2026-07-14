@@ -279,12 +279,13 @@ internal class LyricsRepository(
 
     private fun memoryCachedLyrics(identity: LyricsIdentity): LyricsResult? {
         val now = clock.wallTimeMs()
-        val entry = identity.cacheKeys.firstNotNullOfOrNull { key ->
-            memoryPositiveCache[key]?.takeUnless { it.isExpired(now) }
-        }
+        var entry: LyricsCacheEntry? = null
         identity.cacheKeys.forEach { key ->
-            if (memoryPositiveCache[key]?.isExpired(now) == true) {
+            val cached = memoryPositiveCache[key] ?: return@forEach
+            if (cached.isExpired(now)) {
                 memoryPositiveCache.remove(key)
+            } else if (entry == null) {
+                entry = cached
             }
         }
         return entry?.result

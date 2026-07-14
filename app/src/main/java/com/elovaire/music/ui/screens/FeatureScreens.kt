@@ -238,6 +238,8 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
+import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageSource
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
@@ -2241,6 +2243,7 @@ internal fun GenreAlbumsScreen(
 internal fun ArtistDetailScreen(
     artistName: String,
     libraryState: LibraryUiState,
+    artistBackdropState: ArtistBackdropState,
     songPlayCounts: Map<Long, Int>,
     favoriteSongIds: Set<Long>,
     currentSongId: Long?,
@@ -2248,6 +2251,8 @@ internal fun ArtistDetailScreen(
     bottomPadding: Dp,
     onBack: () -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
+    onPlayArtist: (List<Song>) -> Unit,
+    onShuffleArtist: (List<Song>) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
@@ -2280,16 +2285,33 @@ internal fun ArtistDetailScreen(
                 .fillMaxSize()
                 .ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
-                start = 20.dp,
-                top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailSectionTopGap,
-                end = 20.dp,
+                top = 0.dp,
                 bottom = bottomPadding,
             ),
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
+            item("artist_hero") {
+                ArtistHeroHeader(
+                    artistName = normalizedArtist,
+                    subtitle = buildArtistScreenSubtitle(
+                        songCount = artistSongs.size,
+                        albumCount = artistAlbums.size,
+                        language = LocalAppLanguage.current,
+                    ),
+                    backdropState = artistBackdropState,
+                    localArtworkUri = artistAlbums.firstOrNull { it.artUri != null }?.artUri
+                        ?: artistSongs.firstOrNull { it.artUri != null }?.artUri,
+                    enabled = artistSongs.isNotEmpty(),
+                    onPlay = { onPlayArtist(artistSongs) },
+                    onShuffle = { onShuffleArtist(artistSongs) },
+                )
+            }
             if (topSongs.isNotEmpty()) {
                 item {
-                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Column(
+                        modifier = Modifier.padding(horizontal = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
+                    ) {
                         SectionTitleRow(
                             title = rootUiCopy(LocalAppLanguage.current).mostPlayedSongs,
                             subtitle = "${formatCountLabel(topSongs.size, "track")} you return to the most",
@@ -2314,17 +2336,19 @@ internal fun ArtistDetailScreen(
 
             if (artistAlbums.isNotEmpty()) {
                 item {
-                    ModuleCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                            SectionTitleRow(
-                                title = commonUiCopy(LocalAppLanguage.current).albums,
-                                subtitle = availableReleasesLabel(artistAlbums.size, LocalAppLanguage.current),
-                                compact = true,
-                            )
-                            ArtistAlbumGallery(
-                                albums = artistAlbums,
-                                onAlbumSelected = onAlbumSelected,
-                            )
+                    Box(modifier = Modifier.padding(horizontal = 20.dp)) {
+                        ModuleCard {
+                            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                SectionTitleRow(
+                                    title = commonUiCopy(LocalAppLanguage.current).albums,
+                                    subtitle = availableReleasesLabel(artistAlbums.size, LocalAppLanguage.current),
+                                    compact = true,
+                                )
+                                ArtistAlbumGallery(
+                                    albums = artistAlbums,
+                                    onAlbumSelected = onAlbumSelected,
+                                )
+                            }
                         }
                     }
                 }
@@ -2344,6 +2368,133 @@ internal fun ArtistDetailScreen(
     }
 }
 
+@Composable
+private fun ArtistHeroHeader(
+    artistName: String,
+    subtitle: String,
+    backdropState: ArtistBackdropState,
+    localArtworkUri: Uri?,
+    enabled: Boolean,
+    onPlay: () -> Unit,
+    onShuffle: () -> Unit,
+) {
+    val sourceUri = when (backdropState) {
+        is ArtistBackdropState.Available -> backdropState.backdrop.imageUri
+        is ArtistBackdropState.Fallback -> backdropState.localArtworkUri
+        ArtistBackdropState.Loading -> localArtworkUri
+    } ?: localArtworkUri
+    val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
+    val localArtwork = rememberArtworkBitmap(localArtworkUri, size = 512).value
+    val gradient = rememberArtworkGradient(localArtworkUri).value
+    val isRemoteBackdrop = (backdropState as? ArtistBackdropState.Available)?.backdrop?.source !in setOf(
+        null,
+        ArtistImageSource.LocalArtwork,
+        ArtistImageSource.Generated,
+    )
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(356.dp)
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        if (backdropImage != null) {
+            Image(
+                bitmap = backdropImage,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = if (isRemoteBackdrop) 1f else 0.92f,
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                gradient.first().copy(alpha = 0.96f),
+                                MaterialTheme.colorScheme.background,
+                                gradient.last().copy(alpha = 0.84f),
+                            ),
+                        ),
+                    ),
+            )
+        }
+        if (!isRemoteBackdrop && localArtwork != null) {
+            Image(
+                bitmap = localArtwork,
+                contentDescription = null,
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .fillMaxWidth(0.54f)
+                    .aspectRatio(1f)
+                    .clip(RoundedCornerShape(ElovaireRadii.module)),
+                contentScale = ContentScale.Crop,
+                alpha = 0.78f,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            Color.Black.copy(alpha = 0.48f),
+                            Color.Transparent,
+                            Color.Black.copy(alpha = 0.84f),
+                        ),
+                    ),
+                ),
+        )
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    text = artistName,
+                    style = MaterialTheme.typography.displayLarge.copy(
+                        fontSize = elovaireScaledSp(34f),
+                        lineHeight = MaterialTheme.typography.displayLarge.lineHeight * 0.88f,
+                    ),
+                    color = Color.White,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    color = Color.White.copy(alpha = 0.78f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                AlbumHeaderPlayButton(
+                    tint = Color.White,
+                    backgroundColor = RoseAccent,
+                    onClick = onPlay,
+                )
+                AlbumHeaderActionButton(
+                    iconResId = R.drawable.ic_lucide_shuffle,
+                    contentDescription = "Shuffle artist",
+                    tint = Color.White,
+                    backgroundColor = Color.White.copy(alpha = if (enabled) 0.18f else 0.08f),
+                    iconSize = 18.dp,
+                    onClick = onShuffle,
+                )
+            }
+        }
+    }
+}
+
 private fun buildArtistScreenSubtitle(
     songCount: Int,
     albumCount: Int,
@@ -2352,7 +2503,7 @@ private fun buildArtistScreenSubtitle(
     return "${localizedCountLabel(albumCount, "album", language)} • ${localizedCountLabel(songCount, "song", language)}"
 }
 
-private fun Song.libraryArtistName(): String {
+internal fun Song.libraryArtistName(): String {
     return albumArtist?.takeIf { it.isNotBlank() } ?: artist.ifBlank { "Unknown Artist" }
 }
 

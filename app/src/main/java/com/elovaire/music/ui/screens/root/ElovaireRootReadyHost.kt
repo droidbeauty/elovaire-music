@@ -65,6 +65,7 @@ internal fun ElovaireRootReadyHost(
                 padding = routePadding,
                 searchViewModel = composition.searchViewModel,
                 viewModelFactory = composition.viewModelFactory,
+                artistImageRepository = container.artistImageRepository,
                 changelogReleases = composition.changelogReleases,
                 modifier = modifier,
             )

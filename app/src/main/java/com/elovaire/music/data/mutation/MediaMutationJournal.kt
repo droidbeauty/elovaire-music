@@ -13,7 +13,6 @@ import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.first
 
 internal enum class MediaMutationType {
     TagEdit,
@@ -111,7 +110,7 @@ internal class MediaMutationJournal(
         )
         val recovery = runCatching {
             var recoveredCount = 0
-            dao.activeMutations().first().forEach { mutation ->
+            dao.recoverableMutations().forEach { mutation ->
                 val current = mutation.status.toMediaMutationStatusOrNull() ?: return@forEach
                 recoveryStatusFor(current)?.let { recoveredStatus ->
                     mark(mutation.mutationId, recoveredStatus, mutation.error)

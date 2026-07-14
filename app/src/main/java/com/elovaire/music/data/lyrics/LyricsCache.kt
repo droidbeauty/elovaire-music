@@ -26,16 +26,18 @@ internal class LyricsCache(
     ): LyricsResult? = synchronized(cacheLock) {
         ensureLoadedLocked()
         val now = clock.wallTimeMs()
-        val staleKeys = mutableListOf<String>()
-        val entry = identity.cacheKeys.firstNotNullOfOrNull { key ->
-            cacheEntries[key]?.also { cached ->
-                if (cached.isExpired(now)) {
-                    staleKeys += key
-                }
-            }?.takeUnless { it.isExpired(now) }
+        var entry: LyricsCacheEntry? = null
+        var removedExpired = false
+        identity.cacheKeys.forEach { key ->
+            val cached = cacheEntries[key] ?: return@forEach
+            if (cached.isExpired(now)) {
+                cacheEntries.remove(key)
+                removedExpired = true
+            } else if (entry == null) {
+                entry = cached
+            }
         }
-        if (staleKeys.isNotEmpty()) {
-            staleKeys.forEach(cacheEntries::remove)
+        if (removedExpired) {
             persistLocked()
         }
         when {
@@ -50,11 +52,15 @@ internal class LyricsCache(
         entry: LyricsCacheEntry,
     ) = synchronized(cacheLock) {
         ensureLoadedLocked()
+        var changed = false
         identity.cacheKeys.forEach { key ->
-            cacheEntries[key] = entry
+            if (cacheEntries[key] != entry) {
+                cacheEntries[key] = entry
+                changed = true
+            }
         }
-        trimLocked()
-        persistLocked()
+        if (trimLocked()) changed = true
+        if (changed) persistLocked()
     }
 
     fun clearExpired() = synchronized(cacheLock) {
@@ -146,11 +152,14 @@ internal class LyricsCache(
         }
     }
 
-    private fun trimLocked() {
+    private fun trimLocked(): Boolean {
+        var changed = false
         while (cacheEntries.size > MAX_ENTRIES) {
-            val firstKey = cacheEntries.keys.firstOrNull() ?: return
+            val firstKey = cacheEntries.keys.firstOrNull() ?: break
             cacheEntries.remove(firstKey)
+            changed = true
         }
+        return changed
     }
 
     private fun LyricsPayload.toJson(): JSONObject {

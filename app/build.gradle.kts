@@ -17,6 +17,12 @@ val geniusAccessToken = providers.gradleProperty("GENIUS_ACCESS_TOKEN").orNull
 val acoustIdApiKey = providers.gradleProperty("ACOUSTID_API_KEY").orNull
     ?: System.getenv("ACOUSTID_API_KEY")
     ?: localProperties.getProperty("ACOUSTID_API_KEY")
+val fanartTvApiKey = providers.gradleProperty("FANART_TV_API_KEY").orNull
+    ?: System.getenv("FANART_TV_API_KEY")
+    ?: localProperties.getProperty("FANART_TV_API_KEY")
+val youtubeDataApiKey = providers.gradleProperty("YOUTUBE_DATA_API_KEY").orNull
+    ?: System.getenv("YOUTUBE_DATA_API_KEY")
+    ?: localProperties.getProperty("YOUTUBE_DATA_API_KEY")
 
 plugins {
     alias(libs.plugins.android.application)
@@ -46,6 +52,16 @@ android {
             "String",
             "ACOUSTID_API_KEY",
             "\"${acoustIdApiKey.orEmpty().replace("\"", "\\\"")}\"",
+        )
+        buildConfigField(
+            "String",
+            "FANART_TV_API_KEY",
+            "\"${fanartTvApiKey.orEmpty().replace("\"", "\\\"")}\"",
+        )
+        buildConfigField(
+            "String",
+            "YOUTUBE_DATA_API_KEY",
+            "\"${youtubeDataApiKey.orEmpty().replace("\"", "\\\"")}\"",
         )
         externalNativeBuild {
             cmake {
