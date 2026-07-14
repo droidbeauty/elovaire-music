@@ -58,7 +58,7 @@ internal object MediaWriteTargetClassifier {
             FileScheme -> MediaWriteTargetKind.FileUri
             ContentResolverScheme -> when {
                 isSafDocumentUri(authority, pathSegments) -> MediaWriteTargetKind.SafDocument
-                authority == MediaStore.AUTHORITY && pathSegments.lastOrNull()?.toLongOrNull() != null ->
+                isMediaStoreAudioItem(authority, pathSegments) ->
                     MediaWriteTargetKind.MediaStoreItem
                 else -> MediaWriteTargetKind.Unsupported
             }
@@ -83,8 +83,21 @@ internal object MediaWriteTargetClassifier {
             pathSegments.any { it == "tree" || it == "document" }
     }
 
+    private fun isMediaStoreAudioItem(
+        authority: String?,
+        pathSegments: List<String>,
+    ): Boolean {
+        return authority == MediaStore.AUTHORITY &&
+            pathSegments.size == MediaStoreAudioItemPathSize &&
+            pathSegments[0].isNotBlank() &&
+            pathSegments[1] == "audio" &&
+            pathSegments[2] == "media" &&
+            pathSegments[3].toLongOrNull()?.let { it >= 0L } == true
+    }
+
     private const val ContentResolverScheme = "content"
     private const val FileScheme = "file"
+    private const val MediaStoreAudioItemPathSize = 4
 }
 
 internal fun mediaStoreWriteRequest(

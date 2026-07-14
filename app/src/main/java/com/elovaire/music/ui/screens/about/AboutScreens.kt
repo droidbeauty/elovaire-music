@@ -85,8 +85,19 @@ internal fun ChangelogScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(Color.Black),
     ) {
+        Image(
+            painter = painterResource(id = R.drawable.changelog_background),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.6f)),
+        )
         LazyColumn(
             state = listState,
             overscrollEffect = null,
@@ -120,15 +131,12 @@ internal fun ChangelogScreen(
                     Text(
                         text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
                         style = MaterialTheme.typography.headlineMedium,
+                        color = Color.White,
                     )
                     Surface(
                         shape = RoundedCornerShape(ElovaireRadii.pill),
-                        color = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-                            Color.White.copy(alpha = 0.16f)
-                        } else {
-                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                        },
-                        contentColor = MaterialTheme.colorScheme.onSurface,
+                        color = Color.White.copy(alpha = 0.14f),
+                        contentColor = Color.White,
                     ) {
                         Text(
                             text = BuildConfig.VERSION_NAME,
@@ -140,14 +148,13 @@ internal fun ChangelogScreen(
             }
 
             item {
-                Box(modifier = Modifier.padding(horizontal = 18.dp)) {
-                    ModuleCard {
-                        ChangelogReleaseContent(
-                            release = release,
-                            contentHorizontalPadding = 2.dp,
-                        )
-                    }
-                }
+                ChangelogReleaseContent(
+                    release = release,
+                    contentHorizontalPadding = 20.dp,
+                    textColor = Color.White,
+                    secondaryTextColor = Color.White.copy(alpha = 0.68f),
+                    dividerColor = Color.White.copy(alpha = 0.16f),
+                )
             }
         }
         PinnedBackTopBar(
@@ -291,6 +298,9 @@ internal fun ChangelogBottomSheetOverlay(
 internal fun ChangelogReleaseContent(
     release: ChangelogRelease?,
     contentHorizontalPadding: Dp = 20.dp,
+    textColor: Color = MaterialTheme.colorScheme.onSurface,
+    secondaryTextColor: Color = readableSecondaryTextColor(),
+    dividerColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
 ) {
     val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
     Column(
@@ -304,7 +314,7 @@ internal fun ChangelogReleaseContent(
             Text(
                 text = "No changelog entries yet",
                 style = MaterialTheme.typography.bodyLarge,
-                color = readableSecondaryTextColor(),
+                color = secondaryTextColor,
             )
         } else {
             changes.forEachIndexed { index, change ->
@@ -315,14 +325,14 @@ internal fun ChangelogReleaseContent(
                     Text(
                         text = change,
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
+                        color = textColor,
                     )
                     if (index != changes.lastIndex) {
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(1.dp)
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+                                .background(dividerColor),
                         )
                     }
                 }
@@ -363,11 +373,15 @@ internal fun AboutScreen(
             verticalArrangement = Arrangement.spacedBy(18.dp),
         ) {
             itemsIndexed(aboutModel.sections, key = { index, section -> "${section.title}_$index" }) { index, section ->
-                AboutSectionCard(
-                    section = section,
-                    renderOnBackground = index == 0,
-                    showEntryLogo = index == 0,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                    AboutSectionBlock(
+                        section = section,
+                        showEntryLogo = index == 0,
+                    )
+                    if (index != aboutModel.sections.lastIndex) {
+                        DividerLine()
+                    }
+                }
             }
         }
         PinnedBackTopBar(
@@ -448,41 +462,27 @@ internal fun PrivacySafetyScreen(
 }
 
 @Composable
-private fun AboutSectionCard(
+private fun AboutSectionBlock(
     section: AboutSection,
-    renderOnBackground: Boolean = false,
     showEntryLogo: Boolean = false,
 ) {
-    val content: @Composable () -> Unit = {
-        Column(
-            verticalArrangement = Arrangement.spacedBy(18.dp),
-            horizontalAlignment = Alignment.Start,
-        ) {
-            section.entries.forEachIndexed { index, entry ->
-                AboutEntryBlock(
-                    entry = entry,
-                    horizontalScrollableLinks = renderOnBackground,
-                    useCardAccentButtons = !renderOnBackground,
-                    useRoseAccentButtons = renderOnBackground,
-                    showLogo = showEntryLogo && index == 0,
-                )
-                if (index != section.entries.lastIndex) {
-                    DividerLine()
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+        horizontalAlignment = Alignment.Start,
+    ) {
+        section.entries.forEachIndexed { index, entry ->
+            AboutEntryBlock(
+                entry = entry,
+                horizontalScrollableLinks = true,
+                useRoseAccentButtons = index == 0 && showEntryLogo,
+                showLogo = showEntryLogo && index == 0,
+            )
+            if (index != section.entries.lastIndex) {
+                DividerLine()
             }
-        }
-    }
-    if (renderOnBackground) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 2.dp),
-        ) {
-            content()
-        }
-    } else {
-        ModuleCard {
-            content()
         }
     }
 }

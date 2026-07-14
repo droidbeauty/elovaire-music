@@ -9,6 +9,7 @@
     <release version="2.5.1">
         <item>Improved UI in the artists screen</item>
         <item>Performance focused optimizations</item>
+        <item>Further improved EQ quality</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

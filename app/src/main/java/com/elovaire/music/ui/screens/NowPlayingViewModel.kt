@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import android.app.Activity
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,13 +23,12 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackSleepTimerState
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
-import elovaire.music.droidbeauty.app.platform.matchesPlatformActionResult
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -36,10 +37,10 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -52,8 +53,44 @@ internal data class LyricsEditorUiState(
 internal sealed interface LyricsEditorEvent {
     data class RequestWritePermission(
         val operationId: String,
+        val mediaUri: Uri,
         val request: android.app.PendingIntent,
     ) : LyricsEditorEvent
+}
+
+internal sealed interface LyricsSavePermissionState {
+    data object NotRequested : LyricsSavePermissionState
+    data class AwaitingResult(val operationId: String, val mediaUri: Uri) : LyricsSavePermissionState
+    data class Granted(val operationId: String, val mediaUri: Uri) : LyricsSavePermissionState
+    data class Denied(val operationId: String) : LyricsSavePermissionState
+}
+
+internal enum class LyricsPermissionResultDecision {
+    Granted,
+    Denied,
+    Stale,
+}
+
+internal const val LYRICS_PERMISSION_DENIED_MESSAGE = "Permission to edit this song was denied."
+internal const val LYRICS_POST_GRANT_FAILURE_MESSAGE =
+    "Android granted access, but the song file still could not be opened for editing."
+
+internal fun resolveLyricsPermissionResult(
+    state: LyricsSavePermissionState,
+    operationId: String,
+    mediaUri: Uri,
+    resultCode: Int,
+): LyricsPermissionResultDecision {
+    val awaiting = state as? LyricsSavePermissionState.AwaitingResult
+        ?: return LyricsPermissionResultDecision.Stale
+    if (awaiting.operationId != operationId || awaiting.mediaUri.toString() != mediaUri.toString()) {
+        return LyricsPermissionResultDecision.Stale
+    }
+    return if (resultCode == Activity.RESULT_OK) {
+        LyricsPermissionResultDecision.Granted
+    } else {
+        LyricsPermissionResultDecision.Denied
+    }
 }
 
 internal data class PlayerUiState(
@@ -86,8 +123,8 @@ internal class NowPlayingViewModel(
     private val manualLyricsOverride = MutableStateFlow<ManualLyricsOverride?>(null)
     private val _lyricsEditorUiState = MutableStateFlow(LyricsEditorUiState())
     val lyricsEditorUiState: StateFlow<LyricsEditorUiState> = _lyricsEditorUiState
-    private val _lyricsEditorEvents = MutableSharedFlow<LyricsEditorEvent>(extraBufferCapacity = 1)
-    val lyricsEditorEvents = _lyricsEditorEvents.asSharedFlow()
+    private val lyricsEditorEventChannel = Channel<LyricsEditorEvent>(Channel.BUFFERED)
+    val lyricsEditorEvents = lyricsEditorEventChannel.receiveAsFlow()
     private var pendingLyricsSave: PendingLyricsSave? = null
     private var lyricsSaveJob: Job? = null
 
@@ -244,6 +281,7 @@ internal class NowPlayingViewModel(
                 .collect { currentSongIdentity ->
                     val pending = pendingLyricsSave ?: return@collect
                     if ((pending.song.id to pending.song.uri) == currentSongIdentity) return@collect
+                    if (pending.permissionState is LyricsSavePermissionState.AwaitingResult) return@collect
                     if (lyricsSaveJob?.isActive != true) {
                         pendingLyricsSave = null
                     }
@@ -312,7 +350,7 @@ internal class NowPlayingViewModel(
     }
 
     fun requestSaveLyrics(rawLyrics: String) {
-        if (_lyricsEditorUiState.value.isSaving) return
+        if (_lyricsEditorUiState.value.isSaving || pendingLyricsSave != null) return
         val song = playbackManager.nowPlayingState.value.currentSong ?: return
         val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
         pendingLyricsSave = PendingLyricsSave(
@@ -323,17 +361,25 @@ internal class NowPlayingViewModel(
         savePendingLyrics()
     }
 
-    fun onLyricsWritePermissionResult(operationId: String, granted: Boolean) {
-        if (!matchesPlatformActionResult(pendingLyricsSave?.operationId, operationId)) return
-        if (!granted) {
-            pendingLyricsSave = null
-            _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
-                isSaving = false,
-                errorMessage = "Permission to edit this song was denied.",
-            )
-            return
+    fun onLyricsWritePermissionResult(operationId: String, mediaUri: Uri, resultCode: Int) {
+        val pending = pendingLyricsSave ?: return
+        logLyrics("permission_result operation=$operationId uri=$mediaUri result=$resultCode")
+        when (resolveLyricsPermissionResult(pending.permissionState, operationId, mediaUri, resultCode)) {
+            LyricsPermissionResultDecision.Stale -> return
+            LyricsPermissionResultDecision.Denied -> {
+                pendingLyricsSave = null
+                _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
+                    isSaving = false,
+                    errorMessage = LYRICS_PERMISSION_DENIED_MESSAGE,
+                )
+            }
+            LyricsPermissionResultDecision.Granted -> {
+                pendingLyricsSave = pending.copy(
+                    permissionState = LyricsSavePermissionState.Granted(operationId, mediaUri),
+                )
+                savePendingLyrics()
+            }
         }
-        savePendingLyrics()
     }
 
     fun clearLyricsEditorError() {
@@ -349,42 +395,54 @@ internal class NowPlayingViewModel(
             errorMessage = null,
         )
         lyricsSaveJob = viewModelScope.launch {
-            val result = lyricsService.saveEmbeddedLyrics(pending.song, pending.lyrics)
-            val currentSong = playbackManager.nowPlayingState.value.currentSong
-            if (currentSong?.id != pending.song.id || currentSong.uri != pending.song.uri) {
-                if (pendingLyricsSave == pending) pendingLyricsSave = null
-                return@launch
-            }
+            val approvedMediaUri = (pending.permissionState as? LyricsSavePermissionState.Granted)?.mediaUri
+            val result = lyricsService.saveEmbeddedLyrics(
+                song = pending.song,
+                lyrics = pending.lyrics,
+                operationId = pending.operationId,
+                approvedMediaUri = approvedMediaUri,
+            )
+            if (pendingLyricsSave?.operationId != pending.operationId) return@launch
             when (result) {
                 is EmbeddedLyricsWriteResult.Success -> {
                     pendingLyricsSave = null
                     val displayPayload = result.payload.toDisplayPayload()
-                    manualLyricsOverride.value = ManualLyricsOverride(
-                        songId = pending.song.id,
-                        uiState = if (displayPayload.lines.isEmpty()) {
-                            LyricsUiState.Empty
-                        } else {
-                            LyricsUiState.Ready(displayPayload)
-                        },
-                    )
+                    val currentSong = playbackManager.nowPlayingState.value.currentSong
+                    if (currentSong?.id == pending.song.id && currentSong.uri == pending.song.uri) {
+                        manualLyricsOverride.value = ManualLyricsOverride(
+                            songId = pending.song.id,
+                            uiState = if (displayPayload.lines.isEmpty()) {
+                                LyricsUiState.Empty
+                            } else {
+                                LyricsUiState.Ready(displayPayload)
+                            },
+                        )
+                    }
                     _lyricsEditorUiState.value = LyricsEditorUiState(
                         savedRevision = _lyricsEditorUiState.value.savedRevision + 1L,
                     )
                 }
 
                 is EmbeddedLyricsWriteResult.PermissionRequired -> {
-                    if (pending.permissionRequested) {
+                    if (pending.permissionState is LyricsSavePermissionState.Granted) {
                         pendingLyricsSave = null
                         _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(
                             isSaving = false,
-                            errorMessage = "Permission to edit this song was denied.",
+                            errorMessage = LYRICS_POST_GRANT_FAILURE_MESSAGE,
                         )
-                    } else {
-                        pendingLyricsSave = pending.copy(permissionRequested = true)
+                    } else if (pending.permissionState is LyricsSavePermissionState.NotRequested) {
+                        logLyrics("permission_request operation=${pending.operationId} uri=${result.mediaUri}")
+                        pendingLyricsSave = pending.copy(
+                            permissionState = LyricsSavePermissionState.AwaitingResult(
+                                operationId = pending.operationId,
+                                mediaUri = result.mediaUri,
+                            ),
+                        )
                         _lyricsEditorUiState.value = _lyricsEditorUiState.value.copy(isSaving = false)
-                        _lyricsEditorEvents.emit(
+                        lyricsEditorEventChannel.send(
                             LyricsEditorEvent.RequestWritePermission(
                                 operationId = pending.operationId,
+                                mediaUri = result.mediaUri,
                                 request = result.request,
                             ),
                         )
@@ -467,7 +525,7 @@ internal class NowPlayingViewModel(
         val operationId: String,
         val song: Song,
         val lyrics: String,
-        val permissionRequested: Boolean = false,
+        val permissionState: LyricsSavePermissionState = LyricsSavePermissionState.NotRequested,
     )
 
     private data class PrefetchRequest(

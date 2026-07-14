@@ -17,6 +17,30 @@ class MediaWriteTargetClassifierTest {
     }
 
     @Test
+    fun classifyParts_rejectsMediaStoreCollectionUri() {
+        assertEquals(
+            MediaWriteTargetKind.Unsupported,
+            MediaWriteTargetClassifier.classifyParts(
+                scheme = "content",
+                authority = "media",
+                pathSegments = listOf("external", "audio", "media"),
+            ),
+        )
+    }
+
+    @Test
+    fun classifyParts_rejectsNonAudioMediaStoreItemUri() {
+        assertEquals(
+            MediaWriteTargetKind.Unsupported,
+            MediaWriteTargetClassifier.classifyParts(
+                scheme = "content",
+                authority = "media",
+                pathSegments = listOf("external", "images", "media", "42"),
+            ),
+        )
+    }
+
+    @Test
     fun classifyParts_safDocumentIsNotMediaStoreItem() {
         assertEquals(
             MediaWriteTargetKind.SafDocument,

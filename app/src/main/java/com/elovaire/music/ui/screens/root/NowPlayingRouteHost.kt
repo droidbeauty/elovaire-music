@@ -1,6 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import android.app.Activity
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -47,22 +47,28 @@ internal fun NowPlayingRouteHost(
         value = if (lyricsUiState is LyricsUiState.Ready) "lyrics" else "playback_progress_active",
     )
     var pendingLyricsOperationId by rememberSaveable { mutableStateOf<String?>(null) }
+    var pendingLyricsMediaUri by rememberSaveable { mutableStateOf<String?>(null) }
     val lyricsWriteLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
-        pendingLyricsOperationId?.let { operationId ->
+        val operationId = pendingLyricsOperationId
+        val mediaUri = pendingLyricsMediaUri?.let(Uri::parse)
+        if (operationId != null && mediaUri != null) {
             viewModel.onLyricsWritePermissionResult(
                 operationId = operationId,
-                granted = result.resultCode == Activity.RESULT_OK,
+                mediaUri = mediaUri,
+                resultCode = result.resultCode,
             )
         }
         pendingLyricsOperationId = null
+        pendingLyricsMediaUri = null
     }
     LaunchedEffect(viewModel) {
         viewModel.lyricsEditorEvents.collect { event ->
             when (event) {
                 is LyricsEditorEvent.RequestWritePermission -> {
                     pendingLyricsOperationId = event.operationId
+                    pendingLyricsMediaUri = event.mediaUri.toString()
                     lyricsWriteLauncher.launch(
                         IntentSenderRequest.Builder(event.request.intentSender).build(),
                     )

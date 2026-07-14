@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 import android.app.RecoverableSecurityException
 import android.content.Context
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
@@ -17,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
+import elovaire.music.droidbeauty.app.platform.ProviderRejectedWriteModeException
 import elovaire.music.droidbeauty.app.platform.mediaStoreWritePendingIntent
 import java.io.File
 import java.util.Locale
@@ -29,8 +31,11 @@ import kotlinx.coroutines.withContext
 internal enum class EmbeddedLyricsWriteFailure {
     UnsupportedFormat,
     UnsupportedSyncedLyrics,
-    PermissionDenied,
+    InvalidMediaStoreItemUri,
     StoragePermissionMissing,
+    WriteAccessUnavailable,
+    WriteAccessStillUnavailableAfterGrant,
+    ProviderRejectedWriteMode,
     SourceReadFailed,
     TempWriteFailed,
     TagCommitFailed,
@@ -42,7 +47,10 @@ internal enum class EmbeddedLyricsWriteFailure {
 
 internal sealed interface EmbeddedLyricsWriteResult {
     data class Success(val payload: LyricsPayload) : EmbeddedLyricsWriteResult
-    data class PermissionRequired(val request: android.app.PendingIntent) : EmbeddedLyricsWriteResult
+    data class PermissionRequired(
+        val mediaUri: Uri,
+        val request: android.app.PendingIntent,
+    ) : EmbeddedLyricsWriteResult
     data class Failure(
         val failure: EmbeddedLyricsWriteFailure,
         val reason: String,
@@ -59,11 +67,21 @@ internal class EmbeddedLyricsWriter(
     private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_DIRECTORY)
     private val writeMutex = Mutex()
 
-    suspend fun write(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult = writeMutex.withLock {
-        writeLocked(song, rawLyrics)
+    suspend fun write(
+        song: Song,
+        rawLyrics: String,
+        operationId: String? = null,
+        approvedMediaUri: Uri? = null,
+    ): EmbeddedLyricsWriteResult = writeMutex.withLock {
+        writeLocked(song, rawLyrics, operationId, approvedMediaUri)
     }
 
-    private suspend fun writeLocked(song: Song, rawLyrics: String): EmbeddedLyricsWriteResult {
+    private suspend fun writeLocked(
+        song: Song,
+        rawLyrics: String,
+        operationId: String?,
+        approvedMediaUri: Uri?,
+    ): EmbeddedLyricsWriteResult {
         val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
         val request = EmbeddedLyricsWriteRequest(
             song = song,
@@ -71,19 +89,10 @@ internal class EmbeddedLyricsWriter(
             canonicalLyrics = lyrics,
             tagKind = classifyLyricsTagKind(lyrics),
         )
-        val mutationId = createMutation(song)
-        val detectedFormat = song.fileName
-            .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
-            ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
-        unsupportedFailure(request, detectedFormat)?.let { failure ->
-            trace(song, "unsupported_format:${failure.name}")
-            mutationId?.let {
-                mediaMutationJournal?.mark(it, MediaMutationStatus.Failed, failure.name)
-            }
-            return EmbeddedLyricsWriteResult.Failure(
-                failure = failure,
-                reason = failure.userMessage,
-            )
+        val mutationId = createMutation(song, operationId)
+        tracePermissionContext(song, operationId, approvedMediaUri)
+        preflightFailure(request, approvedMediaUri)?.let { failure ->
+            return failPreflight(song, mutationId, failure)
         }
 
         var backupFile: File? = null
@@ -133,17 +142,8 @@ internal class EmbeddedLyricsWriter(
             }
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PersistedVerified) }
 
-            val payload = parseLrcOrPlain(lyrics, providerName = "Embedded", confidence = 100)
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Completed) }
-            EmbeddedLyricsWriteResult.Success(
-                payload ?: LyricsPayload(
-                    lines = emptyList(),
-                    isSynced = false,
-                    providerName = "Embedded",
-                    confidence = 100,
-                    sourceTextForEmbedding = lyrics,
-                ),
-            )
+            successResult(lyrics)
         } catch (throwable: CancellationException) {
             withContext(NonCancellable) {
                 if (originalOverwritten && backupFile != null) {
@@ -158,11 +158,23 @@ internal class EmbeddedLyricsWriter(
             }
             throw throwable
         } catch (throwable: RecoverableSecurityException) {
+            if (approvedMediaUri != null) {
+                return handlePostGrantSecurityFailure(song, mutationId, throwable)
+            }
             trace(song, "permission_required", throwable)
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.NeedsPermission) }
-            EmbeddedLyricsWriteResult.PermissionRequired(throwable.userAction.actionIntent)
+            EmbeddedLyricsWriteResult.PermissionRequired(song.uri, throwable.userAction.actionIntent)
         } catch (throwable: SecurityException) {
-            handleSecurityFailure(song, mutationId, throwable)
+            if (approvedMediaUri != null) {
+                handlePostGrantSecurityFailure(song, mutationId, throwable)
+            } else {
+                handleSecurityFailure(song, mutationId, throwable)
+            }
+        } catch (throwable: ProviderRejectedWriteModeException) {
+            val failure = EmbeddedLyricsWriteFailure.ProviderRejectedWriteMode
+            trace(song, "failed:${failure.name}", throwable)
+            mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Failed, failure.name) }
+            EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
         } catch (throwable: Throwable) {
             val failure = if (needsRepair) EmbeddedLyricsWriteFailure.RollbackFailed else phase.failure
             trace(song, "failed:${failure.name}", throwable)
@@ -243,6 +255,18 @@ internal class EmbeddedLyricsWriter(
         }
     }
 
+    private fun successResult(lyrics: String): EmbeddedLyricsWriteResult.Success {
+        val payload = parseLrcOrPlain(lyrics, providerName = "Embedded", confidence = 100)
+            ?: LyricsPayload(
+                lines = emptyList(),
+                isSynced = false,
+                providerName = "Embedded",
+                confidence = 100,
+                sourceTextForEmbedding = lyrics,
+            )
+        return EmbeddedLyricsWriteResult.Success(payload)
+    }
+
     private fun rollback(song: Song, backupFile: File): Boolean {
         return runCatching {
             mutationRunner.overwriteOriginal(song.uri, backupFile)
@@ -250,9 +274,10 @@ internal class EmbeddedLyricsWriter(
         }.isFailure
     }
 
-    private suspend fun createMutation(song: Song): String? {
+    private suspend fun createMutation(song: Song, operationId: String?): String? {
         return mediaMutationJournal?.create(
             MediaMutationOperation(
+                mutationId = operationId,
                 type = MediaMutationType.EmbeddedLyricsWrite,
                 songId = song.id,
                 albumId = song.albumId,
@@ -272,15 +297,36 @@ internal class EmbeddedLyricsWriter(
             mediaStoreWritePendingIntent(appContext, listOf(song.uri))?.let { requestIntent ->
                 trace(song, "permission_required", throwable)
                 mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.NeedsPermission) }
-                return EmbeddedLyricsWriteResult.PermissionRequired(requestIntent)
+                return EmbeddedLyricsWriteResult.PermissionRequired(song.uri, requestIntent)
             }
         }
         val failure = if (target is MediaWriteTarget.SafDocument) {
             EmbeddedLyricsWriteFailure.StoragePermissionMissing
         } else {
-            EmbeddedLyricsWriteFailure.PermissionDenied
+            EmbeddedLyricsWriteFailure.WriteAccessUnavailable
         }
         trace(song, "failed:${failure.name}", throwable)
+        mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Failed, failure.name) }
+        return EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
+    }
+
+    private suspend fun handlePostGrantSecurityFailure(
+        song: Song,
+        mutationId: String?,
+        throwable: SecurityException,
+    ): EmbeddedLyricsWriteResult {
+        val failure = EmbeddedLyricsWriteFailure.WriteAccessStillUnavailableAfterGrant
+        trace(song, "failed:${failure.name}", throwable)
+        mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Failed, failure.name) }
+        return EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
+    }
+
+    private suspend fun failPreflight(
+        song: Song,
+        mutationId: String?,
+        failure: EmbeddedLyricsWriteFailure,
+    ): EmbeddedLyricsWriteResult {
+        trace(song, "failed:${failure.name}")
         mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Failed, failure.name) }
         return EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
     }
@@ -298,6 +344,27 @@ internal class EmbeddedLyricsWriter(
         }
     }
 
+    private fun preflightFailure(
+        request: EmbeddedLyricsWriteRequest,
+        approvedMediaUri: Uri?,
+    ): EmbeddedLyricsWriteFailure? {
+        val song = request.song
+        val target = MediaWriteTargetClassifier.classify(appContext, song.uri)
+        if (song.uri.authority == android.provider.MediaStore.AUTHORITY && target !is MediaWriteTarget.MediaStoreItem) {
+            return EmbeddedLyricsWriteFailure.InvalidMediaStoreItemUri
+        }
+        if (
+            approvedMediaUri != null &&
+            (target !is MediaWriteTarget.MediaStoreItem || approvedMediaUri.toString() != song.uri.toString())
+        ) {
+            return EmbeddedLyricsWriteFailure.InvalidMediaStoreItemUri
+        }
+        val detectedFormat = song.fileName
+            .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
+            ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
+        return unsupportedFailure(request, detectedFormat)
+    }
+
     private fun trace(
         song: Song,
         phase: String,
@@ -310,6 +377,17 @@ internal class EmbeddedLyricsWriter(
                 "extension=${song.fileName.substringAfterLast('.', "")} " +
                 "phase=$phase error=${throwable?.javaClass?.simpleName.orEmpty()} " +
                 "message=${throwable?.message.orEmpty()}",
+        )
+    }
+
+    private fun tracePermissionContext(song: Song, operationId: String?, approvedMediaUri: Uri?) {
+        if (!BuildConfig.DEBUG) return
+        val target = MediaWriteTargetClassifier.classify(appContext, song.uri)
+        Log.d(
+            LOG_TAG,
+            "operation=${operationId.orEmpty()} api=${Build.VERSION.SDK_INT} song=${song.id} " +
+                "target=${target::class.simpleName} requestUri=${song.uri} " +
+                "retryUri=${approvedMediaUri?.toString().orEmpty()}",
         )
     }
 
@@ -330,12 +408,16 @@ private enum class LyricsWritePhase(
     PersistedVerification(EmbeddedLyricsWriteFailure.PersistedVerificationFailed),
 }
 
-private val EmbeddedLyricsWriteFailure.userMessage: String
+internal val EmbeddedLyricsWriteFailure.userMessage: String
     get() = when (this) {
         EmbeddedLyricsWriteFailure.UnsupportedFormat -> "This audio format cannot store lyrics safely."
         EmbeddedLyricsWriteFailure.UnsupportedSyncedLyrics -> "This audio format cannot store synchronized lyrics safely."
-        EmbeddedLyricsWriteFailure.PermissionDenied -> "Permission to edit this song was denied."
+        EmbeddedLyricsWriteFailure.InvalidMediaStoreItemUri -> "This song does not have a valid MediaStore item address."
         EmbeddedLyricsWriteFailure.StoragePermissionMissing -> "Access to this music folder was lost. Add the folder again to save lyrics."
+        EmbeddedLyricsWriteFailure.WriteAccessUnavailable -> "Android could not open this song for editing."
+        EmbeddedLyricsWriteFailure.WriteAccessStillUnavailableAfterGrant ->
+            "Android granted access, but the song file still could not be opened for editing."
+        EmbeddedLyricsWriteFailure.ProviderRejectedWriteMode -> "The storage provider does not support safely replacing this song."
         EmbeddedLyricsWriteFailure.SourceReadFailed -> "Unable to read this song for lyrics editing."
         EmbeddedLyricsWriteFailure.TempWriteFailed -> "Unable to prepare this song for lyrics editing."
         EmbeddedLyricsWriteFailure.TagCommitFailed -> "This song's lyrics metadata could not be updated."

@@ -44,8 +44,10 @@ class LyricsService internal constructor(
     internal suspend fun saveEmbeddedLyrics(
         song: Song,
         lyrics: String,
+        operationId: String? = null,
+        approvedMediaUri: android.net.Uri? = null,
     ): EmbeddedLyricsWriteResult = withContext(ioDispatcher) {
-        embeddedLyricsWriter.write(song, lyrics).also { result ->
+        embeddedLyricsWriter.write(song, lyrics, operationId, approvedMediaUri).also { result ->
             if (result is EmbeddedLyricsWriteResult.Success) {
                 repository.clearCacheFor(song)
                 onEmbeddedLyricsChanged(song)

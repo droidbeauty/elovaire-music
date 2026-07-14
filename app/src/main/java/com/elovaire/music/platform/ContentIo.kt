@@ -67,9 +67,16 @@ internal class ContentIo(
 
     @WorkerThread
     fun openWritableDescriptor(uri: Uri): ParcelFileDescriptor {
-        return openDescriptorOrNull(uri, "rwt")
-            ?: openDescriptorOrNull(uri, "rw")
-            ?: error("Unable to open the file for writing.")
+        var accessFailure: SecurityException? = null
+        writeModes.forEach { mode ->
+            try {
+                openDescriptorOrNull(uri, mode)?.let { return it }
+            } catch (failure: SecurityException) {
+                accessFailure = failure
+            }
+        }
+        accessFailure?.let { throw it }
+        throw ProviderRejectedWriteModeException(uri)
     }
 
     @WorkerThread
@@ -88,7 +95,14 @@ internal class ContentIo(
             null
         }
     }
+
+    private companion object {
+        val writeModes = arrayOf("rwt", "rw", "wt", "w")
+    }
 }
+
+internal class ProviderRejectedWriteModeException(uri: Uri) :
+    IllegalStateException("The content provider rejected all supported write modes for ${uri.authority.orEmpty()}.")
 
 internal fun InputStream.readBytesBounded(maxBytes: Int): ByteArray {
     val output = ByteArrayOutputStream(minOf(maxBytes, DEFAULT_BUFFER_SIZE))

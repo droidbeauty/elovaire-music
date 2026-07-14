@@ -2312,10 +2312,10 @@ internal fun ArtistDetailScreen(
                         modifier = Modifier.padding(horizontal = 20.dp),
                         verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
-                        SectionTitleRow(
+                        ArtistSectionTitleRow(
                             title = rootUiCopy(LocalAppLanguage.current).mostPlayedSongs,
                             subtitle = "${formatCountLabel(topSongs.size, "track")} you return to the most",
-                            compact = true,
+                            iconResId = R.drawable.ic_lucide_music,
                         )
                         Column {
                             topSongs.forEachIndexed { index, song ->
@@ -2337,12 +2337,14 @@ internal fun ArtistDetailScreen(
             if (artistAlbums.isNotEmpty()) {
                 item {
                     Box(modifier = Modifier.padding(horizontal = 20.dp)) {
-                        ModuleCard {
+                        ModuleCard(
+                            contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
+                        ) {
                             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                SectionTitleRow(
+                                ArtistSectionTitleRow(
                                     title = commonUiCopy(LocalAppLanguage.current).albums,
                                     subtitle = availableReleasesLabel(artistAlbums.size, LocalAppLanguage.current),
-                                    compact = true,
+                                    iconResId = R.drawable.ic_lucide_disc_album,
                                 )
                                 ArtistAlbumGallery(
                                     albums = artistAlbums,
@@ -2356,12 +2358,8 @@ internal fun ArtistDetailScreen(
         }
 
         DetailListTopBar(
-            title = normalizedArtist,
-            subtitle = buildArtistScreenSubtitle(
-                songCount = artistSongs.size,
-                albumCount = artistAlbums.size,
-                language = LocalAppLanguage.current,
-            ),
+            title = commonUiCopy(LocalAppLanguage.current).artists,
+            subtitle = null,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
@@ -2482,16 +2480,68 @@ private fun ArtistHeroHeader(
                     backgroundColor = RoseAccent,
                     onClick = onPlay,
                 )
-                AlbumHeaderActionButton(
-                    iconResId = R.drawable.ic_lucide_shuffle,
-                    contentDescription = "Shuffle artist",
-                    tint = Color.White,
-                    backgroundColor = Color.White.copy(alpha = if (enabled) 0.18f else 0.08f),
-                    iconSize = 18.dp,
+                ArtistShuffleButton(
+                    enabled = enabled,
                     onClick = onShuffle,
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalHazeApi::class)
+@Composable
+private fun ArtistShuffleButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val hazeState = LocalChromeHazeState.current
+    Box(
+        modifier = Modifier
+            .size(44.dp)
+            .clip(CircleShape),
+    ) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hazeState != null) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .hazeEffect(hazeState) {
+                        blurRadius = 20.dp
+                    },
+            )
+        }
+        AlbumHeaderActionButton(
+            iconResId = R.drawable.ic_lucide_shuffle,
+            contentDescription = "Shuffle artist",
+            tint = Color.White,
+            backgroundColor = Color.White.copy(alpha = if (enabled) 0.18f else 0.08f),
+            iconSize = 18.dp,
+            onClick = onClick,
+        )
+    }
+}
+
+@Composable
+private fun ArtistSectionTitleRow(
+    title: String,
+    subtitle: String,
+    @DrawableRes iconResId: Int,
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(id = iconResId),
+            contentDescription = null,
+            tint = readableMutedIconColor(),
+            modifier = Modifier.size(18.dp),
+        )
+        SectionTitleRow(
+            title = title,
+            subtitle = subtitle,
+            compact = true,
+        )
     }
 }
 
@@ -2541,7 +2591,9 @@ private fun ArtistAlbumGallery(
         EqHorizontalScrollbar(
             scrollState = scrollState,
             contentWidth = contentWidth,
-            modifier = Modifier.height(26.dp),
+            modifier = Modifier
+                .padding(top = 2.dp)
+                .height(26.dp),
         )
     }
 }
@@ -2980,7 +3032,9 @@ private fun SearchScreen(
                                     }
 
                                     if (state.matchingAlbums.isNotEmpty()) {
-                                        ModuleCard {
+                                        ModuleCard(
+                                            contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
+                                        ) {
                                             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                                                 SectionTitleRow(
                                                     title = commonUiCopy(language).albums,
@@ -3499,6 +3553,7 @@ private fun readableCardBorderColor(): Color {
 @Composable
 internal fun ModuleCard(
     modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(18.dp),
     content: @Composable () -> Unit,
 ) {
     Surface(
@@ -3515,7 +3570,7 @@ internal fun ModuleCard(
                     color = readableCardBorderColor(),
                     shape = RoundedCornerShape(ElovaireRadii.module),
                 )
-                .padding(18.dp),
+                .padding(contentPadding),
         ) {
             content()
         }
