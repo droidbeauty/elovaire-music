@@ -6,6 +6,7 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.MediaStore
 import java.io.File
+import java.util.Locale
 
 internal object MediaFilePathResolver {
     @Suppress("DEPRECATION")
@@ -116,12 +117,15 @@ internal object MediaFilePathResolver {
             .forEach(roots::add)
         if (roots.isEmpty()) return emptyList()
 
-        val normalizedVolumeName = volumeName?.trim()?.lowercase().orEmpty()
-        if (normalizedVolumeName.isBlank() || normalizedVolumeName == MediaStore.VOLUME_EXTERNAL_PRIMARY.lowercase()) {
+        val normalizedVolumeName = volumeName?.trim()?.lowercase(Locale.ROOT).orEmpty()
+        if (
+            normalizedVolumeName.isBlank() ||
+            normalizedVolumeName == MediaStore.VOLUME_EXTERNAL_PRIMARY.lowercase(Locale.ROOT)
+        ) {
             return roots.toList()
         }
         return roots.sortedByDescending { root ->
-            root.absolutePath.lowercase().contains(normalizedVolumeName)
+            root.absolutePath.lowercase(Locale.ROOT).contains(normalizedVolumeName)
         }
     }
 

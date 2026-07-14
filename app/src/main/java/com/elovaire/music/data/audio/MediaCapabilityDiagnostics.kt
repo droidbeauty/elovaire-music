@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.audio
 
 import android.net.Uri
+import java.util.Locale
 
 internal data class MediaCapabilityReport(
     val fileName: String,
@@ -59,7 +60,7 @@ internal object MediaCompatibilityDiagnostics {
         scannerExclusionReason: MediaCompatibilityReason? = null,
         softwareDecoderFallbackAvailable: Boolean? = null,
     ): MediaCapabilityReport {
-        val extension = fileName.substringAfterLast('.', "").lowercase()
+        val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
         val capability = AudioFormatPolicy.capabilityForExtension(extension)
         val container = detected?.container ?: capability?.format ?: AudioContainerFormat.Unknown
         val playbackSupport = detected?.let(AudioFormatPolicy::playbackSupport)

@@ -361,8 +361,8 @@ class MediaStoreScanner(
         title: String,
         fileName: String,
     ): Boolean {
-        val normalizedTitle = title.lowercase()
-        val normalizedFileName = fileName.lowercase()
+        val normalizedTitle = title.lowercase(Locale.ROOT)
+        val normalizedFileName = fileName.lowercase(Locale.ROOT)
         return EXPLICIT_MARKERS.any { marker ->
             normalizedTitle.contains(marker) || normalizedFileName.contains(marker)
         } || EXPLICIT_ADVISORY_SUFFIX.containsMatchIn(title)
@@ -642,7 +642,7 @@ private fun isLosslessFormat(format: String): Boolean {
 }
 
 internal fun isSupportedAudioExtension(extension: String): Boolean {
-    return extension.lowercase() in AudioFormatPolicy.scannerExtensions
+    return extension.lowercase(Locale.ROOT) in AudioFormatPolicy.scannerExtensions
 }
 
 internal fun isSupportedAudioFileName(fileName: String): Boolean {

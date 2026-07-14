@@ -2,9 +2,10 @@ package elovaire.music.droidbeauty.app.data.artist
 
 import android.content.Context
 import android.net.Uri
-import android.os.SystemClock
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.network.HttpRequest
 import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -22,7 +23,9 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -61,12 +64,13 @@ internal class ArtistImageRepository(
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val httpTransport: HttpTransport = HttpTransport(),
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private val appContext = context.applicationContext
     private val store = ArtistImageStore(appContext)
     private val cacheDirectory = File(appContext.cacheDir, "artist_backdrops")
     private val inFlight = ConcurrentHashMap<String, Deferred<ArtistBackdrop?>>()
-    private val musicBrainzLimiter = ArtistRequestRateLimiter(MUSICBRAINZ_INTERVAL_MS)
+    private val musicBrainzLimiter = ArtistRequestRateLimiter(MUSICBRAINZ_INTERVAL_MS, clock)
 
     fun backdropState(
         artistName: String,
@@ -88,13 +92,11 @@ internal class ArtistImageRepository(
         }
         if (!backgroundWorkPolicy.shouldStartLyricsPrefetch()) return@flow
 
-        val resolved = withContext(ioDispatcher) {
-            lookupBackdrop(baseIdentity, localFallback)
-        }
+        val resolved = lookupBackdrop(baseIdentity, localFallback)
         if (resolved != null) {
             emit(ArtistBackdropState.Available(resolved))
         }
-    }
+    }.flowOn(ioDispatcher)
 
     private suspend fun lookupBackdrop(
         baseIdentity: ArtistIdentity,
@@ -106,7 +108,7 @@ internal class ArtistImageRepository(
         val request = async(ioDispatcher) {
             val cached = cachedBackdrop(baseIdentity)
             if (cached != null) return@async cached
-            val negative = store.cached(requestKey)?.takeIf { it.isNegativeFresh() }
+            val negative = store.cached(requestKey)?.takeIf { it.isNegativeFresh(clock.wallTimeMs()) }
             if (negative != null) return@async null
 
             val identity = resolveMusicBrainzIdentity(baseIdentity)
@@ -114,17 +116,18 @@ internal class ArtistImageRepository(
             val remote = resolveRemoteBackdrop(identity)
             if (remote != null) return@async remote
 
+            val now = clock.wallTimeMs()
             store.put(
                 ArtistImageCacheEntry(
                     artistKey = requestKey,
                     source = ArtistImageSource.Generated,
                     imageFilePath = null,
-                    expiresAtMs = System.currentTimeMillis() + NEGATIVE_TTL_MS,
-                    revision = System.currentTimeMillis(),
+                    expiresAtMs = now + NEGATIVE_TTL_MS,
+                    revision = now,
                 ),
             )
             localFallback?.let {
-                ArtistBackdrop(requestKey, it, ArtistImageSource.LocalArtwork, System.currentTimeMillis())
+                ArtistBackdrop(requestKey, it, ArtistImageSource.LocalArtwork, now)
             }
         }
         val active = inFlight.putIfAbsent(requestKey, request) ?: request
@@ -135,7 +138,7 @@ internal class ArtistImageRepository(
 
     private fun cachedBackdrop(identity: ArtistIdentity): ArtistBackdrop? {
         val entry = store.cached(identity.stableKey) ?: return null
-        if (!entry.isPositiveFresh()) return null
+        if (!entry.isPositiveFresh(clock.wallTimeMs())) return null
         val path = entry.imageFilePath ?: return null
         val file = File(path).takeIf { it.isFile && it.length() > 0L } ?: return null
         return ArtistBackdrop(
@@ -157,7 +160,7 @@ internal class ArtistImageRepository(
         }
         val (source, url) = candidates.firstOrNull() ?: return null
         val imageFile = downloadImage(identity.stableKey, source, url) ?: return null
-        val revision = System.currentTimeMillis()
+        val revision = clock.wallTimeMs()
         store.put(
             ArtistImageCacheEntry(
                 artistKey = identity.stableKey,
@@ -174,7 +177,7 @@ internal class ArtistImageRepository(
         val cached = store.cached(identity.stableKey)?.musicBrainzId
         if (!cached.isNullOrBlank()) return identity.copy(musicBrainzId = cached)
         val mbid = searchMusicBrainzArtist(identity) ?: return identity
-        store.mergeMusicBrainzId(identity.stableKey, mbid)
+        store.mergeMusicBrainzId(identity.stableKey, mbid, clock.wallTimeMs())
         return identity.copy(musicBrainzId = mbid)
     }
 
@@ -269,7 +272,19 @@ internal class ArtistImageRepository(
         cacheDirectory.mkdirs()
         val file = File(cacheDirectory, "${artistKey.sha256()}-${source.name.lowercase(Locale.US)}.img")
         file.writeBytes(bytes)
+        trimImageCache(file)
         return file
+    }
+
+    private fun trimImageCache(currentFile: File) {
+        val files = cacheDirectory.listFiles { file -> file.isFile } ?: return
+        val overflow = files.size - MAX_CACHED_IMAGES
+        if (overflow <= 0) return
+        files.asSequence()
+            .filterNot { it == currentFile }
+            .sortedBy(File::lastModified)
+            .take(overflow)
+            .forEach { it.delete() }
     }
 
     private fun getJson(url: String): JSONObject {
@@ -296,14 +311,15 @@ internal class ArtistImageRepository(
         const val NETWORK_TIMEOUT_MS = 8_000
         const val MAX_JSON_BYTES = 768 * 1024
         const val MAX_IMAGE_BYTES = 6 * 1024 * 1024
+        const val MAX_CACHED_IMAGES = 160
     }
 }
 
 internal fun normalizeArtistIdentity(value: String): String {
     return Normalizer.normalize(value.trim(), Normalizer.Form.NFKD)
-        .replace("\\p{Mn}+".toRegex(), "")
+        .replace(ARTIST_MARK_REGEX, "")
         .lowercase(Locale.ROOT)
-        .replace("\\s+".toRegex(), " ")
+        .replace(ARTIST_WHITESPACE_REGEX, " ")
         .trim()
 }
 
@@ -329,7 +345,7 @@ private fun ArtistIdentity.shouldSkipRemoteLookup(): Boolean {
 
 internal fun shouldSkipArtistRemoteLookup(normalizedName: String): Boolean {
     return normalizedName.isBlank() ||
-        normalizedName in setOf("unknown artist", "various artists", "various", "unknown")
+        normalizedName in NON_REMOTE_ARTIST_NAMES
 }
 
 private fun JSONArray?.bestFanartUrl(): String? {
@@ -391,8 +407,8 @@ private data class ArtistImageCacheEntry(
     val revision: Long,
     val musicBrainzId: String? = null,
 ) {
-    fun isPositiveFresh(): Boolean = imageFilePath != null && expiresAtMs > System.currentTimeMillis()
-    fun isNegativeFresh(): Boolean = imageFilePath == null && expiresAtMs > System.currentTimeMillis()
+    fun isPositiveFresh(nowMs: Long): Boolean = imageFilePath != null && expiresAtMs > nowMs
+    fun isNegativeFresh(nowMs: Long): Boolean = imageFilePath == null && expiresAtMs > nowMs
 }
 
 private class ArtistImageStore(context: Context) {
@@ -428,6 +444,7 @@ private class ArtistImageStore(context: Context) {
     fun mergeMusicBrainzId(
         artistKey: String,
         musicBrainzId: String,
+        nowMs: Long,
     ) {
         val current = cached(artistKey)
         put(
@@ -436,7 +453,7 @@ private class ArtistImageStore(context: Context) {
                 source = ArtistImageSource.Generated,
                 imageFilePath = null,
                 expiresAtMs = 0L,
-                revision = System.currentTimeMillis(),
+                revision = nowMs,
             )).copy(musicBrainzId = musicBrainzId),
         )
     }
@@ -444,13 +461,21 @@ private class ArtistImageStore(context: Context) {
 
 private class ArtistRequestRateLimiter(
     private val minimumIntervalMs: Long,
+    private val clock: AppClock,
 ) {
+    private val mutex = Mutex()
     private var lastRequestAtMs = 0L
 
-    suspend fun awaitTurn() {
-        val now = SystemClock.elapsedRealtime()
-        val waitMs = (lastRequestAtMs + minimumIntervalMs - now).coerceAtLeast(0L)
+    suspend fun awaitTurn() = mutex.withLock {
+        val now = clock.elapsedTimeMs()
+        val waitMs = if (lastRequestAtMs == 0L) 0L else {
+            (lastRequestAtMs + minimumIntervalMs - now).coerceAtLeast(0L)
+        }
         if (waitMs > 0L) kotlinx.coroutines.delay(waitMs)
-        lastRequestAtMs = SystemClock.elapsedRealtime()
+        lastRequestAtMs = clock.elapsedTimeMs()
     }
 }
+
+private val ARTIST_MARK_REGEX = Regex("\\p{Mn}+")
+private val ARTIST_WHITESPACE_REGEX = Regex("\\s+")
+private val NON_REMOTE_ARTIST_NAMES = setOf("unknown artist", "various artists", "various", "unknown")

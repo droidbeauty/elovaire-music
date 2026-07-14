@@ -18,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -384,14 +385,14 @@ internal class AppUpdateManager(
         val asset = (0 until assets.length())
             .mapNotNull { index -> assets.optJSONObject(index) }
             .firstOrNull { assetJson ->
-                val name = assetJson.optString("name").orEmpty().lowercase()
+                val name = assetJson.optString("name").orEmpty().lowercase(Locale.ROOT)
                 name.endsWith(".apk") &&
-                    ("release" in name || BuildConfig.APPLICATION_ID.lowercase() in name)
+                    ("release" in name || BuildConfig.APPLICATION_ID.lowercase(Locale.ROOT) in name)
             }
             ?: (0 until assets.length())
             .mapNotNull { index -> assets.optJSONObject(index) }
             .firstOrNull { assetJson ->
-                assetJson.optString("name").orEmpty().lowercase().endsWith(".apk")
+                assetJson.optString("name").orEmpty().lowercase(Locale.ROOT).endsWith(".apk")
             }
             ?: return null
         val assetName = asset.optString("name").orEmpty()
@@ -419,17 +420,17 @@ internal class AppUpdateManager(
         assets: JSONArray,
         apkAssetName: String,
     ): JSONObject? {
-        val lowerApkName = apkAssetName.lowercase()
+        val lowerApkName = apkAssetName.lowercase(Locale.ROOT)
         val candidates = (0 until assets.length())
             .mapNotNull { index -> assets.optJSONObject(index) }
             .filter { asset ->
-                val name = asset.optString("name").orEmpty().lowercase()
+                val name = asset.optString("name").orEmpty().lowercase(Locale.ROOT)
                 name.endsWith(".sha256") ||
                     name.endsWith(".sha256sum") ||
                     "checksum" in name
             }
         return candidates.firstOrNull { asset ->
-            lowerApkName in asset.optString("name").orEmpty().lowercase()
+            lowerApkName in asset.optString("name").orEmpty().lowercase(Locale.ROOT)
         } ?: candidates.firstOrNull()
     }
 

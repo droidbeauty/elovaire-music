@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Locale
 
 internal data class LibrarySignature(
     val songCount: Int,
@@ -323,8 +324,8 @@ internal fun buildAlbumsFromSongs(
         }
         .sortedWith(
             compareBy(
-                { it.artist.lowercase() },
-                { it.title.lowercase() },
+                { it.artist.lowercase(Locale.ROOT) },
+                { it.title.lowercase(Locale.ROOT) },
             ),
         )
 }

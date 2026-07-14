@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.update
 
 import java.io.File
 import java.security.MessageDigest
+import java.util.Locale
 
 internal object AppUpdateIntegrity {
     fun expectedSha256(
@@ -32,7 +33,7 @@ internal object AppUpdateIntegrity {
         file: File,
         expectedSha256: String,
     ): Boolean {
-        val normalizedExpected = expectedSha256.trim().lowercase()
+        val normalizedExpected = expectedSha256.trim().lowercase(Locale.ROOT)
         if (!SHA_256_REGEX.matches(normalizedExpected)) return false
         return sha256(file).equals(normalizedExpected, ignoreCase = true)
     }
@@ -44,7 +45,7 @@ internal object AppUpdateIntegrity {
         val line = rawLine.substringBefore('#').trim()
         if (line.isBlank()) return null
         val match = SHA_256_REGEX.find(line) ?: return null
-        val digest = match.value.lowercase()
+        val digest = match.value.lowercase(Locale.ROOT)
         val remainder = line.removeRange(match.range).trim().trimStart('*')
         return when {
             remainder.isBlank() -> digest

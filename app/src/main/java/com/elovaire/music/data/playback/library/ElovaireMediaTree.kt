@@ -13,6 +13,7 @@ import elovaire.music.droidbeauty.app.domain.search.searchAlbumsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchPlaylists
 import elovaire.music.droidbeauty.app.domain.search.searchSongsForPicker
+import java.util.Locale
 
 internal class ElovaireMediaTree(
     private val libraryRepository: LibraryRepository,
@@ -185,7 +186,7 @@ internal class ElovaireMediaTree(
                 val normalizedTitle = normalizeSearchText(it.title)
                 normalizedTitle == normalizedQuery.value || normalizedTitle.startsWith(normalizedQuery.value)
             }
-            .sortedBy { it.title.lowercase() }
+            .sortedBy { it.title.lowercase(Locale.ROOT) }
         val broaderSongs = searchSongsForPicker(snapshot.songs, normalizedQuery)
         return mutableListOf<MediaItem>().apply {
             addDistinctItems(exactAndStrongTitleSongs, limit, ElovaireMediaItems::song)
@@ -283,10 +284,10 @@ internal class ElovaireMediaTree(
 
     private fun List<Song>.sortedSongsForContext(): List<Song> = sortedWith(
         compareBy<Song>(
-            { it.album.lowercase() },
+            { it.album.lowercase(Locale.ROOT) },
             { it.discNumber },
             { it.trackNumber },
-            { it.title.lowercase() },
+            { it.title.lowercase(Locale.ROOT) },
             { it.id },
         ),
     )
@@ -376,12 +377,12 @@ internal class ElovaireMediaTree(
     ) {
         private val favoriteSongs by lazy(LazyThreadSafetyMode.NONE) { songs.filter { it.id in favoriteSongIds } }
         private val favoriteSongsByTitle by lazy(LazyThreadSafetyMode.NONE) {
-            favoriteSongs.sortedBy { it.title.lowercase() }
+            favoriteSongs.sortedBy { it.title.lowercase(Locale.ROOT) }
         }
-        private val songsByTitle by lazy(LazyThreadSafetyMode.NONE) { songs.sortedBy { it.title.lowercase() } }
-        private val albumsByTitle by lazy(LazyThreadSafetyMode.NONE) { albums.sortedBy { it.title.lowercase() } }
+        private val songsByTitle by lazy(LazyThreadSafetyMode.NONE) { songs.sortedBy { it.title.lowercase(Locale.ROOT) } }
+        private val albumsByTitle by lazy(LazyThreadSafetyMode.NONE) { albums.sortedBy { it.title.lowercase(Locale.ROOT) } }
         private val nonEmptyPlaylistsByName by lazy(LazyThreadSafetyMode.NONE) {
-            playlists.filter { it.songIds.isNotEmpty() }.sortedBy { it.name.lowercase() }
+            playlists.filter { it.songIds.isNotEmpty() }.sortedBy { it.name.lowercase(Locale.ROOT) }
         }
         private val recentlyAddedSongs by lazy(LazyThreadSafetyMode.NONE) {
             songs.sortedByDescending(Song::dateAddedSeconds)
@@ -394,10 +395,10 @@ internal class ElovaireMediaTree(
         }
         private val songsById by lazy(LazyThreadSafetyMode.NONE) { songs.associateBy(Song::id) }
         private val songsByArtist by lazy(LazyThreadSafetyMode.NONE) {
-            songs.groupBy { it.libraryArtistName().lowercase() }
+            songs.groupBy { it.libraryArtistName().lowercase(Locale.ROOT) }
         }
         private val songsByGenre by lazy(LazyThreadSafetyMode.NONE) {
-            songs.groupBy { it.genre.lowercase() }
+            songs.groupBy { it.genre.lowercase(Locale.ROOT) }
         }
 
         fun favoriteSongs(): List<Song> = favoriteSongs
@@ -408,8 +409,8 @@ internal class ElovaireMediaTree(
         fun recentlyAddedSongs(): List<Song> = recentlyAddedSongs
         fun artistNames(): List<String> = artistNames
         fun genreNames(): List<String> = genreNames
-        fun songsForArtist(name: String): List<Song> = songsByArtist[name.lowercase()].orEmpty()
-        fun songsForGenre(name: String): List<Song> = songsByGenre[name.lowercase()].orEmpty()
+        fun songsForArtist(name: String): List<Song> = songsByArtist[name.lowercase(Locale.ROOT)].orEmpty()
+        fun songsForGenre(name: String): List<Song> = songsByGenre[name.lowercase(Locale.ROOT)].orEmpty()
         fun hasUsefulGenres(): Boolean = songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }
         fun playlistSongs(playlistId: Long): List<Song> {
             val playlist = playlists.firstOrNull { it.id == playlistId } ?: return emptyList()

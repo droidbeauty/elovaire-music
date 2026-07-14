@@ -106,6 +106,19 @@ class ScopedSearchTest {
         assertEquals(listOf("Miles Davis"), result.map { it.first })
     }
 
+    @Test
+    fun playbackSourceLabel_stopsAtFirstDistinctAlbum() {
+        val sameAlbum = listOf(
+            song(id = 1L, title = "One", album = "Album"),
+            song(id = 2L, title = "Two", album = "Album"),
+        )
+        val mixedAlbums = sameAlbum + song(id = 3L, title = "Three", album = "Other")
+
+        assertEquals("Album", sameAlbum.playbackSourceLabel("Fallback"))
+        assertEquals("Search", mixedAlbums.playbackSourceLabel("Fallback"))
+        assertEquals("Fallback", emptyList<Song>().playbackSourceLabel("Fallback"))
+    }
+
     private fun song(
         id: Long,
         title: String,

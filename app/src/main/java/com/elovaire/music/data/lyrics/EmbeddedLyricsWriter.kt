@@ -19,6 +19,7 @@ import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.mediaStoreWritePendingIntent
 import java.io.File
+import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -288,7 +289,7 @@ internal class EmbeddedLyricsWriter(
         request: EmbeddedLyricsWriteRequest,
         detectedFormat: DetectedAudioFormat?,
     ): EmbeddedLyricsWriteFailure? {
-        val extension = request.song.fileName.substringAfterLast('.', "").lowercase()
+        val extension = request.song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
         if (request.tagKind == EmbeddedLyricsTagKind.SyncedLyrics && extension !in setOf("mp3", "flac")) {
             return EmbeddedLyricsWriteFailure.UnsupportedSyncedLyrics
         }

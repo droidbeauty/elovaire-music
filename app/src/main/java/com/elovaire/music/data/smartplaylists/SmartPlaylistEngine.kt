@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.smartplaylists
 
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.util.Locale
 import kotlin.math.absoluteValue
 
 internal data class SmartPlaylistResult(
@@ -76,10 +77,10 @@ internal object SmartPlaylistEngine {
                 }
             }
             is SmartPlaylistRule.FileFormatIs -> {
-                val expected = rule.extension.trim().trimStart('.').lowercase()
+                val expected = rule.extension.trim().trimStart('.').lowercase(Locale.ROOT)
                 expected.isNotBlank() && (
-                    song.audioFormat.lowercase() == expected ||
-                        song.fileName.substringAfterLast('.', "").lowercase() == expected
+                    song.audioFormat.lowercase(Locale.ROOT) == expected ||
+                        song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT) == expected
                     )
             }
             is SmartPlaylistRule.FolderContains -> song.libraryPath.orEmpty().normalizeSmartText()
@@ -152,7 +153,7 @@ private fun String.matchesTextRule(
 }
 
 internal fun String.normalizeSmartText(): String {
-    return trim().lowercase().replace(SmartWhitespaceRegex, " ")
+    return trim().lowercase(Locale.ROOT).replace(SmartWhitespaceRegex, " ")
 }
 
 private val SmartWhitespaceRegex = Regex("\\s+")

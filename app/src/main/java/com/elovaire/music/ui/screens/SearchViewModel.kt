@@ -13,7 +13,6 @@ import elovaire.music.droidbeauty.app.domain.search.SearchArtistResult
 import elovaire.music.droidbeauty.app.domain.search.SearchIndex
 import elovaire.music.droidbeauty.app.domain.search.SearchLibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.search.SearchSortMode
-import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
 import elovaire.music.droidbeauty.app.domain.search.albumSearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.search.artistSearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.search.buildSearchResults
@@ -142,7 +141,7 @@ internal class SearchViewModel(
         playbackReader.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
     ) { index, albumPlayCounts, recentAlbumIds ->
         buildSuggestedAlbums(
-            albums = index.albums.map(SearchableAlbum::album),
+            albums = index.albums,
             albumPlayCounts = albumPlayCounts,
             recentAlbumIds = recentAlbumIds,
         )
