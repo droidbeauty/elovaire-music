@@ -95,10 +95,6 @@ private class RecordingLibraryDao : LibraryDao {
 
     override suspend fun recoverableMutations(): List<LibraryMutationEntity> = emptyList()
     override suspend fun mutation(mutationId: String): LibraryMutationEntity? = null
-    override suspend fun songById(songId: Long): SongEntity? = null
-    override suspend fun songByUri(uri: String): SongEntity? = null
-    override suspend fun mediaFileByStableKey(stableFileKey: String): MediaFileEntity? = null
-    override suspend fun activeSongsForAlbum(albumId: Long): List<SongEntity> = emptyList()
     override suspend fun insertScanGeneration(generation: LibraryScanGenerationEntity) = Unit
     override suspend fun upsertSongs(songs: List<SongEntity>) {
         changedSongIds = songs.map(SongEntity::songId)

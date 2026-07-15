@@ -112,6 +112,7 @@ internal sealed interface TagEditFailureCause {
     data object PermissionRequired : TagEditFailureCause
     data object PermissionDeniedAfterGrant : TagEditFailureCause
     data object RollbackFailed : TagEditFailureCause
+    data class InvalidInput(val failure: TagEditValidationFailure) : TagEditFailureCause
     data class TagLibraryFailure(val message: String) : TagEditFailureCause
     data class Unknown(val message: String?) : TagEditFailureCause
 }
@@ -176,6 +177,23 @@ internal class AlbumTagEditorService(
     ): TagEditApplyResult = withContext(ioDispatcher) {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
         val plans = TagEditPlanner.plansFor(request)
+        TagEditPlanner.validationFailure(request)?.let { validationFailure ->
+            return@withContext TagEditApplyResult(
+                editedSongIds = emptyList(),
+                editedUris = emptyList(),
+                editedFilePaths = emptyList(),
+                editedSongs = emptyList(),
+                artworkChanged = false,
+                failures = request.album.songs.map { song ->
+                    TagEditFailure(
+                        songId = song.id,
+                        fileName = song.fileName,
+                        reason = validationFailure.userMessage(),
+                        cause = TagEditFailureCause.InvalidInput(validationFailure),
+                    )
+                },
+            )
+        }
         val coverArtBytes = request.coverArtBytes ?: request.coverArtUri?.let(::readBytes)
         val coverArtMimeType = coverArtBytes?.let(::detectMimeType)
         val editedSongIds = mutableListOf<Long>()
@@ -575,7 +593,7 @@ internal class AlbumTagEditorService(
     }
 
     private fun readBytes(uri: Uri): ByteArray? {
-        return runCatching { contentIo.readBytesBounded(uri, MAX_SELECTED_ARTWORK_BYTES) }.getOrNull()
+        return runCatching { contentIo.readBytesBounded(uri, MAX_TAG_ARTWORK_BYTES) }.getOrNull()
     }
 
     private fun detectMimeType(bytes: ByteArray): String {
@@ -662,13 +680,19 @@ internal class AlbumTagEditorService(
         const val TAG = "AlbumTagEditor"
         const val MIN_RELEASE_YEAR = 1
         const val MAX_RELEASE_YEAR = 9999
-        const val MAX_SELECTED_ARTWORK_BYTES = 16 * 1024 * 1024
     }
 
     private fun logDebug(message: String) {
         if (!BuildConfig.DEBUG) return
         Log.d(TAG, message)
     }
+}
+
+private fun TagEditValidationFailure.userMessage(): String = when (this) {
+    TagEditValidationFailure.InvalidTrackSelection -> "The selected tracks are no longer valid for this album."
+    TagEditValidationFailure.InvalidTrackNumber -> "Track and disc numbers must be between 1 and 9999."
+    TagEditValidationFailure.TextTooLong -> "One or more tag values are too long to save safely."
+    TagEditValidationFailure.ArtworkTooLarge -> "The selected artwork is too large to embed safely."
 }
 
 private enum class TagEditWritePhase(

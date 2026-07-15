@@ -7,6 +7,7 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
@@ -120,6 +121,14 @@ internal class LyricsRepository(
         inFlightRequests.values.forEach { request -> request.cancel() }
         inFlightRequests.clear()
         serviceScope.cancel()
+    }
+
+    fun onMemoryPressure(pressure: MemoryPressure) {
+        if (pressure == MemoryPressure.Normal) return
+        cancelPrefetchRequests()
+        trimMemoryCache(
+            if (pressure == MemoryPressure.Critical) 0 else MODERATE_MEMORY_CACHE_KEYS,
+        )
     }
 
     suspend fun fetchLyrics(
@@ -299,16 +308,24 @@ internal class LyricsRepository(
         identity.cacheKeys.forEach { key ->
             memoryPositiveCache[key] = entry
         }
-        trimMemoryCache()
+        trimMemoryCache(MAX_MEMORY_CACHE_KEYS)
     }
 
-    private fun trimMemoryCache() {
-        if (memoryPositiveCache.size <= MAX_MEMORY_CACHE_KEYS) return
+    private fun trimMemoryCache(maxKeys: Int) {
+        if (memoryPositiveCache.size <= maxKeys) return
         val now = clock.wallTimeMs()
         memoryPositiveCache.entries.removeIf { (_, entry) -> entry.isExpired(now) }
-        val overflow = memoryPositiveCache.size - MAX_MEMORY_CACHE_KEYS
+        val overflow = memoryPositiveCache.size - maxKeys
         if (overflow > 0) {
             memoryPositiveCache.keys.take(overflow).forEach(memoryPositiveCache::remove)
+        }
+    }
+
+    private fun cancelPrefetchRequests() {
+        inFlightRequests.entries.removeIf { (key, request) ->
+            val prefetch = key.lookupMode == LyricsLookupMode.FastPresenceCheck
+            if (prefetch) request.cancel()
+            prefetch
         }
     }
 
@@ -364,6 +381,7 @@ internal class LyricsRepository(
         const val CACHE_TTL_OFFLINE_MS = 90_000L
         const val MAX_PREFETCH_REQUESTS = 3
         const val MAX_MEMORY_CACHE_KEYS = 512
+        const val MODERATE_MEMORY_CACHE_KEYS = 128
     }
 
     private sealed interface RemoteLookupOutcome {

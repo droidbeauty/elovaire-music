@@ -15,7 +15,7 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.safeDirectPlaybackSupport
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
-import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
+import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -173,7 +173,7 @@ internal class BitPerfectUsbManager(
         val trackConfig = currentTrackConfig
         val routeContext = routeSnapshot.toRouteContext()
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
-            !supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
+            !AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
         ) {
             updateStatus(
                 BitPerfectEligibilityPolicy.evaluate(
@@ -307,7 +307,7 @@ private fun resolveRouteSnapshot(
 ): DirectPlaybackRouteSnapshot {
     val routedDevices = if (
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-        supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
+        AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
     ) {
         audioManager.safeRoutedOutputDevicesForAttributes(playbackAudioAttributes)
     } else {
@@ -329,7 +329,7 @@ private fun resolveRouteSnapshot(
         hasBluetoothRoute = routedDevices.any { device ->
             runCatching { device.type.isBluetoothOutputType() }.getOrDefault(false)
         },
-        isRouteVerified = supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT),
+        isRouteVerified = AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT),
     )
 }
 

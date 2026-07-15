@@ -59,6 +59,36 @@ class TagEditPlannerTest {
         assertEquals(listOf(2L), retry.tracks.map { it.songId })
     }
 
+    @Test
+    fun validationRejectsDuplicateAndUnknownTrackSelections() {
+        assertEquals(
+            TagEditValidationFailure.InvalidTrackSelection,
+            planner.validationFailure(
+                request(tracks = listOf(track(1L, "One"), track(1L, "Duplicate"))),
+            ),
+        )
+        assertEquals(
+            TagEditValidationFailure.InvalidTrackSelection,
+            planner.validationFailure(request(tracks = listOf(track(99L, "Unknown")))),
+        )
+    }
+
+    @Test
+    fun validationBoundsNumbersTextAndArtworkBeforeMutation() {
+        assertEquals(
+            TagEditValidationFailure.InvalidTrackNumber,
+            planner.validationFailure(request(tracks = listOf(track(1L, "One", trackNumber = 0)))),
+        )
+        assertEquals(
+            TagEditValidationFailure.TextTooLong,
+            planner.validationFailure(request(albumTitle = TagFieldEdit.Value("a".repeat(4_097)))),
+        )
+        assertEquals(
+            TagEditValidationFailure.ArtworkTooLarge,
+            planner.validationFailure(request(coverArtBytes = ByteArray(MAX_TAG_ARTWORK_BYTES + 1))),
+        )
+    }
+
     private fun request(
         albumTitle: TagFieldEdit<String> = TagFieldEdit.Unchanged,
         albumArtist: TagFieldEdit<String> = TagFieldEdit.Unchanged,
@@ -118,12 +148,13 @@ class TagEditPlannerTest {
     private fun track(
         songId: Long,
         title: String,
+        trackNumber: Int = songId.toInt(),
     ): EditableAlbumTrack {
         return EditableAlbumTrack(
             songId = songId,
             title = title,
             artist = "Artist",
-            trackNumber = songId.toInt(),
+            trackNumber = trackNumber,
             discNumber = 1,
         )
     }

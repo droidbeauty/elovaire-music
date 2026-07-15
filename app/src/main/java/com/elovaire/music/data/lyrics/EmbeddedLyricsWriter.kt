@@ -31,6 +31,7 @@ import kotlinx.coroutines.withContext
 internal enum class EmbeddedLyricsWriteFailure {
     UnsupportedFormat,
     UnsupportedSyncedLyrics,
+    LyricsTooLarge,
     InvalidMediaStoreItemUri,
     StoragePermissionMissing,
     WriteAccessUnavailable,
@@ -82,7 +83,11 @@ internal class EmbeddedLyricsWriter(
         operationId: String?,
         approvedMediaUri: Uri?,
     ): EmbeddedLyricsWriteResult {
-        val lyrics = rawLyrics.canonicalEmbeddedLyricsText()
+        val lyrics = if (rawLyrics.length <= MAX_LYRICS_CHARACTERS) {
+            rawLyrics.canonicalEmbeddedLyricsText()
+        } else {
+            rawLyrics
+        }
         val request = EmbeddedLyricsWriteRequest(
             song = song,
             rawLyrics = rawLyrics,
@@ -91,6 +96,9 @@ internal class EmbeddedLyricsWriter(
         )
         val mutationId = createMutation(song, operationId)
         tracePermissionContext(song, operationId, approvedMediaUri)
+        if (approvedMediaUri != null) {
+            mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PermissionGranted) }
+        }
         preflightFailure(request, approvedMediaUri)?.let { failure ->
             return failPreflight(song, mutationId, failure)
         }
@@ -348,6 +356,9 @@ internal class EmbeddedLyricsWriter(
         request: EmbeddedLyricsWriteRequest,
         approvedMediaUri: Uri?,
     ): EmbeddedLyricsWriteFailure? {
+        if (request.rawLyrics.length > MAX_LYRICS_CHARACTERS || !request.canonicalLyrics.isLyricsTextWithinBounds()) {
+            return EmbeddedLyricsWriteFailure.LyricsTooLarge
+        }
         val song = request.song
         val target = MediaWriteTargetClassifier.classify(appContext, song.uri)
         if (song.uri.authority == android.provider.MediaStore.AUTHORITY && target !is MediaWriteTarget.MediaStoreItem) {
@@ -412,6 +423,7 @@ internal val EmbeddedLyricsWriteFailure.userMessage: String
     get() = when (this) {
         EmbeddedLyricsWriteFailure.UnsupportedFormat -> "This audio format cannot store lyrics safely."
         EmbeddedLyricsWriteFailure.UnsupportedSyncedLyrics -> "This audio format cannot store synchronized lyrics safely."
+        EmbeddedLyricsWriteFailure.LyricsTooLarge -> "These lyrics are too large to store safely."
         EmbeddedLyricsWriteFailure.InvalidMediaStoreItemUri -> "This song does not have a valid MediaStore item address."
         EmbeddedLyricsWriteFailure.StoragePermissionMissing -> "Access to this music folder was lost. Add the folder again to save lyrics."
         EmbeddedLyricsWriteFailure.WriteAccessUnavailable -> "Android could not open this song for editing."

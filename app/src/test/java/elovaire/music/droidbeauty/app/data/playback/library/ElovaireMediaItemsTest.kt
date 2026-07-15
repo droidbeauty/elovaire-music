@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class ElovaireMediaItemsTest {
@@ -27,6 +28,14 @@ class ElovaireMediaItemsTest {
         )
 
         ids.forEach { id -> assertEquals(id, ElovaireMediaIds.parse(id.value)) }
+    }
+
+    @Test
+    fun parse_rejectsMalformedAndUnboundedExternalIds() {
+        assertNull(ElovaireMediaIds.parse("0"))
+        assertNull(ElovaireMediaIds.parse("elovaire:artist:"))
+        assertNull(ElovaireMediaIds.parse("elovaire:bucket:unknown:A"))
+        assertNull(ElovaireMediaIds.parse("elovaire:artist:${"x".repeat(1_100)}"))
     }
 
     @Test

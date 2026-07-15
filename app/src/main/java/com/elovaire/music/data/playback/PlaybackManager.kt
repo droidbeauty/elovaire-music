@@ -31,10 +31,9 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
-import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
-import elovaire.music.droidbeauty.app.core.supportsVerifiedDirectPlaybackRouting
+import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackFailureClassifier
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -609,6 +608,7 @@ class PlaybackManager(
     }
 
     fun reevaluateAudioOutputPath() {
+        if (released.get()) return
         if (!hasActiveQueue()) return
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         refreshUsbAudioOutputState()
@@ -618,6 +618,7 @@ class PlaybackManager(
     }
 
     fun hasActiveQueue(): Boolean {
+        if (released.get()) return false
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
     }
 
@@ -625,6 +626,7 @@ class PlaybackManager(
         consumer: PlaybackProgressConsumer,
         active: Boolean,
     ) {
+        if (released.get()) return
         if (progressDemandController.setActive(consumer, active)) {
             if (active) {
                 publishProgressSnapshot(force = true)
@@ -640,6 +642,7 @@ class PlaybackManager(
         shuffleEnabled: Boolean = false,
         sourcePlaylistId: Long? = null,
     ) {
+        if (released.get()) return
         recordManualPlaybackStart()
         val startIndex = collection.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         setQueue(collection, startIndex, sourceLabel, shuffleEnabled, sourcePlaylistId)
@@ -674,6 +677,7 @@ class PlaybackManager(
         shuffleEnabled: Boolean = false,
         sourcePlaylistId: Long? = null,
     ) {
+        if (released.get()) return
         recordManualPlaybackStart()
         val startIndex = if (startSongId == null) {
             0
@@ -691,6 +695,7 @@ class PlaybackManager(
         command: PlaybackCommand,
         origin: PlaybackCommandOrigin = PlaybackCommandOrigin.InApp,
     ) {
+        if (released.get()) return
         if (Looper.myLooper() != Looper.getMainLooper()) {
             playbackHandler.post { dispatchPlaybackCommand(command, origin) }
             return
@@ -756,6 +761,7 @@ class PlaybackManager(
     }
 
     override fun seekTo(positionMs: Long) {
+        if (released.get()) return
         _progressState.value = playbackProgressController.cancelScrub()
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         player.seekTo(positionMs.coerceAtLeast(0L))
@@ -764,16 +770,19 @@ class PlaybackManager(
     }
 
     fun beginScrub() {
+        if (released.get()) return
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, true)
         _progressState.value = playbackProgressController.beginScrub()
         syncProgressUpdateLoop()
     }
 
     fun updateScrubPosition(positionMs: Long) {
+        if (released.get()) return
         _progressState.value = playbackProgressController.updateScrubPosition(positionMs)
     }
 
     fun finishScrub(positionMs: Long) {
+        if (released.get()) return
         val result = playbackProgressController.finishScrub(positionMs)
         _progressState.value = result.state
         result.seekPositionMs?.let(player::seekTo)
@@ -782,12 +791,14 @@ class PlaybackManager(
     }
 
     fun cancelScrub() {
+        if (released.get()) return
         _progressState.value = playbackProgressController.cancelScrub()
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         syncProgressUpdateLoop()
     }
 
     fun setVolume(volume: Float) {
+        if (released.get()) return
         val requestedVolume = volume.quantizedVolume()
         if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
             val handled = usbDacHardwareVolumeManager.setHardwareVolume(requestedVolume)
@@ -811,6 +822,7 @@ class PlaybackManager(
     }
 
     fun cycleRepeatMode() {
+        if (released.get()) return
         player.repeatMode = when (_state.value.repeatMode) {
             PlaybackRepeatMode.Off -> Player.REPEAT_MODE_ONE
             PlaybackRepeatMode.One -> Player.REPEAT_MODE_ALL
@@ -820,11 +832,13 @@ class PlaybackManager(
     }
 
     fun toggleShuffle() {
+        if (released.get()) return
         player.shuffleModeEnabled = !player.shuffleModeEnabled
         updateState()
     }
 
     override fun skipNext() {
+        if (released.get()) return
         cancelPauseFade()
         clearInterruptionResumeState()
         if (player.hasNextMediaItem()) {
@@ -836,6 +850,7 @@ class PlaybackManager(
     }
 
     override fun skipPrevious() {
+        if (released.get()) return
         cancelPauseFade()
         clearInterruptionResumeState()
         if (player.currentPosition > PREVIOUS_SEEK_THRESHOLD_MS) {
@@ -849,22 +864,27 @@ class PlaybackManager(
     }
 
     fun playQueueIndex(index: Int) {
+        if (released.get()) return
         queueController.playQueueIndex(index)
     }
 
     fun enqueueSong(song: Song) {
+        if (released.get()) return
         queueController.enqueueSong(song)
     }
 
     fun removeQueueIndex(index: Int) {
+        if (released.get()) return
         queueController.removeQueueIndex(index)
     }
 
     fun removeSongsFromQueue(songIds: Set<Long>) {
+        if (released.get()) return
         queueController.removeSongsFromQueue(songIds)
     }
 
     fun refreshQueuedLibraryMetadataIfNeeded(updatedSongs: List<Song>) {
+        if (released.get()) return
         queueController.refreshQueuedLibraryMetadataIfNeeded(updatedSongs)
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         scheduleAudioPathReevaluation("queue-metadata-refreshed", AUDIO_PATH_REEVALUATION_DELAY_MS)
@@ -872,12 +892,14 @@ class PlaybackManager(
     }
 
     fun setGaplessPlaybackEnabled(enabled: Boolean) {
+        if (released.get()) return
         if (gaplessPlaybackEnabled == enabled) return
         gaplessPlaybackEnabled = enabled
         scheduleAudioPathReevaluation("gapless-setting-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
     }
 
     fun setVolumeNormalizationEnabled(enabled: Boolean) {
+        if (released.get()) return
         if (volumeNormalizationEnabled == enabled) return
         volumeNormalizationEnabled = enabled
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
@@ -886,6 +908,7 @@ class PlaybackManager(
     }
 
     fun setSleepTimer(option: SleepTimerOption) {
+        if (released.get()) return
         sleepTimerController.setTimer(
             option = option,
             currentSongId = currentSong()?.id,
@@ -893,6 +916,7 @@ class PlaybackManager(
     }
 
     fun clearSleepTimer() {
+        if (released.get()) return
         sleepTimerController.clear()
     }
 
@@ -1154,15 +1178,13 @@ class PlaybackManager(
     }
 
     private fun publishProgressSnapshot(force: Boolean = false) {
-        val updatedProgress = ElovaireTrace.section("playback_progress_publish") {
-            playbackProgressController.onPlayerSnapshot(
-                mediaId = currentSong()?.id,
-                positionMs = player.currentPosition.coerceAtLeast(0L),
-                durationMs = player.duration.takeIf { it > 0 }?.coerceAtLeast(0L) ?: 0L,
-                bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
-                isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
-            )
-        }
+        val updatedProgress = playbackProgressController.onPlayerSnapshot(
+            mediaId = currentSong()?.id,
+            positionMs = player.currentPosition.coerceAtLeast(0L),
+            durationMs = player.duration.takeIf { it > 0 }?.coerceAtLeast(0L) ?: 0L,
+            bufferedPositionMs = player.bufferedPosition.coerceAtLeast(0L),
+            isPlaying = if (isPauseTransitioningToStopped) false else player.isPlaying,
+        )
         if (force || updatedProgress != _progressState.value) {
             _progressState.value = updatedProgress
         }
@@ -1865,7 +1887,7 @@ class PlaybackManager(
         val manager = audioManager ?: return null
         val outputDevice = if (
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            supportsVerifiedDirectPlaybackRouting(Build.VERSION.SDK_INT)
+            AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
         ) {
             manager.safeRoutedOutputDevicesForAttributes(platformPlaybackAudioAttributes)
                 .firstOrNull { device ->

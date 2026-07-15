@@ -8,16 +8,17 @@ internal fun InputStream.readBytesBounded(
     maxBytes: Int,
     expectedBytes: Long = -1L,
 ): ByteArray {
+    require(maxBytes >= 0) { "The response limit must not be negative." }
     if (expectedBytes > maxBytes) {
         throw IOException("Remote response is too large.")
     }
     val output = ByteArrayOutputStream(expectedBytes.takeIf { it in 0..maxBytes }?.toInt() ?: DEFAULT_BUFFER_SIZE)
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-    var total = 0
+    var total = 0L
     while (true) {
         val read = read(buffer)
         if (read < 0) break
-        total += read
+        total += read.toLong()
         if (total > maxBytes) {
             throw IOException("Remote response is too large.")
         }

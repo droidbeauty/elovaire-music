@@ -69,6 +69,11 @@ internal interface BackendEventSink {
     fun emit(event: BackendEvent)
 }
 
+internal inline fun BackendEventSink.emitLazy(event: () -> BackendEvent) {
+    if (this === NoOpBackendEventSink || (this === LogcatBackendEventSink && !BuildConfig.DEBUG)) return
+    emit(event())
+}
+
 internal object NoOpBackendEventSink : BackendEventSink {
     override fun emit(event: BackendEvent) = Unit
 }

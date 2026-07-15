@@ -41,16 +41,21 @@ internal fun searchSongsForPicker(
         )
     }
 
+    return searchIndexedSongsForPicker(songs.map(Song::toSearchableSong), query)
+}
+
+internal fun searchIndexedSongsForPicker(
+    songs: List<SearchableSong>,
+    query: NormalizedSearchQuery,
+): List<Song> {
     return sortRankedSongs(
-        ranked = songs
-            .map(Song::toSearchableSong)
-            .rankMatching(
-                query = query,
-                normalizedTitle = SearchableSong::normalizedTitle,
-                normalizedArtist = SearchableSong::normalizedArtist,
-                normalizedAlbum = SearchableSong::normalizedAlbum,
-                normalizedComposite = SearchableSong::normalizedComposite,
-            ),
+        ranked = songs.rankMatching(
+            query = query,
+            normalizedTitle = SearchableSong::normalizedTitle,
+            normalizedArtist = SearchableSong::normalizedArtist,
+            normalizedAlbum = SearchableSong::normalizedAlbum,
+            normalizedComposite = SearchableSong::normalizedComposite,
+        ),
         sortMode = SearchSortMode.Title,
     )
 }

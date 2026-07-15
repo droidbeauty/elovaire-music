@@ -33,6 +33,8 @@ import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskWrites
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -44,7 +46,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
-class PreferenceStore(context: Context) :
+class PreferenceStore internal constructor(
+    context: Context,
+    private val clock: AppClock = AndroidAppClock,
+) :
     RootSettingsReader,
     AppearanceSettingsWriter,
     LibrarySettingsWriter,
@@ -278,7 +283,7 @@ class PreferenceStore(context: Context) :
             playlists = _userSmartPlaylists.value,
             name = name,
             nextSmartPlaylistId = nextSmartPlaylistId,
-            nowMs = System.currentTimeMillis(),
+            nowMs = clock.wallTimeMs(),
         ) ?: return -1L
         nextSmartPlaylistId = result.nextSmartPlaylistId
         persistSmartPlaylists(result.playlists, nextSmartPlaylistId = result.nextSmartPlaylistId)
@@ -289,7 +294,7 @@ class PreferenceStore(context: Context) :
         val updated = updateSmartPlaylistEntry(
             playlists = _userSmartPlaylists.value,
             playlist = playlist,
-            nowMs = System.currentTimeMillis(),
+            nowMs = clock.wallTimeMs(),
         ) ?: return
         persistSmartPlaylists(updated)
     }
@@ -799,7 +804,7 @@ class PreferenceStore(context: Context) :
         val baseline = maxOf(
             persisted,
             (existingIds.maxOrNull() ?: 0L) + 1L,
-            System.currentTimeMillis().coerceAtLeast(1L),
+            clock.wallTimeMs().coerceAtLeast(1L),
         )
         var candidate = baseline
         while (candidate in existingIds || candidate <= 0L) {

@@ -12,7 +12,10 @@ import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
+import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal enum class MediaMutationType {
     TagEdit,
@@ -52,9 +55,12 @@ internal class MediaMutationJournal(
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
 ) {
-    suspend fun create(operation: MediaMutationOperation): String {
+    private val transitionMutex = Mutex()
+
+    suspend fun create(operation: MediaMutationOperation): String = transitionMutex.withLock {
         val now = clock.wallTimeMs()
         val mutationId = operation.mutationId?.takeIf { it.isNotBlank() } ?: operationIdGenerator.nextId()
+        if (operation.mutationId != null && dao.mutation(mutationId) != null) return@withLock mutationId
         dao.upsertMutation(
             LibraryMutationEntity(
                 mutationId = mutationId,
@@ -70,26 +76,26 @@ internal class MediaMutationJournal(
                 error = null,
             ),
         )
-        backendEventSink.emit(
+        backendEventSink.emitLazy {
             BackendEvent.MediaMutationStarted(
                 BackendOperationContext(mutationId, BackendSubsystem.MediaMutation, clock.elapsedTimeMs()).fields(
                     phase = MediaMutationStatus.Created.name,
                     elapsedTimeMs = clock.elapsedTimeMs(),
                     extra = mapOf("type" to operation.type.name),
                 ),
-            ),
-        )
-        return mutationId
+            )
+        }
+        mutationId
     }
 
     suspend fun mark(
         mutationId: String,
         status: MediaMutationStatus,
         error: String? = null,
-    ) {
-        val current = dao.mutation(mutationId) ?: return
-        val currentStatus = current.status.toMediaMutationStatusOrNull() ?: return
-        if (!isValidMutationTransition(currentStatus, status)) return
+    ): Unit = transitionMutex.withLock {
+        val current = dao.mutation(mutationId) ?: return@withLock
+        val currentStatus = current.status.toMediaMutationStatusOrNull() ?: return@withLock
+        if (!isValidMutationTransition(currentStatus, status)) return@withLock
         dao.upsertMutation(
             current.copy(
                 status = status.name,
@@ -122,27 +128,27 @@ internal class MediaMutationJournal(
         val failure = recovery.exceptionOrNull()
         if (failure is CancellationException) throw failure
         if (failure != null) {
-            backendEventSink.emit(
+            backendEventSink.emitLazy {
                 BackendEvent.MediaMutationFailed(
                     operation.fields(
                         phase = "startup_recovery",
                         elapsedTimeMs = clock.elapsedTimeMs(),
                         extra = mapOf("error_type" to (failure::class.simpleName ?: "Unknown")),
                     ),
-                ),
-            )
+                )
+            }
             return MediaMutationRecoveryResult.Failure(failure)
         }
         val recoveredCount = recovery.getOrThrow()
-        backendEventSink.emit(
+        backendEventSink.emitLazy {
             BackendEvent.MediaMutationCompleted(
                 operation.fields(
                     phase = "startup_recovery",
                     elapsedTimeMs = clock.elapsedTimeMs(),
                     extra = mapOf("recovered" to recoveredCount.toString()),
                 ),
-            ),
-        )
+            )
+        }
         return MediaMutationRecoveryResult.Success(recoveredCount)
     }
 }

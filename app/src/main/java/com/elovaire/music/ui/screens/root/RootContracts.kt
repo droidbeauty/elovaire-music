@@ -84,9 +84,37 @@ internal val EQ_BAND_SPACING = 40.dp
 internal val EQ_GRAPH_EDGE_PADDING = 18.dp
 internal val EQ_BAND_PANEL_HEIGHT = 206.dp
 internal val EQ_BAND_LABEL_HEIGHT = 12.dp
-internal val lazyListPositionCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Int>>()
-internal val lazyGridPositionCache = java.util.concurrent.ConcurrentHashMap<String, Pair<Int, Int>>()
-internal val scrollPositionCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+internal val lazyListPositionCache = BoundedStateCache<Pair<Int, Int>>()
+internal val lazyGridPositionCache = BoundedStateCache<Pair<Int, Int>>()
+internal val scrollPositionCache = BoundedStateCache<Int>()
+
+internal class BoundedStateCache<T>(
+    private val maxEntries: Int = MAX_SAVED_SCROLL_POSITIONS,
+) {
+    private val entries = object : LinkedHashMap<String, T>(maxEntries.coerceAtLeast(1), 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, T>?): Boolean {
+            return size > maxEntries
+        }
+    }
+
+    @Synchronized
+    operator fun get(key: String): T? = entries[key]
+
+    @Synchronized
+    operator fun set(key: String, value: T) {
+        entries[key] = value
+    }
+
+    @Synchronized
+    fun removeIf(predicate: (String) -> Boolean) {
+        entries.keys.removeIf(predicate)
+    }
+
+    @Synchronized
+    fun size(): Int = entries.size
+}
+
+private const val MAX_SAVED_SCROLL_POSITIONS = 128
 internal val topLevelScrollCachePrefixes = mapOf(
     HOME_ROUTE to listOf("home_screen"),
     ALBUMS_ROUTE to listOf(

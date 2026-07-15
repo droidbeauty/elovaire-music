@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.data.network.HttpRequest
 import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -71,6 +72,12 @@ internal class ArtistImageRepository(
     private val cacheDirectory = File(appContext.cacheDir, "artist_backdrops")
     private val inFlight = ConcurrentHashMap<String, Deferred<ArtistBackdrop?>>()
     private val musicBrainzLimiter = ArtistRequestRateLimiter(MUSICBRAINZ_INTERVAL_MS, clock)
+
+    fun onMemoryPressure(pressure: MemoryPressure) {
+        if (pressure != MemoryPressure.Critical) return
+        inFlight.values.forEach(Deferred<ArtistBackdrop?>::cancel)
+        inFlight.clear()
+    }
 
     fun backdropState(
         artistName: String,
@@ -150,16 +157,33 @@ internal class ArtistImageRepository(
     }
 
     private suspend fun resolveRemoteBackdrop(identity: ArtistIdentity): ArtistBackdrop? {
-        val candidates = buildList {
-            identity.musicBrainzId?.let { mbid ->
-                findFanartTvImage(mbid)?.let { add(ArtistImageSource.FanartTv to it) }
-                findTheAudioDbImageByMbid(mbid, identity)?.let { add(ArtistImageSource.TheAudioDb to it) }
-            }
-            findTheAudioDbImageByName(identity)?.let { add(ArtistImageSource.TheAudioDb to it) }
-            findYouTubeTopicThumbnail(identity)?.let { add(ArtistImageSource.YouTubeDataApi to it) }
+        identity.musicBrainzId?.let { mbid ->
+            resolveRemoteCandidate(identity, ArtistImageSource.FanartTv, findFanartTvImage(mbid))
+                ?.let { return it }
+            resolveRemoteCandidate(
+                identity,
+                ArtistImageSource.TheAudioDb,
+                findTheAudioDbImageByMbid(mbid, identity),
+            )?.let { return it }
         }
-        val (source, url) = candidates.firstOrNull() ?: return null
-        val imageFile = downloadImage(identity.stableKey, source, url) ?: return null
+        resolveRemoteCandidate(
+            identity,
+            ArtistImageSource.TheAudioDb,
+            findTheAudioDbImageByName(identity),
+        )?.let { return it }
+        return resolveRemoteCandidate(
+            identity,
+            ArtistImageSource.YouTubeDataApi,
+            findYouTubeTopicThumbnail(identity),
+        )
+    }
+
+    private fun resolveRemoteCandidate(
+        identity: ArtistIdentity,
+        source: ArtistImageSource,
+        url: String?,
+    ): ArtistBackdrop? {
+        val imageFile = url?.let { downloadImage(identity.stableKey, source, it) } ?: return null
         val revision = clock.wallTimeMs()
         store.put(
             ArtistImageCacheEntry(
@@ -350,10 +374,18 @@ internal fun shouldSkipArtistRemoteLookup(normalizedName: String): Boolean {
 
 private fun JSONArray?.bestFanartUrl(): String? {
     if (this == null) return null
-    return (0 until length())
-        .mapNotNull { optJSONObject(it) }
-        .sortedByDescending { it.optInt("likes", 0) }
-        .firstNotNullOfOrNull { it.optString("url").takeIf(String::isNotBlank) }
+    var bestUrl: String? = null
+    var bestLikes = Int.MIN_VALUE
+    for (index in 0 until length()) {
+        val item = optJSONObject(index) ?: continue
+        val url = item.optString("url").takeIf(String::isNotBlank) ?: continue
+        val likes = item.optInt("likes", 0)
+        if (likes > bestLikes) {
+            bestLikes = likes
+            bestUrl = url
+        }
+    }
+    return bestUrl
 }
 
 private fun JSONArray?.bestAudioDbImage(identity: ArtistIdentity): String? {
@@ -438,7 +470,19 @@ private class ArtistImageStore(context: Context) {
             .put("expiresAtMs", entry.expiresAtMs)
             .put("revision", entry.revision)
             .put("musicBrainzId", entry.musicBrainzId.orEmpty())
-        preferences.edit().putString(entry.artistKey, json.toString()).apply()
+        val editor = preferences.edit().putString(entry.artistKey, json.toString())
+        val cachedEntries = preferences.all
+        val projectedSize = cachedEntries.size + if (entry.artistKey in cachedEntries) 0 else 1
+        if (projectedSize > MAX_CACHE_ENTRIES) {
+            val cachedRevisions = cachedEntries.mapValues { (_, raw) ->
+                (raw as? String)?.let { encoded ->
+                    runCatching { JSONObject(encoded).optLong("revision", 0L) }.getOrDefault(0L)
+                } ?: 0L
+            }
+            artistCacheKeysToTrim(cachedRevisions, entry.artistKey, MAX_CACHE_ENTRIES)
+                .forEach(editor::remove)
+        }
+        editor.apply()
     }
 
     fun mergeMusicBrainzId(
@@ -457,6 +501,27 @@ private class ArtistImageStore(context: Context) {
             )).copy(musicBrainzId = musicBrainzId),
         )
     }
+
+    private companion object {
+        const val MAX_CACHE_ENTRIES = 320
+    }
+}
+
+internal fun artistCacheKeysToTrim(
+    revisions: Map<String, Long>,
+    incomingKey: String,
+    maxEntries: Int,
+): List<String> {
+    val projectedSize = revisions.size + if (incomingKey in revisions) 0 else 1
+    val overflow = (projectedSize - maxEntries.coerceAtLeast(0)).coerceAtLeast(0)
+    if (overflow == 0) return emptyList()
+    return revisions.asSequence()
+        .filterNot { (key, _) -> key == incomingKey }
+        .map { (key, revision) -> key to revision }
+        .sortedWith(compareBy<Pair<String, Long>> { it.second }.thenBy { it.first })
+        .take(overflow)
+        .map(Pair<String, Long>::first)
+        .toList()
 }
 
 private class ArtistRequestRateLimiter(

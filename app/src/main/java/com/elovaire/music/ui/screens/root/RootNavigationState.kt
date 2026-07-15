@@ -75,10 +75,17 @@ internal class RootNavigationState(
             SEARCH_ROUTE -> SEARCH_ROUTE
             ALBUMS_ROUTE -> ALBUMS_ROUTE
             PLAYLISTS_ROUTE -> PLAYLISTS_ROUTE
-            "$LIBRARY_COLLECTION_ROUTE/{kind}",
+            "$LIBRARY_COLLECTION_ROUTE/{kind}" -> ALBUMS_ROUTE
             "$GENRE_ROUTE/{genre}",
             "$ARTIST_ROUTE/{artistName}",
-            -> ALBUMS_ROUTE
+            -> routeOwnerOverrides[concreteRoute]
+                ?: navController.previousBackStackEntry?.concreteNavigationRoute()?.let(routeOwnerOverrides::get)
+                ?: topLevelOwnerRoute(
+                    navController.previousBackStackEntry?.destination?.route,
+                    browsingOriginRoute,
+                )
+                ?: browsingOriginRoute.takeIf { it in TopLevelRoutes }
+                ?: selectedBottomRoute
 
             "$PLAYLIST_ROUTE/{playlistId}" -> PLAYLISTS_ROUTE
             "$ALBUM_ROUTE/{albumId}" -> {
@@ -167,11 +174,14 @@ internal class RootNavigationState(
                 resetTopLevelTabState(route)
             }
         } else {
-            navController.navigate(route) {
-                launchSingleTop = true
-                restoreState = true
-                popUpTo(navController.graph.findStartDestination().id) {
-                    saveState = true
+            val poppedToHome = route == HOME_ROUTE && navController.popBackStack(HOME_ROUTE, inclusive = false)
+            if (!poppedToHome) {
+                navController.navigate(route) {
+                    launchSingleTop = true
+                    restoreState = true
+                    popUpTo(navController.graph.findStartDestination().id) {
+                        saveState = true
+                    }
                 }
             }
         }
@@ -233,13 +243,13 @@ internal fun rememberRootNavigationState(
 internal fun clearTopLevelScrollPositionMemory(route: String) {
     val prefixes = topLevelScrollCachePrefixes[route].orEmpty()
     if (prefixes.isEmpty()) return
-    lazyListPositionCache.keys.removeIf { cacheKey ->
+    lazyListPositionCache.removeIf { cacheKey ->
         prefixes.any { prefix -> cacheKey.contains(prefix) }
     }
-    lazyGridPositionCache.keys.removeIf { cacheKey ->
+    lazyGridPositionCache.removeIf { cacheKey ->
         prefixes.any { prefix -> cacheKey.contains(prefix) }
     }
-    scrollPositionCache.keys.removeIf { cacheKey ->
+    scrollPositionCache.removeIf { cacheKey ->
         prefixes.any { prefix -> cacheKey.contains(prefix) }
     }
 }

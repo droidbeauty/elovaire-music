@@ -12,6 +12,8 @@ import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
+import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -169,15 +171,12 @@ private object NotificationArtworkCache {
 
     @Synchronized
     private fun trim(level: Int) {
-        when {
-            level == TRIM_MEMORY_RUNNING_CRITICAL_LEVEL ||
-                level >= TRIM_MEMORY_COMPLETE_LEVEL -> cache.evictAll()
-            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
+        when (memoryPressureForTrimLevel(level)) {
+            MemoryPressure.Critical -> cache.evictAll()
+            MemoryPressure.Moderate -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
+            MemoryPressure.Normal -> Unit
         }
     }
-
-    private const val TRIM_MEMORY_RUNNING_CRITICAL_LEVEL = 15
-    private const val TRIM_MEMORY_COMPLETE_LEVEL = 80
 }
 
 internal fun removeNotificationArtworkForUris(uris: Collection<String>) {

@@ -10,8 +10,24 @@ import android.media.AudioFormat
 import android.media.AudioManager
 import android.os.Build
 import android.os.Parcelable
+import androidx.annotation.ChecksSdkIntAtLeast
 import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
+
+internal object AndroidCapabilities {
+    fun supportsGroupedMediaWrite(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.R
+
+    fun usesRecoverableMediaWrite(sdkInt: Int): Boolean = sdkInt == Build.VERSION_CODES.Q
+
+    fun requiresNotificationPermission(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.TIRAMISU
+
+    fun supportsImageDecoder(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.P
+
+    @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU, parameter = 0)
+    fun supportsDirectPlaybackQuery(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.TIRAMISU
+
+    fun requiresMediaPlaybackForegroundServiceType(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.Q
+}
 
 internal fun requiredAudioPermission(): String {
     return requiredAudioPermission(Build.VERSION.SDK_INT)
@@ -30,16 +46,8 @@ internal fun Context.hasAudioReadPermission(): Boolean {
 }
 
 internal fun Context.hasNotificationPostingPermission(): Boolean {
-    return !requiresNotificationPostingPermission(Build.VERSION.SDK_INT) ||
+    return !AndroidCapabilities.requiresNotificationPermission(Build.VERSION.SDK_INT) ||
         ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
-}
-
-internal fun requiresNotificationPostingPermission(sdkInt: Int): Boolean {
-    return sdkInt >= Build.VERSION_CODES.TIRAMISU
-}
-
-internal fun supportsVerifiedDirectPlaybackRouting(sdkInt: Int): Boolean {
-    return sdkInt >= Build.VERSION_CODES.TIRAMISU
 }
 
 internal fun AudioManager.safeOutputDevices(): List<AudioDeviceInfo> {
@@ -50,7 +58,7 @@ internal fun AudioManager.safeOutputDevices(): List<AudioDeviceInfo> {
 }
 
 internal fun AudioManager.safeRoutedOutputDevicesForAttributes(attributes: AudioAttributes): List<AudioDeviceInfo> {
-    val routedDevices = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    val routedDevices = if (AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)) {
         runCatching { getAudioDevicesForAttributes(attributes) }.getOrDefault(emptyList())
     } else {
         emptyList()
@@ -63,7 +71,7 @@ internal fun AudioManager.safeDirectPlaybackSupport(
     format: AudioFormat,
     attributes: AudioAttributes,
 ): Int {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+    if (!AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)) {
         return AudioManager.DIRECT_PLAYBACK_NOT_SUPPORTED
     }
     return runCatching {

@@ -37,7 +37,11 @@ internal data class DeviceCodecProbeKey(
 
 internal class AudioFormatDetector(context: Context) {
     private val appContext = context.applicationContext
-    private val decoderAvailabilityCache = mutableMapOf<DeviceCodecProbeKey, Boolean>()
+    private val decoderAvailabilityCache = object : LinkedHashMap<DeviceCodecProbeKey, Boolean>(32, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<DeviceCodecProbeKey, Boolean>?): Boolean {
+            return size > MAX_DECODER_CACHE_ENTRIES
+        }
+    }
 
     fun detect(uri: Uri, fileName: String, mediaStoreMimeType: String?): DetectedAudioFormat {
         val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
@@ -123,6 +127,10 @@ internal class AudioFormatDetector(context: Context) {
     }
 
     private fun MediaFormat.mimeType(): String? = getString(MediaFormat.KEY_MIME)
+
+    private companion object {
+        const val MAX_DECODER_CACHE_ENTRIES = 64
+    }
 }
 
 internal object AudioDecoderAvailability {

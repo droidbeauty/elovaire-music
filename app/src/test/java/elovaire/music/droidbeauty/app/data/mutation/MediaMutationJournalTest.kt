@@ -1,5 +1,11 @@
 package elovaire.music.droidbeauty.app.data.mutation
 
+import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.backend.NoOpBackendEventSink
+import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
+import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
+import java.lang.reflect.Proxy
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
@@ -15,6 +21,8 @@ class MediaMutationJournalTest {
         assertTrue(isValidMutationTransition(MediaMutationStatus.TempVerified, MediaMutationStatus.Committed))
         assertTrue(isValidMutationTransition(MediaMutationStatus.Committed, MediaMutationStatus.PersistedVerified))
         assertTrue(isValidMutationTransition(MediaMutationStatus.PersistedVerified, MediaMutationStatus.Completed))
+        assertTrue(isValidMutationTransition(MediaMutationStatus.NeedsPermission, MediaMutationStatus.PermissionGranted))
+        assertTrue(isValidMutationTransition(MediaMutationStatus.PermissionGranted, MediaMutationStatus.TempWritten))
     }
 
     @Test
@@ -38,5 +46,53 @@ class MediaMutationJournalTest {
         assertEquals(MediaMutationStatus.NeedsRepair, recoveryStatusFor(MediaMutationStatus.Committed))
         assertEquals(MediaMutationStatus.Completed, recoveryStatusFor(MediaMutationStatus.PersistedVerified))
         assertNull(recoveryStatusFor(MediaMutationStatus.NeedsRepair))
+    }
+
+    @Test
+    fun correlatedPermissionRetryDoesNotResetExistingJournalState() = runBlocking {
+        val stored = mutableMapOf<String, LibraryMutationEntity>()
+        val dao = libraryDao(stored)
+        val journal = MediaMutationJournal(
+            dao = dao,
+            clock = FixedClock,
+            operationIdGenerator = { "generated" },
+            backendEventSink = NoOpBackendEventSink,
+        )
+        val operation = MediaMutationOperation(
+            mutationId = "permission-retry",
+            type = MediaMutationType.EmbeddedLyricsWrite,
+        )
+
+        journal.create(operation)
+        journal.mark("permission-retry", MediaMutationStatus.PreflightPassed)
+        journal.mark("permission-retry", MediaMutationStatus.NeedsPermission)
+        journal.create(operation)
+
+        assertEquals(MediaMutationStatus.NeedsPermission.name, stored.getValue("permission-retry").status)
+        journal.mark("permission-retry", MediaMutationStatus.PermissionGranted)
+        assertEquals(MediaMutationStatus.PermissionGranted.name, stored.getValue("permission-retry").status)
+    }
+
+    private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): LibraryDao {
+        return Proxy.newProxyInstance(
+            LibraryDao::class.java.classLoader,
+            arrayOf(LibraryDao::class.java),
+        ) { _, method, arguments ->
+            when (method.name) {
+                "mutation" -> stored[arguments?.get(0) as String]
+                "upsertMutation" -> {
+                    val entity = arguments?.get(0) as LibraryMutationEntity
+                    stored[entity.mutationId] = entity
+                    Unit
+                }
+                "toString" -> "TestLibraryDao"
+                else -> error("Unexpected DAO call: ${method.name}")
+            }
+        } as LibraryDao
+    }
+
+    private object FixedClock : AppClock {
+        override fun wallTimeMs(): Long = 1_000L
+        override fun elapsedTimeMs(): Long = 500L
     }
 }

@@ -84,14 +84,18 @@ class AppContainer(
         bridgeCoordinator.scheduleDeferredStartupWork()
     }
 
+    internal fun onMemoryPressure(pressure: MemoryPressure) {
+        if (!released.get()) services.onMemoryPressure(pressure)
+    }
+
     fun release() {
         if (!released.compareAndSet(false, true)) return
         started.set(false)
         openNowPlayingChannel.close()
         bridgeCoordinator.release()
         notificationControllerHolder.release()
-        services.release()
         appRuntimeScope.close()
+        services.release()
         appForegroundTracker.close()
     }
 

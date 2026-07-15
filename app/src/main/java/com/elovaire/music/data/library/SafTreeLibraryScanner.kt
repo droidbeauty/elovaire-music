@@ -95,12 +95,9 @@ internal class SafTreeLibraryScanner(
                 val documentKey = SafDocumentKey(providerKey, child.documentId)
                 val cachedFile = (refreshedCache[documentKey] ?: fileMetadataCache[documentKey])
                     ?.takeIf { it.matches(child) }
-                val detectedFormat = cachedFile?.detectedFormat ?: ElovaireTrace.section("library_saf_format_detect") {
-                    audioFormatDetector.detect(child.uri, child.name, child.mimeType)
-                }
-                val metadata = cachedFile?.metadata ?: ElovaireTrace.section("library_saf_metadata_read") {
-                    readMetadata(child.uri)
-                }
+                val detectedFormat = cachedFile?.detectedFormat
+                    ?: audioFormatDetector.detect(child.uri, child.name, child.mimeType)
+                val metadata = cachedFile?.metadata ?: readMetadata(child.uri)
                 if (child.hasStableChangeSignal) {
                     refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
                 }

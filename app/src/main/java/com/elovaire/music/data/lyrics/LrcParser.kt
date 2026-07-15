@@ -7,17 +7,28 @@ private val LRC_TIME_REGEX = Regex("""\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?]""")
 private val LRC_METADATA_REGEX = Regex("""^\s*\[([a-zA-Z]+):(.*)]\s*$""")
 private val METADATA_ONLY_LINE_REGEX = Regex("""^\s*\[?\s*(by|ar|ti|al|offset|length)\s*[:：].*\]?\s*$""", RegexOption.IGNORE_CASE)
 private val SECTION_HEADER_REGEX = Regex("""^\s*\[[^\]]+]\s*$""")
+private val HTML_TAG_REGEX = Regex("""<[^>]+>""")
+private val HTML_AMP_REGEX = Regex("""&amp;""", RegexOption.IGNORE_CASE)
+private val HTML_QUOTE_REGEX = Regex("""&quot;""", RegexOption.IGNORE_CASE)
+private val HTML_APOSTROPHE_REGEX = Regex("""&#39;|&apos;""", RegexOption.IGNORE_CASE)
+private val REPEATED_WHITESPACE_REGEX = Regex("""\s{2,}""")
+private val ESCAPED_BREAK_REGEX = Regex("""(?i)<\s*br\s*/?\s*>""")
+private val CLOSING_PARAGRAPH_REGEX = Regex("""(?i)</\s*p\s*>""")
+private val BLOCK_TAG_REGEX = Regex("""(?i)<\s*/?\s*(div|p|span)[^>]*>""")
+private val EXCESS_BREAKS_REGEX = Regex("""\n{3,}""")
 
 internal fun parseLrcOrPlain(
     raw: String,
     providerName: String?,
     confidence: Int,
 ): LyricsPayload? {
-    if (raw.isBlank()) return null
+    if (raw.isBlank() || raw.length > MAX_LYRICS_CHARACTERS) return null
 
     val normalizedRaw = raw.normalizeLyricBreaks()
-    val offsetMs = normalizedRaw
-        .lineSequence()
+    if (!normalizedRaw.isLyricsTextWithinBounds()) return null
+    val rawLines = normalizedRaw.lineSequence().take(MAX_LYRICS_LINES + 1).toList()
+    val offsetMs = rawLines
+        .asSequence()
         .mapNotNull { line ->
             LRC_METADATA_REGEX.matchEntire(line.trim())
                 ?.takeIf { it.groupValues[1].equals("offset", ignoreCase = true) }
@@ -31,33 +42,31 @@ internal fun parseLrcOrPlain(
     val timed = mutableListOf<LyricsLine>()
     val plain = mutableListOf<String>()
 
-    normalizedRaw
-        .lineSequence()
-        .forEach { rawLine ->
-            val metadataMatch = LRC_METADATA_REGEX.matchEntire(rawLine.trim())
-            if (metadataMatch != null) {
-                return@forEach
-            }
-
-            val matches = LRC_TIME_REGEX.findAll(rawLine).toList()
-            val text = sanitizeLyricLine(rawLine.replace(LRC_TIME_REGEX, "").trim()).orEmpty()
-
-            if (matches.isEmpty()) {
-                if (text.isNotBlank() && !METADATA_ONLY_LINE_REGEX.matches(text)) {
-                    plain += text
-                }
-                return@forEach
-            }
-
-            if (text.isBlank()) return@forEach
-
-            matches.forEach { match ->
-                timed += LyricsLine(
-                    text = text,
-                    startTimeMs = match.toTimeMs().plus(offsetMs).coerceAtLeast(0L),
-                )
-            }
+    rawLines.forEach { rawLine ->
+        val metadataMatch = LRC_METADATA_REGEX.matchEntire(rawLine.trim())
+        if (metadataMatch != null) {
+            return@forEach
         }
+
+        val matches = LRC_TIME_REGEX.findAll(rawLine).toList()
+        val text = sanitizeLyricLine(rawLine.replace(LRC_TIME_REGEX, "").trim()).orEmpty()
+
+        if (matches.isEmpty()) {
+            if (text.isNotBlank() && !METADATA_ONLY_LINE_REGEX.matches(text)) {
+                plain += text
+            }
+            return@forEach
+        }
+
+        if (text.isBlank()) return@forEach
+
+        matches.forEach { match ->
+            timed += LyricsLine(
+                text = text,
+                startTimeMs = match.toTimeMs().plus(offsetMs).coerceAtLeast(0L),
+            )
+        }
+    }
 
     if (timed.isEmpty()) {
         val plainLines = plain
@@ -108,14 +117,14 @@ internal fun parsePlainLyrics(rawLyrics: String?): List<LyricsLine>? {
 
 internal fun sanitizeLyricLine(line: String): String? {
     val withoutTags = line
-        .replace(Regex("""<[^>]+>"""), " ")
-        .replace(Regex("""&amp;""", RegexOption.IGNORE_CASE), "&")
-        .replace(Regex("""&quot;""", RegexOption.IGNORE_CASE), "\"")
-        .replace(Regex("""&#39;|&apos;""", RegexOption.IGNORE_CASE), "'")
+        .replace(HTML_TAG_REGEX, " ")
+        .replace(HTML_AMP_REGEX, "&")
+        .replace(HTML_QUOTE_REGEX, "\"")
+        .replace(HTML_APOSTROPHE_REGEX, "'")
 
     val cleaned = withoutTags
         .replace('\u00A0', ' ')
-        .replace(Regex("""\s{2,}"""), " ")
+        .replace(REPEATED_WHITESPACE_REGEX, " ")
         .trim()
 
     if (cleaned.isBlank()) return null
@@ -136,14 +145,14 @@ internal fun String.normalizeLyricBreaks(): String {
         .replace('\r', '\n')
         .replace("\\r\\n", "\n")
         .replace("\\n", "\n")
-        .replace(Regex("""(?i)<\s*br\s*/?\s*>"""), "\n")
-        .replace(Regex("""(?i)</\s*p\s*>"""), "\n")
-        .replace(Regex("""(?i)<\s*/?\s*(div|p|span)[^>]*>"""), "\n")
+        .replace(ESCAPED_BREAK_REGEX, "\n")
+        .replace(CLOSING_PARAGRAPH_REGEX, "\n")
+        .replace(BLOCK_TAG_REGEX, "\n")
 }
 
 internal fun String.canonicalEmbeddedLyricsText(): String =
     normalizeLyricBreaks()
-        .replace(Regex("""\n{3,}"""), "\n\n")
+        .replace(EXCESS_BREAKS_REGEX, "\n\n")
         .trimEnd()
 
 internal fun LyricsPayload.toEmbeddedLyricsText(): String =
@@ -206,3 +215,21 @@ private fun ByteArray.startsWith(other: ByteArray): Boolean {
 }
 
 private fun String.removeBom(): String = removePrefix("\uFEFF")
+
+internal fun String.isLyricsTextWithinBounds(): Boolean {
+    if (length > MAX_LYRICS_CHARACTERS) return false
+    var lineCount = 0
+    for (line in lineSequence()) {
+        lineCount += 1
+        if (lineCount > MAX_LYRICS_LINES || line.length > MAX_LYRIC_LINE_CHARACTERS) return false
+        if (LRC_TIME_REGEX.findAll(line).take(MAX_TIMESTAMPS_PER_LINE + 1).count() > MAX_TIMESTAMPS_PER_LINE) {
+            return false
+        }
+    }
+    return true
+}
+
+internal const val MAX_LYRICS_CHARACTERS = 512 * 1024
+internal const val MAX_LYRICS_LINES = 20_000
+private const val MAX_LYRIC_LINE_CHARACTERS = 16 * 1024
+private const val MAX_TIMESTAMPS_PER_LINE = 64

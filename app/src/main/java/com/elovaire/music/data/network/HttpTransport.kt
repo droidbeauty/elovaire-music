@@ -14,6 +14,7 @@ internal data class HttpRequest(
 internal enum class HttpFailureKind {
     InvalidUrl,
     HttpStatus,
+    RequestTooLarge,
     ResponseTooLarge,
     Transport,
 }
@@ -26,6 +27,7 @@ internal class HttpTransportException(
 
 internal class HttpTransport {
     fun getText(request: HttpRequest, maxBytes: Int): String {
+        validateHttpRequest(request, maxBytes)
         return execute(request) { connection ->
             connection.inputStream.use { input ->
                 try {
@@ -38,6 +40,7 @@ internal class HttpTransport {
     }
 
     fun getBytes(request: HttpRequest, maxBytes: Int): ByteArray {
+        validateHttpRequest(request, maxBytes)
         return execute(request) { connection ->
             connection.inputStream.use { input ->
                 try {
@@ -50,6 +53,10 @@ internal class HttpTransport {
     }
 
     fun postForm(request: HttpRequest, body: ByteArray, maxBytes: Int): String {
+        validateHttpRequest(request, maxBytes)
+        if (body.size > MAX_HTTP_REQUEST_BODY_BYTES) {
+            throw HttpTransportException(HttpFailureKind.RequestTooLarge, "The network request is too large.")
+        }
         return execute(request, method = "POST") { connection ->
             connection.doOutput = true
             connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
@@ -108,4 +115,23 @@ internal class HttpTransport {
     }
 }
 
+internal fun validateHttpRequest(request: HttpRequest, maxBytes: Int) {
+    val parsed = runCatching { URL(request.url) }.getOrElse { failure ->
+        throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network address is invalid.", failure)
+    }
+    if (request.url.length > MAX_HTTP_URL_CHARACTERS || parsed.protocol != "https" || parsed.host.isBlank()) {
+        throw HttpTransportException(HttpFailureKind.InvalidUrl, "Only valid HTTPS requests are supported.")
+    }
+    if (request.connectTimeoutMs !in 1..MAX_HTTP_TIMEOUT_MS || request.readTimeoutMs !in 1..MAX_HTTP_TIMEOUT_MS) {
+        throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network timeout is invalid.")
+    }
+    if (maxBytes !in 0..MAX_HTTP_RESPONSE_BYTES) {
+        throw HttpTransportException(HttpFailureKind.ResponseTooLarge, "The response limit is invalid.")
+    }
+}
+
 private const val DEFAULT_HTTP_TIMEOUT_MS = 8_000
+private const val MAX_HTTP_TIMEOUT_MS = 120_000
+private const val MAX_HTTP_URL_CHARACTERS = 4_096
+private const val MAX_HTTP_RESPONSE_BYTES = 64 * 1024 * 1024
+private const val MAX_HTTP_REQUEST_BODY_BYTES = 1 * 1024 * 1024

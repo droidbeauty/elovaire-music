@@ -20,18 +20,6 @@ internal interface LibraryDao {
     @Query("SELECT * FROM media_mutations WHERE mutationId = :mutationId")
     suspend fun mutation(mutationId: String): LibraryMutationEntity?
 
-    @Query("SELECT * FROM songs WHERE songId = :songId AND removedAtMs IS NULL")
-    suspend fun songById(songId: Long): SongEntity?
-
-    @Query("SELECT * FROM songs WHERE uri = :uri AND removedAtMs IS NULL")
-    suspend fun songByUri(uri: String): SongEntity?
-
-    @Query("SELECT * FROM media_files WHERE stableFileKey = :stableFileKey")
-    suspend fun mediaFileByStableKey(stableFileKey: String): MediaFileEntity?
-
-    @Query("SELECT * FROM songs WHERE albumId = :albumId AND removedAtMs IS NULL ORDER BY discNumber, trackNumber, title")
-    suspend fun activeSongsForAlbum(albumId: Long): List<SongEntity>
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertScanGeneration(generation: LibraryScanGenerationEntity)
 

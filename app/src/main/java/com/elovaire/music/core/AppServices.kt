@@ -72,8 +72,10 @@ internal class AppServices(
         onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
         backgroundWorkPolicy = backgroundWorkPolicy,
         mediaMutationJournal = mediaMutationJournal,
-        onEmbeddedLyricsChanged = { song ->
+        onEmbeddedLyricsChanged = callback@{ song ->
+            if (released.get()) return@callback
             appScope.launch {
+                if (released.get()) return@launch
                 song.libraryPath
                     ?.takeIf { it.isNotBlank() }
                     ?.let { path ->
@@ -87,10 +89,12 @@ internal class AppServices(
         },
     )
 
+    private val mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore)
+
     init {
         playbackManager.setMediaLibrarySessionCallback(
             ElovaireMediaLibrarySessionCallback(
-                mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore),
+                mediaTree = mediaTree,
                 playbackManager = playbackManager,
             ),
         )
@@ -103,14 +107,21 @@ internal class AppServices(
         }
     }
 
+    fun onMemoryPressure(pressure: MemoryPressure) {
+        lyricsService.onMemoryPressure(pressure)
+        artistImageRepository.onMemoryPressure(pressure)
+        mediaTree.onMemoryPressure(pressure)
+    }
+
     fun release() {
         if (!released.compareAndSet(false, true)) return
+        persistenceMaintenanceJob?.cancel()
+        persistenceMaintenanceJob = null
         appUpdateManager.release()
         lyricsService.release()
         playbackManager.release()
         libraryRepository.release()
         preferenceStore.release()
-        persistenceMaintenanceJob?.cancel()
         database.close()
     }
 }

@@ -18,15 +18,31 @@ class AndroidApiCompatTest {
 
     @Test
     fun notificationPermissionRequired_onlyOnAndroid13AndNewer() {
-        assertFalse(requiresNotificationPostingPermission(Build.VERSION_CODES.S_V2))
-        assertTrue(requiresNotificationPostingPermission(Build.VERSION_CODES.TIRAMISU))
-        assertTrue(requiresNotificationPostingPermission(37))
+        assertFalse(AndroidCapabilities.requiresNotificationPermission(Build.VERSION_CODES.S_V2))
+        assertTrue(AndroidCapabilities.requiresNotificationPermission(Build.VERSION_CODES.TIRAMISU))
+        assertTrue(AndroidCapabilities.requiresNotificationPermission(37))
     }
 
     @Test
     fun verifiedDirectPlaybackRouting_onlyOnAndroid13AndNewer() {
-        assertFalse(supportsVerifiedDirectPlaybackRouting(Build.VERSION_CODES.S_V2))
-        assertTrue(supportsVerifiedDirectPlaybackRouting(Build.VERSION_CODES.TIRAMISU))
-        assertTrue(supportsVerifiedDirectPlaybackRouting(37))
+        assertFalse(AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION_CODES.S_V2))
+        assertTrue(AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION_CODES.TIRAMISU))
+        assertTrue(AndroidCapabilities.supportsDirectPlaybackQuery(37))
+    }
+
+    @Test
+    fun mediaMutationCapabilities_matchAndroid10And11Boundaries() {
+        assertTrue(AndroidCapabilities.usesRecoverableMediaWrite(Build.VERSION_CODES.Q))
+        assertFalse(AndroidCapabilities.usesRecoverableMediaWrite(Build.VERSION_CODES.R))
+        assertFalse(AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION_CODES.Q))
+        assertTrue(AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION_CODES.R))
+    }
+
+    @Test
+    fun imageAndForegroundServiceCapabilities_matchPlatformBoundaries() {
+        assertFalse(AndroidCapabilities.supportsImageDecoder(Build.VERSION_CODES.O_MR1))
+        assertTrue(AndroidCapabilities.supportsImageDecoder(Build.VERSION_CODES.P))
+        assertFalse(AndroidCapabilities.requiresMediaPlaybackForegroundServiceType(Build.VERSION_CODES.P))
+        assertTrue(AndroidCapabilities.requiresMediaPlaybackForegroundServiceType(Build.VERSION_CODES.Q))
     }
 }

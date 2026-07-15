@@ -15,6 +15,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -108,20 +109,30 @@ internal class LibraryObserverController(
         observerRebuildJob?.cancel()
         val rebuildJob = scope.launch(start = CoroutineStart.LAZY) {
             val currentJob = currentCoroutineContext()[Job] ?: return@launch
+            var installed = false
             val observers = withContext(Dispatchers.IO) {
                 val roots = scanner.scanRoots()
                 val rootPaths = roots.map(File::getAbsolutePath)
                 if (!forceRebuild && currentRootPaths == rootPaths) return@withContext null
                 roots.mapNotNull(::createMusicDirectoryObserver)
-                    .also { observers -> observers.forEach(RecursiveMusicDirectoryObserver::startWatching) }
             } ?: return@launch
-            if (observerRebuildJob !== currentJob) {
-                observers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
-                return@launch
+            try {
+                if (observerRebuildJob !== currentJob || !directoryObserversEnabled) return@launch
+                withContext(Dispatchers.IO) {
+                    observers.forEach(RecursiveMusicDirectoryObserver::startWatching)
+                }
+                if (observerRebuildJob !== currentJob || !directoryObserversEnabled) return@launch
+                observerRebuildJob = null
+                stopLibraryFolderObservers()
+                libraryFolderObservers = observers
+                installed = true
+            } finally {
+                if (!installed) {
+                    withContext(NonCancellable + Dispatchers.IO) {
+                        observers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
+                    }
+                }
             }
-            observerRebuildJob = null
-            stopLibraryFolderObservers()
-            libraryFolderObservers = observers
         }
         observerRebuildJob = rebuildJob
         rebuildJob.start()

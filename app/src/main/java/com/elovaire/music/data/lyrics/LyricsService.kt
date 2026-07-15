@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
@@ -61,6 +62,10 @@ class LyricsService internal constructor(
 
     fun cancelObsoleteRequests(keepSongs: List<Song?>) {
         repository.cancelObsoleteRequests(keepSongs)
+    }
+
+    internal fun onMemoryPressure(pressure: MemoryPressure) {
+        repository.onMemoryPressure(pressure)
     }
 
     fun release() {

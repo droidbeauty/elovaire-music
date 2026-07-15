@@ -348,14 +348,29 @@ private fun tokenMatchesAnyField(
 }
 
 private fun wordStartsWith(value: String, token: String): Boolean {
-    return value.split(' ').any { it.startsWith(token) }
+    if (token.isEmpty()) return true
+    var wordStart = 0
+    while (wordStart <= value.length - token.length) {
+        if (value.regionMatches(wordStart, token, 0, token.length)) return true
+        val separator = value.indexOf(' ', wordStart)
+        if (separator < 0) return false
+        wordStart = separator + 1
+    }
+    return false
 }
 
 private fun acronymOf(value: String): String {
-    return value
-        .split(' ')
-        .mapNotNull { it.firstOrNull() }
-        .joinToString("")
+    return buildString {
+        var atWordStart = true
+        value.forEach { character ->
+            if (character == ' ') {
+                atWordStart = true
+            } else if (atWordStart) {
+                append(character)
+                atWordStart = false
+            }
+        }
+    }
 }
 
 private fun fuzzyTokenMatches(value: String, token: String): Boolean {

@@ -57,7 +57,6 @@ internal class SearchViewModel(
     private val preferenceStore: PreferenceStore,
     playbackReader: PlaybackReader,
 ) : ViewModel() {
-    private val searchHistoryStore: SearchHistoryStore = PreferenceSearchHistoryStore(preferenceStore)
     private val _query = MutableStateFlow("")
     private val _showAllSongResults = MutableStateFlow(false)
     private val _searchSongSortMode = MutableStateFlow(SearchSongSortMode.Title)
@@ -149,7 +148,7 @@ internal class SearchViewModel(
         .distinctUntilChanged()
 
     private val recentSearches = combine(
-        searchHistoryStore.searchHistory,
+        preferenceStore.searchHistory,
         searchIndex,
     ) { history, index ->
         sanitizeSearchHistory(
@@ -222,15 +221,15 @@ internal class SearchViewModel(
     }
 
     fun clearSearchHistory() {
-        searchHistoryStore.clear()
+        preferenceStore.clearSearchHistory()
     }
 
     fun rememberAlbumSearch(album: Album) {
-        searchHistoryStore.add(albumSearchHistoryEntry(album))
+        preferenceStore.addSearchHistoryEntry(albumSearchHistoryEntry(album))
     }
 
     fun rememberArtistSearch(song: Song) {
-        searchHistoryStore.add(artistSearchHistoryEntry(song))
+        preferenceStore.addSearchHistoryEntry(artistSearchHistoryEntry(song))
     }
 
     fun playbackSourceLabelFor(queue: List<Song>, fallbackAlbum: String): String {
@@ -258,26 +257,6 @@ internal class SearchViewModel(
         )
 
         const val SEARCH_QUERY_DEBOUNCE_MS = 150L
-    }
-}
-
-internal interface SearchHistoryStore {
-    val searchHistory: StateFlow<List<SearchHistoryEntry>>
-    fun add(entry: SearchHistoryEntry)
-    fun clear()
-}
-
-private class PreferenceSearchHistoryStore(
-    private val preferenceStore: PreferenceStore,
-) : SearchHistoryStore {
-    override val searchHistory: StateFlow<List<SearchHistoryEntry>> = preferenceStore.searchHistory
-
-    override fun add(entry: SearchHistoryEntry) {
-        preferenceStore.addSearchHistoryEntry(entry)
-    }
-
-    override fun clear() {
-        preferenceStore.clearSearchHistory()
     }
 }
 

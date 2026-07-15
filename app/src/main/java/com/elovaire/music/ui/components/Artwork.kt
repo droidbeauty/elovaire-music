@@ -42,6 +42,8 @@ import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
 import elovaire.music.droidbeauty.app.data.artwork.normalizeArtworkRequestSize
+import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.ui.res.painterResource
@@ -350,20 +352,17 @@ private object ArtworkMemoryCache {
     ): ImageBitmap? {
         if (uriKey.isBlank()) return null
         val sizeIndex = imageIndex[uriKey] ?: return null
-        val candidateSizes = sizeIndex.keys
-        val preferredSize = candidateSizes
-            .filter { it >= requestedSize }
-            .minOrNull()
-            ?: candidateSizes.maxOrNull()
-            ?: return null
-        val keys = sizeIndex[preferredSize].orEmpty().toList().asReversed()
-        keys.forEach { key ->
-            val image = images.get(key)
-            if (image != null) {
-                return image
-            }
+        var smallestSufficient = Int.MAX_VALUE
+        var largestAvailable = Int.MIN_VALUE
+        sizeIndex.keys.forEach { size ->
+            if (size >= requestedSize && size < smallestSufficient) smallestSufficient = size
+            if (size > largestAvailable) largestAvailable = size
         }
-        return null
+        val preferredSize = smallestSufficient.takeIf { it != Int.MAX_VALUE }
+            ?: largestAvailable.takeIf { it != Int.MIN_VALUE }
+            ?: return null
+        val key = sizeIndex[preferredSize]?.lastOrNull() ?: return null
+        return images.get(key)
     }
 
     @Synchronized
@@ -424,13 +423,12 @@ private object ArtworkMemoryCache {
 
     @Synchronized
     private fun trim(level: Int) {
-        when {
-            level == TRIM_MEMORY_RUNNING_CRITICAL_LEVEL ||
-                level >= TRIM_MEMORY_COMPLETE_LEVEL -> {
+        when (memoryPressureForTrimLevel(level)) {
+            MemoryPressure.Critical -> {
                 images.evictAll()
                 gradients.clear()
             }
-            level >= ComponentCallbacks2.TRIM_MEMORY_BACKGROUND -> {
+            MemoryPressure.Moderate -> {
                 images.trimToSize((maxImageCacheBytes / 2).coerceAtLeast(1))
                 while (gradients.size > MAX_GRADIENTS / 2) {
                     gradients.entries.iterator().run {
@@ -441,9 +439,7 @@ private object ArtworkMemoryCache {
                     }
                 }
             }
+            MemoryPressure.Normal -> Unit
         }
     }
-
-    private const val TRIM_MEMORY_RUNNING_CRITICAL_LEVEL = 15
-    private const val TRIM_MEMORY_COMPLETE_LEVEL = 80
 }

@@ -7,6 +7,7 @@ import android.os.Build
 import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.activity.result.IntentSenderRequest
+import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 
 internal sealed interface MediaWriteTarget {
     val uri: Uri
@@ -112,7 +113,7 @@ internal fun mediaStoreWritePendingIntent(
     context: Context,
     uris: Collection<Uri>,
 ): android.app.PendingIntent? {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+    if (!AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION.SDK_INT)) return null
     val requestUris = MediaWriteTargetClassifier.mediaStoreItems(context, uris)
     if (requestUris.isEmpty()) return null
     return MediaStore.createWriteRequest(context.contentResolver, requestUris)
@@ -122,7 +123,7 @@ internal fun mediaStoreDeleteRequest(
     context: Context,
     uris: Collection<Uri>,
 ): IntentSenderRequest? {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return null
+    if (!AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION.SDK_INT)) return null
     val requestUris = MediaWriteTargetClassifier.mediaStoreItems(context, uris)
     if (requestUris.isEmpty()) return null
     return IntentSenderRequest.Builder(

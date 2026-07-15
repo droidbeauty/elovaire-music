@@ -530,6 +530,9 @@ internal class AppUpdateManager(
         val result = runCatching {
             withContext(Dispatchers.IO) { verifyDownloadedApk(apkFile, release) }
         }
+        result.exceptionOrNull()?.let { failure ->
+            if (failure is CancellationException) throw failure
+        }
         if (result.isSuccess) return true
         runCatching { apkFile.delete() }
         pendingInstallApk = null

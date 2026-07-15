@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class LrcParserTest {
@@ -111,5 +112,18 @@ class LrcParserTest {
 
         assertEquals(listOf("First line", "Second line"), displayPayload.lines.map { it.text })
         assertEquals("[00:01.00]First line\n[00:02.00]Second line", displayPayload.toEmbeddedLyricsText())
+    }
+
+    @Test
+    fun rejectsLyricsBeyondCharacterAndLineLimits() {
+        assertNull(parseLrcOrPlain("x".repeat(MAX_LYRICS_CHARACTERS + 1), null, 0))
+        assertNull(parseLrcOrPlain("x\n".repeat(MAX_LYRICS_LINES + 1), null, 0))
+        assertNull(parseLrcOrPlain("x".repeat(16 * 1024 + 1), null, 0))
+    }
+
+    @Test
+    fun rejectsTimestampFanOutBeyondPerLineLimit() {
+        val timestamps = (0..64).joinToString("") { "[00:01.00]" }
+        assertNull(parseLrcOrPlain("${timestamps}line", null, 0))
     }
 }

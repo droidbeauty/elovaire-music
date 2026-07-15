@@ -86,7 +86,7 @@ internal fun decodeArtworkBytes(
     targetPx: Int,
     purpose: ArtworkPurpose = ArtworkPurpose.TagEditorPreview,
 ): Bitmap? {
-    if (bytes.isEmpty()) return null
+    if (bytes.isEmpty() || bytes.size > MAX_ENCODED_ARTWORK_BYTES) return null
     val size = normalizeArtworkRequestSize(targetPx)
     return runCatching {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -139,6 +139,7 @@ private fun decodeEmbeddedArtwork(
         try {
             retriever.setDataSource(context, uri)
             val bytes = retriever.embeddedPicture ?: return null
+            if (bytes.size > MAX_ENCODED_ARTWORK_BYTES) return null
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
             val sampledOptions = BitmapFactory.Options().apply {
@@ -155,6 +156,8 @@ private fun decodeEmbeddedArtwork(
         }
     }.getOrNull()
 }
+
+private const val MAX_ENCODED_ARTWORK_BYTES = 16 * 1024 * 1024
 
 private fun calculateInSampleSize(
     outWidth: Int,

@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
+import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -265,14 +266,14 @@ class LibraryRepository internal constructor(
         )
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
-            backendEventSink.emit(
+            backendEventSink.emitLazy {
                 BackendEvent.LibraryRefreshCoalesced(
                     mapOf(
                         "force_index" to forceMediaIndex.toString(),
                         "enrich_metadata" to enrichMetadata.toString(),
                     ),
-                ),
-            )
+                )
+            }
             return
         }
         startRefresh(request, showLoadingIndicator)
@@ -295,7 +296,7 @@ class LibraryRepository internal constructor(
             val scanPermissionVersion = permissionChangeVersion
             val refreshRequest = refreshRequests.takeForImmediateScan(request)
             _runtimeState.value = LibraryRuntimeState.Scanning(refreshRequest, scanPermissionVersion)
-            backendEventSink.emit(
+            backendEventSink.emitLazy {
                 BackendEvent.LibraryScanStarted(
                     operation.fields(
                         phase = "scan_started",
@@ -306,8 +307,8 @@ class LibraryRepository internal constructor(
                             "targeted_paths" to refreshRequest.targetedPaths.size.toString(),
                         ),
                     ),
-                ),
-            )
+                )
+            }
             val progressThrottler = LibraryScanProgressThrottler(clock)
             try {
                 runCatching {
@@ -353,7 +354,7 @@ class LibraryRepository internal constructor(
                     if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
                         refreshRequests.enqueue(enrichMetadata = true)
                     }
-                    backendEventSink.emit(
+                    backendEventSink.emitLazy {
                         BackendEvent.LibraryScanCompleted(
                             operation.fields(
                                 phase = "scan_completed",
@@ -363,19 +364,19 @@ class LibraryRepository internal constructor(
                                     "albums" to visibleSnapshot.albums.size.toString(),
                                 ),
                             ),
-                        ),
-                    )
+                        )
+                    }
                 }.onFailure { throwable ->
                     if (throwable is CancellationException) throw throwable
-                    backendEventSink.emit(
+                    backendEventSink.emitLazy {
                         BackendEvent.LibraryScanFailed(
                             operation.fields(
                                 phase = "scan_failed",
                                 elapsedTimeMs = clock.elapsedTimeMs(),
                                 extra = mapOf("error_type" to (throwable::class.simpleName ?: "Unknown")),
                             ),
-                        ),
-                    )
+                        )
+                    }
                     if (hasCurrentPermission(scanPermissionVersion)) {
                         val failure = throwable.toLibraryScanFailure("refresh")
                         _runtimeState.value = LibraryRuntimeState.Failed(failure, recoverable = true)
