@@ -52,10 +52,21 @@ target_compile_definitions(
     CHROMAPRINT_NODLL
 )
 
-target_compile_options(elovaire_chromaprint PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_compile_options(
+    elovaire_chromaprint
+    PRIVATE
+    -Wall
+    -Wextra
+    -Wno-unused-parameter
+    -fstack-protector-strong
+    -D_FORTIFY_SOURCE=2
+)
 target_link_options(
     elovaire_chromaprint
     PRIVATE
+    "-Wl,-z,relro"
+    "-Wl,-z,now"
+    "-Wl,-z,noexecstack"
     "-Wl,-z,max-page-size=16384"
     "-Wl,-z,common-page-size=16384"
 )

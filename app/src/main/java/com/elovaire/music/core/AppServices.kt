@@ -17,6 +17,7 @@ import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrary
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
+import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import elovaire.music.droidbeauty.app.data.update.UpdateController
@@ -35,7 +36,12 @@ internal class AppServices(
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
     private val portableSettingsBackup = PortableSettingsBackup(applicationContext).also { it.restoreAndStart() }
-    val preferenceStore = PreferenceStore(applicationContext)
+    private val userDataStore = RoomUserDataStore(
+        context = applicationContext,
+        dao = database.userDataDao(),
+        scope = appScope,
+    )
+    val preferenceStore = PreferenceStore(applicationContext, userDataStore)
     val artistImageRepository = ArtistImageRepository(applicationContext, backgroundWorkPolicy)
     val appUpdateManager: UpdateController = AppUpdateManager(
         context = applicationContext,

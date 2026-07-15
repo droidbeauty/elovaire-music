@@ -4,18 +4,15 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.hardware.usb.UsbManager
 import android.database.ContentObserver
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.provider.Settings
 import android.util.Log
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.AudioAttributes
@@ -29,7 +26,6 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
-import androidx.core.content.ContextCompat
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
@@ -49,6 +45,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
@@ -225,9 +222,6 @@ class PlaybackManager(
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var gaplessPlaybackEnabled = false
     private var volumeNormalizationEnabled = false
-    private var volumeObserverRegistered = false
-    private var audioDeviceCallbackRegistered = false
-    private var noisyReceiverRegistered = false
     private var player = createPlayer(enableSignalProcessing = true)
     private val sleepTimerController = PlaybackSleepTimerController(
         scope = scope,
@@ -242,14 +236,11 @@ class PlaybackManager(
         skipNext = ::skipNext,
         skipPrevious = ::skipPrevious,
     )
-    private val audioFocusRequest = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
-        .setAudioAttributes(
-            platformPlaybackAudioAttributes,
-        )
-        .setOnAudioFocusChangeListener(::handleAudioFocusChange)
-        .setAcceptsDelayedFocusGain(false)
-        .setWillPauseWhenDucked(false)
-        .build()
+    private val audioFocusController = PlaybackAudioFocusController(
+        audioManager = audioManager,
+        audioAttributes = platformPlaybackAudioAttributes,
+        onFocusChange = ::handleAudioFocusChange,
+    )
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             if (addedDevices.hasUsbOutputDeviceChange()) {
@@ -274,8 +265,6 @@ class PlaybackManager(
             }
         }
     }
-    private var hasAudioFocus = false
-    private var focusRequestActive = false
     private var duckedForAudioFocus = false
     private var isPauseTransitioningToStopped = false
     private var isManualPausePending = false
@@ -416,6 +405,14 @@ class PlaybackManager(
             syncFromObservedSystemVolume()
         }
     }
+    private val runtimeResources = PlaybackRuntimeResources(
+        context = appContext,
+        audioManager = audioManager,
+        handler = playbackHandler,
+        volumeObserver = systemVolumeObserver,
+        audioDeviceCallback = audioDeviceCallback,
+        noisyReceiver = becomingNoisyReceiver,
+    )
 
     private val _state = MutableStateFlow(
         PlaybackUiState(
@@ -621,6 +618,22 @@ class PlaybackManager(
     fun hasActiveQueue(): Boolean {
         if (released.get()) return false
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
+    }
+
+    internal fun mergePersistedRecentPlayback(persisted: RecentPlaybackState) {
+        if (released.get()) return
+        _state.update { current ->
+            current.copy(
+                recentSongIds = (current.recentSongIds + persisted.recentSongIds)
+                    .distinct()
+                    .take(MAX_HISTORY_ITEMS),
+                recentAlbumIds = (current.recentAlbumIds + persisted.recentAlbumIds)
+                    .distinct()
+                    .take(MAX_HISTORY_ITEMS),
+                lastPlayedCollectionKind = current.lastPlayedCollectionKind ?: persisted.lastPlayedCollectionKind,
+                lastPlayedCollectionId = current.lastPlayedCollectionId ?: persisted.lastPlayedCollectionId,
+            )
+        }
     }
 
     internal fun restoreSession(
@@ -968,9 +981,7 @@ class PlaybackManager(
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
         usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
-        setNoisyReceiverRegistered(false)
-        setAudioDeviceCallbackRegistered(false)
-        setVolumeObserverRegistered(false)
+        runtimeResources.release()
         detachPlayerObservers(player)
         sessionOwner.release()
         player.release()
@@ -1361,28 +1372,18 @@ class PlaybackManager(
     }
 
     private fun requestAudioFocus(): Boolean {
-        if (hasAudioFocus) return true
-        if (focusRequestActive) return false
-        val result = audioManager?.requestAudioFocus(audioFocusRequest)
-        hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        focusRequestActive = hasAudioFocus
-        return hasAudioFocus
+        return audioFocusController.request()
     }
 
     private fun abandonAudioFocus() {
-        if (focusRequestActive) {
-            audioManager?.abandonAudioFocusRequest(audioFocusRequest)
-        }
-        hasAudioFocus = false
-        focusRequestActive = false
+        audioFocusController.abandon()
         duckedForAudioFocus = false
     }
 
     private fun handleAudioFocusChange(focusChange: Int) {
-        if (!focusRequestActive) return
+        if (!audioFocusController.isActive) return
         when (AudioFocusStateMachine.actionFor(focusChange)) {
             AudioFocusAction.Gain -> {
-                hasAudioFocus = true
                 duckedForAudioFocus = false
                 pendingAutoResumeRetryJob?.cancel()
                 pendingAutoResumeRetryJob = null
@@ -1399,7 +1400,6 @@ class PlaybackManager(
             }
 
             AudioFocusAction.TransientLoss -> {
-                hasAudioFocus = false
                 handleTransientFocusLoss()
             }
 
@@ -1409,7 +1409,6 @@ class PlaybackManager(
                     player.volume = effectivePlayerGain()
                     updateState()
                 } else {
-                    hasAudioFocus = false
                     handleTransientFocusLoss()
                 }
             }
@@ -1678,65 +1677,12 @@ class PlaybackManager(
     }
 
     private fun syncRuntimeObservers() {
-        val hasQueue = hasActiveQueue()
-        val wantsPlaybackRuntime = hasQueue || player.isPlaying || player.playWhenReady
-        val wantsNoisyReceiver = player.isPlaying || player.playWhenReady
-        setVolumeObserverRegistered(wantsPlaybackRuntime)
-        setAudioDeviceCallbackRegistered(wantsPlaybackRuntime || hasUsbOutputRoute)
-        setNoisyReceiverRegistered(wantsNoisyReceiver)
-    }
-
-    private fun setVolumeObserverRegistered(registered: Boolean) {
-        if (volumeObserverRegistered == registered) return
-        if (registered) {
-            if (
-                runCatching {
-                    appContext.contentResolver.registerContentObserver(
-                        Settings.System.CONTENT_URI,
-                        true,
-                        systemVolumeObserver,
-                    )
-                }.isFailure
-            ) {
-                return
-            }
-        } else {
-            runCatching { appContext.contentResolver.unregisterContentObserver(systemVolumeObserver) }
-        }
-        volumeObserverRegistered = registered
-    }
-
-    private fun setAudioDeviceCallbackRegistered(registered: Boolean) {
-        if (audioDeviceCallbackRegistered == registered) return
-        if (registered) {
-            if (runCatching { audioManager?.registerAudioDeviceCallback(audioDeviceCallback, playbackHandler) }.isFailure) {
-                return
-            }
-        } else {
-            runCatching { audioManager?.unregisterAudioDeviceCallback(audioDeviceCallback) }
-        }
-        audioDeviceCallbackRegistered = registered
-    }
-
-    private fun setNoisyReceiverRegistered(registered: Boolean) {
-        if (noisyReceiverRegistered == registered) return
-        if (registered) {
-            if (
-                runCatching {
-                    ContextCompat.registerReceiver(
-                        appContext,
-                        becomingNoisyReceiver,
-                        IntentFilter(AudioManager.ACTION_AUDIO_BECOMING_NOISY),
-                        ContextCompat.RECEIVER_NOT_EXPORTED,
-                    )
-                }.isFailure
-            ) {
-                return
-            }
-        } else {
-            runCatching { appContext.unregisterReceiver(becomingNoisyReceiver) }
-        }
-        noisyReceiverRegistered = registered
+        runtimeResources.sync(
+            hasQueue = hasActiveQueue(),
+            isPlaying = player.isPlaying,
+            playWhenReady = player.playWhenReady,
+            hasUsbOutputRoute = hasUsbOutputRoute,
+        )
     }
 
     private fun hasActiveExternalMediaPlayback(): Boolean {
@@ -1969,6 +1915,7 @@ class PlaybackManager(
         const val AUTO_RESUME_FOCUS_RETRY_DELAY_MS = 350L
         const val AUTO_RESUME_SETTLE_DELAY_MS = 180L
         const val MAX_UNEXPECTED_IDLE_RECOVERY_ATTEMPTS = 3
+        const val MAX_HISTORY_ITEMS = 12
         const val UNEXPECTED_IDLE_RECOVERY_WINDOW_MS = 10_000L
         const val TAG = "PlaybackManager"
     }

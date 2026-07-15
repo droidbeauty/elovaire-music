@@ -41,6 +41,10 @@ internal interface PlaybackIntegrationSettings {
     val eqSettings: StateFlow<EqSettings>
     val gaplessPlaybackEnabled: StateFlow<Boolean>
     val volumeNormalizationEnabled: StateFlow<Boolean>
+    val recentSongIds: StateFlow<List<Long>>
+    val recentAlbumIds: StateFlow<List<Long>>
+    val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?>
+    val lastPlayedCollectionId: StateFlow<Long?>
     fun recordPlaybackTransition(songId: Long?, albumId: Long?)
 }
 

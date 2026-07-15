@@ -4,24 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.net.Uri
 import androidx.core.content.edit
-import elovaire.music.droidbeauty.app.data.playlists.addSongsToPlaylistEntries
-import elovaire.music.droidbeauty.app.data.playlists.createPlaylistEntries
-import elovaire.music.droidbeauty.app.data.playlists.deletePlaylistEntries
-import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
-import elovaire.music.droidbeauty.app.data.playlists.removeSongReferencesFromPlaylists
-import elovaire.music.droidbeauty.app.data.playlists.renamePlaylistEntry
-import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
-import elovaire.music.droidbeauty.app.data.playlists.updatePlaylistSongIdsEntry
-import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
-import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistDefaults
-import elovaire.music.droidbeauty.app.data.smartplaylists.createSmartPlaylistEntry
-import elovaire.music.droidbeauty.app.data.smartplaylists.deleteSmartPlaylistEntries
-import elovaire.music.droidbeauty.app.data.smartplaylists.deserializeSmartPlaylists
-import elovaire.music.droidbeauty.app.data.smartplaylists.serializeSmartPlaylists
-import elovaire.music.droidbeauty.app.data.smartplaylists.updateSmartPlaylistEntry
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
-import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
@@ -33,8 +17,6 @@ import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskWrites
-import elovaire.music.droidbeauty.app.core.AndroidAppClock
-import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,14 +30,14 @@ import kotlinx.coroutines.launch
 
 class PreferenceStore internal constructor(
     context: Context,
-    private val clock: AppClock = AndroidAppClock,
+    private val userDataStore: RoomUserDataStore,
 ) :
     RootSettingsReader,
     AppearanceSettingsWriter,
     LibrarySettingsWriter,
     PlaybackSettingsWriter,
-    PlaylistStore,
-    FavoritesStore,
+    PlaylistStore by userDataStore,
+    FavoritesStore by userDataStore,
     UpdatePreferencesStore {
     private val appContext = context.applicationContext
     private val preferences = allowStrictModeDiskWrites {
@@ -65,7 +47,6 @@ class PreferenceStore internal constructor(
     }
     private val updatePreferencesStore = UpdatePreferencesStoreImpl(preferences)
     private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private var playbackHistoryPersistJob: Job? = null
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
 
@@ -109,32 +90,16 @@ class PreferenceStore internal constructor(
     override val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
     override val dismissedUpdateVersion: StateFlow<String?> = updatePreferencesStore.dismissedUpdateVersion
 
-    private val _searchHistory = MutableStateFlow(loadSearchHistory())
-    val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
-    private val _albumPlayCounts = MutableStateFlow(loadAlbumPlayCounts())
-    override val albumPlayCounts: StateFlow<Map<Long, Int>> = _albumPlayCounts.asStateFlow()
-    private val _songPlayCounts = MutableStateFlow(loadSongPlayCounts())
-    override val songPlayCounts: StateFlow<Map<Long, Int>> = _songPlayCounts.asStateFlow()
-    private val _recentSongIds = MutableStateFlow(loadRecentSongIds())
-    override val recentSongIds: StateFlow<List<Long>> = _recentSongIds.asStateFlow()
-    private val _recentAlbumIds = MutableStateFlow(loadRecentAlbumIds())
-    override val recentAlbumIds: StateFlow<List<Long>> = _recentAlbumIds.asStateFlow()
-    private val _lastPlayedCollectionKind = MutableStateFlow(loadLastPlayedCollectionKind())
-    override val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?> = _lastPlayedCollectionKind.asStateFlow()
-    private val _lastPlayedCollectionId = MutableStateFlow(loadLastPlayedCollectionId())
-    override val lastPlayedCollectionId: StateFlow<Long?> = _lastPlayedCollectionId.asStateFlow()
-
-    private val _userPlaylists = MutableStateFlow(loadPlaylists())
-    private var nextPlaylistId = loadNextPlaylistId(_userPlaylists.value)
-    private val _userSmartPlaylists = MutableStateFlow(loadSmartPlaylists())
-    private var nextSmartPlaylistId = loadNextSmartPlaylistId(_userSmartPlaylists.value)
-    private val _smartPlaylists = MutableStateFlow(assembleSmartPlaylists(_userSmartPlaylists.value))
-    override val smartPlaylists: StateFlow<List<SmartPlaylist>> = _smartPlaylists.asStateFlow()
-    private val _favoriteSongIds = MutableStateFlow(loadFavoriteSongIds())
-    override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
-
-    private val _playlists = MutableStateFlow(assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value))
-    override val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
+    val searchHistory get() = userDataStore.searchHistory
+    override val albumPlayCounts get() = userDataStore.albumPlayCounts
+    override val songPlayCounts get() = userDataStore.songPlayCounts
+    override val recentSongIds get() = userDataStore.recentSongIds
+    override val recentAlbumIds get() = userDataStore.recentAlbumIds
+    override val lastPlayedCollectionKind get() = userDataStore.lastPlayedCollectionKind
+    override val lastPlayedCollectionId get() = userDataStore.lastPlayedCollectionId
+    override val smartPlaylists get() = userDataStore.smartPlaylists
+    override val favoriteSongIds get() = userDataStore.favoriteSongIds
+    override val playlists get() = userDataStore.playlists
 
     override fun setThemeMode(themeMode: ThemeMode) {
         updateStateAndPreference(_themeMode, themeMode) {
@@ -155,60 +120,18 @@ class PreferenceStore internal constructor(
     }
 
     fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
-        val normalizedEntry = entry.copy(
-            key = entry.key.trim(),
-            title = entry.title.trim(),
-            subtitle = entry.subtitle.trim(),
-            query = entry.query?.trim()?.takeIf { it.isNotBlank() },
-        )
-        if (normalizedEntry.key.isBlank() || normalizedEntry.title.isBlank()) return
-        val updated = buildList {
-            add(normalizedEntry)
-            _searchHistory.value.asSequence()
-                .filter { it.key != normalizedEntry.key }
-                .take(MAX_SEARCH_HISTORY - 1)
-                .forEach(::add)
-        }
-        if (_searchHistory.value == updated) return
-        preferences.edit {
-            putString(
-                KEY_SEARCH_HISTORY,
-                updated.joinToString(PreferenceCollectionCodec.RECORD_SEPARATOR) {
-                    PreferenceCollectionCodec.serializeSearchHistory(it)
-                },
-            )
-        }
-        _searchHistory.value = updated
+        userDataStore.addSearchHistoryEntry(entry)
     }
 
     fun clearSearchHistory() {
-        if (_searchHistory.value.isEmpty()) return
-        preferences.edit {
-            remove(KEY_SEARCH_HISTORY)
-        }
-        _searchHistory.value = emptyList()
+        userDataStore.clearSearchHistoryEntries()
     }
 
     fun recordPlaybackTransition(
         songId: Long?,
         albumId: Long?,
     ) {
-        var changed = false
-        if (songId != null && songId != 0L) {
-            _songPlayCounts.value = _songPlayCounts.value.toMutableMap().apply {
-                this[songId] = incrementPlayCount(this[songId])
-            }.toMap()
-            changed = true
-        }
-        if (albumId != null && albumId != 0L) {
-            _albumPlayCounts.value = _albumPlayCounts.value.toMutableMap().apply {
-                this[albumId] = incrementPlayCount(this[albumId])
-            }.toMap()
-            changed = true
-        }
-        if (changed) {
-            schedulePlaybackHistoryPersistence()
-        }
+        userDataStore.recordPlaybackTransition(songId, albumId)
     }
 
     fun setRecentPlaybackIds(
@@ -217,126 +140,11 @@ class PreferenceStore internal constructor(
         lastPlayedCollectionKind: PlaybackCollectionKind?,
         lastPlayedCollectionId: Long?,
     ) {
-        val normalizedSongIds = songIds
-            .filter { it != 0L }
-            .distinct()
-            .take(MAX_RECENT_PLAYBACK_IDS)
-        val normalizedAlbumIds = albumIds
-            .filter { it != 0L }
-            .distinct()
-            .take(MAX_RECENT_PLAYBACK_IDS)
-        val normalizedCollectionId = lastPlayedCollectionId?.takeIf { it != 0L }
-        if (
-            _recentSongIds.value == normalizedSongIds &&
-            _recentAlbumIds.value == normalizedAlbumIds &&
-            _lastPlayedCollectionKind.value == lastPlayedCollectionKind &&
-            _lastPlayedCollectionId.value == normalizedCollectionId
-        ) {
-            return
-        }
-        _recentSongIds.value = normalizedSongIds
-        _recentAlbumIds.value = normalizedAlbumIds
-        _lastPlayedCollectionKind.value = lastPlayedCollectionKind
-        _lastPlayedCollectionId.value = normalizedCollectionId
-        schedulePlaybackHistoryPersistence()
-    }
-
-    override fun createPlaylist(name: String): Long {
-        val result = createPlaylistEntries(
-            playlists = _userPlaylists.value,
-            name = name,
-            nextPlaylistId = nextPlaylistId,
-        ) ?: return -1L
-        nextPlaylistId = result.nextPlaylistId
-        persistPlaylists(result.playlists, nextPlaylistId = result.nextPlaylistId)
-        return result.createdPlaylist.id
-    }
-
-    override fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
-        val updated = addSongsToPlaylistEntries(_userPlaylists.value, playlistId, songIds) ?: return
-        persistPlaylists(updated)
-    }
-
-    override fun renamePlaylist(
-        playlistId: Long,
-        name: String,
-    ) {
-        val updated = renamePlaylistEntry(_userPlaylists.value, playlistId, name) ?: return
-        persistPlaylists(updated)
-    }
-
-    override fun updatePlaylistSongIds(
-        playlistId: Long,
-        songIds: List<Long>,
-    ) {
-        val updated = updatePlaylistSongIdsEntry(_userPlaylists.value, playlistId, songIds) ?: return
-        persistPlaylists(updated)
-    }
-
-    override fun deletePlaylists(playlistIds: Set<Long>) {
-        val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds) ?: return
-        persistPlaylists(updated)
-    }
-
-    override fun createSmartPlaylist(name: String): Long {
-        val result = createSmartPlaylistEntry(
-            playlists = _userSmartPlaylists.value,
-            name = name,
-            nextSmartPlaylistId = nextSmartPlaylistId,
-            nowMs = clock.wallTimeMs(),
-        ) ?: return -1L
-        nextSmartPlaylistId = result.nextSmartPlaylistId
-        persistSmartPlaylists(result.playlists, nextSmartPlaylistId = result.nextSmartPlaylistId)
-        return result.createdPlaylist.id
-    }
-
-    override fun updateSmartPlaylist(playlist: SmartPlaylist) {
-        val updated = updateSmartPlaylistEntry(
-            playlists = _userSmartPlaylists.value,
-            playlist = playlist,
-            nowMs = clock.wallTimeMs(),
-        ) ?: return
-        persistSmartPlaylists(updated)
-    }
-
-    override fun deleteSmartPlaylists(playlistIds: Set<Long>) {
-        val updated = deleteSmartPlaylistEntries(_userSmartPlaylists.value, playlistIds) ?: return
-        persistSmartPlaylists(updated)
-    }
-
-    override fun toggleFavoriteSong(songId: Long) {
-        if (songId == 0L) return
-        val updated = if (songId in _favoriteSongIds.value) {
-            _favoriteSongIds.value.filterNot { it == songId }
-        } else {
-            _favoriteSongIds.value + songId
-        }
-        persistFavoriteSongIds(updated)
-    }
-
-    override fun setFavoriteSongs(
-        songIds: List<Long>,
-        favorite: Boolean,
-    ) {
-        val normalizedSongIds = normalizeFavoriteSongIds(songIds)
-        if (normalizedSongIds.isEmpty()) return
-        val songIdSet = normalizedSongIds.toSet()
-        val updated = if (favorite) {
-            normalizeFavoriteSongIds(_favoriteSongIds.value + normalizedSongIds)
-        } else {
-            _favoriteSongIds.value.filterNot { it in songIdSet }
-        }
-        if (_favoriteSongIds.value == updated) return
-        persistFavoriteSongIds(updated)
-    }
-
-    override fun removeSongReferences(songIds: Set<Long>) {
-        val updatedPlaylists = removeSongReferencesFromPlaylists(_userPlaylists.value, songIds) ?: _userPlaylists.value
-        val updatedFavorites = _favoriteSongIds.value.filterNot { it in songIds }
-        if (_userPlaylists.value == updatedPlaylists && _favoriteSongIds.value == updatedFavorites) return
-        persistPlaylistAndFavorites(
-            playlists = updatedPlaylists,
-            favoriteSongIds = updatedFavorites,
+        userDataStore.setRecentPlaybackIds(
+            songIds,
+            albumIds,
+            lastPlayedCollectionKind,
+            lastPlayedCollectionId,
         )
     }
 
@@ -524,8 +332,8 @@ class PreferenceStore internal constructor(
     }
 
     fun release() {
-        flushPlaybackHistoryPersistence(commit = true)
         flushEqSettingsPersistence(commit = true)
+        userDataStore.release()
         preferenceScope.cancel()
     }
 
@@ -543,32 +351,6 @@ class PreferenceStore internal constructor(
         } else {
             pendingEqSettings = normalizedSettings
             scheduleEqSettingsPersistence()
-        }
-    }
-
-    private fun schedulePlaybackHistoryPersistence() {
-        playbackHistoryPersistJob?.cancel()
-        playbackHistoryPersistJob = preferenceScope.launch {
-            delay(PLAYBACK_HISTORY_PERSIST_DEBOUNCE_MS)
-            flushPlaybackHistoryPersistence(commit = false)
-        }
-    }
-
-    private fun flushPlaybackHistoryPersistence(commit: Boolean) {
-        playbackHistoryPersistJob?.cancel()
-        playbackHistoryPersistJob = null
-        preferences.edit(commit = commit) {
-            putString(KEY_ALBUM_PLAY_COUNTS, PreferenceCollectionCodec.serializePlayCounts(_albumPlayCounts.value))
-            putString(KEY_SONG_PLAY_COUNTS, PreferenceCollectionCodec.serializePlayCounts(_songPlayCounts.value))
-            putString(KEY_RECENT_SONG_IDS, _recentSongIds.value.joinToString(","))
-            putString(KEY_RECENT_ALBUM_IDS, _recentAlbumIds.value.joinToString(","))
-            putString(KEY_LAST_PLAYED_COLLECTION_KIND, _lastPlayedCollectionKind.value?.name)
-            val lastPlayedCollectionId = _lastPlayedCollectionId.value
-            if (lastPlayedCollectionId != null && lastPlayedCollectionId > 0L) {
-                putLong(KEY_LAST_PLAYED_COLLECTION_ID, lastPlayedCollectionId)
-            } else {
-                remove(KEY_LAST_PLAYED_COLLECTION_ID)
-            }
         }
     }
 
@@ -783,175 +565,11 @@ class PreferenceStore internal constructor(
         return normalized
     }
 
-    private fun loadSearchHistory(): List<SearchHistoryEntry> {
-        return preferences.getString(KEY_SEARCH_HISTORY, null)
-            ?.split(PreferenceCollectionCodec.RECORD_SEPARATOR)
-            ?.mapNotNull(PreferenceCollectionCodec::deserializeSearchHistory)
-            .orEmpty()
-    }
-
-    private fun loadPlaylists(): List<Playlist> {
-        return deserializePlaylists(preferences.getString(KEY_PLAYLISTS, null))
-    }
-
-    private fun loadSmartPlaylists(): List<SmartPlaylist> {
-        return deserializeSmartPlaylists(preferences.getString(KEY_SMART_PLAYLISTS, null))
-    }
-
-    private fun loadNextPlaylistId(playlists: List<Playlist>): Long {
-        val existingIds = playlists.mapTo(mutableSetOf()) { it.id }
-        val persisted = preferences.getLong(KEY_NEXT_PLAYLIST_ID, 0L)
-        val baseline = maxOf(
-            persisted,
-            (existingIds.maxOrNull() ?: 0L) + 1L,
-            clock.wallTimeMs().coerceAtLeast(1L),
-        )
-        var candidate = baseline
-        while (candidate in existingIds || candidate <= 0L) {
-            candidate = if (candidate == Long.MAX_VALUE) 1L else candidate + 1L
-        }
-        return candidate
-    }
-
-    private fun loadNextSmartPlaylistId(playlists: List<SmartPlaylist>): Long {
-        val existingIds = playlists.mapTo(mutableSetOf()) { it.id }
-        val persisted = preferences.getLong(KEY_NEXT_SMART_PLAYLIST_ID, 1L)
-        var candidate = maxOf(persisted, (existingIds.maxOrNull() ?: 0L) + 1L, 1L)
-        while (candidate in existingIds || candidate <= 0L) {
-            candidate = if (candidate == Long.MAX_VALUE) 1L else candidate + 1L
-        }
-        return candidate
-    }
-
-    private fun loadFavoriteSongIds(): List<Long> {
-        return preferences.getString(KEY_FAVORITE_SONG_IDS, null)
-            ?.takeIf { it.isNotBlank() }
-            ?.split(",")
-            ?.mapNotNull { it.toLongOrNull() }
-            ?.let(::normalizeFavoriteSongIds)
-            .orEmpty()
-    }
-
-    private fun loadAlbumPlayCounts(): Map<Long, Int> {
-        return preferences.getString(KEY_ALBUM_PLAY_COUNTS, null)
-            ?.takeIf { it.isNotBlank() }
-            ?.let(PreferenceCollectionCodec::deserializePlayCounts)
-            .orEmpty()
-    }
-
-    private fun loadSongPlayCounts(): Map<Long, Int> {
-        return preferences.getString(KEY_SONG_PLAY_COUNTS, null)
-            ?.takeIf { it.isNotBlank() }
-            ?.let(PreferenceCollectionCodec::deserializePlayCounts)
-            .orEmpty()
-    }
-
-    private fun loadRecentSongIds(): List<Long> {
-        return preferences.getString(KEY_RECENT_SONG_IDS, null)
-            ?.takeIf { it.isNotBlank() }
-            ?.split(",")
-            ?.mapNotNull { it.toLongOrNull() }
-            .orEmpty()
-    }
-
-    private fun loadRecentAlbumIds(): List<Long> {
-        return preferences.getString(KEY_RECENT_ALBUM_IDS, null)
-            ?.takeIf { it.isNotBlank() }
-            ?.split(",")
-            ?.mapNotNull { it.toLongOrNull() }
-            .orEmpty()
-    }
-
-    private fun loadLastPlayedCollectionKind(): PlaybackCollectionKind? {
-        val stored = preferences.getString(KEY_LAST_PLAYED_COLLECTION_KIND, null) ?: return null
-        return PlaybackCollectionKind.entries.firstOrNull { it.name == stored }
-    }
-
-    private fun loadLastPlayedCollectionId(): Long? {
-        return preferences.takeIf { it.contains(KEY_LAST_PLAYED_COLLECTION_ID) }
-            ?.getLong(KEY_LAST_PLAYED_COLLECTION_ID, -1L)
-            ?.takeIf { it != 0L }
-    }
-
-    private fun persistPlaylists(
-        playlists: List<Playlist>,
-        nextPlaylistId: Long? = null,
-    ) {
-        if (_userPlaylists.value == playlists && nextPlaylistId == null) return
-        preferences.edit {
-            putString(KEY_PLAYLISTS, serializePlaylists(playlists))
-            nextPlaylistId?.let { putLong(KEY_NEXT_PLAYLIST_ID, it) }
-        }
-        _userPlaylists.value = playlists
-        _playlists.value = assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value)
-    }
-
-    private fun persistSmartPlaylists(
-        playlists: List<SmartPlaylist>,
-        nextSmartPlaylistId: Long? = null,
-    ) {
-        if (_userSmartPlaylists.value == playlists && nextSmartPlaylistId == null) return
-        preferences.edit {
-            putString(KEY_SMART_PLAYLISTS, serializeSmartPlaylists(playlists))
-            nextSmartPlaylistId?.let { putLong(KEY_NEXT_SMART_PLAYLIST_ID, it) }
-        }
-        _userSmartPlaylists.value = playlists
-        _smartPlaylists.value = assembleSmartPlaylists(playlists)
-    }
-
-    private fun persistFavoriteSongIds(songIds: List<Long>) {
-        val normalizedSongIds = normalizeFavoriteSongIds(songIds)
-        if (_favoriteSongIds.value == normalizedSongIds) return
-        preferences.edit {
-            putString(KEY_FAVORITE_SONG_IDS, normalizedSongIds.joinToString(","))
-        }
-        _favoriteSongIds.value = normalizedSongIds
-        _playlists.value = assemblePlaylists(_userPlaylists.value, _favoriteSongIds.value)
-    }
-
-    private fun persistPlaylistAndFavorites(
-        playlists: List<Playlist>,
-        favoriteSongIds: List<Long>,
-    ) {
-        val normalizedFavoriteSongIds = normalizeFavoriteSongIds(favoriteSongIds)
-        preferences.edit {
-            putString(KEY_PLAYLISTS, serializePlaylists(playlists))
-            putString(KEY_FAVORITE_SONG_IDS, normalizedFavoriteSongIds.joinToString(","))
-        }
-        _userPlaylists.value = playlists
-        _favoriteSongIds.value = normalizedFavoriteSongIds
-        _playlists.value = assemblePlaylists(playlists, normalizedFavoriteSongIds)
-    }
-
-    private fun assemblePlaylists(
-        userPlaylists: List<Playlist>,
-        favoriteSongIds: List<Long>,
-    ): List<Playlist> {
-        return userPlaylists
-    }
-
-    private fun assembleSmartPlaylists(userPlaylists: List<SmartPlaylist>): List<SmartPlaylist> {
-        return SmartPlaylistDefaults.builtIns() + userPlaylists
-    }
-
     private companion object {
         const val BAND_COUNT = 18
-        const val MAX_SEARCH_HISTORY = 6
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_TEXT_SIZE_PRESET = "text_size_preset"
         const val KEY_APP_LANGUAGE = "app_language"
-        const val KEY_SEARCH_HISTORY = "search_history"
-        const val KEY_PLAYLISTS = "playlists"
-        const val KEY_NEXT_PLAYLIST_ID = "next_playlist_id"
-        const val KEY_SMART_PLAYLISTS = "smart_playlists"
-        const val KEY_NEXT_SMART_PLAYLIST_ID = "next_smart_playlist_id"
-        const val KEY_FAVORITE_SONG_IDS = "favorite_song_ids"
-        const val KEY_ALBUM_PLAY_COUNTS = "album_play_counts"
-        const val KEY_SONG_PLAY_COUNTS = "song_play_counts"
-        const val KEY_RECENT_SONG_IDS = "recent_song_ids"
-        const val KEY_RECENT_ALBUM_IDS = "recent_album_ids"
-        const val KEY_LAST_PLAYED_COLLECTION_KIND = "last_played_collection_kind"
-        const val KEY_LAST_PLAYED_COLLECTION_ID = "last_played_collection_id"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
@@ -973,11 +591,9 @@ class PreferenceStore internal constructor(
         const val KEY_MONO_ENABLED = "mono_playback_enabled"
         const val KEY_REVERB_DURATION_MS = "eq_reverb_duration_ms"
         const val KEY_REVERB_PROFILE = "eq_reverb_profile"
-        const val MAX_RECENT_PLAYBACK_IDS = 24
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
-        const val PLAYBACK_HISTORY_PERSIST_DEBOUNCE_MS = 350L
         const val EQ_SETTINGS_PERSIST_DEBOUNCE_MS = 120L
     }
 }

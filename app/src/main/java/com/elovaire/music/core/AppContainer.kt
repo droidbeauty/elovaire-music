@@ -87,8 +87,8 @@ class AppContainer(
         openNowPlayingChannel.close()
         bridgeCoordinator.release()
         notificationControllerHolder.release()
-        appRuntimeScope.close()
         services.release()
+        appRuntimeScope.close()
         appForegroundTracker.close()
     }
 

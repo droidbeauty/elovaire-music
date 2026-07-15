@@ -22,6 +22,10 @@ internal class AppBridgeCoordinator(
         override val eqSettings get() = services.preferenceStore.eqSettings
         override val gaplessPlaybackEnabled get() = services.preferenceStore.gaplessPlaybackEnabled
         override val volumeNormalizationEnabled get() = services.preferenceStore.volumeNormalizationEnabled
+        override val recentSongIds get() = services.preferenceStore.recentSongIds
+        override val recentAlbumIds get() = services.preferenceStore.recentAlbumIds
+        override val lastPlayedCollectionKind get() = services.preferenceStore.lastPlayedCollectionKind
+        override val lastPlayedCollectionId get() = services.preferenceStore.lastPlayedCollectionId
 
         override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
             services.preferenceStore.recordPlaybackTransition(songId, albumId)

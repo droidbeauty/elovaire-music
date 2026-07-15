@@ -20,7 +20,7 @@ internal class LibraryIndexStore(
         val input = LibraryIndexInput(snapshot, filterFingerprint, source)
         if (input == lastIndexedInput) return
         val now = clock.wallTimeMs()
-        val generationId = now
+        val generationId = nextLibraryGenerationId(now, dao.latestGenerationId())
         val indexed = LibraryDatabaseMapper.indexedSnapshot(snapshot, generationId, now)
         dao.replaceGeneration(
             generation = LibraryScanGenerationEntity(
@@ -62,6 +62,14 @@ internal class LibraryIndexStore(
         dao.applyIncrementalRemoval(songIds, albumIds, clock.wallTimeMs())
         lastIndexedInput = null
     }
+}
+
+internal fun nextLibraryGenerationId(wallTimeMs: Long, latestGenerationId: Long?): Long {
+    val nextPersisted = latestGenerationId
+        ?.takeIf { it < Long.MAX_VALUE }
+        ?.plus(1L)
+        ?: 1L
+    return maxOf(wallTimeMs.coerceAtLeast(1L), nextPersisted)
 }
 
 private data class LibraryIndexInput(

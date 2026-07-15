@@ -93,6 +93,7 @@ private class RecordingLibraryDao : LibraryDao {
     var removedSongIds = emptySet<Long>()
     var removedAlbumIds = emptySet<Long>()
 
+    override suspend fun latestGenerationId(): Long? = null
     override suspend fun recoverableMutations(): List<LibraryMutationEntity> = emptyList()
     override suspend fun mutation(mutationId: String): LibraryMutationEntity? = null
     override suspend fun insertScanGeneration(generation: LibraryScanGenerationEntity) = Unit

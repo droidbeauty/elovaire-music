@@ -9,6 +9,9 @@ import androidx.room.Upsert
 
 @Dao
 internal interface LibraryDao {
+    @Query("SELECT MAX(generationId) FROM scan_generations")
+    suspend fun latestGenerationId(): Long?
+
     @Query(
         "SELECT * FROM media_mutations " +
             "WHERE status IN ('Created', 'PreflightPassed', 'NeedsPermission', 'PermissionGranted', " +

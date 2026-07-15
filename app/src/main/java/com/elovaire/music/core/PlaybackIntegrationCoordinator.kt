@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.sample
@@ -44,6 +45,21 @@ internal class PlaybackIntegrationCoordinator(
         scope.launch {
             preferences.volumeNormalizationEnabled
                 .collect(playback::setVolumeNormalizationEnabled)
+        }
+        scope.launch {
+            combine(
+                preferences.recentSongIds,
+                preferences.recentAlbumIds,
+                preferences.lastPlayedCollectionKind,
+                preferences.lastPlayedCollectionId,
+            ) { songIds, albumIds, collectionKind, collectionId ->
+                elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState(
+                    recentSongIds = songIds,
+                    recentAlbumIds = albumIds,
+                    lastPlayedCollectionKind = collectionKind,
+                    lastPlayedCollectionId = collectionId,
+                )
+            }.distinctUntilChanged().collect(playback::mergePersistedRecentPlayback)
         }
         scope.launch {
             playback.nowPlayingState

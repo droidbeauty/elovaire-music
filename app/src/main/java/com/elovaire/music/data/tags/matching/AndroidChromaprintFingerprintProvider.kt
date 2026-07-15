@@ -98,9 +98,8 @@ internal class AndroidChromaprintFingerprintProvider(
     private suspend fun decodeFingerprint(song: Song): String {
         val extractor = MediaExtractor()
         var codec: MediaCodec? = null
-        val bridge = NativeChromaprintBridge()
-        val nativeHandle = bridge.create()
-        check(nativeHandle != 0L) { "Chromaprint is unavailable on this device." }
+        val nativeSession = NativeChromaprintSession.open()
+            ?: error("Chromaprint is unavailable on this device.")
         return try {
             extractor.setDataSource(appContext, song.uri, emptyMap())
             val trackIndex = (0 until extractor.trackCount).firstOrNull { index ->
@@ -157,7 +156,7 @@ internal class AndroidChromaprintFingerprintProvider(
                     MediaCodec.INFO_TRY_AGAIN_LATER -> Unit
                     else -> if (outputIndex >= 0) {
                         if (!bridgeStarted) {
-                            check(bridge.start(nativeHandle, outputSampleRate, outputChannels)) {
+                            check(nativeSession.start(outputSampleRate, outputChannels)) {
                                 "Unable to initialize Chromaprint."
                             }
                             bridgeStarted = true
@@ -167,7 +166,7 @@ internal class AndroidChromaprintFingerprintProvider(
                             outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
                             val samples = outputBuffer.toPcm16(outputEncoding)
                             if (samples.isNotEmpty()) {
-                                check(bridge.feed(nativeHandle, samples, samples.size)) {
+                                check(nativeSession.feed(samples, samples.size)) {
                                     "Unable to process decoded audio."
                                 }
                             }
@@ -178,13 +177,13 @@ internal class AndroidChromaprintFingerprintProvider(
                 }
             }
             check(bridgeStarted) { "No PCM audio was decoded." }
-            bridge.finish(nativeHandle)?.takeIf(String::isNotBlank)
+            nativeSession.finish()?.takeIf(String::isNotBlank)
                 ?: error("Chromaprint did not produce a fingerprint.")
         } finally {
             runCatching { codec?.stop() }
             runCatching { codec?.release() }
             runCatching { extractor.release() }
-            bridge.destroy(nativeHandle)
+            nativeSession.close()
         }
     }
 
@@ -218,20 +217,80 @@ internal class AndroidChromaprintFingerprintProvider(
 internal class UnsupportedFingerprintFormat :
     IllegalArgumentException("Fingerprinting is unavailable for this audio file.")
 
-internal class NativeChromaprintBridge {
+private class NativeChromaprintBridge {
     init {
         System.loadLibrary("elovaire_chromaprint")
     }
 
     fun create(): Long = nativeCreate()
-    fun start(handle: Long, sampleRate: Int, channels: Int): Boolean = nativeStart(handle, sampleRate, channels)
-    fun feed(handle: Long, samples: ShortArray, length: Int): Boolean = nativeFeed(handle, samples, length)
-    fun finish(handle: Long): String? = nativeFinish(handle)
-    fun destroy(handle: Long) = nativeDestroy(handle)
+    fun start(handle: Long, sampleRate: Int, channels: Int): Boolean {
+        if (!ChromaprintInputPolicy.acceptsStart(handle, sampleRate, channels)) return false
+        return nativeStart(handle, sampleRate, channels)
+    }
+
+    fun feed(handle: Long, samples: ShortArray, length: Int): Boolean {
+        if (!ChromaprintInputPolicy.acceptsFeed(handle, samples.size, length)) return false
+        return nativeFeed(handle, samples, length)
+    }
+
+    fun finish(handle: Long): String? = if (handle > 0L) nativeFinish(handle) else null
+
+    fun destroy(handle: Long) {
+        if (handle > 0L) nativeDestroy(handle)
+    }
 
     private external fun nativeCreate(): Long
     private external fun nativeStart(handle: Long, sampleRate: Int, channels: Int): Boolean
     private external fun nativeFeed(handle: Long, samples: ShortArray, length: Int): Boolean
     private external fun nativeFinish(handle: Long): String?
     private external fun nativeDestroy(handle: Long)
+}
+
+internal class NativeChromaprintSession private constructor(
+    private val bridge: NativeChromaprintBridge,
+    private var handle: Long,
+) : AutoCloseable {
+    fun start(sampleRate: Int, channels: Int): Boolean {
+        val activeHandle = handle
+        return activeHandle > 0L && bridge.start(activeHandle, sampleRate, channels)
+    }
+
+    fun feed(samples: ShortArray, length: Int): Boolean {
+        val activeHandle = handle
+        return activeHandle > 0L && bridge.feed(activeHandle, samples, length)
+    }
+
+    fun finish(): String? {
+        val activeHandle = handle
+        return if (activeHandle > 0L) bridge.finish(activeHandle) else null
+    }
+
+    override fun close() {
+        val activeHandle = handle
+        if (activeHandle <= 0L) return
+        handle = 0L
+        bridge.destroy(activeHandle)
+    }
+
+    companion object {
+        fun open(): NativeChromaprintSession? {
+            val bridge = NativeChromaprintBridge()
+            val handle = bridge.create()
+            return handle.takeIf { it > 0L }?.let { NativeChromaprintSession(bridge, it) }
+        }
+    }
+}
+
+internal object ChromaprintInputPolicy {
+    fun acceptsStart(handle: Long, sampleRate: Int, channels: Int): Boolean {
+        return handle > 0L && sampleRate in 1..MAX_SAMPLE_RATE && channels in 1..MAX_CHANNELS
+    }
+
+    fun acceptsFeed(handle: Long, arraySize: Int, length: Int): Boolean {
+        return handle > 0L && length in 1..minOf(arraySize, MAX_SAMPLES_PER_FEED)
+    }
+
+    private const val MAX_SAMPLE_RATE = 768_000
+    private const val MAX_CHANNELS = 32
+    private const val MAX_SAMPLES_PER_FEED = 16 * 1024 * 1024
 }

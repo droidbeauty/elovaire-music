@@ -30,6 +30,19 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             if (("HttpURLConnection" in text || ".openConnection(" in text) && HTTP_ALLOWED.none(path::endsWith)) {
                 violations += "$path opens an ad hoc HTTP connection"
             }
+            if ("ExoPlayer.Builder" in text && !path.endsWith("/data/playback/PlaybackPlayerFactory.kt")) {
+                violations += "$path creates an ExoPlayer outside the player factory"
+            }
+            if (" external fun " in text && NATIVE_ALLOWED.none(path::endsWith)) {
+                violations += "$path declares a native entry point outside an approved bridge"
+            }
+            if (
+                ("SharedPreferences" in text || "PreferenceStorage" in text) &&
+                LEGACY_USER_DATA_KEYS.any(text::contains) &&
+                !path.endsWith("/data/settings/RoomUserDataStore.kt")
+            ) {
+                violations += "$path accesses legacy structured preference storage outside its migration boundary"
+            }
         }
         if (violations.isNotEmpty()) throw GradleException(violations.joinToString(separator = "\n"))
     }
@@ -43,6 +56,17 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         val HTTP_ALLOWED = setOf(
             "/data/network/HttpTransport.kt",
             "/data/update/AppUpdateManager.kt",
+        )
+        val NATIVE_ALLOWED = setOf(
+            "/data/tags/matching/AndroidChromaprintFingerprintProvider.kt",
+        )
+        val LEGACY_USER_DATA_KEYS = setOf(
+            "\"favorite_song_ids\"",
+            "\"song_play_counts\"",
+            "\"album_play_counts\"",
+            "\"recent_song_ids\"",
+            "\"recent_album_ids\"",
+            "\"smart_playlists\"",
         )
     }
 }

@@ -139,24 +139,10 @@ class PlaylistHelpersTest {
     }
 
     @Test
-    fun serializePlaylists_roundTripsSeparatorCharactersEmojiAndWhitespace() {
-        val playlists = listOf(
-            Playlist(
-                id = 1L,
-                name = "  Road \u001F Trip \u001E Mix  ",
-                songIds = listOf(5L, 5L, 2L, -4L, 0L),
-                isSystem = false,
-            ),
-            Playlist(
-                id = 2L,
-                name = "Late Night \uD83C\uDF19",
-                songIds = listOf(9L, 1L),
-                isSystem = false,
-            ),
-        )
-
-        val serialized = serializePlaylists(playlists)
-        val deserialized = deserializePlaylists(serialized)
+    fun deserializePlaylists_readsVersionTwoSeparatorCharactersAndEmoji() {
+        val legacyV2 = "v2:1\u001FUm9hZCAfIFRyaXAgHiBNaXg\u001F5,5,2,-4,0\u001Ffalse" +
+            "\u001E2\u001FTGF0ZSBOaWdodCDwn4yZ\u001F9,1\u001Ffalse"
+        val deserialized = deserializePlaylists(legacyV2)
 
         assertEquals(
             listOf(

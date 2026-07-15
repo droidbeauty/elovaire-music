@@ -9,22 +9,6 @@ private const val PlaylistFieldSeparator = "\u001F"
 private const val LegacyPlaylistRecordSeparator = PlaylistRecordSeparator
 private const val LegacyPlaylistFieldSeparator = PlaylistFieldSeparator
 
-internal fun serializePlaylists(playlists: List<Playlist>): String {
-    return buildString {
-        append(PlaylistSchemaV2Prefix)
-        playlists.forEachIndexed { index, playlist ->
-            if (index > 0) append(PlaylistRecordSeparator)
-            append(playlist.id)
-            append(PlaylistFieldSeparator)
-            append(normalizePlaylistName(playlist.name).encodePlaylistField())
-            append(PlaylistFieldSeparator)
-            append(normalizePlaylistSongIds(playlist.songIds).joinToString(","))
-            append(PlaylistFieldSeparator)
-            append(playlist.isSystem)
-        }
-    }
-}
-
 internal fun deserializePlaylists(value: String?): List<Playlist> {
     val rawValue = value?.takeIf { it.isNotBlank() } ?: return emptyList()
     return if (rawValue.startsWith(PlaylistSchemaV2Prefix)) {
@@ -80,12 +64,6 @@ private fun String.toLegacyPlaylistOrNull(): Playlist? {
         ),
         isSystem = parts.getOrNull(3)?.toBooleanStrictOrNull() ?: false,
     )
-}
-
-private fun String.encodePlaylistField(): String {
-    return Base64.getUrlEncoder()
-        .withoutPadding()
-        .encodeToString(toByteArray(Charsets.UTF_8))
 }
 
 private fun String.decodePlaylistField(): String? {
