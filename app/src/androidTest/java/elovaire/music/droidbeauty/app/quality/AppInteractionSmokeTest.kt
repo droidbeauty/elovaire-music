@@ -24,9 +24,6 @@ class AppInteractionSmokeTest {
     @Before
     fun setUp() {
         grantRuntimePermission(audioPermission())
-        if (Build.VERSION.SDK_INT >= 33) {
-            grantRuntimePermission(Manifest.permission.POST_NOTIFICATIONS)
-        }
         shell("logcat -c")
         launchApp()
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), 10_000)
@@ -35,7 +32,8 @@ class AppInteractionSmokeTest {
     @After
     fun assertNoRuntimeFailures() {
         val logcat = shell("logcat -d -t 2000")
-        assertFalse(runtimeFailurePattern.containsMatchIn(logcat))
+        val runtimeFailure = runtimeFailurePattern.find(logcat)
+        assertFalse(runtimeFailure?.value, runtimeFailure != null)
         assertFalse(hasAppOwnedStrictModeViolation(logcat))
     }
 

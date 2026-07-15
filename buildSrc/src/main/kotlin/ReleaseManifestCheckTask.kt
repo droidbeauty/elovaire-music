@@ -5,6 +5,8 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.w3c.dom.Element
+import javax.xml.parsers.DocumentBuilderFactory
 
 abstract class ReleaseManifestCheckTask : DefaultTask() {
     @get:InputFile
@@ -45,7 +47,6 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "android:fullBackupContent=\"@xml/backup_rules\"",
             "android.permission.FOREGROUND_SERVICE",
             "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
-            "android.permission.POST_NOTIFICATIONS",
             "android.permission.READ_MEDIA_AUDIO",
             "android.permission.REQUEST_INSTALL_PACKAGES",
             "android:foregroundServiceType=\"mediaPlayback\"",
@@ -84,10 +85,120 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "android:usesCleartextTraffic=\"true\"",
             "android:debuggable=\"true\"",
             "androidx.work.WorkManagerInitializer",
+            "android.permission.MANAGE_MEDIA",
+            "android.permission.READ_MEDIA_IMAGES",
+            "android.permission.READ_MEDIA_VIDEO",
+            "android.permission.ACCESS_MEDIA_LOCATION",
+            "android.permission.SCHEDULE_EXACT_ALARM",
+            "android.permission.USE_EXACT_ALARM",
+            "android.permission.USE_FULL_SCREEN_INTENT",
+            "android.permission.ACCESS_FINE_LOCATION",
+            "android.permission.ACCESS_COARSE_LOCATION",
+            "android.permission.READ_PHONE_STATE",
+            "android.permission.AD_ID",
+            "android.permission.POST_NOTIFICATIONS",
         ).forEach { value ->
             if (value in text) {
                 throw GradleException("Release manifest contains forbidden entry: $value")
             }
         }
+        checkStructuredManifest(manifest)
+    }
+
+    private fun checkStructuredManifest(manifest: java.io.File) {
+        val factory = DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = true
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+        }
+        val document = factory.newDocumentBuilder().parse(manifest)
+        val androidNamespace = "http://schemas.android.com/apk/res/android"
+        val targetSdk = document.getElementsByTagName("uses-sdk")
+            .item(0)
+            ?.attributes
+            ?.getNamedItemNS(androidNamespace, "targetSdkVersion")
+            ?.nodeValue
+            ?.toIntOrNull()
+        if (targetSdk != PLAY_ACCEPTED_TARGET_SDK) {
+            throw GradleException(
+                "Release target SDK must be the reviewed stable API $PLAY_ACCEPTED_TARGET_SDK; found $targetSdk.",
+            )
+        }
+        val application = document.getElementsByTagName("application").item(0) as? Element
+            ?: throw GradleException("Release manifest has no application element.")
+        if (application.androidAttribute(androidNamespace, "debuggable") == "true") {
+            throw GradleException("Release application must not be debuggable.")
+        }
+        if (application.androidAttribute(androidNamespace, "testOnly") == "true") {
+            throw GradleException("Release application must not be test-only.")
+        }
+
+        val permissionNames = document.getElementsByTagName("uses-permission")
+            .asElementSequence()
+            .map { it.androidAttribute(androidNamespace, "name") }
+            .toSet()
+        val unexpectedPermissions = permissionNames - ALLOWED_RELEASE_PERMISSIONS
+        if (unexpectedPermissions.isNotEmpty()) {
+            throw GradleException("Release manifest contains unexpected permissions: ${unexpectedPermissions.sorted()}.")
+        }
+        val legacyStorage = document.getElementsByTagName("uses-permission")
+            .asElementSequence()
+            .firstOrNull { it.androidAttribute(androidNamespace, "name") == "android.permission.READ_EXTERNAL_STORAGE" }
+        if (legacyStorage?.androidAttribute(androidNamespace, "maxSdkVersion") != "32") {
+            throw GradleException("READ_EXTERNAL_STORAGE must be capped at API 32.")
+        }
+
+        val exported = sequenceOf("activity", "service", "receiver", "provider")
+            .flatMap { tag -> document.getElementsByTagName(tag).asElementSequence() }
+            .filter { it.androidAttribute(androidNamespace, "exported") == "true" }
+            .associateBy { it.androidAttribute(androidNamespace, "name") }
+        val unexpectedExported = exported.keys - ALLOWED_EXPORTED_COMPONENTS.keys
+        if (unexpectedExported.isNotEmpty()) {
+            throw GradleException("Release manifest exports unexpected components: ${unexpectedExported.sorted()}.")
+        }
+        ALLOWED_EXPORTED_COMPONENTS.forEach { (name, requiredPermission) ->
+            val component = exported[name]
+                ?: throw GradleException("Required exported component is missing: $name")
+            if (
+                requiredPermission != null &&
+                component.androidAttribute(androidNamespace, "permission") != requiredPermission
+            ) {
+                throw GradleException("Exported component $name must require $requiredPermission.")
+            }
+        }
+    }
+
+    private fun Element.androidAttribute(namespace: String, name: String): String {
+        return getAttributeNS(namespace, name)
+    }
+
+    private fun org.w3c.dom.NodeList.asElementSequence(): Sequence<Element> = sequence {
+        for (index in 0 until length) {
+            (item(index) as? Element)?.let { yield(it) }
+        }
+    }
+
+    private companion object {
+        const val PLAY_ACCEPTED_TARGET_SDK = 36
+        val ALLOWED_RELEASE_PERMISSIONS = setOf(
+            "android.permission.INTERNET",
+            "android.permission.MODIFY_AUDIO_SETTINGS",
+            "android.permission.FOREGROUND_SERVICE",
+            "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            "android.permission.REQUEST_INSTALL_PACKAGES",
+            "android.permission.READ_MEDIA_AUDIO",
+            "android.permission.READ_EXTERNAL_STORAGE",
+            "android.permission.ACCESS_NETWORK_STATE",
+            "android.permission.WAKE_LOCK",
+            "android.permission.RECEIVE_BOOT_COMPLETED",
+            "elovaire.music.droidbeauty.app.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+        )
+        val ALLOWED_EXPORTED_COMPONENTS = mapOf(
+            "elovaire.music.droidbeauty.app.MainActivity" to null,
+            "elovaire.music.droidbeauty.app.data.playback.ElovaireMediaLibraryService" to null,
+            "androidx.media3.session.MediaButtonReceiver" to null,
+            "androidx.work.impl.background.systemjob.SystemJobService" to "android.permission.BIND_JOB_SERVICE",
+            "androidx.work.impl.diagnostics.DiagnosticsReceiver" to "android.permission.DUMP",
+            "androidx.profileinstaller.ProfileInstallReceiver" to "android.permission.DUMP",
+        )
     }
 }

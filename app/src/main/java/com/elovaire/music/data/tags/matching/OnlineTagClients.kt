@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.tags.matching
 
 import elovaire.music.droidbeauty.app.data.network.HttpRequest
 import elovaire.music.droidbeauty.app.data.network.HttpTransport
+import elovaire.music.droidbeauty.app.core.runSuspendCatching
 import java.net.URLEncoder
 import java.util.Locale
 import kotlinx.coroutines.delay
@@ -20,7 +21,7 @@ internal class HttpAcoustIdClient(
     override suspend fun lookup(
         fingerprint: String,
         durationSeconds: Int,
-    ): Result<AcoustIdLookupResponse> = runCatching {
+    ): Result<AcoustIdLookupResponse> = runSuspendCatching {
         check(isConfigured) { "AcoustID API key is not configured." }
         val cacheKey = "acoustid:$durationSeconds:$fingerprint"
         val jsonText = cache.getResponse(cacheKey) ?: run {
@@ -93,7 +94,7 @@ internal class HttpMusicBrainzClient(
 ) : MusicBrainzClient {
     private val rateLimiter = RequestRateLimiter(MUSIC_BRAINZ_REQUEST_INTERVAL_MS)
 
-    override suspend fun getRecording(recordingMbid: String): Result<MusicBrainzRecording> = runCatching {
+    override suspend fun getRecording(recordingMbid: String): Result<MusicBrainzRecording> = runSuspendCatching {
         val url = "$MUSIC_BRAINZ_BASE/recording/$recordingMbid?inc=artist-credits+releases&fmt=json"
         val json = getJson(url)
         MusicBrainzRecording(
@@ -113,7 +114,7 @@ internal class HttpMusicBrainzClient(
         )
     }
 
-    override suspend fun getRelease(releaseMbid: String): Result<MusicBrainzRelease> = runCatching {
+    override suspend fun getRelease(releaseMbid: String): Result<MusicBrainzRelease> = runSuspendCatching {
         val url = "$MUSIC_BRAINZ_BASE/release/$releaseMbid" +
             "?inc=recordings+artist-credits+url-rels+release-groups+release-group-level-rels&fmt=json"
         val json = getJson(url)
@@ -123,7 +124,7 @@ internal class HttpMusicBrainzClient(
     override suspend fun searchRelease(
         albumTitle: String,
         albumArtist: String,
-    ): Result<List<String>> = runCatching {
+    ): Result<List<String>> = runSuspendCatching {
         val query = buildString {
             if (albumTitle.isNotBlank()) append("release:\"").append(albumTitle).append('"')
             if (albumArtist.isNotBlank()) {
@@ -131,9 +132,9 @@ internal class HttpMusicBrainzClient(
                 append("artist:\"").append(albumArtist).append('"')
             }
         }
-        if (query.isBlank()) return@runCatching emptyList()
+        if (query.isBlank()) return@runSuspendCatching emptyList()
         val url = "$MUSIC_BRAINZ_BASE/release?query=${query.urlEncode()}&fmt=json&limit=5"
-        val releases = getJson(url).optJSONArray("releases") ?: return@runCatching emptyList()
+        val releases = getJson(url).optJSONArray("releases") ?: return@runSuspendCatching emptyList()
         buildList {
             for (index in 0 until releases.length()) {
                 releases.optJSONObject(index)

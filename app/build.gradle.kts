@@ -11,9 +11,6 @@ val localProperties = Properties().apply {
     }
 }
 
-val geniusAccessToken = providers.gradleProperty("GENIUS_ACCESS_TOKEN").orNull
-    ?: System.getenv("GENIUS_ACCESS_TOKEN")
-    ?: localProperties.getProperty("GENIUS_ACCESS_TOKEN")
 val acoustIdApiKey = providers.gradleProperty("ACOUSTID_API_KEY").orNull
     ?: System.getenv("ACOUSTID_API_KEY")
     ?: localProperties.getProperty("ACOUSTID_API_KEY")
@@ -40,14 +37,9 @@ android {
     defaultConfig {
         applicationId = AppBuildConfig.packageName
         minSdk = 30
-        targetSdk = 37
+        targetSdk = 36
         versionCode = AppBuildConfig.versionCode
         versionName = AppBuildConfig.versionName
-        buildConfigField(
-            "String",
-            "GENIUS_ACCESS_TOKEN",
-            "\"${geniusAccessToken.orEmpty().replace("\"", "\\\"")}\"",
-        )
         buildConfigField(
             "String",
             "ACOUSTID_API_KEY",
@@ -84,6 +76,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            ndk.debugSymbolLevel = "SYMBOL_TABLE"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",

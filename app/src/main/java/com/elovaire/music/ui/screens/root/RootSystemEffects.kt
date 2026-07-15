@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.ui.screens
 import android.Manifest
 import android.app.Activity
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -20,7 +19,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
-import elovaire.music.droidbeauty.app.core.hasNotificationPostingPermission
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
 import elovaire.music.droidbeauty.app.data.library.DeviceDeletePlan
@@ -33,7 +31,6 @@ import kotlinx.coroutines.launch
 
 internal data class RootPermissionState(
     val hasAudioPermission: Boolean,
-    val hasNotificationPermission: Boolean,
     val firstLaunchPermissionExperienceActive: Boolean,
     val playFirstLaunchHomeReveal: Boolean,
     val showFirstLaunchPermissionOverlay: Boolean,
@@ -42,37 +39,14 @@ internal data class RootPermissionState(
 internal class RootPermissionController internal constructor(
     val state: RootPermissionState,
     private val requestAudioPermissionAction: () -> Unit,
-    private val requestNotificationPermissionAction: () -> Unit,
     private val setPlayFirstLaunchHomeRevealAction: (Boolean) -> Unit,
     private val setFirstLaunchPermissionExperienceActiveAction: (Boolean) -> Unit,
 ) {
     fun requestAudioPermission() = requestAudioPermissionAction()
 
-    fun requestNotificationPermission() = requestNotificationPermissionAction()
-
     fun onInitialRevealFinished() {
         setPlayFirstLaunchHomeRevealAction(false)
         setFirstLaunchPermissionExperienceActiveAction(false)
-    }
-}
-
-@Composable
-internal fun RootNotificationPermissionEffect(
-    isPlaybackActuallyPlaying: Boolean,
-    permissionState: RootPermissionState,
-    onRequestNotificationPermission: () -> Unit,
-) {
-    LaunchedEffect(
-        isPlaybackActuallyPlaying,
-        permissionState.hasNotificationPermission,
-    ) {
-        if (
-            isPlaybackActuallyPlaying &&
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            !permissionState.hasNotificationPermission
-        ) {
-            onRequestNotificationPermission()
-        }
     }
 }
 
@@ -84,8 +58,6 @@ internal fun rememberRootPermissionController(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     var hasPermission by remember { mutableStateOf(context.hasAudioReadPermission()) }
-    var hasNotificationPermission by remember { mutableStateOf(context.hasNotificationPostingPermission()) }
-    var hasRequestedNotificationPermission by rememberSaveable { mutableStateOf(false) }
     var firstLaunchPermissionExperienceActive by rememberSaveable {
         mutableStateOf(!hasPermission)
     }
@@ -93,7 +65,6 @@ internal fun rememberRootPermissionController(
         mutableStateOf(false)
     }
     var syncedAudioPermission by remember { mutableStateOf<Boolean?>(null) }
-    var syncedNotificationPermission by remember { mutableStateOf<Boolean?>(null) }
 
     fun syncAudioPermission(granted: Boolean) {
         hasPermission = granted
@@ -103,54 +74,22 @@ internal fun rememberRootPermissionController(
         }
     }
 
-    fun syncNotificationPermission(granted: Boolean) {
-        hasNotificationPermission = granted
-        if (syncedNotificationPermission != granted) {
-            syncedNotificationPermission = granted
-            container.setNotificationsEnabled(granted)
-        }
-    }
-
-    val notificationPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        syncNotificationPermission(granted)
-    }
-    fun requestNotificationPermissionIfNeeded() {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            !hasNotificationPermission &&
-            !hasRequestedNotificationPermission
-        ) {
-            hasRequestedNotificationPermission = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
-    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         syncAudioPermission(granted)
-        if (granted) requestNotificationPermissionIfNeeded()
     }
 
-    LaunchedEffect(hasPermission, hasNotificationPermission) {
+    LaunchedEffect(hasPermission) {
         syncAudioPermission(hasPermission)
-        syncNotificationPermission(hasNotificationPermission)
     }
 
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val refreshedAudioPermission = context.hasAudioReadPermission()
-                val refreshedNotificationPermission = context.hasNotificationPostingPermission()
                 if (hasPermission != refreshedAudioPermission || syncedAudioPermission != refreshedAudioPermission) {
                     syncAudioPermission(refreshedAudioPermission)
-                }
-                if (
-                    hasNotificationPermission != refreshedNotificationPermission ||
-                    syncedNotificationPermission != refreshedNotificationPermission
-                ) {
-                    syncNotificationPermission(refreshedNotificationPermission)
                 }
             }
         }
@@ -193,14 +132,12 @@ internal fun rememberRootPermissionController(
 
     val state = remember(
         hasPermission,
-        hasNotificationPermission,
         firstLaunchPermissionExperienceActive,
         playFirstLaunchHomeReveal,
         showFirstLaunchPermissionOverlay,
     ) {
         RootPermissionState(
             hasAudioPermission = hasPermission,
-            hasNotificationPermission = hasNotificationPermission,
             firstLaunchPermissionExperienceActive = firstLaunchPermissionExperienceActive,
             playFirstLaunchHomeReveal = playFirstLaunchHomeReveal,
             showFirstLaunchPermissionOverlay = showFirstLaunchPermissionOverlay,
@@ -211,9 +148,6 @@ internal fun rememberRootPermissionController(
             state = state,
             requestAudioPermissionAction = {
                 permissionLauncher.launch(requiredAudioPermission())
-            },
-            requestNotificationPermissionAction = {
-                requestNotificationPermissionIfNeeded()
             },
             setPlayFirstLaunchHomeRevealAction = { playFirstLaunchHomeReveal = it },
             setFirstLaunchPermissionExperienceActiveAction = { firstLaunchPermissionExperienceActive = it },

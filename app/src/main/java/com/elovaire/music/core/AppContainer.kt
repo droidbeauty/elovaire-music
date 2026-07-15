@@ -62,14 +62,7 @@ class AppContainer(
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
         bridgeCoordinator.start()
-    }
-
-    fun setNotificationsEnabled(enabled: Boolean) {
-        if (!enabled) {
-            notificationControllerHolder.release()
-            return
-        }
-        notificationController().setNotificationsEnabled(enabled)
+        notificationController().setNotificationsEnabled(true)
     }
 
     fun requestOpenNowPlaying() {

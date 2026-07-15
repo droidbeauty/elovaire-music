@@ -5,6 +5,21 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatCapability
 import java.util.Locale
 
 internal object ExternalAudioMetadataPolicy {
+    fun acceptsUri(scheme: String?, uriLength: Int): Boolean {
+        return scheme in SUPPORTED_URI_SCHEMES && uriLength in 1..MAX_URI_LENGTH
+    }
+
+    fun acceptsDeclaredMimeType(mimeType: String?): Boolean {
+        val normalized = mimeType
+            ?.substringBefore(';')
+            ?.trim()
+            ?.lowercase(Locale.ROOT)
+            ?.takeIf(String::isNotBlank)
+            ?: return true
+        if (normalized.startsWith("audio/") || normalized == GENERIC_BINARY_MIME_TYPE) return true
+        return AudioFormatPolicy.capabilities.any { normalized in it.mimeTypes }
+    }
+
     fun sanitizeDisplayName(rawValue: String?): String {
         return rawValue
             ?.asSequence()
@@ -58,6 +73,9 @@ internal object ExternalAudioMetadataPolicy {
     }
 
     private const val DEFAULT_DISPLAY_NAME = "External audio"
+    private const val MAX_URI_LENGTH = 4_096
     private const val MAX_DISPLAY_NAME_LENGTH = 160
     private const val MAX_EXTERNAL_DURATION_MS = 7L * 24L * 60L * 60L * 1_000L
+    private const val GENERIC_BINARY_MIME_TYPE = "application/octet-stream"
+    private val SUPPORTED_URI_SCHEMES = setOf("content", "file")
 }

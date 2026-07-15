@@ -1,8 +1,10 @@
 package elovaire.music.droidbeauty.app.data.network
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import java.net.URL
 
 class HttpTransportTest {
     @Test
@@ -38,6 +40,21 @@ class HttpTransportTest {
     @Test
     fun acceptsBoundedHttpsRequest() {
         validateHttpRequest(HttpRequest("https://example.com/path", "application/json"), 1024)
+    }
+
+    @Test
+    fun redirectsStayOnTheOriginalHttpsOrigin() {
+        val current = URL("https://example.com/start")
+
+        assertEquals("https://example.com/next", resolveSafeHttpRedirect(current, "/next").toString())
+        assertTrue(
+            runCatching { resolveSafeHttpRedirect(current, "http://example.com/next") }
+                .exceptionOrNull() is HttpTransportException,
+        )
+        assertTrue(
+            runCatching { resolveSafeHttpRedirect(current, "https://other.example/next") }
+                .exceptionOrNull() is HttpTransportException,
+        )
     }
 
     private fun assertFailureKind(expected: HttpFailureKind, block: () -> Unit) {

@@ -75,33 +75,47 @@ internal class HttpTransport {
         method: String = "GET",
         block: (HttpURLConnection) -> T,
     ): T {
-        val parsed = runCatching { URL(request.url) }.getOrElse { failure ->
+        var currentUrl = runCatching { URL(request.url) }.getOrElse { failure ->
             throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network address is invalid.", failure)
         }
-        if (parsed.protocol != "https") {
+        if (currentUrl.protocol != "https") {
             throw HttpTransportException(HttpFailureKind.InvalidUrl, "Only HTTPS requests are supported.")
         }
-        val connection = (parsed.openConnection() as? HttpURLConnection)
-            ?: throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network address is unsupported.")
-        return try {
-            connection.requestMethod = method
-            connection.connectTimeout = request.connectTimeoutMs
-            connection.readTimeout = request.readTimeoutMs
-            connection.instanceFollowRedirects = true
-            connection.setRequestProperty("Accept", request.accept)
-            request.headers.forEach(connection::setRequestProperty)
-            if (method == "GET") {
-                val status = connection.responseCode
-                ensureHttps(connection)
-                if (status !in 200..299) throw httpStatusFailure(status)
+        var redirectCount = 0
+        while (true) {
+            val connection = (currentUrl.openConnection() as? HttpURLConnection)
+                ?: throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network address is unsupported.")
+            try {
+                connection.requestMethod = method
+                connection.connectTimeout = request.connectTimeoutMs
+                connection.readTimeout = request.readTimeoutMs
+                connection.instanceFollowRedirects = false
+                connection.setRequestProperty("Accept", request.accept)
+                request.headers.forEach(connection::setRequestProperty)
+                if (method == "GET") {
+                    val status = connection.responseCode
+                    ensureHttps(connection)
+                    if (status in HTTP_REDIRECT_STATUS_CODES) {
+                        if (redirectCount >= MAX_HTTP_REDIRECTS) {
+                            throw HttpTransportException(HttpFailureKind.InvalidUrl, "Too many network redirects.")
+                        }
+                        currentUrl = resolveSafeHttpRedirect(
+                            currentUrl,
+                            connection.getHeaderField("Location"),
+                        )
+                        redirectCount += 1
+                        continue
+                    }
+                    if (status !in 200..299) throw httpStatusFailure(status)
+                }
+                return block(connection)
+            } catch (failure: HttpTransportException) {
+                throw failure
+            } catch (failure: java.io.IOException) {
+                throw HttpTransportException(HttpFailureKind.Transport, "The network request failed.", failure)
+            } finally {
+                connection.disconnect()
             }
-            block(connection)
-        } catch (failure: HttpTransportException) {
-            throw failure
-        } catch (failure: java.io.IOException) {
-            throw HttpTransportException(HttpFailureKind.Transport, "The network request failed.", failure)
-        } finally {
-            connection.disconnect()
         }
     }
 
@@ -119,6 +133,22 @@ internal class HttpTransport {
         }
     }
 }
+
+internal fun resolveSafeHttpRedirect(currentUrl: URL, location: String?): URL {
+    val target = location
+        ?.takeIf { it.length <= MAX_HTTP_URL_CHARACTERS }
+        ?.let { value -> runCatching { URL(currentUrl, value) }.getOrNull() }
+        ?: throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network redirect is invalid.")
+    val sameOrigin = target.protocol == "https" &&
+        target.host.equals(currentUrl.host, ignoreCase = true) &&
+        target.effectivePort() == currentUrl.effectivePort()
+    if (!sameOrigin) {
+        throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network redirect changed origin.")
+    }
+    return target
+}
+
+private fun URL.effectivePort(): Int = if (port >= 0) port else defaultPort
 
 internal fun validateHttpRequest(request: HttpRequest, maxBytes: Int) {
     val parsed = runCatching { URL(request.url) }.getOrElse { failure ->
@@ -140,3 +170,5 @@ private const val MAX_HTTP_TIMEOUT_MS = 120_000
 private const val MAX_HTTP_URL_CHARACTERS = 4_096
 private const val MAX_HTTP_RESPONSE_BYTES = 64 * 1024 * 1024
 private const val MAX_HTTP_REQUEST_BODY_BYTES = 1 * 1024 * 1024
+private const val MAX_HTTP_REDIRECTS = 3
+private val HTTP_REDIRECT_STATUS_CODES = setOf(301, 302, 303, 307, 308)

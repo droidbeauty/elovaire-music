@@ -19,8 +19,6 @@ internal object AndroidCapabilities {
 
     fun usesRecoverableMediaWrite(sdkInt: Int): Boolean = sdkInt == Build.VERSION_CODES.Q
 
-    fun requiresNotificationPermission(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.TIRAMISU
-
     fun supportsImageDecoder(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.P
 
     @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU, parameter = 0)
@@ -43,11 +41,6 @@ internal fun requiredAudioPermission(sdkInt: Int): String {
 
 internal fun Context.hasAudioReadPermission(): Boolean {
     return ContextCompat.checkSelfPermission(this, requiredAudioPermission()) == PackageManager.PERMISSION_GRANTED
-}
-
-internal fun Context.hasNotificationPostingPermission(): Boolean {
-    return !AndroidCapabilities.requiresNotificationPermission(Build.VERSION.SDK_INT) ||
-        ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
 }
 
 internal fun AudioManager.safeOutputDevices(): List<AudioDeviceInfo> {

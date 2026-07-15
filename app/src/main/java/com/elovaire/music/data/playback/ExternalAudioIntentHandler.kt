@@ -20,7 +20,10 @@ internal object ExternalAudioIntentHandler {
     private const val EXTERNAL_SONG_ID_BASE = -8_000_000_000_000L
 
     fun canHandle(intent: Intent?): Boolean {
-        return intent?.action == Intent.ACTION_VIEW && intent.data != null
+        val uri = intent?.data ?: return false
+        return intent.action == Intent.ACTION_VIEW &&
+            ExternalAudioMetadataPolicy.acceptsUri(uri.scheme, uri.toString().length) &&
+            ExternalAudioMetadataPolicy.acceptsDeclaredMimeType(intent.type)
     }
 
     suspend fun buildSong(
@@ -29,7 +32,6 @@ internal object ExternalAudioIntentHandler {
     ): Song? = withContext(Dispatchers.IO) {
         if (!canHandle(intent)) return@withContext null
         val uri = intent?.data ?: return@withContext null
-        if (!uri.isSupportedScheme()) return@withContext null
         if (uri.scheme == ContentResolver.SCHEME_FILE && !uri.isReadableFileAudioInput()) return@withContext null
 
         val contentResolver = context.contentResolver
@@ -74,10 +76,6 @@ internal object ExternalAudioIntentHandler {
             metadataResolved = true,
             albumArtist = null,
         )
-    }
-
-    private fun Uri.isSupportedScheme(): Boolean {
-        return scheme == ContentResolver.SCHEME_CONTENT || scheme == ContentResolver.SCHEME_FILE
     }
 
     private fun Uri.isReadableFileAudioInput(): Boolean {

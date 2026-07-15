@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.tags.matching
 
+import elovaire.music.droidbeauty.app.core.runSuspendCatching
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.Locale
@@ -47,7 +48,7 @@ internal class FingerprintAlbumTagMatcher(
                 AlbumTagMatchResult.NoMatch("No sufficiently reliable online match was found.")
             }
         }
-        val artwork = runCatching { artworkResolver.resolve(resolved) }.getOrNull()
+        val artwork = runSuspendCatching { artworkResolver.resolve(resolved) }.getOrNull()
         return AlbumTagMatchResult.Success(resolved, artwork)
     }
 

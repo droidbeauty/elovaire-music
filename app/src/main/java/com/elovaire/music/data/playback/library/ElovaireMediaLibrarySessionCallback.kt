@@ -37,7 +37,7 @@ internal class ElovaireMediaLibrarySessionCallback(
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         val parsed = ElovaireMediaIds.parse(parentId)
             ?: return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
-        if (page < 0 || pageSize < 0) {
+        if (!MediaLibraryRequestPolicy.acceptsPage(page, pageSize)) {
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         return Futures.immediateFuture(
@@ -61,7 +61,11 @@ internal class ElovaireMediaLibrarySessionCallback(
         query: String,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> {
-        return Futures.immediateFuture(LibraryResult.ofVoid(params))
+        return if (MediaLibraryRequestPolicy.acceptsSearchQuery(query)) {
+            Futures.immediateFuture(LibraryResult.ofVoid(params))
+        } else {
+            Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
+        }
     }
 
     override fun onGetSearchResult(
@@ -72,7 +76,10 @@ internal class ElovaireMediaLibrarySessionCallback(
         pageSize: Int,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
-        if (page < 0 || pageSize < 0) {
+        if (
+            !MediaLibraryRequestPolicy.acceptsSearchQuery(query) ||
+            !MediaLibraryRequestPolicy.acceptsPage(page, pageSize)
+        ) {
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         return Futures.immediateFuture(
@@ -149,7 +156,6 @@ internal class ElovaireMediaLibrarySessionCallback(
     }
 
     private fun pageItems(items: List<MediaItem>, page: Int, pageSize: Int): List<MediaItem> {
-        if (page < 0 || pageSize <= 0) return items
         val from = page.toLong() * pageSize.toLong()
         if (from >= items.size) return emptyList()
         val to = (from + pageSize.toLong()).coerceAtMost(items.size.toLong())

@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.tags.matching
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
+import elovaire.music.droidbeauty.app.core.runSuspendCatching
 import java.net.URLEncoder
 import java.util.Locale
 
@@ -21,7 +22,7 @@ internal class AlbumArtworkResolver(
 }
 
 internal class TidalArtworkProvider : AlbumArtworkProvider {
-    override suspend fun findArtwork(match: ResolvedAlbumMatch): Result<AlbumArtworkResult?> = runCatching {
+    override suspend fun findArtwork(match: ResolvedAlbumMatch): Result<AlbumArtworkResult?> = runSuspendCatching {
         val relationUrls = match.release.relatedUrls.filter { url ->
             url.contains("tidal.com", ignoreCase = true)
         }
@@ -40,7 +41,7 @@ internal class TidalArtworkProvider : AlbumArtworkProvider {
         }.distinct()
 
         pages.forEach { pageUrl ->
-            val html = runCatching { getText(pageUrl, "text/html,*/*;q=0.8") }.getOrNull()
+            val html = runSuspendCatching { getText(pageUrl, "text/html,*/*;q=0.8") }.getOrNull()
                 ?: return@forEach
             if (relationUrls.isEmpty() && !htmlMatchesRelease(html, match.release)) return@forEach
             val imageUrl = TIDAL_ARTWORK_REGEX.find(html)?.groupValues?.getOrNull(1)
@@ -48,8 +49,8 @@ internal class TidalArtworkProvider : AlbumArtworkProvider {
                 ?.replace("&amp;", "&")
                 ?.replace(Regex("""/\d{2,4}x\d{2,4}(?=\.jpg)"""), "/1280x1280")
                 ?: return@forEach
-            val bytes = runCatching { getBytes(imageUrl) }.getOrNull() ?: return@forEach
-            return@runCatching bytes.toArtworkResult(ArtworkSource.Tidal)
+            val bytes = runSuspendCatching { getBytes(imageUrl) }.getOrNull() ?: return@forEach
+            return@runSuspendCatching bytes.toArtworkResult(ArtworkSource.Tidal)
         }
         null
     }
@@ -71,7 +72,7 @@ internal class TidalArtworkProvider : AlbumArtworkProvider {
 }
 
 internal class CoverArtArchiveClient {
-    suspend fun getFrontCoverArt(releaseMbid: String): Result<AlbumArtworkResult?> = runCatching {
+    suspend fun getFrontCoverArt(releaseMbid: String): Result<AlbumArtworkResult?> = runSuspendCatching {
         val bytes = getBytes("https://coverartarchive.org/release/$releaseMbid/front-1200")
         bytes.toArtworkResult(ArtworkSource.CoverArtArchive)
     }

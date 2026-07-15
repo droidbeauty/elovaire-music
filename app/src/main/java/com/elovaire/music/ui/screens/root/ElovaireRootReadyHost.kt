@@ -29,7 +29,6 @@ internal fun ElovaireRootReadyHost(
     RootEffectsHost(
         composition = composition,
         uiRuntime = uiRuntime,
-        isPlaybackActuallyPlaying = isPlaybackActuallyPlaying,
     )
 
     val actionRuntime = rememberRootActionRuntime(

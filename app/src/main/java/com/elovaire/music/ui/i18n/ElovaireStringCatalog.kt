@@ -2249,6 +2249,29 @@ internal fun privacySafetyCopy(
             add(PrivacySafetySectionCopy(localTitle, localBody))
             add(PrivacySafetySectionCopy(deviceTitle, deviceBody))
             add(PrivacySafetySectionCopy(lyricsTitle, lyricsBody))
+            add(
+                PrivacySafetySectionCopy(
+                    "Online metadata and artwork",
+                    "Artist pages may send an artist name or MusicBrainz identifier to MusicBrainz, " +
+                        "TheAudioDB, Fanart.tv, or YouTube to find artwork. Metadata matching runs only " +
+                        "when you request it and may send an audio fingerprint, duration, title, artist, " +
+                        "or album to AcoustID and MusicBrainz. Providers receive the network address " +
+                        "needed to answer the request. Elovaire does not send file paths, local database " +
+                        "identifiers, or complete audio files. Responses and images are cached on your " +
+                        "device and removed when app data is cleared or the app is uninstalled.",
+                ),
+            )
+            add(
+                PrivacySafetySectionCopy(
+                    "Privacy policy",
+                    "Droid Beauty provides Elovaire without accounts, advertising, analytics, or data " +
+                        "sales. Portable settings may be included in Android backup; music, media " +
+                        "permissions, playback state, caches, and operation journals are excluded. You " +
+                        "can delete local app data through Android settings or by uninstalling Elovaire. " +
+                        "Privacy questions can be submitted through the Elovaire project support link " +
+                        "on the About screen. Effective July 15, 2026.",
+                ),
+            )
             if (includeUpdates) {
                 add(PrivacySafetySectionCopy(updatesTitle, updatesBody))
             }

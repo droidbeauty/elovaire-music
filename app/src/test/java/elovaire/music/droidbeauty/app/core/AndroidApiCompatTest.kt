@@ -17,13 +17,6 @@ class AndroidApiCompatTest {
     }
 
     @Test
-    fun notificationPermissionRequired_onlyOnAndroid13AndNewer() {
-        assertFalse(AndroidCapabilities.requiresNotificationPermission(Build.VERSION_CODES.S_V2))
-        assertTrue(AndroidCapabilities.requiresNotificationPermission(Build.VERSION_CODES.TIRAMISU))
-        assertTrue(AndroidCapabilities.requiresNotificationPermission(37))
-    }
-
-    @Test
     fun verifiedDirectPlaybackRouting_onlyOnAndroid13AndNewer() {
         assertFalse(AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION_CODES.S_V2))
         assertTrue(AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION_CODES.TIRAMISU))
