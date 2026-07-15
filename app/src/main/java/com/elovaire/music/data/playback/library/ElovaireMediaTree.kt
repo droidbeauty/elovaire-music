@@ -17,10 +17,23 @@ import elovaire.music.droidbeauty.app.domain.search.searchIndexedSongsForPicker
 import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
 import java.util.Locale
 
+internal interface MediaLibraryBrowser {
+    fun childrenOf(id: ElovaireMediaId): List<MediaItem>
+    fun item(mediaId: String): MediaItem?
+    fun search(query: String, limit: Int = 50): List<MediaItem>
+}
+
+internal interface MediaLibraryCommandResolver {
+    fun resolvePlayableQueue(mediaId: String): ResolvedPlayableQueue?
+    fun resolveSearchQueue(query: String): ResolvedPlayableQueue?
+    fun defaultPlayableQueue(): ResolvedPlayableQueue?
+    fun resumptionQueue(): ResolvedPlayableQueue?
+}
+
 internal class ElovaireMediaTree(
     private val libraryRepository: LibraryRepository,
     private val preferenceStore: RootSettingsReader,
-) {
+) : MediaLibraryBrowser, MediaLibraryCommandResolver {
     private val snapshotCache = MediaTreeSnapshotCache()
 
     fun onMemoryPressure(pressure: MemoryPressure) {
@@ -44,7 +57,7 @@ internal class ElovaireMediaTree(
         }
     }
 
-    fun childrenOf(id: ElovaireMediaId): List<MediaItem> {
+    override fun childrenOf(id: ElovaireMediaId): List<MediaItem> {
         val snapshot = snapshot()
         if (!snapshot.permissionGranted) {
             return if (id == ElovaireMediaId.Root) listOf(ElovaireMediaItems.permissionRequiredInfo()) else emptyList()
@@ -97,7 +110,7 @@ internal class ElovaireMediaTree(
         }
     }
 
-    fun item(mediaId: String): MediaItem? {
+    override fun item(mediaId: String): MediaItem? {
         val parsed = ElovaireMediaIds.parse(mediaId) ?: return null
         val snapshot = snapshot()
         return when (parsed) {
@@ -123,7 +136,7 @@ internal class ElovaireMediaTree(
         }
     }
 
-    fun resolvePlayableQueue(mediaId: String): ResolvedPlayableQueue? {
+    override fun resolvePlayableQueue(mediaId: String): ResolvedPlayableQueue? {
         val parsed = ElovaireMediaIds.parse(mediaId) ?: return null
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
@@ -172,7 +185,7 @@ internal class ElovaireMediaTree(
         }
     }
 
-    fun search(query: String, limit: Int = SEARCH_RESULT_LIMIT): List<MediaItem> {
+    override fun search(query: String, limit: Int): List<MediaItem> {
         val normalizedQuery = NormalizedSearchQuery.from(query)
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return emptyList()
@@ -224,7 +237,7 @@ internal class ElovaireMediaTree(
         }
     }
 
-    fun resolveSearchQueue(query: String): ResolvedPlayableQueue? {
+    override fun resolveSearchQueue(query: String): ResolvedPlayableQueue? {
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
         val normalizedQuery = NormalizedSearchQuery.from(query)
@@ -233,13 +246,13 @@ internal class ElovaireMediaTree(
         return null
     }
 
-    fun defaultPlayableQueue(): ResolvedPlayableQueue? {
+    override fun defaultPlayableQueue(): ResolvedPlayableQueue? {
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
         return defaultQueue(snapshot)
     }
 
-    fun resumptionQueue(): ResolvedPlayableQueue? {
+    override fun resumptionQueue(): ResolvedPlayableQueue? {
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
         val recentSong = snapshot.recentSongIds.firstNotNullOfOrNull { songId ->

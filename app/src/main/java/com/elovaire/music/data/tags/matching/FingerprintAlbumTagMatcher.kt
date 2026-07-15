@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.data.tags.matching
 import elovaire.music.droidbeauty.app.core.runSuspendCatching
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
-import java.util.Locale
 import kotlin.math.abs
 import kotlinx.coroutines.withTimeoutOrNull
 
@@ -102,8 +101,8 @@ internal class FingerprintAlbumTagMatcher(
             val coverage = match.trackMatches.size.toFloat() / album.songs.size.toFloat()
             match.confidence != MatchConfidence.Low &&
                 coverage >= HIGH_CONFIDENCE_ALBUM_COVERAGE &&
-                normalizedSimilarity(album.title, match.release.title) >= 0.78f &&
-                normalizedSimilarity(album.artist, match.release.albumArtist) >= 0.70f
+                remoteIdentitySimilarity(album.title, match.release.title) >= 0.78f &&
+                remoteIdentitySimilarity(album.artist, match.release.albumArtist) >= 0.70f
         }.maxByOrNull(ResolvedAlbumMatch::score)
     }
 
@@ -145,8 +144,8 @@ internal class FingerprintAlbumTagMatcher(
             }
         val coverage = trackMatches.size.toFloat() / album.songs.size.coerceAtLeast(1).toFloat()
         val averageTrackScore = trackMatches.map(ResolvedTrackMatch::score).average().takeIf { !it.isNaN() } ?: 0.0
-        val titleScore = normalizedSimilarity(album.title, release.title)
-        val artistScore = normalizedSimilarity(album.artist, release.albumArtist)
+        val titleScore = remoteIdentitySimilarity(album.title, release.title)
+        val artistScore = remoteIdentitySimilarity(album.artist, release.albumArtist)
         val score = (
             coverage * 100f +
                 averageTrackScore * 0.65 +
@@ -173,8 +172,8 @@ internal class FingerprintAlbumTagMatcher(
             TrackMatchSource.DiscAndTrackNumber -> 35
             TrackMatchSource.TitleDurationArtist -> 0
         }
-        val titleSimilarity = normalizedSimilarity(local.title, remote.title)
-        val artistSimilarity = normalizedSimilarity(local.artist, remote.artist)
+        val titleSimilarity = remoteIdentitySimilarity(local.title, remote.title)
+        val artistSimilarity = remoteIdentitySimilarity(local.artist, remote.artist)
         if (source != TrackMatchSource.FingerprintRecordingId && hasVariantMismatch(local.title, remote.title)) {
             return Int.MIN_VALUE
         }
@@ -195,29 +194,9 @@ internal class FingerprintAlbumTagMatcher(
     }
 
     private fun hasVariantMismatch(local: String, remote: String): Boolean {
-        val normalizedLocal = normalize(local)
-        val normalizedRemote = normalize(remote)
+        val normalizedLocal = normalizeRemoteIdentity(local, stripQualifiers = true)
+        val normalizedRemote = normalizeRemoteIdentity(remote, stripQualifiers = true)
         return VARIANT_TOKENS.any { token -> (token in normalizedLocal) != (token in normalizedRemote) }
-    }
-
-    private fun normalizedSimilarity(left: String, right: String): Float {
-        val normalizedLeft = normalize(left)
-        val normalizedRight = normalize(right)
-        if (normalizedLeft.isBlank() || normalizedRight.isBlank()) return 0f
-        if (normalizedLeft == normalizedRight) return 1f
-        if (normalizedLeft.contains(normalizedRight) || normalizedRight.contains(normalizedLeft)) return 0.85f
-        val leftTokens = normalizedLeft.split(' ').toSet()
-        val rightTokens = normalizedRight.split(' ').toSet()
-        return (leftTokens.intersect(rightTokens).size.toFloat() /
-            leftTokens.union(rightTokens).size.coerceAtLeast(1).toFloat()).coerceIn(0f, 1f)
-    }
-
-    private fun normalize(value: String): String {
-        return value.lowercase(Locale.ROOT)
-            .replace(Regex("""\([^)]*\)|\[[^]]*]"""), " ")
-            .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
-            .trim()
-            .replace(Regex("""\s+"""), " ")
     }
 
     private companion object {

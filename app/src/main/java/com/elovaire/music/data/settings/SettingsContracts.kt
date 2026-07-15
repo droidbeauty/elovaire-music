@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.StateFlow
@@ -91,6 +92,29 @@ internal interface PlaylistStore {
 internal interface FavoritesStore {
     fun toggleFavoriteSong(songId: Long)
     fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean)
+}
+
+internal interface PlaybackHistoryStore {
+    val albumPlayCounts: StateFlow<Map<Long, Int>>
+    val songPlayCounts: StateFlow<Map<Long, Int>>
+    val recentSongIds: StateFlow<List<Long>>
+    val recentAlbumIds: StateFlow<List<Long>>
+    val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?>
+    val lastPlayedCollectionId: StateFlow<Long?>
+
+    fun recordPlaybackTransition(songId: Long?, albumId: Long?)
+    fun setRecentPlaybackIds(
+        songIds: List<Long>,
+        albumIds: List<Long>,
+        lastPlayedCollectionKind: PlaybackCollectionKind?,
+        lastPlayedCollectionId: Long?,
+    )
+}
+
+internal interface SearchHistoryStore {
+    val searchHistory: StateFlow<List<SearchHistoryEntry>>
+    fun addSearchHistoryEntry(entry: SearchHistoryEntry)
+    fun clearSearchHistoryEntries()
 }
 
 internal interface UpdatePreferencesStore {

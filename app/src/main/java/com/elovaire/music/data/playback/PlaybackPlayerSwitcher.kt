@@ -19,6 +19,7 @@ internal class PlaybackPlayerSwitcher(
     ): ExoPlayer {
         var replacementPlayer: ExoPlayer? = null
         var replacementObserversAttached = false
+        var currentObserversDetached = false
         return try {
             val replacement = createPlayer(!useDirectPlayback)
             replacementPlayer = replacement
@@ -39,10 +40,11 @@ internal class PlaybackPlayerSwitcher(
                     replacement.play()
                 }
             }
+            detachPlayerObservers(currentPlayer)
+            currentObserversDetached = true
             onPlayerReplaced(replacement)
             applyPreferredAudioDevice(true)
             replacement.volume = targetPlayerOutputGain()
-            detachPlayerObservers(currentPlayer)
             currentPlayer.release()
             replacement
         } catch (_: Throwable) {
@@ -50,6 +52,9 @@ internal class PlaybackPlayerSwitcher(
                 replacementPlayer?.let { runCatching { detachPlayerObservers(it) } }
             }
             replacementPlayer?.let { runCatching { it.release() } }
+            if (currentObserversDetached) {
+                runCatching { attachPlayerObservers(currentPlayer) }
+            }
             currentPlayer
         }
     }

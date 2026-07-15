@@ -5,7 +5,6 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import elovaire.music.droidbeauty.app.core.runSuspendCatching
 import java.net.URLEncoder
-import java.util.Locale
 
 internal class AlbumArtworkResolver(
     private val tidalArtworkProvider: TidalArtworkProvider,
@@ -56,9 +55,9 @@ internal class TidalArtworkProvider : AlbumArtworkProvider {
     }
 
     private fun htmlMatchesRelease(html: String, release: MusicBrainzRelease): Boolean {
-        val normalizedHtml = normalize(html)
-        val normalizedTitle = normalize(release.title)
-        val normalizedArtist = normalize(release.albumArtist)
+        val normalizedHtml = normalizeRemoteIdentity(html)
+        val normalizedTitle = normalizeRemoteIdentity(release.title)
+        val normalizedArtist = normalizeRemoteIdentity(release.albumArtist)
         return normalizedTitle.length >= 3 && normalizedTitle in normalizedHtml &&
             (normalizedArtist.isBlank() || normalizedArtist in normalizedHtml)
     }
@@ -107,13 +106,6 @@ private fun ByteArray.toArtworkResult(source: ArtworkSource): AlbumArtworkResult
         height = bounds.outHeight,
         source = source,
     )
-}
-
-private fun normalize(value: String): String {
-    return value.lowercase(Locale.ROOT)
-        .replace(Regex("""[^\p{L}\p{N}]+"""), " ")
-        .trim()
-        .replace(Regex("""\s+"""), " ")
 }
 
 private const val MAX_ARTWORK_BYTES = 16 * 1024 * 1024

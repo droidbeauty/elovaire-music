@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.data.settings
 import android.content.Context
 import android.content.SharedPreferences
 import android.database.SQLException
-import android.net.Uri
 import android.util.Log
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
@@ -36,7 +35,6 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.serializeSmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.updateSmartPlaylistEntry
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
-import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -53,11 +51,13 @@ internal class RoomUserDataStore(
     private val dao: UserDataDao,
     scope: CoroutineScope,
     private val clock: AppClock = AndroidAppClock,
-) : CollectionSettingsStore, PlaylistStore, FavoritesStore {
+) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
     private val preferences = PreferenceStorage(context.applicationContext).preferences
     private val released = AtomicBoolean(false)
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
     private val operations = Channel<suspend () -> Unit>(Channel.UNLIMITED)
+    private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueue)
+    private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueue)
     private val ownerJob: Job = scope.launch {
         initialize()
         for (operation in operations) runOperation(operation)
@@ -74,27 +74,13 @@ internal class RoomUserDataStore(
     private val _favoriteSongIds = MutableStateFlow<List<Long>>(emptyList())
     override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
 
-    private val _albumPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
-    override val albumPlayCounts: StateFlow<Map<Long, Int>> = _albumPlayCounts.asStateFlow()
-
-    private val _songPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
-    override val songPlayCounts: StateFlow<Map<Long, Int>> = _songPlayCounts.asStateFlow()
-
-    private val _recentSongIds = MutableStateFlow<List<Long>>(emptyList())
-    override val recentSongIds: StateFlow<List<Long>> = _recentSongIds.asStateFlow()
-
-    private val _recentAlbumIds = MutableStateFlow<List<Long>>(emptyList())
-    override val recentAlbumIds: StateFlow<List<Long>> = _recentAlbumIds.asStateFlow()
-
-    private val _lastPlayedCollectionKind = MutableStateFlow<PlaybackCollectionKind?>(null)
-    override val lastPlayedCollectionKind: StateFlow<PlaybackCollectionKind?> =
-        _lastPlayedCollectionKind.asStateFlow()
-
-    private val _lastPlayedCollectionId = MutableStateFlow<Long?>(null)
-    override val lastPlayedCollectionId: StateFlow<Long?> = _lastPlayedCollectionId.asStateFlow()
-
-    private val _searchHistory = MutableStateFlow<List<SearchHistoryEntry>>(emptyList())
-    val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
+    override val albumPlayCounts get() = playbackHistoryStore.albumPlayCounts
+    override val songPlayCounts get() = playbackHistoryStore.songPlayCounts
+    override val recentSongIds get() = playbackHistoryStore.recentSongIds
+    override val recentAlbumIds get() = playbackHistoryStore.recentAlbumIds
+    override val lastPlayedCollectionKind get() = playbackHistoryStore.lastPlayedCollectionKind
+    override val lastPlayedCollectionId get() = playbackHistoryStore.lastPlayedCollectionId
+    override val searchHistory get() = searchHistoryStore.searchHistory
 
     override fun createPlaylist(name: String): Long {
         if (normalizePlaylistName(name).isBlank()) return -1L
@@ -227,72 +213,30 @@ internal class RoomUserDataStore(
         }
     }
 
-    fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
-        if (songId == null && albumId == null) return
-        enqueue {
-            songId?.takeIf { it != 0L }?.let { id ->
-                dao.incrementSongPlayCount(id)
-                _songPlayCounts.value = _songPlayCounts.value + (id to incrementPlayCount(_songPlayCounts.value[id]))
-            }
-            albumId?.takeIf { it != 0L }?.let { id ->
-                dao.incrementAlbumPlayCount(id)
-                _albumPlayCounts.value = _albumPlayCounts.value + (id to incrementPlayCount(_albumPlayCounts.value[id]))
-            }
-        }
+    override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
+        playbackHistoryStore.recordPlaybackTransition(songId, albumId)
     }
 
-    fun setRecentPlaybackIds(
+    override fun setRecentPlaybackIds(
         songIds: List<Long>,
         albumIds: List<Long>,
         lastPlayedCollectionKind: PlaybackCollectionKind?,
         lastPlayedCollectionId: Long?,
     ) {
-        val songs = normalizeRecentIds(songIds)
-        val albums = normalizeRecentIds(albumIds)
-        val collectionId = lastPlayedCollectionId?.takeIf { it != 0L }
-        enqueue {
-            if (
-                songs == _recentSongIds.value &&
-                albums == _recentAlbumIds.value &&
-                lastPlayedCollectionKind == _lastPlayedCollectionKind.value &&
-                collectionId == _lastPlayedCollectionId.value
-            ) return@enqueue
-            dao.replaceRecentPlayback(
-                entries = songs.toRecentEntities(RECENT_KIND_SONG) + albums.toRecentEntities(RECENT_KIND_ALBUM),
-                state = PlaybackCollectionStateEntity(
-                    kind = lastPlayedCollectionKind?.name,
-                    collectionId = collectionId,
-                ),
-            )
-            _recentSongIds.value = songs
-            _recentAlbumIds.value = albums
-            _lastPlayedCollectionKind.value = lastPlayedCollectionKind
-            _lastPlayedCollectionId.value = collectionId
-        }
+        playbackHistoryStore.setRecentPlaybackIds(
+            songIds,
+            albumIds,
+            lastPlayedCollectionKind,
+            lastPlayedCollectionId,
+        )
     }
 
-    fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
-        val normalized = entry.normalized() ?: return
-        enqueue {
-            val updated = buildList {
-                add(normalized)
-                _searchHistory.value.asSequence()
-                    .filter { it.key != normalized.key }
-                    .take(MAX_SEARCH_HISTORY - 1)
-                    .forEach(::add)
-            }
-            if (updated == _searchHistory.value) return@enqueue
-            dao.replaceSearchHistory(updated.mapIndexed { index, entry -> entry.toEntity(index) })
-            _searchHistory.value = updated
-        }
+    override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
+        searchHistoryStore.addSearchHistoryEntry(entry)
     }
 
-    fun clearSearchHistoryEntries() {
-        enqueue {
-            if (_searchHistory.value.isEmpty()) return@enqueue
-            dao.clearSearchHistory()
-            _searchHistory.value = emptyList()
-        }
+    override fun clearSearchHistoryEntries() {
+        searchHistoryStore.clearSearchHistoryEntries()
     }
 
     fun release() {
@@ -372,13 +316,15 @@ internal class RoomUserDataStore(
         publishPlaylists(snapshot.playlists)
         publishSmartPlaylists(snapshot.smartPlaylists)
         publishFavorites(snapshot.favoriteSongIds)
-        _songPlayCounts.value = snapshot.songPlayCounts
-        _albumPlayCounts.value = snapshot.albumPlayCounts
-        _recentSongIds.value = snapshot.recentSongIds
-        _recentAlbumIds.value = snapshot.recentAlbumIds
-        _lastPlayedCollectionKind.value = snapshot.lastPlayedCollectionKind
-        _lastPlayedCollectionId.value = snapshot.lastPlayedCollectionId
-        _searchHistory.value = snapshot.searchHistory
+        playbackHistoryStore.publish(
+            songCounts = snapshot.songPlayCounts,
+            albumCounts = snapshot.albumPlayCounts,
+            songIds = snapshot.recentSongIds,
+            albumIds = snapshot.recentAlbumIds,
+            collectionKind = snapshot.lastPlayedCollectionKind,
+            collectionId = snapshot.lastPlayedCollectionId,
+        )
+        searchHistoryStore.publish(snapshot.searchHistory)
         val maxId = sequenceOf(snapshot.playlists.maxOfOrNull(Playlist::id), snapshot.smartPlaylists.maxOfOrNull(SmartPlaylist::id))
             .filterNotNull()
             .maxOrNull()
@@ -424,8 +370,6 @@ internal class RoomUserDataStore(
     private companion object {
         const val TAG = "RoomUserDataStore"
         const val MIGRATION_ID = "shared_preferences_domain_data_v1"
-        const val MAX_SEARCH_HISTORY = 6
-        const val MAX_RECENT_PLAYBACK_IDS = 24
         const val RECENT_KIND_SONG = "song"
         const val RECENT_KIND_ALBUM = "album"
     }
@@ -541,43 +485,3 @@ private fun SmartPlaylist.toEntity(): UserSmartPlaylistEntity = UserSmartPlaylis
 
 private fun List<Long>.toRecentEntities(kind: String): List<RecentPlaybackEntity> =
     mapIndexed { index, id -> RecentPlaybackEntity(kind, id, index) }
-
-private fun normalizeRecentIds(ids: List<Long>): List<Long> = ids.asSequence()
-    .filter { it != 0L }
-    .distinct()
-    .take(24)
-    .toList()
-
-private fun SearchHistoryEntry.normalized(): SearchHistoryEntry? {
-    val normalized = copy(
-        key = key.trim(),
-        title = title.trim(),
-        subtitle = subtitle.trim(),
-        query = query?.trim()?.takeIf(String::isNotBlank),
-    )
-    return normalized.takeIf { it.key.isNotBlank() && it.title.isNotBlank() }
-}
-
-private fun SearchHistoryEntry.toEntity(position: Int): SearchHistoryEntity = SearchHistoryEntity(
-    entryKey = key,
-    kind = kind.name,
-    title = title,
-    subtitle = subtitle,
-    artUri = artUri?.toString(),
-    albumId = albumId,
-    query = query,
-    position = position,
-)
-
-private fun SearchHistoryEntity.toDomain(): SearchHistoryEntry? {
-    val parsedKind = SearchHistoryKind.entries.firstOrNull { it.name == kind } ?: return null
-    return SearchHistoryEntry(
-        key = entryKey,
-        kind = parsedKind,
-        title = title,
-        subtitle = subtitle,
-        artUri = artUri?.let(Uri::parse),
-        albumId = albumId,
-        query = query,
-    ).normalized()
-}

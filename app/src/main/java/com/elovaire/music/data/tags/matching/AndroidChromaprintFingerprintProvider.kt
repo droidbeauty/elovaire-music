@@ -22,52 +22,49 @@ import kotlinx.coroutines.withContext
 internal class AndroidChromaprintFingerprintProvider(
     context: Context,
     private val cache: TagMatchCache,
+    private val executionGate: FingerprintExecutionGate = FingerprintExecutionGate(),
 ) : AudioFingerprintProvider {
     private val appContext = context.applicationContext
     private val formatDetector = AudioFormatDetector(appContext)
 
-    override suspend fun fingerprint(song: Song): Result<AudioFingerprint> = withContext(Dispatchers.IO) {
-        try {
-            if (!AudioFormatPolicy.canFingerprint(song.fileName)) {
-                throw UnsupportedFingerprintFormat()
-            }
-            val detected = formatDetector.detect(song.uri, song.fileName, null)
-            if (
-                !detected.hasAudioTrack ||
-                detected.hasVideoTrack ||
-                AudioFormatPolicy.playbackSupport(detected) == PlaybackSupport.Unsupported
-            ) {
-                if (BuildConfig.DEBUG) {
-                    Log.d(TAG, "Fingerprint skipped: unsupported decode path")
+    override suspend fun fingerprint(song: Song): Result<AudioFingerprint> = executionGate.run {
+        withContext(Dispatchers.IO) {
+            try {
+                if (!AudioFormatPolicy.canFingerprint(song.fileName)) {
+                    throw UnsupportedFingerprintFormat()
                 }
-                throw UnsupportedFingerprintFormat()
-            }
-            val signature = fileSignature(song)
-            val cached = cache.getFingerprint(signature)
-            if (!cached.isNullOrBlank()) {
-                return@withContext Result.success(
-                    AudioFingerprint(
+                val detected = formatDetector.detect(song.uri, song.fileName, null)
+                if (
+                    !detected.hasAudioTrack ||
+                    detected.hasVideoTrack ||
+                    AudioFormatPolicy.playbackSupport(detected) == PlaybackSupport.Unsupported
+                ) {
+                    if (BuildConfig.DEBUG) Log.d(TAG, "Fingerprint skipped: unsupported decode path")
+                    throw UnsupportedFingerprintFormat()
+                }
+                val signature = fileSignature(song)
+                val cached = cache.getFingerprint(signature)
+                if (!cached.isNullOrBlank()) {
+                    return@withContext Result.success(AudioFingerprint(
                         songId = song.id,
                         durationSeconds = (song.durationMs / 1_000L).coerceAtLeast(1L).toInt(),
                         fingerprint = cached,
                         fileSignature = signature,
-                    ),
-                )
-            }
-            val generated = decodeFingerprint(song)
-            cache.putFingerprint(signature, generated)
-            Result.success(
-                AudioFingerprint(
+                    ))
+                }
+                val generated = decodeFingerprint(song)
+                cache.putFingerprint(signature, generated)
+                Result.success(AudioFingerprint(
                     songId = song.id,
                     durationSeconds = (song.durationMs / 1_000L).coerceAtLeast(1L).toInt(),
                     fingerprint = generated,
                     fileSignature = signature,
-                ),
-            )
-        } catch (throwable: CancellationException) {
-            throw throwable
-        } catch (throwable: Throwable) {
-            Result.failure(throwable)
+                ))
+            } catch (throwable: CancellationException) {
+                throw throwable
+            } catch (throwable: Throwable) {
+                Result.failure(throwable)
+            }
         }
     }
 
@@ -121,6 +118,7 @@ internal class AndroidChromaprintFingerprintProvider(
             var outputSampleRate = inputFormat.integerOrNull(MediaFormat.KEY_SAMPLE_RATE) ?: 44_100
             var outputChannels = inputFormat.integerOrNull(MediaFormat.KEY_CHANNEL_COUNT) ?: 2
             var outputEncoding = AudioFormat.ENCODING_PCM_16BIT
+            var fedSampleCount = 0L
 
             while (!outputEnded) {
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
@@ -166,12 +164,21 @@ internal class AndroidChromaprintFingerprintProvider(
                             outputBuffer.limit(bufferInfo.offset + bufferInfo.size)
                             val samples = outputBuffer.toPcm16(outputEncoding)
                             if (samples.isNotEmpty()) {
-                                check(nativeSession.feed(samples, samples.size)) {
+                                val maximumSamples = outputSampleRate.toLong() *
+                                    outputChannels.toLong() * MAX_FINGERPRINT_SECONDS
+                                val feedLength = minOf(
+                                    samples.size.toLong(),
+                                    (maximumSamples - fedSampleCount).coerceAtLeast(0L),
+                                ).toInt()
+                                if (feedLength > 0) check(nativeSession.feed(samples, feedLength)) {
                                     "Unable to process decoded audio."
                                 }
+                                fedSampleCount += feedLength
+                                if (fedSampleCount >= maximumSamples) outputEnded = true
                             }
                         }
-                        outputEnded = bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
+                        outputEnded = outputEnded ||
+                            bufferInfo.flags and MediaCodec.BUFFER_FLAG_END_OF_STREAM != 0
                         codec.releaseOutputBuffer(outputIndex, false)
                     }
                 }
@@ -210,6 +217,7 @@ internal class AndroidChromaprintFingerprintProvider(
 
     private companion object {
         const val CODEC_TIMEOUT_US = 10_000L
+        const val MAX_FINGERPRINT_SECONDS = 180L
         const val TAG = "AudioFingerprint"
     }
 }

@@ -102,7 +102,8 @@ internal class AppServices(
     init {
         playbackManager.setMediaLibrarySessionCallback(
             ElovaireMediaLibrarySessionCallback(
-                mediaTree = mediaTree,
+                browser = mediaTree,
+                commandResolver = mediaTree,
                 playbackManager = playbackManager,
             ),
         )

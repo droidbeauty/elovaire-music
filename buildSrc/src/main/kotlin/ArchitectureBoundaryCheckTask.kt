@@ -37,6 +37,27 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
                 violations += "$path declares a native entry point outside an approved bridge"
             }
             if (
+                ("registerAudioDeviceCallback" in text || "unregisterAudioDeviceCallback" in text) &&
+                !path.endsWith("/data/playback/PlaybackRuntimeResources.kt")
+            ) {
+                violations += "$path registers audio-device callbacks outside playback runtime resources"
+            }
+            if (
+                ("getSharedPreferences" in text || "SharedPreferences" in text) &&
+                SHARED_PREFERENCES_ALLOWED.none(path::endsWith)
+            ) {
+                violations += "$path accesses SharedPreferences outside an approved persistence boundary"
+            }
+            if (path.endsWith("ViewModel.kt") && "AppContainer" in text) {
+                violations += "$path depends on the broad application container"
+            }
+            if (
+                "CoroutineScope(SupervisorJob" in text &&
+                SUPERVISOR_SCOPE_ALLOWED.none(path::endsWith)
+            ) {
+                violations += "$path creates an unapproved independent supervisor scope"
+            }
+            if (
                 ("SharedPreferences" in text || "PreferenceStorage" in text) &&
                 LEGACY_USER_DATA_KEYS.any(text::contains) &&
                 !path.endsWith("/data/settings/RoomUserDataStore.kt")
@@ -59,6 +80,22 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         )
         val NATIVE_ALLOWED = setOf(
             "/data/tags/matching/AndroidChromaprintFingerprintProvider.kt",
+        )
+        val SHARED_PREFERENCES_ALLOWED = setOf(
+            "/core/AppExitDiagnostics.kt",
+            "/data/artist/ArtistImageRepository.kt",
+            "/data/playback/PlaybackSessionStore.kt",
+            "/data/playback/UsbDacHardwareVolumeManager.kt",
+            "/data/settings/PortableSettingsBackup.kt",
+            "/data/settings/PreferenceStorage.kt",
+            "/data/settings/PreferenceStore.kt",
+            "/data/settings/RoomUserDataStore.kt",
+            "/data/settings/UpdatePreferencesStoreImpl.kt",
+            "/data/tags/matching/TagMatchCache.kt",
+        )
+        val SUPERVISOR_SCOPE_ALLOWED = setOf(
+            "/data/lyrics/LyricsRepository.kt",
+            "/data/settings/PreferenceStore.kt",
         )
         val LEGACY_USER_DATA_KEYS = setOf(
             "\"favorite_song_ids\"",

@@ -16,7 +16,8 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 
 @OptIn(UnstableApi::class)
 internal class ElovaireMediaLibrarySessionCallback(
-    private val mediaTree: ElovaireMediaTree,
+    private val browser: MediaLibraryBrowser,
+    private val commandResolver: MediaLibraryCommandResolver,
     private val playbackManager: PlaybackManager,
 ) : MediaLibrarySession.Callback {
     override fun onGetLibraryRoot(
@@ -29,7 +30,7 @@ internal class ElovaireMediaLibrarySessionCallback(
 
     override fun onGetChildren(
         session: MediaLibrarySession,
-        browser: MediaSession.ControllerInfo,
+        controller: MediaSession.ControllerInfo,
         parentId: String,
         page: Int,
         pageSize: Int,
@@ -41,16 +42,16 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(pageItems(mediaTree.childrenOf(parsed), page, pageSize), params),
+            LibraryResult.ofItemList(pageItems(browser.childrenOf(parsed), page, pageSize), params),
         )
     }
 
     override fun onGetItem(
         session: MediaLibrarySession,
-        browser: MediaSession.ControllerInfo,
+        controller: MediaSession.ControllerInfo,
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
-        val item = mediaTree.item(mediaId)
+        val item = browser.item(mediaId)
             ?: return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         return Futures.immediateFuture(LibraryResult.ofItem(item, null))
     }
@@ -70,7 +71,7 @@ internal class ElovaireMediaLibrarySessionCallback(
 
     override fun onGetSearchResult(
         session: MediaLibrarySession,
-        browser: MediaSession.ControllerInfo,
+        controller: MediaSession.ControllerInfo,
         query: String,
         page: Int,
         pageSize: Int,
@@ -83,7 +84,7 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(pageItems(mediaTree.search(query), page, pageSize), params),
+            LibraryResult.ofItemList(pageItems(browser.search(query), page, pageSize), params),
         )
     }
 
@@ -96,12 +97,12 @@ internal class ElovaireMediaLibrarySessionCallback(
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val requested = mediaItems.getOrNull(startIndex.coerceAtLeast(0)) ?: mediaItems.firstOrNull()
         val resolved = requested?.let {
-            mediaTree.resolvePlayableQueue(it.mediaId)
-                ?: it.requestMetadata.searchQuery?.let(mediaTree::resolveSearchQueue)
-                ?: mediaTree.defaultPlayableQueue().takeIf { _ ->
+            commandResolver.resolvePlayableQueue(it.mediaId)
+                ?: it.requestMetadata.searchQuery?.let(commandResolver::resolveSearchQueue)
+                ?: commandResolver.defaultPlayableQueue().takeIf { _ ->
                     it.mediaId.isBlank() && it.requestMetadata.searchQuery.isNullOrBlank()
                 }
-        } ?: mediaTree.defaultPlayableQueue().takeIf { requested == null }
+        } ?: commandResolver.defaultPlayableQueue().takeIf { requested == null }
         if (resolved != null) {
             playResolvedQueue(resolved, startPositionMs)
             return Futures.immediateFuture(resolved.toMediaItemsWithStartPosition(startPositionMs))
@@ -116,7 +117,7 @@ internal class ElovaireMediaLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         isForPlayback: Boolean,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
-        val resolved = mediaTree.resumptionQueue()
+        val resolved = commandResolver.resumptionQueue()
             ?: return Futures.immediateFuture(emptyMediaItemsWithStartPosition())
         if (isForPlayback) {
             playResolvedQueue(resolved, C.TIME_UNSET)
