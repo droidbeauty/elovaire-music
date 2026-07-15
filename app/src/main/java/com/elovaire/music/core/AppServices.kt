@@ -7,33 +7,34 @@ import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
-import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenance
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(UnstableApi::class)
 internal class AppServices(
-    applicationContext: Context,
+    val applicationContext: Context,
     private val appScope: CoroutineScope,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
     private val released = AtomicBoolean(false)
+    val exitDiagnostics = AppExitDiagnostics(applicationContext)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
-    private var persistenceMaintenanceJob: Job? = null
+    private val portableSettingsBackup = PortableSettingsBackup(applicationContext).also { it.restoreAndStart() }
     val preferenceStore = PreferenceStore(applicationContext)
     val artistImageRepository = ArtistImageRepository(applicationContext, backgroundWorkPolicy)
     val appUpdateManager: UpdateController = AppUpdateManager(
@@ -60,6 +61,7 @@ internal class AppServices(
         initialLastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
         onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
     )
+    val playbackSessionStore = PlaybackSessionStore(applicationContext)
     val libraryRepository = LibraryRepository(
         appContext = applicationContext,
         scanner = MediaStoreScanner(applicationContext),
@@ -100,13 +102,6 @@ internal class AppServices(
         )
     }
 
-    fun scheduleDeferredMaintenance() {
-        if (released.get() || persistenceMaintenanceJob?.isActive == true) return
-        persistenceMaintenanceJob = appScope.launch {
-            PersistenceMaintenance(database.persistenceMaintenanceDao(), mediaMutationJournal).recoverAndPrune()
-        }
-    }
-
     fun onMemoryPressure(pressure: MemoryPressure) {
         lyricsService.onMemoryPressure(pressure)
         artistImageRepository.onMemoryPressure(pressure)
@@ -115,13 +110,12 @@ internal class AppServices(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        persistenceMaintenanceJob?.cancel()
-        persistenceMaintenanceJob = null
         appUpdateManager.release()
         lyricsService.release()
         playbackManager.release()
         libraryRepository.release()
         preferenceStore.release()
+        portableSettingsBackup.release()
         database.close()
     }
 }

@@ -16,6 +16,7 @@ import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import java.util.concurrent.ConcurrentHashMap
 
 internal enum class MediaMutationType {
     TagEdit,
@@ -60,7 +61,10 @@ internal class MediaMutationJournal(
     suspend fun create(operation: MediaMutationOperation): String = transitionMutex.withLock {
         val now = clock.wallTimeMs()
         val mutationId = operation.mutationId?.takeIf { it.isNotBlank() } ?: operationIdGenerator.nextId()
-        if (operation.mutationId != null && dao.mutation(mutationId) != null) return@withLock mutationId
+        if (operation.mutationId != null && dao.mutation(mutationId) != null) {
+            activeMutationIds += mutationId
+            return@withLock mutationId
+        }
         dao.upsertMutation(
             LibraryMutationEntity(
                 mutationId = mutationId,
@@ -76,6 +80,7 @@ internal class MediaMutationJournal(
                 error = null,
             ),
         )
+        activeMutationIds += mutationId
         backendEventSink.emitLazy {
             BackendEvent.MediaMutationStarted(
                 BackendOperationContext(mutationId, BackendSubsystem.MediaMutation, clock.elapsedTimeMs()).fields(
@@ -108,6 +113,7 @@ internal class MediaMutationJournal(
                 error = error,
             ),
         )
+        if (status.isTerminalMutationStatus()) activeMutationIds -= mutationId
     }
 
     suspend fun recoverIncomplete(): MediaMutationRecoveryResult {
@@ -116,7 +122,7 @@ internal class MediaMutationJournal(
         )
         val recovery = runCatching {
             var recoveredCount = 0
-            dao.recoverableMutations().forEach { mutation ->
+            dao.recoverableMutations().filterNot { it.mutationId in activeMutationIds }.forEach { mutation ->
                 val current = mutation.status.toMediaMutationStatusOrNull() ?: return@forEach
                 recoveryStatusFor(current)?.let { recoveredStatus ->
                     mark(mutation.mutationId, recoveredStatus, mutation.error)
@@ -151,6 +157,17 @@ internal class MediaMutationJournal(
         }
         return MediaMutationRecoveryResult.Success(recoveredCount)
     }
+
+    private companion object {
+        val activeMutationIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+    }
+}
+
+private fun MediaMutationStatus.isTerminalMutationStatus(): Boolean {
+    return this == MediaMutationStatus.Completed ||
+        this == MediaMutationStatus.Cancelled ||
+        this == MediaMutationStatus.Failed ||
+        this == MediaMutationStatus.NeedsRepair
 }
 
 internal sealed interface MediaMutationRecoveryResult {

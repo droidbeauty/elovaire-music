@@ -13,7 +13,7 @@ class AudioFocusStateMachineTest {
             AudioFocusStateMachine.actionFor(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT),
         )
         assertEquals(
-            AudioFocusAction.TransientLoss,
+            AudioFocusAction.Duck,
             AudioFocusStateMachine.actionFor(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK),
         )
         assertEquals(

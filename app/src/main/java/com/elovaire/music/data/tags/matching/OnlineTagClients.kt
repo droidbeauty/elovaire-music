@@ -222,7 +222,11 @@ internal class RequestRateLimiter(
 }
 
 internal fun getText(url: String): String {
-    return HTTP_TRANSPORT.getText(httpRequest(url, "application/json"), MAX_TEXT_RESPONSE_BYTES)
+    return getText(url, "application/json")
+}
+
+internal fun getText(url: String, accept: String): String {
+    return HTTP_TRANSPORT.getText(httpRequest(url, accept), MAX_TEXT_RESPONSE_BYTES)
 }
 
 internal fun getBytes(url: String): ByteArray {

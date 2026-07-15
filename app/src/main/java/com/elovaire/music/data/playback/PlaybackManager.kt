@@ -34,6 +34,7 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackFailureClassifier
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -81,7 +82,6 @@ enum class PlaybackCommandOrigin {
 private enum class InterruptionResumeReason {
     None,
     TransientFocusLoss,
-    PermanentLossWithActiveExternalMedia,
 }
 
 private data class InterruptionResumeState(
@@ -96,7 +96,6 @@ private data class InterruptionResumeState(
 private enum class PauseFadeReason {
     Manual,
     AudioInterruption,
-    BecomingNoisy,
 }
 
 private enum class ResumeFadeReason {
@@ -249,7 +248,7 @@ class PlaybackManager(
         )
         .setOnAudioFocusChangeListener(::handleAudioFocusChange)
         .setAcceptsDelayedFocusGain(false)
-        .setWillPauseWhenDucked(true)
+        .setWillPauseWhenDucked(false)
         .build()
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
@@ -276,6 +275,8 @@ class PlaybackManager(
         }
     }
     private var hasAudioFocus = false
+    private var focusRequestActive = false
+    private var duckedForAudioFocus = false
     private var isPauseTransitioningToStopped = false
     private var isManualPausePending = false
     private var shouldResumeAfterTransientFocusLoss = false
@@ -622,6 +623,40 @@ class PlaybackManager(
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
     }
 
+    internal fun restoreSession(
+        songs: List<Song>,
+        currentIndex: Int,
+        persisted: PersistedPlaybackSession,
+    ) {
+        if (released.get() || hasActiveQueue() || songs.isEmpty()) return
+        val index = currentIndex.coerceIn(songs.indices)
+        allowStrictModeDiskReads {
+            player.setMediaItems(
+                songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem),
+                index,
+                persisted.positionMs.coerceAtLeast(0L),
+            )
+        }
+        player.repeatMode = persisted.repeatMode.toPlayerRepeatMode()
+        player.shuffleModeEnabled = persisted.shuffleEnabled
+        player.playWhenReady = false
+        player.prepare()
+        queueMetadataRefresher.onQueueReplaced(songs)
+        _state.value = _state.value.copy(
+            queue = songs,
+            currentIndex = index,
+            isPlaying = false,
+            transportShowsPause = false,
+            repeatMode = persisted.repeatMode,
+            shuffleEnabled = persisted.shuffleEnabled,
+            sourceLabel = songs[index].album,
+            sourcePlaylistId = null,
+        )
+        publishProgressSnapshot(force = true)
+        syncRuntimeObservers()
+        syncProgressUpdateLoop()
+    }
+
     internal fun setProgressConsumerActive(
         consumer: PlaybackProgressConsumer,
         active: Boolean,
@@ -733,16 +768,18 @@ class PlaybackManager(
                 if (origin != PlaybackCommandOrigin.AudioInterruption) {
                     clearInterruptionResumeState()
                 }
-                if (origin != PlaybackCommandOrigin.InApp) {
+                if (origin == PlaybackCommandOrigin.BecomingNoisy) {
+                    cancelPauseFade(resetVolume = false)
+                    clearInterruptionResumeState()
+                    player.playWhenReady = false
+                    player.pause()
+                    abandonAudioFocus()
+                    isManualPausePending = false
+                    isPauseTransitioningToStopped = false
+                } else if (origin != PlaybackCommandOrigin.InApp) {
                     isManualPausePending = false
                     isPauseTransitioningToStopped = true
-                    beginPauseFadeOut(
-                        if (origin == PlaybackCommandOrigin.BecomingNoisy) {
-                            PauseFadeReason.BecomingNoisy
-                        } else {
-                            PauseFadeReason.AudioInterruption
-                        },
-                    )
+                    beginPauseFadeOut(PauseFadeReason.AudioInterruption)
                 } else if (!isManualPausePending && (player.isPlaying || player.playWhenReady)) {
                     isPauseTransitioningToStopped = true
                     isManualPausePending = true
@@ -1272,7 +1309,7 @@ class PlaybackManager(
     private fun beginPauseFadeOut(reason: PauseFadeReason) {
         if (!supportsSoftwarePlaybackFade()) {
             player.pause()
-            if (reason == PauseFadeReason.Manual || reason == PauseFadeReason.BecomingNoisy) {
+            if (reason == PauseFadeReason.Manual) {
                 abandonAudioFocus()
             }
             if (reason == PauseFadeReason.Manual) {
@@ -1299,7 +1336,7 @@ class PlaybackManager(
                 }
             }
             player.pause()
-            if (reason == PauseFadeReason.Manual || reason == PauseFadeReason.BecomingNoisy) {
+            if (reason == PauseFadeReason.Manual) {
                 abandonAudioFocus()
             }
             if (reason == PauseFadeReason.Manual) {
@@ -1325,21 +1362,28 @@ class PlaybackManager(
 
     private fun requestAudioFocus(): Boolean {
         if (hasAudioFocus) return true
+        if (focusRequestActive) return false
         val result = audioManager?.requestAudioFocus(audioFocusRequest)
         hasAudioFocus = result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        focusRequestActive = hasAudioFocus
         return hasAudioFocus
     }
 
     private fun abandonAudioFocus() {
-        if (!hasAudioFocus) return
-        audioManager?.abandonAudioFocusRequest(audioFocusRequest)
+        if (focusRequestActive) {
+            audioManager?.abandonAudioFocusRequest(audioFocusRequest)
+        }
         hasAudioFocus = false
+        focusRequestActive = false
+        duckedForAudioFocus = false
     }
 
     private fun handleAudioFocusChange(focusChange: Int) {
+        if (!focusRequestActive) return
         when (AudioFocusStateMachine.actionFor(focusChange)) {
             AudioFocusAction.Gain -> {
                 hasAudioFocus = true
+                duckedForAudioFocus = false
                 pendingAutoResumeRetryJob?.cancel()
                 pendingAutoResumeRetryJob = null
                 if (shouldKeepInterruptionResumeIntent()) {
@@ -1355,22 +1399,23 @@ class PlaybackManager(
             }
 
             AudioFocusAction.TransientLoss -> {
+                hasAudioFocus = false
                 handleTransientFocusLoss()
             }
 
-            AudioFocusAction.PermanentLoss -> {
-                val wasAudiblyPlaying = player.isPlaying ||
-                    player.playWhenReady ||
-                    _state.value.transportShowsPause
-                val looksLikeExternalMediaInterruption = wasAudiblyPlaying &&
-                    _state.value.queue.isNotEmpty() &&
-                    hasActiveExternalMediaPlayback()
-                if (looksLikeExternalMediaInterruption) {
-                    markInterruptedForResume(InterruptionResumeReason.PermanentLossWithActiveExternalMedia)
-                    scheduleExternalInterruptionResumeWatch()
+            AudioFocusAction.Duck -> {
+                if (supportsSoftwarePlaybackFade()) {
+                    duckedForAudioFocus = true
+                    player.volume = effectivePlayerGain()
+                    updateState()
                 } else {
-                    clearInterruptionResumeState()
+                    hasAudioFocus = false
+                    handleTransientFocusLoss()
                 }
+            }
+
+            AudioFocusAction.PermanentLoss -> {
+                clearInterruptionResumeState()
                 isManualPausePending = false
                 isPauseTransitioningToStopped = true
                 beginPauseFadeOut(PauseFadeReason.AudioInterruption)
@@ -1704,7 +1749,8 @@ class PlaybackManager(
 
     private fun effectivePlayerGain(): Float {
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
-        return effectiveDspState(baseGain).fineGain
+        val gain = effectiveDspState(baseGain).fineGain
+        return if (duckedForAudioFocus) gain * DUCK_GAIN else gain
     }
 
     private fun hasActiveSignalAlteringEffects(): Boolean {
@@ -1911,6 +1957,7 @@ class PlaybackManager(
         const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
         const val END_OF_SONG_TIMER_TOLERANCE_MS = 350L
+        const val DUCK_GAIN = 0.2f
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
         const val GAPLESS_TRANSITION_AUDIO_PATH_REEVALUATION_DELAY_MS = 650L
         const val EXTERNAL_INTERRUPTION_FAST_WATCH_MS = 10_000L

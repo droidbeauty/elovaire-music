@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.data.tags.matching
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
-import elovaire.music.droidbeauty.app.data.network.readBytesBounded
 import java.net.URLEncoder
 import java.util.Locale
 
@@ -41,7 +40,7 @@ internal class TidalArtworkProvider : AlbumArtworkProvider {
         }.distinct()
 
         pages.forEach { pageUrl ->
-            val html = runCatching { getTextContent(pageUrl, "text/html,*/*;q=0.8") }.getOrNull()
+            val html = runCatching { getText(pageUrl, "text/html,*/*;q=0.8") }.getOrNull()
                 ?: return@forEach
             if (relationUrls.isEmpty() && !htmlMatchesRelease(html, match.release)) return@forEach
             val imageUrl = TIDAL_ARTWORK_REGEX.find(html)?.groupValues?.getOrNull(1)
@@ -96,24 +95,6 @@ internal class EmbeddedArtworkProvider(context: Context) {
     }
 }
 
-private fun getTextContent(url: String, accept: String): String {
-    val connection = java.net.URL(url).openConnection() as java.net.HttpURLConnection
-    connection.connectTimeout = 8_000
-    connection.readTimeout = 8_000
-    connection.requestMethod = "GET"
-    connection.instanceFollowRedirects = true
-    connection.setRequestProperty("Accept", accept)
-    connection.setRequestProperty("User-Agent", "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)")
-    return try {
-        connection.inputStream.use { input ->
-            input.readBytesBounded(MAX_HTML_BYTES, connection.contentLengthLong)
-                .toString(Charsets.UTF_8)
-        }
-    } finally {
-        connection.disconnect()
-    }
-}
-
 private fun ByteArray.toArtworkResult(source: ArtworkSource): AlbumArtworkResult? {
     if (isEmpty() || size > MAX_ARTWORK_BYTES) return null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -135,4 +116,3 @@ private fun normalize(value: String): String {
 }
 
 private const val MAX_ARTWORK_BYTES = 16 * 1024 * 1024
-private const val MAX_HTML_BYTES = 1 * 1024 * 1024

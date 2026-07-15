@@ -2,12 +2,14 @@ package elovaire.music.droidbeauty.app.core
 
 import android.annotation.SuppressLint
 import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
+import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenanceWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
 
 @SuppressLint("UnsafeOptInUsageError")
 internal class AppBridgeCoordinator(
@@ -31,13 +33,16 @@ internal class AppBridgeCoordinator(
         library = services.libraryRepository,
         playback = services.playbackManager,
         effects = services.playbackEffectsController,
+        sessionStore = services.playbackSessionStore,
     )
     private val preferences = services.preferenceStore
     private val library = services.libraryRepository
     private val appUpdateManager = services.appUpdateManager
-    private val schedulePersistenceMaintenance = services::scheduleDeferredMaintenance
+    private val exitDiagnostics = services.exitDiagnostics
+    private val applicationContext = services.applicationContext
     private var started = false
     private var released = false
+    private var deferredStartupScheduled = false
 
     fun start() {
         if (started || released) return
@@ -50,15 +55,21 @@ internal class AppBridgeCoordinator(
     }
 
     fun scheduleDeferredStartupWork() {
-        if (!started) return
-        schedulePersistenceMaintenance()
-        appUpdateManager.scheduleStartupMaintenance()
+        if (!started || released || deferredStartupScheduled) return
+        deferredStartupScheduled = true
+        PersistenceMaintenanceWorker.enqueue(applicationContext)
+        bridgeScope.launch(Dispatchers.IO) {
+            if (!exitDiagnostics.inspect().suppressOptionalStartup) {
+                appUpdateManager.scheduleStartupMaintenance()
+            }
+        }
     }
 
     fun release() {
         if (released) return
         released = true
         started = false
+        playbackIntegration.release()
         bridgeScope.cancel()
     }
 }

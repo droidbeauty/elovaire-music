@@ -243,6 +243,7 @@ dependencies {
     implementation(libs.androidx.metrics.performance)
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
+    implementation(libs.androidx.work.runtime)
     implementation(libs.haze)
     implementation(libs.jaudiotagger)
     ksp(libs.androidx.room.compiler)
@@ -304,6 +305,18 @@ tasks.named("check") {
     dependsOn(checkDeprecatedAndroidApiUsage)
 }
 
+val checkArchitectureBoundaries = tasks.register<ArchitectureBoundaryCheckTask>("checkArchitectureBoundaries") {
+    sourceFiles.from(
+        fileTree("src/main/java") {
+            include("**/*.kt", "**/*.java")
+        },
+    )
+}
+
+tasks.named("check") {
+    dependsOn(checkArchitectureBoundaries)
+}
+
 val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertReleaseManifest") {
     dependsOn("processReleaseManifest")
     manifestFile.set(
@@ -311,6 +324,11 @@ val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertRele
             "intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml",
         ),
     )
+    backupRulesFile.set(layout.projectDirectory.file("src/main/res/xml/backup_rules.xml"))
+    dataExtractionRulesFile.set(layout.projectDirectory.file("src/main/res/xml/data_extraction_rules.xml"))
+    fileProviderPathsFile.set(layout.projectDirectory.file("src/main/res/xml/file_paths.xml"))
+    baselineProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/baseline-prof.txt"))
+    startupProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/startup-prof.txt"))
 }
 
 val validateReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validateReleaseNativePageSize") {
@@ -327,5 +345,6 @@ tasks.register("verifyReleaseReadiness") {
         "bundleRelease",
         assertReleaseManifest,
         validateReleaseNativePageSize,
+        ":buildHealth",
     )
 }

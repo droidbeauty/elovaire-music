@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
+import elovaire.music.droidbeauty.app.data.network.HttpRequest
+import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -71,7 +73,6 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
-import java.net.URL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -611,13 +612,17 @@ private fun AboutEntryLogo(
         value = withContext(Dispatchers.IO) {
             runCatching {
                 when {
-                    source.startsWith("http://", ignoreCase = true) ||
-                        source.startsWith("https://", ignoreCase = true) -> {
-                        URL(source).openConnection().run {
-                            connectTimeout = 2_500
-                            readTimeout = 2_500
-                            getInputStream().use { BitmapFactory.decodeStream(it) }
-                        }
+                    source.startsWith("https://", ignoreCase = true) -> {
+                        val bytes = HttpTransport().getBytes(
+                            HttpRequest(
+                                url = source,
+                                accept = "image/*",
+                                connectTimeoutMs = 2_500,
+                                readTimeoutMs = 2_500,
+                            ),
+                            maxBytes = MAX_ABOUT_LOGO_BYTES,
+                        )
+                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
                     }
 
                     else -> context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
@@ -673,6 +678,8 @@ private fun AboutEntryLogo(
         }
     }
 }
+
+private const val MAX_ABOUT_LOGO_BYTES = 2 * 1024 * 1024
 
 private fun Context.resolveAboutLogoDrawableRes(logoUri: String?): Int? {
     val source = logoUri?.trim()?.takeIf { it.isNotBlank() } ?: return null

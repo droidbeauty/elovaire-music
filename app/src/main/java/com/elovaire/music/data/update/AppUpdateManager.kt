@@ -443,7 +443,7 @@ internal class AppUpdateManager(
             targetFile.delete()
         }
         val parsedUrl = URL(release.downloadUrl)
-        require(parsedUrl.protocol == "https") { "Update source is invalid" }
+        require(isTrustedUpdateDownloadUrl(parsedUrl)) { "Update source is invalid" }
         val connection = (parsedUrl.openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = NETWORK_TIMEOUT_MS
@@ -455,7 +455,7 @@ internal class AppUpdateManager(
         try {
             TrafficStats.setThreadStatsTag(UPDATE_TRAFFIC_STATS_TAG)
             connection.connect()
-            if (connection.url.protocol != "https") {
+            if (!isTrustedUpdateDownloadUrl(connection.url)) {
                 throw IllegalStateException("Update source is invalid")
             }
             if (connection.responseCode !in 200..299) {
@@ -731,6 +731,12 @@ internal class AppUpdateManager(
         const val UPDATE_TRAFFIC_STATS_TAG = 0x454C5550
         const val APK_MIME_TYPE = "application/vnd.android.package-archive"
     }
+}
+
+internal fun isTrustedUpdateDownloadUrl(url: URL): Boolean {
+    if (url.protocol != "https") return false
+    val host = url.host.lowercase(Locale.ROOT)
+    return host == "github.com" || host.endsWith(".github.com") || host.endsWith(".githubusercontent.com")
 }
 
 private const val DEFAULT_DOWNLOAD_PROGRESS_DELTA = 0.01f

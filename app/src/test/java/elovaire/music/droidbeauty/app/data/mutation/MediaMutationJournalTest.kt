@@ -71,6 +71,22 @@ class MediaMutationJournalTest {
         assertEquals(MediaMutationStatus.NeedsPermission.name, stored.getValue("permission-retry").status)
         journal.mark("permission-retry", MediaMutationStatus.PermissionGranted)
         assertEquals(MediaMutationStatus.PermissionGranted.name, stored.getValue("permission-retry").status)
+        journal.mark("permission-retry", MediaMutationStatus.Failed)
+    }
+
+    @Test
+    fun startupRecoveryDoesNotTouchActiveForegroundMutation() = runBlocking {
+        val stored = mutableMapOf<String, LibraryMutationEntity>()
+        val dao = libraryDao(stored)
+        val foregroundJournal = MediaMutationJournal(dao, FixedClock, { "active" }, NoOpBackendEventSink)
+        val recoveryJournal = MediaMutationJournal(dao, FixedClock, { "recovery" }, NoOpBackendEventSink)
+
+        foregroundJournal.create(MediaMutationOperation(type = MediaMutationType.TagEdit))
+        val result = recoveryJournal.recoverIncomplete()
+
+        assertEquals(MediaMutationStatus.Created.name, stored.getValue("active").status)
+        assertEquals(0, (result as MediaMutationRecoveryResult.Success).recoveredCount)
+        foregroundJournal.mark("active", MediaMutationStatus.Cancelled)
     }
 
     private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): LibraryDao {
@@ -85,6 +101,7 @@ class MediaMutationJournalTest {
                     stored[entity.mutationId] = entity
                     Unit
                 }
+                "recoverableMutations" -> stored.values.toList()
                 "toString" -> "TestLibraryDao"
                 else -> error("Unexpected DAO call: ${method.name}")
             }

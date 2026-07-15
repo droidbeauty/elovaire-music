@@ -7,7 +7,7 @@ internal class PreferenceStorage(context: Context) {
     val preferences: SharedPreferences =
         context.applicationContext.getSharedPreferences(PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
 
-    private companion object {
+    companion object {
         const val PREFERENCE_FILE_NAME = "elovaire_preferences"
     }
 }

@@ -1,0 +1,48 @@
+import org.gradle.api.DefaultTask
+import org.gradle.api.GradleException
+import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.tasks.InputFiles
+import org.gradle.api.tasks.PathSensitive
+import org.gradle.api.tasks.PathSensitivity
+import org.gradle.api.tasks.TaskAction
+
+abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
+    @get:InputFiles
+    @get:PathSensitive(PathSensitivity.RELATIVE)
+    abstract val sourceFiles: ConfigurableFileCollection
+
+    @TaskAction
+    fun checkBoundaries() {
+        val violations = mutableListOf<String>()
+        sourceFiles.files.filter { it.isFile }.forEach { file ->
+            val path = file.invariantSeparatorsPath
+            val text = file.readText()
+            if ("GlobalScope" in text) violations += "$path uses GlobalScope"
+            if ("/ui/" in path && "elovaire.music.droidbeauty.app.data.library.db" in text) {
+                violations += "$path imports the library database implementation"
+            }
+            if ("MediaStore.createWriteRequest" in text && !path.endsWith("/platform/MediaStoreAccessRequests.kt")) {
+                violations += "$path creates MediaStore write requests outside the platform boundary"
+            }
+            if ("BitmapFactory" in text && BITMAP_ALLOWED.none(path::endsWith)) {
+                violations += "$path decodes bitmaps outside the approved image boundaries"
+            }
+            if (("HttpURLConnection" in text || ".openConnection(" in text) && HTTP_ALLOWED.none(path::endsWith)) {
+                violations += "$path opens an ad hoc HTTP connection"
+            }
+        }
+        if (violations.isNotEmpty()) throw GradleException(violations.joinToString(separator = "\n"))
+    }
+
+    private companion object {
+        val BITMAP_ALLOWED = setOf(
+            "/data/artwork/ArtworkLoader.kt",
+            "/data/tags/matching/AlbumArtworkResolver.kt",
+            "/ui/screens/about/AboutScreens.kt",
+        )
+        val HTTP_ALLOWED = setOf(
+            "/data/network/HttpTransport.kt",
+            "/data/update/AppUpdateManager.kt",
+        )
+    }
+}

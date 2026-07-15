@@ -23,6 +23,7 @@ internal class HttpTransportException(
     val kind: HttpFailureKind,
     message: String,
     cause: Throwable? = null,
+    val statusCode: Int? = null,
 ) : java.io.IOException(message, cause)
 
 internal class HttpTransport {
@@ -105,7 +106,11 @@ internal class HttpTransport {
     }
 
     private fun httpStatusFailure(status: Int): HttpTransportException {
-        return HttpTransportException(HttpFailureKind.HttpStatus, "The server returned HTTP $status.")
+        return HttpTransportException(
+            kind = HttpFailureKind.HttpStatus,
+            message = "The server returned HTTP $status.",
+            statusCode = status,
+        )
     }
 
     private fun ensureHttps(connection: HttpURLConnection) {

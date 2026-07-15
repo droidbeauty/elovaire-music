@@ -21,6 +21,7 @@ detekt = "2.0.0-alpha.5"
 dependencyAnalysis = "3.16.0"
 leakcanary = "2.14"
 room = "2.8.4"
+work = "2.11.2"
 ksp = "2.3.9"
 
 [libraries]
@@ -46,6 +47,7 @@ androidx-metrics-performance = { group = "androidx.metrics", name = "metrics-per
 androidx-room-runtime = { group = "androidx.room", name = "room-runtime", version.ref = "room" }
 androidx-room-ktx = { group = "androidx.room", name = "room-ktx", version.ref = "room" }
 androidx-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref = "room" }
+androidx-work-runtime = { group = "androidx.work", name = "work-runtime", version.ref = "work" }
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 jaudiotagger = { group = "net.jthink", name = "jaudiotagger", version.ref = "jaudiotagger" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }

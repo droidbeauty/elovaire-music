@@ -4,7 +4,10 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
-import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
+import elovaire.music.droidbeauty.app.data.network.HttpFailureKind
+import elovaire.music.droidbeauty.app.data.network.HttpRequest
+import elovaire.music.droidbeauty.app.data.network.HttpTransport
+import elovaire.music.droidbeauty.app.data.network.HttpTransportException
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CancellationException
@@ -21,8 +24,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 import java.util.Collections
@@ -216,6 +217,7 @@ internal class LrcLibLyricsProvider(
 private class DefaultLrcLibApi(
     private val clock: AppClock = AndroidAppClock,
 ) : LrcLibApi {
+    private val httpTransport = HttpTransport()
     private val rateLimitMutex = Mutex()
     private val requestTimestampsMs = ArrayDeque<Long>()
 
@@ -273,11 +275,21 @@ private class DefaultLrcLibApi(
         repeat(NETWORK_RETRY_ATTEMPTS) { attempt ->
             awaitRateLimitSlot()
             try {
-                val connection = (URL(url).openConnection() as? HttpURLConnection)
-                    ?: return null
-                return connection.useRequest(baseUrl)
+                return httpTransport.getText(
+                    HttpRequest(
+                        url = url,
+                        accept = "application/json",
+                        headers = mapOf(
+                            "User-Agent" to "Elovaire/${BuildConfig.VERSION_NAME} (Android; Music Player)",
+                        ),
+                        connectTimeoutMs = CONNECT_TIMEOUT_MS,
+                        readTimeoutMs = READ_TIMEOUT_MS,
+                    ),
+                    maxBytes = MAX_RESPONSE_BYTES,
+                )
             } catch (throwable: Throwable) {
                 if (throwable is CancellationException) throw throwable
+                if (throwable is HttpTransportException && throwable.statusCode == 404) return null
                 if (!shouldRetry(throwable) || attempt == NETWORK_RETRY_ATTEMPTS - 1) {
                     if (BuildConfig.DEBUG) {
                         Log.d(TAG, "lrclib request failed", throwable)
@@ -319,35 +331,10 @@ private class DefaultLrcLibApi(
     private fun shouldRetry(throwable: Throwable): Boolean {
         return when (throwable) {
             is java.util.concurrent.CancellationException -> false
+            is HttpTransportException -> throwable.kind == HttpFailureKind.Transport ||
+                throwable.statusCode?.let { it == 429 || it in 500..599 } == true
             is IOException -> true
-            is LrcLibHttpException -> throwable.statusCode == 429 || throwable.statusCode in 500..599
             else -> false
-        }
-    }
-
-    private fun HttpURLConnection.useRequest(endpoint: String): String? {
-        return try {
-            requestMethod = "GET"
-            connectTimeout = CONNECT_TIMEOUT_MS
-            readTimeout = READ_TIMEOUT_MS
-            setRequestProperty(
-                "User-Agent",
-                "Elovaire/${BuildConfig.VERSION_NAME} (Android; Music Player)",
-            )
-            setRequestProperty("Accept", "application/json")
-            val responseCode = responseCode
-            if (BuildConfig.DEBUG) {
-                Log.d(TAG, "lrclib ${endpoint.substringAfterLast('/')} status=$responseCode")
-            }
-            when {
-                responseCode == 404 -> null
-                responseCode !in 200..299 -> throw LrcLibHttpException(responseCode)
-                else -> inputStream.use { input ->
-                    input.readUtf8Bounded(MAX_RESPONSE_BYTES, contentLengthLong)
-                }
-            }
-        } finally {
-            disconnect()
         }
     }
 
@@ -432,7 +419,3 @@ private class DefaultLrcLibApi(
         const val NETWORK_RETRY_INITIAL_DELAY_MS = 350L
     }
 }
-
-private class LrcLibHttpException(
-    val statusCode: Int,
-) : IOException("LRCLIB HTTP $statusCode")
