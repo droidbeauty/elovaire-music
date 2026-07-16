@@ -613,7 +613,7 @@ private fun AboutEntryLogo(
             runCatching {
                 when {
                     source.startsWith("https://", ignoreCase = true) -> {
-                        val bytes = HttpTransport().getBytes(
+                        val bytes = HttpTransport.getBytes(
                             HttpRequest(
                                 url = source,
                                 accept = "image/*",

@@ -51,7 +51,7 @@ internal class LocalLyricsResolver(
             parseLrcOrPlain(rawLyrics, providerName = "Embedded", confidence = 100)
                 ?.takeIf { it.lines.isNotEmpty() }
                 ?.let(::LocalLyricsMatch)
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             null
         } finally {
             runCatching { tempFile.delete() }
@@ -329,7 +329,7 @@ internal class LocalLyricsResolver(
     }
 
     private fun sanitizeFileStem(value: String): String {
-        return value.replace(Regex("""[\\/:*?"<>|]"""), "").trim()
+        return value.replace(INVALID_SIDECAR_FILE_NAME_REGEX, "").trim()
     }
 
     private fun decodeTextPayload(bytes: ByteArray, encoding: Int): String? {
@@ -426,7 +426,7 @@ internal class LocalLyricsResolver(
     private fun String.removeBom(): String = removePrefix("\uFEFF")
 
     private fun looksLikeTimedLyrics(value: String): Boolean {
-        return Regex("""\[(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""").containsMatchIn(value)
+        return EXTENDED_LRC_TIMESTAMP_REGEX.containsMatchIn(value)
     }
 
     private companion object {
@@ -442,5 +442,8 @@ internal class LocalLyricsResolver(
         const val ID3_TIMESTAMP_MILLISECONDS = 0x02
         val FLAC_SYNCED_KEYS = setOf("SYNCEDLYRICS", "LRC", "LYRICSTIMED")
         val FLAC_PLAIN_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "UNSYNCEDTEXT", "TEXT")
+        val INVALID_SIDECAR_FILE_NAME_REGEX = Regex("""[\\/:*?"<>|]""")
+        val EXTENDED_LRC_TIMESTAMP_REGEX =
+            Regex("""\[(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
     }
 }

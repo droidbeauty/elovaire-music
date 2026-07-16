@@ -331,9 +331,9 @@ class PreferenceStore internal constructor(
         updatePreferencesStore.setLastAutomaticUpdateCheckAtMs(timestampMs)
     }
 
-    fun release() {
+    fun release(onUserDataDrained: () -> Unit = {}) {
         flushEqSettingsPersistence(commit = true)
-        userDataStore.release()
+        userDataStore.release(onUserDataDrained)
         preferenceScope.cancel()
     }
 
@@ -598,8 +598,11 @@ class PreferenceStore internal constructor(
     }
 }
 
-internal fun incrementPlayCount(current: Int?): Int {
-    return current?.coerceIn(0, Int.MAX_VALUE - 1)?.plus(1) ?: 1
+internal fun incrementPlayCount(current: Int?, increment: Int = 1): Int {
+    val safeIncrement = increment.coerceAtLeast(0)
+    return current?.coerceAtLeast(0)?.let { value ->
+        (value.toLong() + safeIncrement).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
+    } ?: safeIncrement
 }
 
 internal fun normalizeFavoriteSongIds(songIds: Iterable<Long>): List<Long> {

@@ -76,6 +76,24 @@ internal data class AlbumArtworkResult(
     val height: Int?,
     val source: ArtworkSource,
 ) {
+    override fun equals(other: Any?): Boolean {
+        return this === other || (
+            other is AlbumArtworkResult &&
+                bytes.contentEquals(other.bytes) &&
+                width == other.width &&
+                height == other.height &&
+                source == other.source
+            )
+    }
+
+    override fun hashCode(): Int {
+        var result = bytes.contentHashCode()
+        result = 31 * result + (width ?: 0)
+        result = 31 * result + (height ?: 0)
+        result = 31 * result + source.hashCode()
+        return result
+    }
+
     fun isAcceptableForEmbedding(): Boolean {
         val imageWidth = width ?: return false
         val imageHeight = height ?: return false

@@ -46,7 +46,7 @@ internal class TidalArtworkProvider : AlbumArtworkProvider {
             val imageUrl = TIDAL_ARTWORK_REGEX.find(html)?.groupValues?.getOrNull(1)
                 ?.replace("\\/", "/")
                 ?.replace("&amp;", "&")
-                ?.replace(Regex("""/\d{2,4}x\d{2,4}(?=\.jpg)"""), "/1280x1280")
+                ?.replace(TIDAL_IMAGE_SIZE_REGEX, "/1280x1280")
                 ?: return@forEach
             val bytes = runSuspendCatching { getBytes(imageUrl) }.getOrNull() ?: return@forEach
             return@runSuspendCatching bytes.toArtworkResult(ArtworkSource.Tidal)
@@ -67,6 +67,7 @@ internal class TidalArtworkProvider : AlbumArtworkProvider {
             """(https:\\?/\\?/resources\.tidal\.com/images/[a-z0-9/]+/(?:1280x1280|750x750|640x640)\.jpg)""",
             RegexOption.IGNORE_CASE,
         )
+        val TIDAL_IMAGE_SIZE_REGEX = Regex("""/\d{2,4}x\d{2,4}(?=\.jpg)""")
     }
 }
 
@@ -86,7 +87,7 @@ internal class EmbeddedArtworkProvider(context: Context) {
             try {
                 retriever.setDataSource(appContext, song.uri)
                 retriever.embeddedPicture?.toArtworkResult(ArtworkSource.Embedded)
-            } catch (_: Throwable) {
+            } catch (_: Exception) {
                 null
             } finally {
                 runCatching { retriever.release() }

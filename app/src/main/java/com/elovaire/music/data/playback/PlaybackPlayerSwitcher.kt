@@ -47,7 +47,7 @@ internal class PlaybackPlayerSwitcher(
             replacement.volume = targetPlayerOutputGain()
             currentPlayer.release()
             replacement
-        } catch (_: Throwable) {
+        } catch (_: RuntimeException) {
             if (replacementObserversAttached) {
                 replacementPlayer?.let { runCatching { detachPlayerObservers(it) } }
             }

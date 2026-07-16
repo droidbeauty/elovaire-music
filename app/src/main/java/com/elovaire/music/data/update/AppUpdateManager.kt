@@ -69,7 +69,7 @@ internal class AppUpdateManager(
     private val clock: AppClock = AndroidAppClock,
 ) : UpdateController {
     private val appContext = context.applicationContext
-    private val httpTransport = HttpTransport()
+    private val httpTransport = HttpTransport
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     override val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
     private var checkJob: Job? = null

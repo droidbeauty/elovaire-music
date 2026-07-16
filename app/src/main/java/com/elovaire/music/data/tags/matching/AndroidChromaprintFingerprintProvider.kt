@@ -27,6 +27,7 @@ internal class AndroidChromaprintFingerprintProvider(
     private val appContext = context.applicationContext
     private val formatDetector = AudioFormatDetector(appContext)
 
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun fingerprint(song: Song): Result<AudioFingerprint> = executionGate.run {
         withContext(Dispatchers.IO) {
             try {
@@ -62,8 +63,10 @@ internal class AndroidChromaprintFingerprintProvider(
                 ))
             } catch (throwable: CancellationException) {
                 throw throwable
-            } catch (throwable: Throwable) {
+            } catch (throwable: Exception) {
                 Result.failure(throwable)
+            } catch (failure: LinkageError) {
+                Result.failure(failure)
             }
         }
     }

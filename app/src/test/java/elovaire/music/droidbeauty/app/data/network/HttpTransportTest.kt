@@ -10,7 +10,7 @@ class HttpTransportTest {
     @Test
     fun rejectsNonHttpsBeforeOpeningConnection() {
         try {
-            HttpTransport().getText(HttpRequest("http://example.com", "text/plain"), 16)
+            HttpTransport.getText(HttpRequest("http://example.com", "text/plain"), 16)
             fail("Expected non-HTTPS request to fail")
         } catch (failure: HttpTransportException) {
             assertEquals(HttpFailureKind.InvalidUrl, failure.kind)
@@ -20,7 +20,7 @@ class HttpTransportTest {
     @Test
     fun rejectsMalformedUrlDeterministically() {
         try {
-            HttpTransport().getText(HttpRequest("not a url", "text/plain"), 16)
+            HttpTransport.getText(HttpRequest("not a url", "text/plain"), 16)
             fail("Expected malformed request to fail")
         } catch (failure: HttpTransportException) {
             assertEquals(HttpFailureKind.InvalidUrl, failure.kind)

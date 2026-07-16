@@ -11,7 +11,7 @@ import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 class ElovaireApp : Application(), Configuration.Provider {
     private val containerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         ElovaireTrace.section("app_container_create") {
-            AppContainer(this).also(AppContainer::start)
+            AppContainer(this)
         }
     }
     val container: AppContainer get() = containerDelegate.value

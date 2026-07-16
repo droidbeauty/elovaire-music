@@ -82,7 +82,7 @@ internal class AudioFormatDetector(context: Context) {
                     ?.div(1_000L),
                 evidence = DetectionEvidence.Extractor,
             )
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             val container = AudioFormatPolicy.resolveContainer(extension, mediaStoreMimeType, null)
             DetectedAudioFormat(
                 container = container,

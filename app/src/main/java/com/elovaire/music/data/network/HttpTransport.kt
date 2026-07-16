@@ -26,7 +26,7 @@ internal class HttpTransportException(
     val statusCode: Int? = null,
 ) : java.io.IOException(message, cause)
 
-internal class HttpTransport {
+internal object HttpTransport {
     fun getText(request: HttpRequest, maxBytes: Int): String {
         validateHttpRequest(request, maxBytes)
         return execute(request) { connection ->

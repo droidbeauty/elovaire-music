@@ -12,14 +12,16 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
     override fun onGetSession(
         controllerInfo: MediaSession.ControllerInfo,
     ): MediaLibrarySession? {
-        return (application as ElovaireApp)
-            .container
+        return (application as ElovaireApp).container
+            .also { it.startPlayback() }
             .playbackManager
             .mediaLibrarySession
     }
 
     override fun onTaskRemoved(rootIntent: android.content.Intent?) {
-        val playbackManager = (application as ElovaireApp).container.playbackManager
+        val playbackManager = (application as ElovaireApp).container
+            .also { it.startPlayback() }
+            .playbackManager
         if (!playbackManager.state.value.transportShowsPause) {
             stopSelf()
         }

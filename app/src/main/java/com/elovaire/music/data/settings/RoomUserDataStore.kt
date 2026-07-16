@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.database.SQLException
 import android.util.Log
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.library.db.AlbumPlayCountEntity
@@ -36,11 +37,15 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.updateSmartPlaylistEnt
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -49,18 +54,25 @@ import kotlinx.coroutines.launch
 internal class RoomUserDataStore(
     context: Context,
     private val dao: UserDataDao,
-    scope: CoroutineScope,
     private val clock: AppClock = AndroidAppClock,
 ) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
     private val preferences = PreferenceStorage(context.applicationContext).preferences
     private val released = AtomicBoolean(false)
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
+    // Mandatory non-suspending mutations cannot be dropped or block the main thread. High-frequency
+    // history writes are coalesced before entering this serialized persistence queue.
     private val operations = Channel<suspend () -> Unit>(Channel.UNLIMITED)
+    private val operationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val queueDepth = AtomicInteger()
+    private val maxQueueDepth = AtomicInteger()
     private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueue)
     private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueue)
-    private val ownerJob: Job = scope.launch {
+    private val ownerJob: Job = operationScope.launch {
         initialize()
-        for (operation in operations) runOperation(operation)
+        for (operation in operations) {
+            queueDepth.decrementAndGet()
+            runOperation(operation)
+        }
     }
 
     private val _userPlaylists = MutableStateFlow<List<Playlist>>(emptyList())
@@ -239,10 +251,16 @@ internal class RoomUserDataStore(
         searchHistoryStore.clearSearchHistoryEntries()
     }
 
-    fun release() {
+    fun release(onDrained: () -> Unit = {}) {
         if (!released.compareAndSet(false, true)) return
         operations.close()
-        ownerJob.cancel()
+        ownerJob.invokeOnCompletion {
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "User-data queue drained maxDepth=${maxQueueDepth.get()}")
+            }
+            operationScope.cancel()
+            onDrained()
+        }
     }
 
     private suspend fun initialize() {
@@ -329,7 +347,8 @@ internal class RoomUserDataStore(
             .filterNotNull()
             .maxOrNull()
             ?: 0L
-        nextId.updateAndGet { current -> maxOf(current, maxId + 1L) }
+        val nextAfterPersisted = if (maxId == Long.MAX_VALUE) Long.MAX_VALUE else maxId + 1L
+        nextId.updateAndGet { current -> maxOf(current, nextAfterPersisted) }
     }
 
     private fun publishPlaylists(playlists: List<Playlist>) {
@@ -350,7 +369,13 @@ internal class RoomUserDataStore(
     }
 
     private fun enqueue(operation: suspend () -> Unit) {
-        if (!released.get()) operations.trySend(operation)
+        if (released.get()) return
+        val depth = queueDepth.incrementAndGet()
+        if (operations.trySend(operation).isSuccess) {
+            maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
+        } else {
+            queueDepth.decrementAndGet()
+        }
     }
 
     private suspend fun runOperation(operation: suspend () -> Unit) {
@@ -364,7 +389,7 @@ internal class RoomUserDataStore(
     }
 
     private fun newId(): Long {
-        return nextId.getAndUpdate { current -> if (current == Long.MAX_VALUE) 1L else current + 1L }
+        return nextId.getAndUpdate(::nextPersistentUserDataId)
     }
 
     private companion object {
@@ -373,6 +398,11 @@ internal class RoomUserDataStore(
         const val RECENT_KIND_SONG = "song"
         const val RECENT_KIND_ALBUM = "album"
     }
+}
+
+internal fun nextPersistentUserDataId(current: Long): Long {
+    check(current in 1 until Long.MAX_VALUE) { "User-data ID space is exhausted." }
+    return current + 1L
 }
 
 private data class UserDataSnapshot(

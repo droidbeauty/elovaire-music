@@ -200,7 +200,7 @@ internal fun tokenOverlapRatio(left: String, right: String): Float {
 
 internal fun String.normalizeDiacritics(): String {
     return Normalizer.normalize(this, Normalizer.Form.NFD)
-        .replace(Regex("""\p{InCombiningDiacriticalMarks}+"""), "")
+        .replace(COMBINING_DIACRITICS_REGEX, "")
 }
 
 private fun String.normalizeUnicodeForLyrics(): String {
@@ -229,6 +229,7 @@ private fun containsVariantToken(value: String): Boolean {
 }
 
 private val FEAT_TRAILING_REGEX = Regex("""(?i)\b(feat\.?|ft\.?|featuring)\b.*$""")
+private val COMBINING_DIACRITICS_REGEX = Regex("""\p{InCombiningDiacriticalMarks}+""")
 private val BRACKETED_NOISE_REGEX = Regex("""\([^)]*\)|\[[^]]*]""")
 private val SEPARATOR_REGEX = Regex("""[/|_:;,]+""")
 private val NON_ALNUM_REGEX = Regex("""[^\p{L}\p{N}]+""")

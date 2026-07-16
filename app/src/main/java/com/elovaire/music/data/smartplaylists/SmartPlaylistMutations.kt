@@ -12,7 +12,7 @@ internal fun createSmartPlaylistEntry(
     nextSmartPlaylistId: Long,
     nowMs: Long,
 ): SmartPlaylistCreateResult? {
-    val normalizedName = name.trim().replace(Regex("\\s+"), " ")
+    val normalizedName = name.trim().replace(SMART_PLAYLIST_WHITESPACE_REGEX, " ")
     if (normalizedName.isBlank()) return null
     val existingIds = playlists.mapTo(mutableSetOf()) { it.id }
     var candidate = nextSmartPlaylistId.coerceAtLeast(1L)
@@ -38,7 +38,7 @@ internal fun updateSmartPlaylistEntry(
         if (current.id == playlist.id) {
             changed = true
             playlist.copy(
-                name = playlist.name.trim().replace(Regex("\\s+"), " "),
+                name = playlist.name.trim().replace(SMART_PLAYLIST_WHITESPACE_REGEX, " "),
                 builtInType = null,
                 updatedAtMs = nowMs,
             )
@@ -49,6 +49,8 @@ internal fun updateSmartPlaylistEntry(
     return updated.takeIf { changed }
 }
 
+private val SMART_PLAYLIST_WHITESPACE_REGEX = Regex("\\s+")
+
 internal fun deleteSmartPlaylistEntries(
     playlists: List<SmartPlaylist>,
     ids: Set<Long>,
@@ -58,4 +60,3 @@ internal fun deleteSmartPlaylistEntries(
     val updated = userPlaylists.filterNot { it.id in ids }
     return updated.takeIf { it != userPlaylists }
 }
-

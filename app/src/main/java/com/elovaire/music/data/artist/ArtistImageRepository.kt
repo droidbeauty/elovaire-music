@@ -64,7 +64,7 @@ internal class ArtistImageRepository(
     context: Context,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val httpTransport: HttpTransport = HttpTransport(),
+    private val httpTransport: HttpTransport = HttpTransport,
     private val clock: AppClock = AndroidAppClock,
 ) {
     private val appContext = context.applicationContext
@@ -93,9 +93,10 @@ internal class ArtistImageRepository(
         emit(generatedFallback)
 
         if (baseIdentity.shouldSkipRemoteLookup()) return@flow
-        cachedBackdrop(baseIdentity)?.let {
+        val cachedEntry = store.cached(baseIdentity.stableKey)
+        cachedBackdrop(baseIdentity, cachedEntry, freshOnly = false)?.let {
             emit(ArtistBackdropState.Available(it))
-            return@flow
+            if (cachedEntry?.isPositiveFresh(clock.wallTimeMs()) == true) return@flow
         }
         if (!backgroundWorkPolicy.shouldStartLyricsPrefetch()) return@flow
 
@@ -143,9 +144,13 @@ internal class ArtistImageRepository(
         active.await()
     }
 
-    private fun cachedBackdrop(identity: ArtistIdentity): ArtistBackdrop? {
-        val entry = store.cached(identity.stableKey) ?: return null
-        if (!entry.isPositiveFresh(clock.wallTimeMs())) return null
+    private fun cachedBackdrop(
+        identity: ArtistIdentity,
+        entry: ArtistImageCacheEntry? = store.cached(identity.stableKey),
+        freshOnly: Boolean = true,
+    ): ArtistBackdrop? {
+        entry ?: return null
+        if (freshOnly && !entry.isPositiveFresh(clock.wallTimeMs())) return null
         val path = entry.imageFilePath ?: return null
         val file = File(path).takeIf { it.isFile && it.length() > 0L } ?: return null
         return ArtistBackdrop(

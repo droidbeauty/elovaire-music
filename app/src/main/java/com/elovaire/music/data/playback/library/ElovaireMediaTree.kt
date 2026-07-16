@@ -405,10 +405,13 @@ internal class ElovaireMediaTree(
             songs.sortedByDescending(Song::dateAddedSeconds)
         }
         private val artistNames by lazy(LazyThreadSafetyMode.NONE) {
-            songs.map(Song::libraryArtistName).distinct().sortedBy(String::lowercase)
+            songs.map(Song::libraryArtistName).distinct().sortedBy { it.lowercase(Locale.ROOT) }
         }
         private val genreNames by lazy(LazyThreadSafetyMode.NONE) {
-            songs.map { it.genre.ifBlank { UNKNOWN_GENRE } }.distinct().sortedBy(String::lowercase)
+            songs.map { it.genre.ifBlank { UNKNOWN_GENRE } }.distinct().sortedBy { it.lowercase(Locale.ROOT) }
+        }
+        private val usefulGenres by lazy(LazyThreadSafetyMode.NONE) {
+            songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }
         }
         private val songsById by lazy(LazyThreadSafetyMode.NONE) { songs.associateBy(Song::id) }
         private val albumsById by lazy(LazyThreadSafetyMode.NONE) { albums.associateBy(Album::id) }
@@ -435,9 +438,9 @@ internal class ElovaireMediaTree(
         fun playlist(id: Long): Playlist? = playlistsById[id]
         fun songsForArtist(name: String): List<Song> = songsByArtist[name.lowercase(Locale.ROOT)].orEmpty()
         fun songsForGenre(name: String): List<Song> = songsByGenre[name.lowercase(Locale.ROOT)].orEmpty()
-        fun hasUsefulGenres(): Boolean = songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }
+        fun hasUsefulGenres(): Boolean = usefulGenres
         fun playlistSongs(playlistId: Long): List<Song> {
-            val playlist = playlists.firstOrNull { it.id == playlistId } ?: return emptyList()
+            val playlist = playlistsById[playlistId] ?: return emptyList()
             return playlist.songIds.mapNotNull(songsById::get)
         }
     }

@@ -16,6 +16,7 @@ internal class RoomPlaybackHistoryStore(
     private val dao: UserDataDao,
     private val enqueue: (suspend () -> Unit) -> Unit,
 ) : PlaybackHistoryStore {
+    private val writeBuffer = PlaybackHistoryWriteBuffer()
     private val _albumPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
     override val albumPlayCounts: StateFlow<Map<Long, Int>> = _albumPlayCounts.asStateFlow()
     private val _songPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
@@ -32,16 +33,7 @@ internal class RoomPlaybackHistoryStore(
 
     override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
         if (songId == null && albumId == null) return
-        enqueue {
-            songId?.takeIf { it != 0L }?.let { id ->
-                dao.incrementSongPlayCount(id)
-                _songPlayCounts.value = _songPlayCounts.value + (id to incrementPlayCount(_songPlayCounts.value[id]))
-            }
-            albumId?.takeIf { it != 0L }?.let { id ->
-                dao.incrementAlbumPlayCount(id)
-                _albumPlayCounts.value = _albumPlayCounts.value + (id to incrementPlayCount(_albumPlayCounts.value[id]))
-            }
-        }
+        if (writeBuffer.addTransition(songId, albumId)) enqueue(::flushPlaybackCounts)
     }
 
     override fun setRecentPlaybackIds(
@@ -53,22 +45,8 @@ internal class RoomPlaybackHistoryStore(
         val songs = normalizeRecentIds(songIds)
         val albums = normalizeRecentIds(albumIds)
         val collectionId = lastPlayedCollectionId?.takeIf { it != 0L }
-        enqueue {
-            if (
-                songs == _recentSongIds.value &&
-                albums == _recentAlbumIds.value &&
-                lastPlayedCollectionKind == _lastPlayedCollectionKind.value &&
-                collectionId == _lastPlayedCollectionId.value
-            ) return@enqueue
-            dao.replaceRecentPlayback(
-                entries = songs.toRecentEntities(RECENT_KIND_SONG) + albums.toRecentEntities(RECENT_KIND_ALBUM),
-                state = PlaybackCollectionStateEntity(
-                    kind = lastPlayedCollectionKind?.name,
-                    collectionId = collectionId,
-                ),
-            )
-            publish(songs, albums, lastPlayedCollectionKind, collectionId)
-        }
+        val pending = RecentPlaybackWrite(songs, albums, lastPlayedCollectionKind, collectionId)
+        if (writeBuffer.setRecent(pending)) enqueue(::flushRecentPlayback)
     }
 
     fun publish(
@@ -96,6 +74,37 @@ internal class RoomPlaybackHistoryStore(
         _lastPlayedCollectionId.value = collectionId
     }
 
+    private suspend fun flushPlaybackCounts() {
+        val batch = writeBuffer.takeTransitions()
+        batch.songCounts.forEach { (id, increment) -> dao.incrementSongPlayCount(id, increment) }
+        batch.albumCounts.forEach { (id, increment) -> dao.incrementAlbumPlayCount(id, increment) }
+        if (batch.songCounts.isNotEmpty()) {
+            _songPlayCounts.value = _songPlayCounts.value.incrementedBy(batch.songCounts)
+        }
+        if (batch.albumCounts.isNotEmpty()) {
+            _albumPlayCounts.value = _albumPlayCounts.value.incrementedBy(batch.albumCounts)
+        }
+    }
+
+    private suspend fun flushRecentPlayback() {
+        val pending = writeBuffer.takeRecent() ?: return
+        if (
+            pending.songIds == _recentSongIds.value &&
+            pending.albumIds == _recentAlbumIds.value &&
+            pending.collectionKind == _lastPlayedCollectionKind.value &&
+            pending.collectionId == _lastPlayedCollectionId.value
+        ) return
+        dao.replaceRecentPlayback(
+            entries = pending.songIds.toRecentEntities(RECENT_KIND_SONG) +
+                pending.albumIds.toRecentEntities(RECENT_KIND_ALBUM),
+            state = PlaybackCollectionStateEntity(
+                kind = pending.collectionKind?.name,
+                collectionId = pending.collectionId,
+            ),
+        )
+        publish(pending.songIds, pending.albumIds, pending.collectionKind, pending.collectionId)
+    }
+
     private companion object {
         const val RECENT_KIND_SONG = "song"
         const val RECENT_KIND_ALBUM = "album"
@@ -109,6 +118,70 @@ internal class RoomPlaybackHistoryStore(
 
         fun List<Long>.toRecentEntities(kind: String): List<RecentPlaybackEntity> =
             mapIndexed { index, id -> RecentPlaybackEntity(kind, id, index) }
+    }
+}
+
+internal data class PlaybackCountBatch(
+    val songCounts: Map<Long, Int>,
+    val albumCounts: Map<Long, Int>,
+)
+
+internal data class RecentPlaybackWrite(
+    val songIds: List<Long>,
+    val albumIds: List<Long>,
+    val collectionKind: PlaybackCollectionKind?,
+    val collectionId: Long?,
+)
+
+internal class PlaybackHistoryWriteBuffer {
+    private val songCounts = mutableMapOf<Long, Int>()
+    private val albumCounts = mutableMapOf<Long, Int>()
+    private var countFlushScheduled = false
+    private var recentFlushScheduled = false
+    private var recent: RecentPlaybackWrite? = null
+
+    @Synchronized
+    fun addTransition(songId: Long?, albumId: Long?): Boolean {
+        songId?.takeIf { it != 0L }?.let { id ->
+            songCounts[id] = incrementPlayCount(songCounts[id])
+        }
+        albumId?.takeIf { it != 0L }?.let { id ->
+            albumCounts[id] = incrementPlayCount(albumCounts[id])
+        }
+        if (songCounts.isEmpty() && albumCounts.isEmpty()) return false
+        return if (countFlushScheduled) false else true.also { countFlushScheduled = it }
+    }
+
+    @Synchronized
+    fun takeTransitions(): PlaybackCountBatch {
+        val batch = PlaybackCountBatch(songCounts.toMap(), albumCounts.toMap())
+        songCounts.clear()
+        albumCounts.clear()
+        countFlushScheduled = false
+        return batch
+    }
+
+    @Synchronized
+    fun setRecent(value: RecentPlaybackWrite): Boolean {
+        recent = value
+        return if (recentFlushScheduled) false else true.also { recentFlushScheduled = it }
+    }
+
+    @Synchronized
+    fun takeRecent(): RecentPlaybackWrite? {
+        val value = recent
+        recent = null
+        recentFlushScheduled = false
+        return value
+    }
+}
+
+private fun Map<Long, Int>.incrementedBy(increments: Map<Long, Int>): Map<Long, Int> {
+    if (increments.isEmpty()) return this
+    return toMutableMap().apply {
+        increments.forEach { (id, increment) ->
+            this[id] = incrementPlayCount(this[id], increment)
+        }
     }
 }
 

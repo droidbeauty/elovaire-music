@@ -55,14 +55,34 @@ class AppContainer(
     }
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
+    private val playbackStarted = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
 
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
-        bridgeCoordinator.start()
-        notificationController().setNotificationsEnabled(true)
+        var completed = false
+        try {
+            startPlayback()
+            bridgeCoordinator.start()
+            completed = true
+        } finally {
+            if (!completed) release()
+        }
+    }
+
+    internal fun startPlayback() {
+        if (released.get() || !playbackStarted.compareAndSet(false, true)) return
+        var completed = false
+        try {
+            services.start()
+            bridgeCoordinator.startPlayback()
+            notificationController().setNotificationsEnabled(true)
+            completed = true
+        } finally {
+            if (!completed) release()
+        }
     }
 
     fun requestOpenNowPlaying() {
@@ -84,6 +104,7 @@ class AppContainer(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         started.set(false)
+        playbackStarted.set(false)
         openNowPlayingChannel.close()
         bridgeCoordinator.release()
         notificationControllerHolder.release()

@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.core.performance.ElovaireJankMonitor
 
 class MainActivity : ComponentActivity() {
@@ -18,7 +19,7 @@ class MainActivity : ComponentActivity() {
         jankMonitor = runCatching { ElovaireJankMonitor.start(window) }.getOrNull()
 
         val app = application as ElovaireApp
-        val container = app.container
+        val container = app.container.also(AppContainer::start)
         intentHandler = MainIntentHandler(this, container)
         val shouldShowColdStartSplash = savedInstanceState == null
         val isFirstActivityInProcess = container.consumeColdStartHomeReset()

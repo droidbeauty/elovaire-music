@@ -280,7 +280,7 @@ private fun JSONArray?.artistCredit(): String {
                 is String -> append(value)
             }
         }
-    }.replace(Regex("""\s+"""), " ").trim()
+    }.replace(ONLINE_TAG_WHITESPACE_REGEX, " ").trim()
 }
 
 private fun JSONArray?.relatedUrls(): List<String> {
@@ -301,4 +301,5 @@ private const val NETWORK_TIMEOUT_MS = 8_000
 private const val MAX_TEXT_RESPONSE_BYTES = 1 * 1024 * 1024
 private const val MAX_BINARY_RESPONSE_BYTES = 16 * 1024 * 1024
 private const val USER_AGENT = "Elovaire/1.0 (https://github.com/droidbeauty/elovaire-music)"
-private val HTTP_TRANSPORT = HttpTransport()
+private val HTTP_TRANSPORT = HttpTransport
+private val ONLINE_TAG_WHITESPACE_REGEX = Regex("""\s+""")

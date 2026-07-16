@@ -22,8 +22,6 @@ Lelovaire/music/droidbeauty/app/ui/motion/MotionRuntimeKt;
 Lelovaire/music/droidbeauty/app/ui/motion/MotionSpecsKt;
 Lelovaire/music/droidbeauty/app/data/settings/PreferenceStore;
 Lelovaire/music/droidbeauty/app/data/settings/AppearanceSettingsStore;
-Lelovaire/music/droidbeauty/app/data/settings/PlaybackSettingsStore;
-Lelovaire/music/droidbeauty/app/data/settings/LibrarySettingsStore;
 Lelovaire/music/droidbeauty/app/data/playback/PlaybackManager;
 Lelovaire/music/droidbeauty/app/data/playback/PlaybackSessionOwner;
 Lelovaire/music/droidbeauty/app/data/playback/PlaybackPlayerFactory;

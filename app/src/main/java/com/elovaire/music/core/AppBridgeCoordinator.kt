@@ -14,7 +14,7 @@ import kotlinx.coroutines.Dispatchers
 @SuppressLint("UnsafeOptInUsageError")
 internal class AppBridgeCoordinator(
     scope: CoroutineScope,
-    services: AppServices,
+    private val services: AppServices,
 ) {
     private val bridgeJob = SupervisorJob(scope.coroutineContext[Job])
     private val bridgeScope = CoroutineScope(scope.coroutineContext + bridgeJob)
@@ -41,30 +41,36 @@ internal class AppBridgeCoordinator(
     )
     private val preferences = services.preferenceStore
     private val library = services.libraryRepository
-    private val appUpdateManager = services.appUpdateManager
     private val exitDiagnostics = services.exitDiagnostics
     private val applicationContext = services.applicationContext
-    private var started = false
+    private var playbackStarted = false
+    private var appStarted = false
     private var released = false
     private var deferredStartupScheduled = false
 
-    fun start() {
-        if (started || released) return
-        started = true
-        appUpdateManager.start()
+    fun startPlayback() {
+        if (playbackStarted || released) return
+        playbackStarted = true
         playbackIntegration.start()
         bridgeScope.launch {
             preferences.libraryFolders.collect(library::setLibraryFolders)
         }
     }
 
+    fun start() {
+        if (appStarted || released) return
+        startPlayback()
+        appStarted = true
+        services.appUpdateManager.start()
+    }
+
     fun scheduleDeferredStartupWork() {
-        if (!started || released || deferredStartupScheduled) return
+        if (!appStarted || released || deferredStartupScheduled) return
         deferredStartupScheduled = true
         PersistenceMaintenanceWorker.enqueue(applicationContext)
         bridgeScope.launch(Dispatchers.IO) {
             if (!exitDiagnostics.inspect().suppressOptionalStartup) {
-                appUpdateManager.scheduleStartupMaintenance()
+                services.appUpdateManager.scheduleStartupMaintenance()
             }
         }
     }
@@ -72,7 +78,8 @@ internal class AppBridgeCoordinator(
     fun release() {
         if (released) return
         released = true
-        started = false
+        appStarted = false
+        playbackStarted = false
         playbackIntegration.release()
         bridgeScope.cancel()
     }

@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets
 
 internal class LyricsOvhProvider : LyricsProvider {
     override val providerName: String = "lyrics.ovh"
-    private val httpTransport = HttpTransport()
+    private val httpTransport = HttpTransport
 
     override suspend fun findBestLyrics(
         song: Song,

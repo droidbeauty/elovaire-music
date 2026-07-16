@@ -74,16 +74,16 @@ internal interface UserDataDao {
     suspend fun lastFavoritePosition(): Int
 
     @Query(
-        "INSERT INTO song_play_counts(songId, playCount) VALUES(:songId, 1) " +
-            "ON CONFLICT(songId) DO UPDATE SET playCount = MIN(playCount + 1, 2147483647)",
+        "INSERT INTO song_play_counts(songId, playCount) VALUES(:songId, :increment) " +
+            "ON CONFLICT(songId) DO UPDATE SET playCount = MIN(playCount + :increment, 2147483647)",
     )
-    suspend fun incrementSongPlayCount(songId: Long)
+    suspend fun incrementSongPlayCount(songId: Long, increment: Int = 1)
 
     @Query(
-        "INSERT INTO album_play_counts(albumId, playCount) VALUES(:albumId, 1) " +
-            "ON CONFLICT(albumId) DO UPDATE SET playCount = MIN(playCount + 1, 2147483647)",
+        "INSERT INTO album_play_counts(albumId, playCount) VALUES(:albumId, :increment) " +
+            "ON CONFLICT(albumId) DO UPDATE SET playCount = MIN(playCount + :increment, 2147483647)",
     )
-    suspend fun incrementAlbumPlayCount(albumId: Long)
+    suspend fun incrementAlbumPlayCount(albumId: Long, increment: Int = 1)
 
     @Query("DELETE FROM recent_playback")
     suspend fun clearRecentPlayback()

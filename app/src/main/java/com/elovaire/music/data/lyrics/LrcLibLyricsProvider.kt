@@ -217,7 +217,7 @@ internal class LrcLibLyricsProvider(
 private class DefaultLrcLibApi(
     private val clock: AppClock = AndroidAppClock,
 ) : LrcLibApi {
-    private val httpTransport = HttpTransport()
+    private val httpTransport = HttpTransport
     private val rateLimitMutex = Mutex()
     private val requestTimestampsMs = ArrayDeque<Long>()
 

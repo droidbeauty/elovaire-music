@@ -307,8 +307,32 @@ val checkArchitectureBoundaries = tasks.register<ArchitectureBoundaryCheckTask>(
     )
 }
 
+val checkResourceStructure = tasks.register<ResourceStructureCheckTask>("checkResourceStructure") {
+    resourceFiles.from(
+        fileTree("src/main/res"),
+        fileTree("src/debug/res"),
+        fileTree("src/release/res"),
+    )
+    assetFiles.from(
+        fileTree("src/main/assets"),
+        fileTree("src/debug/assets"),
+        fileTree("src/release/assets"),
+    )
+    sourceFiles.from(
+        fileTree("src/main/java") {
+            include("**/*.kt")
+        },
+    )
+    profileFiles.from(
+        fileTree("src/main/baselineProfiles") {
+            include("*.txt")
+        },
+    )
+}
+
 tasks.named("check") {
     dependsOn(checkArchitectureBoundaries)
+    dependsOn(checkResourceStructure)
 }
 
 val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertReleaseManifest") {
@@ -338,6 +362,7 @@ tasks.register("verifyReleaseReadiness") {
         "assembleRelease",
         "bundleRelease",
         assertReleaseManifest,
+        checkResourceStructure,
         validateReleaseNativePageSize,
         ":buildHealth",
     )

@@ -27,6 +27,8 @@ internal class PlaybackIntegrationCoordinator(
     private val sessionStore: PlaybackSessionStore,
 ) {
     private var restorationAttempted = false
+    private var cachedQueue: List<elovaire.music.droidbeauty.app.domain.model.Song>? = null
+    private var cachedQueueIds: List<Long> = emptyList()
 
     fun start() {
         scope.launch {
@@ -129,7 +131,7 @@ internal class PlaybackIntegrationCoordinator(
         val transport = playback.transportState.value
         sessionStore.save(
             PersistedPlaybackSession(
-                queueSongIds = queue.queue.map { it.id },
+                queueSongIds = queueSongIds(queue.queue),
                 currentSongId = queue.queue.getOrNull(queue.currentIndex)?.id,
                 currentIndex = queue.currentIndex,
                 positionMs = playback.progressState.value.positionMs,
@@ -140,6 +142,14 @@ internal class PlaybackIntegrationCoordinator(
                 savedAtWallTimeMs = 0L,
             ),
         )
+    }
+
+    private fun queueSongIds(queue: List<elovaire.music.droidbeauty.app.domain.model.Song>): List<Long> {
+        if (cachedQueue === queue) return cachedQueueIds
+        return queue.map { it.id }.also {
+            cachedQueue = queue
+            cachedQueueIds = it
+        }
     }
 
     private companion object {

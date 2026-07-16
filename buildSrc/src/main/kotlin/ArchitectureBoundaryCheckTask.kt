@@ -18,6 +18,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             val path = file.invariantSeparatorsPath
             val text = file.readText()
             if ("GlobalScope" in text) violations += "$path uses GlobalScope"
+            if ("Channel.UNLIMITED" in text && !path.endsWith("/data/settings/RoomUserDataStore.kt")) {
+                violations += "$path introduces an unreviewed unbounded operation queue"
+            }
             if ("/ui/" in path && "elovaire.music.droidbeauty.app.data.library.db" in text) {
                 violations += "$path imports the library database implementation"
             }
@@ -29,6 +32,12 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             }
             if (("HttpURLConnection" in text || ".openConnection(" in text) && HTTP_ALLOWED.none(path::endsWith)) {
                 violations += "$path opens an ad hoc HTTP connection"
+            }
+            if ("HttpTransport(" in text) {
+                violations += "$path constructs a duplicate HTTP transport"
+            }
+            if ("AppContainer(" in text && !path.endsWith("/ElovaireApp.kt") && !path.endsWith("/core/AppContainer.kt")) {
+                violations += "$path constructs the application graph outside ElovaireApp"
             }
             if ("ExoPlayer.Builder" in text && !path.endsWith("/data/playback/PlaybackPlayerFactory.kt")) {
                 violations += "$path creates an ExoPlayer outside the player factory"
@@ -96,6 +105,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         val SUPERVISOR_SCOPE_ALLOWED = setOf(
             "/data/lyrics/LyricsRepository.kt",
             "/data/settings/PreferenceStore.kt",
+            "/data/settings/RoomUserDataStore.kt",
         )
         val LEGACY_USER_DATA_KEYS = setOf(
             "\"favorite_song_ids\"",

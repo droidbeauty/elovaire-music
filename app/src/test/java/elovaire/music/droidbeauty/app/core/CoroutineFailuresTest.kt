@@ -22,4 +22,13 @@ class CoroutineFailuresTest {
 
         assertEquals("failed", result.exceptionOrNull()?.message)
     }
+
+    @Test
+    fun fatalErrorsAreNotConvertedToOperationalFailures() {
+        assertThrows(OutOfMemoryError::class.java) {
+            runBlocking {
+                runSuspendCatching<Unit> { throw OutOfMemoryError("fatal") }
+            }
+        }
+    }
 }

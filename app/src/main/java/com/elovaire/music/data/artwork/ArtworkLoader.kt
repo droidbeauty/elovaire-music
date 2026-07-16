@@ -8,7 +8,7 @@ import android.net.Uri
 import android.util.Size
 
 internal data class ArtworkRequestKey(
-    val uri: String,
+    val uri: Uri,
     val targetPx: Int,
     val purpose: ArtworkPurpose,
 ) {
@@ -34,9 +34,9 @@ internal fun artworkRequestKey(
     targetPx: Int,
     purpose: ArtworkPurpose,
 ): ArtworkRequestKey? {
-    val uriKey = uri?.toString()?.takeIf { it.isNotBlank() } ?: return null
+    val requestUri = uri?.takeIf { it.toString().isNotBlank() } ?: return null
     return ArtworkRequestKey(
-        uri = uriKey,
+        uri = requestUri,
         targetPx = normalizeArtworkRequestSize(targetPx),
         purpose = purpose,
     )
@@ -78,7 +78,7 @@ internal fun loadArtworkBitmap(
     context: Context,
     key: ArtworkRequestKey,
 ): Bitmap? {
-    return loadArtworkBitmap(context, Uri.parse(key.uri), key.targetPx, key.purpose)
+    return loadArtworkBitmap(context, key.uri, key.targetPx, key.purpose)
 }
 
 internal fun decodeArtworkBytes(

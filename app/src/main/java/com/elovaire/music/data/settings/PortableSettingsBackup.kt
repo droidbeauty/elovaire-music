@@ -2,21 +2,31 @@ package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSharedPreferenceChangeListener {
     private val appContext = context.applicationContext
     private val source = appContext.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
     private val backup = appContext.getSharedPreferences(BACKUP_FILE_NAME, Context.MODE_PRIVATE)
+    private val restored = AtomicBoolean(false)
+    private val started = AtomicBoolean(false)
 
-    fun restoreAndStart() {
+    fun restore() {
+        if (!restored.compareAndSet(false, true)) return
         if (source.all.isEmpty() && backup.all.isNotEmpty()) {
             copyValues(backup, source, PORTABLE_KEYS)
         }
         syncAll()
+    }
+
+    fun start() {
+        restore()
+        if (!started.compareAndSet(false, true)) return
         source.registerOnSharedPreferenceChangeListener(this)
     }
 
     fun release() {
+        if (!started.compareAndSet(true, false)) return
         source.unregisterOnSharedPreferenceChangeListener(this)
     }
 
