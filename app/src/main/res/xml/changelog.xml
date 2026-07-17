@@ -7,6 +7,8 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.5.3">
+        <item>UI tweaks in artists screen and timer menu</item>
+        <item>Redesigned language picker, about and changelog screen</item>
         <item>Performance optimizations</item>
         <item>General bug fixes</item>
     </release>

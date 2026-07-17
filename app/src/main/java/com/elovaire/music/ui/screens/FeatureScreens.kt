@@ -33,6 +33,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
@@ -118,15 +119,12 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import elovaire.music.droidbeauty.app.BuildConfig
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
@@ -2393,6 +2391,12 @@ private fun ArtistHeroHeader(
         modifier = Modifier
             .fillMaxWidth()
             .height(356.dp)
+            .clip(
+                RoundedCornerShape(
+                    bottomStart = ElovaireRadii.dialog,
+                    bottomEnd = ElovaireRadii.dialog,
+                ),
+            )
             .background(MaterialTheme.colorScheme.background),
     ) {
         if (backdropImage != null) {
@@ -6544,8 +6548,13 @@ internal fun NowPlayingScreen(
                 animationSpec = motionSpecs.tween(80),
                 label = "queue_transport_alpha",
             )
+            val queueProgressTransition by animateFloatAsState(
+                targetValue = if (showQueueSheet) 1f else 0f,
+                animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
+                label = "queue_progress_transition",
+            )
             val animatedArtworkCornerRadius by animateDpAsState(
-                targetValue = if (showQueueSheet) 10.dp else ElovaireRadii.module,
+                targetValue = if (showQueueSheet) 8.dp else ElovaireRadii.module,
                 animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                 label = "queue_artwork_corner_radius",
             )
@@ -6664,58 +6673,80 @@ internal fun NowPlayingScreen(
                             .then(if (showQueueSheet) Modifier else Modifier.nowPlayingDismissGesture()),
                     ) {
                         val expandedArtworkWidth = maxWidth
-                        val compactArtworkWidth = maxWidth * 0.38f
+                        val compactArtworkWidth = (maxWidth * 0.38f) - 10.dp
                         val animatedArtworkWidth by animateDpAsState(
                             targetValue = if (showQueueSheet) compactArtworkWidth else expandedArtworkWidth,
                             animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
                             label = "queue_artwork_width",
                         )
                         val compactContentStart = compactArtworkWidth + 18.dp
-                        if (!useSharedArtworkOverlay) {
-                            AnimatedContent(
-                                targetState = currentSong.id,
-                                transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
-                                label = "player_artwork_content",
-                            ) { songId ->
-                                val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
-                                ArtworkImage(
-                                    uri = animatedSong.artUri,
-                                    title = animatedSong.title,
-                                    modifier = Modifier
-                                        .width(animatedArtworkWidth)
-                                        .aspectRatio(1f),
-                                    cornerRadius = animatedArtworkCornerRadius,
-                                    requestedSizePx = 1024,
-                                )
-                            }
-                        }
-                        androidx.compose.animation.AnimatedVisibility(
-                            visible = showQueueSheet,
-                            modifier = Modifier
-                                .align(Alignment.CenterStart)
-                                .padding(start = compactContentStart, end = 2.dp),
-                            enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
-                                slideInVertically(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                    initialOffsetY = { it / 5 },
-                                ),
-                            exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()),
-                        ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalArrangement = Arrangement.spacedBy(10.dp),
+                        Column {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(animatedArtworkWidth),
                             ) {
-                                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                    Row(
+                                if (!useSharedArtworkOverlay) {
+                                    AnimatedContent(
+                                        targetState = currentSong.id,
+                                        transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
+                                        label = "player_artwork_content",
+                                    ) { songId ->
+                                        val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
+                                        ArtworkImage(
+                                            uri = animatedSong.artUri,
+                                            title = animatedSong.title,
+                                            modifier = Modifier
+                                                .width(animatedArtworkWidth)
+                                                .aspectRatio(1f),
+                                            cornerRadius = animatedArtworkCornerRadius,
+                                            requestedSizePx = 1024,
+                                        )
+                                    }
+                                }
+                                androidx.compose.animation.AnimatedVisibility(
+                                    visible = showQueueSheet,
+                                    modifier = Modifier
+                                        .align(Alignment.CenterStart)
+                                        .padding(start = compactContentStart, end = 2.dp),
+                                    enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                                        slideInVertically(
+                                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                            initialOffsetY = { it / 5 },
+                                        ),
+                                    exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()),
+                                ) {
+                                    Column(
                                         modifier = Modifier.fillMaxWidth(),
-                                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
+                                        verticalArrangement = Arrangement.spacedBy(6.dp),
                                     ) {
-                                        ExplicitTitleText(
-                                            title = currentSong.title,
-                                            isExplicit = currentSong.isExplicit,
-                                            style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_TITLE_TEXT_SIZE_SP)),
-                                            color = contentColor,
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            ExplicitTitleText(
+                                                title = currentSong.title,
+                                                isExplicit = currentSong.isExplicit,
+                                                style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_TITLE_TEXT_SIZE_SP)),
+                                                color = contentColor,
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Clip,
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .basicMarquee(
+                                                        iterations = Int.MAX_VALUE,
+                                                        animationMode = MarqueeAnimationMode.Immediately,
+                                                        repeatDelayMillis = 2500,
+                                                        initialDelayMillis = 2500,
+                                                        velocity = 24.dp,
+                                                    ),
+                                            )
+                                        }
+                                        Text(
+                                            text = currentSong.artist,
+                                            style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_ARTIST_TEXT_SIZE_SP)),
+                                            color = secondaryContentColor,
                                             maxLines = 1,
                                             overflow = TextOverflow.Clip,
                                             modifier = Modifier
@@ -6729,28 +6760,40 @@ internal fun NowPlayingScreen(
                                                 ),
                                         )
                                     }
-                                    Text(
-                                        text = currentSong.artist,
-                                        style = MaterialTheme.typography.titleLarge.copy(fontSize = elovaireScaledSp(NOW_PLAYING_ARTIST_TEXT_SIZE_SP)),
-                                        color = secondaryContentColor,
-                                        maxLines = 1,
-                                        overflow = TextOverflow.Clip,
-                                        modifier = Modifier.basicMarquee(
-                                            iterations = Int.MAX_VALUE,
-                                            animationMode = MarqueeAnimationMode.Immediately,
-                                            repeatDelayMillis = 2500,
-                                            initialDelayMillis = 2500,
-                                            velocity = 24.dp,
-                                        ),
-                                    )
                                 }
-                                CompactQueuePlaybackSummary(
+                            }
+                            androidx.compose.animation.AnimatedVisibility(
+                                visible = showQueueSheet,
+                                enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                                    expandVertically(
+                                        expandFrom = Alignment.Top,
+                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                    ) +
+                                    slideInVertically(
+                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        initialOffsetY = { it },
+                                    ),
+                                exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()) +
+                                    shrinkVertically(
+                                        shrinkTowards = Alignment.Top,
+                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                    ) +
+                                    slideOutVertically(
+                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        targetOffsetY = { it },
+                                    ),
+                            ) {
+                                NowPlayingProgressSummary(
                                     playbackManager = playbackManager,
                                     currentSongId = currentSong.id,
                                     freezeUpdates = transitionInFlight,
+                                    format = displaySong?.audioFormat ?: currentSong.audioFormat,
+                                    quality = displaySong?.audioQuality ?: currentSong.audioQuality,
                                     contentColor = contentColor,
                                     secondaryContentColor = secondaryContentColor,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 4.dp),
                                 )
                             }
                         }
@@ -6864,10 +6907,11 @@ internal fun NowPlayingScreen(
                 modifier = Modifier
                     .fillMaxWidth(centeredInfoWidth)
                     .align(Alignment.CenterHorizontally)
+                    .offset(y = (-2).dp)
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 562.dp
+                val queueSheetTopExtension = 634.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -6881,7 +6925,7 @@ internal fun NowPlayingScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .graphicsLayer {
-                                    alpha = if (showQueueSheet) 0f else progressSectionProgress
+                                    alpha = progressSectionProgress * (1f - queueProgressTransition)
                                 },
                             verticalArrangement = Arrangement.spacedBy(0.dp),
                         ) {
@@ -7201,45 +7245,6 @@ private fun rememberRenderedPlaybackProgress(
 }
 
 @Composable
-private fun CompactQueuePlaybackSummary(
-    playbackManager: PlaybackManager,
-    currentSongId: Long,
-    freezeUpdates: Boolean,
-    contentColor: Color,
-    secondaryContentColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    val playbackProgress = rememberRenderedPlaybackProgress(
-        playbackManager = playbackManager,
-        currentSongId = currentSongId,
-        freezeUpdates = freezeUpdates,
-    )
-    val progress = remember(playbackProgress.displayPositionMs, playbackProgress.durationMs) {
-        if (playbackProgress.durationMs > 0L) {
-            (playbackProgress.displayPositionMs.toFloat() / playbackProgress.durationMs.toFloat()).coerceIn(0f, 1f)
-        } else {
-            0f
-        }
-    }
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        CompactPlaybackProgressBar(
-            progress = progress,
-            contentColor = contentColor,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        CompactPlaybackTimingRow(
-            displayedPositionMs = playbackProgress.displayPositionMs,
-            durationMs = playbackProgress.durationMs,
-            contentColor = contentColor,
-            secondaryContentColor = secondaryContentColor,
-        )
-    }
-}
-
-@Composable
 private fun NowPlayingProgressSummary(
     playbackManager: PlaybackManager,
     currentSongId: Long,
@@ -7354,71 +7359,6 @@ private fun SongFileInfoPill(
                 maxLines = 1,
             )
         }
-    }
-}
-
-@Composable
-private fun CompactPlaybackProgressBar(
-    progress: Float,
-    contentColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    val clampedProgress = progress.coerceIn(0f, 1f)
-    Box(
-        modifier = modifier
-            .height(12.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxWidth()
-                .height(4.dp)
-                .clip(RoundedCornerShape(ElovaireRadii.pill))
-                .background(contentColor.copy(alpha = 0.18f)),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .fillMaxWidth(clampedProgress)
-                .height(4.dp)
-                .clip(RoundedCornerShape(ElovaireRadii.pill))
-                .background(contentColor),
-        )
-    }
-}
-
-@Composable
-private fun CompactPlaybackTimingRow(
-    displayedPositionMs: Long,
-    durationMs: Long,
-    contentColor: Color,
-    secondaryContentColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = formatPlaybackPosition(displayedPositionMs),
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = contentColor,
-            maxLines = 1,
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = "・",
-            style = MaterialTheme.typography.labelLarge,
-            color = contentColor.copy(alpha = 0.5f),
-            maxLines = 1,
-        )
-        Spacer(modifier = Modifier.width(6.dp))
-        Text(
-            text = formatDuration(durationMs),
-            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
-            color = secondaryContentColor.copy(alpha = 0.7f),
-            maxLines = 1,
-        )
     }
 }
 
@@ -7647,7 +7587,7 @@ private fun QueueSheet(
                     )
                     Spacer(modifier = Modifier.width(20.dp))
                     PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_moon,
+                        iconResId = R.drawable.ic_lucide_timer,
                         label = "",
                         contentDescription = sleepTimerTitle(language),
                         iconSize = 20.dp,
@@ -7701,87 +7641,271 @@ private fun SleepTimerDialog(
     onDismiss: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
-    val options = remember {
-        listOf(
-            SleepTimerOption.Off,
-            SleepTimerOption.FifteenMinutes,
-            SleepTimerOption.ThirtyMinutes,
-            SleepTimerOption.FortyFiveMinutes,
-            SleepTimerOption.SixtyMinutes,
-            SleepTimerOption.EndOfSong,
+    var selectedMinutes by remember(selectedOption) {
+        mutableFloatStateOf(
+            when (selectedOption) {
+                SleepTimerOption.FifteenMinutes -> 15f
+                SleepTimerOption.ThirtyMinutes -> 30f
+                SleepTimerOption.FortyFiveMinutes -> 45f
+                SleepTimerOption.SixtyMinutes -> 60f
+                SleepTimerOption.Off,
+                SleepTimerOption.EndOfSong,
+                -> 30f
+            },
         )
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                text = sleepTimerTitle(language),
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.SemiBold),
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                options.forEach { option ->
-                    val selected = option == selectedOption
-                    Surface(
+    BackHandler(onBack = onDismiss)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(20f),
+    ) {
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .background(Color.Black.copy(alpha = 0.4f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
+                ),
+        )
+        DynamicBackdropSurface(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+            shape = RoundedCornerShape(
+                topStart = ElovaireRadii.dialog,
+                topEnd = ElovaireRadii.dialog,
+            ),
+            overlayAlpha = 0.6f,
+            borderColor = null,
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .navigationBarsPadding()
+                    .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 18.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp),
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = sleepTimerTitle(language),
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(ElovaireRadii.pill))
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { onOptionSelected(option) },
+                                onClick = onDismiss,
                             ),
-                        shape = RoundedCornerShape(ElovaireRadii.pill),
-                        color = if (selected) {
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
-                        } else {
-                            MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.52f)
-                        },
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Icon(
-                                painter = painterResource(
-                                    id = if (selected) R.drawable.ic_lucide_check else R.drawable.ic_lucide_circle,
-                                ),
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (selected) 0.95f else 0.5f),
-                                modifier = Modifier.size(16.dp),
-                            )
-                            Text(
-                                text = sleepTimerOptionLabel(option, language),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                        }
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_x),
+                            contentDescription = "Close sleep timer",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                            modifier = Modifier.size(16.dp),
+                        )
                     }
                 }
+                Text(
+                    text = "${selectedMinutes.roundToInt()} min",
+                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    SleepTimerSlider(
+                        value = selectedMinutes,
+                        onValueChange = { selectedMinutes = it },
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        Text(
+                            text = "15 min",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = readableSecondaryTextColor(),
+                        )
+                        Text(
+                            text = "60 min",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = readableSecondaryTextColor(),
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    SleepTimerAction(
+                        text = sleepTimerOffLabel(language),
+                        selected = selectedOption == SleepTimerOption.Off,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onOptionSelected(SleepTimerOption.Off) },
+                    )
+                    SleepTimerAction(
+                        text = sleepTimerEndOfSongLabel(language),
+                        selected = selectedOption == SleepTimerOption.EndOfSong,
+                        modifier = Modifier.weight(1f),
+                        onClick = { onOptionSelected(SleepTimerOption.EndOfSong) },
+                    )
+                }
+                SleepTimerAction(
+                    text = rootUiCopy(language).ok,
+                    selected = selectedOption.durationMs == selectedMinutes.roundToInt() * 60_000L,
+                    modifier = Modifier.fillMaxWidth(),
+                    emphasized = true,
+                    onClick = {
+                        onOptionSelected(
+                            when (selectedMinutes.roundToInt()) {
+                                15 -> SleepTimerOption.FifteenMinutes
+                                30 -> SleepTimerOption.ThirtyMinutes
+                                45 -> SleepTimerOption.FortyFiveMinutes
+                                else -> SleepTimerOption.SixtyMinutes
+                            },
+                        )
+                    },
+                )
             }
-        },
-        confirmButton = {},
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(text = rootUiCopy(language).ok)
-            }
-        },
-    )
+        }
+    }
 }
 
-private fun sleepTimerOptionLabel(
-    option: SleepTimerOption,
-    language: AppLanguage,
-): String {
-    return when (option) {
-        SleepTimerOption.Off -> sleepTimerOffLabel(language)
-        SleepTimerOption.FifteenMinutes -> "15 min"
-        SleepTimerOption.ThirtyMinutes -> "30 min"
-        SleepTimerOption.FortyFiveMinutes -> "45 min"
-        SleepTimerOption.SixtyMinutes -> "60 min"
-        SleepTimerOption.EndOfSong -> sleepTimerEndOfSongLabel(language)
+@Composable
+private fun SleepTimerSlider(
+    value: Float,
+    onValueChange: (Float) -> Unit,
+) {
+    val motionSpecs = rememberMotionSpecs()
+    val currentOnValueChange by rememberUpdatedState(onValueChange)
+    val fraction = ((value.coerceIn(15f, 60f) - 15f) / 45f).coerceIn(0f, 1f)
+    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+        InkText
+    } else {
+        Color.White
+    }
+    val inactiveLineColor = knobColor.copy(alpha = 0.2f)
+
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(32.dp)
+            .horizontalGestureSafe(),
+    ) {
+        val density = LocalDensity.current
+        val knobSize = 20.dp
+        val knobSizePx = with(density) { knobSize.toPx() }
+        val maxWidthPx = with(density) { maxWidth.toPx() }
+        val trackStartPx = knobSizePx / 2f
+        val trackWidthPx = (maxWidthPx - knobSizePx).coerceAtLeast(1f)
+        val trackStart = with(density) { trackStartPx.toDp() }
+        val trackWidth = with(density) { trackWidthPx.toDp() }
+        val activeWidth by animateDpAsState(
+            targetValue = trackWidth * fraction,
+            animationSpec = motionSpecs.tween(durationMillis = 70),
+            label = "sleep_timer_slider_fill",
+        )
+        val knobOffset by animateDpAsState(
+            targetValue = with(density) {
+                (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp()
+            },
+            animationSpec = motionSpecs.tween(durationMillis = 70),
+            label = "sleep_timer_slider_knob",
+        )
+        val updateFromX: (Float) -> Unit = { xPosition ->
+            val normalized = ((xPosition - trackStartPx) / trackWidthPx).coerceIn(0f, 1f)
+            currentOnValueChange(15f + ((normalized * 3f).roundToInt() * 15f))
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(maxWidthPx) {
+                    detectTapGestures { offset -> updateFromX(offset.x) }
+                }
+                .pointerInput(maxWidthPx) {
+                    detectHorizontalDragGestures(
+                        onDragStart = { offset -> updateFromX(offset.x) },
+                        onHorizontalDrag = { change, _ ->
+                            change.consume()
+                            updateFromX(change.position.x)
+                        },
+                    )
+                },
+        ) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = trackStart)
+                    .width(trackWidth)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .background(inactiveLineColor),
+            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .offset(x = trackStart)
+                    .width(activeWidth)
+                    .height(2.dp)
+                    .clip(RoundedCornerShape(ElovaireRadii.pill))
+                    .background(knobColor),
+            )
+            Box(
+                modifier = Modifier
+                    .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
+                    .size(knobSize)
+                    .clip(CircleShape)
+                    .background(knobColor)
+                    .align(Alignment.CenterStart),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SleepTimerAction(
+    text: String,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val backgroundColor = when {
+        emphasized -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+        selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+        else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+    }
+    Box(
+        modifier = modifier
+            .height(44.dp)
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(backgroundColor)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
