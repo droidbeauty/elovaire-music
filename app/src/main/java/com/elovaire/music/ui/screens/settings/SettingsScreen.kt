@@ -227,7 +227,8 @@ internal fun SettingsScreen(
                                 presetName = eqSettings.matchingEqPresetName()
                                     ?: "Custom".takeIf { EqValuePolicy.hasSignalAlteringEffects(eqSettings) },
                             ),
-                            actionLabel = "EQ",
+                            actionLabel = copy.equalizer,
+                            actionIconResId = R.drawable.ic_lucide_sliders_vertical,
                             onAction = onOpenEqualizer,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -933,6 +934,7 @@ internal fun SettingActionRow(
     title: String,
     subtitle: String,
     actionLabel: String,
+    @DrawableRes actionIconResId: Int? = null,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -969,8 +971,7 @@ internal fun SettingActionRow(
             color = MaterialTheme.colorScheme.primary,
             contentColor = MaterialTheme.colorScheme.onPrimary,
         ) {
-            Text(
-                text = actionLabel,
+            Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
                     .clickable(
@@ -979,8 +980,21 @@ internal fun SettingActionRow(
                         onClick = onAction,
                     )
                     .padding(horizontal = 16.dp, vertical = 9.dp),
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            )
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                actionIconResId?.let { iconResId ->
+                    Icon(
+                        painter = painterResource(id = iconResId),
+                        contentDescription = null,
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                Text(
+                    text = actionLabel,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                )
+            }
         }
     }
 }

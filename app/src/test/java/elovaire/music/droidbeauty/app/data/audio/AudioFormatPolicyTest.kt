@@ -102,6 +102,14 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun playbackSupport_rejectsProtectedAudio() {
+        val detected = detected(AudioContainerFormat.Mp4Audio, "audio/mp4a-latm").copy(isProtected = true)
+
+        assertEquals(PlaybackSupport.Unsupported, AudioFormatPolicy.playbackSupport(detected))
+        assertTrue(AudioFormatPolicy.eligibility(detected) is FormatEligibility.Unsupported)
+    }
+
+    @Test
     fun resolveContainer_rejectsUnknownOggCodec() {
         assertEquals(
             AudioContainerFormat.Unknown,
@@ -132,12 +140,40 @@ class AudioFormatPolicyTest {
     }
 
     @Test
+    fun playbackSupport_acceptsPlatformPcmOutputForFlacContainer() {
+        val detected = detected(AudioContainerFormat.Flac, "audio/raw")
+
+        assertEquals(PlaybackSupport.Supported, AudioFormatPolicy.playbackSupport(detected))
+        assertTrue(AudioFormatPolicy.isLossless(detected.container, detected.codecMimeType))
+    }
+
+    @Test
     fun validationExtensions_includeRequestedAliasesOnly() {
         assertEquals(
-            setOf("m4a", "m4b", "mp4", "ogg", "oga", "mka", "3gp", "amr"),
+            setOf("m4a", "m4b", "mp4", "ogg", "oga", "opus", "mka", "3gp", "amr"),
             AudioFormatPolicy.validationRequiredExtensions,
         )
         assertFalse("webm" in AudioFormatPolicy.validationRequiredExtensions)
+    }
+
+    @Test
+    fun registry_hasNoAmbiguousOrIncompleteClaims() {
+        assertEquals(emptyList<String>(), AudioFormatPolicy.registryViolations())
+    }
+
+    @Test
+    fun mutationCapabilities_doNotClaimUnverifiedOggOrWavWrites() {
+        listOf(
+            AudioContainerFormat.OggVorbis,
+            AudioContainerFormat.OggOpus,
+            AudioContainerFormat.OggFlac,
+            AudioContainerFormat.Wav,
+        ).forEach { format ->
+            val mutation = requireNotNull(AudioFormatPolicy.capabilityFor(format)).mutation
+            assertEquals(CapabilityLevel.Unsupported, mutation.textFields)
+            assertEquals(CapabilityLevel.Unsupported, mutation.artwork)
+            assertEquals(CapabilityLevel.Unsupported, mutation.unsyncedLyrics)
+        }
     }
 
     @Test

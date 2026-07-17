@@ -8,6 +8,9 @@ import android.net.Uri
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
 import java.io.File
 import java.nio.ByteBuffer
 import java.security.MessageDigest
@@ -44,11 +47,15 @@ internal object ExternalAudioIntentHandler {
             ?: uri.lastPathSegment
             ?: "External audio",
         )
-        val capability = ExternalAudioMetadataPolicy.resolveCapability(
+        ExternalAudioMetadataPolicy.resolveCapability(
             displayName = displayName,
             pathSegment = uri.lastPathSegment,
             mimeType = mimeType,
         ) ?: return@withContext null
+        val detected = AudioFormatDetector(context).detect(uri, displayName, mimeType)
+        if (!detected.detectionSucceeded || AudioFormatPolicy.playbackSupport(detected) == PlaybackSupport.Unsupported) {
+            return@withContext null
+        }
 
         val title = ExternalAudioMetadataPolicy.titleFromDisplayName(displayName)
         val durationMs = contentResolver.readDurationMs(context, uri)
@@ -62,7 +69,7 @@ internal object ExternalAudioIntentHandler {
             album = "External audio",
             releaseYear = null,
             genre = "",
-            audioFormat = capability.displayName,
+            audioFormat = detected.displayName,
             audioQuality = null,
             fileName = displayName,
             albumId = stableExternalId(uriValue, EXTERNAL_ALBUM_ID_BASE),

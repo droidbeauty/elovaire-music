@@ -131,7 +131,7 @@ internal fun ChangelogScreen(
                 ChangelogReleaseContent(
                     release = release,
                     contentHorizontalPadding = 20.dp,
-                    decorateEntries = true,
+                    pointedEntries = true,
                 )
             }
         }
@@ -279,7 +279,7 @@ internal fun ChangelogReleaseContent(
     textColor: Color = MaterialTheme.colorScheme.onSurface,
     secondaryTextColor: Color = readableSecondaryTextColor(),
     dividerColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-    decorateEntries: Boolean = false,
+    pointedEntries: Boolean = false,
 ) {
     val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
     Column(
@@ -298,35 +298,18 @@ internal fun ChangelogReleaseContent(
         } else {
             changes.forEachIndexed { index, change ->
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .then(
-                            if (decorateEntries) {
-                                Modifier
-                                    .clip(RoundedCornerShape(ElovaireRadii.card))
-                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f))
-                                    .padding(horizontal = 16.dp, vertical = 18.dp)
-                            } else {
-                                Modifier
-                            },
-                        ),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
                     verticalAlignment = Alignment.Top,
                 ) {
-                    if (decorateEntries) {
+                    if (pointedEntries) {
                         Box(
                             modifier = Modifier
-                                .size(28.dp)
+                                .padding(top = 9.dp)
+                                .size(7.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = (index + 1).toString().padStart(2, '0'),
-                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                        }
+                                .background(MaterialTheme.colorScheme.primary),
+                        )
                     }
                     Text(
                         text = change,
@@ -336,8 +319,8 @@ internal fun ChangelogReleaseContent(
                     )
                 }
                 if (index != changes.lastIndex) {
-                    if (decorateEntries) {
-                        Spacer(modifier = Modifier.height(12.dp))
+                    if (pointedEntries) {
+                        Spacer(modifier = Modifier.height(18.dp))
                     } else {
                         Spacer(modifier = Modifier.height(14.dp))
                         Box(
@@ -762,7 +745,6 @@ private fun aboutIconForUrl(url: String): Int {
     return when {
         "instagram.com" in normalizedUrl -> R.drawable.ic_about_instagram
         "twitter.com" in normalizedUrl || "x.com" in normalizedUrl -> R.drawable.ic_about_twitter
-        "github.com" in normalizedUrl -> R.drawable.ic_about_github
         "ko-fi.com" in normalizedUrl || "kofi.com" in normalizedUrl -> R.drawable.ic_about_coffee
         "play.google.com" in normalizedUrl -> R.drawable.ic_lucide_store
         else -> R.drawable.ic_about_globe

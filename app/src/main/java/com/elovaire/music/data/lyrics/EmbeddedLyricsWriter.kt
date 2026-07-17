@@ -9,7 +9,6 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
-import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
@@ -21,7 +20,6 @@ import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.ProviderRejectedWriteModeException
 import elovaire.music.droidbeauty.app.platform.mediaStoreWritePendingIntent
 import java.io.File
-import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -343,12 +341,15 @@ internal class EmbeddedLyricsWriter(
         request: EmbeddedLyricsWriteRequest,
         detectedFormat: DetectedAudioFormat?,
     ): EmbeddedLyricsWriteFailure? {
-        val extension = request.song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
-        if (request.tagKind == EmbeddedLyricsTagKind.SyncedLyrics && extension !in setOf("mp3", "flac")) {
+        val capability = AudioFormatPolicy.lyricsWriteCapability(detectedFormat, request.song.fileName)
+        if (
+            request.tagKind == EmbeddedLyricsTagKind.SyncedLyrics &&
+            capability.synced != elovaire.music.droidbeauty.app.data.audio.CapabilityLevel.Strong
+        ) {
             return EmbeddedLyricsWriteFailure.UnsupportedSyncedLyrics
         }
         return EmbeddedLyricsWriteFailure.UnsupportedFormat.takeIf {
-            AudioFormatPolicy.embeddedLyricsWriteSupport(detectedFormat, request.song.fileName) != TagWriteSupport.Safe
+            capability.unsynced != elovaire.music.droidbeauty.app.data.audio.CapabilityLevel.Strong
         }
     }
 

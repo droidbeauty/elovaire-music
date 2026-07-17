@@ -311,9 +311,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchCopy
 import elovaire.music.droidbeauty.app.ui.i18n.searchSortModeLabel
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
-import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerEndOfSongLabel
-import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerOffLabel
-import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerTitle
+import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
@@ -7226,7 +7224,15 @@ internal fun NowPlayingScreen(
                 onCreatePlaylist = onCreatePlaylist,
             )
         }
-        if (showSleepTimerDialog) {
+        ElovaireAnimatedVisibility(
+            visible = showSleepTimerDialog,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(20f),
+            enter = motionTransitions.bottomSheetEnter(),
+            exit = motionTransitions.bottomSheetExit(),
+            label = "SleepTimerSheetOverlay",
+        ) {
             SleepTimerDialog(
                 selectedOption = playerUiState.sleepTimer.option,
                 onOptionSelected = { option ->
@@ -7602,7 +7608,7 @@ private fun QueueSheet(
                     PlayerSecondaryActionButton(
                         iconResId = R.drawable.ic_lucide_timer,
                         label = "",
-                        contentDescription = sleepTimerTitle(language),
+                        contentDescription = sleepTimerCopy(language).title,
                         iconSize = 20.dp,
                         tint = tint,
                         showBackground = sleepTimerActive,
@@ -7655,6 +7661,7 @@ private fun SleepTimerDialog(
     onDismiss: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val copy = remember(language) { sleepTimerCopy(language) }
     var selectedMinutes by remember(selectedOption) {
         mutableFloatStateOf(
             when (selectedOption) {
@@ -7707,11 +7714,22 @@ private fun SleepTimerDialog(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = sleepTimerTitle(language),
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_timer),
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                            modifier = Modifier.size(18.dp),
+                        )
+                        Text(
+                            text = copy.title,
+                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                     Box(
                         modifier = Modifier
                             .size(32.dp)
@@ -7726,14 +7744,14 @@ private fun SleepTimerDialog(
                     ) {
                         Icon(
                             painter = painterResource(id = R.drawable.ic_lucide_x),
-                            contentDescription = "Close sleep timer",
+                            contentDescription = copy.close,
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                             modifier = Modifier.size(16.dp),
                         )
                     }
                 }
                 Text(
-                    text = "${selectedMinutes.roundToInt()} min",
+                    text = "${selectedMinutes.roundToInt()}${copy.minuteSuffix}",
                     style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
@@ -7747,12 +7765,12 @@ private fun SleepTimerDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = "15 min",
+                            text = "15${copy.minuteSuffix}",
                             style = MaterialTheme.typography.labelLarge,
                             color = readableSecondaryTextColor(),
                         )
                         Text(
-                            text = "60 min",
+                            text = "60${copy.minuteSuffix}",
                             style = MaterialTheme.typography.labelLarge,
                             color = readableSecondaryTextColor(),
                         )
@@ -7763,20 +7781,20 @@ private fun SleepTimerDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     SleepTimerAction(
-                        text = sleepTimerOffLabel(language),
+                        text = copy.off,
                         selected = selectedOption == SleepTimerOption.Off,
                         modifier = Modifier.weight(1f),
                         onClick = { onOptionSelected(SleepTimerOption.Off) },
                     )
                     SleepTimerAction(
-                        text = sleepTimerEndOfSongLabel(language),
+                        text = copy.endOfSong,
                         selected = selectedOption == SleepTimerOption.EndOfSong,
                         modifier = Modifier.weight(1f),
                         onClick = { onOptionSelected(SleepTimerOption.EndOfSong) },
                     )
                 }
                 SleepTimerAction(
-                    text = rootUiCopy(language).ok,
+                    text = copy.confirm,
                     selected = selectedOption.durationMs == selectedMinutes.roundToInt() * 60_000L,
                     modifier = Modifier.fillMaxWidth(),
                     emphasized = true,
@@ -7801,44 +7819,25 @@ private fun SleepTimerSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
 ) {
-    val motionSpecs = rememberMotionSpecs()
     val currentOnValueChange by rememberUpdatedState(onValueChange)
     val fraction = ((value.coerceIn(15f, 60f) - 15f) / 45f).coerceIn(0f, 1f)
-    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
+    val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
         Color.White
     }
-    val inactiveLineColor = knobColor.copy(alpha = 0.2f)
+    val barCount = 16
+    val activeBarCount = (fraction * (barCount - 1)).roundToInt() + 1
 
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .height(32.dp)
+            .height(28.dp)
             .horizontalGestureSafe(),
     ) {
-        val density = LocalDensity.current
-        val knobSize = 20.dp
-        val knobSizePx = with(density) { knobSize.toPx() }
-        val maxWidthPx = with(density) { maxWidth.toPx() }
-        val trackStartPx = knobSizePx / 2f
-        val trackWidthPx = (maxWidthPx - knobSizePx).coerceAtLeast(1f)
-        val trackStart = with(density) { trackStartPx.toDp() }
-        val trackWidth = with(density) { trackWidthPx.toDp() }
-        val activeWidth by animateDpAsState(
-            targetValue = trackWidth * fraction,
-            animationSpec = motionSpecs.tween(durationMillis = 70),
-            label = "sleep_timer_slider_fill",
-        )
-        val knobOffset by animateDpAsState(
-            targetValue = with(density) {
-                (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp()
-            },
-            animationSpec = motionSpecs.tween(durationMillis = 70),
-            label = "sleep_timer_slider_knob",
-        )
+        val maxWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.coerceAtLeast(1f)
         val updateFromX: (Float) -> Unit = { xPosition ->
-            val normalized = ((xPosition - trackStartPx) / trackWidthPx).coerceIn(0f, 1f)
+            val normalized = (xPosition / maxWidthPx).coerceIn(0f, 1f)
             currentOnValueChange(15f + ((normalized * 3f).roundToInt() * 15f))
         }
 
@@ -7858,32 +7857,24 @@ private fun SleepTimerSlider(
                     )
                 },
         ) {
-            Box(
+            Row(
                 modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(x = trackStart)
-                    .width(trackWidth)
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(inactiveLineColor),
-            )
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .offset(x = trackStart)
-                    .width(activeWidth)
-                    .height(2.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .background(knobColor),
-            )
-            Box(
-                modifier = Modifier
-                    .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
-                    .size(knobSize)
-                    .clip(CircleShape)
-                    .background(knobColor)
-                    .align(Alignment.CenterStart),
-            )
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.Bottom,
+            ) {
+                repeat(barCount) { index ->
+                    val active = index < activeBarCount
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(if (active) 22.dp else 13.dp)
+                            .clip(RoundedCornerShape(1.dp))
+                            .background(lineColor.copy(alpha = if (active) 1f else 0.3f)),
+                    )
+                }
+            }
         }
     }
 }
@@ -7897,7 +7888,7 @@ private fun SleepTimerAction(
     onClick: () -> Unit,
 ) {
     val backgroundColor = when {
-        emphasized -> MaterialTheme.colorScheme.primary.copy(alpha = 0.22f)
+        emphasized -> MaterialTheme.colorScheme.primary
         selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
         else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
     }
@@ -7916,7 +7907,7 @@ private fun SleepTimerAction(
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            color = MaterialTheme.colorScheme.onSurface,
+            color = if (emphasized) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )

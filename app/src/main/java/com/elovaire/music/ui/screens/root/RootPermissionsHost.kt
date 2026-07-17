@@ -72,14 +72,16 @@ internal fun FirstLaunchPermissionLoadingScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        UnifiedTopBar(
-            title = "Elovaire",
-            showSettings = false,
-            onOpenMenu = onRequestPermission,
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth(),
-        )
+        if (!showLoading) {
+            UnifiedTopBar(
+                title = "Elovaire",
+                showSettings = false,
+                onOpenMenu = onRequestPermission,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth(),
+            )
+        }
         ElovaireAnimatedVisibility(
             visible = true,
             modifier = Modifier.align(Alignment.Center),

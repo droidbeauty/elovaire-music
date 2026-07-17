@@ -5,9 +5,14 @@ import android.content.ContentValues
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
+import android.util.Base64
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
+import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
+import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriter
 import elovaire.music.droidbeauty.app.data.lyrics.AudioFileLyricsInspection
 import elovaire.music.droidbeauty.app.data.lyrics.LocalLyricsResolver
@@ -148,6 +153,49 @@ class MetadataWritePersistenceTest {
         assertEquals("Persistence Genre", tag.getFirst(FieldKey.GENRE))
     }
 
+    @Test
+    fun verifiedWritableFormatsPersistArtwork() {
+        listOf("write-fixture.mp3", "write-fixture.flac", "write-fixture.m4a")
+            .forEachIndexed { index, fixture ->
+                val song = insertFixtureSong(fixture, id = 300L + index)
+                val request = editRequest(song).copy(coverArtBytes = TEST_PNG)
+
+                val result = runBlocking { AlbumTagEditorService(context).applyEdits(request) }
+
+                assertTrue("$fixture: ${result.failures.joinToString { it.reason }}", result.failures.isEmpty())
+                assertTrue(persistedTag(song).firstArtwork?.binaryData?.isNotEmpty() == true)
+            }
+    }
+
+    @Test
+    fun writableFixturesAreAudioOnlyAndRuntimeDecodable() {
+        listOf("write-fixture.mp3", "write-fixture.flac", "write-fixture.m4a")
+            .forEachIndexed { index, fixture ->
+                val song = insertFixtureSong(fixture, id = 400L + index)
+
+                val detected = AudioFormatDetector(context).detect(song.uri, song.fileName, resolver.getType(song.uri))
+
+                assertTrue(detected.detectionSucceeded)
+                assertTrue(detected.hasAudioTrack)
+                assertTrue(!detected.hasVideoTrack)
+                assertEquals(
+                    "$fixture: $detected",
+                    PlaybackSupport.Supported,
+                    AudioFormatPolicy.playbackSupport(detected),
+                )
+            }
+    }
+
+    @Test
+    fun embeddedMetadataReadsFromContentUriWithoutFilePath() {
+        val song = insertFixtureSong("write-fixture.flac", id = 500L)
+
+        val metadata = EmbeddedTagMetadataReader(context).read(song.uri, filePath = null, fileName = song.fileName)
+
+        assertEquals("Original FLAC Title", metadata?.title)
+        assertEquals("Original FLAC Artist", metadata?.artist)
+    }
+
     private fun insertFixtureSong(
         assetName: String,
         id: Long,
@@ -240,5 +288,12 @@ class MetadataWritePersistenceTest {
             temp.outputStream().use(input::copyTo)
         } ?: error("Unable to read persisted fixture.")
         return temp
+    }
+
+    private companion object {
+        val TEST_PNG: ByteArray = Base64.decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+            Base64.DEFAULT,
+        )
     }
 }

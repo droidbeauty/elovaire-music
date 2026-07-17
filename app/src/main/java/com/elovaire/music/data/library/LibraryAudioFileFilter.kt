@@ -58,7 +58,7 @@ internal class LibraryAudioFileFilter(
         val isExplicitCustomFolder = folderMatch.isExplicitCustom
         val capability = AudioFormatPolicy.capabilityForExtension(normalizedExtension)
             ?: return AudioFileFilterDecision.Exclude("Unsupported format")
-        if (normalizedExtension in VOICE_CONTAINER_EXTENSIONS && !isExplicitCustomFolder) {
+        if (normalizedExtension in AudioFormatPolicy.voiceOrSpokenWordExtensions && !isExplicitCustomFolder) {
             return AudioFileFilterDecision.Exclude("Voice-oriented format outside preferred music folder")
         }
         val detectedFormat = candidate.detectedFormat
@@ -196,8 +196,6 @@ internal class LibraryAudioFileFilter(
 
     private companion object {
         private const val MIN_MUSIC_DURATION_MS = 45_000L
-        private val VOICE_CONTAINER_EXTENSIONS = setOf("amr", "3gp")
-
         private val ExcludedPathFragments = listOf(
             "/ringtones/",
             "/notifications/",

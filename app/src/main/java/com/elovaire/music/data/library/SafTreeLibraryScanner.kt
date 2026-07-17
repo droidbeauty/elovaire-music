@@ -8,6 +8,7 @@ import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.security.MessageDigest
@@ -21,6 +22,7 @@ internal class SafTreeLibraryScanner(
     private val context: Context,
 ) {
     private val audioFormatDetector = AudioFormatDetector(context)
+    private val embeddedTagMetadataReader = EmbeddedTagMetadataReader(context)
     private var fileMetadataCache = emptyMap<SafDocumentKey, CachedSafFile>()
 
     suspend fun scan(selections: List<LibraryFolderSelection>): List<Song> {
@@ -96,8 +98,17 @@ internal class SafTreeLibraryScanner(
                 val cachedFile = (refreshedCache[documentKey] ?: fileMetadataCache[documentKey])
                     ?.takeIf { it.matches(child) }
                 val detectedFormat = cachedFile?.detectedFormat
-                    ?: audioFormatDetector.detect(child.uri, child.name, child.mimeType)
-                val metadata = cachedFile?.metadata ?: readMetadata(child.uri)
+                    ?: audioFormatDetector.detect(
+                        uri = child.uri,
+                        fileName = child.name,
+                        mediaStoreMimeType = child.mimeType,
+                        revisionKey = if (child.lastModifiedMs != null || child.sizeBytes != null) {
+                            "${child.lastModifiedMs}:${child.sizeBytes}"
+                        } else {
+                            null
+                        },
+                    )
+                val metadata = cachedFile?.metadata ?: readMetadata(child.uri, child.name)
                 if (child.hasStableChangeSignal) {
                     refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
                 }
@@ -205,8 +216,8 @@ internal class SafTreeLibraryScanner(
         }
     }
 
-    private fun readMetadata(uri: Uri): SafMetadata {
-        return try {
+    private fun readMetadata(uri: Uri, fileName: String): SafMetadata {
+        val retrieverMetadata = try {
             val retriever = MediaMetadataRetriever()
             try {
                 retriever.setDataSource(context, uri)
@@ -241,6 +252,18 @@ internal class SafTreeLibraryScanner(
         } catch (_: Exception) {
             SafMetadata()
         }
+        val embedded = embeddedTagMetadataReader.read(uri, filePath = null, fileName = fileName)
+            ?: return retrieverMetadata
+        return retrieverMetadata.copy(
+            title = embedded.title ?: retrieverMetadata.title,
+            artist = embedded.artist ?: retrieverMetadata.artist,
+            albumArtist = embedded.albumArtist ?: retrieverMetadata.albumArtist,
+            album = embedded.album ?: retrieverMetadata.album,
+            year = embedded.releaseYear ?: retrieverMetadata.year,
+            genre = embedded.genre ?: retrieverMetadata.genre,
+            trackNumber = embedded.trackNumber ?: retrieverMetadata.trackNumber,
+            discNumber = embedded.discNumber ?: retrieverMetadata.discNumber,
+        )
     }
 
     private fun MediaMetadataRetriever.metadata(keyCode: Int): String? {

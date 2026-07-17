@@ -14,7 +14,6 @@
       Icon is chosen automatically from the domain:
       instagram -> Instagram icon
       x.com / twitter.com -> X icon
-      github.com -> GitHub icon
       ko-fi.com / kofi.com -> Ko-fi icon
       anything else -> globe icon
     -->
@@ -34,14 +33,6 @@
         <link
             label="Ko-fi"
             url="https://ko-fi.com/droidbeauty" />
-    </entry>
-
-    <entry
-        title="Elovaire"
-        description="Your music, refined into an elegant listening experience. Latest release always available on GitHub. Thank you for using this app and I hope you have a great experience!">
-        <link
-            label="Elovaire on GitHub"
-            url="https://github.com/droidbeauty/elovaire-music" />
     </entry>
 
     <entry

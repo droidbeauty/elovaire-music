@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
+import elovaire.music.droidbeauty.app.data.audio.DetectionEvidence
 
 internal object AudioScanCandidateMapper {
     fun fastDetectedFormat(
@@ -13,7 +14,7 @@ internal object AudioScanCandidateMapper {
             container = container,
             displayName = AudioFormatPolicy.displayName(container, extension),
             mimeType = mimeType,
-            codecMimeType = mimeType,
+            codecMimeType = null,
             detectionSucceeded = false,
             hasAudioTrack = true,
             hasVideoTrack = false,
@@ -22,6 +23,11 @@ internal object AudioScanCandidateMapper {
             channelCount = null,
             bitrate = null,
             bitDepth = null,
+            evidence = if (mimeType.isNullOrBlank()) {
+                DetectionEvidence.ExtensionFallback
+            } else {
+                DetectionEvidence.ProviderMime
+            },
         )
     }
 

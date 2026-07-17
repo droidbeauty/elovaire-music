@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.audio
 
+import android.content.Context
+import android.net.Uri
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
@@ -18,9 +20,41 @@ internal data class EmbeddedTagMetadata(
     val volumeNormalization: VolumeNormalizationMetadata? = null,
 )
 
-internal class EmbeddedTagMetadataReader {
+internal class EmbeddedTagMetadataReader(context: Context) {
+    private val appContext = context.applicationContext
+
     fun read(filePath: String?): EmbeddedTagMetadata? {
         val file = filePath?.let(::File)?.takeIf { it.isFile && it.canRead() } ?: return null
+        return readFile(file)
+    }
+
+    fun read(uri: Uri, filePath: String?, fileName: String): EmbeddedTagMetadata? {
+        filePath?.let(::File)?.takeIf { it.isFile && it.canRead() }?.let(::readFile)?.let { return it }
+        val extension = fileName.substringAfterLast('.', "tmp").take(12)
+        val temp = File.createTempFile("tag-read-", ".$extension", appContext.cacheDir)
+        return runCatching {
+            appContext.contentResolver.openAssetFileDescriptor(uri, "r")?.use { descriptor ->
+                val declaredLength = descriptor.length
+                check(declaredLength < 0L || declaredLength <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }
+            }
+            appContext.contentResolver.openInputStream(uri)?.use { input ->
+                temp.outputStream().use { output ->
+                    val buffer = ByteArray(COPY_BUFFER_BYTES)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        check(total <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }
+                        output.write(buffer, 0, read)
+                    }
+                }
+            } ?: return@runCatching null
+            readFile(temp)
+        }.getOrNull().also { temp.delete() }
+    }
+
+    private fun readFile(file: File): EmbeddedTagMetadata? {
         return runCatching {
             val tag = AudioFileIO.read(file).tag ?: return@runCatching null
             EmbeddedTagMetadata(
@@ -103,6 +137,8 @@ internal class EmbeddedTagMetadataReader {
     }
 
     private companion object {
+        const val MAX_TEMP_COPY_BYTES = 512L * 1024L * 1024L
+        const val COPY_BUFFER_BYTES = 64 * 1024
         val YEAR_REGEX = Regex("""\b\d{1,4}\b""")
         val TRACK_GAIN_TAGS = setOf(
             "REPLAYGAIN_TRACK_GAIN",

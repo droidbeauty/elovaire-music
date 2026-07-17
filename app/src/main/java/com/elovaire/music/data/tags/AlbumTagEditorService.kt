@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.tags
 
 import android.content.ContentResolver
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.app.PendingIntent
 import android.app.RecoverableSecurityException
 import android.net.Uri
@@ -39,7 +40,9 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
-import org.jaudiotagger.tag.images.ArtworkFactory
+import org.jaudiotagger.tag.images.AndroidArtwork
+import org.jaudiotagger.tag.flac.FlacTag
+import org.jaudiotagger.tag.reference.PictureTypes
 
 internal data class EditableAlbumTrack(
     val songId: Long,
@@ -413,6 +416,7 @@ internal class AlbumTagEditorService(
                     },
                 )
             } catch (throwable: Throwable) {
+                logDebug("Tag write failed phase=${phase.name} type=${throwable.javaClass.simpleName}: ${throwable.message.orEmpty()}")
                 val failureCause = if (rollbackFailed) TagEditFailureCause.RollbackFailed else phase.cause
                 val reason = if (rollbackFailed) {
                     "The song could not be restored after the tag write failed."
@@ -471,15 +475,32 @@ internal class AlbumTagEditorService(
         applyReleaseYear(tag, request.releaseYear)
         if (coverArtBytes != null && coverArtMimeType != null) {
             runCatching { tag.deleteArtworkField() }
-            val artworkTempFile = createArtworkTempFile(
-                bytes = coverArtBytes,
-                mimeType = coverArtMimeType,
-                songId = originalSong.id,
-            )
-            try {
-                tag.setField(ArtworkFactory.createArtworkFromFile(artworkTempFile))
-            } finally {
-                runCatching { artworkTempFile.delete() }
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(coverArtBytes, 0, coverArtBytes.size, bounds)
+            require(bounds.outWidth in 1..MAX_ARTWORK_DIMENSION && bounds.outHeight in 1..MAX_ARTWORK_DIMENSION)
+            require(bounds.outWidth.toLong() * bounds.outHeight <= MAX_ARTWORK_PIXELS)
+            if (tag is FlacTag) {
+                tag.setField(
+                    tag.createArtworkField(
+                        coverArtBytes,
+                        PictureTypes.DEFAULT_ID,
+                        coverArtMimeType,
+                        "",
+                        bounds.outWidth,
+                        bounds.outHeight,
+                        0,
+                        0,
+                    ),
+                )
+            } else {
+                tag.setField(AndroidArtwork().apply {
+                    binaryData = coverArtBytes
+                    mimeType = coverArtMimeType
+                    description = ""
+                    pictureType = PictureTypes.DEFAULT_ID
+                    width = bounds.outWidth
+                    height = bounds.outHeight
+                })
             }
         }
         audioFile.commit()
@@ -605,22 +626,6 @@ internal class AlbumTagEditorService(
         }
     }
 
-    private fun createArtworkTempFile(
-        bytes: ByteArray,
-        mimeType: String,
-        songId: Long,
-    ): File {
-        val tempDir = File(appContext.cacheDir, TEMP_TAG_EDIT_DIR_NAME).apply { mkdirs() }
-        val extension = when (mimeType.lowercase(Locale.US)) {
-            "image/png" -> "png"
-            "image/webp" -> "webp"
-            else -> "jpg"
-        }
-        val artworkFile = File(tempDir, "cover-$songId-${System.nanoTime()}.$extension")
-        artworkFile.writeBytes(bytes)
-        return artworkFile
-    }
-
     private data class EffectiveTrackEdit(
         val title: String,
         val artist: String,
@@ -677,6 +682,8 @@ internal class AlbumTagEditorService(
     private companion object {
         val YEAR_PATTERN = Regex("""\b\d{4}\b""")
         const val TEMP_TAG_EDIT_DIR_NAME = "album-tag-edits"
+        const val MAX_ARTWORK_DIMENSION = 8_192
+        const val MAX_ARTWORK_PIXELS = 40_000_000L
         const val TAG = "AlbumTagEditor"
         const val MIN_RELEASE_YEAR = 1
         const val MAX_RELEASE_YEAR = 9999

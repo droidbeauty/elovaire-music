@@ -84,6 +84,7 @@ internal fun discLabel(language: AppLanguage): String = when (language) {
     AppLanguage.Urdu -> "ڈسک"
 }
 
+@Suppress("CyclomaticComplexMethod")
 internal fun equalizerStatusLabel(language: AppLanguage, presetName: String?): String = when {
     presetName != null -> when (language) {
         AppLanguage.Albanian -> "Caktuar në $presetName"
@@ -193,19 +194,49 @@ internal fun queueTitle(language: AppLanguage): String = when (language) {
     AppLanguage.English -> "Queue"
 }
 
-internal fun sleepTimerTitle(language: AppLanguage): String = when (language) {
-    AppLanguage.English -> "Sleep timer"
-    else -> "Sleep timer"
-}
+internal data class SleepTimerCopy(
+    val title: String,
+    val off: String,
+    val endOfSong: String,
+    val confirm: String,
+    val close: String,
+    val minuteSuffix: String = " min",
+)
 
-internal fun sleepTimerOffLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.English -> "Off"
-    else -> "Off"
-}
-
-internal fun sleepTimerEndOfSongLabel(language: AppLanguage): String = when (language) {
-    AppLanguage.English -> "End of song"
-    else -> "End of song"
+internal fun sleepTimerCopy(language: AppLanguage): SleepTimerCopy = when (language) {
+    AppLanguage.Albanian -> SleepTimerCopy("Kohëmatësi i gjumit", "Fikur", "Fundi i këngës", "Konfirmo", "Mbyll kohëmatësin")
+    AppLanguage.English -> SleepTimerCopy("Sleep timer", "Off", "End of song", "Confirm", "Close sleep timer")
+    AppLanguage.ChineseSimplified -> SleepTimerCopy("睡眠定时器", "关闭", "歌曲结束时", "确认", "关闭睡眠定时器", " 分钟")
+    AppLanguage.Croatian -> SleepTimerCopy("Mjerač vremena za spavanje", "Isključeno", "Kraj pjesme", "Potvrdi", "Zatvori mjerač vremena")
+    AppLanguage.Czech -> SleepTimerCopy("Časovač vypnutí", "Vypnuto", "Konec skladby", "Potvrdit", "Zavřít časovač")
+    AppLanguage.Danish -> SleepTimerCopy("Sleep-timer", "Fra", "Slutningen af sangen", "Bekræft", "Luk sleep-timer")
+    AppLanguage.Dutch -> SleepTimerCopy("Slaaptimer", "Uit", "Einde van nummer", "Bevestigen", "Slaaptimer sluiten")
+    AppLanguage.Bengali -> SleepTimerCopy("স্লিপ টাইমার", "বন্ধ", "গানের শেষে", "নিশ্চিত করুন", "স্লিপ টাইমার বন্ধ করুন", " মিনিট")
+    AppLanguage.Estonian -> SleepTimerCopy("Unetaimer", "Väljas", "Loo lõpus", "Kinnita", "Sulge unetaimer")
+    AppLanguage.French -> SleepTimerCopy("Minuteur de veille", "Désactivé", "Fin du morceau", "Confirmer", "Fermer le minuteur")
+    AppLanguage.German -> SleepTimerCopy("Sleep-Timer", "Aus", "Titelende", "Bestätigen", "Sleep-Timer schließen")
+    AppLanguage.Greek -> SleepTimerCopy("Χρονοδιακόπτης ύπνου", "Ανενεργό", "Τέλος τραγουδιού", "Επιβεβαίωση", "Κλείσιμο χρονοδιακόπτη")
+    AppLanguage.Hindi -> SleepTimerCopy("स्लीप टाइमर", "बंद", "गाने के अंत में", "पुष्टि करें", "स्लीप टाइमर बंद करें", " मिनट")
+    AppLanguage.Hungarian -> SleepTimerCopy("Elalvás-időzítő", "Ki", "Dal végén", "Megerősítés", "Időzítő bezárása")
+    AppLanguage.Italian -> SleepTimerCopy("Timer di spegnimento", "Disattivato", "Fine del brano", "Conferma", "Chiudi timer")
+    AppLanguage.Japanese -> SleepTimerCopy("スリープタイマー", "オフ", "曲の終了時", "確認", "スリープタイマーを閉じる", "分")
+    AppLanguage.Korean -> SleepTimerCopy("취침 타이머", "꺼짐", "곡이 끝날 때", "확인", "취침 타이머 닫기", "분")
+    AppLanguage.Latin -> SleepTimerCopy("Temporarium somni", "Exstinctum", "Fine cantus", "Confirma", "Temporarium claude")
+    AppLanguage.Latvian -> SleepTimerCopy("Miega taimeris", "Izslēgts", "Dziesmas beigās", "Apstiprināt", "Aizvērt miega taimeri")
+    AppLanguage.Lithuanian -> SleepTimerCopy("Miego laikmatis", "Išjungta", "Dainos pabaigoje", "Patvirtinti", "Uždaryti miego laikmatį")
+    AppLanguage.Malay -> SleepTimerCopy("Pemasa tidur", "Mati", "Akhir lagu", "Sahkan", "Tutup pemasa tidur")
+    AppLanguage.Macedonian -> SleepTimerCopy("Тајмер за спиење", "Исклучено", "Крај на песната", "Потврди", "Затвори го тајмерот")
+    AppLanguage.Norwegian -> SleepTimerCopy("Innsovningstimer", "Av", "Slutten av sangen", "Bekreft", "Lukk innsovningstimer")
+    AppLanguage.Polish -> SleepTimerCopy("Wyłącznik czasowy", "Wyłączony", "Koniec utworu", "Potwierdź", "Zamknij wyłącznik czasowy")
+    AppLanguage.Portuguese -> SleepTimerCopy("Temporizador", "Desligado", "Fim da música", "Confirmar", "Fechar temporizador")
+    AppLanguage.Russian -> SleepTimerCopy("Таймер сна", "Выкл.", "Конец песни", "Подтвердить", "Закрыть таймер сна", " мин")
+    AppLanguage.Slovak -> SleepTimerCopy("Časovač spánku", "Vypnuté", "Koniec skladby", "Potvrdiť", "Zavrieť časovač")
+    AppLanguage.Serbian -> SleepTimerCopy("Тајмер за спавање", "Искључено", "Крај песме", "Потврди", "Затвори тајмер")
+    AppLanguage.Spanish -> SleepTimerCopy("Temporizador", "Desactivado", "Final de la canción", "Confirmar", "Cerrar temporizador")
+    AppLanguage.Swedish -> SleepTimerCopy("Insomningstimer", "Av", "Slutet av låten", "Bekräfta", "Stäng insomningstimer")
+    AppLanguage.Thai -> SleepTimerCopy("ตัวตั้งเวลาปิด", "ปิด", "เมื่อเพลงจบ", "ยืนยัน", "ปิดตัวตั้งเวลา", " นาที")
+    AppLanguage.Ukrainian -> SleepTimerCopy("Таймер сну", "Вимкнено", "Кінець пісні", "Підтвердити", "Закрити таймер сну", " хв")
+    AppLanguage.Urdu -> SleepTimerCopy("سلیپ ٹائمر", "بند", "گانے کے اختتام پر", "تصدیق کریں", "سلیپ ٹائمر بند کریں", " منٹ")
 }
 
 internal fun playLabel(language: AppLanguage): String = when (language) {

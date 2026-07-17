@@ -31,6 +31,11 @@ internal data class MediaCapabilityReport(
     val metadataReadSupport: MetadataReadSupport,
     val fingerprintEligible: Boolean,
     val userSafeExplanation: String,
+    val textWriteCapability: CapabilityLevel = CapabilityLevel.Unsupported,
+    val artworkWriteCapability: CapabilityLevel = CapabilityLevel.Unsupported,
+    val unsyncedLyricsWriteCapability: CapabilityLevel = CapabilityLevel.Unsupported,
+    val syncedLyricsWriteCapability: CapabilityLevel = CapabilityLevel.Unsupported,
+    val isProtected: Boolean = false,
 )
 
 internal enum class MediaCompatibilityReason {
@@ -44,6 +49,7 @@ internal enum class MediaCompatibilityReason {
     UnsafeArtworkWriter,
     UnknownContainer,
     PlatformDependentDecoder,
+    ProtectedContent,
 }
 
 internal object MediaCompatibilityDiagnostics {
@@ -71,6 +77,7 @@ internal object MediaCompatibilityDiagnostics {
         val lyricsWriteSupport = AudioFormatPolicy.embeddedLyricsWriteSupport(detected, fileName)
         val artworkWriteSupport = playbackSupport != PlaybackSupport.Unsupported &&
             AudioFormatPolicy.canEmbedArtwork(detected, fileName)
+        val resolved = AudioFormatPolicy.resolvedCapability(container)
         return MediaCapabilityReport(
             fileName = fileName,
             uri = uri,
@@ -118,6 +125,13 @@ internal object MediaCompatibilityDiagnostics {
                 tagWriteSupport = tagWriteSupport,
                 artworkWriteSupport = artworkWriteSupport,
             ),
+            textWriteCapability = resolved?.metadata?.textWrite ?: CapabilityLevel.Unsupported,
+            artworkWriteCapability = resolved?.metadata?.artworkWrite ?: CapabilityLevel.Unsupported,
+            unsyncedLyricsWriteCapability = resolved?.metadata?.lyricsWrite?.unsynced
+                ?: CapabilityLevel.Unsupported,
+            syncedLyricsWriteCapability = resolved?.metadata?.lyricsWrite?.synced
+                ?: CapabilityLevel.Unsupported,
+            isProtected = detected?.isProtected == true,
         )
     }
 
@@ -137,6 +151,7 @@ internal object MediaCompatibilityDiagnostics {
         return when {
             !detected.hasAudioTrack -> MediaCompatibilityReason.MissingAudioTrack
             detected.hasVideoTrack -> MediaCompatibilityReason.VideoTrackPresent
+            detected.isProtected -> MediaCompatibilityReason.ProtectedContent
             detected.container == AudioContainerFormat.Unknown -> MediaCompatibilityReason.UnknownContainer
             detected.decoderAvailable == false -> MediaCompatibilityReason.DecoderUnavailable
             playbackSupport == PlaybackSupport.Unsupported -> MediaCompatibilityReason.UnsupportedCodec
@@ -167,6 +182,8 @@ internal object MediaCompatibilityDiagnostics {
                 "This file contains video and cannot be played as a music track."
             playbackReason == MediaCompatibilityReason.DecoderUnavailable ->
                 "This device does not provide a compatible decoder for this audio stream."
+            playbackReason == MediaCompatibilityReason.ProtectedContent ->
+                "Protected audio cannot be opened by this app."
             playbackSupport == PlaybackSupport.PlatformDependent ->
                 "Playback depends on decoder support from this Android device."
             tagWriteSupport != TagWriteSupport.Safe ->

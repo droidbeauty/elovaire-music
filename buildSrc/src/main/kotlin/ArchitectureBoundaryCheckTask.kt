@@ -48,6 +48,12 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             if ("ExoPlayer.Builder" in text && !path.endsWith("/data/playback/PlaybackPlayerFactory.kt")) {
                 violations += "$path creates an ExoPlayer outside the player factory"
             }
+            if (
+                "AudioFormatPolicy.capabilities" in text &&
+                !path.endsWith("/data/audio/AudioFormatPolicy.kt")
+            ) {
+                violations += "$path bypasses the audio-format registry API"
+            }
             if (" external fun " in text && NATIVE_ALLOWED.none(path::endsWith)) {
                 violations += "$path declares a native entry point outside an approved bridge"
             }
@@ -87,6 +93,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         val BITMAP_ALLOWED = setOf(
             "/data/artwork/ArtworkLoader.kt",
             "/data/tags/matching/AlbumArtworkResolver.kt",
+            "/data/tags/AlbumTagEditorService.kt",
             "/ui/screens/about/AboutScreens.kt",
         )
         val HTTP_ALLOWED = setOf(

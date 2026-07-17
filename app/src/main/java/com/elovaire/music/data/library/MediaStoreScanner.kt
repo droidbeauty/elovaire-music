@@ -22,7 +22,7 @@ class MediaStoreScanner(
 ) {
     private val metadataCache = ScannerMetadataCache()
     private val audioFormatDetector = AudioFormatDetector(context)
-    private val embeddedTagMetadataReader = EmbeddedTagMetadataReader()
+    private val embeddedTagMetadataReader = EmbeddedTagMetadataReader(context)
     private val scanRoots = LibraryScanRoots()
     private val mediaStoreIndexer = MediaStoreIndexer(
         context = context,
@@ -133,7 +133,16 @@ class MediaStoreScanner(
                         continue
                     }
                     val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)) {
-                        audioFormatDetector.detect(row.uri, row.fileName, row.mimeType)
+                        audioFormatDetector.detect(
+                            uri = row.uri,
+                            fileName = row.fileName,
+                            mediaStoreMimeType = row.mimeType,
+                            revisionKey = if (row.dateModifiedSeconds != null || row.fileSizeBytes != null) {
+                                "${row.dateModifiedSeconds}:${row.fileSizeBytes}"
+                            } else {
+                                null
+                            },
+                        )
                     } else {
                         AudioScanCandidateMapper.fastDetectedFormat(
                             extension = row.extension,
@@ -174,6 +183,7 @@ class MediaStoreScanner(
                             readSongMetadata(
                                 songId = row.id,
                                 songUri = row.uri,
+                                fileName = row.fileName,
                                 filePath = row.filePath,
                                 volumeName = row.volumeName,
                                 mediaStoreYear = row.mediaStoreYear,
@@ -379,6 +389,7 @@ class MediaStoreScanner(
     private fun readSongMetadata(
         songId: Long,
         songUri: Uri,
+        fileName: String,
         filePath: String?,
         volumeName: String?,
         mediaStoreYear: Int?,
@@ -387,7 +398,11 @@ class MediaStoreScanner(
         detectedFormat: DetectedAudioFormat,
         genreCache: MutableMap<MediaStoreGenreKey, String?>,
     ): SongMetadata {
-        val embeddedMetadata = embeddedTagMetadataReader.read(filePath)
+        val embeddedMetadata = embeddedTagMetadataReader.read(
+            uri = songUri,
+            filePath = filePath,
+            fileName = fileName,
+        )
         val retrieverMetadata = readRetrieverMetadata(songUri)
         val resolvedFormat = detectedFormat.displayName
         val year = embeddedMetadata?.releaseYear ?: retrieverMetadata.year ?: mediaStoreYear

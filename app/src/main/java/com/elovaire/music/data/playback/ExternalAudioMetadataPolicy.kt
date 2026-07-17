@@ -17,7 +17,7 @@ internal object ExternalAudioMetadataPolicy {
             ?.takeIf(String::isNotBlank)
             ?: return true
         if (normalized.startsWith("audio/") || normalized == GENERIC_BINARY_MIME_TYPE) return true
-        return AudioFormatPolicy.capabilities.any { normalized in it.mimeTypes }
+        return AudioFormatPolicy.capabilityForMimeType(normalized) != null
     }
 
     fun sanitizeDisplayName(rawValue: String?): String {
@@ -60,9 +60,7 @@ internal object ExternalAudioMetadataPolicy {
             ?.substringBefore(';')
             ?.trim()
             ?.lowercase(Locale.ROOT)
-        val mimeCapability = normalizedMime?.let { mime ->
-            AudioFormatPolicy.capabilities.firstOrNull { capability -> mime in capability.mimeTypes }
-        }
+        val mimeCapability = AudioFormatPolicy.capabilityForMimeType(normalizedMime)
         return extensionCapability ?: mimeCapability
     }
 
