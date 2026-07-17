@@ -295,6 +295,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.discLabel
 import elovaire.music.droidbeauty.app.ui.i18n.availableReleasesLabel
 import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.homeCopy
@@ -5174,7 +5175,7 @@ private fun DiscSectionHeader(
             modifier = Modifier.size(16.dp),
         )
         Text(
-            text = "Disc $discNumber",
+            text = "${discLabel(LocalAppLanguage.current)} $discNumber",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurface,
         )
@@ -6191,9 +6192,21 @@ internal fun NowPlayingScreen(
     val appBackground = MaterialTheme.colorScheme.background
     val gradient = rememberArtworkGradient(liveCurrentSong?.artUri).value
     val artwork = rememberArtworkBitmap(liveCurrentSong?.artUri, size = 768)
-    val activeTransitionSnapshot = remember(transitionSnapshot, liveCurrentSong?.id) {
+    val transitionEntrySongId = remember { liveCurrentSong?.id }
+    var entryTransitionInvalidated by remember { mutableStateOf(false) }
+    LaunchedEffect(liveCurrentSong?.id, transitionEntrySongId) {
+        if (liveCurrentSong?.id != transitionEntrySongId) entryTransitionInvalidated = true
+    }
+    val activeTransitionSnapshot = remember(
+        transitionSnapshot,
+        transitionEntrySongId,
+        liveCurrentSong?.id,
+        entryTransitionInvalidated,
+    ) {
         transitionSnapshot?.takeIf {
-            it.songId == liveCurrentSong?.id &&
+            !entryTransitionInvalidated &&
+            liveCurrentSong?.id == transitionEntrySongId &&
+                it.songId == transitionEntrySongId &&
                 it.barBounds.isValidTransitionBounds &&
                 it.artworkBounds.isValidTransitionBounds
         }

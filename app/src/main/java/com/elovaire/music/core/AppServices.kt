@@ -92,15 +92,11 @@ internal class AppServices(
                 if (released.get()) return@callback
                 appScope.launch {
                     if (released.get()) return@launch
-                    song.libraryPath
-                        ?.takeIf { it.isNotBlank() }
-                        ?.let { path ->
-                            libraryRepository.refreshChangedFiles(
-                                filePaths = listOf(path),
-                                songIds = listOf(song.id),
-                                enrichMetadata = false,
-                            )
-                        }
+                    libraryRepository.refreshChangedFiles(
+                        filePaths = listOfNotNull(song.libraryPath?.takeIf { it.isNotBlank() }),
+                        songIds = listOf(song.id),
+                        enrichMetadata = true,
+                    )
                 }
             },
         )

@@ -1053,30 +1053,13 @@ private fun EqPresetMenu(
     onReset: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
-    val presets = remember {
-        listOf(
-            eqPreset("Electronic", 0.40f, 0.58f, 0.42f, 0.26f, 0.10f, 0.08f, 0.16f, 0.24f),
-            eqPreset("Jazz", 0.18f, 0.26f, 0.14f, -0.08f, 0.10f, 0.22f, 0.18f, 0.12f),
-            eqPreset("Classical", 0.12f, 0.16f, 0.08f, -0.04f, 0.06f, 0.18f, 0.24f, 0.18f),
-            eqPreset("Acoustic", 0.10f, 0.14f, 0.06f, -0.12f, 0.14f, 0.20f, 0.18f, 0.10f),
-            eqPreset("Pop", 0.22f, 0.28f, 0.16f, -0.06f, 0.18f, 0.24f, 0.18f, 0.10f),
-            eqPreset("Rock", 0.28f, 0.22f, 0.10f, -0.12f, 0.08f, 0.18f, 0.28f, 0.22f),
-            eqPreset("Metal", 0.22f, 0.18f, 0.08f, -0.14f, 0.12f, 0.24f, 0.30f, 0.26f),
-            eqPreset("Vocal", -0.08f, -0.12f, -0.04f, -0.10f, 0.20f, 0.28f, 0.16f, 0.06f),
-            eqPreset("R&B", 0.28f, 0.32f, 0.20f, -0.06f, 0.20f, 0.22f, 0.10f, 0.06f),
-            eqPreset("Soul", 0.20f, 0.24f, 0.18f, -0.04f, 0.18f, 0.24f, 0.10f, 0.04f),
-            eqPreset("Hip-Hop", 0.42f, 0.46f, 0.22f, -0.12f, 0.10f, 0.12f, 0.08f, 0.04f),
-        )
-    }
+    val presets = remember { eqPresetDefinitions() }
     val horizontalScrollState = rememberScrollState()
     val activePresetName = remember(currentSettings, selectedPresetName, equalizerEnabled, presets) {
         if (!equalizerEnabled) return@remember null
         selectedPresetName?.takeIf { selectedName ->
             presets.any { preset -> preset.name == selectedName }
-        } ?: run {
-        val currentBands = currentSettings.normalizedBandValues()
-        presets.firstOrNull { preset -> preset.settings.normalizedBandValues() == currentBands }?.name
-        }
+        } ?: currentSettings.matchingEqPresetName(presets)
     }
 
     Row(
@@ -1108,6 +1091,28 @@ private fun EqPresetMenu(
             )
         }
     }
+}
+
+private fun eqPresetDefinitions(): List<EqPresetDefinition> =
+    listOf(
+        eqPreset("Electronic", 0.40f, 0.58f, 0.42f, 0.26f, 0.10f, 0.08f, 0.16f, 0.24f),
+        eqPreset("Jazz", 0.18f, 0.26f, 0.14f, -0.08f, 0.10f, 0.22f, 0.18f, 0.12f),
+        eqPreset("Classical", 0.12f, 0.16f, 0.08f, -0.04f, 0.06f, 0.18f, 0.24f, 0.18f),
+        eqPreset("Acoustic", 0.10f, 0.14f, 0.06f, -0.12f, 0.14f, 0.20f, 0.18f, 0.10f),
+        eqPreset("Pop", 0.22f, 0.28f, 0.16f, -0.06f, 0.18f, 0.24f, 0.18f, 0.10f),
+        eqPreset("Rock", 0.28f, 0.22f, 0.10f, -0.12f, 0.08f, 0.18f, 0.28f, 0.22f),
+        eqPreset("Metal", 0.22f, 0.18f, 0.08f, -0.14f, 0.12f, 0.24f, 0.30f, 0.26f),
+        eqPreset("Vocal", -0.08f, -0.12f, -0.04f, -0.10f, 0.20f, 0.28f, 0.16f, 0.06f),
+        eqPreset("R&B", 0.28f, 0.32f, 0.20f, -0.06f, 0.20f, 0.22f, 0.10f, 0.06f),
+        eqPreset("Soul", 0.20f, 0.24f, 0.18f, -0.04f, 0.18f, 0.24f, 0.10f, 0.04f),
+        eqPreset("Hip-Hop", 0.42f, 0.46f, 0.22f, -0.12f, 0.10f, 0.12f, 0.08f, 0.04f),
+    )
+
+internal fun EqSettings.matchingEqPresetName(): String? = matchingEqPresetName(eqPresetDefinitions())
+
+private fun EqSettings.matchingEqPresetName(presets: List<EqPresetDefinition>): String? {
+    val currentBands = normalizedBandValues()
+    return presets.firstOrNull { it.settings.normalizedBandValues() == currentBands }?.name
 }
 
 @Composable

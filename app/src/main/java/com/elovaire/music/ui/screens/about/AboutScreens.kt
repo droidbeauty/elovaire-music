@@ -40,9 +40,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
@@ -85,24 +83,11 @@ internal fun ChangelogScreen(
     val release = remember(releases) {
         releases.firstOrNull { it.version == BuildConfig.VERSION_NAME } ?: releases.firstOrNull()
     }
-    val backgroundFilter = remember {
-        ColorFilter.tint(
-            color = Color.Black.copy(alpha = 0.7f),
-            blendMode = BlendMode.SrcOver,
-        )
-    }
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.Black),
+            .background(MaterialTheme.colorScheme.background),
     ) {
-        Image(
-            painter = painterResource(id = R.drawable.changelog_background),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            colorFilter = backgroundFilter,
-            modifier = Modifier.fillMaxSize(),
-        )
         LazyColumn(
             state = listState,
             overscrollEffect = null,
@@ -126,12 +111,12 @@ internal fun ChangelogScreen(
                     Text(
                         text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
                         style = MaterialTheme.typography.headlineMedium,
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Surface(
                         shape = RoundedCornerShape(ElovaireRadii.pill),
-                        color = Color.White.copy(alpha = 0.14f),
-                        contentColor = Color.White,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                        contentColor = MaterialTheme.colorScheme.primary,
                     ) {
                         Text(
                             text = BuildConfig.VERSION_NAME,
@@ -146,9 +131,7 @@ internal fun ChangelogScreen(
                 ChangelogReleaseContent(
                     release = release,
                     contentHorizontalPadding = 20.dp,
-                    textColor = Color.White,
-                    secondaryTextColor = Color.White.copy(alpha = 0.68f),
-                    dividerColor = Color.White.copy(alpha = 0.16f),
+                    decorateEntries = true,
                 )
             }
         }
@@ -296,6 +279,7 @@ internal fun ChangelogReleaseContent(
     textColor: Color = MaterialTheme.colorScheme.onSurface,
     secondaryTextColor: Color = readableSecondaryTextColor(),
     dividerColor: Color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+    decorateEntries: Boolean = false,
 ) {
     val changes = release?.changes?.filter { it.isNotBlank() }.orEmpty()
     Column(
@@ -313,26 +297,57 @@ internal fun ChangelogReleaseContent(
             )
         } else {
             changes.forEachIndexed { index, change ->
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .then(
+                            if (decorateEntries) {
+                                Modifier
+                                    .clip(RoundedCornerShape(ElovaireRadii.card))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.045f))
+                                    .padding(horizontal = 16.dp, vertical = 18.dp)
+                            } else {
+                                Modifier
+                            },
+                        ),
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                    verticalAlignment = Alignment.Top,
                 ) {
+                    if (decorateEntries) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.14f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Text(
+                                text = (index + 1).toString().padStart(2, '0'),
+                                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    }
                     Text(
                         text = change,
-                        style = MaterialTheme.typography.bodyLarge,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
                         color = textColor,
                     )
-                    if (index != changes.lastIndex) {
+                }
+                if (index != changes.lastIndex) {
+                    if (decorateEntries) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                    } else {
+                        Spacer(modifier = Modifier.height(14.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(1.dp)
                                 .background(dividerColor),
                         )
+                        Spacer(modifier = Modifier.height(14.dp))
                     }
-                }
-                if (index != changes.lastIndex) {
-                    Spacer(modifier = Modifier.height(14.dp))
                 }
             }
         }

@@ -2,7 +2,9 @@ package elovaire.music.droidbeauty.app.platform
 
 import android.content.ContentResolver
 import android.net.Uri
+import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.provider.MediaStore
 import androidx.annotation.WorkerThread
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -62,7 +64,7 @@ internal class ContentIo(
 
     @WorkerThread
     fun openReadableDescriptor(uri: Uri): ParcelFileDescriptor {
-        return resolver.openFileDescriptor(uri, "r") ?: error("Unable to open the source file.")
+        return openDescriptor(uri, "r") ?: error("Unable to open the source file.")
     }
 
     @WorkerThread
@@ -86,13 +88,21 @@ internal class ContentIo(
 
     private fun openDescriptorOrNull(uri: Uri, mode: String): ParcelFileDescriptor? {
         return try {
-            resolver.openFileDescriptor(uri, mode)
+            openDescriptor(uri, mode)
         } catch (_: java.io.FileNotFoundException) {
             null
         } catch (_: IllegalArgumentException) {
             null
         } catch (_: UnsupportedOperationException) {
             null
+        }
+    }
+
+    private fun openDescriptor(uri: Uri, mode: String): ParcelFileDescriptor? {
+        return if (Build.VERSION.SDK_INT >= 36 && uri.authority == MediaStore.AUTHORITY) {
+            MediaStore.openFileDescriptor(resolver, uri, mode, null)
+        } else {
+            resolver.openFileDescriptor(uri, mode)
         }
     }
 

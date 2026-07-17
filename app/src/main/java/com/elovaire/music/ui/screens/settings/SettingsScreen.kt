@@ -75,6 +75,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
+import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
@@ -82,6 +83,7 @@ import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
+import elovaire.music.droidbeauty.app.ui.i18n.equalizerStatusLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
@@ -112,9 +114,6 @@ internal fun SettingsScreen(
     onThemeModeSelected: (ThemeMode) -> Unit,
     onTextSizePresetSelected: (TextSizePreset) -> Unit,
     onAppLanguageSelected: (AppLanguage) -> Unit,
-    onBassChanged: (Float) -> Unit,
-    onMidrangeChanged: (Float) -> Unit,
-    onTrebleChanged: (Float) -> Unit,
     onVolumeNormalizationChanged: (Boolean) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOnlineLyricsLookupChanged: (Boolean) -> Unit,
@@ -221,80 +220,19 @@ internal fun SettingsScreen(
                     Column(
                         verticalArrangement = Arrangement.spacedBy(0.dp),
                     ) {
-                        Row(
+                        SettingActionRow(
+                            title = "EQ",
+                            subtitle = equalizerStatusLabel(
+                                language = appLanguage,
+                                presetName = eqSettings.matchingEqPresetName()
+                                    ?: "Custom".takeIf { EqValuePolicy.hasSignalAlteringEffects(eqSettings) },
+                            ),
+                            actionLabel = "EQ",
+                            onAction = onOpenEqualizer,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
-                            horizontalArrangement = Arrangement.spacedBy(30.dp),
-                        ) {
-                            EqToneKnob(
-                                title = uiPhrase(appLanguage, UiPhrase.Bass),
-                                value = eqSettings.bass.coerceIn(0f, 1f),
-                                valueRange = 0f..1f,
-                                accentColor = Color(0xFF2FE08D),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onBassChanged,
-                            )
-                            EqToneKnob(
-                                title = uiPhrase(appLanguage, UiPhrase.Midrange),
-                                value = eqSettings.midrange.coerceIn(-1f, 1f),
-                                valueRange = -1f..1f,
-                                accentColor = Color(0xFF39C2FF),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onMidrangeChanged,
-                            )
-                            EqToneKnob(
-                                title = uiPhrase(appLanguage, UiPhrase.Treble),
-                                value = eqSettings.treble.coerceIn(-1f, 1f),
-                                valueRange = -1f..1f,
-                                accentColor = Color(0xFFFFB056),
-                                modifier = Modifier.weight(1f),
-                                onValueChange = onTrebleChanged,
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(20.dp))
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                            horizontalArrangement = Arrangement.Center,
-                        ) {
-                            val interactionSource = remember { MutableInteractionSource() }
-                            Surface(
-                                modifier = Modifier.elovairePressScale(
-                                    interactionSource = interactionSource,
-                                    pressedScale = 0.9f,
-                                    animationSpec = ElovaireMotion.chromeReleaseSpec(),
-                                    label = "settings_equalizer_button_scale",
-                                ),
-                                shape = RoundedCornerShape(ElovaireRadii.pill),
-                                color = MaterialTheme.colorScheme.primary,
-                                contentColor = MaterialTheme.colorScheme.onPrimary,
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(ElovaireRadii.pill))
-                                        .clickable(
-                                            interactionSource = interactionSource,
-                                            indication = null,
-                                            onClick = onOpenEqualizer,
-                                        )
-                                        .padding(horizontal = 18.dp, vertical = 12.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.ic_lucide_audio_waveform),
-                                        contentDescription = null,
-                                        modifier = Modifier.size(16.dp),
-                                    )
-                                    Text(
-                                        text = copy.equalizer,
-                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                    )
-                                }
-                            }
-                        }
+                        )
                         Spacer(modifier = Modifier.height(20.dp))
                         SettingToggleRow(
                             title = copy.volumeNormalization,
