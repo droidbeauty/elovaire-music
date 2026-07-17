@@ -161,27 +161,6 @@ Elovaire is built for Android based on optimized architecture
 
 ---
 
-## Building
-
-Clone the repository and open it in Android Studio:
-
-```bash
-git clone https://github.com/droidbeauty/elovaire-music.git
-cd elovaire-music
-```
-
-Build a debug APK from the command line:
-
-```bash
-./gradlew assembleDebug
-```
-
-The generated APK will be available under:
-
-```text
-app/build/outputs/apk/debug/
-```
-
 ## Support
 
 Elovaire is a personal project made in pursuit of a beautiful, focused alternative to streaming-first music apps. Support is optional, but always appreciated.
