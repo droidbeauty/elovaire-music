@@ -13,6 +13,10 @@ import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
+import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
+import elovaire.music.droidbeauty.app.domain.kernel.isTerminal
+import elovaire.music.droidbeauty.app.domain.kernel.isValidMutationTransition
+import elovaire.music.droidbeauty.app.domain.kernel.recoveryStatusFor
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -23,22 +27,6 @@ internal enum class MediaMutationType {
     EmbeddedLyricsWrite,
     ArtworkWrite,
     Delete,
-}
-
-internal enum class MediaMutationStatus {
-    Created,
-    PreflightPassed,
-    NeedsPermission,
-    PermissionGranted,
-    TempWritten,
-    TempVerified,
-    Committed,
-    PersistedVerified,
-    Published,
-    Completed,
-    Failed,
-    NeedsRepair,
-    Cancelled,
 }
 
 internal data class MediaMutationOperation(
@@ -113,7 +101,7 @@ internal class MediaMutationJournal(
                 error = error,
             ),
         )
-        if (status.isTerminalMutationStatus()) activeMutationIds -= mutationId
+        if (status.isTerminal()) activeMutationIds -= mutationId
     }
 
     suspend fun recoverIncomplete(): MediaMutationRecoveryResult {
@@ -163,103 +151,9 @@ internal class MediaMutationJournal(
     }
 }
 
-private fun MediaMutationStatus.isTerminalMutationStatus(): Boolean {
-    return this == MediaMutationStatus.Completed ||
-        this == MediaMutationStatus.Cancelled ||
-        this == MediaMutationStatus.Failed ||
-        this == MediaMutationStatus.NeedsRepair
-}
-
 internal sealed interface MediaMutationRecoveryResult {
     data class Success(val recoveredCount: Int) : MediaMutationRecoveryResult
     data class Failure(val cause: Throwable) : MediaMutationRecoveryResult
-}
-
-internal fun recoveryStatusFor(status: MediaMutationStatus): MediaMutationStatus? {
-    return when (status) {
-        MediaMutationStatus.Created,
-        MediaMutationStatus.PreflightPassed,
-        MediaMutationStatus.NeedsPermission,
-        MediaMutationStatus.PermissionGranted,
-        MediaMutationStatus.TempWritten,
-        MediaMutationStatus.TempVerified,
-        -> MediaMutationStatus.Cancelled
-        MediaMutationStatus.Committed -> MediaMutationStatus.NeedsRepair
-        MediaMutationStatus.PersistedVerified,
-        MediaMutationStatus.Published,
-        -> MediaMutationStatus.Completed
-        MediaMutationStatus.Failed,
-        MediaMutationStatus.NeedsRepair,
-        MediaMutationStatus.Completed,
-        MediaMutationStatus.Cancelled,
-        -> null
-    }
-}
-
-internal fun isValidMutationTransition(
-    current: MediaMutationStatus,
-    next: MediaMutationStatus,
-): Boolean {
-    if (current == next) return false
-    return next in when (current) {
-        MediaMutationStatus.Created -> setOf(
-            MediaMutationStatus.PreflightPassed,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.PreflightPassed -> setOf(
-            MediaMutationStatus.NeedsPermission,
-            MediaMutationStatus.TempWritten,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.NeedsPermission -> setOf(
-            MediaMutationStatus.PermissionGranted,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.PermissionGranted -> setOf(
-            MediaMutationStatus.TempWritten,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.TempWritten -> setOf(
-            MediaMutationStatus.TempVerified,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.NeedsRepair,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.TempVerified -> setOf(
-            MediaMutationStatus.Committed,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.NeedsRepair,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.Committed -> setOf(
-            MediaMutationStatus.PersistedVerified,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.NeedsRepair,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.PersistedVerified -> setOf(
-            MediaMutationStatus.Published,
-            MediaMutationStatus.Completed,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.NeedsRepair,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.Published -> setOf(
-            MediaMutationStatus.Completed,
-            MediaMutationStatus.Failed,
-            MediaMutationStatus.NeedsRepair,
-            MediaMutationStatus.Cancelled,
-        )
-        MediaMutationStatus.Failed -> setOf(MediaMutationStatus.NeedsRepair)
-        MediaMutationStatus.NeedsRepair,
-        MediaMutationStatus.Completed,
-        MediaMutationStatus.Cancelled,
-        -> emptySet()
-    }
 }
 
 private fun String.toMediaMutationStatusOrNull(): MediaMutationStatus? {

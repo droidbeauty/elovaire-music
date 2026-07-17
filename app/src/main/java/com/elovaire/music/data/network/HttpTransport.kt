@@ -33,8 +33,8 @@ internal object HttpTransport {
             connection.inputStream.use { input ->
                 try {
                     input.readUtf8Bounded(maxBytes, connection.contentLengthLong)
-                } catch (failure: java.io.IOException) {
-                    throw HttpTransportException(HttpFailureKind.ResponseTooLarge, failure.message.orEmpty(), failure)
+                } catch (failure: BoundedResponseException) {
+                    throw failure.toTransportFailure()
                 }
             }
         }
@@ -46,8 +46,8 @@ internal object HttpTransport {
             connection.inputStream.use { input ->
                 try {
                     input.readBytesBounded(maxBytes, connection.contentLengthLong)
-                } catch (failure: java.io.IOException) {
-                    throw HttpTransportException(HttpFailureKind.ResponseTooLarge, failure.message.orEmpty(), failure)
+                } catch (failure: BoundedResponseException) {
+                    throw failure.toTransportFailure()
                 }
             }
         }
@@ -66,7 +66,13 @@ internal object HttpTransport {
             val status = connection.responseCode
             ensureHttps(connection)
             if (status !in 200..299) throw httpStatusFailure(status)
-            connection.inputStream.use { input -> input.readUtf8Bounded(maxBytes, connection.contentLengthLong) }
+            connection.inputStream.use { input ->
+                try {
+                    input.readUtf8Bounded(maxBytes, connection.contentLengthLong)
+                } catch (failure: BoundedResponseException) {
+                    throw failure.toTransportFailure()
+                }
+            }
         }
     }
 
@@ -132,6 +138,15 @@ internal object HttpTransport {
             throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network request left HTTPS.")
         }
     }
+}
+
+private fun BoundedResponseException.toTransportFailure(): HttpTransportException {
+    val failureKind = if (kind == BoundedReadFailure.TooLarge) {
+        HttpFailureKind.ResponseTooLarge
+    } else {
+        HttpFailureKind.Transport
+    }
+    return HttpTransportException(failureKind, message.orEmpty(), this)
 }
 
 internal fun resolveSafeHttpRedirect(currentUrl: URL, location: String?): URL {

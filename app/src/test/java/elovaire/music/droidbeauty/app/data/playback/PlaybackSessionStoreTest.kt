@@ -23,6 +23,14 @@ class PlaybackSessionStoreTest {
         assertEquals(0L, normalized.positionMs)
     }
 
+    @Test
+    fun persistedFormatRejectsUnknownFutureVersions() {
+        assertEquals(true, isSupportedPlaybackSessionVersion(LEGACY_FORMAT_VERSION))
+        assertEquals(true, isSupportedPlaybackSessionVersion(CURRENT_FORMAT_VERSION))
+        assertEquals(false, isSupportedPlaybackSessionVersion(CURRENT_FORMAT_VERSION + 1))
+        assertEquals(false, isSupportedPlaybackSessionVersion(-1))
+    }
+
     private fun session(
         queueSongIds: List<Long>,
         currentSongId: Long?,

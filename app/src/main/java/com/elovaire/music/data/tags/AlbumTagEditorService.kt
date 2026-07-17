@@ -14,7 +14,6 @@ import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
-import elovaire.music.droidbeauty.app.data.mutation.MediaMutationStatus
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.platform.ContentIo
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
@@ -27,6 +26,7 @@ import elovaire.music.droidbeauty.app.data.tags.matching.HttpAcoustIdClient
 import elovaire.music.droidbeauty.app.data.tags.matching.HttpMusicBrainzClient
 import elovaire.music.droidbeauty.app.data.tags.matching.TagMatchCache
 import elovaire.music.droidbeauty.app.data.tags.matching.TidalArtworkProvider
+import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File

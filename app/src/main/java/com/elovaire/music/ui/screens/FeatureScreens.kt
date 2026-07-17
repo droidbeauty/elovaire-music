@@ -7635,6 +7635,7 @@ private fun QueueSeparator(
 }
 
 @Composable
+@Suppress("LongMethod")
 private fun SleepTimerDialog(
     selectedOption: SleepTimerOption,
     onOptionSelected: (SleepTimerOption) -> Unit,

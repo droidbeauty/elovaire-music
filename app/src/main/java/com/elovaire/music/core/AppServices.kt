@@ -22,6 +22,7 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -37,7 +38,6 @@ internal class AppServices(
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
     private val portableSettingsBackup = PortableSettingsBackup(applicationContext)
-        .also(PortableSettingsBackup::restore)
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
         dao = database.userDataDao(),
@@ -121,7 +121,11 @@ internal class AppServices(
 
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
-        portableSettingsBackup.start()
+        libraryRepository.start()
+        libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
+        appScope.launch(Dispatchers.IO) {
+            portableSettingsBackup.start()
+        }
     }
 
     fun onMemoryPressure(pressure: MemoryPressure) {

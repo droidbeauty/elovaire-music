@@ -2,6 +2,8 @@ cmake_minimum_required(VERSION 3.22.1)
 
 project(elovaire_chromaprint LANGUAGES C CXX)
 
+option(ELOVAIRE_NATIVE_SANITIZERS "Enable debug native undefined-behavior checks" OFF)
+
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
@@ -58,6 +60,8 @@ target_compile_options(
     -Wall
     -Wextra
     -Wno-unused-parameter
+    -Werror=format
+    -Werror=return-type
     -fstack-protector-strong
     -D_FORTIFY_SOURCE=2
 )
@@ -70,4 +74,20 @@ target_link_options(
     "-Wl,-z,max-page-size=16384"
     "-Wl,-z,common-page-size=16384"
 )
+
+if(ELOVAIRE_NATIVE_SANITIZERS)
+    target_compile_options(
+        elovaire_chromaprint
+        PRIVATE
+        -fsanitize=undefined
+        -fno-sanitize-recover=all
+        -fno-omit-frame-pointer
+    )
+    target_link_options(
+        elovaire_chromaprint
+        PRIVATE
+        -fsanitize=undefined
+        -fno-sanitize-recover=all
+    )
+endif()
 target_link_libraries(elovaire_chromaprint android log m)

@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import elovaire.music.droidbeauty.app.domain.kernel.normalizePlaybackQueue
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.domain.model.Song

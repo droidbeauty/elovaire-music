@@ -20,6 +20,9 @@ val fanartTvApiKey = providers.gradleProperty("FANART_TV_API_KEY").orNull
 val youtubeDataApiKey = providers.gradleProperty("YOUTUBE_DATA_API_KEY").orNull
     ?: System.getenv("YOUTUBE_DATA_API_KEY")
     ?: localProperties.getProperty("YOUTUBE_DATA_API_KEY")
+val nativeSanitizersEnabled = providers.gradleProperty("app.nativeSanitizers")
+    .map(String::toBoolean)
+    .getOrElse(false)
 
 plugins {
     alias(libs.plugins.android.application)
@@ -58,6 +61,7 @@ android {
         externalNativeBuild {
             cmake {
                 cppFlags += "-std=c++17"
+                arguments += "-DELOVAIRE_NATIVE_SANITIZERS=${if (nativeSanitizersEnabled) "ON" else "OFF"}"
             }
         }
 
@@ -94,6 +98,10 @@ android {
         buildConfig = true
     }
 
+    sourceSets.named("androidTest") {
+        assets.directories.add("schemas")
+    }
+
     externalNativeBuild {
         cmake {
             path = file("src/main/cpp/CMakeLists.txt")
@@ -104,6 +112,7 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/DebugProbesKt.bin"
         }
     }
 
@@ -117,6 +126,16 @@ android {
             "DiscouragedPrivateApi",
         )
     }
+}
+
+configurations.matching { configuration ->
+    configuration.name.endsWith("AndroidTestRuntimeClasspath")
+}.configureEach {
+    // Room 2.8.4 migration serializers require the 1.8 serializer ABI; Navigation otherwise pins 1.7.3.
+    resolutionStrategy.force(
+        "org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.1",
+        "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.8.1",
+    )
 }
 
 androidComponents {
@@ -251,6 +270,18 @@ dependencies {
     androidTestImplementation(libs.androidx.room.testing)
 }
 
+tasks.register("propertyTest") {
+    group = "verification"
+    description = "Runs deterministic generated backend property tests."
+    dependsOn("testDebugUnitTest")
+}
+
+tasks.register("queryPlanCheck") {
+    group = "verification"
+    description = "Runs device-backed Room query-plan regression checks."
+    dependsOn("connectedDebugAndroidTest")
+}
+
 val checkHiddenApiUsage = tasks.register<HiddenApiUsageCheckTask>("checkHiddenApiUsage") {
     projectDirectory.set(layout.projectDirectory)
     sourceFiles.from(
@@ -355,6 +386,27 @@ val validateReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>
     minPageSize.set(16 * 1024L)
 }
 
+val releaseArtifactInspect = tasks.register<ReleaseArtifactIntegrityTask>("releaseArtifactInspect") {
+    dependsOn(
+        "bundleRelease",
+        "collectReleaseDependencies",
+        "mergeReleaseNativeDebugMetadata",
+        "sdkReleaseDependencyData",
+    )
+    bundleFile.set(layout.buildDirectory.file("outputs/bundle/release/app-release.aab"))
+    mappingFile.set(layout.buildDirectory.file("outputs/mapping/release/mapping.txt"))
+    nativeSymbolsFile.set(layout.buildDirectory.file("outputs/native-debug-symbols/release/native-debug-symbols.zip"))
+    dependencyInventoryFile.set(layout.buildDirectory.file("outputs/sdk-dependencies/release/sdkDependencies.txt"))
+    expectedAbis.set(listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64"))
+    checksumFile.set(layout.buildDirectory.file("reports/release/app-release.aab.sha256"))
+}
+
+tasks.register<NativeSanitizerCheckTask>("nativeSanitizerCheck") {
+    group = "verification"
+    dependsOn("assembleDebug")
+    sanitizersEnabled.set(nativeSanitizersEnabled)
+}
+
 tasks.register("verifyReleaseReadiness") {
     dependsOn(
         "check",
@@ -364,6 +416,8 @@ tasks.register("verifyReleaseReadiness") {
         assertReleaseManifest,
         checkResourceStructure,
         validateReleaseNativePageSize,
+        releaseArtifactInspect,
+        ":dependencyIntegrityCheck",
         ":buildHealth",
     )
 }

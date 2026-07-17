@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import elovaire.music.droidbeauty.app.domain.kernel.normalizePlaybackQueue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

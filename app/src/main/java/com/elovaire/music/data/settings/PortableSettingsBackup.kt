@@ -2,16 +2,23 @@ package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
 import android.content.SharedPreferences
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import java.util.concurrent.atomic.AtomicBoolean
 
 internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSharedPreferenceChangeListener {
     private val appContext = context.applicationContext
-    private val source = appContext.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
-    private val backup = appContext.getSharedPreferences(BACKUP_FILE_NAME, Context.MODE_PRIVATE)
+    private val source = allowStrictModeDiskReads {
+        appContext.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
+    }
+    private val backup = allowStrictModeDiskReads {
+        appContext.getSharedPreferences(BACKUP_FILE_NAME, Context.MODE_PRIVATE)
+    }
     private val restored = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
+    private val released = AtomicBoolean(false)
 
     fun restore() {
+        if (released.get()) return
         if (!restored.compareAndSet(false, true)) return
         if (source.all.isEmpty() && backup.all.isNotEmpty()) {
             copyValues(backup, source, PORTABLE_KEYS)
@@ -20,12 +27,18 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
     }
 
     fun start() {
+        if (released.get()) return
         restore()
+        if (released.get()) return
         if (!started.compareAndSet(false, true)) return
         source.registerOnSharedPreferenceChangeListener(this)
+        if (released.get() && started.compareAndSet(true, false)) {
+            source.unregisterOnSharedPreferenceChangeListener(this)
+        }
     }
 
     fun release() {
+        released.set(true)
         if (!started.compareAndSet(true, false)) return
         source.unregisterOnSharedPreferenceChangeListener(this)
     }

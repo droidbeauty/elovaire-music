@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.db
 
 import androidx.room.Room
+import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.Dispatchers
@@ -9,6 +10,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -57,5 +59,25 @@ class UserDataDaoTest {
             listOf(10L to 0, 30L to 1),
             dao.favorites().map { it.songId to it.position },
         )
+    }
+
+    @Test
+    fun criticalPlaylistLookupUsesOrderingIndex() = runBlocking {
+        dao.insertPlaylist(UserPlaylistEntity(1L, "Test", false))
+        dao.replacePlaylistEntries(1L, listOf(10L, 20L, 30L))
+
+        val details = database.query(
+            SimpleSQLiteQuery(
+                "EXPLAIN QUERY PLAN SELECT songId FROM user_playlist_entries " +
+                    "WHERE playlistId = 1 ORDER BY position",
+            ),
+        ).use { cursor ->
+            buildList {
+                while (cursor.moveToNext()) add(cursor.getString(3))
+            }
+        }
+
+        assertTrue(details.joinToString(), details.any { it.contains("USING", ignoreCase = true) && it.contains("INDEX", ignoreCase = true) })
+        assertTrue(details.joinToString(), details.none { it.contains("USE TEMP B-TREE", ignoreCase = true) })
     }
 }

@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.network.HttpRequest
 import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -69,7 +70,9 @@ internal class ArtistImageRepository(
 ) {
     private val appContext = context.applicationContext
     private val store = ArtistImageStore(appContext)
-    private val cacheDirectory = File(appContext.cacheDir, "artist_backdrops")
+    private val cacheDirectory by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        File(appContext.cacheDir, "artist_backdrops")
+    }
     private val inFlight = ConcurrentHashMap<String, Deferred<ArtistBackdrop?>>()
     private val musicBrainzLimiter = ArtistRequestRateLimiter(MUSICBRAINZ_INTERVAL_MS, clock)
 
@@ -449,7 +452,9 @@ private data class ArtistImageCacheEntry(
 }
 
 private class ArtistImageStore(context: Context) {
-    private val preferences = context.getSharedPreferences("artist_image_cache", Context.MODE_PRIVATE)
+    private val preferences = allowStrictModeDiskReads {
+        context.getSharedPreferences("artist_image_cache", Context.MODE_PRIVATE)
+    }
 
     fun cached(artistKey: String): ArtistImageCacheEntry? {
         val raw = preferences.getString(artistKey, null) ?: return null

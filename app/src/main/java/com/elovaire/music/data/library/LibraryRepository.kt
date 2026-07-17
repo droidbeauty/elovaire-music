@@ -102,6 +102,7 @@ class LibraryRepository internal constructor(
     private val refreshRequests = LibraryRefreshRequests()
     private val _runtimeState = MutableStateFlow<LibraryRuntimeState>(LibraryRuntimeState.NoPermission)
     private val deletionMarkers = LibraryDeletionMarkers()
+    private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     @Volatile
     private var permissionChangeVersion = 0L
@@ -132,7 +133,8 @@ class LibraryRepository internal constructor(
         clock = clock,
     )
 
-    init {
+    fun start() {
+        if (released.get() || !started.compareAndSet(false, true)) return
         foregroundObserverJob = scope.launch {
             backgroundWorkPolicy.isForeground.collect { isForeground ->
                 if (released.get()) return@collect
@@ -146,7 +148,7 @@ class LibraryRepository internal constructor(
     }
 
     fun onPermissionChanged(granted: Boolean) {
-        if (released.get()) return
+        if (!started.get() || released.get()) return
         if (_scanState.value.permissionGranted == granted) return
         permissionChangeVersion += 1L
         _scanState.update { current ->
@@ -166,6 +168,7 @@ class LibraryRepository internal constructor(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
+        started.set(false)
         didBootstrapLibrary = false
         releaseObserversAndJobs(clearPermissionState = true)
         foregroundObserverJob?.cancel()

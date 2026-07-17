@@ -17,6 +17,12 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         sourceFiles.files.filter { it.isFile }.forEach { file ->
             val path = file.invariantSeparatorsPath
             val text = file.readText()
+            if (
+                "/domain/kernel/" in path &&
+                (Regex("(?m)^import android(?:x)?[.]").containsMatchIn(text) || "elovaire.music.droidbeauty.app.data." in text)
+            ) {
+                violations += "$path makes the domain kernel depend on Android or a data implementation"
+            }
             if ("GlobalScope" in text) violations += "$path uses GlobalScope"
             if ("Channel.UNLIMITED" in text && !path.endsWith("/data/settings/RoomUserDataStore.kt")) {
                 violations += "$path introduces an unreviewed unbounded operation queue"

@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.playback
 import android.content.Context
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 
 internal data class PersistedPlaybackSession(
     val queueSongIds: List<Long>,
@@ -20,10 +21,16 @@ internal class PlaybackSessionStore(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
 ) {
-    private val preferences = context.applicationContext.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+    private val preferences = allowStrictModeDiskReads {
+        context.applicationContext.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+    }
     private var lastSavedSession: PersistedPlaybackSession? = null
 
     fun load(): PersistedPlaybackSession? {
+        if (!isSupportedPlaybackSessionVersion(preferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION))) {
+            clear()
+            return null
+        }
         val savedAtMs = preferences.getLong(KEY_SAVED_AT, 0L)
         if (savedAtMs <= 0L || clock.wallTimeMs() - savedAtMs !in 0L..MAX_SESSION_AGE_MS) {
             clear()
@@ -68,6 +75,7 @@ internal class PlaybackSessionStore(
         if (lastSavedSession == comparable) return
         lastSavedSession = comparable
         preferences.edit()
+            .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
             .putString(KEY_QUEUE_IDS, normalized.queueSongIds.joinToString(","))
             .putLong(KEY_CURRENT_SONG_ID, normalized.currentSongId ?: -1L)
             .putInt(KEY_CURRENT_INDEX, normalized.currentIndex)
@@ -90,6 +98,7 @@ internal class PlaybackSessionStore(
         const val FILE_NAME = "playback_session"
         const val MAX_QUEUE_SIZE = 10_000
         const val MAX_SESSION_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
+        const val KEY_FORMAT_VERSION = "format_version"
         const val KEY_QUEUE_IDS = "queue_song_ids"
         const val KEY_CURRENT_SONG_ID = "current_song_id"
         const val KEY_CURRENT_INDEX = "current_index"
@@ -100,6 +109,13 @@ internal class PlaybackSessionStore(
         const val KEY_WAS_PLAYING = "was_playing"
         const val KEY_SAVED_AT = "saved_at_wall_time_ms"
     }
+}
+
+internal const val LEGACY_FORMAT_VERSION = 0
+internal const val CURRENT_FORMAT_VERSION = 1
+
+internal fun isSupportedPlaybackSessionVersion(version: Int): Boolean {
+    return version in LEGACY_FORMAT_VERSION..CURRENT_FORMAT_VERSION
 }
 
 private fun PersistedPlaybackSession.withoutSavedAt(): PersistedPlaybackSession = copy(savedAtWallTimeMs = 0L)

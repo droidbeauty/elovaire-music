@@ -33,7 +33,9 @@ internal class AppExitDiagnostics(
     private val clock: AppClock = AndroidAppClock,
 ) {
     private val appContext = context.applicationContext
-    private val preferences = appContext.getSharedPreferences(PREFERENCE_FILE, Context.MODE_PRIVATE)
+    private val preferences = allowStrictModeDiskReads {
+        appContext.getSharedPreferences(PREFERENCE_FILE, Context.MODE_PRIVATE)
+    }
 
     fun inspect(): AppExitSnapshot {
         val activityManager = appContext.getSystemService(ActivityManager::class.java)

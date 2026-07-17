@@ -4,6 +4,9 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.backend.NoOpBackendEventSink
 import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
+import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
+import elovaire.music.droidbeauty.app.domain.kernel.isValidMutationTransition
+import elovaire.music.droidbeauty.app.domain.kernel.recoveryStatusFor
 import java.lang.reflect.Proxy
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
@@ -46,6 +49,27 @@ class MediaMutationJournalTest {
         assertEquals(MediaMutationStatus.NeedsRepair, recoveryStatusFor(MediaMutationStatus.Committed))
         assertEquals(MediaMutationStatus.Completed, recoveryStatusFor(MediaMutationStatus.PersistedVerified))
         assertNull(recoveryStatusFor(MediaMutationStatus.NeedsRepair))
+    }
+
+    @Test
+    fun everyMutationStateHasDeterministicRepeatedTerminalAndRecoveryBehavior() {
+        MediaMutationStatus.entries.forEach { state ->
+            assertFalse(isValidMutationTransition(state, state))
+            val hasOutgoingTransition = MediaMutationStatus.entries.any { next ->
+                isValidMutationTransition(state, next)
+            }
+            if (state == MediaMutationStatus.Completed || state == MediaMutationStatus.Cancelled || state == MediaMutationStatus.NeedsRepair) {
+                assertFalse(state.name, hasOutgoingTransition)
+            } else {
+                assertTrue(state.name, hasOutgoingTransition)
+            }
+        }
+
+        val recoveries = MediaMutationStatus.entries.associateWith(::recoveryStatusFor)
+        assertEquals(MediaMutationStatus.Cancelled, recoveries.getValue(MediaMutationStatus.Created))
+        assertEquals(MediaMutationStatus.NeedsRepair, recoveries.getValue(MediaMutationStatus.Committed))
+        assertEquals(MediaMutationStatus.Completed, recoveries.getValue(MediaMutationStatus.Published))
+        assertNull(recoveries.getValue(MediaMutationStatus.Completed))
     }
 
     @Test

@@ -1,4 +1,4 @@
-package elovaire.music.droidbeauty.app.data.playback
+package elovaire.music.droidbeauty.app.domain.kernel
 
 internal data class NormalizedPlaybackQueue(
     val currentIndex: Int,
