@@ -128,21 +128,6 @@ Supported audio format handling is based on Android Media3/ExoPlayer, Android pl
 
 ---
 
-## Built With
-
-Elovaire is built for Android based on optimized architecture
-
-- Kotlin
-- Jetpack Compose
-- Compose Navigation
-- Android Media3 / ExoPlayer
-- Android MediaStore
-- Android Storage Access Framework
-- Haze for frosted glass and backdrop blur surfaces
-- Gradle Kotlin DSL
-
----
-
 <p align="center">
   <img
     src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/6.png"
