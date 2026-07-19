@@ -56,15 +56,13 @@
     <ID>TooGenericExceptionCaught:AlbumTagEditorService.kt:AlbumTagEditorService$writeFailure: Throwable</ID>
     <ID>TooGenericExceptionCaught:AlbumTagEditorViewModel.kt:AlbumTagEditorViewModel$throwable: Throwable</ID>
     <ID>TooGenericExceptionCaught:AndroidChromaprintFingerprintProvider.kt:AndroidChromaprintFingerprintProvider$throwable: Throwable</ID>
-    <ID>TooGenericExceptionCaught:AppUpdateManager.kt:AppUpdateManager$throwable: Throwable</ID>
     <ID>TooGenericExceptionCaught:EmbeddedLyricsWriter.kt:EmbeddedLyricsWriter$throwable: Throwable</ID>
     <ID>TooGenericExceptionCaught:LrcLibLyricsProvider.kt:DefaultLrcLibApi$throwable: Throwable</ID>
-    <ID>TooManyFunctions:AppUpdateManager.kt:AppUpdateManager : UpdateController</ID>
     <ID>TooManyFunctions:ElovaireMotion.kt:ElovaireMotion</ID>
     <ID>TooManyFunctions:FeatureScreens.kt:elovaire.music.droidbeauty.app.ui.screens.FeatureScreens.kt</ID>
     <ID>TooManyFunctions:MotionTransitions.kt:MotionTransitions</ID>
     <ID>TooManyFunctions:PlaybackManager.kt:PlaybackManager : PlaybackReaderPlaybackController</ID>
-    <ID>TooManyFunctions:PreferenceStore.kt:PreferenceStore : RootSettingsReaderAppearanceSettingsWriterLibrarySettingsWriterPlaybackSettingsWriterPlaylistStoreFavoritesStoreUpdatePreferencesStore</ID>
+    <ID>TooManyFunctions:PreferenceStore.kt:PreferenceStore : RootSettingsReaderAppearanceSettingsWriterLibrarySettingsWriterPlaybackSettingsWriterPlaylistStoreFavoritesStore</ID>
     <ID>TooManyFunctions:UsbDacHardwareVolumeManager.kt:UsbDacHardwareVolumeManager</ID>
   </CurrentIssues>
 </SmellBaseline>

@@ -1,4 +1,5 @@
 import java.io.File
+import java.net.URI
 import javax.xml.parsers.DocumentBuilderFactory
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
@@ -44,12 +45,35 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
 
     private fun validateXml(file: File, violations: MutableList<String>) {
         try {
-            DocumentBuilderFactory.newInstance().apply {
+            val document = DocumentBuilderFactory.newInstance().apply {
                 isNamespaceAware = true
                 setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
             }.newDocumentBuilder().parse(file)
+            if (file.name == "info_screen.xml") validateAboutLinks(document.documentElement, file, violations)
         } catch (failure: Exception) {
             violations += "Invalid XML resource ${file.invariantSeparatorsPath}: ${failure.message}"
+        }
+    }
+
+    private fun validateAboutLinks(
+        root: org.w3c.dom.Element,
+        file: File,
+        violations: MutableList<String>,
+    ) {
+        val links = root.getElementsByTagName("link")
+        for (index in 0 until links.length) {
+            val url = (links.item(index) as? org.w3c.dom.Element)?.getAttribute("url").orEmpty()
+            if (!url.isPublicHttpsUrl()) {
+                violations += "About link must use a public HTTPS URL: ${file.invariantSeparatorsPath}"
+            }
+        }
+        val entries = root.getElementsByTagName("entry")
+        for (index in 0 until entries.length) {
+            val entry = entries.item(index) as? org.w3c.dom.Element ?: continue
+            val logo = entry.getAttribute("logoUrl").ifBlank { entry.getAttribute("logoUri") }
+            if (logo.isNotBlank() && !logo.startsWith("@drawable/") && !logo.isPublicHttpsUrl()) {
+                violations += "About logo must use a bundled drawable or public HTTPS URL: ${file.invariantSeparatorsPath}"
+            }
         }
     }
 
@@ -85,4 +109,10 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
         )
         val PROFILE_CLASS = Regex("""^L([^;]+);""")
     }
+}
+
+private fun String.isPublicHttpsUrl(): Boolean {
+    if (any(Char::isWhitespace)) return false
+    val uri = runCatching { URI(this) }.getOrNull() ?: return false
+    return uri.scheme == "https" && uri.host?.contains('.') == true && uri.userInfo == null
 }

@@ -1,6 +1,9 @@
 package elovaire.music.droidbeauty.app.core
 
+import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppBackgroundWorkPolicyTest {
@@ -50,5 +53,16 @@ class AppBackgroundWorkPolicyTest {
                 environment = WorkEnvironment(foreground = false),
             ),
         )
+    }
+
+    @Test
+    fun crashLoopSuppressesOnlyOptionalAutomaticWork() {
+        val policy = AppBackgroundWorkPolicy(MutableStateFlow(true))
+        policy.setOptionalStartupSuppressed(true)
+
+        assertFalse(policy.canStart(AppWorkKind.ForegroundOnlyUiWork))
+        assertFalse(policy.canStart(AppWorkKind.ForegroundOnlyMaintenance))
+        assertTrue(policy.canStart(AppWorkKind.UserInitiatedShortWork, userInitiated = true))
+        assertTrue(policy.canStart(AppWorkKind.MediaPlaybackRuntime))
     }
 }

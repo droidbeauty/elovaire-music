@@ -14,14 +14,11 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
-import elovaire.music.droidbeauty.app.data.update.UpdateController
-import elovaire.music.droidbeauty.app.data.update.UpdateReader
 
 internal interface RootReadDependencies {
     val libraryReader: LibraryReader
     val rootSettingsReader: RootSettingsReader
     val playbackReader: PlaybackReader
-    val updateReader: UpdateReader
 }
 
 internal interface ElovaireViewModelDependencies : RootReadDependencies {
@@ -30,7 +27,6 @@ internal interface ElovaireViewModelDependencies : RootReadDependencies {
     val playbackManager: PlaybackManager
     val lyricsService: LyricsService
     val albumTagEditorService: AlbumTagEditorService
-    val appUpdateManager: UpdateController
     val backgroundWorkPolicy: AppBackgroundWorkPolicy
 }
 

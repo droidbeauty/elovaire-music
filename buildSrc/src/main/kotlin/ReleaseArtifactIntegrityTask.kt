@@ -50,6 +50,14 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
                     throw GradleException("Release AAB contains forbidden entry: $forbidden")
                 }
             }
+            entries
+                .filter { entry -> entry.name.endsWith(".dex") || entry.name.endsWith(".pb") }
+                .forEach { entry ->
+                    val bytes = zip.getInputStream(entry).use { it.readBytes() }
+                    FORBIDDEN_BINARY_MARKERS.firstOrNull(bytes::containsAscii)?.let { marker ->
+                        throw GradleException("Release AAB contains forbidden code or data: $marker")
+                    }
+                }
             REQUIRED_ENTRIES.forEach { required ->
                 val entry = zip.getEntry(required)
                     ?: throw GradleException("Release AAB is missing required entry: $required")
@@ -68,6 +76,17 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
             if (names.none { it.contains("/LICENSE") }) {
                 throw GradleException("Release AAB contains no packaged dependency license inventory.")
             }
+            val signatureFiles = names.filter { it.startsWith("META-INF/") }
+            if (
+                signatureFiles.none { it.endsWith(".SF", ignoreCase = true) } ||
+                signatureFiles.none { name ->
+                    name.endsWith(".RSA", ignoreCase = true) ||
+                        name.endsWith(".DSA", ignoreCase = true) ||
+                        name.endsWith(".EC", ignoreCase = true)
+                }
+            ) {
+                throw GradleException("Release AAB is unsigned; configure the Play upload key before release.")
+            }
         }
 
         val checksum = MessageDigest.getInstance("SHA-256")
@@ -85,6 +104,15 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
 
     private companion object {
         val FORBIDDEN_NAMES = listOf(".DS_Store", "local.properties", "DebugProbesKt.bin", ".keystore", ".jks")
+        val FORBIDDEN_BINARY_MARKERS = listOf(
+            "AppUpdateManager",
+            "AppUpdateInstallReceiver",
+            "application/vnd.android.package-archive",
+            "browser_download_url",
+            "releases/latest",
+            "LeakCanary",
+            "ComposeViewAdapter",
+        )
         val REQUIRED_ENTRIES = listOf(
             "BundleConfig.pb",
             "BUNDLE-METADATA/com.android.tools.build.profiles/baseline.prof",
@@ -93,4 +121,20 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
             "BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map",
         )
     }
+}
+
+private fun ByteArray.containsAscii(value: String): Boolean {
+    val needle = value.toByteArray(Charsets.US_ASCII)
+    if (needle.isEmpty() || needle.size > size) return false
+    for (start in 0..size - needle.size) {
+        var matches = true
+        for (offset in needle.indices) {
+            if (this[start + offset] != needle[offset]) {
+                matches = false
+                break
+            }
+        }
+        if (matches) return true
+    }
+    return false
 }

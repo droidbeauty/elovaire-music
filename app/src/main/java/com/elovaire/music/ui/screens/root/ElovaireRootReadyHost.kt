@@ -85,17 +85,12 @@ internal fun ElovaireRootReadyHost(
                 onOpenPlayer = playerLayerController::requestOpen,
             )
         },
-        overlayHost = { layout ->
+        overlayHost = {
             RootOverlaySlot(
-                layout = layout,
                 overlayState = uiRuntime.overlayState,
                 topBarMenuActions = uiRuntime.topBarMenuActions,
                 changelogReleases = composition.changelogReleases,
                 playlistActions = actionRuntime.playlistActions,
-                chromeVisibility = uiRuntime.chromeVisibility,
-                currentRoute = currentRoute,
-                appState = appState,
-                container = container,
                 permissionController = composition.permissionController,
                 motionTransitions = composition.motionTransitions,
             )

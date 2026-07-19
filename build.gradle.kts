@@ -22,9 +22,19 @@ tasks.register("releaseQualityCheck") {
     dependsOn(":app:verifyReleaseReadiness", "buildHealth")
 }
 
-tasks.register("generateBaselineProfile") {
+tasks.register<BaselineProfileResultCheckTask>("generateBaselineProfile") {
     group = "verification"
     dependsOn(":macrobenchmark:connectedCheck")
+    testResultFiles.from(
+        fileTree("macrobenchmark/build/outputs/androidTest-results/connected/debug") {
+            include("**/TEST-*.xml")
+        },
+    )
+    generatedProfileFiles.from(
+        fileTree("macrobenchmark/build/outputs/connected_android_test_additional_output") {
+            include("**/BaselineProfileGenerator_generate-startup-prof.txt")
+        },
+    )
 }
 
 tasks.register("buildHealth") {

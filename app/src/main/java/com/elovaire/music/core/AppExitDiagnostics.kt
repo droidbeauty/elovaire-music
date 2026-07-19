@@ -112,16 +112,24 @@ internal fun shouldSuppressOptionalStartup(records: List<AppExitRecord>, nowMs: 
 internal fun classifyAppExitReason(reason: Int): AppExitCategory = when (reason) {
     ApplicationExitInfo.REASON_CRASH,
     ApplicationExitInfo.REASON_CRASH_NATIVE,
+    ApplicationExitInfo.REASON_INITIALIZATION_FAILURE,
     -> AppExitCategory.Crash
     ApplicationExitInfo.REASON_ANR -> AppExitCategory.Anr
-    ApplicationExitInfo.REASON_LOW_MEMORY -> AppExitCategory.ResourcePressure
+    ApplicationExitInfo.REASON_LOW_MEMORY,
+    ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE,
+    -> AppExitCategory.ResourcePressure
     ApplicationExitInfo.REASON_USER_REQUESTED,
+    ApplicationExitInfo.REASON_USER_STOPPED,
     ApplicationExitInfo.REASON_EXIT_SELF,
+    ApplicationExitInfo.REASON_PACKAGE_UPDATED,
     -> AppExitCategory.Expected
     ApplicationExitInfo.REASON_DEPENDENCY_DIED,
+    ApplicationExitInfo.REASON_FREEZER,
+    ApplicationExitInfo.REASON_PACKAGE_STATE_CHANGE,
     ApplicationExitInfo.REASON_PERMISSION_CHANGE,
     ApplicationExitInfo.REASON_SIGNALED,
     ApplicationExitInfo.REASON_OTHER,
     -> AppExitCategory.System
+    ApplicationExitInfo.REASON_UNKNOWN -> AppExitCategory.Unknown
     else -> AppExitCategory.Unknown
 }

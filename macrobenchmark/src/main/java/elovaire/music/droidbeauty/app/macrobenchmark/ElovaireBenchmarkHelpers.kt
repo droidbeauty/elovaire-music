@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.UiDevice
+import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 
 internal const val TARGET_PACKAGE = "elovaire.music.droidbeauty.app"
@@ -29,25 +30,33 @@ internal fun MacrobenchmarkScope.grantMediaPermission() {
 }
 
 internal fun MacrobenchmarkScope.clickDescription(description: String) {
-    uiDevice.findObject(By.desc(description))?.click()
+    uiDevice.findObject(By.desc(description))?.clickActionable()
 }
 
 internal fun MacrobenchmarkScope.clickText(text: String) {
-    uiDevice.findObject(By.text(text))?.click()
+    uiDevice.findObject(By.text(text))?.clickActionable()
 }
 
 internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
     val node = uiDevice.wait(Until.findObject(By.desc(description)), 5_000)
         ?: error("Missing required UI element with contentDescription=$description")
-    node.click()
+    node.clickActionable()
     uiDevice.waitForIdle()
 }
 
 internal fun MacrobenchmarkScope.requireClickText(text: String) {
     val node = uiDevice.wait(Until.findObject(By.text(text)), 5_000)
         ?: error("Missing required UI element with text=$text")
-    node.click()
+    node.clickActionable()
     uiDevice.waitForIdle()
+}
+
+private fun UiObject2.clickActionable() {
+    var target: UiObject2? = this
+    while (target != null && !target.isClickable) {
+        target = target.parent
+    }
+    checkNotNull(target) { "UI element has no clickable ancestor" }.click()
 }
 
 internal fun MacrobenchmarkScope.clickTextContains(text: String) {

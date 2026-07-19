@@ -75,10 +75,7 @@ internal fun AlbumTagEditorRouteHost(
                         )
                     }
                     if (requestResult.isFailure) {
-                        tagEditorViewModel.onWritePermissionResult(
-                            operationId = event.operationId,
-                            granted = false,
-                        )
+                        tagEditorViewModel.onWritePermissionLaunchFailed(event.operationId)
                         pendingWriteOperationId = null
                         return@collect
                     }
@@ -93,10 +90,7 @@ internal fun AlbumTagEditorRouteHost(
                         else -> runCatching {
                             albumTagWriteLauncher.launch(request)
                         }.onFailure {
-                            tagEditorViewModel.onWritePermissionResult(
-                                operationId = event.operationId,
-                                granted = false,
-                            )
+                            tagEditorViewModel.onWritePermissionLaunchFailed(event.operationId)
                             pendingWriteOperationId = null
                         }
                     }
@@ -109,10 +103,7 @@ internal fun AlbumTagEditorRouteHost(
                             IntentSenderRequest.Builder(event.intentSender).build(),
                         )
                     }.onFailure {
-                        tagEditorViewModel.onWritePermissionResult(
-                            operationId = event.operationId,
-                            granted = false,
-                        )
+                        tagEditorViewModel.onWritePermissionLaunchFailed(event.operationId)
                         pendingWriteOperationId = null
                     }
                 }

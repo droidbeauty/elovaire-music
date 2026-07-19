@@ -696,6 +696,22 @@ class PlaybackManager(
         setQueue(collection, startIndex, sourceLabel, shuffleEnabled, sourcePlaylistId)
     }
 
+    internal fun stageExternalQueue(
+        songs: List<Song>,
+        startIndex: Int,
+        sourceLabel: String?,
+        sourcePlaylistId: Long?,
+    ) {
+        if (released.get()) return
+        queueController.stageExternalQueue(
+            songs = songs,
+            startIndex = startIndex,
+            sourceLabel = sourceLabel,
+            sourcePlaylistId = sourcePlaylistId,
+            audioPathDelayMs = AUDIO_PATH_REEVALUATION_DELAY_MS,
+        )
+    }
+
     private fun createPlayer(enableSignalProcessing: Boolean): ExoPlayer {
         return playerFactory.create(enableSignalProcessing)
     }

@@ -19,8 +19,6 @@ import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
-import elovaire.music.droidbeauty.app.data.update.AppUpdateManager
-import elovaire.music.droidbeauty.app.data.update.UpdateController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -30,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class AppServices(
     val applicationContext: Context,
     private val appScope: CoroutineScope,
-    backgroundWorkPolicy: AppBackgroundWorkPolicy,
+    private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
@@ -47,15 +45,6 @@ internal class AppServices(
         ArtistImageRepository(applicationContext, backgroundWorkPolicy)
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
-    private val appUpdateManagerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        AppUpdateManager(
-            context = applicationContext,
-            scope = appScope,
-            preferences = preferenceStore,
-            backgroundWorkPolicy = backgroundWorkPolicy,
-        )
-    }
-    val appUpdateManager: UpdateController get() = appUpdateManagerDelegate.value
     val albumTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         AlbumTagEditorService(
             applicationContext,
@@ -120,6 +109,8 @@ internal class AppServices(
         libraryRepository.start()
         libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
         appScope.launch(Dispatchers.IO) {
+            val exitSnapshot = exitDiagnostics.inspect()
+            backgroundWorkPolicy.setOptionalStartupSuppressed(exitSnapshot.suppressOptionalStartup)
             portableSettingsBackup.start()
         }
     }
@@ -133,7 +124,6 @@ internal class AppServices(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         started.set(false)
-        if (appUpdateManagerDelegate.isInitialized()) appUpdateManager.release()
         if (lyricsServiceDelegate.isInitialized()) lyricsService.release()
         playbackManager.release()
         libraryRepository.release()

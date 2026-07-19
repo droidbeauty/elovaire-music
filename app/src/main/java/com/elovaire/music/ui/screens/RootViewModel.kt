@@ -145,15 +145,12 @@ internal class RootViewModel(
         ),
     )
 
-    val updateState = dependencies.updateReader.uiState
-
     val appState: StateFlow<RootAppState> = combine(
         libraryState,
         playbackState,
         appearanceState,
         collectionState,
-        updateState,
-    ) { library, playback, appearance, collections, update ->
+    ) { library, playback, appearance, collections ->
         RootAppState(
             library = library,
             playback = playback,
@@ -172,7 +169,6 @@ internal class RootViewModel(
             songCollectionSortModeName = appearance.songCollectionSortModeName,
             onlineLyricsLookupEnabled = appearance.onlineLyricsLookupEnabled,
             volumeNormalizationEnabled = appearance.volumeNormalizationEnabled,
-            appUpdateState = update,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -195,7 +191,6 @@ internal class RootViewModel(
             songCollectionSortModeName = appearanceState.value.songCollectionSortModeName,
             onlineLyricsLookupEnabled = appearanceState.value.onlineLyricsLookupEnabled,
             volumeNormalizationEnabled = appearanceState.value.volumeNormalizationEnabled,
-            appUpdateState = updateState.value,
         ),
     )
 }

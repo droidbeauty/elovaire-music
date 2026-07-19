@@ -11,6 +11,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
+import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 
@@ -49,11 +50,6 @@ internal fun rememberRootComposition(container: AppContainer): RootComposition {
         libraryState = appState.library,
     )
     val deleteController = rememberRootDeleteController(container)
-    RootUpdateTransientStatusEffect(
-        enabled = true,
-        transientStatus = appState.appUpdateState.transientStatus,
-        clearTransientStatus = container.appUpdateManager::clearTransientStatus,
-    )
     val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
     val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
     return RootComposition(
@@ -71,4 +67,9 @@ internal fun rememberRootComposition(container: AppContainer): RootComposition {
         searchViewModel = searchViewModel,
         nowPlayingViewModel = nowPlayingViewModel,
     )
+}
+
+@Composable
+internal fun rememberChangelogReleases(context: Context): List<ChangelogRelease> {
+    return remember(context) { ChangelogRepository(context).loadReleases() }
 }

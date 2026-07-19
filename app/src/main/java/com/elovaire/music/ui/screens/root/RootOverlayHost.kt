@@ -2,19 +2,10 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
-import elovaire.music.droidbeauty.app.data.update.AppUpdateTransientStatus
-import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
-import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
-import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
@@ -32,12 +23,6 @@ internal fun BoxScope.RootOverlayHost(
     showPlaylistCreateDialog: Boolean,
     onDismissPlaylistCreateDialog: () -> Unit,
     onCreatePlaylist: (String) -> Long,
-    showTopLevelChrome: Boolean,
-    currentRoute: String?,
-    topBarHeight: Dp,
-    appUpdateState: AppUpdateUiState,
-    onDismissUpdate: () -> Unit,
-    onStartUpdate: () -> Unit,
     permissionState: RootPermissionState,
     onRequestAudioPermission: () -> Unit,
     motionTransitions: MotionTransitions,
@@ -76,38 +61,6 @@ internal fun BoxScope.RootOverlayHost(
                 }
             },
         )
-    }
-    ElovaireAnimatedVisibility(
-        modifier = Modifier
-            .align(Alignment.TopCenter)
-            .zIndex(RootLayerZ.UpdateBanner)
-            .padding(
-                start = 16.dp,
-                end = 16.dp,
-                top = topBarHeight + 8.dp,
-            ),
-        visible = (showTopLevelChrome || currentRoute == SETTINGS_ROUTE) &&
-            (appUpdateState.availableRelease != null || appUpdateState.transientStatus != null),
-        enter = motionTransitions.bannerEnter(),
-        exit = motionTransitions.bannerExit(),
-        label = "UpdateBannerVisibility",
-    ) {
-        when {
-            appUpdateState.availableRelease != null -> {
-                UpdateAvailableBanner(
-                    release = requireNotNull(appUpdateState.availableRelease),
-                    uiState = appUpdateState,
-                    onDismiss = onDismissUpdate,
-                    onUpdate = onStartUpdate,
-                )
-            }
-            appUpdateState.transientStatus == AppUpdateTransientStatus.UpToDate -> {
-                UpdateStatusBanner(
-                    text = rootUiCopy(LocalAppLanguage.current).appUpToDate,
-                    iconResId = R.drawable.ic_lucide_check,
-                )
-            }
-        }
     }
     ElovaireAnimatedVisibility(
         visible = permissionState.showFirstLaunchPermissionOverlay,

@@ -91,15 +91,10 @@ internal fun BoxScope.RootChromeSlot(
 
 @Composable
 internal fun BoxScope.RootOverlaySlot(
-    layout: RootChromeLayout,
     overlayState: RootOverlayStateHolder,
     topBarMenuActions: RootTopBarMenuActions,
     changelogReleases: List<ChangelogRelease>,
     playlistActions: RootPlaylistActions,
-    chromeVisibility: RootChromeVisibility,
-    currentRoute: String?,
-    appState: RootAppState,
-    container: AppContainer,
     permissionController: RootPermissionController,
     motionTransitions: MotionTransitions,
 ) {
@@ -116,12 +111,6 @@ internal fun BoxScope.RootOverlaySlot(
         showPlaylistCreateDialog = overlayState.showPlaylistCreateDialog,
         onDismissPlaylistCreateDialog = overlayState::dismissPlaylistCreateDialog,
         onCreatePlaylist = playlistActions::createPlaylist,
-        showTopLevelChrome = chromeVisibility.showTopLevelChrome,
-        currentRoute = currentRoute,
-        topBarHeight = layout.topBarHeight,
-        appUpdateState = appState.appUpdateState,
-        onDismissUpdate = container.appUpdateManager::dismissAvailableUpdate,
-        onStartUpdate = container.appUpdateManager::startUpdate,
         permissionState = permissionController.state,
         onRequestAudioPermission = permissionController::requestAudioPermission,
         motionTransitions = motionTransitions,

@@ -6,10 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.5.3">
-        <item>UI tweaks in artists screen and timer menu</item>
-        <item>Redesigned language picker, about and changelog screen</item>
-        <item>Performance optimizations</item>
-        <item>General bug fixes</item>
+    <release version="1.0">
+        <item>Welcome to the initial release of Elovaire</item>
+        <item>Stay tuned for more updates to come</item>
+        <item>Enjoy the time with your music</item>
     </release>
 </changelog>

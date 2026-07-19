@@ -4,27 +4,29 @@ plugins {
 
 android {
     namespace = "elovaire.music.droidbeauty.app.macrobenchmark"
-    compileSdk = 37
+    compileSdk = AppBuildConfig.compileSdk
     experimentalProperties["android.experimental.self-instrumenting"] = true
 
     val runBenchmarks = providers.gradleProperty("app.runMacrobenchmarks")
         .orElse(
             providers.provider {
-                val requestedTasks = gradle.startParameter.taskNames
-                requestedTasks
-                    .any { taskName ->
-                        taskName.endsWith("generateBaselineProfile") ||
-                            taskName.endsWith("performanceQualityCheck")
-                    }
-                    .toString()
+                    val requestedTasks = gradle.startParameter.taskNames
+                    requestedTasks
+                        .any { taskName ->
+                            taskName.endsWith("generateBaselineProfile") ||
+                                taskName.endsWith("performanceQualityCheck") ||
+                                taskName.endsWith(":macrobenchmark:connectedCheck") ||
+                                taskName.endsWith(":macrobenchmark:connectedDebugAndroidTest")
+                        }
+                        .toString()
             },
         )
     val benchmarkIterations = providers.gradleProperty("app.benchmarkIterations").orNull
     val baselineProfileStableIterations = providers.gradleProperty("app.baselineProfileStableIterations").orNull
 
     defaultConfig {
-        minSdk = 30
-        targetSdk = 36
+        minSdk = AppBuildConfig.minSdk
+        targetSdk = AppBuildConfig.targetSdk
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] =
             "DEBUGGABLE,EMULATOR,NOT-SELF-INSTRUMENTING"

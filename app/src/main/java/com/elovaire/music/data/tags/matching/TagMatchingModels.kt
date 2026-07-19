@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.tags.matching
 
+import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
+
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal interface AudioFingerprintProvider {
@@ -97,7 +99,7 @@ internal data class AlbumArtworkResult(
     fun isAcceptableForEmbedding(): Boolean {
         val imageWidth = width ?: return false
         val imageHeight = height ?: return false
-        if (imageWidth < 600 || imageHeight < 600) return false
+        if (imageWidth < 600 || imageHeight < 600 || !isArtworkBoundsSafe(imageWidth, imageHeight)) return false
         return imageWidth.toFloat() / imageHeight.toFloat() in 0.95f..1.05f
     }
 }

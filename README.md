@@ -11,13 +11,6 @@
 ---
 
 <p align="center">
-  <a href="https://github.com/droidbeauty/elovaire-music/releases/latest">
-    <img
-      alt="Download the latest release"
-      src="https://img.shields.io/github/v/release/droidbeauty/elovaire-music?style=for-the-badge&label=Download%20latest&logo=github&logoColor=white&color=3CB371"
-    />
-  </a>
-  &nbsp;
   <a href="https://ko-fi.com/droidbeauty">
     <img
       alt="Support Elovaire on Ko-fi"
@@ -55,8 +48,6 @@ Browse by songs, albums, artists, genres and playlists. Instantly search even th
 - 18-band equalizer with built-in presets and additional features
 - Smooth Compose UI with frosted blur, animated transitions and adaptive visual details
 - Fast library scanning through Android MediaStore and local folder observation
-- Built-in update flow based on looking for the latest GitHub release
-
 ---
 
 <p align="center">

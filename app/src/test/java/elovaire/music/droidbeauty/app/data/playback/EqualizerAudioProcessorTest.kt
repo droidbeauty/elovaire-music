@@ -22,7 +22,7 @@ class EqualizerAudioProcessorTest {
         val expected = ByteArray(input.remaining()).also { input.duplicate().get(it) }
 
         processor.configure(AudioProcessor.AudioFormat(48_000, 2, C.ENCODING_PCM_16BIT))
-        processor.flush()
+        processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
         processor.queueInput(input)
         val output = processor.getOutput()
         val actual = ByteArray(output.remaining()).also(output::get)

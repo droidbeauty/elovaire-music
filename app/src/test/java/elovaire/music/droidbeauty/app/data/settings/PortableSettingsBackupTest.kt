@@ -12,6 +12,7 @@ class PortableSettingsBackupTest {
         assertFalse(isPortableSettingKey("library_folders"))
         assertFalse(isPortableSettingKey("favorite_song_ids"))
         assertFalse(isPortableSettingKey("recent_song_ids"))
+        assertFalse(isPortableSettingKey("dismissed_update_version"))
         assertFalse(isPortableSettingKey("last_automatic_update_check_at_ms"))
     }
 }

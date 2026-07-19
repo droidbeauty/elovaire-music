@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
@@ -477,8 +478,7 @@ internal class AlbumTagEditorService(
             runCatching { tag.deleteArtworkField() }
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(coverArtBytes, 0, coverArtBytes.size, bounds)
-            require(bounds.outWidth in 1..MAX_ARTWORK_DIMENSION && bounds.outHeight in 1..MAX_ARTWORK_DIMENSION)
-            require(bounds.outWidth.toLong() * bounds.outHeight <= MAX_ARTWORK_PIXELS)
+            require(isArtworkBoundsSafe(bounds.outWidth, bounds.outHeight))
             if (tag is FlacTag) {
                 tag.setField(
                     tag.createArtworkField(
@@ -682,8 +682,6 @@ internal class AlbumTagEditorService(
     private companion object {
         val YEAR_PATTERN = Regex("""\b\d{4}\b""")
         const val TEMP_TAG_EDIT_DIR_NAME = "album-tag-edits"
-        const val MAX_ARTWORK_DIMENSION = 8_192
-        const val MAX_ARTWORK_PIXELS = 40_000_000L
         const val TAG = "AlbumTagEditor"
         const val MIN_RELEASE_YEAR = 1
         const val MAX_RELEASE_YEAR = 9999

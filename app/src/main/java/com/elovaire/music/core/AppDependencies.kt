@@ -8,7 +8,6 @@ internal class AppDependencies(
         override val libraryReader get() = services.libraryRepository
         override val rootSettingsReader get() = services.preferenceStore
         override val playbackReader get() = services.playbackManager
-        override val updateReader get() = services.appUpdateManager
     }
     val playbackActionDependencies: PlaybackActionDependencies = object : PlaybackActionDependencies {
         override val playbackController get() = services.playbackManager
@@ -33,10 +32,8 @@ internal class AppDependencies(
         override val preferenceStore get() = services.preferenceStore
         override val playbackReader get() = services.playbackManager
         override val playbackManager get() = services.playbackManager
-        override val updateReader get() = services.appUpdateManager
         override val lyricsService get() = services.lyricsService
         override val albumTagEditorService get() = services.albumTagEditorService
-        override val appUpdateManager get() = services.appUpdateManager
         override val backgroundWorkPolicy get() = backgroundWorkPolicy
     }
 }

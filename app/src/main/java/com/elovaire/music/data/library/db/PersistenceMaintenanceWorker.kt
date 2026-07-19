@@ -27,7 +27,11 @@ class PersistenceMaintenanceWorker(
                 database.persistenceMaintenanceDao(),
                 MediaMutationJournal(database.libraryDao()),
             ).recoverAndPrune()
-            if (health.recoveryRequired) Result.failure() else Result.success()
+            if (!health.isMaintenanceSuccessful()) {
+                Result.failure()
+            } else {
+                Result.success()
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: SQLiteException) {
@@ -64,6 +68,10 @@ class PersistenceMaintenanceWorker(
                 .build()
         }
     }
+}
+
+internal fun DatabaseHealth.isMaintenanceSuccessful(): Boolean {
+    return foreignKeysValid && orphanCount == 0 && !recoveryRequired
 }
 
 private fun Throwable.isTransientMaintenanceFailure(): Boolean {

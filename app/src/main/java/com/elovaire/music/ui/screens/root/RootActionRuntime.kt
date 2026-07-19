@@ -57,7 +57,6 @@ internal fun rememberRootActionRuntime(
         libraryDependencies = container.libraryActionDependencies,
         settingsDependencies = container.settingsActionDependencies,
         playlistDependencies = container.playlistActionDependencies,
-        updateController = container.appUpdateManager,
         navController = navController,
         navigationState = uiRuntime.navigationState,
         playbackActions = playbackActions,

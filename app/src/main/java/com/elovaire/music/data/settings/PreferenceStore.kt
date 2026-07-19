@@ -37,15 +37,13 @@ class PreferenceStore internal constructor(
     LibrarySettingsWriter,
     PlaybackSettingsWriter,
     PlaylistStore by userDataStore,
-    FavoritesStore by userDataStore,
-    UpdatePreferencesStore {
+    FavoritesStore by userDataStore {
     private val appContext = context.applicationContext
     private val preferences = allowStrictModeDiskWrites {
         // SharedPreferences may create its private directory during first startup.
         // Initial settings must be available synchronously before the first UI state is published.
         PreferenceStorage(appContext).preferences.also { it.all }
     }
-    private val updatePreferencesStore = UpdatePreferencesStoreImpl(preferences)
     private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
@@ -88,7 +86,6 @@ class PreferenceStore internal constructor(
 
     private val _libraryFolders = MutableStateFlow(loadLibraryFolders())
     override val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
-    override val dismissedUpdateVersion: StateFlow<String?> = updatePreferencesStore.dismissedUpdateVersion
 
     val searchHistory get() = userDataStore.searchHistory
     override val albumPlayCounts get() = userDataStore.albumPlayCounts
@@ -317,18 +314,6 @@ class PreferenceStore internal constructor(
     override fun restoreDefaultLibraryFolderIfEmpty() {
         if (_libraryFolders.value.isNotEmpty()) return
         setLibraryFolders(listOf(LibraryFolderSelectionResolver.defaultMusicFolder()))
-    }
-
-    override fun setDismissedUpdateVersion(versionName: String?) {
-        updatePreferencesStore.setDismissedUpdateVersion(versionName)
-    }
-
-    override fun lastAutomaticUpdateCheckAtMs(): Long {
-        return updatePreferencesStore.lastAutomaticUpdateCheckAtMs()
-    }
-
-    override fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long) {
-        updatePreferencesStore.setLastAutomaticUpdateCheckAtMs(timestampMs)
     }
 
     fun release(onUserDataDrained: () -> Unit = {}) {

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import elovaire.music.droidbeauty.app.core.runSuspendCatching
+import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
 import java.net.URLEncoder
 
 internal class AlbumArtworkResolver(
@@ -92,7 +93,7 @@ internal class EmbeddedArtworkProvider(context: Context) {
             } finally {
                 runCatching { retriever.release() }
             }
-        }.maxByOrNull { artwork -> (artwork.width ?: 0) * (artwork.height ?: 0) }
+        }.maxByOrNull { artwork -> (artwork.width ?: 0).toLong() * (artwork.height ?: 0) }
     }
 }
 
@@ -100,7 +101,7 @@ private fun ByteArray.toArtworkResult(source: ArtworkSource): AlbumArtworkResult
     if (isEmpty() || size > MAX_ARTWORK_BYTES) return null
     val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
     BitmapFactory.decodeByteArray(this, 0, size, bounds)
-    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+    if (!isArtworkBoundsSafe(bounds.outWidth, bounds.outHeight)) return null
     return AlbumArtworkResult(
         bytes = this,
         width = bounds.outWidth,

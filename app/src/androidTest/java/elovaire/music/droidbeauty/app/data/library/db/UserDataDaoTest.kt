@@ -80,4 +80,16 @@ class UserDataDaoTest {
         assertTrue(details.joinToString(), details.any { it.contains("USING", ignoreCase = true) && it.contains("INDEX", ignoreCase = true) })
         assertTrue(details.joinToString(), details.none { it.contains("USE TEMP B-TREE", ignoreCase = true) })
     }
+
+    @Test
+    fun maintenanceForeignKeyCheckDetectsPersistedViolation() = runBlocking {
+        val writableDatabase = database.openHelper.writableDatabase
+        writableDatabase.execSQL("PRAGMA foreign_keys = OFF")
+        writableDatabase.execSQL(
+            "INSERT INTO user_playlist_entries(playlistId, songId, position) VALUES(99, 10, 0)",
+        )
+        writableDatabase.execSQL("PRAGMA foreign_keys = ON")
+
+        assertEquals(1, database.persistenceMaintenanceDao().foreignKeyViolationCount())
+    }
 }

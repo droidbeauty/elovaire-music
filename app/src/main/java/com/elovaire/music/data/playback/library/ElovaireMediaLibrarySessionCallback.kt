@@ -104,8 +104,15 @@ internal class ElovaireMediaLibrarySessionCallback(
                 }
         } ?: commandResolver.defaultPlayableQueue().takeIf { requested == null }
         if (resolved != null) {
-            playResolvedQueue(resolved, startPositionMs)
-            return Futures.immediateFuture(resolved.toMediaItemsWithStartPosition(startPositionMs))
+            val result = resolved.toMediaItemsWithStartPosition(startPositionMs)
+            // MediaSession applies these items and dispatches prepare/play after this callback returns.
+            playbackManager.stageExternalQueue(
+                songs = resolved.queue,
+                startIndex = result.startIndex,
+                sourceLabel = resolved.sourceLabel,
+                sourcePlaylistId = resolved.sourcePlaylistId,
+            )
+            return Futures.immediateFuture(result)
         }
         return Futures.immediateFuture(
             MediaSession.MediaItemsWithStartPosition(emptyList(), 0, 0L),
@@ -119,26 +126,16 @@ internal class ElovaireMediaLibrarySessionCallback(
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val resolved = commandResolver.resumptionQueue()
             ?: return Futures.immediateFuture(emptyMediaItemsWithStartPosition())
+        val result = resolved.toMediaItemsWithStartPosition(C.TIME_UNSET)
         if (isForPlayback) {
-            playResolvedQueue(resolved, C.TIME_UNSET)
+            playbackManager.stageExternalQueue(
+                songs = resolved.queue,
+                startIndex = result.startIndex,
+                sourceLabel = resolved.sourceLabel,
+                sourcePlaylistId = resolved.sourcePlaylistId,
+            )
         }
-        return Futures.immediateFuture(resolved.toMediaItemsWithStartPosition(C.TIME_UNSET))
-    }
-
-    private fun playResolvedQueue(
-        resolved: ResolvedPlayableQueue,
-        startPositionMs: Long,
-    ) {
-        playbackManager.playSong(
-            song = resolved.startSong,
-            collection = resolved.queue,
-            sourceLabel = resolved.sourceLabel,
-            shuffleEnabled = playbackManager.state.value.shuffleEnabled,
-            sourcePlaylistId = resolved.sourcePlaylistId,
-        )
-        if (startPositionMs > 0L) {
-            playbackManager.seekTo(startPositionMs.coerceAtMost(resolved.startSong.durationMs.takeIf { it > 0 } ?: startPositionMs))
-        }
+        return Futures.immediateFuture(result)
     }
 
     private fun ResolvedPlayableQueue.toMediaItemsWithStartPosition(startPositionMs: Long): MediaSession.MediaItemsWithStartPosition {

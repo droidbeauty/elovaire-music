@@ -116,10 +116,3 @@ internal interface SearchHistoryStore {
     fun addSearchHistoryEntry(entry: SearchHistoryEntry)
     fun clearSearchHistoryEntries()
 }
-
-internal interface UpdatePreferencesStore {
-    val dismissedUpdateVersion: StateFlow<String?>
-    fun setDismissedUpdateVersion(versionName: String?)
-    fun lastAutomaticUpdateCheckAtMs(): Long
-    fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long)
-}

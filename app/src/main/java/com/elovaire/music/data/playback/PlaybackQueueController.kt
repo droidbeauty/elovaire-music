@@ -38,13 +38,7 @@ internal class PlaybackQueueController(
         audioPathDelayMs: Long,
     ) {
         if (songs.isEmpty()) return
-        runtime.clearFailedPlaybackSongIds()
-        runtime.requestFormatFailureReset()
-        runtime.cancelPauseFade(true)
-        runtime.clearInterruptionResumeState()
-        runtime.resetAudioPathState()
-        runtime.scheduleAudioPathReevaluation("set-queue", audioPathDelayMs)
-        runtime.resetUnexpectedIdleRecoveryGuard()
+        prepareQueueReplacement(audioPathDelayMs)
 
         val player = runtime.player
         allowStrictModeDiskReads {
@@ -72,6 +66,37 @@ internal class PlaybackQueueController(
         )
         runtime.onQueueReplaced(songs)
         runtime.updateState()
+    }
+
+    fun stageExternalQueue(
+        songs: List<Song>,
+        startIndex: Int,
+        sourceLabel: String?,
+        sourcePlaylistId: Long?,
+        audioPathDelayMs: Long,
+    ) {
+        if (songs.isEmpty()) return
+        prepareQueueReplacement(audioPathDelayMs)
+        val state = runtime.state
+        runtime.publishState(
+            state.copy(
+                queue = songs,
+                currentIndex = startIndex.coerceIn(songs.indices),
+                sourceLabel = sourceLabel,
+                sourcePlaylistId = sourcePlaylistId,
+            ),
+        )
+        runtime.onQueueReplaced(songs)
+    }
+
+    private fun prepareQueueReplacement(audioPathDelayMs: Long) {
+        runtime.clearFailedPlaybackSongIds()
+        runtime.requestFormatFailureReset()
+        runtime.cancelPauseFade(true)
+        runtime.clearInterruptionResumeState()
+        runtime.resetAudioPathState()
+        runtime.scheduleAudioPathReevaluation("set-queue", audioPathDelayMs)
+        runtime.resetUnexpectedIdleRecoveryGuard()
     }
 
     fun playQueueIndex(index: Int) {

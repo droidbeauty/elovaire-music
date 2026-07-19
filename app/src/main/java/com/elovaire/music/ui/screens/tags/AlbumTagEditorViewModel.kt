@@ -300,6 +300,15 @@ internal class AlbumTagEditorViewModel(
         }
     }
 
+    fun onWritePermissionLaunchFailed(operationId: String) {
+        if (!matchesPlatformActionResult(pendingWriteRequest?.operationId, operationId)) return
+        pendingWriteRequest = null
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            statusMessage = "Android could not open the write-access request.",
+        ).recalculateFlags()
+    }
+
     private suspend fun performSave(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean,
@@ -378,6 +387,7 @@ internal class AlbumTagEditorViewModel(
                 _events.emit(AlbumTagEditorEvent.SavePartiallySucceeded(failures))
             }
         }.onFailure { throwable ->
+            if (throwable is CancellationException) throw throwable
             val recoverableIntentSender = when {
                 throwable is RecoverableSecurityException -> {
                     throwable.userAction.actionIntent.intentSender

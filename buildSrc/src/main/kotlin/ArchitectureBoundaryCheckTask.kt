@@ -24,6 +24,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
                 violations += "$path makes the domain kernel depend on Android or a data implementation"
             }
             if ("GlobalScope" in text) violations += "$path uses GlobalScope"
+            FORBIDDEN_UPDATE_MARKERS.firstOrNull(text::contains)?.let { marker ->
+                violations += "$path reintroduces removed OTA update functionality: $marker"
+            }
             if ("Channel.UNLIMITED" in text && !path.endsWith("/data/settings/RoomUserDataStore.kt")) {
                 violations += "$path introduces an unreviewed unbounded operation queue"
             }
@@ -98,7 +101,6 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         )
         val HTTP_ALLOWED = setOf(
             "/data/network/HttpTransport.kt",
-            "/data/update/AppUpdateManager.kt",
         )
         val NATIVE_ALLOWED = setOf(
             "/data/tags/matching/AndroidChromaprintFingerprintProvider.kt",
@@ -112,7 +114,6 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/settings/PreferenceStorage.kt",
             "/data/settings/PreferenceStore.kt",
             "/data/settings/RoomUserDataStore.kt",
-            "/data/settings/UpdatePreferencesStoreImpl.kt",
             "/data/tags/matching/TagMatchCache.kt",
         )
         val SUPERVISOR_SCOPE_ALLOWED = setOf(
@@ -127,6 +128,19 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "\"recent_song_ids\"",
             "\"recent_album_ids\"",
             "\"smart_playlists\"",
+        )
+        val FORBIDDEN_UPDATE_MARKERS = setOf(
+            "AppUpdateManager",
+            "AppUpdateInstallReceiver",
+            "REQUEST_INSTALL_PACKAGES",
+            "ACTION_INSTALL_PACKAGE",
+            "ACTION_MANAGE_UNKNOWN_APP_SOURCES",
+            "application/vnd.android.package-archive",
+            "browser_download_url",
+            "api.github.com/repos/droidbeauty/elovaire-music/releases",
+            "github.com/droidbeauty/elovaire-music/releases",
+            "releases/latest",
+            "download latest APK",
         )
     }
 }

@@ -16,7 +16,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        jankMonitor = runCatching { ElovaireJankMonitor.start(window) }.getOrNull()
+        if (BuildConfig.DEBUG) {
+            jankMonitor = runCatching { ElovaireJankMonitor.start(window) }.getOrNull()
+        }
 
         val app = application as ElovaireApp
         val container = app.container.also(AppContainer::start)

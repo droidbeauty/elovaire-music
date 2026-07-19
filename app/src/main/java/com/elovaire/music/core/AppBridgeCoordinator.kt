@@ -9,7 +9,6 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.Dispatchers
 
 @SuppressLint("UnsafeOptInUsageError")
 internal class AppBridgeCoordinator(
@@ -41,7 +40,6 @@ internal class AppBridgeCoordinator(
     )
     private val preferences = services.preferenceStore
     private val library = services.libraryRepository
-    private val exitDiagnostics = services.exitDiagnostics
     private val applicationContext = services.applicationContext
     private var playbackStarted = false
     private var appStarted = false
@@ -61,18 +59,12 @@ internal class AppBridgeCoordinator(
         if (appStarted || released) return
         startPlayback()
         appStarted = true
-        services.appUpdateManager.start()
     }
 
     fun scheduleDeferredStartupWork() {
         if (!appStarted || released || deferredStartupScheduled) return
         deferredStartupScheduled = true
         PersistenceMaintenanceWorker.enqueue(applicationContext)
-        bridgeScope.launch(Dispatchers.IO) {
-            if (!exitDiagnostics.inspect().suppressOptionalStartup) {
-                services.appUpdateManager.scheduleStartupMaintenance()
-            }
-        }
     }
 
     fun release() {

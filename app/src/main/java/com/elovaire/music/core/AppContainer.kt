@@ -34,7 +34,6 @@ class AppContainer(
     private val dependencies = AppDependencies(services, backgroundWorkPolicy)
     val preferenceStore get() = services.preferenceStore
     internal val artistImageRepository get() = services.artistImageRepository
-    internal val appUpdateManager get() = services.appUpdateManager
     val lyricsService get() = services.lyricsService
     internal val albumTagEditorService get() = services.albumTagEditorService
     val playbackManager get() = services.playbackManager

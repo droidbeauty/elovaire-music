@@ -3,7 +3,9 @@ package elovaire.music.droidbeauty.app.data.artwork
 import android.graphics.Bitmap
 import android.net.TestUri
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ArtworkLoaderTest {
@@ -31,5 +33,13 @@ class ArtworkLoaderTest {
         assertEquals(Bitmap.Config.RGB_565, bitmapConfigForPurpose(ArtworkPurpose.UiGrid))
         assertEquals(Bitmap.Config.ARGB_8888, bitmapConfigForPurpose(ArtworkPurpose.UiLarge))
         assertEquals(Bitmap.Config.ARGB_8888, bitmapConfigForPurpose(ArtworkPurpose.TagEditorPreview))
+    }
+
+    @Test
+    fun artworkBounds_rejectInvalidAndDecompressionBombDimensions() {
+        assertTrue(isArtworkBoundsSafe(4_000, 4_000))
+        assertFalse(isArtworkBoundsSafe(0, 512))
+        assertFalse(isArtworkBoundsSafe(8_193, 1))
+        assertFalse(isArtworkBoundsSafe(8_192, 8_192))
     }
 }

@@ -9,6 +9,9 @@ import androidx.room.Query
 
 @Dao
 internal interface PersistenceMaintenanceDao {
+    @Query("SELECT COUNT(*) FROM pragma_foreign_key_check")
+    suspend fun foreignKeyViolationCount(): Int
+
     @Query("DELETE FROM media_mutations WHERE status IN ('Completed', 'Cancelled', 'Failed') AND updatedAtMs < :cutoffMs")
     suspend fun deleteTerminalMutationsBefore(cutoffMs: Long): Int
 
@@ -48,12 +51,13 @@ internal class PersistenceMaintenance(
                 recoveryRequired = true,
             )
         }
+        val foreignKeyViolationCount = dao.foreignKeyViolationCount()
         val orphanCount = dao.activeOrphanSongCount()
         val repairRequired = dao.repairRequiredMutationCount() > 0
         dao.deleteTerminalMutationsBefore(terminalMutationCutoff(clock.wallTimeMs()))
         dao.pruneScanGenerations(SCAN_GENERATION_RETENTION_COUNT)
         return DatabaseHealth(
-            foreignKeysValid = orphanCount == 0,
+            foreignKeysValid = foreignKeyViolationCount == 0,
             orphanCount = orphanCount,
             recoveryRequired = repairRequired,
         )

@@ -20,9 +20,31 @@ val fanartTvApiKey = providers.gradleProperty("FANART_TV_API_KEY").orNull
 val youtubeDataApiKey = providers.gradleProperty("YOUTUBE_DATA_API_KEY").orNull
     ?: System.getenv("YOUTUBE_DATA_API_KEY")
     ?: localProperties.getProperty("YOUTUBE_DATA_API_KEY")
+val privacyPolicyUrl = providers.gradleProperty("PRIVACY_POLICY_URL").orNull
+    ?: System.getenv("PRIVACY_POLICY_URL")
+    ?: localProperties.getProperty("PRIVACY_POLICY_URL")
+    ?: ""
 val nativeSanitizersEnabled = providers.gradleProperty("app.nativeSanitizers")
     .map(String::toBoolean)
     .getOrElse(false)
+fun releaseSecret(name: String): String? = providers.gradleProperty(name).orNull
+    ?: System.getenv(name)
+    ?: localProperties.getProperty(name)
+
+val releaseStoreFile = releaseSecret("RELEASE_STORE_FILE")
+val releaseStorePassword = releaseSecret("RELEASE_STORE_PASSWORD")
+val releaseKeyAlias = releaseSecret("RELEASE_KEY_ALIAS")
+val releaseKeyPassword = releaseSecret("RELEASE_KEY_PASSWORD")
+val releaseSigningValues = listOf(
+    releaseStoreFile,
+    releaseStorePassword,
+    releaseKeyAlias,
+    releaseKeyPassword,
+)
+if (releaseSigningValues.any { it != null } && releaseSigningValues.any { it.isNullOrBlank() }) {
+    error("Release signing requires RELEASE_STORE_FILE, RELEASE_STORE_PASSWORD, RELEASE_KEY_ALIAS, and RELEASE_KEY_PASSWORD.")
+}
+val releaseSigningConfigured = releaseSigningValues.all { !it.isNullOrBlank() }
 
 plugins {
     alias(libs.plugins.android.application)
@@ -34,13 +56,13 @@ plugins {
 
 android {
     namespace = AppBuildConfig.packageName
-    compileSdk = 37
+    compileSdk = AppBuildConfig.compileSdk
     ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = AppBuildConfig.packageName
-        minSdk = 30
-        targetSdk = 36
+        minSdk = AppBuildConfig.minSdk
+        targetSdk = AppBuildConfig.targetSdk
         versionCode = AppBuildConfig.versionCode
         versionName = AppBuildConfig.versionName
         buildConfigField(
@@ -58,6 +80,11 @@ android {
             "YOUTUBE_DATA_API_KEY",
             "\"${youtubeDataApiKey.orEmpty().replace("\"", "\\\"")}\"",
         )
+        buildConfigField(
+            "String",
+            "PRIVACY_POLICY_URL",
+            "\"${privacyPolicyUrl.replace("\"", "\\\"")}\"",
+        )
         externalNativeBuild {
             cmake {
                 cppFlags += "-std=c++17"
@@ -71,6 +98,17 @@ android {
         }
     }
 
+    signingConfigs {
+        if (releaseSigningConfigured) {
+            create("release") {
+                storeFile = rootProject.file(requireNotNull(releaseStoreFile))
+                storePassword = requireNotNull(releaseStorePassword)
+                keyAlias = requireNotNull(releaseKeyAlias)
+                keyPassword = requireNotNull(releaseKeyPassword)
+            }
+        }
+    }
+
     buildTypes {
         create("benchmark") {
             initWith(getByName("release"))
@@ -78,6 +116,7 @@ android {
             matchingFallbacks += listOf("release")
         }
         release {
+            signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             ndk.debugSymbolLevel = "SYMBOL_TABLE"
@@ -332,9 +371,10 @@ tasks.named("check") {
 
 val checkArchitectureBoundaries = tasks.register<ArchitectureBoundaryCheckTask>("checkArchitectureBoundaries") {
     sourceFiles.from(
-        fileTree("src/main/java") {
-            include("**/*.kt", "**/*.java")
+        fileTree("src/main") {
+            include("**/*.kt", "**/*.java", "**/*.xml")
         },
+        rootProject.file("README.md"),
     )
 }
 
@@ -375,9 +415,9 @@ val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertRele
     )
     backupRulesFile.set(layout.projectDirectory.file("src/main/res/xml/backup_rules.xml"))
     dataExtractionRulesFile.set(layout.projectDirectory.file("src/main/res/xml/data_extraction_rules.xml"))
-    fileProviderPathsFile.set(layout.projectDirectory.file("src/main/res/xml/file_paths.xml"))
     baselineProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/baseline-prof.txt"))
     startupProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/startup-prof.txt"))
+    publicPrivacyPolicyUrl.set(privacyPolicyUrl)
 }
 
 val validateReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validateReleaseNativePageSize") {

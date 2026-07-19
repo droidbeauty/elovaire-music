@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.annotation.DrawableRes
@@ -71,6 +72,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -115,8 +117,8 @@ internal fun ChangelogScreen(
                     )
                     Surface(
                         shape = RoundedCornerShape(ElovaireRadii.pill),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
-                        contentColor = MaterialTheme.colorScheme.primary,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        contentColor = MaterialTheme.colorScheme.onSurface,
                     ) {
                         Text(
                             text = BuildConfig.VERSION_NAME,
@@ -125,6 +127,16 @@ internal fun ChangelogScreen(
                         )
                     }
                 }
+            }
+
+            item {
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 20.dp)
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+                )
             }
 
             item {
@@ -305,10 +317,10 @@ internal fun ChangelogReleaseContent(
                     if (pointedEntries) {
                         Box(
                             modifier = Modifier
-                                .padding(top = 9.dp)
-                                .size(7.dp)
+                                .padding(top = 10.dp)
+                                .size(4.dp)
                                 .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.primary),
+                                .background(textColor),
                         )
                     }
                     Text(
@@ -392,9 +404,7 @@ internal fun PrivacySafetyScreen(
 ) {
     val language = LocalAppLanguage.current
     val copy = remember(language) {
-        privacySafetyCopy(
-            language = language,
-        )
+        privacySafetyCopy(language)
     }
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     Box(
@@ -434,6 +444,21 @@ internal fun PrivacySafetyScreen(
                         style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
                         color = MaterialTheme.colorScheme.onSurface,
                     )
+                    if (section.showsPrivacyPolicyLink && BuildConfig.PRIVACY_POLICY_URL.isNotBlank()) {
+                        val context = LocalContext.current
+                        Text(
+                            text = BuildConfig.PRIVACY_POLICY_URL,
+                            modifier = Modifier.clickable {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL)),
+                                    )
+                                }
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
                     if (index != copy.sections.lastIndex) {
                         Box(
                             modifier = Modifier
@@ -608,7 +633,7 @@ private fun AboutEntryLogo(
         }
         value = null
         value = withContext(Dispatchers.IO) {
-            runCatching {
+            try {
                 when {
                     source.startsWith("https://", ignoreCase = true) -> {
                         val bytes = HttpTransport.getBytes(
@@ -620,16 +645,18 @@ private fun AboutEntryLogo(
                             ),
                             maxBytes = MAX_ABOUT_LOGO_BYTES,
                         )
-                        BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                        decodeAboutLogo(bytes)
                     }
 
-                    else -> context.contentResolver.openInputStream(Uri.parse(source))?.use { input ->
-                        BitmapFactory.decodeStream(input)
-                    }
+                    else -> context.decodeAboutLogo(Uri.parse(source))
                 }?.asImageBitmap()?.also { bitmap ->
-                    aboutLogoImageCache[source] = bitmap
+                    aboutLogoImageCache.put(source, bitmap)
                 }
-            }.getOrNull()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
+            }
         }
     }
     val uri = remember(logoUri, drawableRes, remoteBitmap) {
@@ -678,6 +705,46 @@ private fun AboutEntryLogo(
 }
 
 private const val MAX_ABOUT_LOGO_BYTES = 2 * 1024 * 1024
+private const val MAX_ABOUT_LOGO_DIMENSION = 8_192
+private const val MAX_ABOUT_LOGO_PIXELS = 16_000_000L
+private const val ABOUT_LOGO_TARGET_PX = 320
+private val aboutLogoImageCache = android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(4)
+
+private fun decodeAboutLogo(bytes: ByteArray): Bitmap? {
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+    val options = aboutLogoDecodeOptions(bounds) ?: return null
+    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+}
+
+private fun Context.decodeAboutLogo(uri: Uri): Bitmap? {
+    if (uri.scheme !in setOf("content", "file", "android.resource")) return null
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    contentResolver.openInputStream(uri)?.use { input ->
+        BitmapFactory.decodeStream(input, null, bounds)
+    } ?: return null
+    val options = aboutLogoDecodeOptions(bounds) ?: return null
+    return contentResolver.openInputStream(uri)?.use { input ->
+        BitmapFactory.decodeStream(input, null, options)
+    }
+}
+
+private fun aboutLogoDecodeOptions(bounds: BitmapFactory.Options): BitmapFactory.Options? {
+    val width = bounds.outWidth
+    val height = bounds.outHeight
+    if (
+        width <= 0 || height <= 0 ||
+        width > MAX_ABOUT_LOGO_DIMENSION || height > MAX_ABOUT_LOGO_DIMENSION ||
+        width.toLong() * height > MAX_ABOUT_LOGO_PIXELS
+    ) {
+        return null
+    }
+    var sampleSize = 1
+    while (width / sampleSize > ABOUT_LOGO_TARGET_PX * 2 || height / sampleSize > ABOUT_LOGO_TARGET_PX * 2) {
+        sampleSize *= 2
+    }
+    return BitmapFactory.Options().apply { inSampleSize = sampleSize }
+}
 
 private fun Context.resolveAboutLogoDrawableRes(logoUri: String?): Int? {
     val source = logoUri?.trim()?.takeIf { it.isNotBlank() } ?: return null
@@ -873,6 +940,6 @@ private fun localizedAboutLinkLabel(
         else -> label
     }
     "twitter" -> if (language == AppLanguage.Japanese) "X" else label
-    "instagram", "github", "ko-fi" -> label
+    "instagram", "ko-fi" -> label
     else -> label
 }

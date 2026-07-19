@@ -12,7 +12,6 @@ import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
-import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.Album
 
 internal class RootRouteActions(
@@ -21,7 +20,6 @@ internal class RootRouteActions(
     private val librarySettings: LibrarySettingsWriter,
     private val playlistDependencies: PlaylistActionDependencies,
     settingsDependencies: SettingsActionDependencies,
-    private val updateController: UpdateController,
     private val navController: NavHostController,
     private val navigationState: RootNavigationState,
     val playback: RootPlaybackActions,
@@ -180,10 +178,6 @@ internal class RootRouteActions(
         librarySettings.setSongCollectionSortMode(mode.name)
     }
 
-    fun checkForUpdates() {
-        updateController.checkForUpdates(force = true)
-    }
-
     val settings = SettingsRouteActions(settingsDependencies)
 }
 
@@ -233,7 +227,6 @@ internal fun rememberRootRouteActions(
     libraryDependencies: LibraryActionDependencies,
     settingsDependencies: SettingsActionDependencies,
     playlistDependencies: PlaylistActionDependencies,
-    updateController: UpdateController,
     navController: NavHostController,
     navigationState: RootNavigationState,
     playbackActions: RootPlaybackActions,
@@ -250,7 +243,6 @@ internal fun rememberRootRouteActions(
         libraryDependencies,
         settingsDependencies,
         playlistDependencies,
-        updateController,
         navController,
         navigationState,
         playbackActions,
@@ -268,7 +260,6 @@ internal fun rememberRootRouteActions(
             librarySettings = settingsDependencies.librarySettings,
             playlistDependencies = playlistDependencies,
             settingsDependencies = settingsDependencies,
-            updateController = updateController,
             navController = navController,
             navigationState = navigationState,
             playback = playbackActions,

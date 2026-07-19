@@ -91,14 +91,8 @@ internal fun decodeArtworkBytes(
     return runCatching {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-        val sampledOptions = BitmapFactory.Options().apply {
-            inPreferredConfig = bitmapConfigForPurpose(purpose)
-            inSampleSize = calculateInSampleSize(
-                outWidth = bounds.outWidth,
-                outHeight = bounds.outHeight,
-                targetSize = ImageTargetSize(size, size),
-            )
-        }
+        val sampledOptions = artworkDecodeOptions(bounds, ImageTargetSize(size, size), purpose)
+            ?: return@runCatching null
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
     }.getOrNull()
 }
@@ -114,14 +108,8 @@ private fun decodeBitmapStream(
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
-        val sampledOptions = BitmapFactory.Options().apply {
-            inPreferredConfig = bitmapConfigForPurpose(purpose)
-            inSampleSize = calculateInSampleSize(
-                outWidth = options.outWidth,
-                outHeight = options.outHeight,
-                targetSize = targetSize,
-            )
-        }
+        val sampledOptions = artworkDecodeOptions(options, targetSize, purpose)
+            ?: return@runCatching null
         context.contentResolver.openInputStream(uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, sampledOptions)
         }
@@ -142,14 +130,8 @@ private fun decodeEmbeddedArtwork(
             if (bytes.size > MAX_ENCODED_ARTWORK_BYTES) return null
             val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-            val sampledOptions = BitmapFactory.Options().apply {
-                inPreferredConfig = bitmapConfigForPurpose(purpose)
-                inSampleSize = calculateInSampleSize(
-                    outWidth = bounds.outWidth,
-                    outHeight = bounds.outHeight,
-                    targetSize = targetSize,
-                )
-            }
+            val sampledOptions = artworkDecodeOptions(bounds, targetSize, purpose)
+                ?: return@runCatching null
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
         } finally {
             runCatching { retriever.release() }
@@ -158,6 +140,30 @@ private fun decodeEmbeddedArtwork(
 }
 
 private const val MAX_ENCODED_ARTWORK_BYTES = 16 * 1024 * 1024
+private const val MAX_ARTWORK_DIMENSION = 8_192
+private const val MAX_ARTWORK_PIXELS = 40_000_000L
+
+internal fun isArtworkBoundsSafe(width: Int, height: Int): Boolean {
+    return width in 1..MAX_ARTWORK_DIMENSION &&
+        height in 1..MAX_ARTWORK_DIMENSION &&
+        width.toLong() * height <= MAX_ARTWORK_PIXELS
+}
+
+private fun artworkDecodeOptions(
+    bounds: BitmapFactory.Options,
+    targetSize: ImageTargetSize,
+    purpose: ArtworkPurpose,
+): BitmapFactory.Options? {
+    if (!isArtworkBoundsSafe(bounds.outWidth, bounds.outHeight)) return null
+    return BitmapFactory.Options().apply {
+        inPreferredConfig = bitmapConfigForPurpose(purpose)
+        inSampleSize = calculateInSampleSize(
+            outWidth = bounds.outWidth,
+            outHeight = bounds.outHeight,
+            targetSize = targetSize,
+        )
+    }
+}
 
 private fun calculateInSampleSize(
     outWidth: Int,

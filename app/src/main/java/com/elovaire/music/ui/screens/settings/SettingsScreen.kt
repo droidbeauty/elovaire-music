@@ -122,17 +122,11 @@ internal fun SettingsScreen(
     onOpenPrivacySafety: () -> Unit,
     onOpenChangelog: () -> Unit,
     onScanLibrary: () -> Unit,
-    showUpdateChecks: Boolean,
-    onCheckForUpdates: () -> Unit,
 ) {
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
-    val privacyCopy = remember(appLanguage) {
-        privacySafetyCopy(
-            language = appLanguage,
-        )
-    }
+    val privacyCopy = remember(appLanguage) { privacySafetyCopy(appLanguage) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -308,17 +302,6 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
                         )
-                    if (showUpdateChecks) {
-                            SettingActionRow(
-                                title = copy.checkUpdates,
-                                subtitle = copy.checkUpdatesSubtitle,
-                                actionLabel = copy.check,
-                                onAction = onCheckForUpdates,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 2.dp),
-                            )
-                        }
                     }
                 }
             }

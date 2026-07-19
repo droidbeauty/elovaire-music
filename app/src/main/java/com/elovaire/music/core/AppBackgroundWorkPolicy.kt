@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.core
 
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.StateFlow
 
 internal enum class AppWorkKind {
@@ -52,10 +53,19 @@ internal fun decideWorkAdmission(
 internal class AppBackgroundWorkPolicy(
     val isForeground: StateFlow<Boolean>,
 ) {
+    private val optionalStartupSuppressed = AtomicBoolean(false)
+
     fun canStart(
         kind: AppWorkKind,
         userInitiated: Boolean = false,
     ): Boolean {
+        if (
+            optionalStartupSuppressed.get() &&
+            !userInitiated &&
+            kind in OPTIONAL_STARTUP_WORK
+        ) {
+            return false
+        }
         return decideWorkAdmission(
             kind = kind,
             userInitiated = userInitiated,
@@ -71,11 +81,18 @@ internal class AppBackgroundWorkPolicy(
 
     fun shouldDeferLibraryRefresh(): Boolean = !isForeground.value
 
-    fun shouldStartAutomaticUpdateCheck(): Boolean {
-        return canStart(AppWorkKind.ForegroundOnlyMaintenance)
-    }
-
     fun shouldStartLyricsPrefetch(): Boolean {
         return canStart(AppWorkKind.ForegroundOnlyUiWork)
+    }
+
+    fun setOptionalStartupSuppressed(suppressed: Boolean) {
+        optionalStartupSuppressed.set(suppressed)
+    }
+
+    private companion object {
+        val OPTIONAL_STARTUP_WORK = setOf(
+            AppWorkKind.ForegroundOnlyUiWork,
+            AppWorkKind.ForegroundOnlyMaintenance,
+        )
     }
 }

@@ -11,8 +11,14 @@ class AppExitDiagnosticsTest {
     fun classifiesExpectedAndAbnormalExits() {
         assertEquals(AppExitCategory.Expected, classifyAppExitReason(ApplicationExitInfo.REASON_USER_REQUESTED))
         assertEquals(AppExitCategory.Crash, classifyAppExitReason(ApplicationExitInfo.REASON_CRASH))
+        assertEquals(AppExitCategory.Crash, classifyAppExitReason(ApplicationExitInfo.REASON_INITIALIZATION_FAILURE))
         assertEquals(AppExitCategory.Anr, classifyAppExitReason(ApplicationExitInfo.REASON_ANR))
         assertEquals(AppExitCategory.ResourcePressure, classifyAppExitReason(ApplicationExitInfo.REASON_LOW_MEMORY))
+        assertEquals(
+            AppExitCategory.ResourcePressure,
+            classifyAppExitReason(ApplicationExitInfo.REASON_EXCESSIVE_RESOURCE_USAGE),
+        )
+        assertEquals(AppExitCategory.Expected, classifyAppExitReason(ApplicationExitInfo.REASON_PACKAGE_UPDATED))
         assertEquals(AppExitCategory.Unknown, classifyAppExitReason(Int.MIN_VALUE))
     }
 

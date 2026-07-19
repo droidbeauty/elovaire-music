@@ -273,8 +273,6 @@ internal fun SettingsRouteHost(
         onOpenPrivacySafety = routeActions::openPrivacySafety,
         onOpenChangelog = routeActions::openChangelog,
         onScanLibrary = routeActions::refreshLibrary,
-        showUpdateChecks = true,
-        onCheckForUpdates = routeActions::checkForUpdates,
     )
 }
 

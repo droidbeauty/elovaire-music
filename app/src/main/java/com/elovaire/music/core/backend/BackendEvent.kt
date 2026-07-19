@@ -7,7 +7,6 @@ internal enum class BackendSubsystem {
     Library,
     MediaMutation,
     Playback,
-    Update,
 }
 
 internal data class BackendOperationContext(
