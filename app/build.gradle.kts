@@ -23,7 +23,7 @@ val youtubeDataApiKey = providers.gradleProperty("YOUTUBE_DATA_API_KEY").orNull
 val privacyPolicyUrl = providers.gradleProperty("PRIVACY_POLICY_URL").orNull
     ?: System.getenv("PRIVACY_POLICY_URL")
     ?: localProperties.getProperty("PRIVACY_POLICY_URL")
-    ?: ""
+    ?: "https://github.com/droidbeauty/elovaire-music/blob/main/docs/privacy-policy.md"
 val nativeSanitizersEnabled = providers.gradleProperty("app.nativeSanitizers")
     .map(String::toBoolean)
     .getOrElse(false)
