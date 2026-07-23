@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app
 
 import android.content.Intent
+import android.content.pm.ShortcutManager
 import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -18,6 +19,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         if (BuildConfig.DEBUG) {
             jankMonitor = runCatching { ElovaireJankMonitor.start(window) }.getOrNull()
+            getSystemService(ShortcutManager::class.java)?.removeDynamicShortcuts(
+                listOf(LEAK_CANARY_SHORTCUT_ID),
+            )
         }
 
         val app = application as ElovaireApp
@@ -60,5 +64,9 @@ class MainActivity : ComponentActivity() {
         jankMonitor?.release()
         jankMonitor = null
         super.onDestroy()
+    }
+
+    private companion object {
+        const val LEAK_CANARY_SHORTCUT_ID = "com.squareup.leakcanary.dynamic_shortcut"
     }
 }

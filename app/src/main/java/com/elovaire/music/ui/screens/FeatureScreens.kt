@@ -1410,22 +1410,16 @@ internal fun TopBarDualActionMenu(
             .fillMaxWidth()
             .height(topBarHeight + 50.dp),
     ) {
-        Box(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(50.dp),
-        ) {
-            FrostedTopBarBackground(
-                darkTheme = darkTheme,
-                modifier = Modifier.matchParentSize(),
-            )
-        }
+        FrostedTopBarBackground(
+            darkTheme = darkTheme,
+            modifier = Modifier.matchParentSize(),
+        )
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(50.dp),
+                .height(50.dp)
+                .padding(horizontal = 14.dp),
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -3085,10 +3079,26 @@ private fun SearchScreen(
                                     }
 
                                     if (state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
-                                        EmptyStateCard(
-                                            title = searchCopy(language).noResultsTitle,
-                                            message = searchCopy(language).noResultsMessage(trimmedQuery),
-                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(top = 48.dp, bottom = 32.dp),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        ) {
+                                            Text(
+                                                text = searchCopy(language).noResultsTitle,
+                                                style = MaterialTheme.typography.titleLarge,
+                                                textAlign = TextAlign.Center,
+                                            )
+                                            Text(
+                                                text = searchCopy(language).noResultsMessage(trimmedQuery),
+                                                style = secondaryBodyTextStyle(),
+                                                color = readableSecondaryTextColor(),
+                                                textAlign = TextAlign.Center,
+                                                modifier = Modifier.fillMaxWidth(0.74f),
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -7660,15 +7670,7 @@ private fun SleepTimerDialog(
     val copy = remember(language) { sleepTimerCopy(language) }
     var selectedMinutes by remember(selectedOption) {
         mutableFloatStateOf(
-            when (selectedOption) {
-                SleepTimerOption.FifteenMinutes -> 15f
-                SleepTimerOption.ThirtyMinutes -> 30f
-                SleepTimerOption.FortyFiveMinutes -> 45f
-                SleepTimerOption.SixtyMinutes -> 60f
-                SleepTimerOption.Off,
-                SleepTimerOption.EndOfSong,
-                -> 30f
-            },
+            selectedOption.durationMs?.div(60_000L)?.toFloat() ?: 30f,
         )
     }
     BackHandler(onBack = onDismiss)
@@ -7761,7 +7763,7 @@ private fun SleepTimerDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = "15${copy.minuteSuffix}",
+                            text = "10${copy.minuteSuffix}",
                             style = MaterialTheme.typography.labelLarge,
                             color = readableSecondaryTextColor(),
                         )
@@ -7795,14 +7797,7 @@ private fun SleepTimerDialog(
                     modifier = Modifier.fillMaxWidth(),
                     emphasized = true,
                     onClick = {
-                        onOptionSelected(
-                            when (selectedMinutes.roundToInt()) {
-                                15 -> SleepTimerOption.FifteenMinutes
-                                30 -> SleepTimerOption.ThirtyMinutes
-                                45 -> SleepTimerOption.FortyFiveMinutes
-                                else -> SleepTimerOption.SixtyMinutes
-                            },
-                        )
+                        SleepTimerOption.forMinutes(selectedMinutes.roundToInt())?.let(onOptionSelected)
                     },
                 )
             }
@@ -7816,13 +7811,13 @@ private fun SleepTimerSlider(
     onValueChange: (Float) -> Unit,
 ) {
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val fraction = ((value.coerceIn(15f, 60f) - 15f) / 45f).coerceIn(0f, 1f)
+    val fraction = ((value.coerceIn(10f, 60f) - 10f) / 50f).coerceIn(0f, 1f)
     val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
         Color.White
     }
-    val barCount = 16
+    val barCount = 21
     val activeBarCount = (fraction * (barCount - 1)).roundToInt() + 1
 
     BoxWithConstraints(
@@ -7834,7 +7829,7 @@ private fun SleepTimerSlider(
         val maxWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.coerceAtLeast(1f)
         val updateFromX: (Float) -> Unit = { xPosition ->
             val normalized = (xPosition / maxWidthPx).coerceIn(0f, 1f)
-            currentOnValueChange(15f + ((normalized * 3f).roundToInt() * 15f))
+            currentOnValueChange(10f + ((normalized * 10f).roundToInt() * 5f))
         }
 
         Box(

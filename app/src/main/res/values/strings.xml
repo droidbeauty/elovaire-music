@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Elovaire</string>
+    <string name="shortcut_last_played">Last played</string>
+    <string name="shortcut_albums">Albums</string>
+    <string name="shortcut_playlists">Playlists</string>
+    <string name="shortcut_search">Search</string>
+    <bool name="leak_canary_add_dynamic_shortcut">false</bool>
 </resources>

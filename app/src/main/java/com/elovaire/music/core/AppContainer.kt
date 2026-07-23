@@ -11,6 +11,13 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
+enum class AppShortcutCommand {
+    LastPlayed,
+    Albums,
+    Playlists,
+    Search,
+}
+
 @OptIn(UnstableApi::class)
 class AppContainer(
     appContext: Context,
@@ -53,11 +60,13 @@ class AppContainer(
         )
     }
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
+    private val appShortcutChannel = Channel<AppShortcutCommand>(capacity = Channel.BUFFERED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
     private val playbackStarted = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
+    val appShortcutCommands: Flow<AppShortcutCommand> = appShortcutChannel.receiveAsFlow()
 
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
@@ -88,6 +97,10 @@ class AppContainer(
         openNowPlayingChannel.trySend(Unit)
     }
 
+    fun requestAppShortcut(command: AppShortcutCommand) {
+        appShortcutChannel.trySend(command)
+    }
+
     fun consumeColdStartHomeReset(): Boolean {
         return coldStartHomeResetConsumed.compareAndSet(false, true)
     }
@@ -105,6 +118,7 @@ class AppContainer(
         started.set(false)
         playbackStarted.set(false)
         openNowPlayingChannel.close()
+        appShortcutChannel.close()
         bridgeCoordinator.release()
         notificationControllerHolder.release()
         services.release()

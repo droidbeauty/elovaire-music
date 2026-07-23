@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="last_played"
+        android:enabled="true"
+        android:icon="@drawable/ic_lucide_circle_play"
+        android:shortcutShortLabel="@string/shortcut_last_played">
+        <intent
+            android:action="elovaire.music.droidbeauty.app.action.LAST_PLAYED"
+            android:targetClass="elovaire.music.droidbeauty.app.MainActivity"
+            android:targetPackage="elovaire.music.droidbeauty.app" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="albums"
+        android:enabled="true"
+        android:icon="@drawable/ic_lucide_disc_album"
+        android:shortcutShortLabel="@string/shortcut_albums">
+        <intent
+            android:action="elovaire.music.droidbeauty.app.action.ALBUMS"
+            android:targetClass="elovaire.music.droidbeauty.app.MainActivity"
+            android:targetPackage="elovaire.music.droidbeauty.app" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="playlists"
+        android:enabled="true"
+        android:icon="@drawable/ic_lucide_list_music"
+        android:shortcutShortLabel="@string/shortcut_playlists">
+        <intent
+            android:action="elovaire.music.droidbeauty.app.action.PLAYLISTS"
+            android:targetClass="elovaire.music.droidbeauty.app.MainActivity"
+            android:targetPackage="elovaire.music.droidbeauty.app" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="search"
+        android:enabled="true"
+        android:icon="@drawable/ic_lucide_search"
+        android:shortcutShortLabel="@string/shortcut_search">
+        <intent
+            android:action="elovaire.music.droidbeauty.app.action.SEARCH"
+            android:targetClass="elovaire.music.droidbeauty.app.MainActivity"
+            android:targetPackage="elovaire.music.droidbeauty.app" />
+    </shortcut>
+</shortcuts>

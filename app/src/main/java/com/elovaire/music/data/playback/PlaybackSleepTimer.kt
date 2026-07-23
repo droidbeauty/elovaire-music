@@ -12,11 +12,26 @@ enum class SleepTimerOption(
     val durationMs: Long?,
 ) {
     Off(null),
+    TenMinutes(10 * 60_000L),
     FifteenMinutes(15 * 60_000L),
+    TwentyMinutes(20 * 60_000L),
+    TwentyFiveMinutes(25 * 60_000L),
     ThirtyMinutes(30 * 60_000L),
+    ThirtyFiveMinutes(35 * 60_000L),
+    FortyMinutes(40 * 60_000L),
     FortyFiveMinutes(45 * 60_000L),
+    FiftyMinutes(50 * 60_000L),
+    FiftyFiveMinutes(55 * 60_000L),
     SixtyMinutes(60 * 60_000L),
     EndOfSong(null),
+
+    ;
+
+    companion object {
+        fun forMinutes(minutes: Int): SleepTimerOption? {
+            return entries.firstOrNull { it.durationMs == minutes * 60_000L }
+        }
+    }
 }
 
 data class PlaybackSleepTimerState(
