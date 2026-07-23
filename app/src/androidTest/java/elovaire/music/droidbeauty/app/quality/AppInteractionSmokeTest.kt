@@ -12,8 +12,12 @@ import androidx.test.uiautomator.Direction
 import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
+import java.util.regex.Pattern
 import org.junit.After
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -29,6 +33,7 @@ class AppInteractionSmokeTest {
         shell("logcat -c")
         launchApp()
         device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), 10_000)
+        assertTrue(device.wait(Until.hasObject(By.desc("Menu")), 10_000))
     }
 
     @After
@@ -55,8 +60,7 @@ class AppInteractionSmokeTest {
         device.findObject(By.scrollable(true))?.scroll(Direction.UP, 0.5f)
 
         clickDescription("Menu")
-        device.wait(Until.hasObject(By.text("Settings")), 3_000)
-        clickText("Settings")
+        clickObject(settingsSelector, "localized Settings")
         waitForApp()
         device.pressBack()
 
@@ -79,11 +83,6 @@ class AppInteractionSmokeTest {
 
     private fun clickDescription(description: String) {
         clickObject(By.desc(description), description)
-        waitForApp()
-    }
-
-    private fun clickText(text: String) {
-        clickObject(By.text(text), text)
         waitForApp()
     }
 
@@ -151,5 +150,11 @@ class AppInteractionSmokeTest {
     private companion object {
         const val PACKAGE_NAME = "elovaire.music.droidbeauty.app"
         val runtimeFailurePattern = Regex("FATAL EXCEPTION|\\bANR\\b|AndroidRuntime:.*fatal", RegexOption.IGNORE_CASE)
+        val settingsSelector: BySelector = By.text(
+            Pattern.compile(
+                AppLanguage.entries
+                    .joinToString("|") { language -> Pattern.quote(settingsCopy(language).settings) },
+            ),
+        )
     }
 }
