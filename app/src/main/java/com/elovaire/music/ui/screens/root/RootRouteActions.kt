@@ -216,9 +216,6 @@ internal class SettingsRouteActions(
         settingsDependencies.playbackSettings.setVolumeNormalizationEnabled(enabled)
     }
 
-    fun setOnlineLyricsLookupEnabled(enabled: Boolean) {
-        settingsDependencies.setOnlineLyricsLookupEnabled(enabled)
-    }
 }
 
 @Composable

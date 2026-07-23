@@ -42,7 +42,6 @@ internal interface SettingsActionDependencies {
     val appearanceSettings: AppearanceSettingsWriter
     val librarySettings: LibrarySettingsWriter
     val playbackSettings: PlaybackSettingsWriter
-    val setOnlineLyricsLookupEnabled: (Boolean) -> Unit
 }
 
 internal interface PlaylistActionDependencies {

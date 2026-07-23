@@ -4,7 +4,6 @@ import android.content.Context
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
-import elovaire.music.droidbeauty.app.data.network.readUtf8Bounded
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -16,6 +15,7 @@ internal class LyricsCache(
         // The lazy cache only needs its app-private file handle during service construction.
         appContext.filesDir.resolve(CACHE_FILE_NAME)
     }
+    private val legacyRemoteCacheFile = requireNotNull(cacheFile.parentFile).resolve(LEGACY_REMOTE_CACHE_FILE_NAME)
     private val cacheLock = Any()
     private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>()
     private var cacheLoaded = false
@@ -86,11 +86,11 @@ internal class LyricsCache(
     private fun ensureLoadedLocked() {
         if (cacheLoaded) return
         cacheLoaded = true
+        legacyRemoteCacheFile.delete()
         if (!cacheFile.exists()) return
         runCatching {
-            val root = JSONObject(cacheFile.inputStream().use { input ->
-                input.readUtf8Bounded(MAX_CACHE_FILE_BYTES, cacheFile.length())
-            })
+            if (cacheFile.length() !in 1..MAX_CACHE_FILE_BYTES.toLong()) return@runCatching
+            val root = JSONObject(cacheFile.readText())
             if (root.optInt("version") != CACHE_VERSION) return@runCatching
             val entries = root.optJSONArray("entries") ?: JSONArray()
             repeat(entries.length()) { index ->
@@ -219,8 +219,9 @@ internal class LyricsCache(
     }
 
     private companion object {
-        const val CACHE_FILE_NAME = "lyrics_cache_v5.json"
-        const val CACHE_VERSION = 5
+        const val CACHE_FILE_NAME = "lyrics_cache_v6.json"
+        const val LEGACY_REMOTE_CACHE_FILE_NAME = "lyrics_cache_v5.json"
+        const val CACHE_VERSION = 6
         const val MAX_ENTRIES = 320
         const val MAX_CACHE_FILE_BYTES = 2 * 1024 * 1024
         const val RESULT_FOUND = "found"

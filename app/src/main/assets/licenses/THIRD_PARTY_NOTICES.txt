@@ -1,0 +1,26 @@
+Elovaire includes the following redistributed third-party materials:
+
+AndroidX, Jetpack Compose, Media3, Room, WorkManager, Kotlin, kotlinx libraries,
+and Haze
+Licensed under the Apache License, Version 2.0.
+The full license is included as APACHE-2.0.txt.
+
+Geist fonts
+Copyright (c) 2023 Vercel, in collaboration with basement.studio
+Licensed under the SIL Open Font License, Version 1.1.
+The full license is included as GEIST_LICENSE.txt.
+Source: https://github.com/vercel/geist-font
+
+Lucide icons
+Copyright (c) 2026 Lucide Icons and Contributors
+Licensed under the ISC License. Some Lucide icons derived from Feather Icons
+are licensed under the MIT License and attributed to Cole Bemis.
+The full notices and license terms are included as LUCIDE_LICENSE.txt.
+Source: https://github.com/lucide-icons/lucide
+
+jaudiotagger 3.0.1
+Copyright jaudiotagger contributors
+Licensed under the GNU Lesser General Public License, version 2.1 or later.
+The full license is included as LGPL-2.1.txt.
+Source corresponding to the shipped version is available from:
+https://bitbucket.org/ijabz/jaudiotagger/src/3.0.1/

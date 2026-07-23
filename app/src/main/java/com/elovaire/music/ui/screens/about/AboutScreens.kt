@@ -55,8 +55,6 @@ import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
-import elovaire.music.droidbeauty.app.data.network.HttpRequest
-import elovaire.music.droidbeauty.app.data.network.HttpTransport
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -620,7 +618,7 @@ private fun AboutEntryLogo(
     val drawableRes = remember(context, logoUri) {
         context.resolveAboutLogoDrawableRes(logoUri)
     }
-    val remoteBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
+    val logoBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
         initialValue = logoUri?.trim()?.let(aboutLogoImageCache::get),
         key1 = logoUri,
         key2 = drawableRes,
@@ -634,22 +632,7 @@ private fun AboutEntryLogo(
         value = null
         value = withContext(Dispatchers.IO) {
             try {
-                when {
-                    source.startsWith("https://", ignoreCase = true) -> {
-                        val bytes = HttpTransport.getBytes(
-                            HttpRequest(
-                                url = source,
-                                accept = "image/*",
-                                connectTimeoutMs = 2_500,
-                                readTimeoutMs = 2_500,
-                            ),
-                            maxBytes = MAX_ABOUT_LOGO_BYTES,
-                        )
-                        decodeAboutLogo(bytes)
-                    }
-
-                    else -> context.decodeAboutLogo(Uri.parse(source))
-                }?.asImageBitmap()?.also { bitmap ->
+                context.decodeAboutLogo(Uri.parse(source))?.asImageBitmap()?.also { bitmap ->
                     aboutLogoImageCache.put(source, bitmap)
                 }
             } catch (cancelled: CancellationException) {
@@ -659,10 +642,10 @@ private fun AboutEntryLogo(
             }
         }
     }
-    val uri = remember(logoUri, drawableRes, remoteBitmap) {
+    val uri = remember(logoUri, drawableRes, logoBitmap) {
         logoUri
             ?.takeIf { it.isNotBlank() }
-            ?.takeIf { drawableRes == null && remoteBitmap == null }
+            ?.takeIf { drawableRes == null && logoBitmap == null }
             ?.let(Uri::parse)
     }
     Box(
@@ -682,9 +665,9 @@ private fun AboutEntryLogo(
                 )
             }
 
-            remoteBitmap != null -> {
+            logoBitmap != null -> {
                 Image(
-                    bitmap = remoteBitmap!!,
+                    bitmap = logoBitmap!!,
                     contentDescription = title,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
@@ -704,18 +687,10 @@ private fun AboutEntryLogo(
     }
 }
 
-private const val MAX_ABOUT_LOGO_BYTES = 2 * 1024 * 1024
 private const val MAX_ABOUT_LOGO_DIMENSION = 8_192
 private const val MAX_ABOUT_LOGO_PIXELS = 16_000_000L
 private const val ABOUT_LOGO_TARGET_PX = 320
 private val aboutLogoImageCache = android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(4)
-
-private fun decodeAboutLogo(bytes: ByteArray): Bitmap? {
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
-    val options = aboutLogoDecodeOptions(bounds) ?: return null
-    return BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
-}
 
 private fun Context.decodeAboutLogo(uri: Uri): Bitmap? {
     if (uri.scheme !in setOf("content", "file", "android.resource")) return null

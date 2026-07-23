@@ -25,7 +25,6 @@ internal data class RootAppearanceState(
     val songCollectionGridEnabled: Boolean,
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
-    val onlineLyricsLookupEnabled: Boolean,
     val volumeNormalizationEnabled: Boolean,
 )
 
@@ -86,9 +85,8 @@ internal class RootViewModel(
             dependencies.rootSettingsReader.songCollectionGridEnabled,
             dependencies.rootSettingsReader.albumCollectionSortMode,
             dependencies.rootSettingsReader.songCollectionSortMode,
-            dependencies.rootSettingsReader.onlineLyricsLookupEnabled,
-        ) { albumLayout, songGrid, albumSort, songSort, onlineLyrics ->
-            AppearanceLayout(albumLayout, songGrid, albumSort, songSort, onlineLyrics)
+        ) { albumLayout, songGrid, albumSort, songSort ->
+            AppearanceLayout(albumLayout, songGrid, albumSort, songSort)
         },
         dependencies.rootSettingsReader.volumeNormalizationEnabled,
     ) { core, layout, volumeNormalization ->
@@ -101,7 +99,6 @@ internal class RootViewModel(
             songCollectionGridEnabled = layout.songCollectionGridEnabled,
             albumCollectionSortModeName = layout.albumCollectionSortModeName,
             songCollectionSortModeName = layout.songCollectionSortModeName,
-            onlineLyricsLookupEnabled = layout.onlineLyricsLookupEnabled,
             volumeNormalizationEnabled = volumeNormalization,
         )
     }.distinctUntilChanged().stateIn(
@@ -167,7 +164,6 @@ internal class RootViewModel(
             songCollectionGridEnabled = appearance.songCollectionGridEnabled,
             albumCollectionSortModeName = appearance.albumCollectionSortModeName,
             songCollectionSortModeName = appearance.songCollectionSortModeName,
-            onlineLyricsLookupEnabled = appearance.onlineLyricsLookupEnabled,
             volumeNormalizationEnabled = appearance.volumeNormalizationEnabled,
         )
     }.distinctUntilChanged().stateIn(
@@ -189,7 +185,6 @@ internal class RootViewModel(
             songCollectionGridEnabled = appearanceState.value.songCollectionGridEnabled,
             albumCollectionSortModeName = appearanceState.value.albumCollectionSortModeName,
             songCollectionSortModeName = appearanceState.value.songCollectionSortModeName,
-            onlineLyricsLookupEnabled = appearanceState.value.onlineLyricsLookupEnabled,
             volumeNormalizationEnabled = appearanceState.value.volumeNormalizationEnabled,
         ),
     )
@@ -207,7 +202,6 @@ private data class AppearanceLayout(
     val songCollectionGridEnabled: Boolean,
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
-    val onlineLyricsLookupEnabled: Boolean,
 )
 
 private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.settings.RootSettingsReader) =
@@ -220,6 +214,5 @@ private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.
         songCollectionGridEnabled = settings.songCollectionGridEnabled.value,
         albumCollectionSortModeName = settings.albumCollectionSortMode.value,
         songCollectionSortModeName = settings.songCollectionSortMode.value,
-        onlineLyricsLookupEnabled = settings.onlineLyricsLookupEnabled.value,
         volumeNormalizationEnabled = settings.volumeNormalizationEnabled.value,
     )

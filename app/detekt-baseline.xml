@@ -51,13 +51,10 @@
     <ID>LongMethod:SettingsScreen.kt:@Composable internal fun SettingsScreen</ID>
     <ID>LongMethod:SettingsScreen.kt:@Composable private fun LanguageSelectionDialog</ID>
     <ID>LongMethod:SettingsScreen.kt:@Composable private fun TextSizeStepper</ID>
-    <ID>NestedBlockDepth:AndroidChromaprintFingerprintProvider.kt:AndroidChromaprintFingerprintProvider$private suspend fun decodeFingerprint: String</ID>
     <ID>TooGenericExceptionCaught:AlbumTagEditorService.kt:AlbumTagEditorService$throwable: Throwable</ID>
     <ID>TooGenericExceptionCaught:AlbumTagEditorService.kt:AlbumTagEditorService$writeFailure: Throwable</ID>
     <ID>TooGenericExceptionCaught:AlbumTagEditorViewModel.kt:AlbumTagEditorViewModel$throwable: Throwable</ID>
-    <ID>TooGenericExceptionCaught:AndroidChromaprintFingerprintProvider.kt:AndroidChromaprintFingerprintProvider$throwable: Throwable</ID>
     <ID>TooGenericExceptionCaught:EmbeddedLyricsWriter.kt:EmbeddedLyricsWriter$throwable: Throwable</ID>
-    <ID>TooGenericExceptionCaught:LrcLibLyricsProvider.kt:DefaultLrcLibApi$throwable: Throwable</ID>
     <ID>TooManyFunctions:ElovaireMotion.kt:ElovaireMotion</ID>
     <ID>TooManyFunctions:FeatureScreens.kt:elovaire.music.droidbeauty.app.ui.screens.FeatureScreens.kt</ID>
     <ID>TooManyFunctions:MotionTransitions.kt:MotionTransitions</ID>

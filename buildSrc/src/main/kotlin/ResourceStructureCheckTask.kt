@@ -39,6 +39,19 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
             }
             if (file.extension == "xml") validateXml(file, violations)
         }
+        val inspectedFiles = packagedFiles + sourceFiles.files.filter { it.isFile }
+        inspectedFiles.forEach { file ->
+            if (file.extension in TEXT_EXTENSIONS) {
+                val text = file.readText()
+                FORBIDDEN_RELEASE_CONTENT.firstOrNull(text::contains)?.let { marker ->
+                    violations += "${file.invariantSeparatorsPath} contains removed remote-content integration: $marker"
+                }
+            }
+        }
+        val assetNames = assetFiles.files.filter(File::isFile).mapTo(mutableSetOf(), File::getName)
+        REQUIRED_LICENSE_FILES.filterNot(assetNames::contains).forEach { missing ->
+            violations += "Packaged third-party license is missing: $missing"
+        }
         validateProfiles(violations)
         if (violations.isNotEmpty()) throw GradleException(violations.joinToString(separator = "\n"))
     }
@@ -108,6 +121,28 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
                 """(?:class|interface|object)\s+(\w+)""",
         )
         val PROFILE_CLASS = Regex("""^L([^;]+);""")
+        val TEXT_EXTENSIONS = setOf("kt", "kts", "xml", "txt", "json", "properties")
+        val REQUIRED_LICENSE_FILES = setOf(
+            "APACHE-2.0.txt",
+            "GEIST_LICENSE.txt",
+            "LGPL-2.1.txt",
+            "LUCIDE_LICENSE.txt",
+            "THIRD_PARTY_NOTICES.txt",
+        )
+        val FORBIDDEN_RELEASE_CONTENT = setOf(
+            "lrclib.net",
+            "lyrics.ovh",
+            "coverartarchive.org",
+            "api.acoustid.org",
+            "musicbrainz.org/ws",
+            "fanart.tv",
+            "theaudiodb.com/api",
+            "youtube.googleapis.com",
+            "LrcLibLyricsProvider",
+            "LyricsOvhProvider",
+            "CoverArtArchiveProvider",
+            "FingerprintAlbumTagMatcher",
+        )
     }
 }
 

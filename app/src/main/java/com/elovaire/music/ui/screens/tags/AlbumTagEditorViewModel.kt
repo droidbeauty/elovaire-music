@@ -5,23 +5,18 @@ import android.content.IntentSender
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
-import elovaire.music.droidbeauty.app.core.AppWorkKind
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtworkCache
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
-import elovaire.music.droidbeauty.app.data.tags.OnlineTagMatchOutcome
 import elovaire.music.droidbeauty.app.data.tags.mutatedUris
 import elovaire.music.droidbeauty.app.data.tags.retryForFailures
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import elovaire.music.droidbeauty.app.platform.matchesPlatformActionResult
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -56,7 +51,6 @@ internal sealed interface AlbumTagEditorEvent {
 internal class AlbumTagEditorViewModel(
     private val libraryRepository: LibraryRepository,
     private val tagEditorService: AlbumTagEditorService,
-    private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : ViewModel() {
     private val albumId = MutableStateFlow<Long?>(null)
@@ -65,7 +59,6 @@ internal class AlbumTagEditorViewModel(
 
     private val _events = MutableSharedFlow<AlbumTagEditorEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<AlbumTagEditorEvent> = _events.asSharedFlow()
-    private var matchJob: Job? = null
     private var pendingWriteRequest: PendingTagWrite? = null
 
     init {
@@ -88,13 +81,6 @@ internal class AlbumTagEditorViewModel(
                     return@collectLatest
                 }
                 _uiState.value = album.toTagEditorUiState()
-            }
-        }
-        viewModelScope.launch {
-            backgroundWorkPolicy.isForeground.collect { isForeground ->
-                if (!isForeground) {
-                    matchJob?.cancel()
-                }
             }
         }
     }
@@ -199,63 +185,6 @@ internal class AlbumTagEditorViewModel(
             statusMessage = null,
             saveFailures = emptyList(),
         ).recalculateFlags()
-    }
-
-    fun matchOnline() {
-        val currentState = _uiState.value
-        val album = currentState.originalAlbum ?: return
-        if (currentState.isMatchingOnline || currentState.isSaving) return
-        if (!backgroundWorkPolicy.canStart(AppWorkKind.UserInitiatedShortWork, userInitiated = true)) return
-        matchJob = viewModelScope.launch {
-            _uiState.value = currentState.copy(
-                isMatchingOnline = true,
-                statusMessage = null,
-                saveFailures = emptyList(),
-            ).recalculateFlags()
-            val outcome = try {
-                withContext(Dispatchers.IO) {
-                    tagEditorService.findBestOnlineMatch(album)
-                }
-            } catch (throwable: Throwable) {
-                if (throwable is CancellationException) throw throwable
-                OnlineTagMatchOutcome.Failed(throwable.message ?: "Online matching failed.")
-            }
-            _uiState.value = when (outcome) {
-                is OnlineTagMatchOutcome.Success -> {
-                    _uiState.value.applyMatchSuggestionSafely(outcome.suggestion)
-                        .copy(
-                            isMatchingOnline = false,
-                            matchedRelease = outcome.suggestion,
-                            statusMessage = null,
-                        )
-                        .recalculateFlags()
-                }
-
-                is OnlineTagMatchOutcome.Unavailable -> _uiState.value.copy(
-                    isMatchingOnline = false,
-                    statusMessage = outcome.reason,
-                ).recalculateFlags()
-
-                is OnlineTagMatchOutcome.NoMatch -> _uiState.value.copy(
-                    isMatchingOnline = false,
-                    statusMessage = outcome.reason,
-                ).recalculateFlags()
-
-                is OnlineTagMatchOutcome.Failed -> _uiState.value.copy(
-                    isMatchingOnline = false,
-                    statusMessage = outcome.reason,
-                ).recalculateFlags()
-            }
-        }.also { job ->
-            job.invokeOnCompletion { throwable ->
-                if (throwable is CancellationException) {
-                    _uiState.value = _uiState.value.copy(isMatchingOnline = false).recalculateFlags()
-                }
-                if (matchJob === job) {
-                    matchJob = null
-                }
-            }
-        }
     }
 
     fun requestSave() {
@@ -422,35 +351,6 @@ internal class AlbumTagEditorViewModel(
         val operationId: String,
         val request: AlbumTagEditRequest,
     )
-
-    private fun AlbumTagEditorUiState.applyMatchSuggestionSafely(
-        suggestion: AlbumTagMatchSuggestion,
-    ): AlbumTagEditorUiState {
-        val suggestedTracksById = suggestion.tracks.associateBy { it.songId }
-        val updatedTracks = tracks.map { track ->
-            val matched = suggestedTracksById[track.songId]
-            if (matched == null) {
-                track
-            } else {
-                track.copy(
-                    title = matched.title.ifBlank { track.title },
-                    artist = matched.artist.ifBlank { track.artist },
-                    trackNumber = matched.trackNumber.toString(),
-                    discNumber = matched.discNumber.toString(),
-                )
-            }
-        }
-        return copy(
-            albumTitle = suggestion.albumTitle.ifBlank { albumTitle },
-            albumArtist = suggestion.albumArtist.ifBlank { albumArtist },
-            releaseYear = suggestion.releaseYear?.toString().orEmpty().ifBlank { releaseYear },
-            genre = suggestion.genre.ifBlank { genre },
-            yearClearedExplicitly = suggestion.releaseYear?.let { false } ?: yearClearedExplicitly,
-            tracks = updatedTracks,
-            selectedArtworkBytes = suggestion.coverArtBytes ?: selectedArtworkBytes,
-            selectedArtworkUri = if (suggestion.coverArtBytes != null) null else selectedArtworkUri,
-        )
-    }
 
     private fun invalidateEditedArtwork(artworkUrisToInvalidate: List<Uri?>) {
         invalidateArtworkCaches(artworkUrisToInvalidate)

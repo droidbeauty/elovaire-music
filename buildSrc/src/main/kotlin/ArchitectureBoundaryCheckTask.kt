@@ -101,29 +101,21 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
     private companion object {
         val BITMAP_ALLOWED = setOf(
             "/data/artwork/ArtworkLoader.kt",
-            "/data/tags/matching/AlbumArtworkResolver.kt",
             "/data/tags/AlbumTagEditorService.kt",
             "/ui/screens/about/AboutScreens.kt",
         )
-        val HTTP_ALLOWED = setOf(
-            "/data/network/HttpTransport.kt",
-        )
-        val NATIVE_ALLOWED = setOf(
-            "/data/tags/matching/AndroidChromaprintFingerprintProvider.kt",
-        )
+        val HTTP_ALLOWED = emptySet<String>()
+        val NATIVE_ALLOWED = emptySet<String>()
         val SHARED_PREFERENCES_ALLOWED = setOf(
             "/core/AppExitDiagnostics.kt",
-            "/data/artist/ArtistImageRepository.kt",
             "/data/playback/PlaybackSessionStore.kt",
             "/data/playback/UsbDacHardwareVolumeManager.kt",
             "/data/settings/PortableSettingsBackup.kt",
             "/data/settings/PreferenceStorage.kt",
             "/data/settings/PreferenceStore.kt",
             "/data/settings/RoomUserDataStore.kt",
-            "/data/tags/matching/TagMatchCache.kt",
         )
         val SUPERVISOR_SCOPE_ALLOWED = setOf(
-            "/data/lyrics/LyricsRepository.kt",
             "/data/settings/PreferenceStore.kt",
             "/data/settings/RoomUserDataStore.kt",
         )

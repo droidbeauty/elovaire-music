@@ -24,9 +24,9 @@ class SearchIndexTest {
 
     @Test
     fun scoreMatch_keepsScoreWithPrecomputedComposite() {
-        val query = NormalizedSearchQuery.from("dream theater awake")
+        val query = NormalizedSearchQuery.from("glass harbor awake")
         val normalizedTitle = normalizeSearchText("Awake")
-        val normalizedArtist = normalizeSearchText("Dream Theater")
+        val normalizedArtist = normalizeSearchText("Glass Harbor")
         val normalizedAlbum = normalizeSearchText("Awake")
         val composite = listOf(normalizedTitle, normalizedArtist, normalizedAlbum).joinToString(" ")
 
@@ -51,11 +51,11 @@ class SearchIndexTest {
     @Test
     fun scoreMatch_matchesTokensAcrossFields() {
         val score = scoreMatch(
-            query = NormalizedSearchQuery.from("kind davis blue"),
+            query = NormalizedSearchQuery.from("kind north blue"),
             normalizedTitle = normalizeSearchText("Kind of Blue"),
-            normalizedArtist = normalizeSearchText("Miles Davis"),
+            normalizedArtist = normalizeSearchText("Miles North"),
             normalizedAlbum = "",
-            normalizedComposite = normalizeSearchText("Kind of Blue Miles Davis"),
+            normalizedComposite = normalizeSearchText("Kind of Blue Miles North"),
         )
 
         assertNotNull(score)
@@ -66,7 +66,7 @@ class SearchIndexTest {
         val score = scoreMatch(
             query = NormalizedSearchQuery.from("rhcp"),
             normalizedTitle = normalizeSearchText("Californication"),
-            normalizedArtist = normalizeSearchText("Red Hot Chili Peppers"),
+            normalizedArtist = normalizeSearchText("River Hills City Players"),
             normalizedAlbum = normalizeSearchText("Californication"),
         )
 
@@ -78,7 +78,7 @@ class SearchIndexTest {
         val score = scoreMatch(
             query = NormalizedSearchQuery.from("californicaton"),
             normalizedTitle = normalizeSearchText("Californication"),
-            normalizedArtist = normalizeSearchText("Red Hot Chili Peppers"),
+            normalizedArtist = normalizeSearchText("River Hills City Players"),
             normalizedAlbum = normalizeSearchText("Californication"),
         )
 
@@ -90,9 +90,9 @@ class SearchIndexTest {
         val score = scoreMatch(
             query = NormalizedSearchQuery.from("kind coltrane blue"),
             normalizedTitle = normalizeSearchText("Kind of Blue"),
-            normalizedArtist = normalizeSearchText("Miles Davis"),
+            normalizedArtist = normalizeSearchText("Miles North"),
             normalizedAlbum = "",
-            normalizedComposite = normalizeSearchText("Kind of Blue Miles Davis"),
+            normalizedComposite = normalizeSearchText("Kind of Blue Miles North"),
         )
 
         assertNull(score)

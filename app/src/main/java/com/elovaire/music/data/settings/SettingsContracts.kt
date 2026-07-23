@@ -20,7 +20,6 @@ internal interface AppearanceSettingsStore {
     val songCollectionGridEnabled: StateFlow<Boolean>
     val albumCollectionSortMode: StateFlow<String>
     val songCollectionSortMode: StateFlow<String>
-    val onlineLyricsLookupEnabled: StateFlow<Boolean>
     val volumeNormalizationEnabled: StateFlow<Boolean>
 }
 

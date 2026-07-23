@@ -24,18 +24,13 @@ abstract class NativePageSizeValidationTask : DefaultTask() {
         val bundle = bundleFile.asFile.get()
             .takeIf { file -> file.isFile && file.extension == "aab" }
             ?: throw GradleException("Release AAB was not generated.")
-        var checkedLibraries = 0
         ZipFile(bundle).use { zip ->
             zip.entries().iterator().asSequence()
                 .filter { entry -> !entry.isDirectory && entry.name.endsWith(".so") }
                 .forEach { entry ->
                     val bytes = zip.getInputStream(entry).use { it.readBytes() }
                     checkElfLoadAlignment(entry.name, bytes, minPageSize.get())
-                    checkedLibraries++
                 }
-        }
-        if (checkedLibraries == 0) {
-            throw GradleException("Release AAB does not contain native libraries to validate.")
         }
     }
 

@@ -43,25 +43,19 @@ class RootActionsTest {
     fun settingsActions_delegateThroughFeatureScopedWriters() {
         val appearance = FakeAppearanceSettingsWriter()
         val playback = FakePlaybackSettingsWriter()
-        var onlineLyricsEnabled: Boolean? = null
         val actions = SettingsRouteActions(
             object : SettingsActionDependencies {
                 override val appearanceSettings = appearance
                 override val librarySettings = FakeLibrarySettingsWriter()
                 override val playbackSettings = playback
-                override val setOnlineLyricsLookupEnabled = { enabled: Boolean ->
-                    onlineLyricsEnabled = enabled
-                }
             },
         )
 
         actions.setAppLanguage(AppLanguage.Polish)
         actions.updateTreble(0.75f)
-        actions.setOnlineLyricsLookupEnabled(false)
 
         assertEquals(AppLanguage.Polish, appearance.language)
         assertEquals(0.75f, playback.treble)
-        assertEquals(false, onlineLyricsEnabled)
     }
 }
 

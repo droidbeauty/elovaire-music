@@ -8,7 +8,6 @@ import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
-import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
@@ -27,7 +26,6 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -36,7 +34,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -182,13 +179,11 @@ internal class NowPlayingViewModel(
         lyricsVisible,
         playbackManager.nowPlayingState,
         manualLyricsOverride,
-        preferenceStore.onlineLyricsLookupEnabled,
-    ) { visible, nowPlaying, manualOverride, onlineLyricsLookupEnabled ->
+    ) { visible, nowPlaying, manualOverride ->
         val song = nowPlaying.currentSong
         LyricsRequest(
             visible = visible,
             song = song,
-            onlineLyricsLookupEnabled = onlineLyricsLookupEnabled,
             identityKey = song?.let { "${it.id}:${it.uri}:${it.title}:${it.artist}:${it.durationMs / 1_000L}" },
             manualUiState = manualOverride?.takeIf { it.songId == song?.id }?.uiState,
         )
@@ -196,7 +191,6 @@ internal class NowPlayingViewModel(
         .distinctUntilChanged { previous, current ->
             previous.visible == current.visible &&
                 previous.identityKey == current.identityKey &&
-                previous.onlineLyricsLookupEnabled == current.onlineLyricsLookupEnabled &&
                 previous.manualUiState == current.manualUiState
         }
         .flatMapLatest { request ->
@@ -228,17 +222,9 @@ internal class NowPlayingViewModel(
                     }
                 }
 
-                if (!request.onlineLyricsLookupEnabled) {
-                    logLyrics("online disabled song=${request.song.id}")
-                    emit(LyricsUiState.Empty)
-                    return@flow
-                }
-
-                emit(LyricsUiState.Loading)
-
-                lyricsService.lyricsForSong(request.song, LyricsLookupMode.Full).collect { fetchedResult ->
+                lyricsService.lyricsForSong(request.song).collect { fetchedResult ->
                     val state = fetchedResult.toUiState()
-                    logLyrics("remote song=${request.song.id} state=${state::class.simpleName}")
+                    logLyrics("local song=${request.song.id} state=${state::class.simpleName}")
                     emit(state)
                 }
             }.flowOn(Dispatchers.IO)
@@ -288,39 +274,6 @@ internal class NowPlayingViewModel(
                     _lyricsEditorUiState.value = LyricsEditorUiState(
                         savedRevision = _lyricsEditorUiState.value.savedRevision,
                     )
-                }
-        }
-        viewModelScope.launch {
-            combine(
-                lyricsVisible,
-                playbackManager.nowPlayingState,
-                playbackManager.queueState,
-            ) { visible, nowPlaying, queue ->
-                PrefetchRequest(
-                    visible = visible,
-                    currentSong = nowPlaying.currentSong,
-                    queue = queue.queue,
-                    currentIndex = queue.currentIndex,
-                )
-            }
-                .distinctUntilChanged()
-                .collectLatest { request ->
-                    lyricsService.cancelObsoleteRequests(
-                        if (request.visible) {
-                            listOf(
-                                request.currentSong,
-                                request.queue.getOrNull(request.currentIndex + 1),
-                                request.queue.getOrNull(request.currentIndex - 1),
-                            )
-                        } else {
-                            emptyList()
-                        },
-                    )
-                    if (!request.visible) return@collectLatest
-                    request.currentSong?.let(lyricsService::prefetchLyrics)
-                    delay(LYRICS_QUEUE_PREFETCH_STABILITY_DELAY_MS)
-                    request.queue.getOrNull(request.currentIndex + 1)?.let(lyricsService::prefetchLyrics)
-                    request.queue.getOrNull(request.currentIndex - 1)?.let(lyricsService::prefetchLyrics)
                 }
         }
         viewModelScope.launch {
@@ -511,7 +464,6 @@ internal class NowPlayingViewModel(
     private data class LyricsRequest(
         val visible: Boolean,
         val song: Song?,
-        val onlineLyricsLookupEnabled: Boolean,
         val identityKey: String?,
         val manualUiState: LyricsUiState?,
     )
@@ -528,16 +480,8 @@ internal class NowPlayingViewModel(
         val permissionState: LyricsSavePermissionState = LyricsSavePermissionState.NotRequested,
     )
 
-    private data class PrefetchRequest(
-        val visible: Boolean,
-        val currentSong: Song?,
-        val queue: List<Song>,
-        val currentIndex: Int,
-    )
-
     private companion object {
         const val LYRICS_SWITCH_GRACE_MS = 120L
-        const val LYRICS_QUEUE_PREFETCH_STABILITY_DELAY_MS = 450L
         const val TAG = "LyricsPipeline"
     }
 

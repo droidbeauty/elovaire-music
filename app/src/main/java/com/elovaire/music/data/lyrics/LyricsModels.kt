@@ -1,31 +1,8 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
-import elovaire.music.droidbeauty.app.data.library.MediaRevision
-
 enum class SyncedLyricsTimingProfile {
     ExactIntervals,
 }
-
-enum class LyricsLookupMode {
-    FastPresenceCheck,
-    Full,
-}
-
-internal data class LyricsRequestKey(
-    val songId: Long,
-    val sourceKey: String,
-    val revision: MediaRevision,
-    val lookupMode: LyricsLookupMode,
-) {
-    val sourceIdentity: LyricsSourceIdentity
-        get() = LyricsSourceIdentity(songId, sourceKey, revision)
-}
-
-internal data class LyricsSourceIdentity(
-    val songId: Long,
-    val sourceKey: String,
-    val revision: MediaRevision,
-)
 
 data class LyricsIdentity(
     val title: String,
@@ -39,45 +16,6 @@ data class LyricsIdentity(
     val normalizedAlbum: String,
     val normalizedLookupKey: String,
     val cacheKeys: List<String>,
-)
-
-data class LyricsQueryVariant(
-    val artist: String,
-    val title: String,
-    val album: String? = null,
-)
-
-data class LyricsSearchQuery(
-    val identity: LyricsIdentity,
-    val variants: List<LyricsQueryVariant>,
-)
-
-internal data class LrcLibResponse(
-    val id: Int,
-    val name: String,
-    val artistName: String,
-    val albumName: String?,
-    val duration: Double,
-    val plainLyrics: String?,
-    val syncedLyrics: String?,
-    val instrumental: Boolean = false,
-)
-
-internal data class RankedLyricsCandidate(
-    val response: LrcLibResponse,
-    val score: Int,
-)
-
-data class LyricsCandidate(
-    val providerId: String,
-    val title: String,
-    val artist: String,
-    val album: String,
-    val durationMs: Long?,
-    val instrumental: Boolean,
-    val plainLyrics: String,
-    val syncedLyrics: String,
-    val sourceUrl: String? = null,
 )
 
 data class LyricsLine(

@@ -122,7 +122,6 @@ internal fun AlbumTagEditorRouteHost(
         appLanguage = appLanguage,
         onBack = onBack,
         onSave = tagEditorViewModel::requestSave,
-        onAutoMatch = tagEditorViewModel::matchOnline,
         onPickCoverArt = {
             coverArtPickerLauncher.launch(arrayOf("image/*"))
         },

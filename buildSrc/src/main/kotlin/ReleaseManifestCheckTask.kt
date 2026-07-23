@@ -193,13 +193,11 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
 
     private companion object {
         val ALLOWED_RELEASE_PERMISSIONS = setOf(
-            "android.permission.INTERNET",
             "android.permission.MODIFY_AUDIO_SETTINGS",
             "android.permission.FOREGROUND_SERVICE",
             "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
             "android.permission.READ_MEDIA_AUDIO",
             "android.permission.READ_EXTERNAL_STORAGE",
-            "android.permission.ACCESS_NETWORK_STATE",
             "android.permission.WAKE_LOCK",
             "android.permission.RECEIVE_BOOT_COMPLETED",
             "${AppBuildConfig.packageName}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",

@@ -3,7 +3,6 @@ import java.util.zip.ZipFile
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.ListProperty
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
@@ -21,14 +20,7 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
 
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val nativeSymbolsFile: RegularFileProperty
-
-    @get:InputFile
-    @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val dependencyInventoryFile: RegularFileProperty
-
-    @get:org.gradle.api.tasks.Input
-    abstract val expectedAbis: ListProperty<String>
 
     @get:OutputFile
     abstract val checksumFile: RegularFileProperty
@@ -38,7 +30,6 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
         val bundle = bundleFile.asFile.get().takeIf { it.isFile }
             ?: throw GradleException("Release AAB was not generated.")
         requireNonEmpty(mappingFile.asFile.get(), "R8 mapping")
-        requireNonEmpty(nativeSymbolsFile.asFile.get(), "native symbols")
         requireNonEmpty(dependencyInventoryFile.asFile.get(), "release dependency inventory")
 
         ZipFile(bundle).use { zip ->
@@ -62,12 +53,6 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
                 val entry = zip.getEntry(required)
                     ?: throw GradleException("Release AAB is missing required entry: $required")
                 if (entry.size <= 0L) throw GradleException("Release AAB contains empty entry: $required")
-            }
-            expectedAbis.get().forEach { abi ->
-                val library = "base/lib/$abi/libelovaire_chromaprint.so"
-                if (zip.getEntry(library)?.size?.let { it > 0L } != true) {
-                    throw GradleException("Release AAB is missing native library for $abi.")
-                }
             }
             val timestamps = entries.mapNotNull { it.time.takeIf { time -> time >= 0L } }.distinct()
             if (timestamps.size > 1) {

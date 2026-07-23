@@ -231,13 +231,11 @@ import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
-import elovaire.music.droidbeauty.app.data.lyrics.LyricsLookupMode
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
-import elovaire.music.droidbeauty.app.data.artist.ArtistImageSource
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
@@ -326,7 +324,6 @@ import elovaire.music.droidbeauty.app.ui.theme.rememberElovaireOverscrollFactory
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.ToggleEnabledGreen
-import java.net.URL
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.ceil
@@ -2364,18 +2361,12 @@ private fun ArtistHeroHeader(
     onShuffle: () -> Unit,
 ) {
     val sourceUri = when (backdropState) {
-        is ArtistBackdropState.Available -> backdropState.backdrop.imageUri
         is ArtistBackdropState.Fallback -> backdropState.localArtworkUri
         ArtistBackdropState.Loading -> localArtworkUri
     } ?: localArtworkUri
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
     val localArtwork = rememberArtworkBitmap(localArtworkUri, size = 512).value
     val gradient = rememberArtworkGradient(localArtworkUri).value
-    val isRemoteBackdrop = (backdropState as? ArtistBackdropState.Available)?.backdrop?.source !in setOf(
-        null,
-        ArtistImageSource.LocalArtwork,
-        ArtistImageSource.Generated,
-    )
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2394,7 +2385,7 @@ private fun ArtistHeroHeader(
                 contentDescription = null,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
-                alpha = if (isRemoteBackdrop) 1f else 0.92f,
+                alpha = 0.92f,
             )
         } else {
             Box(
@@ -2411,7 +2402,7 @@ private fun ArtistHeroHeader(
                     ),
             )
         }
-        if (!isRemoteBackdrop && localArtwork != null) {
+        if (localArtwork != null) {
             Image(
                 bitmap = localArtwork,
                 contentDescription = null,

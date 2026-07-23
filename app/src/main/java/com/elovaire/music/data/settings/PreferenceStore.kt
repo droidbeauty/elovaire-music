@@ -48,6 +48,23 @@ class PreferenceStore internal constructor(
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
 
+    fun clearRemovedRemoteProviderData() {
+        appContext.getSharedPreferences("artist_image_cache", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .apply()
+        appContext.getSharedPreferences("tag_match_cache", Context.MODE_PRIVATE)
+            .edit()
+            .clear()
+            .apply()
+        appContext.cacheDir.resolve("artist_backdrops").let { directory ->
+            directory.listFiles()?.forEach { file ->
+                if (file.isFile) file.delete()
+            }
+            directory.delete()
+        }
+    }
+
     private val _themeMode = MutableStateFlow(loadThemeMode())
     override val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 
@@ -68,9 +85,6 @@ class PreferenceStore internal constructor(
 
     private val _volumeNormalizationEnabled = MutableStateFlow(loadVolumeNormalizationEnabled())
     override val volumeNormalizationEnabled: StateFlow<Boolean> = _volumeNormalizationEnabled.asStateFlow()
-
-    private val _onlineLyricsLookupEnabled = MutableStateFlow(loadOnlineLyricsLookupEnabled())
-    override val onlineLyricsLookupEnabled: StateFlow<Boolean> = _onlineLyricsLookupEnabled.asStateFlow()
 
     private val _albumCollectionLayoutMode = MutableStateFlow(loadAlbumCollectionLayoutMode())
     override val albumCollectionLayoutMode: StateFlow<String> = _albumCollectionLayoutMode.asStateFlow()
@@ -240,12 +254,6 @@ class PreferenceStore internal constructor(
     override fun setVolumeNormalizationEnabled(enabled: Boolean) {
         updateStateAndPreference(_volumeNormalizationEnabled, enabled) {
             putBoolean(KEY_VOLUME_NORMALIZATION_ENABLED, enabled)
-        }
-    }
-
-    fun setOnlineLyricsLookupEnabled(enabled: Boolean) {
-        updateStateAndPreference(_onlineLyricsLookupEnabled, enabled) {
-            putBoolean(KEY_ONLINE_LYRICS_LOOKUP_ENABLED, enabled)
         }
     }
 
@@ -477,10 +485,6 @@ class PreferenceStore internal constructor(
         return preferences.getBoolean(KEY_VOLUME_NORMALIZATION_ENABLED, false)
     }
 
-    private fun loadOnlineLyricsLookupEnabled(): Boolean {
-        return preferences.getBoolean(KEY_ONLINE_LYRICS_LOOKUP_ENABLED, false)
-    }
-
     private fun loadAlbumCollectionLayoutMode(): String {
         preferences.getString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, null)
             ?.trim()
@@ -558,7 +562,6 @@ class PreferenceStore internal constructor(
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
-        const val KEY_ONLINE_LYRICS_LOOKUP_ENABLED = "online_lyrics_lookup_enabled"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
         const val KEY_ALBUM_COLLECTION_LAYOUT_MODE = "album_collection_layout_mode"
         const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"

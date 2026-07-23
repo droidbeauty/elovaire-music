@@ -11,22 +11,10 @@ val localProperties = Properties().apply {
     }
 }
 
-val acoustIdApiKey = providers.gradleProperty("ACOUSTID_API_KEY").orNull
-    ?: System.getenv("ACOUSTID_API_KEY")
-    ?: localProperties.getProperty("ACOUSTID_API_KEY")
-val fanartTvApiKey = providers.gradleProperty("FANART_TV_API_KEY").orNull
-    ?: System.getenv("FANART_TV_API_KEY")
-    ?: localProperties.getProperty("FANART_TV_API_KEY")
-val youtubeDataApiKey = providers.gradleProperty("YOUTUBE_DATA_API_KEY").orNull
-    ?: System.getenv("YOUTUBE_DATA_API_KEY")
-    ?: localProperties.getProperty("YOUTUBE_DATA_API_KEY")
 val privacyPolicyUrl = providers.gradleProperty("PRIVACY_POLICY_URL").orNull
     ?: System.getenv("PRIVACY_POLICY_URL")
     ?: localProperties.getProperty("PRIVACY_POLICY_URL")
     ?: "https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/docs/privacy-policy.md"
-val nativeSanitizersEnabled = providers.gradleProperty("app.nativeSanitizers")
-    .map(String::toBoolean)
-    .getOrElse(false)
 fun releaseSecret(name: String): String? = providers.gradleProperty(name).orNull
     ?: System.getenv(name)
     ?: localProperties.getProperty(name)
@@ -57,7 +45,6 @@ plugins {
 android {
     namespace = AppBuildConfig.packageName
     compileSdk = AppBuildConfig.compileSdk
-    ndkVersion = "27.0.12077973"
 
     defaultConfig {
         applicationId = AppBuildConfig.packageName
@@ -67,31 +54,9 @@ android {
         versionName = AppBuildConfig.versionName
         buildConfigField(
             "String",
-            "ACOUSTID_API_KEY",
-            "\"${acoustIdApiKey.orEmpty().replace("\"", "\\\"")}\"",
-        )
-        buildConfigField(
-            "String",
-            "FANART_TV_API_KEY",
-            "\"${fanartTvApiKey.orEmpty().replace("\"", "\\\"")}\"",
-        )
-        buildConfigField(
-            "String",
-            "YOUTUBE_DATA_API_KEY",
-            "\"${youtubeDataApiKey.orEmpty().replace("\"", "\\\"")}\"",
-        )
-        buildConfigField(
-            "String",
             "PRIVACY_POLICY_URL",
             "\"${privacyPolicyUrl.replace("\"", "\\\"")}\"",
         )
-        externalNativeBuild {
-            cmake {
-                cppFlags += "-std=c++17"
-                arguments += "-DELOVAIRE_NATIVE_SANITIZERS=${if (nativeSanitizersEnabled) "ON" else "OFF"}"
-            }
-        }
-
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
@@ -119,7 +84,6 @@ android {
             signingConfig = signingConfigs.findByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
-            ndk.debugSymbolLevel = "SYMBOL_TABLE"
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -139,13 +103,6 @@ android {
 
     sourceSets.named("androidTest") {
         assets.directories.add("schemas")
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-            version = "3.22.1"
-        }
     }
 
     packaging {
@@ -430,21 +387,12 @@ val releaseArtifactInspect = tasks.register<ReleaseArtifactIntegrityTask>("relea
     dependsOn(
         "bundleRelease",
         "collectReleaseDependencies",
-        "mergeReleaseNativeDebugMetadata",
         "sdkReleaseDependencyData",
     )
     bundleFile.set(layout.buildDirectory.file("outputs/bundle/release/app-release.aab"))
     mappingFile.set(layout.buildDirectory.file("outputs/mapping/release/mapping.txt"))
-    nativeSymbolsFile.set(layout.buildDirectory.file("outputs/native-debug-symbols/release/native-debug-symbols.zip"))
     dependencyInventoryFile.set(layout.buildDirectory.file("outputs/sdk-dependencies/release/sdkDependencies.txt"))
-    expectedAbis.set(listOf("arm64-v8a", "armeabi-v7a", "x86", "x86_64"))
     checksumFile.set(layout.buildDirectory.file("reports/release/app-release.aab.sha256"))
-}
-
-tasks.register<NativeSanitizerCheckTask>("nativeSanitizerCheck") {
-    group = "verification"
-    dependsOn("assembleDebug")
-    sanitizersEnabled.set(nativeSanitizersEnabled)
 }
 
 tasks.register("verifyReleaseReadiness") {

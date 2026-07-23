@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
-import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -9,7 +8,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
@@ -17,8 +15,6 @@ import kotlinx.coroutines.withContext
 
 class LyricsService internal constructor(
     context: Context,
-    onlineLookupEnabled: StateFlow<Boolean>,
-    backgroundWorkPolicy: AppBackgroundWorkPolicy,
     mediaMutationJournal: MediaMutationJournal? = null,
     private val onEmbeddedLyricsChanged: (Song) -> Unit = {},
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
@@ -26,8 +22,6 @@ class LyricsService internal constructor(
     private val embeddedLyricsWriter = EmbeddedLyricsWriter(context.applicationContext, mediaMutationJournal)
     private val repository = LyricsRepository(
         appContext = context.applicationContext,
-        onlineLookupEnabled = onlineLookupEnabled,
-        backgroundWorkPolicy = backgroundWorkPolicy,
         ioDispatcher = ioDispatcher,
     )
 
@@ -56,37 +50,20 @@ class LyricsService internal constructor(
         }
     }
 
-    fun prefetchLyrics(song: Song) {
-        repository.prefetchLyrics(song)
-    }
-
-    fun cancelObsoleteRequests(keepSongs: List<Song?>) {
-        repository.cancelObsoleteRequests(keepSongs)
-    }
-
     internal fun onMemoryPressure(pressure: MemoryPressure) {
         repository.onMemoryPressure(pressure)
-    }
-
-    fun release() {
-        repository.release()
     }
 
     suspend fun fetchLyrics(
         song: Song,
         allowCachedNotFound: Boolean = true,
-        lookupMode: LyricsLookupMode = LyricsLookupMode.Full,
-    ): LyricsResult = repository.fetchLyrics(song, allowCachedNotFound, lookupMode)
+    ): LyricsResult = repository.fetchLyrics(song, allowCachedNotFound)
 
-    fun lyricsForSong(
-        song: Song,
-        lookupMode: LyricsLookupMode = LyricsLookupMode.Full,
-    ): Flow<LyricsResult> = flow {
+    fun lyricsForSong(song: Song): Flow<LyricsResult> = flow {
         emit(
             repository.fetchLyrics(
                 song = song,
                 allowCachedNotFound = false,
-                lookupMode = lookupMode,
             ),
         )
     }.catch { throwable ->

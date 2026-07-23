@@ -5,8 +5,8 @@
       - title: visible title shown in the About screen.
       - description: visible supporting copy shown under the title.
       - logoUrl: optional image link for the first header row.
-        Use @drawable/your_logo for bundled app artwork, or paste a content://,
-        file://, android.resource://, or https:// image link here.
+        Use @drawable/your_logo for bundled app artwork, or a content://,
+        file://, or android.resource:// image link.
 
       LINK
       - label: visible button text.
@@ -20,7 +20,7 @@
     <entry
         title="Droid Beauty"
         description="Beautifully designed widgets and themes for Android to make your homescreen stunning. I'm also the creator of this music player app you're using right now"
-        logoUrl="https://raw.githubusercontent.com/user774820/logoimages/refs/heads/main/DroidBeautyLogo.png">
+        >
         <link
             label="Instagram"
             url="https://instagram.com/droidbeauty" />
@@ -37,12 +37,18 @@
 
     <entry
         title="Resources"
-        description="Elovaire is built with modern open-source Android components that shape experience of the app. Thanks to everyone creating resources such as Media3 playback, Jetpack Compose framework or Lucide icons">
+        description="Elovaire uses Apache-2.0 Android and Kotlin components, Lucide icons (ISC/MIT), Geist fonts (OFL-1.1), and jaudiotagger (LGPL). Full license texts are bundled with the app.">
         <link
             label="Android Developer"
             url="https://developer.android.com" />
         <link
             label="Lucide icons"
             url="https://lucide.dev/" />
+        <link
+            label="Geist font"
+            url="https://github.com/vercel/geist-font" />
+        <link
+            label="jaudiotagger"
+            url="https://bitbucket.org/ijabz/jaudiotagger" />
     </entry>
 </about-screen>

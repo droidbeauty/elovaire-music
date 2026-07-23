@@ -107,7 +107,6 @@ internal fun SettingsScreen(
     textSizePreset: TextSizePreset,
     appLanguage: AppLanguage,
     eqSettings: EqSettings,
-    onlineLyricsLookupEnabled: Boolean,
     volumeNormalizationEnabled: Boolean,
     bottomPadding: Dp,
     onBack: () -> Unit,
@@ -116,7 +115,6 @@ internal fun SettingsScreen(
     onAppLanguageSelected: (AppLanguage) -> Unit,
     onVolumeNormalizationChanged: (Boolean) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
-    onOnlineLyricsLookupChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
     onOpenPrivacySafety: () -> Unit,
@@ -280,15 +278,6 @@ internal fun SettingsScreen(
                             title = privacyCopy.title,
                             subtitle = privacyCopy.subtitle,
                             onClick = onOpenPrivacySafety,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
-                        SettingToggleRow(
-                            title = privacyCopy.onlineLyricsTitle,
-                            subtitle = privacyCopy.onlineLyricsSubtitle,
-                            enabled = onlineLyricsLookupEnabled,
-                            onEnabledChanged = onOnlineLyricsLookupChanged,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),

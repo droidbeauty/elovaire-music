@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.ui.screens.tags
 import android.net.Uri
 import androidx.compose.runtime.Immutable
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagMatchSuggestion
 import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
 import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -20,9 +19,7 @@ internal data class AlbumTagEditorUiState(
     val tracks: List<EditableTrackTagState> = emptyList(),
     val selectedArtworkUri: Uri? = null,
     val selectedArtworkBytes: ByteArray? = null,
-    val matchedRelease: AlbumTagMatchSuggestion? = null,
     val isLoading: Boolean = true,
-    val isMatchingOnline: Boolean = false,
     val isSaving: Boolean = false,
     val canSave: Boolean = false,
     val hasUnsavedChanges: Boolean = false,
@@ -81,7 +78,6 @@ internal fun Album.toTagEditorUiState(): AlbumTagEditorUiState {
         },
         selectedArtworkUri = artUri,
         selectedArtworkBytes = null,
-        matchedRelease = null,
         isLoading = false,
     ).recalculateFlags()
 }

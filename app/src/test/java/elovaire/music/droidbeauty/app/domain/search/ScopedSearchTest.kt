@@ -13,9 +13,9 @@ class ScopedSearchTest {
         val songs = listOf(
             song(
                 id = 1L,
-                title = "Halo",
-                artist = "Beyonce",
-                album = "I Am... Sasha Fierce",
+                title = "Northern Signal",
+                artist = "Aurora Vale",
+                album = "Glass Horizons",
             ),
             song(
                 id = 2L,
@@ -25,7 +25,7 @@ class ScopedSearchTest {
             ),
         )
 
-        val result = searchSongsForPicker(songs, "beyoncé halo")
+        val result = searchSongsForPicker(songs, "auróra signal")
 
         assertEquals(listOf(1L), result.map(Song::id))
     }
@@ -35,15 +35,15 @@ class ScopedSearchTest {
         val songs = listOf(
             song(
                 id = 1L,
-                title = "So What",
-                artist = "Miles Davis",
-                album = "Kind of Blue",
+                title = "Blue Meridian",
+                artist = "Miles North",
+                album = "Shades of Blue",
             ),
             song(
                 id = 2L,
-                title = "Blue Train",
-                artist = "John Coltrane",
-                album = "Blue Train",
+                title = "Night Train",
+                artist = "Jonas Reed",
+                album = "Night Lines",
             ),
         )
 
@@ -67,8 +67,8 @@ class ScopedSearchTest {
     @Test
     fun searchAlbumsForPicker_usesSharedNormalization() {
         val albums = listOf(
-            album(id = 1L, title = "Héroes del Silencio", artist = "Bunbury"),
-            album(id = 2L, title = "Random Access Memories", artist = "Daft Punk"),
+            album(id = 1L, title = "Héroes del Viento", artist = "Luz Norte"),
+            album(id = 2L, title = "Memory Atlas", artist = "Signal Pair"),
         )
 
         val result = searchAlbumsForPicker(albums, "heroes")
@@ -79,11 +79,11 @@ class ScopedSearchTest {
     @Test
     fun searchPlaylists_matchesNormalizedNames() {
         val playlists = listOf(
-            Playlist(id = 1L, name = "Beyoncé / Favorites"),
+            Playlist(id = 1L, name = "Auróra / Favorites"),
             Playlist(id = 2L, name = "Late Night"),
         )
 
-        val result = searchPlaylists(playlists, "beyonce favorites")
+        val result = searchPlaylists(playlists, "aurora favorites")
 
         assertEquals(listOf(1L), result.map(Playlist::id))
     }
@@ -91,8 +91,8 @@ class ScopedSearchTest {
     @Test
     fun searchArtistsForPicker_matchesArtistAndAlbumTokens() {
         val artists = listOf(
-            "Miles Davis" to listOf(song(id = 1L, title = "So What", artist = "Miles Davis", album = "Kind of Blue")),
-            "John Coltrane" to listOf(song(id = 2L, title = "Blue Train", artist = "John Coltrane", album = "Blue Train")),
+            "Miles North" to listOf(song(id = 1L, title = "Blue Meridian", artist = "Miles North", album = "Shades of Blue")),
+            "Jonas Reed" to listOf(song(id = 2L, title = "Night Train", artist = "Jonas Reed", album = "Night Lines")),
         )
 
         val result = searchArtistsForPicker(
@@ -103,7 +103,7 @@ class ScopedSearchTest {
             songCount = { it.second.size },
         )
 
-        assertEquals(listOf("Miles Davis"), result.map { it.first })
+        assertEquals(listOf("Miles North"), result.map { it.first })
     }
 
     @Test

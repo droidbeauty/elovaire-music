@@ -18,15 +18,6 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.platform.ContentIo
-import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
-import elovaire.music.droidbeauty.app.data.tags.matching.AlbumTagMatchResult
-import elovaire.music.droidbeauty.app.data.tags.matching.AndroidChromaprintFingerprintProvider
-import elovaire.music.droidbeauty.app.data.tags.matching.CoverArtArchiveProvider
-import elovaire.music.droidbeauty.app.data.tags.matching.EmbeddedArtworkProvider
-import elovaire.music.droidbeauty.app.data.tags.matching.FingerprintAlbumTagMatcher
-import elovaire.music.droidbeauty.app.data.tags.matching.HttpAcoustIdClient
-import elovaire.music.droidbeauty.app.data.tags.matching.HttpMusicBrainzClient
-import elovaire.music.droidbeauty.app.data.tags.matching.TagMatchCache
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -69,22 +60,6 @@ internal data class AlbumTagEditRequest(
     val coverArtBytes: ByteArray? = null,
     val tracks: List<EditableAlbumTrack>,
 )
-
-internal data class AlbumTagMatchSuggestion(
-    val albumTitle: String,
-    val albumArtist: String,
-    val releaseYear: Int?,
-    val genre: String,
-    val coverArtBytes: ByteArray?,
-    val tracks: List<EditableAlbumTrack>,
-)
-
-internal sealed interface OnlineTagMatchOutcome {
-    data class Success(val suggestion: AlbumTagMatchSuggestion) : OnlineTagMatchOutcome
-    data class Unavailable(val reason: String) : OnlineTagMatchOutcome
-    data class NoMatch(val reason: String) : OnlineTagMatchOutcome
-    data class Failed(val reason: String) : OnlineTagMatchOutcome
-}
 
 internal data class TagEditApplyResult(
     val editedSongIds: List<Long>,
@@ -130,49 +105,6 @@ internal class AlbumTagEditorService(
     private val contentIo = ContentIo(contentResolver)
     private val audioFormatDetector = AudioFormatDetector(appContext)
     private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME)
-    private val matchCache = TagMatchCache(appContext)
-    private val albumMatcher = FingerprintAlbumTagMatcher(
-        fingerprintProvider = AndroidChromaprintFingerprintProvider(appContext, matchCache),
-        acoustIdClient = HttpAcoustIdClient(BuildConfig.ACOUSTID_API_KEY, matchCache),
-        musicBrainzClient = HttpMusicBrainzClient(matchCache),
-        artworkResolver = AlbumArtworkResolver(
-            coverArtArchiveProvider = CoverArtArchiveProvider(),
-            embeddedArtworkProvider = EmbeddedArtworkProvider(appContext),
-        ),
-    )
-
-    suspend fun findBestOnlineMatch(album: Album): OnlineTagMatchOutcome = withContext(ioDispatcher) {
-        when (val result = albumMatcher.matchAlbum(album)) {
-            is AlbumTagMatchResult.Success -> {
-                val suggestion = AlbumTagMatchSuggestion(
-                    albumTitle = result.match.release.title.ifBlank { album.title },
-                    albumArtist = result.match.release.albumArtist.ifBlank { album.artist },
-                    releaseYear = result.match.release.releaseYear,
-                    genre = album.songs.firstOrNull { it.genre.isNotBlank() }?.genre.orEmpty(),
-                    coverArtBytes = result.artwork?.bytes,
-                    tracks = album.songs.map { song ->
-                        val resolved = result.match.trackMatches.firstOrNull { it.song.id == song.id }
-                        EditableAlbumTrack(
-                            songId = song.id,
-                            title = resolved?.remoteTrack?.title?.takeIf(String::isNotBlank) ?: song.title,
-                            artist = resolved?.remoteTrack?.artist?.takeIf(String::isNotBlank) ?: song.artist,
-                            trackNumber = resolved?.remoteTrack?.trackNumber?.takeIf { it > 0 }
-                                ?: song.trackNumber.coerceAtLeast(1),
-                            discNumber = resolved?.remoteTrack?.discNumber?.takeIf { it > 0 }
-                                ?: song.discNumber.coerceAtLeast(1),
-                            durationMs = song.durationMs,
-                        )
-                    },
-                )
-                OnlineTagMatchOutcome.Success(suggestion)
-            }
-
-            is AlbumTagMatchResult.Unavailable -> OnlineTagMatchOutcome.Unavailable(result.reason)
-            is AlbumTagMatchResult.NoMatch -> OnlineTagMatchOutcome.NoMatch(result.reason)
-            is AlbumTagMatchResult.Failed -> OnlineTagMatchOutcome.Failed(result.reason)
-        }
-    }
-
     suspend fun applyEdits(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean = false,

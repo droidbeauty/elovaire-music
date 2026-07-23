@@ -42,7 +42,7 @@ internal class AppServices(
     )
     val preferenceStore = PreferenceStore(applicationContext, userDataStore)
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        ArtistImageRepository(applicationContext, backgroundWorkPolicy)
+        ArtistImageRepository()
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
     val albumTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -74,8 +74,6 @@ internal class AppServices(
     private val lyricsServiceDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         LyricsService(
             context = applicationContext,
-            onlineLookupEnabled = preferenceStore.onlineLyricsLookupEnabled,
-            backgroundWorkPolicy = backgroundWorkPolicy,
             mediaMutationJournal = mediaMutationJournal,
             onEmbeddedLyricsChanged = callback@{ song ->
                 if (released.get()) return@callback
@@ -109,6 +107,7 @@ internal class AppServices(
         libraryRepository.start()
         libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
         appScope.launch(Dispatchers.IO) {
+            preferenceStore.clearRemovedRemoteProviderData()
             val exitSnapshot = exitDiagnostics.inspect()
             backgroundWorkPolicy.setOptionalStartupSuppressed(exitSnapshot.suppressOptionalStartup)
             portableSettingsBackup.start()
@@ -117,14 +116,12 @@ internal class AppServices(
 
     fun onMemoryPressure(pressure: MemoryPressure) {
         if (lyricsServiceDelegate.isInitialized()) lyricsService.onMemoryPressure(pressure)
-        if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.onMemoryPressure(pressure)
         mediaTree.onMemoryPressure(pressure)
     }
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
         started.set(false)
-        if (lyricsServiceDelegate.isInitialized()) lyricsService.release()
         playbackManager.release()
         libraryRepository.release()
         portableSettingsBackup.release()
