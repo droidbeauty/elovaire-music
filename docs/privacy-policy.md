@@ -60,8 +60,8 @@ The app can contact the following independent services:
 | --- | --- | --- |
 | Online lyrics, disabled by default | Song title, artist, album, and duration, or a subset needed for a match | [LRCLIB](https://lrclib.net/) and [Lyrics.ovh](https://lyrics.ovh/) |
 | Artist images | Artist name or MusicBrainz identifier | [MusicBrainz](https://musicbrainz.org/), [TheAudioDB](https://www.theaudiodb.com/), [fanart.tv](https://fanart.tv/), and, when configured, the [YouTube Data API](https://developers.google.com/youtube/v3) |
-| User-requested metadata matching | Locally generated audio fingerprint and duration, or title, artist, album, release identifiers, and related metadata | [AcoustID](https://acoustid.org/), [MusicBrainz](https://musicbrainz.org/), [TIDAL](https://tidal.com/), and the [Cover Art Archive](https://coverartarchive.org/) |
-| Artwork download | The requested image URL or release/artist identifier | The provider above and its image-delivery host |
+| User-requested metadata matching | Locally generated audio fingerprint and duration, or title, artist, album, release identifiers, and related metadata | [AcoustID](https://acoustid.org/), [MusicBrainz](https://musicbrainz.org/), and the [Cover Art Archive](https://coverartarchive.org/) |
+| Artwork download | The requested image URL or release/artist identifier | The provider above and, for Cover Art Archive images, the [Internet Archive](https://archive.org/) delivery host |
 | About screen developer logo | A request for the Droid Beauty logo when the About screen is opened | [GitHub-hosted content](https://github.com/) |
 
 Online lyrics requests occur only when you enable online lyrics lookup. Online
@@ -76,11 +76,11 @@ policies. Relevant policies include:
 
 - [MetaBrainz privacy policy](https://metabrainz.org/privacy) for MusicBrainz
   and related MetaBrainz services
+- [Internet Archive privacy policy](https://archive.org/about/terms.php)
 - [TheAudioDB privacy policy](https://www.theaudiodb.com/docs_privacy_policy.php)
 - [fanart.tv privacy policy](https://fanart.tv/privacy-policy/)
 - [Google privacy policy](https://policies.google.com/privacy) for the YouTube
   Data API and Android services
-- [TIDAL privacy notice](https://tidal.com/privacy)
 - [GitHub privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)
 
 LRCLIB, Lyrics.ovh, and AcoustID may not provide a dedicated privacy policy at

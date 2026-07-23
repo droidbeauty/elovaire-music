@@ -21,13 +21,12 @@ import elovaire.music.droidbeauty.app.platform.ContentIo
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumArtworkResolver
 import elovaire.music.droidbeauty.app.data.tags.matching.AlbumTagMatchResult
 import elovaire.music.droidbeauty.app.data.tags.matching.AndroidChromaprintFingerprintProvider
-import elovaire.music.droidbeauty.app.data.tags.matching.CoverArtArchiveClient
+import elovaire.music.droidbeauty.app.data.tags.matching.CoverArtArchiveProvider
 import elovaire.music.droidbeauty.app.data.tags.matching.EmbeddedArtworkProvider
 import elovaire.music.droidbeauty.app.data.tags.matching.FingerprintAlbumTagMatcher
 import elovaire.music.droidbeauty.app.data.tags.matching.HttpAcoustIdClient
 import elovaire.music.droidbeauty.app.data.tags.matching.HttpMusicBrainzClient
 import elovaire.music.droidbeauty.app.data.tags.matching.TagMatchCache
-import elovaire.music.droidbeauty.app.data.tags.matching.TidalArtworkProvider
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -137,8 +136,7 @@ internal class AlbumTagEditorService(
         acoustIdClient = HttpAcoustIdClient(BuildConfig.ACOUSTID_API_KEY, matchCache),
         musicBrainzClient = HttpMusicBrainzClient(matchCache),
         artworkResolver = AlbumArtworkResolver(
-            tidalArtworkProvider = TidalArtworkProvider(),
-            coverArtArchiveClient = CoverArtArchiveClient(),
+            coverArtArchiveProvider = CoverArtArchiveProvider(),
             embeddedArtworkProvider = EmbeddedArtworkProvider(appContext),
         ),
     )

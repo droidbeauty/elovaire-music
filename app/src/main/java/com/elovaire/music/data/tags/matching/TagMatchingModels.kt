@@ -105,7 +105,6 @@ internal data class AlbumArtworkResult(
 }
 
 internal enum class ArtworkSource {
-    Tidal,
     CoverArtArchive,
     Embedded,
 }

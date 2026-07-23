@@ -30,6 +30,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             FORBIDDEN_UPDATE_MARKERS.firstOrNull(text::contains)?.let { marker ->
                 violations += "$path reintroduces removed OTA update functionality: $marker"
             }
+            FORBIDDEN_ARTWORK_SOURCE_MARKERS.firstOrNull(text::contains)?.let { marker ->
+                violations += "$path reintroduces a disallowed album-art source: $marker"
+            }
             if ("Channel.UNLIMITED" in text && !path.endsWith("/data/settings/RoomUserDataStore.kt")) {
                 violations += "$path introduces an unreviewed unbounded operation queue"
             }
@@ -150,6 +153,10 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "download latest APK",
             "dismissed_update_version",
             "last_automatic_update_check_at_ms",
+        )
+        val FORBIDDEN_ARTWORK_SOURCE_MARKERS = setOf(
+            "TidalArtworkProvider",
+            "tidal.com",
         )
     }
 }

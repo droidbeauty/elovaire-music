@@ -230,8 +230,14 @@ internal fun getText(url: String, accept: String): String {
     return HTTP_TRANSPORT.getText(httpRequest(url, accept), MAX_TEXT_RESPONSE_BYTES)
 }
 
-internal fun getBytes(url: String): ByteArray {
-    return HTTP_TRANSPORT.getBytes(httpRequest(url, "*/*"), MAX_BINARY_RESPONSE_BYTES)
+internal fun getBytes(
+    url: String,
+    allowedRedirectHostSuffixes: Set<String> = emptySet(),
+): ByteArray {
+    return HTTP_TRANSPORT.getBytes(
+        httpRequest(url, "*/*").copy(allowedRedirectHostSuffixes = allowedRedirectHostSuffixes),
+        MAX_BINARY_RESPONSE_BYTES,
+    )
 }
 
 private fun postForm(url: String, values: Map<String, String>): String {

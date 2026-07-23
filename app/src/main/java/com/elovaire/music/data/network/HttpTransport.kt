@@ -9,6 +9,7 @@ internal data class HttpRequest(
     val headers: Map<String, String> = emptyMap(),
     val connectTimeoutMs: Int = DEFAULT_HTTP_TIMEOUT_MS,
     val readTimeoutMs: Int = DEFAULT_HTTP_TIMEOUT_MS,
+    val allowedRedirectHostSuffixes: Set<String> = emptySet(),
 )
 
 internal enum class HttpFailureKind {
@@ -108,6 +109,7 @@ internal object HttpTransport {
                         currentUrl = resolveSafeHttpRedirect(
                             currentUrl,
                             connection.getHeaderField("Location"),
+                            request.allowedRedirectHostSuffixes,
                         )
                         redirectCount += 1
                         continue
@@ -149,7 +151,11 @@ private fun BoundedResponseException.toTransportFailure(): HttpTransportExceptio
     return HttpTransportException(failureKind, message.orEmpty(), this)
 }
 
-internal fun resolveSafeHttpRedirect(currentUrl: URL, location: String?): URL {
+internal fun resolveSafeHttpRedirect(
+    currentUrl: URL,
+    location: String?,
+    allowedHostSuffixes: Set<String> = emptySet(),
+): URL {
     val target = location
         ?.takeIf { it.length <= MAX_HTTP_URL_CHARACTERS }
         ?.let { value -> runCatching { URL(currentUrl, value) }.getOrNull() }
@@ -157,7 +163,11 @@ internal fun resolveSafeHttpRedirect(currentUrl: URL, location: String?): URL {
     val sameOrigin = target.protocol == "https" &&
         target.host.equals(currentUrl.host, ignoreCase = true) &&
         target.effectivePort() == currentUrl.effectivePort()
-    if (!sameOrigin) {
+    val allowedHttpsHost = target.protocol == "https" && allowedHostSuffixes.any { suffix ->
+        target.host.equals(suffix, ignoreCase = true) ||
+            target.host.endsWith(".$suffix", ignoreCase = true)
+    }
+    if (!sameOrigin && !allowedHttpsHost) {
         throw HttpTransportException(HttpFailureKind.InvalidUrl, "The network redirect changed origin.")
     }
     return target

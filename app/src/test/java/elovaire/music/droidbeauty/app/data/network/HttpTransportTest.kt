@@ -57,6 +57,39 @@ class HttpTransportTest {
         )
     }
 
+    @Test
+    fun explicitlyAllowsOnlyTheRequestedHttpsRedirectDomain() {
+        val current = URL("https://coverartarchive.org/release/id/front-1200")
+        val allowedHosts = setOf("archive.org")
+
+        assertEquals(
+            "https://s3.us.archive.org/download/cover.jpg",
+            resolveSafeHttpRedirect(
+                current,
+                "https://s3.us.archive.org/download/cover.jpg",
+                allowedHosts,
+            ).toString(),
+        )
+        assertTrue(
+            runCatching {
+                resolveSafeHttpRedirect(
+                    current,
+                    "https://archive.org.evil.example/cover.jpg",
+                    allowedHosts,
+                )
+            }.exceptionOrNull() is HttpTransportException,
+        )
+        assertTrue(
+            runCatching {
+                resolveSafeHttpRedirect(
+                    current,
+                    "http://archive.org/cover.jpg",
+                    allowedHosts,
+                )
+            }.exceptionOrNull() is HttpTransportException,
+        )
+    }
+
     private fun assertFailureKind(expected: HttpFailureKind, block: () -> Unit) {
         try {
             block()

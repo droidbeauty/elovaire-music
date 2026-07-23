@@ -2357,7 +2357,7 @@ internal fun privacySafetyCopy(
                     "Artist pages may send an artist name or MusicBrainz identifier to MusicBrainz, " +
                         "TheAudioDB, Fanart.tv, or YouTube to find artwork. Metadata matching runs only " +
                         "when you request it and may send an audio fingerprint, duration, title, artist, " +
-                        "or album to AcoustID, MusicBrainz, TIDAL, or Cover Art Archive. Online lyrics " +
+                        "or album to AcoustID, MusicBrainz, or Cover Art Archive. Online lyrics " +
                         "lookup uses LRCLIB and Lyrics.ovh. Providers receive the network address needed " +
                         "to answer the request. Elovaire does not send file paths, local database " +
                         "identifiers, complete audio files, or your saved lyrics. Responses and images " +
