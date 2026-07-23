@@ -97,13 +97,12 @@ internal class RoomUserDataStore(
     override fun createPlaylist(name: String): Long {
         if (normalizePlaylistName(name).isBlank()) return -1L
         val id = newId()
-        enqueue {
-            val result = createPlaylistEntries(_userPlaylists.value, name, id) ?: return@enqueue
+        return if (tryEnqueue {
+            val result = createPlaylistEntries(_userPlaylists.value, name, id) ?: return@tryEnqueue
             dao.insertPlaylist(result.createdPlaylist.toEntity())
             _userPlaylists.value = result.playlists
             _playlists.value = result.playlists
-        }
-        return id
+        }) id else -1L
     }
 
     override fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
@@ -144,17 +143,16 @@ internal class RoomUserDataStore(
     override fun createSmartPlaylist(name: String): Long {
         if (name.isBlank()) return -1L
         val id = newId()
-        enqueue {
+        return if (tryEnqueue {
             val result = createSmartPlaylistEntry(
                 playlists = _userSmartPlaylists.value,
                 name = name,
                 nextSmartPlaylistId = id,
                 nowMs = clock.wallTimeMs(),
-            ) ?: return@enqueue
+            ) ?: return@tryEnqueue
             dao.upsertSmartPlaylist(result.createdPlaylist.toEntity())
             publishSmartPlaylists(result.playlists)
-        }
-        return id
+        }) id else -1L
     }
 
     override fun updateSmartPlaylist(playlist: SmartPlaylist) {
@@ -369,12 +367,18 @@ internal class RoomUserDataStore(
     }
 
     private fun enqueue(operation: suspend () -> Unit) {
-        if (released.get()) return
+        tryEnqueue(operation)
+    }
+
+    private fun tryEnqueue(operation: suspend () -> Unit): Boolean {
+        if (released.get()) return false
         val depth = queueDepth.incrementAndGet()
-        if (operations.trySend(operation).isSuccess) {
+        return if (operations.trySend(operation).isSuccess) {
             maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
+            true
         } else {
             queueDepth.decrementAndGet()
+            false
         }
     }
 

@@ -24,6 +24,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
                 violations += "$path makes the domain kernel depend on Android or a data implementation"
             }
             if ("GlobalScope" in text) violations += "$path uses GlobalScope"
+            FORBIDDEN_OEM_BRANCH_MARKERS.firstOrNull(text::contains)?.let { marker ->
+                violations += "$path branches on broad OEM identity without an evidence-backed platform quirk: $marker"
+            }
             FORBIDDEN_UPDATE_MARKERS.firstOrNull(text::contains)?.let { marker ->
                 violations += "$path reintroduces removed OTA update functionality: $marker"
             }
@@ -129,6 +132,10 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "\"recent_album_ids\"",
             "\"smart_playlists\"",
         )
+        val FORBIDDEN_OEM_BRANCH_MARKERS = setOf(
+            "Build.MANUFACTURER",
+            "Build.BRAND",
+        )
         val FORBIDDEN_UPDATE_MARKERS = setOf(
             "AppUpdateManager",
             "AppUpdateInstallReceiver",
@@ -141,6 +148,8 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "github.com/droidbeauty/elovaire-music/releases",
             "releases/latest",
             "download latest APK",
+            "dismissed_update_version",
+            "last_automatic_update_check_at_ms",
         )
     }
 }

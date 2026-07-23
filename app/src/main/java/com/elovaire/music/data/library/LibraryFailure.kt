@@ -12,6 +12,12 @@ internal sealed interface LibraryFailure {
     data class ScanFailure(val phase: String, val cause: Throwable?) : LibraryFailure
 }
 
+internal class SafProviderUnavailableException(
+    val authority: String?,
+    val operation: String,
+    cause: Throwable,
+) : RuntimeException(cause)
+
 internal fun LibraryFailure.toUserMessage(): String = when (this) {
     LibraryFailure.PermissionMissing -> "Music access is required to scan the library."
     LibraryFailure.MediaStoreUnavailable -> "The device media library is unavailable."
@@ -21,6 +27,7 @@ internal fun LibraryFailure.toUserMessage(): String = when (this) {
 }
 
 internal fun Throwable.toLibraryScanFailure(phase: String): LibraryFailure = when (this) {
+    is SafProviderUnavailableException -> LibraryFailure.SafProviderFailure(authority, operation, cause)
     is SecurityException -> LibraryFailure.PermissionMissing
     else -> LibraryFailure.ScanFailure(phase, this)
 }

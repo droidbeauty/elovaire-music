@@ -243,6 +243,7 @@ class PlaybackManager(
     )
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            if (released.get()) return
             if (addedDevices.hasUsbOutputDeviceChange()) {
                 refreshUsbAudioOutputState()
                 scheduleAudioPathReevaluation("audio-device-added", AUDIO_PATH_REEVALUATION_DELAY_MS)
@@ -251,6 +252,7 @@ class PlaybackManager(
         }
 
         override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+            if (released.get()) return
             if (removedDevices.hasUsbOutputDeviceChange()) {
                 refreshUsbAudioOutputState()
                 scheduleAudioPathReevaluation("audio-device-removed", AUDIO_PATH_REEVALUATION_DELAY_MS)
@@ -260,6 +262,7 @@ class PlaybackManager(
     }
     private val becomingNoisyReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
+            if (released.get()) return
             if (intent?.action == AudioManager.ACTION_AUDIO_BECOMING_NOISY) {
                 dispatchPlaybackCommand(PlaybackCommand.Pause, PlaybackCommandOrigin.BecomingNoisy)
             }
@@ -301,16 +304,25 @@ class PlaybackManager(
     val playerInstanceVersion: StateFlow<Long> = _playerInstanceVersion.asStateFlow()
     private val uiSharing = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000L)
     private val audioPathReevaluationRunnable = Runnable {
+        if (released.get()) {
+            pendingAudioPathReason = null
+            return@Runnable
+        }
         val reason = pendingAudioPathReason ?: "unspecified"
         pendingAudioPathReason = null
         applyPreferredAudioDeviceIfNeeded()
         maybeRebuildPlayerForAudioPath(reason)
+    }
+    private val statePublishRunnable = Runnable {
+        statePublishScheduled = false
+        if (!released.get()) updateState()
     }
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(
             mediaItem: MediaItem?,
             reason: Int,
         ) {
+            if (released.get()) return
             resetUnexpectedIdleRecoveryGuard()
             bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
             scheduleAudioPathReevaluation("media-item-transition", audioPathReevaluationDelayForTransition())
@@ -324,6 +336,7 @@ class PlaybackManager(
             newPosition: Player.PositionInfo,
             reason: Int,
         ) {
+            if (released.get()) return
             sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
             scheduleStatePublish()
         }
@@ -332,6 +345,7 @@ class PlaybackManager(
             playWhenReady: Boolean,
             reason: Int,
         ) {
+            if (released.get()) return
             if (!playWhenReady && sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
                 sleepTimerController.onEndOfSongReached()
             } else {
@@ -340,6 +354,7 @@ class PlaybackManager(
         }
 
         override fun onPlaybackStateChanged(playbackState: Int) {
+            if (released.get()) return
             if (sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
                 sleepTimerController.onEndOfSongReached()
             } else if (playbackState == Player.STATE_ENDED && player.repeatMode == Player.REPEAT_MODE_OFF) {
@@ -360,6 +375,7 @@ class PlaybackManager(
         }
 
         override fun onPlayerError(error: PlaybackException) {
+            if (released.get()) return
             if (error.isUnsupportedFormatError() && handleUnsupportedPlaybackFormat(error)) {
                 return
             }
@@ -371,6 +387,7 @@ class PlaybackManager(
         }
 
         override fun onEvents(player: Player, events: Player.Events) {
+            if (released.get()) return
             scheduleStatePublish()
         }
     }
@@ -379,6 +396,7 @@ class PlaybackManager(
             eventTime: AnalyticsListener.EventTime,
             audioTrackConfig: androidx.media3.exoplayer.audio.AudioSink.AudioTrackConfig,
         ) {
+            if (released.get()) return
             bitPerfectUsbManager.updateCurrentAudioTrackConfig(audioTrackConfig)
             scheduleAudioPathReevaluation("audio-track-initialized")
             player.volume = effectivePlayerGain()
@@ -389,6 +407,7 @@ class PlaybackManager(
             eventTime: AnalyticsListener.EventTime,
             audioSinkError: Exception,
         ) {
+            if (released.get()) return
             player.volume = effectivePlayerGain()
             scheduleStatePublish()
         }
@@ -994,7 +1013,11 @@ class PlaybackManager(
         progressDemandController.clear()
         playbackProgressTicker.release()
         externalInterruptionResumeJob?.cancel()
+        pendingAutoResumeRetryJob?.cancel()
+        pendingAutoResumeRetryJob = null
         playbackHandler.removeCallbacks(audioPathReevaluationRunnable)
+        playbackHandler.removeCallbacks(statePublishRunnable)
+        statePublishScheduled = false
         usbDacHardwareVolumeManager.release()
         abandonAudioFocus()
         runtimeResources.release()
@@ -1007,6 +1030,7 @@ class PlaybackManager(
         reason: String,
         delayMs: Long = 0L,
     ) {
+        if (released.get()) return
         pendingAudioPathReason = pendingAudioPathReason
             ?.takeIf { it == reason }
             ?: reason
@@ -1015,6 +1039,7 @@ class PlaybackManager(
     }
 
     private fun refreshUsbAudioOutputState() {
+        if (released.get()) return
         runCatching {
             val currentUsbOutput = currentUsbOutputDescriptor()
             hasUsbOutputRoute = currentUsbOutput != null
@@ -1397,7 +1422,7 @@ class PlaybackManager(
     }
 
     private fun handleAudioFocusChange(focusChange: Int) {
-        if (!audioFocusController.isActive) return
+        if (released.get() || !audioFocusController.isActive) return
         when (AudioFocusStateMachine.actionFor(focusChange)) {
             AudioFocusAction.Gain -> {
                 duckedForAudioFocus = false
@@ -1562,12 +1587,9 @@ class PlaybackManager(
     }
 
     private fun scheduleStatePublish() {
-        if (statePublishScheduled) return
+        if (released.get() || statePublishScheduled) return
         statePublishScheduled = true
-        playbackHandler.post {
-            statePublishScheduled = false
-            updateState()
-        }
+        playbackHandler.post(statePublishRunnable)
     }
 
     private fun shouldAutoResumeAfterUnexpectedIdle(): Boolean {
@@ -1693,6 +1715,7 @@ class PlaybackManager(
     }
 
     private fun syncRuntimeObservers() {
+        if (released.get()) return
         runtimeResources.sync(
             hasQueue = hasActiveQueue(),
             isPlaying = player.isPlaying,
@@ -1799,6 +1822,7 @@ class PlaybackManager(
     }
 
     private fun syncFromObservedSystemVolume() {
+        if (released.get()) return
         if (pauseFadeJob?.isActive == true) {
             ignoreObservedSystemVolumeStep = null
             userVolume = currentEffectiveVolumeFraction()

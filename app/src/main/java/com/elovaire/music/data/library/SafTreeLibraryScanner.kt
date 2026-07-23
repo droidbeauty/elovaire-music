@@ -1,8 +1,10 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.os.RemoteException
 import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
@@ -34,7 +36,13 @@ internal class SafTreeLibraryScanner(
         selections.forEach { selection ->
             currentCoroutineContext().ensureActive()
             val treeUri = selection.uri ?: return@forEach
-            if (!selection.hasPersistedReadPermission(context)) return@forEach
+            if (!selection.hasPersistedReadPermission(context)) {
+                throw SafProviderUnavailableException(
+                    authority = treeUri.authority,
+                    operation = "validate-persisted-permission",
+                    cause = SecurityException("Persisted SAF read permission is unavailable."),
+                )
+            }
             songs += scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds)
         }
         fileMetadataCache = refreshedCache
@@ -48,7 +56,7 @@ internal class SafTreeLibraryScanner(
         visitedDirectories: MutableSet<SafDocumentKey>,
         albumIds: MutableMap<String, Long>,
     ): List<Song> {
-        val rootDocumentId = runCatching { DocumentsContract.getTreeDocumentId(treeUri) }.getOrNull() ?: return emptyList()
+        val rootDocumentId = treeDocumentId(treeUri)
         val rootKey = LibraryFolderSelectionResolver.safSyntheticRoot(treeUri)
         val providerKey = treeUri.authority?.lowercase(Locale.ROOT).orEmpty()
         val canonicalRoot = LibrarySongDuplicateResolver.normalizedRealPath(selection.path)
@@ -172,13 +180,18 @@ internal class SafTreeLibraryScanner(
     ): List<SafDocument> {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
         return try {
-            context.contentResolver.query(
+            val cursor = context.contentResolver.query(
                 childrenUri,
                 DOCUMENT_PROJECTION,
                 null,
                 null,
                 null,
-            )?.use { cursor ->
+            ) ?: throw SafProviderUnavailableException(
+                authority = treeUri.authority,
+                operation = "query children",
+                cause = IllegalStateException("The document provider returned no cursor."),
+            )
+            cursor.use {
                 val idIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
                 val nameIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                 val mimeIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
@@ -208,12 +221,39 @@ internal class SafTreeLibraryScanner(
                         )
                     }
                 }
-            }.orEmpty()
+            }
         } catch (throwable: CancellationException) {
             throw throwable
-        } catch (_: Exception) {
-            emptyList()
+        } catch (failure: SecurityException) {
+            throw treeUri.providerFailure(failure)
+        } catch (failure: RemoteException) {
+            throw treeUri.providerFailure(failure)
+        } catch (failure: IllegalArgumentException) {
+            throw treeUri.providerFailure(failure)
+        } catch (failure: SQLiteException) {
+            throw treeUri.providerFailure(failure)
+        } catch (failure: IllegalStateException) {
+            throw treeUri.providerFailure(failure)
         }
+    }
+
+    private fun treeDocumentId(treeUri: Uri): String {
+        return try {
+            DocumentsContract.getTreeDocumentId(treeUri)
+        } catch (failure: IllegalArgumentException) {
+            throw treeUri.providerFailure(failure, "resolve tree document")
+        }
+    }
+
+    private fun Uri.providerFailure(
+        failure: Throwable,
+        operation: String = "query children",
+    ): SafProviderUnavailableException {
+        return SafProviderUnavailableException(
+            authority = authority,
+            operation = operation,
+            cause = failure,
+        )
     }
 
     private fun readMetadata(uri: Uri, fileName: String): SafMetadata {

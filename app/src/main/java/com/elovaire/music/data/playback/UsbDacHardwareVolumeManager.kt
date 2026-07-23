@@ -5,6 +5,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.pm.PackageManager
 import android.hardware.usb.UsbConstants
 import android.hardware.usb.UsbDevice
 import android.hardware.usb.UsbDeviceConnection
@@ -27,12 +28,14 @@ internal class UsbDacHardwareVolumeManager(
     private val audioManager: AudioManager?,
     private val usbManager: UsbManager?,
     private val parser: UsbAudioClassVolumeParser = UsbAudioClassVolumeParser(),
+    private val usbHostSupported: Boolean = context.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST),
 ) {
     private val appContext = context.applicationContext
     private val controller = UsbDacHardwareVolumeController()
-    private val preferences = allowStrictModeDiskReads {
-        // Hardware-volume calibration needs persisted values before route state is exposed.
-        appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private val preferences by lazy {
+        allowStrictModeDiskReads {
+            appContext.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        }
     }
     private val _status = MutableStateFlow(controller.status())
     val status: StateFlow<UsbDacHardwareVolumeStatus> = _status.asStateFlow()
@@ -45,12 +48,14 @@ internal class UsbDacHardwareVolumeManager(
     private var pendingRequestedVolume: Float? = null
     private val capabilityCache = linkedMapOf<String, UsbDacHardwareVolumeCapability>()
     private var currentDeviceCacheKey: String? = null
+    private var released = false
 
     private val permissionReceiver = object : BroadcastReceiver() {
         override fun onReceive(
             context: Context,
             intent: Intent,
         ) {
+            if (released) return
             when (intent.action) {
                 ACTION_USB_DAC_PERMISSION -> {
                     val device = intent.getParcelableExtraCompat<UsbDevice>(UsbManager.EXTRA_DEVICE)
@@ -80,11 +85,14 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     init {
-        runCatching { registerReceiverIfNeeded() }
-        refreshConnectedDevice()
+        if (usbHostSupported) {
+            runCatching { registerReceiverIfNeeded() }
+            refreshConnectedDevice()
+        }
     }
 
     fun refreshConnectedDevice() {
+        if (released || !usbHostSupported) return
         runCatching {
             refreshConnectedDeviceUnsafe()
         }.onFailure {
@@ -154,6 +162,7 @@ internal class UsbDacHardwareVolumeManager(
     fun updateAudioOutputDevice(
         audioDeviceDescriptor: UsbAudioDeviceDescriptor?,
     ) {
+        if (released || !usbHostSupported) return
         val nextFingerprint = audioDeviceDescriptor?.routingFingerprint()
         if (currentAudioDeviceFingerprint == nextFingerprint) return
         currentAudioDeviceDescriptor = audioDeviceDescriptor
@@ -162,6 +171,8 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     fun release() {
+        if (released) return
+        released = true
         clearCurrentDevice()
         if (permissionReceiverRegistered) {
             runCatching { appContext.unregisterReceiver(permissionReceiver) }
@@ -183,6 +194,7 @@ internal class UsbDacHardwareVolumeManager(
     fun hardwareVolumeRange(): UsbDacHardwareVolumeRange? = status.value.range
 
     fun setHardwareVolume(normalizedValue: Float): Boolean {
+        if (released || !usbHostSupported) return false
         val usbDevice = currentUsbDevice ?: return false
         if (usbManager?.hasPermission(usbDevice) != true) {
             pendingRequestedVolume = normalizedValue.coerceIn(0f, 1f)
@@ -414,6 +426,7 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     private fun requestPermissionIfNeeded(usbDevice: UsbDevice) {
+        if (released || !usbHostSupported) return
         val pendingIntent = runCatching {
             PendingIntent.getBroadcast(
                 appContext,
@@ -426,7 +439,7 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     private fun registerReceiverIfNeeded() {
-        if (permissionReceiverRegistered) return
+        if (released || !usbHostSupported || permissionReceiverRegistered) return
         val filter = IntentFilter().apply {
             addAction(ACTION_USB_DAC_PERMISSION)
             addAction(UsbManager.ACTION_USB_DEVICE_DETACHED)

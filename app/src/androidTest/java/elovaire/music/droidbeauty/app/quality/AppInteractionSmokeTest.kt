@@ -7,7 +7,9 @@ import android.os.ParcelFileDescriptor
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Direction
+import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import org.junit.After
@@ -59,12 +61,14 @@ class AppInteractionSmokeTest {
         device.pressBack()
 
         clickDescription("Home")
-        clickDescription("Play album")
-        waitForApp()
-        if (device.wait(Until.hasObject(By.desc("Pause")), 5_000)) {
-            device.click(device.displayWidth / 3, (device.displayHeight * 0.85f).toInt())
-            device.wait(Until.hasObject(By.desc("Minimize")), 5_000)
-            device.findObject(By.desc("Minimize"))?.click() ?: device.pressBack()
+        if (device.wait(Until.hasObject(By.desc("Play album")), 1_000)) {
+            clickDescription("Play album")
+            waitForApp()
+            if (device.wait(Until.hasObject(By.desc("Pause")), 5_000)) {
+                device.click(device.displayWidth / 3, (device.displayHeight * 0.85f).toInt())
+                device.wait(Until.hasObject(By.desc("Minimize")), 5_000)
+                device.findObject(By.desc("Minimize"))?.click() ?: device.pressBack()
+            }
         }
     }
 
@@ -74,13 +78,28 @@ class AppInteractionSmokeTest {
     }
 
     private fun clickDescription(description: String) {
-        device.findObject(By.desc(description))?.click()
+        clickObject(By.desc(description), description)
         waitForApp()
     }
 
     private fun clickText(text: String) {
-        device.findObject(By.text(text))?.click()
+        clickObject(By.text(text), text)
         waitForApp()
+    }
+
+    private fun clickObject(selector: BySelector, label: String) {
+        repeat(3) { attempt ->
+            val target = device.wait(Until.findObject(selector), 3_000)
+                ?: error("Could not find $label")
+            try {
+                val bounds = target.visibleBounds
+                device.click(bounds.centerX(), bounds.centerY())
+                return
+            } catch (stale: StaleObjectException) {
+                if (attempt == 2) throw stale
+                device.waitForIdle()
+            }
+        }
     }
 
     private fun grantRuntimePermission(permission: String) {

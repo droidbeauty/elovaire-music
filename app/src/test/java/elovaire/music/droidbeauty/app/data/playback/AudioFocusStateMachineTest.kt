@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import android.media.AudioManager
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AudioFocusStateMachineTest {
@@ -21,5 +23,19 @@ class AudioFocusStateMachineTest {
             AudioFocusStateMachine.actionFor(AudioManager.AUDIOFOCUS_LOSS),
         )
         assertEquals(AudioFocusAction.Ignore, AudioFocusStateMachine.actionFor(Int.MIN_VALUE))
+    }
+
+    @Test
+    fun duplicateCallbacksAreSuppressedUntilStateChangesOrResets() {
+        val filter = AudioFocusChangeFilter()
+
+        assertTrue(filter.accept(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT))
+        assertFalse(filter.accept(AudioManager.AUDIOFOCUS_LOSS_TRANSIENT))
+        assertTrue(filter.accept(AudioManager.AUDIOFOCUS_GAIN))
+        assertFalse(filter.accept(AudioManager.AUDIOFOCUS_GAIN))
+
+        filter.reset()
+
+        assertTrue(filter.accept(AudioManager.AUDIOFOCUS_GAIN))
     }
 }

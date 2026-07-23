@@ -28,7 +28,6 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
 
     fun start() {
         if (released.get()) return
-        removeLegacyUpdaterState()
         restore()
         if (released.get()) return
         if (!started.compareAndSet(false, true)) return
@@ -55,18 +54,6 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
             if (isPortableSettingKey(key)) editor.putPreferenceValue(key, value)
         }
         editor.apply()
-    }
-
-    private fun removeLegacyUpdaterState() {
-        source.edit()
-            .remove("dismissed_update_version")
-            .remove("last_automatic_update_check_at_ms")
-            .apply()
-        backup.edit()
-            .remove("dismissed_update_version")
-            .remove("last_automatic_update_check_at_ms")
-            .apply()
-        appContext.cacheDir.resolve("updates").deleteRecursively()
     }
 
     private fun copyValues(from: SharedPreferences, to: SharedPreferences, keys: Set<String>) {

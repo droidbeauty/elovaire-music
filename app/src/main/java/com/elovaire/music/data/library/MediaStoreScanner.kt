@@ -16,6 +16,8 @@ import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 class MediaStoreScanner(
     private val context: Context,
@@ -119,6 +121,7 @@ class MediaStoreScanner(
 
                 var processedRows = 0
                 while (cursor.moveToNext()) {
+                    currentCoroutineContext().ensureActive()
                     processedRows += 1
                     val row = rowMapper.row(cursor)
                     val preflightCandidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat = null)
@@ -261,6 +264,7 @@ class MediaStoreScanner(
             progressEmitter.emit(totalRows, totalRows)
         }
 
+        currentCoroutineContext().ensureActive()
         val safSongs = ElovaireTrace.suspendSection("library_saf_scan") {
             safTreeScanner.scan(scanRoots.safTreeSelections())
         }

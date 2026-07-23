@@ -8,6 +8,7 @@ internal class PlaybackAudioFocusController(
     audioAttributes: android.media.AudioAttributes,
     private val onFocusChange: (Int) -> Unit,
 ) {
+    private val callbackFilter = AudioFocusChangeFilter()
     private val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN)
         .setAudioAttributes(audioAttributes)
         .setOnAudioFocusChangeListener(::handleFocusChange)
@@ -23,6 +24,7 @@ internal class PlaybackAudioFocusController(
     fun request(): Boolean {
         if (hasFocus) return true
         if (isActive) return false
+        callbackFilter.reset()
         hasFocus = audioManager?.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
         isActive = hasFocus
         return hasFocus
@@ -32,11 +34,26 @@ internal class PlaybackAudioFocusController(
         if (isActive) audioManager?.abandonAudioFocusRequest(request)
         hasFocus = false
         isActive = false
+        callbackFilter.reset()
     }
 
     private fun handleFocusChange(change: Int) {
-        if (!isActive) return
+        if (!isActive || !callbackFilter.accept(change)) return
         hasFocus = change == AudioManager.AUDIOFOCUS_GAIN
         onFocusChange(change)
+    }
+}
+
+internal class AudioFocusChangeFilter {
+    private var lastChange: Int? = null
+
+    fun accept(change: Int): Boolean {
+        if (lastChange == change) return false
+        lastChange = change
+        return true
+    }
+
+    fun reset() {
+        lastChange = null
     }
 }
