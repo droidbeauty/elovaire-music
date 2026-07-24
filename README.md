@@ -1,7 +1,5 @@
 # Elovaire
 
----
-
 <p align="center">
   <a href="https://ko-fi.com/droidbeauty">
     <img
