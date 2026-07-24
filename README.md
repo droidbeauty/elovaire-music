@@ -17,8 +17,6 @@
   Elovaire is Android native music player for people who still love owning their music — minimalistic UI focused around album artwork, customizable playlists and refined audio controls. All designed so you can take full advantage of listening offline
 </p>
 
----
-
 ## About
 
 Elovaire turns listening to music into elegant experience - as it should be
@@ -38,7 +36,6 @@ Browse by songs, albums, artists, genres and playlists. Instantly search even th
 - 18-band equalizer with built-in presets and additional features
 - Smooth Compose UI with frosted blur, animated transitions and adaptive visual details
 - Fast library scanning through Android MediaStore and local folder observation
----
 
 ## Features
 
