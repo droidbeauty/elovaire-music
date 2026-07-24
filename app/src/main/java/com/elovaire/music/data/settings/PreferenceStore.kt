@@ -48,23 +48,6 @@ class PreferenceStore internal constructor(
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
 
-    fun clearRemovedRemoteProviderData() {
-        appContext.getSharedPreferences("artist_image_cache", Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .apply()
-        appContext.getSharedPreferences("tag_match_cache", Context.MODE_PRIVATE)
-            .edit()
-            .clear()
-            .apply()
-        appContext.cacheDir.resolve("artist_backdrops").let { directory ->
-            directory.listFiles()?.forEach { file ->
-                if (file.isFile) file.delete()
-            }
-            directory.delete()
-        }
-    }
-
     private val _themeMode = MutableStateFlow(loadThemeMode())
     override val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 

@@ -16,8 +16,6 @@ class LrcParserTest {
                     [offset:250]
                     [00:03]Second line
                 """.trimIndent(),
-                providerName = "test",
-                confidence = 90,
             ),
         )
 
@@ -31,8 +29,6 @@ class LrcParserTest {
         val payload = requireNotNull(
             parseLrcOrPlain(
                 raw = "First line\nSecond line",
-                providerName = "test",
-                confidence = 60,
             ),
         )
 
@@ -51,8 +47,6 @@ class LrcParserTest {
                     [00:01.00]
                     [00:02.00]Visible
                 """.trimIndent(),
-                providerName = "test",
-                confidence = 90,
             ),
         )
 
@@ -68,8 +62,6 @@ class LrcParserTest {
                     [00:10.00]Echo
                     [00:12.00]Second
                 """.trimIndent(),
-                providerName = "test",
-                confidence = 90,
             ),
         )
 
@@ -84,8 +76,6 @@ class LrcParserTest {
         val payload = requireNotNull(
             parseLrcOrPlain(
                 raw = raw,
-                providerName = "test",
-                confidence = 90,
             ),
         )
 
@@ -98,8 +88,6 @@ class LrcParserTest {
         val payload = requireNotNull(
             parseLrcOrPlain(
                 raw = "[00:01.00]First line\n[00:02.00]Second line",
-                providerName = "test",
-                confidence = 90,
             ),
         ).copy(
             lines = listOf(
@@ -116,14 +104,14 @@ class LrcParserTest {
 
     @Test
     fun rejectsLyricsBeyondCharacterAndLineLimits() {
-        assertNull(parseLrcOrPlain("x".repeat(MAX_LYRICS_CHARACTERS + 1), null, 0))
-        assertNull(parseLrcOrPlain("x\n".repeat(MAX_LYRICS_LINES + 1), null, 0))
-        assertNull(parseLrcOrPlain("x".repeat(16 * 1024 + 1), null, 0))
+        assertNull(parseLrcOrPlain("x".repeat(MAX_LYRICS_CHARACTERS + 1)))
+        assertNull(parseLrcOrPlain("x\n".repeat(MAX_LYRICS_LINES + 1)))
+        assertNull(parseLrcOrPlain("x".repeat(16 * 1024 + 1)))
     }
 
     @Test
     fun rejectsTimestampFanOutBeyondPerLineLimit() {
         val timestamps = (0..64).joinToString("") { "[00:01.00]" }
-        assertNull(parseLrcOrPlain("${timestamps}line", null, 0))
+        assertNull(parseLrcOrPlain("${timestamps}line"))
     }
 }

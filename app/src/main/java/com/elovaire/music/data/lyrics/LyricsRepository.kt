@@ -66,8 +66,6 @@ internal class LyricsRepository(
     private fun LocalLyricsMatch.toCacheEntry(): LyricsCacheEntry = LyricsCacheEntry(
         result = LyricsResult.Found(payload),
         expiresAtMillis = clock.wallTimeMs() + POSITIVE_CACHE_TTL_MS,
-        providerName = payload.providerName,
-        confidence = payload.confidence,
     )
 
     private fun memoryCachedLyrics(identity: LyricsIdentity): LyricsResult? {

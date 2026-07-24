@@ -72,7 +72,7 @@ internal object EmbeddedLyricsMetadata {
             return
         }
 
-        val payload = parseLrcOrPlain(request.canonicalLyrics, providerName = null, confidence = 100)
+        val payload = parseLrcOrPlain(request.canonicalLyrics)
         check(payload?.isSynced == true && payload.lines.isNotEmpty()) { "Synchronized lyrics contain no timed lines." }
         val frame = tag.createFrame(ID3_SYNCED_LYRICS)
         val body = frame.body as? FrameBodySYLT ?: error("Unable to create synchronized lyrics metadata.")
@@ -162,7 +162,7 @@ internal object AudioFileLyricsInspection {
     private fun inspectFlac(tag: FlacTag): EmbeddedLyricsFields {
         val synced = tag.textValues(FLAC_SYNCED_LYRICS)
             .mapNotNull { value ->
-                parseLrcOrPlain(value, providerName = null, confidence = 100)
+                parseLrcOrPlain(value)
                     ?.takeIf(LyricsPayload::isSynced)
                     ?.lines
             }

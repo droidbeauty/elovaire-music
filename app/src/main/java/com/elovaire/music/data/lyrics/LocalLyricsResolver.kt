@@ -48,7 +48,7 @@ internal class LocalLyricsResolver(
                 ?.getFirst(FieldKey.LYRICS)
                 .orEmpty()
                 .canonicalEmbeddedLyricsText()
-            parseLrcOrPlain(rawLyrics, providerName = "Embedded", confidence = 100)
+            parseLrcOrPlain(rawLyrics)
                 ?.takeIf { it.lines.isNotEmpty() }
                 ?.let(::LocalLyricsMatch)
         } catch (_: Exception) {
@@ -103,13 +103,11 @@ internal class LocalLyricsResolver(
             position = nextPosition + frameSize
         }
 
-        parseTimedPayload(syncedLines, providerName = PROVIDER_EMBEDDED)?.let { payload ->
+        parseTimedPayload(syncedLines)?.let { payload ->
             return LocalLyricsMatch(payload)
         }
         parseLrcOrPlain(
             raw = plainLyrics.joinToString("\n"),
-            providerName = PROVIDER_EMBEDDED,
-            confidence = LOCAL_CONFIDENCE,
         )?.let { payload ->
             return LocalLyricsMatch(payload)
         }
@@ -237,8 +235,6 @@ internal class LocalLyricsResolver(
                 key in FLAC_SYNCED_KEYS || looksLikeTimedLyrics(value) -> {
                     parseLrcOrPlain(
                         raw = value,
-                        providerName = PROVIDER_EMBEDDED,
-                        confidence = LOCAL_CONFIDENCE,
                     )?.takeIf { it.isSynced }?.let { payload ->
                         syncedPayload = payload
                     }
@@ -246,8 +242,6 @@ internal class LocalLyricsResolver(
                 key in FLAC_PLAIN_KEYS -> {
                     parseLrcOrPlain(
                         raw = value,
-                        providerName = PROVIDER_EMBEDDED,
-                        confidence = LOCAL_CONFIDENCE,
                     )?.takeIf { !it.isSynced }?.let { payload ->
                         plainPayload = payload
                     }
@@ -274,8 +268,6 @@ internal class LocalLyricsResolver(
             if (lrcFile.isFile) {
                 parseLrcOrPlain(
                     raw = readTextFile(lrcFile).orEmpty(),
-                    providerName = PROVIDER_SIDECAR,
-                    confidence = LOCAL_CONFIDENCE,
                 )?.takeIf { it.lines.isNotEmpty() }?.let { payload ->
                     return LocalLyricsMatch(payload)
                 }
@@ -284,8 +276,6 @@ internal class LocalLyricsResolver(
             if (txtFile.isFile) {
                 parseLrcOrPlain(
                     raw = readTextFile(txtFile).orEmpty(),
-                    providerName = PROVIDER_SIDECAR,
-                    confidence = LOCAL_CONFIDENCE,
                 )?.takeIf { !it.isSynced && it.lines.isNotEmpty() }?.let { payload ->
                     return LocalLyricsMatch(payload)
                 }
@@ -300,10 +290,7 @@ internal class LocalLyricsResolver(
         return resolvedPath?.let(::File)?.takeIf(File::exists)
     }
 
-    private fun parseTimedPayload(
-        lines: List<LyricsLine>,
-        providerName: String,
-    ): LyricsPayload? {
+    private fun parseTimedPayload(lines: List<LyricsLine>): LyricsPayload? {
         val validLines = lines
             .filter { !it.text.isBlank() && it.startTimeMs != null }
             .sortedBy { it.startTimeMs }
@@ -316,8 +303,6 @@ internal class LocalLyricsResolver(
                 )
             },
             isSynced = true,
-            providerName = providerName,
-            confidence = LOCAL_CONFIDENCE,
         )
     }
 
@@ -430,9 +415,6 @@ internal class LocalLyricsResolver(
     }
 
     private companion object {
-        const val PROVIDER_SIDECAR = "Local sidecar"
-        const val PROVIDER_EMBEDDED = "Embedded lyrics"
-        const val LOCAL_CONFIDENCE = 100
         const val EMBEDDED_TAG_BUFFER_BYTES = 64 * 1024
         const val MAX_EMBEDDED_TAG_BYTES = 1_500_000
         const val MAX_SIDECAR_FILE_BYTES = 256 * 1024L

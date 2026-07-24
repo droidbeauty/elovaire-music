@@ -31,8 +31,6 @@ data class LyricsPayload(
     val displayTimingOffsetMs: Long = 0L,
     val timingScale: Float = 1f,
     val timingProfile: SyncedLyricsTimingProfile = SyncedLyricsTimingProfile.ExactIntervals,
-    val providerName: String? = null,
-    val confidence: Int = 0,
     val sourceTextForEmbedding: String? = null,
 ) {
     fun currentLineIndexAt(
@@ -98,37 +96,12 @@ sealed interface LyricsResult {
     data object Timeout : LyricsResult
 }
 
-internal enum class LyricsLookupState {
-    Idle,
-    Loading,
-    FoundSynced,
-    FoundUnsynced,
-    NotFound,
-    Error,
-}
-
-internal data class LyricsLookupOutcome(
-    val result: LyricsResult,
-    val cacheTtlMs: Long?,
-    val state: LyricsLookupState,
-    val providerName: String? = null,
-    val confidence: Int = 0,
-)
-
 internal data class LyricsCacheEntry(
     val result: LyricsResult,
     val expiresAtMillis: Long,
-    val providerName: String? = null,
-    val confidence: Int = 0,
 ) {
     fun isExpired(nowMillis: Long): Boolean = nowMillis >= expiresAtMillis
 }
-
-internal data class ProviderLyricsMatch(
-    val payload: LyricsPayload,
-    val confidence: Int,
-    val providerName: String,
-)
 
 internal data class LocalLyricsMatch(
     val payload: LyricsPayload,

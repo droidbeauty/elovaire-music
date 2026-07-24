@@ -92,7 +92,6 @@ private val portableSettingKeys = setOf(
             "playback_volume",
             "gapless_playback_enabled",
             "volume_normalization_enabled",
-            "online_lyrics_lookup_enabled",
             "album_collection_grid_enabled",
             "album_collection_layout_mode",
             "song_collection_grid_enabled",

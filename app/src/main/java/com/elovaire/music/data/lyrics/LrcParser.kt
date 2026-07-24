@@ -17,11 +17,7 @@ private val CLOSING_PARAGRAPH_REGEX = Regex("""(?i)</\s*p\s*>""")
 private val BLOCK_TAG_REGEX = Regex("""(?i)<\s*/?\s*(div|p|span)[^>]*>""")
 private val EXCESS_BREAKS_REGEX = Regex("""\n{3,}""")
 
-internal fun parseLrcOrPlain(
-    raw: String,
-    providerName: String?,
-    confidence: Int,
-): LyricsPayload? {
+internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
     if (raw.isBlank() || raw.length > MAX_LYRICS_CHARACTERS) return null
 
     val normalizedRaw = raw.normalizeLyricBreaks()
@@ -75,8 +71,6 @@ internal fun parseLrcOrPlain(
             LyricsPayload(
                 lines = lines,
                 isSynced = false,
-                providerName = providerName,
-                confidence = confidence,
                 sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsText(),
             )
         }
@@ -93,8 +87,6 @@ internal fun parseLrcOrPlain(
     return LyricsPayload(
         lines = indexed,
         isSynced = true,
-        providerName = providerName,
-        confidence = confidence,
         sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsText(),
     )
 }
@@ -102,7 +94,7 @@ internal fun parseLrcOrPlain(
 internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
     return rawLyrics
         ?.takeIf { it.isNotBlank() }
-        ?.let { parseLrcOrPlain(it, providerName = null, confidence = 0) }
+        ?.let(::parseLrcOrPlain)
         ?.takeIf { it.isSynced }
         ?.lines
 }
@@ -110,7 +102,7 @@ internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
 internal fun parsePlainLyrics(rawLyrics: String?): List<LyricsLine>? {
     return rawLyrics
         ?.takeIf { it.isNotBlank() }
-        ?.let { parseLrcOrPlain(it, providerName = null, confidence = 0) }
+        ?.let(::parseLrcOrPlain)
         ?.lines
         ?.takeIf { lines -> lines.any { it.text.isNotBlank() } }
 }

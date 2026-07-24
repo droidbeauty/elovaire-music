@@ -65,7 +65,7 @@ class BackendPropertyTest {
         val random = Random(SEED)
         repeat(CASES) { case ->
             val input = randomText(random, random.nextInt(0, 1_024))
-            val result = runCatching { parseLrcOrPlain(input, "property", 50) }
+            val result = runCatching { parseLrcOrPlain(input) }
                 .getOrElse { throw AssertionError("seed=$SEED case=$case", it) }
             result?.let { payload ->
                 assertTrue("seed=$SEED case=$case", payload.sourceTextForEmbedding.orEmpty().length <= MAX_LYRICS_CHARACTERS)

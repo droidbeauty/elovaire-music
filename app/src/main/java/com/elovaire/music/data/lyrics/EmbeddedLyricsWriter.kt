@@ -207,7 +207,7 @@ internal class EmbeddedLyricsWriter(
             }
             return
         }
-        val expectedPayload = parseLrcOrPlain(request.canonicalLyrics, providerName = null, confidence = 100)
+        val expectedPayload = parseLrcOrPlain(request.canonicalLyrics)
         when (request.tagKind) {
             EmbeddedLyricsTagKind.SyncedLyrics -> {
                 val expectedLines = expectedPayload
@@ -262,12 +262,10 @@ internal class EmbeddedLyricsWriter(
     }
 
     private fun successResult(lyrics: String): EmbeddedLyricsWriteResult.Success {
-        val payload = parseLrcOrPlain(lyrics, providerName = "Embedded", confidence = 100)
+        val payload = parseLrcOrPlain(lyrics)
             ?: LyricsPayload(
                 lines = emptyList(),
                 isSynced = false,
-                providerName = "Embedded",
-                confidence = 100,
                 sourceTextForEmbedding = lyrics,
             )
         return EmbeddedLyricsWriteResult.Success(payload)

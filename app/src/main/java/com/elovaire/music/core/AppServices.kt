@@ -107,7 +107,6 @@ internal class AppServices(
         libraryRepository.start()
         libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
         appScope.launch(Dispatchers.IO) {
-            preferenceStore.clearRemovedRemoteProviderData()
             val exitSnapshot = exitDiagnostics.inspect()
             backgroundWorkPolicy.setOptionalStartupSuppressed(exitSnapshot.suppressOptionalStartup)
             portableSettingsBackup.start()

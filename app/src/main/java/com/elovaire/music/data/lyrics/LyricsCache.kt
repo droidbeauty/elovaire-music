@@ -15,7 +15,6 @@ internal class LyricsCache(
         // The lazy cache only needs its app-private file handle during service construction.
         appContext.filesDir.resolve(CACHE_FILE_NAME)
     }
-    private val legacyRemoteCacheFile = requireNotNull(cacheFile.parentFile).resolve(LEGACY_REMOTE_CACHE_FILE_NAME)
     private val cacheLock = Any()
     private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>()
     private var cacheLoaded = false
@@ -86,7 +85,6 @@ internal class LyricsCache(
     private fun ensureLoadedLocked() {
         if (cacheLoaded) return
         cacheLoaded = true
-        legacyRemoteCacheFile.delete()
         if (!cacheFile.exists()) return
         runCatching {
             if (cacheFile.length() !in 1..MAX_CACHE_FILE_BYTES.toLong()) return@runCatching
@@ -109,8 +107,6 @@ internal class LyricsCache(
                 cacheEntries[key] = LyricsCacheEntry(
                     result = result,
                     expiresAtMillis = entryJson.optLong("expiresAtMillis", 0L),
-                    providerName = entryJson.optString("providerName").takeIf { it.isNotBlank() },
-                    confidence = entryJson.optInt("confidence", 0),
                 )
             }
         }
@@ -128,8 +124,6 @@ internal class LyricsCache(
                                 JSONObject().apply {
                                     put("key", key)
                                     put("expiresAtMillis", entry.expiresAtMillis)
-                                    put("providerName", entry.providerName.orEmpty())
-                                    put("confidence", entry.confidence)
                                     when (val result = entry.result) {
                                         is LyricsResult.Found -> {
                                             put("result", RESULT_FOUND)
@@ -168,8 +162,6 @@ internal class LyricsCache(
             put("displayTimingOffsetMs", displayTimingOffsetMs)
             put("timingScale", timingScale.toDouble())
             put("timingProfile", timingProfile.name)
-            put("providerName", providerName.orEmpty())
-            put("confidence", confidence)
             sourceTextForEmbedding?.let { put("sourceTextForEmbedding", it) }
             put(
                 "lines",
@@ -212,15 +204,12 @@ internal class LyricsCache(
             timingProfile = runCatching {
                 SyncedLyricsTimingProfile.valueOf(optString("timingProfile", SyncedLyricsTimingProfile.ExactIntervals.name))
             }.getOrDefault(SyncedLyricsTimingProfile.ExactIntervals),
-            providerName = optString("providerName").takeIf { it.isNotBlank() },
-            confidence = optInt("confidence", 0),
             sourceTextForEmbedding = optString("sourceTextForEmbedding").takeIf { it.isNotBlank() },
         )
     }
 
     private companion object {
         const val CACHE_FILE_NAME = "lyrics_cache_v6.json"
-        const val LEGACY_REMOTE_CACHE_FILE_NAME = "lyrics_cache_v5.json"
         const val CACHE_VERSION = 6
         const val MAX_ENTRIES = 320
         const val MAX_CACHE_FILE_BYTES = 2 * 1024 * 1024
