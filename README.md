@@ -1,13 +1,5 @@
 # Elovaire
 
-<p align="center">
-  <img
-    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/1.png"
-    alt="Elovaire - elegant music listening experience"
-    width="100%"
-  />
-</p>
-
 ---
 
 <p align="center">
@@ -49,17 +41,6 @@ Browse by songs, albums, artists, genres and playlists. Instantly search even th
 - Smooth Compose UI with frosted blur, animated transitions and adaptive visual details
 - Fast library scanning through Android MediaStore and local folder observation
 ---
-
-<p align="center">
-  <img
-    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/2.png"
-    width="49%"
-  />
-  <img
-    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/3.png"
-    width="49%"
-  />
-</p>
 
 ## Features
 
@@ -109,31 +90,6 @@ Supported audio format handling is based on Android Media3/ExoPlayer, Android pl
 - Adjustable text-size
 - Frosted glass effects and backdrop blur surfaces
 - Smooth route transitions, animated player surfaces and artwork-driven visual accents
-
----
-
-<p align="center">
-  <img
-    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/4.png"
-    width="100%"
-  />
-</p>
-
-<p align="center">
-  <img
-    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/5.png"
-    width="100%"
-  />
-</p>
-
----
-
-<p align="center">
-  <img
-    src="https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/renders/6.png"
-    width="100%"
-  />
-</p>
 
 ---
 
