@@ -174,6 +174,9 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.testTagsAsResourceId
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.composed
 import androidx.compose.ui.focus.onFocusChanged
@@ -6158,7 +6161,7 @@ internal fun NowPlayingScreen(
     onQueueItemSelected: (Int) -> Unit,
     onQueueItemRemoved: (Int) -> Unit,
     onOpenEqualizer: () -> Unit,
-    onToggleGaplessPlayback: () -> Unit,
+    onToggleCrossfade: () -> Unit,
     onSleepTimerSelected: (SleepTimerOption) -> Unit,
     onVolumeChanged: (Float) -> Unit,
     transitionSnapshot: NowPlayingTransitionSnapshot?,
@@ -7094,15 +7097,15 @@ internal fun NowPlayingScreen(
                             queueStatusVersion += 1L
                             onToggleShuffle()
                         },
-                        gaplessPlaybackEnabled = playerUiState.gaplessPlaybackEnabled,
-                        onToggleGaplessPlayback = {
-                            queueStatusText = if (playerUiState.gaplessPlaybackEnabled) {
-                                "Gapless playback | Off"
+                        crossfadeEnabled = playerUiState.crossfadeEnabled,
+                        onToggleCrossfade = {
+                            queueStatusText = if (playerUiState.crossfadeEnabled) {
+                                "Crossfade | Disabled"
                             } else {
-                                "Gapless playback | On"
+                                "Crossfade | Enabled"
                             }
                             queueStatusVersion += 1L
-                            onToggleGaplessPlayback()
+                            onToggleCrossfade()
                         },
                         onOpenEqualizer = onOpenEqualizer,
                         sleepTimerActive = playerUiState.sleepTimer.option != SleepTimerOption.Off,
@@ -7391,8 +7394,8 @@ private fun QueueSheet(
     onQueueItemRemoved: (Int) -> Unit,
     shuffleEnabled: Boolean,
     onToggleShuffle: () -> Unit,
-    gaplessPlaybackEnabled: Boolean,
-    onToggleGaplessPlayback: () -> Unit,
+    crossfadeEnabled: Boolean,
+    onToggleCrossfade: () -> Unit,
     onOpenEqualizer: () -> Unit,
     sleepTimerActive: Boolean,
     onOpenSleepTimer: () -> Unit,
@@ -7583,11 +7586,11 @@ private fun QueueSheet(
                     PlayerSecondaryActionButton(
                         iconResId = R.drawable.ic_lucide_separator_vertical,
                         label = "",
-                        contentDescription = "Gapless playback",
+                        contentDescription = if (crossfadeEnabled) "Disable crossfade" else "Enable crossfade",
                         iconSize = 20.dp,
                         tint = tint,
-                        showBackground = gaplessPlaybackEnabled,
-                        onClick = onToggleGaplessPlayback,
+                        showBackground = crossfadeEnabled,
+                        onClick = onToggleCrossfade,
                     )
                     Spacer(modifier = Modifier.width(20.dp))
                     PlayerSecondaryActionButton(
@@ -8853,10 +8856,12 @@ internal fun TopBarContextMenuOverlay(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .semantics { testTagsAsResourceId = true }
                         .padding(vertical = 4.dp),
                     verticalArrangement = Arrangement.Center,
                 ) {
                     SongContextMenuItem(
+                        modifier = Modifier.testTag("top_menu_settings"),
                         iconResId = R.drawable.ic_lucide_settings,
                         text = settingsCopy.settings,
                         tint = MaterialTheme.colorScheme.onSurface,
@@ -8865,6 +8870,7 @@ internal fun TopBarContextMenuOverlay(
                     )
                     DividerLine()
                     SongContextMenuItem(
+                        modifier = Modifier.testTag("top_menu_equalizer"),
                         iconResId = R.drawable.ic_lucide_audio_waveform,
                         text = settingsCopy.equalizer,
                         tint = MaterialTheme.colorScheme.onSurface,
@@ -8894,6 +8900,7 @@ internal fun TopBarContextMenuOverlay(
 
 @Composable
 private fun SongContextMenuItem(
+    modifier: Modifier = Modifier,
     @DrawableRes iconResId: Int,
     text: String,
     tint: Color,
@@ -8904,7 +8911,7 @@ private fun SongContextMenuItem(
     onClick: () -> Unit,
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(start = 10.dp, top = topPadding, end = 10.dp, bottom = bottomPadding)
             .clip(RoundedCornerShape(cornerRadius))

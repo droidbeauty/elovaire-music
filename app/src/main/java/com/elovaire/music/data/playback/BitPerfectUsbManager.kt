@@ -31,7 +31,6 @@ internal enum class BitPerfectPlaybackState {
     OffloadOrTunneling,
     UsbRouteDetectedButDirectSupportUnavailable,
     OffloadOnlyDirectPlaybackSupported,
-    GaplessOffloadDirectPlaybackSupported,
     BitstreamDirectPlaybackSupported,
     Eligible,
 }

@@ -6,7 +6,6 @@ import androidx.media3.common.util.UnstableApi
 @UnstableApi
 internal data class PlaybackOffloadPolicy(
     val enabled: Boolean,
-    val gaplessRequired: Boolean,
 ) {
     fun toAudioOffloadPreferences(): TrackSelectionParameters.AudioOffloadPreferences {
         return TrackSelectionParameters.AudioOffloadPreferences.Builder()
@@ -17,23 +16,21 @@ internal data class PlaybackOffloadPolicy(
                     TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED
                 },
             )
-            .setIsGaplessSupportRequired(gaplessRequired)
+            .setIsGaplessSupportRequired(false)
             .setIsSpeedChangeSupportRequired(false)
             .build()
     }
 
     companion object {
-        val Disabled = PlaybackOffloadPolicy(enabled = false, gaplessRequired = false)
+        val Disabled = PlaybackOffloadPolicy(enabled = false)
 
         fun from(
             signalProcessingEnabled: Boolean,
             signalAlteringEffectsActive: Boolean,
-            gaplessPlaybackEnabled: Boolean,
+            crossfadeEnabled: Boolean,
         ): PlaybackOffloadPolicy {
-            val enabled = signalProcessingEnabled && !signalAlteringEffectsActive
             return PlaybackOffloadPolicy(
-                enabled = enabled,
-                gaplessRequired = enabled && gaplessPlaybackEnabled,
+                enabled = signalProcessingEnabled && !signalAlteringEffectsActive && !crossfadeEnabled,
             )
         }
     }

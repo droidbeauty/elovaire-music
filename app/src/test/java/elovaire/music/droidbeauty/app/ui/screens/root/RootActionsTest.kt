@@ -122,7 +122,7 @@ private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
     var treble: Float? = null
 
     override fun setPlaybackVolume(value: Float) = Unit
-    override fun setGaplessPlaybackEnabled(enabled: Boolean) = Unit
+    override fun setCrossfadeEnabled(enabled: Boolean) = Unit
     override fun setVolumeNormalizationEnabled(enabled: Boolean) = Unit
     override fun updateBass(value: Float) = Unit
     override fun updateMidrange(value: Float) = Unit

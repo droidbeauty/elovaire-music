@@ -44,9 +44,9 @@ internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
     uiDevice.waitForIdle()
 }
 
-internal fun MacrobenchmarkScope.requireClickText(text: String) {
-    val node = uiDevice.wait(Until.findObject(By.text(text)), 5_000)
-        ?: error("Missing required UI element with text=$text")
+internal fun MacrobenchmarkScope.requireClickTestTag(tag: String) {
+    val node = uiDevice.wait(Until.findObject(By.res(tag)), 5_000)
+        ?: error("Missing required UI element with testTag=$tag")
     node.clickActionable()
     uiDevice.waitForIdle()
 }
@@ -120,11 +120,11 @@ internal fun MacrobenchmarkScope.routeOpenBackJourney() {
     waitForAppVisible()
     requireClickDescription("Home")
     requireClickDescription("Menu")
-    requireClickText("Settings")
+    requireClickTestTag("top_menu_settings")
     waitForAppVisible()
     uiDevice.pressBack()
     requireClickDescription("Menu")
-    requireClickText("Equalizer")
+    requireClickTestTag("top_menu_equalizer")
     waitForAppVisible()
     uiDevice.pressBack()
 }

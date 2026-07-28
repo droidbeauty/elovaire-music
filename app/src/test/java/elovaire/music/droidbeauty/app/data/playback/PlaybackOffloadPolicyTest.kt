@@ -12,11 +12,11 @@ class PlaybackOffloadPolicyTest {
         val policy = PlaybackOffloadPolicy.from(
             signalProcessingEnabled = true,
             signalAlteringEffectsActive = false,
-            gaplessPlaybackEnabled = false,
+            crossfadeEnabled = false,
         )
 
         assertTrue(policy.enabled)
-        assertFalse(policy.gaplessRequired)
+        assertFalse(policy.toAudioOffloadPreferences().isGaplessSupportRequired)
         assertEquals(
             TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED,
             policy.toAudioOffloadPreferences().audioOffloadMode,
@@ -24,16 +24,15 @@ class PlaybackOffloadPolicyTest {
     }
 
     @Test
-    fun gaplessRequirementFollowsGaplessSettingWhenOffloadIsEnabled() {
+    fun crossfadeDisablesOffloadBecauseItRequiresTwoSoftwarePlayers() {
         val policy = PlaybackOffloadPolicy.from(
             signalProcessingEnabled = true,
             signalAlteringEffectsActive = false,
-            gaplessPlaybackEnabled = true,
+            crossfadeEnabled = true,
         )
 
-        assertTrue(policy.enabled)
-        assertTrue(policy.gaplessRequired)
-        assertTrue(policy.toAudioOffloadPreferences().isGaplessSupportRequired)
+        assertFalse(policy.enabled)
+        assertFalse(policy.toAudioOffloadPreferences().isGaplessSupportRequired)
     }
 
     @Test
@@ -41,11 +40,10 @@ class PlaybackOffloadPolicyTest {
         val policy = PlaybackOffloadPolicy.from(
             signalProcessingEnabled = false,
             signalAlteringEffectsActive = false,
-            gaplessPlaybackEnabled = true,
+            crossfadeEnabled = true,
         )
 
         assertFalse(policy.enabled)
-        assertFalse(policy.gaplessRequired)
         assertEquals(
             TrackSelectionParameters.AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_DISABLED,
             policy.toAudioOffloadPreferences().audioOffloadMode,
@@ -57,10 +55,9 @@ class PlaybackOffloadPolicyTest {
         val policy = PlaybackOffloadPolicy.from(
             signalProcessingEnabled = true,
             signalAlteringEffectsActive = true,
-            gaplessPlaybackEnabled = true,
+            crossfadeEnabled = true,
         )
 
         assertFalse(policy.enabled)
-        assertFalse(policy.gaplessRequired)
     }
 }

@@ -90,7 +90,7 @@ private val portableSettingKeys = setOf(
             "text_size_preset",
             "app_language",
             "playback_volume",
-            "gapless_playback_enabled",
+            "crossfade_enabled",
             "volume_normalization_enabled",
             "album_collection_grid_enabled",
             "album_collection_layout_mode",

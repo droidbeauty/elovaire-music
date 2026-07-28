@@ -16,6 +16,7 @@ android {
                             taskName.endsWith("generateBaselineProfile") ||
                                 taskName.endsWith("performanceQualityCheck") ||
                                 taskName.endsWith(":macrobenchmark:connectedCheck") ||
+                                taskName.endsWith(":macrobenchmark:connectedBenchmarkAndroidTest") ||
                                 taskName.endsWith(":macrobenchmark:connectedDebugAndroidTest")
                         }
                         .toString()
@@ -29,7 +30,7 @@ android {
         targetSdk = AppBuildConfig.targetSdk
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] =
-            "DEBUGGABLE,EMULATOR,NOT-SELF-INSTRUMENTING"
+            "EMULATOR,NOT-SELF-INSTRUMENTING"
         testInstrumentationRunnerArguments["elovaire.runBenchmarks"] = runBenchmarks.get()
         benchmarkIterations?.let { value ->
             testInstrumentationRunnerArguments["elovaire.benchmarkIterations"] = value
@@ -39,7 +40,21 @@ android {
         }
     }
 
+    buildTypes {
+        create("benchmark") {
+            isDebuggable = true
+            signingConfig = getByName("debug").signingConfig
+            matchingFallbacks += "release"
+        }
+    }
+
     targetProjectPath = ":app"
+}
+
+androidComponents {
+    beforeVariants(selector().all()) { variantBuilder ->
+        variantBuilder.enable = variantBuilder.buildType == "benchmark"
+    }
 }
 
 dependencies {

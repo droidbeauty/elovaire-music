@@ -94,8 +94,8 @@ internal class EmbeddedTagMetadataReader(context: Context) {
             ?.let { value -> VolumeNormalizationPolicy.parseGain(value, r128 = true) }
         return metadata
             .copy(
-                trackGainDb = metadata.trackGainDb ?: r128TrackGain,
-                albumGainDb = metadata.albumGainDb ?: r128AlbumGain,
+                trackGainDb = r128TrackGain ?: metadata.trackGainDb,
+                albumGainDb = r128AlbumGain ?: metadata.albumGainDb,
             )
             .takeIf { it.hasUsableGain || it.trackPeak != null || it.albumPeak != null }
     }

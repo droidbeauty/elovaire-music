@@ -53,7 +53,7 @@ internal class MediaFileMutationRunner(
         song: Song,
         purpose: String,
     ): File {
-        val directory = File(appContext.cacheDir, tempDirectoryName)
+        val directory = File(appContext.filesDir, tempDirectoryName)
         check(directory.isDirectory || directory.mkdirs()) { "Unable to create the metadata edit directory." }
         val extension = song.fileName.substringAfterLast('.', "").ifBlank { "tmp" }
         return File.createTempFile("${song.id}-$purpose-", ".$extension", directory)

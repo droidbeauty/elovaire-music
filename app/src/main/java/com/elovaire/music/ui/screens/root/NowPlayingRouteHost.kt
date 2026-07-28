@@ -113,7 +113,7 @@ internal fun NowPlayingRouteHost(
             onQueueItemSelected = viewModel::playQueueIndex,
             onQueueItemRemoved = viewModel::removeQueueIndex,
             onOpenEqualizer = onOpenEqualizer,
-            onToggleGaplessPlayback = viewModel::toggleGaplessPlayback,
+            onToggleCrossfade = viewModel::toggleCrossfade,
             onSleepTimerSelected = viewModel::setSleepTimer,
             onVolumeChanged = viewModel::setVolume,
             transitionSnapshot = transitionSnapshot,

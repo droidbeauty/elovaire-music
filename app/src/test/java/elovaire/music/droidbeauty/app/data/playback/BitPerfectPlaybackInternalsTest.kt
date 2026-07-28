@@ -5,7 +5,6 @@ import androidx.media3.common.C
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotSame
-import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -123,13 +122,15 @@ class BitPerfectPlaybackInternalsTest {
     }
 
     @Test
-    fun playbackEffectsControllerReusesAudioProcessorArray() {
+    fun playbackEffectsControllerCreatesIndependentProcessorsForOverlappingPlayers() {
         val controller = PlaybackEffectsController()
 
         val first = controller.audioProcessors()
         val second = controller.audioProcessors()
 
-        assertSame(first, second)
+        assertNotSame(first, second)
+        assertNotSame(first.single(), second.single())
         assertEquals(1, first.size)
+        assertEquals(1, second.size)
     }
 }

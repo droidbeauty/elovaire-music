@@ -220,9 +220,15 @@ class PlaybackManager(
     private var runtimeTransition: PlaybackRuntimeTransition = PlaybackRuntimeTransition.Idle
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
-    private var gaplessPlaybackEnabled = false
+    private var crossfadeEnabled = false
     private var volumeNormalizationEnabled = false
     private var player = createPlayer(enableSignalProcessing = true)
+    private val crossfadeController = PlaybackCrossfadeController(
+        handler = playbackHandler,
+        createPlayer = { createPlayer(enableSignalProcessing = true) },
+        onPromote = { outgoing, incoming -> promoteCrossfadePlayer(outgoing, incoming) },
+        onFailed = { scheduleStatePublish() },
+    )
     private val sleepTimerController = PlaybackSleepTimerController(
         scope = scope,
         elapsedRealtimeMs = SystemClock::elapsedRealtime,
@@ -324,6 +330,7 @@ class PlaybackManager(
         ) {
             if (released.get()) return
             resetUnexpectedIdleRecoveryGuard()
+            crossfadeController.cancel()
             bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
             scheduleAudioPathReevaluation("media-item-transition", audioPathReevaluationDelayForTransition())
             sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
@@ -353,11 +360,25 @@ class PlaybackManager(
             }
         }
 
+        override fun onIsPlayingChanged(isPlaying: Boolean) {
+            if (released.get()) return
+            if (isPlaying) {
+                prepareCrossfadeIfPossible()
+            } else if (crossfadeController.state !in setOf(CrossfadeState.Fading, CrossfadeState.PromotingNext)) {
+                crossfadeController.cancel()
+            }
+            scheduleStatePublish()
+        }
+
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (released.get()) return
             if (sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
                 sleepTimerController.onEndOfSongReached()
-            } else if (playbackState == Player.STATE_ENDED && player.repeatMode == Player.REPEAT_MODE_OFF) {
+            } else if (
+                playbackState == Player.STATE_ENDED &&
+                player.repeatMode == Player.REPEAT_MODE_OFF &&
+                crossfadeController.state !in setOf(CrossfadeState.Fading, CrossfadeState.PromotingNext)
+            ) {
                 stopAndClearQueue()
             } else if (
                 playbackState == Player.STATE_IDLE &&
@@ -370,12 +391,14 @@ class PlaybackManager(
                 if (playbackState != Player.STATE_IDLE) {
                     resetUnexpectedIdleRecoveryGuard()
                 }
+                prepareCrossfadeIfPossible()
                 scheduleStatePublish()
             }
         }
 
         override fun onPlayerError(error: PlaybackException) {
             if (released.get()) return
+            crossfadeController.cancel()
             if (error.isUnsupportedFormatError() && handleUnsupportedPlaybackFormat(error)) {
                 return
             }
@@ -739,7 +762,7 @@ class PlaybackManager(
         return PlaybackOffloadPolicy.from(
             signalProcessingEnabled = !isDirectPlaybackActive,
             signalAlteringEffectsActive = hasActiveSignalAlteringEffects(),
-            gaplessPlaybackEnabled = gaplessPlaybackEnabled,
+            crossfadeEnabled = crossfadeEnabled,
         )
     }
 
@@ -847,6 +870,7 @@ class PlaybackManager(
 
     override fun seekTo(positionMs: Long) {
         if (released.get()) return
+        crossfadeController.cancel()
         _progressState.value = playbackProgressController.cancelScrub()
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         player.seekTo(positionMs.coerceAtLeast(0L))
@@ -908,6 +932,7 @@ class PlaybackManager(
 
     fun cycleRepeatMode() {
         if (released.get()) return
+        crossfadeController.cancel()
         player.repeatMode = when (_state.value.repeatMode) {
             PlaybackRepeatMode.Off -> Player.REPEAT_MODE_ONE
             PlaybackRepeatMode.One -> Player.REPEAT_MODE_ALL
@@ -918,12 +943,14 @@ class PlaybackManager(
 
     fun toggleShuffle() {
         if (released.get()) return
+        crossfadeController.cancel()
         player.shuffleModeEnabled = !player.shuffleModeEnabled
         updateState()
     }
 
     override fun skipNext() {
         if (released.get()) return
+        crossfadeController.cancel()
         cancelPauseFade()
         clearInterruptionResumeState()
         if (player.hasNextMediaItem()) {
@@ -936,6 +963,7 @@ class PlaybackManager(
 
     override fun skipPrevious() {
         if (released.get()) return
+        crossfadeController.cancel()
         cancelPauseFade()
         clearInterruptionResumeState()
         if (player.currentPosition > PREVIOUS_SEEK_THRESHOLD_MS) {
@@ -955,16 +983,19 @@ class PlaybackManager(
 
     fun enqueueSong(song: Song) {
         if (released.get()) return
+        crossfadeController.cancel()
         queueController.enqueueSong(song)
     }
 
     fun removeQueueIndex(index: Int) {
         if (released.get()) return
+        crossfadeController.cancel()
         queueController.removeQueueIndex(index)
     }
 
     fun removeSongsFromQueue(songIds: Set<Long>) {
         if (released.get()) return
+        crossfadeController.cancel()
         queueController.removeSongsFromQueue(songIds)
     }
 
@@ -976,11 +1007,13 @@ class PlaybackManager(
         player.volume = targetPlayerOutputGain()
     }
 
-    fun setGaplessPlaybackEnabled(enabled: Boolean) {
+    fun setCrossfadeEnabled(enabled: Boolean) {
         if (released.get()) return
-        if (gaplessPlaybackEnabled == enabled) return
-        gaplessPlaybackEnabled = enabled
-        scheduleAudioPathReevaluation("gapless-setting-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
+        if (crossfadeEnabled == enabled) return
+        crossfadeEnabled = enabled
+        if (!enabled) crossfadeController.cancel()
+        if (enabled) prepareCrossfadeIfPossible()
+        scheduleAudioPathReevaluation("crossfade-setting-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
     }
 
     fun setVolumeNormalizationEnabled(enabled: Boolean) {
@@ -1009,6 +1042,7 @@ class PlaybackManager(
         if (!released.compareAndSet(false, true)) return
         runtimeTransition = PlaybackRuntimeTransition.Released
         pauseFadeJob?.cancel()
+        crossfadeController.release()
         sleepTimerController.release()
         progressDemandController.clear()
         playbackProgressTicker.release()
@@ -1134,6 +1168,7 @@ class PlaybackManager(
     ) {
         runtimeTransition = PlaybackRuntimeTransition.Rebuilding(reason)
         try {
+            crossfadeController.cancel()
             val previousPlayer = player
             val playbackSnapshot = PlaybackSnapshot.from(previousPlayer)
             val queueSnapshot = _state.value.queue
@@ -1166,6 +1201,7 @@ class PlaybackManager(
         shuffleEnabled: Boolean,
         sourcePlaylistId: Long?,
     ) {
+        crossfadeController.cancel()
         queueController.setQueue(
             songs = songs,
             startIndex = startIndex,
@@ -1178,6 +1214,7 @@ class PlaybackManager(
     }
 
     private fun stopAndClearQueue() {
+        crossfadeController.cancel()
         cancelPauseFade(resetVolume = false)
         sleepTimerController.clear()
         isStoppingQueue = true
@@ -1280,6 +1317,51 @@ class PlaybackManager(
         syncProgressUpdateLoop()
     }
 
+    private fun prepareCrossfadeIfPossible() {
+        if (
+            !crossfadeEnabled ||
+            isDirectPlaybackActive ||
+            !player.isPlaying ||
+            player.repeatMode == Player.REPEAT_MODE_ONE
+        ) return
+        val queue = _state.value.queue
+        val nextIndex = player.nextMediaItemIndex
+        if (nextIndex !in queue.indices) return
+        crossfadeController.prepare(
+            primary = player,
+            queue = queue,
+            nextQueueIndex = nextIndex,
+            outgoingGain = effectivePlayerGain(currentSong()),
+            incomingGain = effectivePlayerGain(queue[nextIndex]),
+        )
+    }
+
+    private fun promoteCrossfadePlayer(
+        outgoing: ExoPlayer,
+        incoming: ExoPlayer,
+    ) {
+        if (released.get() || outgoing !== player) {
+            incoming.release()
+            return
+        }
+        detachPlayerObservers(outgoing)
+        player = incoming
+        attachPlayerObservers(incoming)
+        commandGatewayPlayer = PlaybackExternalCommandGateway(
+            delegate = incoming,
+            dispatchPlaybackCommand = ::dispatchPlaybackCommand,
+            seek = ::seekTo,
+            skipNext = ::skipNext,
+            skipPrevious = ::skipPrevious,
+        )
+        sessionOwner.setPlayer(commandGatewayPlayer)
+        _playerInstanceVersion.value += 1L
+        outgoing.release()
+        sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
+        updateState()
+        incoming.volume = targetPlayerOutputGain()
+    }
+
     private fun resumePlayback() {
         externalInterruptionResumeJob?.cancel()
         if (!interruptionResumeState.isActive) {
@@ -1359,6 +1441,7 @@ class PlaybackManager(
     }
 
     private fun beginPauseFadeOut(reason: PauseFadeReason) {
+        crossfadeController.cancel()
         if (!supportsSoftwarePlaybackFade()) {
             player.pause()
             if (reason == PauseFadeReason.Manual) {
@@ -1435,7 +1518,7 @@ class PlaybackManager(
                     }
                 } else {
                     clearInterruptionResumeState()
-                    player.volume = effectivePlayerGain()
+                    player.volume = targetPlayerOutputGain()
                     updateState()
                 }
             }
@@ -1447,7 +1530,7 @@ class PlaybackManager(
             AudioFocusAction.Duck -> {
                 if (supportsSoftwarePlaybackFade()) {
                     duckedForAudioFocus = true
-                    player.volume = effectivePlayerGain()
+                    player.volume = targetPlayerOutputGain()
                     updateState()
                 } else {
                     handleTransientFocusLoss()
@@ -1732,21 +1815,24 @@ class PlaybackManager(
         _manualPlaybackStartVersion.value = _manualPlaybackStartVersion.value + 1L
     }
 
-    private fun effectivePlayerGain(): Float {
+    private fun effectivePlayerGain(song: Song? = currentSong()): Float {
         val baseGain = if (usesFixedVolumeOutput()) userVolume else volumeFineGain
-        val gain = effectiveDspState(baseGain).fineGain
+        val gain = effectiveDspState(baseGain, song).fineGain
         return if (duckedForAudioFocus) gain * DUCK_GAIN else gain
     }
 
     private fun hasActiveSignalAlteringEffects(): Boolean {
-        return effectiveDspState(baseGain = 1f).altersSignal
+        return crossfadeEnabled || effectiveDspState(baseGain = 1f).altersSignal
     }
 
-    private fun effectiveDspState(baseGain: Float): EffectiveDspState {
+    private fun effectiveDspState(
+        baseGain: Float,
+        song: Song? = currentSong(),
+    ): EffectiveDspState {
         return resolveEffectiveDspState(
             effectsRequested = hasSignalAlteringEffects(),
             normalizationRequested = volumeNormalizationEnabled,
-            normalizationMetadata = currentSong()?.volumeNormalization,
+            normalizationMetadata = song?.volumeNormalization,
             directPlaybackActive = isDirectPlaybackActive,
             softwareGainAllowed = !usbDacHardwareVolumeManager.shouldBypassSoftwareVolume(),
             baseGain = baseGain,
@@ -1754,11 +1840,7 @@ class PlaybackManager(
     }
 
     private fun audioPathReevaluationDelayForTransition(): Long {
-        return if (gaplessPlaybackEnabled) {
-            GAPLESS_TRANSITION_AUDIO_PATH_REEVALUATION_DELAY_MS
-        } else {
-            AUDIO_PATH_REEVALUATION_DELAY_MS
-        }
+        return AUDIO_PATH_REEVALUATION_DELAY_MS
     }
 
     private fun lerp(
@@ -1858,11 +1940,13 @@ class PlaybackManager(
         if (pauseFadeJob?.isActive == true) {
             return player.volume.coerceIn(0f, 1f)
         }
-        return if (isPauseTransitioningToStopped && !player.isPlaying) {
+        val target = if (isPauseTransitioningToStopped && !player.isPlaying) {
             0f
         } else {
             effectivePlayerGain()
         }
+        crossfadeController.refresh(player, target)
+        return target
     }
 
     private fun currentEffectiveVolumeFraction(): Float {
@@ -1945,7 +2029,6 @@ class PlaybackManager(
         const val END_OF_SONG_TIMER_TOLERANCE_MS = 350L
         const val DUCK_GAIN = 0.2f
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L
-        const val GAPLESS_TRANSITION_AUDIO_PATH_REEVALUATION_DELAY_MS = 650L
         const val EXTERNAL_INTERRUPTION_FAST_WATCH_MS = 10_000L
         const val EXTERNAL_INTERRUPTION_MAX_WATCH_MS = 5 * 60_000L
         const val EXTERNAL_INTERRUPTION_FAST_DELAY_MS = 500L

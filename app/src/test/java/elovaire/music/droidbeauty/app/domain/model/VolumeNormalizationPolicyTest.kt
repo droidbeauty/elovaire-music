@@ -15,6 +15,7 @@ class VolumeNormalizationPolicyTest {
     @Test
     fun parseGain_acceptsR128FixedPointValues() {
         assertEquals(-5f, VolumeNormalizationPolicy.parseGain("-1280", r128 = true) ?: 0f, 0.001f)
+        assertEquals(0.0234375f, VolumeNormalizationPolicy.parseGain("6", r128 = true) ?: 0f, 0.0001f)
     }
 
     @Test
@@ -39,6 +40,20 @@ class VolumeNormalizationPolicyTest {
         val multiplier = VolumeNormalizationPolicy.multiplierFor(
             VolumeNormalizationMetadata(trackGainDb = -6f),
         )
+        assertTrue(abs(multiplier - 0.501f) < 0.01f)
+    }
+
+    @Test
+    fun multiplier_prefersTrackGainAndPeakOverAlbumValues() {
+        val multiplier = VolumeNormalizationPolicy.multiplierFor(
+            VolumeNormalizationMetadata(
+                trackGainDb = -6f,
+                albumGainDb = 6f,
+                trackPeak = 0.5f,
+                albumPeak = 2f,
+            ),
+        )
+
         assertTrue(abs(multiplier - 0.501f) < 0.01f)
     }
 

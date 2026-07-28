@@ -39,7 +39,7 @@ internal interface RootSettingsReader : AppearanceSettingsStore, CollectionSetti
 
 internal interface PlaybackIntegrationSettings {
     val eqSettings: StateFlow<EqSettings>
-    val gaplessPlaybackEnabled: StateFlow<Boolean>
+    val crossfadeEnabled: StateFlow<Boolean>
     val volumeNormalizationEnabled: StateFlow<Boolean>
     val recentSongIds: StateFlow<List<Long>>
     val recentAlbumIds: StateFlow<List<Long>>
@@ -68,7 +68,7 @@ internal interface LibrarySettingsWriter {
 
 internal interface PlaybackSettingsWriter {
     fun setPlaybackVolume(value: Float)
-    fun setGaplessPlaybackEnabled(enabled: Boolean)
+    fun setCrossfadeEnabled(enabled: Boolean)
     fun setVolumeNormalizationEnabled(enabled: Boolean)
     fun updateBass(value: Float)
     fun updateMidrange(value: Float)

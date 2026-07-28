@@ -18,9 +18,8 @@ class DirectPlaybackPolicyTest {
         )
 
         assertTrue(classification.supportsOffload)
-        assertTrue(classification.supportsGaplessOffload)
         assertTrue(classification.supportsBitstreamPassThrough)
-        assertEquals("offload-gapless+bitstream", classification.summary)
+        assertEquals("offload+bitstream", classification.summary)
     }
 
     @Test
@@ -140,13 +139,10 @@ class DirectPlaybackPolicyTest {
     }
 
     @Test
-    fun gaplessOffloadAloneDoesNotForceDirectPlayback() {
+    fun seamlessOffloadCapabilityDoesNotForceDirectPlayback() {
         val classification = DirectPlaybackSupportClassification(
             rawFlags = AudioManager.DIRECT_PLAYBACK_OFFLOAD_GAPLESS_SUPPORTED,
-            kinds = setOf(
-                DirectPlaybackSupportKind.Offload,
-                DirectPlaybackSupportKind.GaplessOffload,
-            ),
+            kinds = setOf(DirectPlaybackSupportKind.Offload),
         )
         val status = BitPerfectEligibilityPolicy.evaluate(
             sdkInt = Build.VERSION_CODES.TIRAMISU,
@@ -158,7 +154,7 @@ class DirectPlaybackPolicyTest {
             directPlaybackSupport = classification.rawFlags,
         )
 
-        assertEquals(BitPerfectPlaybackState.GaplessOffloadDirectPlaybackSupported, status.state)
+        assertEquals(BitPerfectPlaybackState.OffloadOnlyDirectPlaybackSupported, status.state)
         assertEquals(BitPerfectPlaybackDirective.PreferRegular, status.directive)
         assertFalse(status.shouldUseDirectPlayback)
     }

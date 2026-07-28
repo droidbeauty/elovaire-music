@@ -8,7 +8,7 @@ class PortableSettingsBackupTest {
     @Test
     fun backsUpPortableSettingsButNotDeviceBoundMediaState() {
         assertTrue(isPortableSettingKey("theme_mode"))
-        assertTrue(isPortableSettingKey("gapless_playback_enabled"))
+        assertTrue(isPortableSettingKey("crossfade_enabled"))
         assertFalse(isPortableSettingKey("library_folders"))
         assertFalse(isPortableSettingKey("favorite_song_ids"))
         assertFalse(isPortableSettingKey("recent_song_ids"))

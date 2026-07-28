@@ -8,7 +8,6 @@ import android.app.RecoverableSecurityException
 import android.net.Uri
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
-import elovaire.music.droidbeauty.app.data.library.queryMediaStoreFilePath
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
@@ -132,7 +131,6 @@ internal class AlbumTagEditorService(
         val coverArtMimeType = coverArtBytes?.let(::detectMimeType)
         val editedSongIds = mutableListOf<Long>()
         val editedUris = mutableListOf<Uri>()
-        val editedFilePaths = mutableListOf<String>()
         val editedSongs = mutableListOf<Song>()
         val failures = mutableListOf<TagEditFailure>()
         var permissionRequest: PendingIntent? = null
@@ -298,11 +296,10 @@ internal class AlbumTagEditorService(
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
                 editedSongIds += song.id
                 editedUris += song.uri
-                resolveFilePath(song)?.let(editedFilePaths::add)
                 editedSongs += song.copy(
                     title = trackEdit?.let { effectiveTrack.title } ?: song.title,
                     artist = trackEdit?.let { effectiveTrack.artist } ?: song.artist,
-                    album = request.albumTitle.valueOr(song.album).ifBlank { song.album },
+                    album = request.albumTitle.valueOr(song.album),
                     albumArtist = request.albumArtist.valueOr(song.albumArtist ?: song.artist)
                         .takeIf(String::isNotBlank),
                     releaseYear = request.releaseYear.valueOr(song.releaseYear),
@@ -376,7 +373,7 @@ internal class AlbumTagEditorService(
         TagEditApplyResult(
             editedSongIds = editedSongIds,
             editedUris = editedUris,
-            editedFilePaths = editedFilePaths.distinct(),
+            editedFilePaths = emptyList(),
             editedSongs = editedSongs,
             artworkChanged = coverArtBytes != null && editedSongIds.isNotEmpty(),
             failures = failures,
@@ -538,10 +535,6 @@ internal class AlbumTagEditorService(
 
     private fun normalizeTagText(value: String): String =
         Normalizer.normalize(value.trim(), Normalizer.Form.NFC)
-
-    private fun resolveFilePath(song: Song): String? {
-        return contentResolver.queryMediaStoreFilePath(appContext, song.uri)
-    }
 
     private fun readBytes(uri: Uri): ByteArray? {
         return runCatching { contentIo.readBytesBounded(uri, MAX_TAG_ARTWORK_BYTES) }.getOrNull()

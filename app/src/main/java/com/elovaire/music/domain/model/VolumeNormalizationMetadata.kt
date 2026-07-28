@@ -49,11 +49,7 @@ internal object VolumeNormalizationPolicy {
 
     fun parseGain(rawValue: String?, r128: Boolean = false): Float? {
         val numericValue = parseFirstNumber(rawValue) ?: return null
-        val gainDb = if (r128 && kotlin.math.abs(numericValue) > R128_DB_THRESHOLD) {
-            numericValue / R128_FIXED_POINT_SCALE
-        } else {
-            numericValue
-        }
+        val gainDb = if (r128) numericValue / R128_FIXED_POINT_SCALE else numericValue
         return gainDb.takeIf { it.isFinite() && it in MIN_GAIN_DB..MAX_GAIN_DB }
     }
 
@@ -74,7 +70,6 @@ internal object VolumeNormalizationPolicy {
     private const val MIN_GAIN_DB = -60f
     private const val MAX_GAIN_DB = 24f
     private const val MAX_PEAK = 8f
-    private const val R128_DB_THRESHOLD = 64f
     private const val R128_FIXED_POINT_SCALE = 256f
     private val NUMBER_REGEX = Regex("""[-+]?(?:\d+(?:\.\d+)?|\.\d+)""")
 }

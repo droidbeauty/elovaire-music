@@ -19,7 +19,7 @@ internal class AppBridgeCoordinator(
     private val bridgeScope = CoroutineScope(scope.coroutineContext + bridgeJob)
     private val playbackSettings = object : PlaybackIntegrationSettings {
         override val eqSettings get() = services.preferenceStore.eqSettings
-        override val gaplessPlaybackEnabled get() = services.preferenceStore.gaplessPlaybackEnabled
+        override val crossfadeEnabled get() = services.preferenceStore.crossfadeEnabled
         override val volumeNormalizationEnabled get() = services.preferenceStore.volumeNormalizationEnabled
         override val recentSongIds get() = services.preferenceStore.recentSongIds
         override val recentAlbumIds get() = services.preferenceStore.recentAlbumIds

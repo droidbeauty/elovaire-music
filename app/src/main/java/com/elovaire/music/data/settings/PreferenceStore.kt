@@ -63,8 +63,8 @@ class PreferenceStore internal constructor(
     private val _playbackVolume = MutableStateFlow(loadPlaybackVolume())
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
 
-    private val _gaplessPlaybackEnabled = MutableStateFlow(loadGaplessPlaybackEnabled())
-    val gaplessPlaybackEnabled: StateFlow<Boolean> = _gaplessPlaybackEnabled.asStateFlow()
+    private val _crossfadeEnabled = MutableStateFlow(loadCrossfadeEnabled())
+    val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled.asStateFlow()
 
     private val _volumeNormalizationEnabled = MutableStateFlow(loadVolumeNormalizationEnabled())
     override val volumeNormalizationEnabled: StateFlow<Boolean> = _volumeNormalizationEnabled.asStateFlow()
@@ -228,9 +228,10 @@ class PreferenceStore internal constructor(
         }
     }
 
-    override fun setGaplessPlaybackEnabled(enabled: Boolean) {
-        updateStateAndPreference(_gaplessPlaybackEnabled, enabled) {
-            putBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, enabled)
+    override fun setCrossfadeEnabled(enabled: Boolean) {
+        updateStateAndPreference(_crossfadeEnabled, enabled) {
+            putBoolean(KEY_CROSSFADE_ENABLED, enabled)
+            remove(KEY_GAPLESS_PLAYBACK_ENABLED)
         }
     }
 
@@ -460,8 +461,19 @@ class PreferenceStore internal constructor(
         return preferences.getFloat(KEY_PLAYBACK_VOLUME, 1f).coerceIn(0f, 1f)
     }
 
-    private fun loadGaplessPlaybackEnabled(): Boolean {
-        return preferences.getBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, false)
+    private fun loadCrossfadeEnabled(): Boolean {
+        val enabled = if (preferences.contains(KEY_CROSSFADE_ENABLED)) {
+            preferences.getBoolean(KEY_CROSSFADE_ENABLED, false)
+        } else {
+            preferences.getBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, false)
+        }
+        if (preferences.contains(KEY_GAPLESS_PLAYBACK_ENABLED)) {
+            preferences.edit {
+                putBoolean(KEY_CROSSFADE_ENABLED, enabled)
+                remove(KEY_GAPLESS_PLAYBACK_ENABLED)
+            }
+        }
+        return enabled
     }
 
     private fun loadVolumeNormalizationEnabled(): Boolean {
@@ -543,6 +555,7 @@ class PreferenceStore internal constructor(
         const val KEY_TEXT_SIZE_PRESET = "text_size_preset"
         const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
+        const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"

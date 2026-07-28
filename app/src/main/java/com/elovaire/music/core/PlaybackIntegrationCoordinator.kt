@@ -41,8 +41,8 @@ internal class PlaybackIntegrationCoordinator(
                 }
         }
         scope.launch {
-            preferences.gaplessPlaybackEnabled
-                .collect(playback::setGaplessPlaybackEnabled)
+            preferences.crossfadeEnabled
+                .collect(playback::setCrossfadeEnabled)
         }
         scope.launch {
             preferences.volumeNormalizationEnabled

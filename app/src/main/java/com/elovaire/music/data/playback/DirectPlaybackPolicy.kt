@@ -14,7 +14,6 @@ internal enum class DirectPlaybackMode {
 
 internal enum class DirectPlaybackSupportKind {
     Offload,
-    GaplessOffload,
     BitstreamPassThrough,
 }
 
@@ -69,9 +68,6 @@ internal data class DirectPlaybackSupportClassification(
     val supportsOffload: Boolean
         get() = DirectPlaybackSupportKind.Offload in kinds
 
-    val supportsGaplessOffload: Boolean
-        get() = DirectPlaybackSupportKind.GaplessOffload in kinds
-
     val supportsBitstreamPassThrough: Boolean
         get() = DirectPlaybackSupportKind.BitstreamPassThrough in kinds
 
@@ -81,8 +77,6 @@ internal data class DirectPlaybackSupportClassification(
     val summary: String
         get() = when {
             !isSupported -> "none"
-            supportsGaplessOffload && supportsBitstreamPassThrough -> "offload-gapless+bitstream"
-            supportsGaplessOffload -> "offload-gapless"
             supportsBitstreamPassThrough && supportsOffload -> "offload+bitstream"
             supportsBitstreamPassThrough -> "bitstream"
             supportsOffload -> "offload"
@@ -107,7 +101,6 @@ internal object DirectPlaybackSupportClassifier {
             kinds += DirectPlaybackSupportKind.Offload
         }
         if ((rawFlags and AudioManager.DIRECT_PLAYBACK_OFFLOAD_GAPLESS_SUPPORTED) != 0) {
-            kinds += DirectPlaybackSupportKind.GaplessOffload
             kinds += DirectPlaybackSupportKind.Offload
         }
         if ((rawFlags and AudioManager.DIRECT_PLAYBACK_BITSTREAM_SUPPORTED) != 0) {
@@ -268,9 +261,6 @@ internal object BitPerfectEligibilityPolicy {
 
     private fun DirectPlaybackSupportClassification.toPlaybackState(): BitPerfectPlaybackState {
         return when {
-            supportsGaplessOffload && !supportsBitstreamPassThrough ->
-                BitPerfectPlaybackState.GaplessOffloadDirectPlaybackSupported
-
             supportsBitstreamPassThrough && !supportsOffload ->
                 BitPerfectPlaybackState.BitstreamDirectPlaybackSupported
 

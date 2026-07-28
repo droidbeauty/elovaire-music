@@ -100,7 +100,7 @@ internal data class PlayerUiState(
     val shuffleEnabled: Boolean = false,
     val volume: Float = 1f,
     val sourceLabel: String? = null,
-    val gaplessPlaybackEnabled: Boolean = false,
+    val crossfadeEnabled: Boolean = false,
     val sleepTimer: PlaybackSleepTimerState = PlaybackSleepTimerState(),
 )
 
@@ -131,8 +131,8 @@ internal class NowPlayingViewModel(
             playbackManager.transportState,
             playbackManager.queueState,
             playbackManager.volumeState,
-            preferenceStore.gaplessPlaybackEnabled,
-        ) { nowPlaying, transport, queue, volume, gaplessPlaybackEnabled ->
+            preferenceStore.crossfadeEnabled,
+        ) { nowPlaying, transport, queue, volume, crossfadeEnabled ->
             PlayerUiState(
                 currentSong = nowPlaying.currentSong,
                 isPlaying = transport.isPlaying,
@@ -143,7 +143,7 @@ internal class NowPlayingViewModel(
                 shuffleEnabled = transport.shuffleEnabled,
                 volume = volume.volume,
                 sourceLabel = nowPlaying.sourceLabel,
-                gaplessPlaybackEnabled = gaplessPlaybackEnabled,
+                crossfadeEnabled = crossfadeEnabled,
             )
         },
         playbackManager.sleepTimerState,
@@ -433,8 +433,8 @@ internal class NowPlayingViewModel(
         playbackManager.toggleShuffle()
     }
 
-    fun toggleGaplessPlayback() {
-        preferenceStore.setGaplessPlaybackEnabled(!preferenceStore.gaplessPlaybackEnabled.value)
+    fun toggleCrossfade() {
+        preferenceStore.setCrossfadeEnabled(!preferenceStore.crossfadeEnabled.value)
     }
 
     fun setVolume(volume: Float) {
