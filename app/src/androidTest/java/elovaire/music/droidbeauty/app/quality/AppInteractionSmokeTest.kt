@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.os.SystemClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -87,18 +88,21 @@ class AppInteractionSmokeTest {
     }
 
     private fun clickObject(selector: BySelector, label: String) {
-        repeat(3) { attempt ->
-            val target = device.wait(Until.findObject(selector), 3_000)
-                ?: error("Could not find $label")
+        val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
+        var lastStale: StaleObjectException? = null
+        while (SystemClock.uptimeMillis() < deadlineMs) {
+            val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
+            val target = device.wait(Until.findObject(selector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
+                ?: continue
             try {
                 val bounds = target.visibleBounds
                 device.click(bounds.centerX(), bounds.centerY())
                 return
             } catch (stale: StaleObjectException) {
-                if (attempt == 2) throw stale
-                device.waitForIdle()
+                lastStale = stale
             }
         }
+        throw lastStale ?: error("Could not find $label")
     }
 
     private fun grantRuntimePermission(permission: String) {
@@ -149,6 +153,8 @@ class AppInteractionSmokeTest {
 
     private companion object {
         const val PACKAGE_NAME = "elovaire.music.droidbeauty.app"
+        const val CLICK_TIMEOUT_MS = 10_000L
+        const val FIND_TIMEOUT_MS = 1_000L
         val runtimeFailurePattern = Regex("FATAL EXCEPTION|\\bANR\\b|AndroidRuntime:.*fatal", RegexOption.IGNORE_CASE)
         val settingsSelector: BySelector = By.text(
             Pattern.compile(

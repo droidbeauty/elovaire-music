@@ -9,7 +9,7 @@ plugins {
 
 tasks.register("debugQualityCheck") {
     group = "verification"
-    dependsOn(":app:lintDebug", ":app:testDebugUnitTest", ":app:detekt")
+    dependsOn(":app:lintDebug", ":app:testDebugUnitTest", ":app:detekt", "buildStructureCheck")
 }
 
 tasks.register("performanceQualityCheck") {
@@ -45,8 +45,63 @@ tasks.register("buildHealth") {
     )
 }
 
+val buildStructureCheck = tasks.register("buildStructureCheck") {
+    group = "verification"
+    description = "Checks that module build scripts use the central build structure."
+    val projectRoot = rootProject.projectDir
+    val moduleBuildScripts = listOf(
+        projectRoot.resolve("app/build.gradle.kts"),
+        projectRoot.resolve("macrobenchmark/build.gradle.kts"),
+    )
+    val settingsFile = projectRoot.resolve("settings.gradle.kts")
+    val catalogFile = projectRoot.resolve("gradle/libs.versions.toml")
+    val appBuildConfigFile = projectRoot.resolve("buildSrc/src/main/kotlin/AppBuildConfig.kt")
+    inputs.files(
+        moduleBuildScripts,
+        catalogFile,
+        appBuildConfigFile,
+    )
+    doLast {
+        val rawDependencies = Regex(
+            """(?m)^\s*(?:implementation|api|compileOnly|runtimeOnly|testImplementation|androidTestImplementation|ksp)\s*\(\s*[\"']([^\"']+:[^\"']+:[^\"']+)[\"']""",
+        )
+        val rawPluginVersions = Regex(
+            """(?m)^\s*id\([\"'][^\"']+[\"']\)\s*version\s*[\"'][^\"']+[\"']""",
+        )
+        val moduleViolations = moduleBuildScripts.flatMap { script ->
+            val text = script.readText()
+            buildList {
+                rawDependencies.findAll(text).forEach { match ->
+                    add("${script.path}: raw dependency ${match.groupValues[1]}")
+                }
+                rawPluginVersions.findAll(text).forEach { match ->
+                    add("${script.path}: raw plugin version ${match.value.trim()}")
+                }
+                if (Regex("(?m)^\\s*repositories\\s*\\{").containsMatchIn(text)) {
+                    add("${script.path}: module repositories must be configured in settings.gradle.kts")
+                }
+            }
+        }
+        check(moduleViolations.isEmpty()) {
+            "Build structure violations found:\n${moduleViolations.joinToString("\n")}"
+        }
+
+        val settings = settingsFile.readText()
+        check("RepositoriesMode.FAIL_ON_PROJECT_REPOS" in settings) {
+            "Dependency repositories must be centrally governed in settings.gradle.kts."
+        }
+        check("jcenter()" !in settings) { "jcenter() is not allowed in dependency resolution." }
+
+        val catalog = catalogFile.readText()
+        check(!Regex("""(?im)^\s*[A-Za-z][A-Za-z0-9_-]*\s*=\s*[\"'][^\"']*(?:latest(?:[.]release)?|SNAPSHOT|[+*])[^\"']*[\"']\s*$""").containsMatchIn(catalog)) {
+            "Dynamic dependency or plugin versions are not allowed in gradle/libs.versions.toml."
+        }
+    }
+}
+
 tasks.register("dependencyIntegrityCheck") {
     group = "verification"
+    dependsOn(buildStructureCheck)
     val verificationMetadata = layout.projectDirectory.file("gradle/verification-metadata.xml")
     val versionCatalog = layout.projectDirectory.file("gradle/libs.versions.toml")
     val wrapperProperties = layout.projectDirectory.file("gradle/wrapper/gradle-wrapper.properties")
@@ -66,7 +121,7 @@ tasks.register("dependencyIntegrityCheck") {
             ),
         ) { "Only IDE source and documentation artifacts may bypass dependency verification." }
         val catalog = versionCatalog.asFile.readText()
-        val dynamicVersion = Regex("""(?m)^\s*\w+\s*=\s*\"(?:latest\.|[^\"]*[+*]|[^\"]*-SNAPSHOT)\"""")
+        val dynamicVersion = Regex("""(?i)latest(?:\.release)?|SNAPSHOT|[+*]""")
             .find(catalog)
         check(dynamicVersion == null) { "Dynamic dependency version is forbidden: ${dynamicVersion?.value}" }
         val wrapper = wrapperProperties.asFile.readText()

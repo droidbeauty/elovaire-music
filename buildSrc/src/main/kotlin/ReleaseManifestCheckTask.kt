@@ -116,25 +116,25 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
         val document = factory.newDocumentBuilder().parse(manifest)
         val androidNamespace = "http://schemas.android.com/apk/res/android"
         val manifestElement = document.documentElement
-        if (manifestElement.getAttribute("package") != AppBuildConfig.packageName) {
-            throw GradleException("Release application ID does not match AppBuildConfig.packageName.")
+        if (manifestElement.getAttribute("package") != AppBuildConfig.Application.packageName) {
+            throw GradleException("Release application ID does not match AppBuildConfig.Application.packageName.")
         }
-        if (manifestElement.androidAttribute(androidNamespace, "versionCode").toIntOrNull() != AppBuildConfig.versionCode) {
-            throw GradleException("Release version code does not match AppBuildConfig.versionCode.")
+        if (manifestElement.androidAttribute(androidNamespace, "versionCode").toIntOrNull() != AppBuildConfig.Application.versionCode) {
+            throw GradleException("Release version code does not match AppBuildConfig.Application.versionCode.")
         }
-        if (manifestElement.androidAttribute(androidNamespace, "versionName") != AppBuildConfig.versionName) {
-            throw GradleException("Release version name does not match AppBuildConfig.versionName.")
+        if (manifestElement.androidAttribute(androidNamespace, "versionName") != AppBuildConfig.Application.versionName) {
+            throw GradleException("Release version name does not match AppBuildConfig.Application.versionName.")
         }
         val usesSdk = document.getElementsByTagName("uses-sdk").item(0) as? Element
             ?: throw GradleException("Release manifest has no uses-sdk element.")
         val minSdk = usesSdk.androidAttribute(androidNamespace, "minSdkVersion").toIntOrNull()
-        if (minSdk != AppBuildConfig.minSdk) {
-            throw GradleException("Release min SDK must be ${AppBuildConfig.minSdk}; found $minSdk.")
+        if (minSdk != AppBuildConfig.Android.minSdk) {
+            throw GradleException("Release min SDK must be ${AppBuildConfig.Android.minSdk}; found $minSdk.")
         }
         val targetSdk = usesSdk.androidAttribute(androidNamespace, "targetSdkVersion").toIntOrNull()
-        if (targetSdk != AppBuildConfig.targetSdk) {
+        if (targetSdk != AppBuildConfig.Android.targetSdk) {
             throw GradleException(
-                "Release target SDK must be the reviewed stable API ${AppBuildConfig.targetSdk}; found $targetSdk.",
+                "Release target SDK must be the reviewed stable API ${AppBuildConfig.Android.targetSdk}; found $targetSdk.",
             )
         }
         val application = document.getElementsByTagName("application").item(0) as? Element
@@ -200,11 +200,11 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "android.permission.READ_EXTERNAL_STORAGE",
             "android.permission.WAKE_LOCK",
             "android.permission.RECEIVE_BOOT_COMPLETED",
-            "${AppBuildConfig.packageName}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
+            "${AppBuildConfig.Application.packageName}.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
         )
         val ALLOWED_EXPORTED_COMPONENTS = mapOf(
-            "${AppBuildConfig.packageName}.MainActivity" to null,
-            "${AppBuildConfig.packageName}.data.playback.ElovaireMediaLibraryService" to null,
+            "${AppBuildConfig.Application.packageName}.MainActivity" to null,
+            "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaLibraryService" to null,
             "androidx.media3.session.MediaButtonReceiver" to null,
             "androidx.work.impl.background.systemjob.SystemJobService" to "android.permission.BIND_JOB_SERVICE",
         )

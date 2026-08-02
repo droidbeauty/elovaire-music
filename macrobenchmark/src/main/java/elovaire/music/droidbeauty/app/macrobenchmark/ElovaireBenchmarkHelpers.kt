@@ -1,9 +1,12 @@
 package elovaire.music.droidbeauty.app.macrobenchmark
 
+import android.os.SystemClock
 import androidx.benchmark.macro.MacrobenchmarkScope
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.BySelector
 import androidx.test.uiautomator.Direction
+import androidx.test.uiautomator.StaleObjectException
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
@@ -30,25 +33,52 @@ internal fun MacrobenchmarkScope.grantMediaPermission() {
 }
 
 internal fun MacrobenchmarkScope.clickDescription(description: String) {
-    uiDevice.findObject(By.desc(description))?.clickActionable()
+    clickIfAvailable(By.desc(description))
 }
 
 internal fun MacrobenchmarkScope.clickText(text: String) {
-    uiDevice.findObject(By.text(text))?.clickActionable()
+    clickIfAvailable(By.text(text))
 }
 
 internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
-    val node = uiDevice.wait(Until.findObject(By.desc(description)), 5_000)
-        ?: error("Missing required UI element with contentDescription=$description")
-    node.clickActionable()
-    uiDevice.waitForIdle()
+    requireClick(By.desc(description), "contentDescription=$description")
 }
 
 internal fun MacrobenchmarkScope.requireClickTestTag(tag: String) {
-    val node = uiDevice.wait(Until.findObject(By.res(tag)), 5_000)
-        ?: error("Missing required UI element with testTag=$tag")
-    node.clickActionable()
-    uiDevice.waitForIdle()
+    requireClick(By.res(tag), "testTag=$tag")
+}
+
+private fun MacrobenchmarkScope.clickIfAvailable(selector: BySelector) {
+    val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
+    while (SystemClock.uptimeMillis() < deadlineMs) {
+        val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
+        val node = uiDevice.wait(Until.findObject(selector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
+            ?: return
+        try {
+            node.clickActionable()
+            return
+        } catch (_: StaleObjectException) {
+            // Compose replaced the semantics node between lookup and click; retry within the deadline.
+        }
+    }
+}
+
+private fun MacrobenchmarkScope.requireClick(selector: BySelector, label: String) {
+    val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
+    var lastStale: StaleObjectException? = null
+    while (SystemClock.uptimeMillis() < deadlineMs) {
+        val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
+        val node = uiDevice.wait(Until.findObject(selector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
+            ?: continue
+        try {
+            node.clickActionable()
+            uiDevice.waitForIdle()
+            return
+        } catch (stale: StaleObjectException) {
+            lastStale = stale
+        }
+    }
+    throw lastStale ?: error("Missing required UI element with $label")
 }
 
 private fun UiObject2.clickActionable() {
@@ -128,3 +158,6 @@ internal fun MacrobenchmarkScope.routeOpenBackJourney() {
     waitForAppVisible()
     uiDevice.pressBack()
 }
+
+private const val CLICK_TIMEOUT_MS = 5_000L
+private const val FIND_TIMEOUT_MS = 1_000L

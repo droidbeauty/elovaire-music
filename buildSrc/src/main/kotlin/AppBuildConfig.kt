@@ -1,12 +1,23 @@
 object AppBuildConfig {
-    const val packageName = "elovaire.music.droidbeauty.app"
-    const val compileSdk = 37
-    const val minSdk = 30
-    const val targetSdk = 36
+    object Android {
+        const val compileSdk = 37
+        const val minSdk = 30
+        const val targetSdk = 36
+    }
 
-    // Internal build number used by Android for upgrades
-    const val versionCode = 261001000
+    object Java {
+        const val version = 17
+        const val kotlinJvmTarget = "17"
+    }
 
-    // User-facing version shown in the app
-    const val versionName = "1.0"
+    object Application {
+        const val packageName = "elovaire.music.droidbeauty.app"
+        const val versionCode = 261001000
+        const val versionName = "1.0"
+        const val macrobenchmarkNamespace = "elovaire.music.droidbeauty.app.macrobenchmark"
+    }
+
+    object Testing {
+        const val instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
 }

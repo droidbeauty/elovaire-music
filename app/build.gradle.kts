@@ -43,21 +43,21 @@ plugins {
 }
 
 android {
-    namespace = AppBuildConfig.packageName
-    compileSdk = AppBuildConfig.compileSdk
+    namespace = AppBuildConfig.Application.packageName
+    compileSdk = AppBuildConfig.Android.compileSdk
 
     defaultConfig {
-        applicationId = AppBuildConfig.packageName
-        minSdk = AppBuildConfig.minSdk
-        targetSdk = AppBuildConfig.targetSdk
-        versionCode = AppBuildConfig.versionCode
-        versionName = AppBuildConfig.versionName
+        applicationId = AppBuildConfig.Application.packageName
+        minSdk = AppBuildConfig.Android.minSdk
+        targetSdk = AppBuildConfig.Android.targetSdk
+        versionCode = AppBuildConfig.Application.versionCode
+        versionName = AppBuildConfig.Application.versionName
         buildConfigField(
             "String",
             "PRIVACY_POLICY_URL",
             "\"${privacyPolicyUrl.replace("\"", "\\\"")}\"",
         )
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -92,8 +92,8 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.toVersion(AppBuildConfig.Java.version)
+        targetCompatibility = JavaVersion.toVersion(AppBuildConfig.Java.version)
     }
 
     buildFeatures {
@@ -129,16 +129,16 @@ configurations.matching { configuration ->
 }.configureEach {
     // Room 2.8.4 migration serializers require the 1.8 serializer ABI; Navigation otherwise pins 1.7.3.
     resolutionStrategy.force(
-        "org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.1",
-        "org.jetbrains.kotlinx:kotlinx-serialization-core-jvm:1.8.1",
+        libs.kotlinx.serialization.core,
+        libs.kotlinx.serialization.core.jvm,
     )
 }
 
 androidComponents {
     onVariants(selector().all()) { variant ->
         val buildLabel = variant.buildType ?: variant.name
-        val apkFileName = "${AppBuildConfig.packageName}-$buildLabel.apk"
-        val aabFileName = "${AppBuildConfig.packageName}-$buildLabel.aab"
+        val apkFileName = "${AppBuildConfig.Application.packageName}-$buildLabel.apk"
+        val aabFileName = "${AppBuildConfig.Application.packageName}-$buildLabel.aab"
         val variantName = variant.name
         val buildDirPath = layout.buildDirectory.asFile.get().absolutePath
         val variantTaskSuffix = variantName.replaceFirstChar { char ->
@@ -189,7 +189,7 @@ if (providers.gradleProperty("app.r8Diagnostics").map(String::toBoolean).getOrEl
 
 kotlin {
     compilerOptions {
-        jvmTarget = JvmTarget.JVM_17
+        jvmTarget = JvmTarget.fromTarget(AppBuildConfig.Java.kotlinJvmTarget)
     }
 }
 
@@ -217,11 +217,11 @@ detekt {
 }
 
 val detektJavaLauncher = javaToolchains.launcherFor {
-    languageVersion.set(JavaLanguageVersion.of(17))
+    languageVersion.set(JavaLanguageVersion.of(AppBuildConfig.Java.version))
 }
 
 tasks.withType<Detekt>().configureEach {
-    jvmTarget.set("17")
+    jvmTarget.set(AppBuildConfig.Java.kotlinJvmTarget)
     jdkHome.set(detektJavaLauncher.map { launcher ->
         launcher.metadata.installationPath
     })
