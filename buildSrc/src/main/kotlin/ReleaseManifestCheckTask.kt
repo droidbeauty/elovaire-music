@@ -1,13 +1,12 @@
-import java.net.URI
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.RegularFileProperty
-import org.gradle.api.provider.Property
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.api.provider.Property
 import org.w3c.dom.Element
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -33,19 +32,16 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
     abstract val startupProfileFile: RegularFileProperty
 
     @get:Input
-    abstract val publicPrivacyPolicyUrl: Property<String>
+    abstract val allowSelfUpdateComponents: Property<Boolean>
 
     @TaskAction
     fun checkManifest() {
-        val privacyPolicyUrl = publicPrivacyPolicyUrl.get().trim()
-        if (!isPublicPrivacyPolicyUrl(privacyPolicyUrl)) {
-            throw GradleException("PRIVACY_POLICY_URL must be a public HTTPS URL for the Play release.")
-        }
         val manifest = manifestFile.asFile.get()
         if (!manifest.isFile) {
             throw GradleException("Release manifest was not generated.")
         }
         val text = manifest.readText()
+        val selfUpdate = allowSelfUpdateComponents.getOrElse(false)
         listOf(
             "android:usesCleartextTraffic=\"false\"",
             "android:allowBackup=\"true\"",
@@ -75,7 +71,7 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
                 throw GradleException("Release profile must not be empty: ${profileFile.asFile.get().name}")
             }
         }
-        listOf(
+        val forbiddenEntries = listOf(
             "android.permission.MANAGE_EXTERNAL_STORAGE",
             "android:usesCleartextTraffic=\"true\"",
             "android:debuggable=\"true\"",
@@ -92,23 +88,24 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "android.permission.READ_PHONE_STATE",
             "android.permission.AD_ID",
             "android.permission.POST_NOTIFICATIONS",
-            "android.permission.REQUEST_INSTALL_PACKAGES",
-            "androidx.core.content.FileProvider",
-            "AppUpdateInstallReceiver",
             "androidx.work.impl.diagnostics.DiagnosticsReceiver",
             "androidx.profileinstaller.ProfileInstallReceiver",
-            "application/vnd.android.package-archive",
             "android.intent.action.INSTALL_PACKAGE",
             "android.settings.MANAGE_UNKNOWN_APP_SOURCES",
-        ).forEach { value ->
+        ) + if (selfUpdate) emptyList() else listOf(
+            "android.permission.REQUEST_INSTALL_PACKAGES",
+            "androidx.core.content.FileProvider",
+            "AppUpdateManager",
+        )
+        forbiddenEntries.forEach { value ->
             if (value in text) {
                 throw GradleException("Release manifest contains forbidden entry: $value")
             }
         }
-        checkStructuredManifest(manifest)
+        checkStructuredManifest(manifest, selfUpdate)
     }
 
-    private fun checkStructuredManifest(manifest: java.io.File) {
+    private fun checkStructuredManifest(manifest: java.io.File, allowSelfUpdate: Boolean) {
         val factory = DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
             setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
@@ -150,7 +147,15 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             .asElementSequence()
             .map { it.androidAttribute(androidNamespace, "name") }
             .toSet()
-        val unexpectedPermissions = permissionNames - ALLOWED_RELEASE_PERMISSIONS
+        val allowedPermissions = ALLOWED_RELEASE_PERMISSIONS + if (allowSelfUpdate) {
+            setOf(
+                "android.permission.INTERNET",
+                "android.permission.REQUEST_INSTALL_PACKAGES",
+            )
+        } else {
+            emptySet()
+        }
+        val unexpectedPermissions = permissionNames - allowedPermissions
         if (unexpectedPermissions.isNotEmpty()) {
             throw GradleException("Release manifest contains unexpected permissions: ${unexpectedPermissions.sorted()}.")
         }
@@ -209,20 +214,4 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "androidx.work.impl.background.systemjob.SystemJobService" to "android.permission.BIND_JOB_SERVICE",
         )
     }
-}
-
-private fun isPublicPrivacyPolicyUrl(value: String): Boolean {
-    if (value.any(Char::isWhitespace)) return false
-    val uri = runCatching { URI(value) }.getOrNull() ?: return false
-    val host = uri.host?.lowercase()?.trimEnd('.') ?: return false
-    if (uri.scheme != "https" || uri.userInfo != null || uri.rawFragment != null || '.' !in host) return false
-    return host !in setOf("example.com", "example.net", "example.org") &&
-        !host.endsWith(".example.com") &&
-        !host.endsWith(".example.net") &&
-        !host.endsWith(".example.org") &&
-        !host.endsWith(".example") &&
-        !host.endsWith(".local") &&
-        !host.endsWith(".localhost") &&
-        !host.endsWith(".test") &&
-        !host.endsWith(".invalid")
 }

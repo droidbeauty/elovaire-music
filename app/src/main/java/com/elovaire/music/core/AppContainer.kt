@@ -40,6 +40,7 @@ class AppContainer(
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)
     private val dependencies = AppDependencies(services, backgroundWorkPolicy)
     val preferenceStore get() = services.preferenceStore
+    internal val updateController get() = services.updateController
     internal val artistImageRepository get() = services.artistImageRepository
     val lyricsService get() = services.lyricsService
     internal val albumTagEditorService get() = services.albumTagEditorService

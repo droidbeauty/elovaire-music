@@ -28,7 +28,7 @@ internal fun equalPowerCrossfadeEnvelope(progress: Float): Pair<Float, Float> {
 
 internal object CrossfadeDurationPolicy {
     const val MIN_DURATION_MS = 1_000L
-    const val DEFAULT_DURATION_MS = 5_000L
+    const val DEFAULT_DURATION_MS = 2_500L
     const val MAX_DURATION_MS = 12_000L
 
     fun sanitize(durationMs: Long): Long = durationMs.coerceIn(MIN_DURATION_MS, MAX_DURATION_MS)
@@ -40,6 +40,7 @@ internal class PlaybackCrossfadeController(
     private val createPlayer: () -> ExoPlayer,
     private val onPromote: (outgoing: ExoPlayer, incoming: ExoPlayer) -> Unit,
     private val onFailed: () -> Unit,
+    private val onIncomingReleased: (ExoPlayer) -> Unit = {},
 ) {
     var state: CrossfadeState = CrossfadeState.Idle
         private set
@@ -48,10 +49,13 @@ internal class PlaybackCrossfadeController(
     private var incomingReady = false
     private var outgoingGain = 1f
     private var incomingGain = 1f
+    private var outgoingSilenceDetector: CrossfadeSilenceDetector? = null
     private var startAtElapsedMs = 0L
     private var fadeStartedAtElapsedMs = 0L
+    private var outgoingDurationMs = 0L
 
     private val startRunnable = Runnable { startFade() }
+    private val silencePollRunnable = Runnable { pollForTrailingSilence() }
     private val frameRunnable = object : Runnable {
         override fun run() {
             val outgoingPlayer = outgoing ?: return cancel()
@@ -75,6 +79,7 @@ internal class PlaybackCrossfadeController(
         nextQueueIndex: Int,
         outgoingGain: Float,
         incomingGain: Float,
+        outgoingSilenceDetector: CrossfadeSilenceDetector? = null,
     ) {
         if (state != CrossfadeState.Idle || queue.isEmpty() || nextQueueIndex !in queue.indices) return
         if (!primary.isCurrentMediaItemSeekable) return
@@ -85,6 +90,8 @@ internal class PlaybackCrossfadeController(
         outgoing = primary
         this.outgoingGain = outgoingGain.coerceIn(0f, 1f)
         this.incomingGain = incomingGain.coerceIn(0f, 1f)
+        this.outgoingSilenceDetector = outgoingSilenceDetector
+        outgoingDurationMs = durationMs
         val secondary = try {
             createPlayer()
         } catch (_: RuntimeException) {
@@ -125,15 +132,21 @@ internal class PlaybackCrossfadeController(
     fun cancel() {
         if (state == CrossfadeState.Released) return
         handler.removeCallbacks(startRunnable)
+        handler.removeCallbacks(silencePollRunnable)
         handler.removeCallbacks(frameRunnable)
         outgoing?.getPauseAtEndOfMediaItems()?.let { pausedAtEnd ->
             if (pausedAtEnd) outgoing?.setPauseAtEndOfMediaItems(false)
         }
         outgoing?.volume = outgoingGain
-        incoming?.release()
+        incoming?.let { incomingPlayer ->
+            incomingPlayer.release()
+            onIncomingReleased(incomingPlayer)
+        }
         outgoing = null
         incoming = null
         incomingReady = false
+        outgoingSilenceDetector = null
+        outgoingDurationMs = 0L
         state = CrossfadeState.Cancelled
         state = CrossfadeState.Idle
     }
@@ -149,6 +162,31 @@ internal class PlaybackCrossfadeController(
         startAtElapsedMs = SystemClock.elapsedRealtime() + delayMs
         state = CrossfadeState.Ready
         handler.postAtTime(startRunnable, startAtElapsedMs)
+        if (outgoingSilenceDetector != null && delayMs > CrossfadeSilencePolicy.MAX_EARLY_START_MS) {
+            handler.postAtTime(
+                silencePollRunnable,
+                (startAtElapsedMs - CrossfadeSilencePolicy.MAX_EARLY_START_MS)
+                    .coerceAtLeast(SystemClock.elapsedRealtime()),
+            )
+        }
+    }
+
+    private fun pollForTrailingSilence() {
+        val outgoingPlayer = outgoing ?: return cancel()
+        val detector = outgoingSilenceDetector ?: return
+        if (state != CrossfadeState.Ready) return
+        val remainingMs = outgoingDurationMs - outgoingPlayer.currentPosition.coerceAtLeast(0L)
+        if (
+            remainingMs <= CrossfadeDurationPolicy.DEFAULT_DURATION_MS + CrossfadeSilencePolicy.MAX_EARLY_START_MS &&
+            detector.isSilentAt(
+                outgoingPlayer.currentPosition.coerceAtLeast(0L) * 1_000L,
+                CrossfadeSilencePolicy.MIN_SILENCE_DURATION_MS,
+            )
+        ) {
+            startFade()
+        } else if (remainingMs > CrossfadeDurationPolicy.DEFAULT_DURATION_MS) {
+            handler.postDelayed(silencePollRunnable, SILENCE_POLL_INTERVAL_MS)
+        }
     }
 
     private fun startFade() {
@@ -156,6 +194,7 @@ internal class PlaybackCrossfadeController(
         val incomingPlayer = incoming ?: return cancel()
         if (!incomingReady || !outgoingPlayer.isPlaying) return cancel()
         state = CrossfadeState.Fading
+        handler.removeCallbacks(silencePollRunnable)
         outgoingPlayer.setPauseAtEndOfMediaItems(true)
         incomingPlayer.playWhenReady = true
         incomingPlayer.play()
@@ -185,5 +224,6 @@ internal class PlaybackCrossfadeController(
 
     private companion object {
         const val FRAME_INTERVAL_MS = 16L
+        const val SILENCE_POLL_INTERVAL_MS = 50L
     }
 }

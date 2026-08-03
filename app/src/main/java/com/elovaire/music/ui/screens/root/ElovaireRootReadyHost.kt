@@ -92,6 +92,7 @@ internal fun ElovaireRootReadyHost(
                 changelogReleases = composition.changelogReleases,
                 playlistActions = actionRuntime.playlistActions,
                 permissionController = composition.permissionController,
+                updateController = container.updateController,
                 motionTransitions = composition.motionTransitions,
             )
         },

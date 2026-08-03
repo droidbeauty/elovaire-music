@@ -23,6 +23,8 @@ internal class PlaybackPlayerFactory(
     private val audioProcessorsProvider: () -> Array<AudioProcessor>,
     private val preferredOutputDevice: () -> AudioDeviceInfo?,
     private val offloadPolicyProvider: () -> PlaybackOffloadPolicy = { PlaybackOffloadPolicy.Disabled },
+    private val crossfadeSilenceDetectorProvider: () -> CrossfadeSilenceDetector? = { null },
+    private val onCrossfadeSilenceDetectorCreated: (ExoPlayer, CrossfadeSilenceDetector) -> Unit = { _, _ -> },
 ) {
     fun create(enableSignalProcessing: Boolean): ExoPlayer {
         return ElovaireTrace.section("playback_player_create") {
@@ -37,11 +39,18 @@ internal class PlaybackPlayerFactory(
 
     private fun createConfiguredPlayer(enableSignalProcessing: Boolean): ExoPlayer {
         val offloadPreferences = resolveOffloadPreferences(enableSignalProcessing)
+        val crossfadeSilenceDetector = if (enableSignalProcessing) {
+            crossfadeSilenceDetectorProvider()
+        } else {
+            null
+        }
+        val audioProcessors = if (enableSignalProcessing) audioProcessorsProvider() else emptyArray()
         val configuredPlayer = ExoPlayer.Builder(context)
             .setRenderersFactory(
                 ElovaireRenderersFactory(
                     context,
-                    if (enableSignalProcessing) audioProcessorsProvider() else emptyArray(),
+                    audioProcessors,
+                    crossfadeSilenceDetector,
                 )
                     .setEnableAudioFloatOutput(false)
                     .setEnableDecoderFallback(true)
@@ -59,6 +68,9 @@ internal class PlaybackPlayerFactory(
                 repeatMode = androidx.media3.common.Player.REPEAT_MODE_OFF
                 applyAudioOffloadPreferences(offloadPreferences)
             }
+        crossfadeSilenceDetector?.let { detector ->
+            onCrossfadeSilenceDetectorCreated(configuredPlayer, detector)
+        }
         applyPreferredOutputDevice(configuredPlayer)
         return configuredPlayer
     }

@@ -26,6 +26,7 @@ android {
     val baselineProfileStableIterations = providers.gradleProperty("app.baselineProfileStableIterations").orNull
 
     defaultConfig {
+        missingDimensionStrategy("distribution", "github")
         minSdk = AppBuildConfig.Android.minSdk
         targetSdk = AppBuildConfig.Android.targetSdk
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner

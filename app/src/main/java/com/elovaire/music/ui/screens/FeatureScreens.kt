@@ -7408,7 +7408,7 @@ private fun QueueSheet(
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
-    val listState = rememberElovaireLazyListState("equalizer_screen")
+    val listState = rememberElovaireLazyListState("now_playing_queue")
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
     val footerHeight by animateDpAsState(
@@ -7539,6 +7539,7 @@ private fun QueueSheet(
                     }
                 }
             }
+            Spacer(modifier = Modifier.height(20.dp))
             QueueSeparator(tint = tint, modifier = Modifier.fillMaxWidth())
             Box(
                 modifier = Modifier

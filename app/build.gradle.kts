@@ -11,10 +11,6 @@ val localProperties = Properties().apply {
     }
 }
 
-val privacyPolicyUrl = providers.gradleProperty("PRIVACY_POLICY_URL").orNull
-    ?: System.getenv("PRIVACY_POLICY_URL")
-    ?: localProperties.getProperty("PRIVACY_POLICY_URL")
-    ?: "https://raw.githubusercontent.com/droidbeauty/elovaire-music/refs/heads/main/docs/privacy-policy.md"
 fun releaseSecret(name: String): String? = providers.gradleProperty(name).orNull
     ?: System.getenv(name)
     ?: localProperties.getProperty(name)
@@ -52,14 +48,19 @@ android {
         targetSdk = AppBuildConfig.Android.targetSdk
         versionCode = AppBuildConfig.Application.versionCode
         versionName = AppBuildConfig.Application.versionName
-        buildConfigField(
-            "String",
-            "PRIVACY_POLICY_URL",
-            "\"${privacyPolicyUrl.replace("\"", "\\\"")}\"",
-        )
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
         vectorDrawables {
             useSupportLibrary = true
+        }
+    }
+
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+        }
+        create("play") {
+            dimension = "distribution"
         }
     }
 
@@ -363,45 +364,62 @@ tasks.named("check") {
     dependsOn(checkResourceStructure)
 }
 
-val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertReleaseManifest") {
-    dependsOn("processReleaseManifest")
+val assertPlayReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertPlayReleaseManifest") {
+    dependsOn("processPlayReleaseManifest")
     manifestFile.set(
         layout.buildDirectory.file(
-            "intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml",
+            "intermediates/merged_manifests/playRelease/processPlayReleaseManifest/AndroidManifest.xml",
         ),
     )
     backupRulesFile.set(layout.projectDirectory.file("src/main/res/xml/backup_rules.xml"))
     dataExtractionRulesFile.set(layout.projectDirectory.file("src/main/res/xml/data_extraction_rules.xml"))
     baselineProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/baseline-prof.txt"))
     startupProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/startup-prof.txt"))
-    publicPrivacyPolicyUrl.set(privacyPolicyUrl)
+    allowSelfUpdateComponents.set(false)
+}
+
+val assertGithubReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertGithubReleaseManifest") {
+    dependsOn("processGithubReleaseManifest")
+    manifestFile.set(
+        layout.buildDirectory.file(
+            "intermediates/merged_manifests/githubRelease/processGithubReleaseManifest/AndroidManifest.xml",
+        ),
+    )
+    backupRulesFile.set(layout.projectDirectory.file("src/main/res/xml/backup_rules.xml"))
+    dataExtractionRulesFile.set(layout.projectDirectory.file("src/main/res/xml/data_extraction_rules.xml"))
+    baselineProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/baseline-prof.txt"))
+    startupProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/startup-prof.txt"))
+    allowSelfUpdateComponents.set(true)
 }
 
 val validateReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validateReleaseNativePageSize") {
-    dependsOn("bundleRelease")
-    bundleFile.set(layout.buildDirectory.file("outputs/bundle/release/app-release.aab"))
+    dependsOn("bundlePlayRelease")
+    bundleFile.set(layout.buildDirectory.file("outputs/bundle/playRelease/${AppBuildConfig.Application.packageName}-release.aab"))
     minPageSize.set(16 * 1024L)
 }
 
 val releaseArtifactInspect = tasks.register<ReleaseArtifactIntegrityTask>("releaseArtifactInspect") {
     dependsOn(
-        "bundleRelease",
-        "collectReleaseDependencies",
-        "sdkReleaseDependencyData",
+        "bundlePlayRelease",
+        "collectPlayReleaseDependencies",
+        "sdkPlayReleaseDependencyData",
     )
-    bundleFile.set(layout.buildDirectory.file("outputs/bundle/release/app-release.aab"))
-    mappingFile.set(layout.buildDirectory.file("outputs/mapping/release/mapping.txt"))
-    dependencyInventoryFile.set(layout.buildDirectory.file("outputs/sdk-dependencies/release/sdkDependencies.txt"))
-    checksumFile.set(layout.buildDirectory.file("reports/release/app-release.aab.sha256"))
+    bundleFile.set(layout.buildDirectory.file("outputs/bundle/playRelease/${AppBuildConfig.Application.packageName}-release.aab"))
+    mappingFile.set(layout.buildDirectory.file("outputs/mapping/playRelease/mapping.txt"))
+    dependencyInventoryFile.set(layout.buildDirectory.file("outputs/sdk-dependencies/playRelease/sdkDependencies.txt"))
+    checksumFile.set(layout.buildDirectory.file("reports/release/play-release.aab.sha256"))
 }
 
 tasks.register("verifyReleaseReadiness") {
     dependsOn(
         "check",
-        "lintRelease",
-        "assembleRelease",
-        "bundleRelease",
-        assertReleaseManifest,
+        "lintPlayRelease",
+        "lintGithubRelease",
+        "assemblePlayRelease",
+        "assembleGithubRelease",
+        "bundlePlayRelease",
+        assertPlayReleaseManifest,
+        assertGithubReleaseManifest,
         checkResourceStructure,
         validateReleaseNativePageSize,
         releaseArtifactInspect,

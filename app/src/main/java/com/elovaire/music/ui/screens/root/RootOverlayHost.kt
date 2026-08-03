@@ -6,6 +6,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
+import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
+import elovaire.music.droidbeauty.app.data.update.UpdateController
+import elovaire.music.droidbeauty.app.ui.screens.UpdateAvailableDialog
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
@@ -25,6 +28,8 @@ internal fun BoxScope.RootOverlayHost(
     onCreatePlaylist: (String) -> Long,
     permissionState: RootPermissionState,
     onRequestAudioPermission: () -> Unit,
+    updateController: UpdateController,
+    updateState: AppUpdateUiState,
     motionTransitions: MotionTransitions,
 ) {
     TopBarContextMenuOverlay(
@@ -61,6 +66,11 @@ internal fun BoxScope.RootOverlayHost(
                 }
             },
         )
+    }
+    if (updateController.isSupported) {
+        updateState.availableRelease?.let { release ->
+            UpdateAvailableDialog(updateController, updateState, release)
+        }
     }
     ElovaireAnimatedVisibility(
         visible = permissionState.showFirstLaunchPermissionOverlay,

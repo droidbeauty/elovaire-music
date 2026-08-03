@@ -87,7 +87,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.equalizerStatusLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
-import elovaire.music.droidbeauty.app.ui.i18n.privacySafetyCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
@@ -117,14 +116,12 @@ internal fun SettingsScreen(
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
-    onOpenPrivacySafety: () -> Unit,
     onOpenChangelog: () -> Unit,
     onScanLibrary: () -> Unit,
 ) {
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
-    val privacyCopy = remember(appLanguage) { privacySafetyCopy(appLanguage) }
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -270,14 +267,6 @@ internal fun SettingsScreen(
                             title = foldersCopy.title,
                             subtitle = foldersCopy.subtitle,
                             onClick = onOpenLibraryFolders,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
-                        SettingNavigationRow(
-                            title = privacyCopy.title,
-                            subtitle = privacyCopy.subtitle,
-                            onClick = onOpenPrivacySafety,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),

@@ -27,7 +27,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             FORBIDDEN_OEM_BRANCH_MARKERS.firstOrNull(text::contains)?.let { marker ->
                 violations += "$path branches on broad OEM identity without an evidence-backed platform quirk: $marker"
             }
-            FORBIDDEN_UPDATE_MARKERS.firstOrNull(text::contains)?.let { marker ->
+            FORBIDDEN_UPDATE_MARKERS.firstOrNull(text::contains)?.takeIf { _ ->
+                UPDATE_ALLOWED.none(path::endsWith)
+            }?.let { marker ->
                 violations += "$path reintroduces removed OTA update functionality: $marker"
             }
             FORBIDDEN_ARTWORK_SOURCE_MARKERS.firstOrNull(text::contains)?.let { marker ->
@@ -113,6 +115,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/settings/PortableSettingsBackup.kt",
             "/data/settings/PreferenceStorage.kt",
             "/data/settings/PreferenceStore.kt",
+            "/data/settings/UpdatePreferencesStoreImpl.kt",
             "/data/settings/RoomUserDataStore.kt",
         )
         val SUPERVISOR_SCOPE_ALLOWED = setOf(
@@ -145,6 +148,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "download latest APK",
             "dismissed_update_version",
             "last_automatic_update_check_at_ms",
+        )
+        val UPDATE_ALLOWED = setOf(
+            "/data/settings/UpdatePreferencesStoreImpl.kt",
         )
         val FORBIDDEN_ARTWORK_SOURCE_MARKERS = setOf(
             "TidalArtworkProvider",

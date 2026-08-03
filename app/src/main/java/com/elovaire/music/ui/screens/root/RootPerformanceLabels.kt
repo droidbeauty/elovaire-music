@@ -13,7 +13,6 @@ internal fun rootPerformanceRouteLabel(route: String?): String? {
         SEARCH_ROUTE -> "search"
         SETTINGS_ROUTE -> "settings"
         LIBRARY_FOLDERS_ROUTE -> "library_folders"
-        PRIVACY_SAFETY_ROUTE -> "privacy_safety"
         CHANGELOG_ROUTE -> "changelog"
         ABOUT_ROUTE -> "about"
         EQUALIZER_ROUTE -> "equalizer"

@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.Album
 
 internal class RootRouteActions(
@@ -25,6 +26,7 @@ internal class RootRouteActions(
     val playback: RootPlaybackActions,
     val playlists: RootPlaylistActions,
     val delete: RootDeleteController,
+    val updateController: UpdateController,
     val onRequestCreatePlaylist: () -> Unit,
     val onInitialRevealFinished: () -> Unit,
     val onSearchFieldFocusedChange: (Boolean) -> Unit,
@@ -93,10 +95,6 @@ internal class RootRouteActions(
 
     fun openLibraryFolders() {
         navController.navigate(LIBRARY_FOLDERS_ROUTE)
-    }
-
-    fun openPrivacySafety() {
-        navController.navigate(PRIVACY_SAFETY_ROUTE)
     }
 
     fun openChangelog() {
@@ -229,6 +227,7 @@ internal fun rememberRootRouteActions(
     playbackActions: RootPlaybackActions,
     playlistActions: RootPlaylistActions,
     deleteController: RootDeleteController,
+    updateController: UpdateController,
     onRequestCreatePlaylist: () -> Unit,
     onInitialRevealFinished: () -> Unit,
     onSearchFieldFocusedChange: (Boolean) -> Unit,
@@ -245,6 +244,7 @@ internal fun rememberRootRouteActions(
         playbackActions,
         playlistActions,
         deleteController,
+        updateController,
         onRequestCreatePlaylist,
         onInitialRevealFinished,
         onSearchFieldFocusedChange,
@@ -262,6 +262,7 @@ internal fun rememberRootRouteActions(
             playback = playbackActions,
             playlists = playlistActions,
             delete = deleteController,
+            updateController = updateController,
             onRequestCreatePlaylist = onRequestCreatePlaylist,
             onInitialRevealFinished = onInitialRevealFinished,
             onSearchFieldFocusedChange = onSearchFieldFocusedChange,

@@ -67,7 +67,6 @@ internal fun rootScaffoldPadding(
 private val CompactNowPlayingHiddenRoutes = setOf(
     SETTINGS_ROUTE,
     LIBRARY_FOLDERS_ROUTE,
-    PRIVACY_SAFETY_ROUTE,
     CHANGELOG_ROUTE,
     ABOUT_ROUTE,
     EQUALIZER_ROUTE,

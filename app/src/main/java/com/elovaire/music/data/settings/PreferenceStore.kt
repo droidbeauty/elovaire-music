@@ -48,6 +48,7 @@ class PreferenceStore internal constructor(
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
 
+
     private val _themeMode = MutableStateFlow(loadThemeMode())
     override val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
 

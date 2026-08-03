@@ -4,6 +4,8 @@ import androidx.compose.foundation.OverscrollFactory
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.unit.Dp
@@ -96,8 +98,10 @@ internal fun BoxScope.RootOverlaySlot(
     changelogReleases: List<ChangelogRelease>,
     playlistActions: RootPlaylistActions,
     permissionController: RootPermissionController,
+    updateController: elovaire.music.droidbeauty.app.data.update.UpdateController,
     motionTransitions: MotionTransitions,
 ) {
+    val updateState by updateController.uiState.collectAsStateWithLifecycle()
     RootOverlayHost(
         showTopBarMenu = overlayState.showTopBarMenu,
         onDismissTopBarMenu = overlayState::dismissTopBarMenu,
@@ -113,6 +117,8 @@ internal fun BoxScope.RootOverlaySlot(
         onCreatePlaylist = playlistActions::createPlaylist,
         permissionState = permissionController.state,
         onRequestAudioPermission = permissionController::requestAudioPermission,
+        updateController = updateController,
+        updateState = updateState,
         motionTransitions = motionTransitions,
     )
 }

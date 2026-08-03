@@ -101,9 +101,6 @@ internal fun RootRouteGraph(
         composable(LIBRARY_FOLDERS_ROUTE) {
             LibraryFoldersRouteHost(routeState, routeActions, padding)
         }
-        composable(PRIVACY_SAFETY_ROUTE) {
-            PrivacySafetyRouteHost(routeActions, padding)
-        }
         composable(CHANGELOG_ROUTE) {
             ChangelogRouteHost(changelogReleases, routeActions)
         }

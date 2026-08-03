@@ -17,8 +17,12 @@ import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrary
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
+import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
+import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
+import elovaire.music.droidbeauty.app.data.update.UpdateController
+import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -41,6 +45,15 @@ internal class AppServices(
         dao = database.userDataDao(),
     )
     val preferenceStore = PreferenceStore(applicationContext, userDataStore)
+    private val updatePreferences = allowStrictModeDiskReads {
+        UpdatePreferencesStoreImpl(PreferenceStorage(applicationContext).preferences)
+    }
+    val updateController: UpdateController = createUpdateController(
+        context = applicationContext,
+        scope = appScope,
+        preferences = updatePreferences,
+        backgroundWorkPolicy = backgroundWorkPolicy,
+    )
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         ArtistImageRepository()
     }
@@ -105,11 +118,13 @@ internal class AppServices(
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
         libraryRepository.start()
+        updateController.start()
         libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
         appScope.launch(Dispatchers.IO) {
             val exitSnapshot = exitDiagnostics.inspect()
             backgroundWorkPolicy.setOptionalStartupSuppressed(exitSnapshot.suppressOptionalStartup)
             portableSettingsBackup.start()
+            updateController.scheduleStartupMaintenance()
         }
     }
 
@@ -122,6 +137,7 @@ internal class AppServices(
         if (!released.compareAndSet(false, true)) return
         started.set(false)
         playbackManager.release()
+        updateController.release()
         libraryRepository.release()
         portableSettingsBackup.release()
         preferenceStore.release(database::close)

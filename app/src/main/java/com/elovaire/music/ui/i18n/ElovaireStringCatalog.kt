@@ -2317,14 +2317,12 @@ private fun volumeNormalizationSubtitle(language: AppLanguage): String = when (l
 
 internal data class PrivacySafetyCopy(
     val title: String,
-    val subtitle: String,
     val sections: List<PrivacySafetySectionCopy>,
 )
 
 internal data class PrivacySafetySectionCopy(
     val title: String,
     val body: String,
-    val showsPrivacyPolicyLink: Boolean = false,
 )
 
 internal fun privacySafetyCopy(
@@ -2346,7 +2344,6 @@ internal fun privacySafetyCopy(
     }
     return PrivacySafetyCopy(
         title = title,
-        subtitle = "Local library · On-device data",
         sections = listOf(
             PrivacySafetySectionCopy(
                 "Local library",
@@ -2363,7 +2360,6 @@ internal fun privacySafetyCopy(
             PrivacySafetySectionCopy(
                 "Privacy policy",
                 "Droid Beauty provides Elovaire without accounts, advertising, analytics, or data sales. Portable settings may be included in Android backup; music, media permissions, playback state, caches, and operation journals are excluded.",
-                showsPrivacyPolicyLink = true,
             ),
         ),
     )

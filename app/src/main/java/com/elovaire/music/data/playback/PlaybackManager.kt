@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -205,6 +206,7 @@ class PlaybackManager(
     private val extractorsFactory = DefaultExtractorsFactory()
         .setConstantBitrateSeekingEnabled(true)
     private val dataSourceFactory = DefaultDataSource.Factory(appContext)
+    private val crossfadeSilenceDetectors = IdentityHashMap<ExoPlayer, CrossfadeSilenceDetector>()
     private val playerFactory = PlaybackPlayerFactory(
         context = appContext,
         dataSourceFactory = dataSourceFactory,
@@ -213,6 +215,12 @@ class PlaybackManager(
         audioProcessorsProvider = audioProcessorsProvider,
         preferredOutputDevice = bitPerfectUsbManager::preferredOutputDevice,
         offloadPolicyProvider = ::currentOffloadPolicy,
+        crossfadeSilenceDetectorProvider = {
+            CrossfadeSilenceDetector().takeIf { crossfadeEnabled }
+        },
+        onCrossfadeSilenceDetectorCreated = { target, detector ->
+            crossfadeSilenceDetectors[target] = detector
+        },
     )
     private val playbackHandler = Handler(Looper.getMainLooper())
     private var pendingAudioPathReason: String? = null
@@ -228,6 +236,7 @@ class PlaybackManager(
         createPlayer = { createPlayer(enableSignalProcessing = true) },
         onPromote = { outgoing, incoming -> promoteCrossfadePlayer(outgoing, incoming) },
         onFailed = { scheduleStatePublish() },
+        onIncomingReleased = { incoming -> crossfadeSilenceDetectors.remove(incoming) },
     )
     private val sleepTimerController = PlaybackSleepTimerController(
         scope = scope,
@@ -1058,6 +1067,7 @@ class PlaybackManager(
         detachPlayerObservers(player)
         sessionOwner.release()
         player.release()
+        crossfadeSilenceDetectors.clear()
     }
 
     private fun scheduleAudioPathReevaluation(
@@ -1184,6 +1194,7 @@ class PlaybackManager(
                 player.volume = targetPlayerOutputGain()
                 return
             }
+            crossfadeSilenceDetectors.remove(previousPlayer)
             isDirectPlaybackActive = useDirectPlayback
             lastAppliedPreferredDeviceKey = null
             lastAppliedAudioPathDecisionKey = decisionKey
@@ -1333,6 +1344,7 @@ class PlaybackManager(
             nextQueueIndex = nextIndex,
             outgoingGain = effectivePlayerGain(currentSong()),
             incomingGain = effectivePlayerGain(queue[nextIndex]),
+            outgoingSilenceDetector = crossfadeSilenceDetectors[player],
         )
     }
 
@@ -1342,9 +1354,11 @@ class PlaybackManager(
     ) {
         if (released.get() || outgoing !== player) {
             incoming.release()
+            crossfadeSilenceDetectors.remove(incoming)
             return
         }
         detachPlayerObservers(outgoing)
+        crossfadeSilenceDetectors.remove(outgoing)
         player = incoming
         attachPlayerObservers(incoming)
         commandGatewayPlayer = PlaybackExternalCommandGateway(

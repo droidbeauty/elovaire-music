@@ -268,7 +268,6 @@ internal fun SettingsRouteHost(
         onMonoPlaybackChanged = routeActions.settings::updateMonoPlaybackEnabled,
         onOpenEqualizer = routeActions::openEqualizer,
         onOpenLibraryFolders = routeActions::openLibraryFolders,
-        onOpenPrivacySafety = routeActions::openPrivacySafety,
         onOpenChangelog = routeActions::openChangelog,
         onScanLibrary = routeActions::refreshLibrary,
     )
@@ -294,17 +293,6 @@ internal fun LibraryFoldersRouteHost(
 }
 
 @Composable
-internal fun PrivacySafetyRouteHost(
-    routeActions: RootRouteActions,
-    padding: RootRoutePadding,
-) {
-    PrivacySafetyScreen(
-        onBack = routeActions::navigateUp,
-        bottomPadding = padding.detailBottom,
-    )
-}
-
-@Composable
 internal fun ChangelogRouteHost(
     releases: List<ChangelogRelease>,
     routeActions: RootRouteActions,
@@ -323,5 +311,6 @@ internal fun AboutRouteHost(
     AboutScreen(
         onBack = routeActions::navigateUp,
         bottomPadding = padding.detailBottom,
+        updateController = routeActions.updateController,
     )
 }

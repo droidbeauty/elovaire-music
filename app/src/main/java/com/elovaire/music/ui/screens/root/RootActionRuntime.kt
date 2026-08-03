@@ -62,6 +62,7 @@ internal fun rememberRootActionRuntime(
         playbackActions = playbackActions,
         playlistActions = playlistActions,
         deleteController = deleteController,
+        updateController = container.updateController,
         onRequestCreatePlaylist = uiRuntime.overlayState::requestCreatePlaylist,
         onInitialRevealFinished = permissionController::onInitialRevealFinished,
         onSearchFieldFocusedChange = uiRuntime.searchChromeState::onFieldFocusedChanged,

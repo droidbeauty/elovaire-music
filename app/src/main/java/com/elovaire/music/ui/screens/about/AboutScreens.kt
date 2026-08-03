@@ -30,10 +30,13 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -55,6 +58,7 @@ import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
+import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
@@ -73,6 +77,7 @@ import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 internal fun ChangelogScreen(
@@ -351,10 +356,12 @@ internal fun ChangelogReleaseContent(
 internal fun AboutScreen(
     onBack: () -> Unit,
     bottomPadding: Dp,
+    updateController: UpdateController,
 ) {
     val context = LocalContext.current
     val language = LocalAppLanguage.current
     val aboutModel = remember(context) { context.loadAboutScreenModel() }
+    val updateState by updateController.uiState.collectAsStateWithLifecycle()
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     Box(
         modifier = Modifier
@@ -386,6 +393,44 @@ internal fun AboutScreen(
                     }
                 }
             }
+            if (updateController.isSupported) {
+                item(key = "app-updates") {
+                    AboutUpdateSection(updateController, updateState)
+                }
+            }
+            item(key = "privacy-disclosure") {
+                val privacyCopy = remember(language) { privacySafetyCopy(language) }
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 2.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    DividerLine()
+                    Text(
+                        text = privacyCopy.title,
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    privacyCopy.sections.forEachIndexed { index, section ->
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(
+                                text = section.title,
+                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = section.body,
+                                style = secondaryBodyTextStyle(),
+                                color = readableSecondaryTextColor(),
+                            )
+                        }
+                        if (index != privacyCopy.sections.lastIndex) {
+                            DividerLine()
+                        }
+                    }
+                }
+            }
         }
         PinnedBackTopBar(
             title = uiPhrase(language, UiPhrase.About),
@@ -396,85 +441,67 @@ internal fun AboutScreen(
 }
 
 @Composable
-internal fun PrivacySafetyScreen(
-    onBack: () -> Unit,
-    bottomPadding: Dp,
+private fun AboutUpdateSection(
+    controller: UpdateController,
+    state: elovaire.music.droidbeauty.app.data.update.AppUpdateUiState,
 ) {
-    val language = LocalAppLanguage.current
-    val copy = remember(language) {
-        privacySafetyCopy(language)
-    }
-    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        LazyColumn(
-            state = listState,
-            overscrollEffect = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .ensureSingleItemRubberBand(listState),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                end = 18.dp,
-                top = detailTopBarOccupiedHeight() + ElovaireSpacing.topBarToFirstContentGap,
-                bottom = bottomPadding,
-            ),
-            verticalArrangement = Arrangement.spacedBy(24.dp),
+        DividerLine()
+        Text("Updates", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium))
+        Text("Check GitHub Releases for a newer version.", style = secondaryBodyTextStyle(), color = readableSecondaryTextColor())
+        Surface(
+            onClick = { controller.checkForUpdates(force = true) },
+            shape = RoundedCornerShape(ElovaireRadii.pill),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f),
+            contentColor = MaterialTheme.colorScheme.onSurface,
         ) {
-            itemsIndexed(copy.sections, key = { index, section -> "${section.title}_$index" }) { index, section ->
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = section.title,
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                        ),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = section.body,
-                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Light),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    if (section.showsPrivacyPolicyLink && BuildConfig.PRIVACY_POLICY_URL.isNotBlank()) {
-                        val context = LocalContext.current
-                        Text(
-                            text = BuildConfig.PRIVACY_POLICY_URL,
-                            modifier = Modifier.clickable {
-                                runCatching {
-                                    context.startActivity(
-                                        Intent(Intent.ACTION_VIEW, Uri.parse(BuildConfig.PRIVACY_POLICY_URL)),
-                                    )
-                                }
-                            },
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    if (index != copy.sections.lastIndex) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp)
-                                .height(1.dp)
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
-                        )
-                    }
-                }
-            }
+            Text(
+                if (state.isChecking) "Checking for updates..." else "Check for updates",
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            )
         }
-        PinnedBackTopBar(
-            title = copy.title,
-            onBack = onBack,
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
+        state.errorMessage?.let { Text(it, style = secondaryBodyTextStyle(), color = readableSecondaryTextColor()) }
+        if (state.transientStatus == elovaire.music.droidbeauty.app.data.update.AppUpdateTransientStatus.UpToDate) {
+            Text("You are using the latest version.", style = secondaryBodyTextStyle(), color = readableSecondaryTextColor())
+        }
     }
+}
+
+@Composable
+internal fun UpdateAvailableDialog(
+    controller: UpdateController,
+    state: elovaire.music.droidbeauty.app.data.update.AppUpdateUiState,
+    release: elovaire.music.droidbeauty.app.data.update.AppReleaseInfo,
+) {
+    AlertDialog(
+        onDismissRequest = controller::dismissAvailableUpdate,
+        title = { Text("Update available") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text("Version ${release.versionName} is available.")
+                release.notes.takeIf { it.isNotBlank() }?.let { Text(it, style = secondaryBodyTextStyle()) }
+                if (state.isDownloading) {
+                    LinearProgressIndicator(
+                        progress = { state.downloadProgress ?: 0f },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                state.errorMessage?.let { Text(it, style = secondaryBodyTextStyle()) }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = controller::startUpdate) {
+                Text(if (state.isDownloading) "Downloading..." else "Download")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = controller::dismissAvailableUpdate) { Text("Not now") }
+        },
+    )
 }
 
 @Composable

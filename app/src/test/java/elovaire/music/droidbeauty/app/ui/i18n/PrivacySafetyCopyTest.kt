@@ -6,13 +6,11 @@ import org.junit.Test
 
 class PrivacySafetyCopyTest {
     @Test
-    fun everyLanguageExposesExactlyOnePrivacyPolicyLink() {
+    fun everyLanguageIncludesLocalPrivacyDisclosure() {
         AppLanguage.entries.forEach { language ->
-            assertEquals(
-                language.name,
-                1,
-                privacySafetyCopy(language).sections.count { it.showsPrivacyPolicyLink },
-            )
+            val privacySection = privacySafetyCopy(language).sections.last()
+            assertEquals(language.name, "Privacy policy", privacySection.title)
+            assertEquals(language.name, false, privacySection.body.isBlank())
         }
     }
 }

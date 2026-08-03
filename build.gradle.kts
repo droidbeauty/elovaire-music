@@ -9,7 +9,7 @@ plugins {
 
 tasks.register("debugQualityCheck") {
     group = "verification"
-    dependsOn(":app:lintDebug", ":app:testDebugUnitTest", ":app:detekt", "buildStructureCheck")
+    dependsOn(":app:lintGithubDebug", ":app:testGithubDebugUnitTest", ":app:detekt", "buildStructureCheck")
 }
 
 tasks.register("performanceQualityCheck") {
@@ -40,8 +40,8 @@ tasks.register<BaselineProfileResultCheckTask>("generateBaselineProfile") {
 tasks.register("buildHealth") {
     group = "verification"
     dependsOn(
-        ":app:analyzeDebugDependencies",
-        ":app:analyzeReleaseDependencies",
+        ":app:analyzeGithubDebugDependencies",
+        ":app:analyzePlayReleaseDependencies",
     )
 }
 
