@@ -719,7 +719,7 @@ object ElovaireMotion {
     ) +
         scaleIn(
             animationSpec = scaledSpring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
+                dampingRatio = Spring.DampingRatioNoBouncy,
                 stiffness = Spring.StiffnessMediumLow,
             ),
             initialScale = 0.86f,
@@ -785,7 +785,7 @@ object ElovaireMotion {
     ) +
         scaleOut(
             animationSpec = scaledSpring(
-                dampingRatio = Spring.DampingRatioMediumBouncy,
+                dampingRatio = Spring.DampingRatioNoBouncy,
                 stiffness = Spring.StiffnessMediumLow,
             ),
             targetScale = 0.86f,

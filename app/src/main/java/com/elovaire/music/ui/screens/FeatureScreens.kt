@@ -5241,7 +5241,8 @@ internal fun PlaybackActiveArtworkOverlay(
 ) {
     val artworkShape = RoundedCornerShape(ElovaireRadii.artworkSmall)
     val artworkBitmap = rememberArtworkBitmap(uri = uri, size = 256).value
-    var entered by remember { mutableStateOf(false) }
+    val artworkKey = remember(uri, title) { uri?.toString().orEmpty() + title }
+    var entered by remember(artworkKey) { mutableStateOf(false) }
     val blurRadius by animateDpAsState(
         targetValue = if (entered) 18.dp else 0.dp,
         animationSpec = ElovaireMotion.sizeSoft(),
@@ -5252,7 +5253,7 @@ internal fun PlaybackActiveArtworkOverlay(
         animationSpec = ElovaireMotion.contentFadeInSpec(),
         label = "active_artwork_blur_alpha",
     )
-    LaunchedEffect(Unit) {
+    LaunchedEffect(artworkKey) {
         entered = true
     }
     Box(

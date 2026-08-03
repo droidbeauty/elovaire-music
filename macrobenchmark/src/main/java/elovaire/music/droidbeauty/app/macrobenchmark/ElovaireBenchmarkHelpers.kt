@@ -40,6 +40,10 @@ internal fun MacrobenchmarkScope.clickText(text: String) {
     clickIfAvailable(By.text(text))
 }
 
+internal fun MacrobenchmarkScope.requireClickText(text: String) {
+    requireClick(By.text(text), "text=$text")
+}
+
 internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
     requireClick(By.desc(description), "contentDescription=$description")
 }
@@ -151,6 +155,10 @@ internal fun MacrobenchmarkScope.routeOpenBackJourney() {
     requireClickDescription("Home")
     requireClickDescription("Menu")
     requireClickTestTag("top_menu_settings")
+    waitForAppVisible()
+    requireClickText("Privacy policy")
+    waitForAppVisible()
+    uiDevice.pressBack()
     waitForAppVisible()
     uiDevice.pressBack()
     requireClickDescription("Menu")

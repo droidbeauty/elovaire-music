@@ -420,7 +420,7 @@ class MotionTransitions internal constructor(
         initialAlpha = 0.04f,
     ) + scaleIn(
         animationSpec = specs.spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
+            dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMediumLow,
         ),
         initialScale = 0.74f,
@@ -464,7 +464,7 @@ class MotionTransitions internal constructor(
         animationSpec = specs.tween(MotionDuration.AlbumDetail, easing = MotionEasing.FadeOut),
     ) + scaleOut(
         animationSpec = specs.spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
+            dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessMediumLow,
         ),
         targetScale = 0.74f,

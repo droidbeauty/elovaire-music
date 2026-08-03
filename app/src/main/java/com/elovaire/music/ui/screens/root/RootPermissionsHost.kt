@@ -53,20 +53,24 @@ internal fun FirstLaunchPermissionLoadingScreen(
     }
     val motionRuntime = LocalMotionRuntime.current
     val motionSpecs = rememberMotionSpecs()
-    val infiniteTransition = rememberInfiniteTransition(label = "first_launch_permission_spinner")
-    val animatedRotationDegrees by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = motionSpecs.tween(
-                durationMillis = 1_100,
-                easing = androidx.compose.animation.core.LinearEasing,
+    val rotationDegrees = if (showLoading && !motionRuntime.reduceMotion) {
+        val infiniteTransition = rememberInfiniteTransition(label = "first_launch_permission_spinner")
+        val animatedRotationDegrees by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = motionSpecs.tween(
+                    durationMillis = 1_100,
+                    easing = androidx.compose.animation.core.LinearEasing,
+                ),
+                repeatMode = RepeatMode.Restart,
             ),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "first_launch_permission_spinner_rotation",
-    )
-    val rotationDegrees = if (motionRuntime.reduceMotion) 0f else animatedRotationDegrees
+            label = "first_launch_permission_spinner_rotation",
+        )
+        animatedRotationDegrees
+    } else {
+        0f
+    }
     Box(
         modifier = Modifier
             .fillMaxSize()

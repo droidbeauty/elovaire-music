@@ -5,6 +5,7 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.spring as composeSpring
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.tween as composeTween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -42,6 +43,7 @@ class MotionSpecs internal constructor(
         dampingRatio: Float = Spring.DampingRatioNoBouncy,
         stiffness: Float = 520f,
     ): FiniteAnimationSpec<T> {
+        if (runtime.reduceMotion) return snap()
         val key = SpringKey(dampingRatio, stiffness)
         return springSpecs.getOrPut(key) {
             composeSpring<Any?>(
