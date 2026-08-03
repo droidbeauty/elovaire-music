@@ -55,6 +55,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -76,6 +77,8 @@ import androidx.compose.ui.window.Dialog
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
+import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
+import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
@@ -116,12 +119,15 @@ internal fun SettingsScreen(
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
+    onOpenPrivacyPolicy: () -> Unit,
     onOpenChangelog: () -> Unit,
     onScanLibrary: () -> Unit,
+    updateController: UpdateController,
 ) {
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
+    val updateState by updateController.uiState.collectAsStateWithLifecycle()
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -263,10 +269,35 @@ internal fun SettingsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
+                        SettingActionRow(
+                            title = "GitHub updates",
+                            subtitle = updateSubtitle(updateState),
+                            actionLabel = updateActionLabel(updateState),
+                            actionIconResId = R.drawable.ic_lucide_refresh_cw,
+                            enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling,
+                            onAction = {
+                                if (updateState.availableRelease == null) {
+                                    updateController.checkForUpdates(force = true)
+                                } else {
+                                    updateController.startUpdate()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                        )
                         SettingNavigationRow(
                             title = foldersCopy.title,
                             subtitle = foldersCopy.subtitle,
                             onClick = onOpenLibraryFolders,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                        )
+                        SettingNavigationRow(
+                            title = "Privacy policy",
+                            subtitle = "How Elovaire handles files, permissions, network requests, and app data",
+                            onClick = onOpenPrivacyPolicy,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
@@ -898,6 +929,7 @@ internal fun SettingActionRow(
     @DrawableRes actionIconResId: Int? = null,
     onAction: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     Row(
@@ -929,16 +961,17 @@ internal fun SettingActionRow(
                 label = "${actionLabel}_setting_action_scale",
             ),
             shape = RoundedCornerShape(ElovaireRadii.pill),
-            color = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            color = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.45f),
+            contentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = if (enabled) 1f else 0.65f),
         ) {
             Row(
                 modifier = Modifier
                     .clip(RoundedCornerShape(ElovaireRadii.pill))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClick = onAction,
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            enabled = enabled,
+                            onClick = onAction,
                     )
                     .padding(horizontal = 16.dp, vertical = 9.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -958,6 +991,27 @@ internal fun SettingActionRow(
             }
         }
     }
+}
+
+private fun updateSubtitle(state: AppUpdateUiState): String = when {
+    state.isChecking -> "Checking for updates..."
+    state.isDownloading -> "Downloading update..."
+    state.isInstalling -> "Preparing update installation..."
+    state.installPermissionRequired -> "Allow installation from GitHub to continue"
+    state.availableRelease != null -> "Version ${state.availableRelease.versionName} is available"
+    state.errorMessage != null -> state.errorMessage
+    state.transientStatus != null -> "You are using the latest version"
+    else -> "Check GitHub Releases for a newer version"
+}
+
+private fun updateActionLabel(state: AppUpdateUiState): String = when {
+    state.isChecking -> "Checking..."
+    state.isDownloading -> "Downloading..."
+    state.isInstalling -> "Installing..."
+    state.installPermissionRequired -> "Allow install"
+    state.availableRelease != null -> "Update"
+    state.errorMessage != null -> "Retry"
+    else -> "Check"
 }
 
 @Composable

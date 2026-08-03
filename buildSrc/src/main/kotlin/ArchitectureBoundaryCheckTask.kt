@@ -106,7 +106,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/tags/AlbumTagEditorService.kt",
             "/ui/screens/about/AboutScreens.kt",
         )
-        val HTTP_ALLOWED = emptySet<String>()
+        val HTTP_ALLOWED = setOf(
+            "/data/update/GitHubUpdateController.kt",
+        )
         val NATIVE_ALLOWED = emptySet<String>()
         val SHARED_PREFERENCES_ALLOWED = setOf(
             "/core/AppExitDiagnostics.kt",
@@ -151,6 +153,8 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         )
         val UPDATE_ALLOWED = setOf(
             "/data/settings/UpdatePreferencesStoreImpl.kt",
+            "/data/update/GitHubUpdateController.kt",
+            "/src/main/AndroidManifest.xml",
         )
         val FORBIDDEN_ARTWORK_SOURCE_MARKERS = setOf(
             "TidalArtworkProvider",

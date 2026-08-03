@@ -107,6 +107,9 @@ internal fun RootRouteGraph(
         composable(ABOUT_ROUTE) {
             AboutRouteHost(routeActions, padding)
         }
+        composable(PRIVACY_POLICY_ROUTE) {
+            PrivacyPolicyRouteHost(routeState, routeActions, padding)
+        }
     }
 }
 

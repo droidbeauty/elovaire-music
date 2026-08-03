@@ -101,6 +101,10 @@ internal class RootRouteActions(
         navController.navigate(CHANGELOG_ROUTE)
     }
 
+    fun openPrivacyPolicy() {
+        navController.navigate(PRIVACY_POLICY_ROUTE)
+    }
+
     fun refreshLibrary() {
         libraryDependencies.libraryRepository.refresh(
             forceMediaIndex = true,

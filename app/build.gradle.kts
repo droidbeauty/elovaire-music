@@ -54,16 +54,6 @@ android {
         }
     }
 
-    flavorDimensions += "distribution"
-    productFlavors {
-        create("github") {
-            dimension = "distribution"
-        }
-        create("play") {
-            dimension = "distribution"
-        }
-    }
-
     signingConfigs {
         if (releaseSigningConfigured) {
             create("release") {
@@ -364,62 +354,43 @@ tasks.named("check") {
     dependsOn(checkResourceStructure)
 }
 
-val assertPlayReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertPlayReleaseManifest") {
-    dependsOn("processPlayReleaseManifest")
+val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertReleaseManifest") {
+    dependsOn("processReleaseManifest")
     manifestFile.set(
         layout.buildDirectory.file(
-            "intermediates/merged_manifests/playRelease/processPlayReleaseManifest/AndroidManifest.xml",
+            "intermediates/merged_manifests/release/processReleaseManifest/AndroidManifest.xml",
         ),
     )
     backupRulesFile.set(layout.projectDirectory.file("src/main/res/xml/backup_rules.xml"))
     dataExtractionRulesFile.set(layout.projectDirectory.file("src/main/res/xml/data_extraction_rules.xml"))
     baselineProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/baseline-prof.txt"))
     startupProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/startup-prof.txt"))
-    allowSelfUpdateComponents.set(false)
-}
-
-val assertGithubReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertGithubReleaseManifest") {
-    dependsOn("processGithubReleaseManifest")
-    manifestFile.set(
-        layout.buildDirectory.file(
-            "intermediates/merged_manifests/githubRelease/processGithubReleaseManifest/AndroidManifest.xml",
-        ),
-    )
-    backupRulesFile.set(layout.projectDirectory.file("src/main/res/xml/backup_rules.xml"))
-    dataExtractionRulesFile.set(layout.projectDirectory.file("src/main/res/xml/data_extraction_rules.xml"))
-    baselineProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/baseline-prof.txt"))
-    startupProfileFile.set(layout.projectDirectory.file("src/main/baselineProfiles/startup-prof.txt"))
-    allowSelfUpdateComponents.set(true)
 }
 
 val validateReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validateReleaseNativePageSize") {
-    dependsOn("bundlePlayRelease")
-    bundleFile.set(layout.buildDirectory.file("outputs/bundle/playRelease/${AppBuildConfig.Application.packageName}-release.aab"))
+    dependsOn("assembleRelease")
+    apkFile.set(layout.buildDirectory.file("outputs/apk/release/${AppBuildConfig.Application.packageName}-release.apk"))
     minPageSize.set(16 * 1024L)
 }
 
 val releaseArtifactInspect = tasks.register<ReleaseArtifactIntegrityTask>("releaseArtifactInspect") {
     dependsOn(
-        "bundlePlayRelease",
-        "collectPlayReleaseDependencies",
-        "sdkPlayReleaseDependencyData",
+        "assembleRelease",
+        "collectReleaseDependencies",
+        "sdkReleaseDependencyData",
     )
-    bundleFile.set(layout.buildDirectory.file("outputs/bundle/playRelease/${AppBuildConfig.Application.packageName}-release.aab"))
-    mappingFile.set(layout.buildDirectory.file("outputs/mapping/playRelease/mapping.txt"))
-    dependencyInventoryFile.set(layout.buildDirectory.file("outputs/sdk-dependencies/playRelease/sdkDependencies.txt"))
-    checksumFile.set(layout.buildDirectory.file("reports/release/play-release.aab.sha256"))
+    apkFile.set(layout.buildDirectory.file("outputs/apk/release/${AppBuildConfig.Application.packageName}-release.apk"))
+    mappingFile.set(layout.buildDirectory.file("outputs/mapping/release/mapping.txt"))
+    dependencyInventoryFile.set(layout.buildDirectory.file("outputs/sdk-dependencies/release/sdkDependencies.txt"))
+    checksumFile.set(layout.buildDirectory.file("reports/release/${AppBuildConfig.Application.packageName}-release.apk.sha256"))
 }
 
 tasks.register("verifyReleaseReadiness") {
     dependsOn(
         "check",
-        "lintPlayRelease",
-        "lintGithubRelease",
-        "assemblePlayRelease",
-        "assembleGithubRelease",
-        "bundlePlayRelease",
-        assertPlayReleaseManifest,
-        assertGithubReleaseManifest,
+        "lintRelease",
+        "assembleRelease",
+        assertReleaseManifest,
         checkResourceStructure,
         validateReleaseNativePageSize,
         releaseArtifactInspect,

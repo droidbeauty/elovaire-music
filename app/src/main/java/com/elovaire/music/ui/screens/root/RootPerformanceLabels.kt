@@ -15,6 +15,7 @@ internal fun rootPerformanceRouteLabel(route: String?): String? {
         LIBRARY_FOLDERS_ROUTE -> "library_folders"
         CHANGELOG_ROUTE -> "changelog"
         ABOUT_ROUTE -> "about"
+        PRIVACY_POLICY_ROUTE -> "privacy_policy"
         EQUALIZER_ROUTE -> "equalizer"
         PLAYER_ROUTE -> "now_playing"
         else -> when {

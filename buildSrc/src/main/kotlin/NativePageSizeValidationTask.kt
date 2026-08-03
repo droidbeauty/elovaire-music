@@ -14,17 +14,17 @@ import org.gradle.api.tasks.TaskAction
 abstract class NativePageSizeValidationTask : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val bundleFile: RegularFileProperty
+    abstract val apkFile: RegularFileProperty
 
     @get:Input
     abstract val minPageSize: Property<Long>
 
     @TaskAction
     fun validate() {
-        val bundle = bundleFile.asFile.get()
-            .takeIf { file -> file.isFile && file.extension == "aab" }
-            ?: throw GradleException("Release AAB was not generated.")
-        ZipFile(bundle).use { zip ->
+        val apk = apkFile.asFile.get()
+            .takeIf { file -> file.isFile && file.extension == "apk" }
+            ?: throw GradleException("Release APK was not generated.")
+        ZipFile(apk).use { zip ->
             zip.entries().iterator().asSequence()
                 .filter { entry -> !entry.isDirectory && entry.name.endsWith(".so") }
                 .forEach { entry ->

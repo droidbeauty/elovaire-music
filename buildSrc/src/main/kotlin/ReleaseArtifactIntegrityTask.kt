@@ -12,7 +12,7 @@ import org.gradle.api.tasks.TaskAction
 abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val bundleFile: RegularFileProperty
+    abstract val apkFile: RegularFileProperty
 
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -27,18 +27,18 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
 
     @TaskAction
     fun inspect() {
-        val bundle = bundleFile.asFile.get().takeIf { it.isFile }
-            ?: throw GradleException("Release AAB was not generated.")
+        val apk = apkFile.asFile.get().takeIf { it.isFile }
+            ?: throw GradleException("Release APK was not generated.")
         requireNonEmpty(mappingFile.asFile.get(), "R8 mapping")
         requireNonEmpty(dependencyInventoryFile.asFile.get(), "release dependency inventory")
 
-        ZipFile(bundle).use { zip ->
+        ZipFile(apk).use { zip ->
             val entries = zip.entries().iterator().asSequence().filterNot { it.isDirectory }.toList()
             val names = entries.map { it.name }
-            if (names.size != names.toSet().size) throw GradleException("Release AAB contains duplicate entries.")
+            if (names.size != names.toSet().size) throw GradleException("Release APK contains duplicate entries.")
             FORBIDDEN_NAMES.forEach { forbidden ->
                 if (names.any { it.endsWith(forbidden, ignoreCase = true) }) {
-                    throw GradleException("Release AAB contains forbidden entry: $forbidden")
+                    throw GradleException("Release APK contains forbidden entry: $forbidden")
                 }
             }
             entries
@@ -46,40 +46,29 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
                 .forEach { entry ->
                     val bytes = zip.getInputStream(entry).use { it.readBytes() }
                     FORBIDDEN_BINARY_MARKERS.firstOrNull(bytes::containsAscii)?.let { marker ->
-                        throw GradleException("Release AAB contains forbidden code or data: $marker")
+                        throw GradleException("Release APK contains forbidden code or data: $marker")
                     }
                 }
             REQUIRED_ENTRIES.forEach { required ->
                 val entry = zip.getEntry(required)
-                    ?: throw GradleException("Release AAB is missing required entry: $required")
-                if (entry.size <= 0L) throw GradleException("Release AAB contains empty entry: $required")
+                    ?: throw GradleException("Release APK is missing required entry: $required")
+                if (entry.size <= 0L) throw GradleException("Release APK contains empty entry: $required")
             }
             val timestamps = entries.mapNotNull { it.time.takeIf { time -> time >= 0L } }.distinct()
             if (timestamps.size > 1) {
-                throw GradleException("Release AAB entries have nondeterministic timestamps.")
+                throw GradleException("Release APK entries have nondeterministic timestamps.")
             }
             if (names.none { it.contains("/LICENSE") }) {
-                throw GradleException("Release AAB contains no packaged dependency license inventory.")
-            }
-            val signatureFiles = names.filter { it.startsWith("META-INF/") }
-            if (
-                signatureFiles.none { it.endsWith(".SF", ignoreCase = true) } ||
-                signatureFiles.none { name ->
-                    name.endsWith(".RSA", ignoreCase = true) ||
-                        name.endsWith(".DSA", ignoreCase = true) ||
-                        name.endsWith(".EC", ignoreCase = true)
-                }
-            ) {
-                throw GradleException("Release AAB is unsigned; configure the Play upload key before release.")
+                throw GradleException("Release APK contains no packaged dependency license inventory.")
             }
         }
 
         val checksum = MessageDigest.getInstance("SHA-256")
-            .digest(bundle.readBytes())
+            .digest(apk.readBytes())
             .joinToString("") { byte -> "%02x".format(byte) }
         checksumFile.asFile.get().apply {
             parentFile.mkdirs()
-            writeText("$checksum  ${bundle.name}\n")
+            writeText("$checksum  ${apk.name}\n")
         }
     }
 
@@ -90,20 +79,17 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
     private companion object {
         val FORBIDDEN_NAMES = listOf(".DS_Store", "local.properties", "DebugProbesKt.bin", ".keystore", ".jks")
         val FORBIDDEN_BINARY_MARKERS = listOf(
-            "AppUpdateManager",
             "AppUpdateInstallReceiver",
-            "application/vnd.android.package-archive",
-            "browser_download_url",
-            "releases/latest",
             "LeakCanary",
             "ComposeViewAdapter",
         )
         val REQUIRED_ENTRIES = listOf(
-            "BundleConfig.pb",
-            "BUNDLE-METADATA/com.android.tools.build.profiles/baseline.prof",
-            "BUNDLE-METADATA/com.android.tools.build.profiles/baseline.profm",
-            "BUNDLE-METADATA/com.android.tools.build.libraries/dependencies.pb",
-            "BUNDLE-METADATA/com.android.tools.build.obfuscation/proguard.map",
+            "AndroidManifest.xml",
+            "resources.arsc",
+            "classes.dex",
+            "assets/dexopt/baseline.prof",
+            "assets/dexopt/baseline.profm",
+            "assets/licenses/THIRD_PARTY_NOTICES.txt",
         )
     }
 }

@@ -268,8 +268,10 @@ internal fun SettingsRouteHost(
         onMonoPlaybackChanged = routeActions.settings::updateMonoPlaybackEnabled,
         onOpenEqualizer = routeActions::openEqualizer,
         onOpenLibraryFolders = routeActions::openLibraryFolders,
+        onOpenPrivacyPolicy = routeActions::openPrivacyPolicy,
         onOpenChangelog = routeActions::openChangelog,
         onScanLibrary = routeActions::refreshLibrary,
+        updateController = routeActions.updateController,
     )
 }
 
@@ -311,6 +313,18 @@ internal fun AboutRouteHost(
     AboutScreen(
         onBack = routeActions::navigateUp,
         bottomPadding = padding.detailBottom,
-        updateController = routeActions.updateController,
+    )
+}
+
+@Composable
+internal fun PrivacyPolicyRouteHost(
+    routeState: RootRouteState,
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    PrivacyPolicyScreen(
+        appLanguage = routeState.appState.appLanguage,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
     )
 }

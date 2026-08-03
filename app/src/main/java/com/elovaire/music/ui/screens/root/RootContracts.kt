@@ -35,6 +35,7 @@ internal const val SETTINGS_ROUTE = "settings"
 internal const val LIBRARY_FOLDERS_ROUTE = "library_folders"
 internal const val CHANGELOG_ROUTE = "changelog"
 internal const val ABOUT_ROUTE = "about"
+internal const val PRIVACY_POLICY_ROUTE = "privacy_policy"
 internal const val ALBUM_ROUTE = "album"
 internal const val ALBUM_TAG_EDITOR_ROUTE = "album_tag_editor"
 internal const val LIBRARY_COLLECTION_ROUTE = "library_collection"
@@ -226,6 +227,7 @@ internal object ElovaireNavigationTransitions {
             EQUALIZER_ROUTE,
             CHANGELOG_ROUTE,
             ABOUT_ROUTE,
+            PRIVACY_POLICY_ROUTE,
             "$LIBRARY_COLLECTION_ROUTE/{kind}",
             "$GENRE_ROUTE/{genre}",
             "$ARTIST_ROUTE/{artistName}",

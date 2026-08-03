@@ -77,7 +77,6 @@ import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 @Composable
 internal fun ChangelogScreen(
@@ -356,12 +355,10 @@ internal fun ChangelogReleaseContent(
 internal fun AboutScreen(
     onBack: () -> Unit,
     bottomPadding: Dp,
-    updateController: UpdateController,
 ) {
     val context = LocalContext.current
     val language = LocalAppLanguage.current
     val aboutModel = remember(context) { context.loadAboutScreenModel() }
-    val updateState by updateController.uiState.collectAsStateWithLifecycle()
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     Box(
         modifier = Modifier
@@ -391,11 +388,6 @@ internal fun AboutScreen(
                     if (index != aboutModel.sections.lastIndex) {
                         DividerLine()
                     }
-                }
-            }
-            if (updateController.isSupported) {
-                item(key = "app-updates") {
-                    AboutUpdateSection(updateController, updateState)
                 }
             }
             item(key = "privacy-disclosure") {
@@ -437,37 +429,6 @@ internal fun AboutScreen(
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
         )
-    }
-}
-
-@Composable
-private fun AboutUpdateSection(
-    controller: UpdateController,
-    state: elovaire.music.droidbeauty.app.data.update.AppUpdateUiState,
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        DividerLine()
-        Text("Updates", style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium))
-        Text("Check GitHub Releases for a newer version.", style = secondaryBodyTextStyle(), color = readableSecondaryTextColor())
-        Surface(
-            onClick = { controller.checkForUpdates(force = true) },
-            shape = RoundedCornerShape(ElovaireRadii.pill),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f),
-            contentColor = MaterialTheme.colorScheme.onSurface,
-        ) {
-            Text(
-                if (state.isChecking) "Checking for updates..." else "Check for updates",
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            )
-        }
-        state.errorMessage?.let { Text(it, style = secondaryBodyTextStyle(), color = readableSecondaryTextColor()) }
-        if (state.transientStatus == elovaire.music.droidbeauty.app.data.update.AppUpdateTransientStatus.UpToDate) {
-            Text("You are using the latest version.", style = secondaryBodyTextStyle(), color = readableSecondaryTextColor())
-        }
     }
 }
 

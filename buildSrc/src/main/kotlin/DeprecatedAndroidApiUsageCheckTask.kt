@@ -97,7 +97,10 @@ abstract class DeprecatedAndroidApiUsageCheckTask : DefaultTask() {
             ),
             RiskyPattern(
                 pattern = "@Suppress(\"DEPRECATION\")",
-                allowedPathSuffixes = listOf("src/main/java/com/elovaire/music/data/library/MediaFilePathResolver.kt"),
+                allowedPathSuffixes = listOf(
+                    "src/main/java/com/elovaire/music/data/library/MediaFilePathResolver.kt",
+                    "src/main/java/com/elovaire/music/data/update/GitHubUpdateController.kt",
+                ),
             ),
             RiskyPattern(
                 pattern = "@SuppressLint(\"DEPRECATION\")",

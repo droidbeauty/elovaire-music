@@ -6,7 +6,6 @@ import org.gradle.api.tasks.InputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
-import org.gradle.api.provider.Property
 import org.w3c.dom.Element
 import javax.xml.parsers.DocumentBuilderFactory
 
@@ -31,9 +30,6 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val startupProfileFile: RegularFileProperty
 
-    @get:Input
-    abstract val allowSelfUpdateComponents: Property<Boolean>
-
     @TaskAction
     fun checkManifest() {
         val manifest = manifestFile.asFile.get()
@@ -41,7 +37,6 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             throw GradleException("Release manifest was not generated.")
         }
         val text = manifest.readText()
-        val selfUpdate = allowSelfUpdateComponents.getOrElse(false)
         listOf(
             "android:usesCleartextTraffic=\"false\"",
             "android:allowBackup=\"true\"",
@@ -55,6 +50,11 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "ElovaireMediaLibraryService",
             "androidx.media3.session.MediaLibraryService",
             "android.media.browse.MediaBrowserService",
+            "android.permission.INTERNET",
+            "android.permission.REQUEST_INSTALL_PACKAGES",
+            "androidx.core.content.FileProvider",
+            "update.fileprovider",
+            "@xml/update_file_paths",
         ).forEach { value ->
             if (value !in text) {
                 throw GradleException("Release manifest is missing expected entry: $value")
@@ -92,20 +92,16 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "androidx.profileinstaller.ProfileInstallReceiver",
             "android.intent.action.INSTALL_PACKAGE",
             "android.settings.MANAGE_UNKNOWN_APP_SOURCES",
-        ) + if (selfUpdate) emptyList() else listOf(
-            "android.permission.REQUEST_INSTALL_PACKAGES",
-            "androidx.core.content.FileProvider",
-            "AppUpdateManager",
         )
         forbiddenEntries.forEach { value ->
             if (value in text) {
                 throw GradleException("Release manifest contains forbidden entry: $value")
             }
         }
-        checkStructuredManifest(manifest, selfUpdate)
+        checkStructuredManifest(manifest)
     }
 
-    private fun checkStructuredManifest(manifest: java.io.File, allowSelfUpdate: Boolean) {
+    private fun checkStructuredManifest(manifest: java.io.File) {
         val factory = DocumentBuilderFactory.newInstance().apply {
             isNamespaceAware = true
             setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
@@ -147,14 +143,7 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             .asElementSequence()
             .map { it.androidAttribute(androidNamespace, "name") }
             .toSet()
-        val allowedPermissions = ALLOWED_RELEASE_PERMISSIONS + if (allowSelfUpdate) {
-            setOf(
-                "android.permission.INTERNET",
-                "android.permission.REQUEST_INSTALL_PACKAGES",
-            )
-        } else {
-            emptySet()
-        }
+        val allowedPermissions = ALLOWED_RELEASE_PERMISSIONS
         val unexpectedPermissions = permissionNames - allowedPermissions
         if (unexpectedPermissions.isNotEmpty()) {
             throw GradleException("Release manifest contains unexpected permissions: ${unexpectedPermissions.sorted()}.")
@@ -198,9 +187,11 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
 
     private companion object {
         val ALLOWED_RELEASE_PERMISSIONS = setOf(
+            "android.permission.INTERNET",
             "android.permission.MODIFY_AUDIO_SETTINGS",
             "android.permission.FOREGROUND_SERVICE",
             "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
+            "android.permission.REQUEST_INSTALL_PACKAGES",
             "android.permission.READ_MEDIA_AUDIO",
             "android.permission.READ_EXTERNAL_STORAGE",
             "android.permission.WAKE_LOCK",
