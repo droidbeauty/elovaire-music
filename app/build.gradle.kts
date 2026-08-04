@@ -1,5 +1,6 @@
 import java.io.File
 import java.util.Properties
+import com.android.build.api.artifact.SingleArtifact
 import dev.detekt.gradle.Detekt
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.jvm.toolchain.JavaLanguageVersion
@@ -129,44 +130,38 @@ androidComponents {
     onVariants(selector().all()) { variant ->
         val buildLabel = variant.buildType ?: variant.name
         val apkFileName = "${AppBuildConfig.Application.packageName}-$buildLabel.apk"
-        val aabFileName = "${AppBuildConfig.Application.packageName}-$buildLabel.aab"
         val variantName = variant.name
         val buildDirPath = layout.buildDirectory.asFile.get().absolutePath
+        val apkArtifact = variant.artifacts.get(SingleArtifact.APK)
         val variantTaskSuffix = variantName.replaceFirstChar { char ->
             if (char.isLowerCase()) char.titlecase() else char.toString()
         }
 
-        tasks.matching { task ->
-            task.name == "assemble$variantTaskSuffix" ||
-                task.name == "bundle$variantTaskSuffix" ||
-                task.name == "sign${variantTaskSuffix}Bundle"
-        }.configureEach {
-            doLast {
-                val apkDir = File(buildDirPath, "outputs/apk/$variantName")
-                apkDir
-                    .listFiles()
-                    ?.asList()
-                    .orEmpty()
-                    .filter { file: File -> file.isFile && file.extension == "apk" && !file.name.contains("androidTest") }
-                    .forEach { file: File ->
-                        val target = file.parentFile.resolve(apkFileName)
-                        if (file.name != apkFileName && file.absolutePath != target.absolutePath) {
-                            file.copyTo(target, overwrite = true)
-                        }
-                    }
+        if (variantName == "debug" || variantName == "release") {
+            val installerOutput = layout.buildDirectory.file("$variantName/$apkFileName")
+            tasks.matching { task -> task.name == "assemble$variantTaskSuffix" }.configureEach {
+                outputs.file(installerOutput)
+                doLast {
+                    val installerDir = File(buildDirPath, variantName)
+                    installerDir.mkdirs()
+                    installerDir.listFiles()
+                        ?.filter { file -> file.extension == "apk" }
+                        .orEmpty()
+                        .forEach(File::deleteRecursively)
 
-                val bundleDir = File(buildDirPath, "outputs/bundle/$variantName")
-                bundleDir
-                    .listFiles()
-                    ?.asList()
-                    .orEmpty()
-                    .filter { file: File -> file.isFile && file.extension == "aab" }
-                    .forEach { file: File ->
-                        val target = file.parentFile.resolve(aabFileName)
-                        if (file.name != aabFileName && file.absolutePath != target.absolutePath) {
-                            file.copyTo(target, overwrite = true)
-                        }
-                    }
+                    val apkArtifactFile = apkArtifact.get().asFile
+                    val sourceApk = if (apkArtifactFile.isFile) {
+                        apkArtifactFile
+                    } else {
+                        apkArtifactFile.listFiles()
+                            ?.filter { file -> file.isFile && file.extension == "apk" && !file.name.contains("androidTest") }
+                            ?.singleOrNull()
+                    } ?: error("$variantName APK was not generated.")
+                    sourceApk.copyTo(
+                        target = installerDir.resolve(apkFileName),
+                        overwrite = true,
+                    )
+                }
             }
         }
     }
@@ -369,7 +364,7 @@ val assertReleaseManifest = tasks.register<ReleaseManifestCheckTask>("assertRele
 
 val validateReleaseNativePageSize = tasks.register<NativePageSizeValidationTask>("validateReleaseNativePageSize") {
     dependsOn("assembleRelease")
-    apkFile.set(layout.buildDirectory.file("outputs/apk/release/${AppBuildConfig.Application.packageName}-release.apk"))
+    apkFile.set(layout.buildDirectory.file("release/${AppBuildConfig.Application.packageName}-release.apk"))
     minPageSize.set(16 * 1024L)
 }
 
@@ -379,10 +374,10 @@ val releaseArtifactInspect = tasks.register<ReleaseArtifactIntegrityTask>("relea
         "collectReleaseDependencies",
         "sdkReleaseDependencyData",
     )
-    apkFile.set(layout.buildDirectory.file("outputs/apk/release/${AppBuildConfig.Application.packageName}-release.apk"))
+    apkFile.set(layout.buildDirectory.file("release/${AppBuildConfig.Application.packageName}-release.apk"))
     mappingFile.set(layout.buildDirectory.file("outputs/mapping/release/mapping.txt"))
     dependencyInventoryFile.set(layout.buildDirectory.file("outputs/sdk-dependencies/release/sdkDependencies.txt"))
-    checksumFile.set(layout.buildDirectory.file("reports/release/${AppBuildConfig.Application.packageName}-release.apk.sha256"))
+    checksumFile.set(layout.buildDirectory.file("release/${AppBuildConfig.Application.packageName}-release.apk.sha256"))
 }
 
 tasks.register("verifyReleaseReadiness") {

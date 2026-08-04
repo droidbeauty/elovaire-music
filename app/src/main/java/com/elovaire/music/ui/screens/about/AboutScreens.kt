@@ -65,7 +65,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
-import elovaire.music.droidbeauty.app.ui.i18n.privacySafetyCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
@@ -387,39 +386,6 @@ internal fun AboutScreen(
                     )
                     if (index != aboutModel.sections.lastIndex) {
                         DividerLine()
-                    }
-                }
-            }
-            item(key = "privacy-disclosure") {
-                val privacyCopy = remember(language) { privacySafetyCopy(language) }
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 2.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    DividerLine()
-                    Text(
-                        text = privacyCopy.title,
-                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    privacyCopy.sections.forEachIndexed { index, section ->
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(
-                                text = section.title,
-                                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurface,
-                            )
-                            Text(
-                                text = section.body,
-                                style = secondaryBodyTextStyle(),
-                                color = readableSecondaryTextColor(),
-                            )
-                        }
-                        if (index != privacyCopy.sections.lastIndex) {
-                            DividerLine()
-                        }
                     }
                 }
             }

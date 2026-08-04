@@ -2325,46 +2325,6 @@ internal data class PrivacySafetySectionCopy(
     val body: String,
 )
 
-internal fun privacySafetyCopy(
-    language: AppLanguage,
-): PrivacySafetyCopy {
-    val title = when (language) {
-        AppLanguage.Polish -> "Prywatność i bezpieczeństwo"
-        AppLanguage.Slovak -> "Súkromie a bezpečnosť"
-        AppLanguage.ChineseSimplified -> "隐私与安全"
-        AppLanguage.Korean -> "개인정보 및 안전"
-        AppLanguage.Czech -> "Soukromí a bezpečnost"
-        AppLanguage.French -> "Confidentialité et sécurité"
-        AppLanguage.German -> "Datenschutz und Sicherheit"
-        AppLanguage.Spanish -> "Privacidad y seguridad"
-        AppLanguage.Portuguese -> "Privacidade e segurança"
-        AppLanguage.Italian -> "Privacy e sicurezza"
-        AppLanguage.Japanese -> "プライバシーと安全"
-        else -> "Privacy & safety"
-    }
-    return PrivacySafetyCopy(
-        title = title,
-        sections = listOf(
-            PrivacySafetySectionCopy(
-                "Local library",
-                "Elovaire reads audio folders you choose to build your music library. Removing a folder only removes it from Elovaire's scan list; your audio files remain on your device.",
-            ),
-            PrivacySafetySectionCopy(
-                "On-device data",
-                "Playlists, favorites, settings, playback history, play counts, search history, artwork, and lyrics are processed and stored on your device. Elovaire does not use accounts, advertising, analytics, or remote media providers.",
-            ),
-            PrivacySafetySectionCopy(
-                "Local lyrics and artwork",
-                "Elovaire reads embedded artwork and lyrics, sidecar LRC files, and images you select. Manual edits are written only after your action and Android write authorization.",
-            ),
-            PrivacySafetySectionCopy(
-                "Privacy policy",
-                "Droid Beauty provides Elovaire without accounts, advertising, analytics, or data sales. Portable settings may be included in Android backup; music, media permissions, playback state, caches, and operation journals are excluded.",
-            ),
-        ),
-    )
-}
-
 internal fun privacyPolicyCopy(language: AppLanguage): PrivacySafetyCopy {
     val title = when (language) {
         AppLanguage.Polish -> "Polityka prywatności"

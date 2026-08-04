@@ -177,7 +177,7 @@ internal fun PlaylistArtworkPreview(
                             painter = painterResource(id = R.drawable.ic_lucide_music),
                             contentDescription = title.ifBlank { copy.playlistArtworkPlaceholder },
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                            modifier = Modifier.size(40.dp),
+                            modifier = Modifier.size(20.dp),
                         )
                     }
                 }

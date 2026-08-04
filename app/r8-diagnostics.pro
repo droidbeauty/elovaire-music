@@ -1,2 +1,2 @@
--printusage build/outputs/mapping/release/usage.txt
--printseeds build/outputs/mapping/release/seeds.txt
+-printusage build/release/usage.txt
+-printseeds build/release/seeds.txt
