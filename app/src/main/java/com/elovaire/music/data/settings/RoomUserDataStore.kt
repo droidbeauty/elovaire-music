@@ -76,8 +76,7 @@ internal class RoomUserDataStore(
     }
 
     private val _userPlaylists = MutableStateFlow<List<Playlist>>(emptyList())
-    private val _playlists = MutableStateFlow<List<Playlist>>(emptyList())
-    override val playlists: StateFlow<List<Playlist>> = _playlists.asStateFlow()
+    override val playlists: StateFlow<List<Playlist>> = _userPlaylists.asStateFlow()
 
     private val _userSmartPlaylists = MutableStateFlow<List<SmartPlaylist>>(emptyList())
     private val _smartPlaylists = MutableStateFlow(SmartPlaylistDefaults.builtIns())
@@ -101,7 +100,6 @@ internal class RoomUserDataStore(
             val result = createPlaylistEntries(_userPlaylists.value, name, id) ?: return@tryEnqueue
             dao.insertPlaylist(result.createdPlaylist.toEntity())
             _userPlaylists.value = result.playlists
-            _playlists.value = result.playlists
         }) id else -1L
     }
 
@@ -352,7 +350,6 @@ internal class RoomUserDataStore(
     private fun publishPlaylists(playlists: List<Playlist>) {
         if (_userPlaylists.value == playlists) return
         _userPlaylists.value = playlists
-        _playlists.value = playlists
     }
 
     private fun publishSmartPlaylists(playlists: List<SmartPlaylist>) {

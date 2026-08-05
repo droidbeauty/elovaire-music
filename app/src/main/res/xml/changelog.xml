@@ -6,9 +6,7 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.6">
-        <item>Various UI and technical improvements</item>
-        <item>Performance tweaks and animation system improvements</item>
-        <item>Fixed issues with crossfade feature</item>
+    <release version="2.6.1">
+        <item>minor UI tweaks</item>
     </release>
 </changelog>

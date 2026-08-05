@@ -17,21 +17,14 @@ data class MotionRuntime(
     val reduceMotion: Boolean
         get() = durationScale <= 0f
 
-    fun duration(milliseconds: Int): Int = when {
-        milliseconds <= 0 -> 0
-        reduceMotion -> 0
-        else -> (milliseconds * durationScale).toInt().coerceAtLeast(1)
-    }
+    fun duration(milliseconds: Int): Int = scale(milliseconds.toLong()).toInt()
 
-    fun delay(milliseconds: Int): Int = when {
-        milliseconds <= 0 -> 0
-        reduceMotion -> 0
-        else -> (milliseconds * durationScale).toInt().coerceAtLeast(1)
-    }
+    fun delay(milliseconds: Int): Int = duration(milliseconds)
 
-    fun duration(milliseconds: Long): Long = when {
-        milliseconds <= 0L -> 0L
-        reduceMotion -> 0L
+    fun duration(milliseconds: Long): Long = scale(milliseconds)
+
+    private fun scale(milliseconds: Long): Long = when {
+        milliseconds <= 0L || reduceMotion -> 0L
         else -> (milliseconds * durationScale).toLong().coerceAtLeast(1L)
     }
 }

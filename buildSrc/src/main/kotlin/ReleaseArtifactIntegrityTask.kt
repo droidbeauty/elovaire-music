@@ -1,3 +1,4 @@
+import java.io.InputStream
 import java.security.MessageDigest
 import java.util.zip.ZipFile
 import org.gradle.api.DefaultTask
@@ -44,8 +45,8 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
             entries
                 .filter { entry -> entry.name.endsWith(".dex") || entry.name.endsWith(".pb") }
                 .forEach { entry ->
-                    val bytes = zip.getInputStream(entry).use { it.readBytes() }
-                    FORBIDDEN_BINARY_MARKERS.firstOrNull(bytes::containsAscii)?.let { marker ->
+                    val marker = zip.getInputStream(entry).use { it.findAscii(FORBIDDEN_BINARY_MARKERS) }
+                    marker?.let { marker ->
                         throw GradleException("Release APK contains forbidden code or data: $marker")
                     }
                 }
@@ -63,9 +64,16 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
             }
         }
 
-        val checksum = MessageDigest.getInstance("SHA-256")
-            .digest(apk.readBytes())
-            .joinToString("") { byte -> "%02x".format(byte) }
+        val digest = MessageDigest.getInstance("SHA-256")
+        apk.inputStream().use { input ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val count = input.read(buffer)
+                if (count <= 0) break
+                digest.update(buffer, 0, count)
+            }
+        }
+        val checksum = digest.digest().joinToString("") { byte -> "%02x".format(byte) }
         checksumFile.asFile.get().apply {
             parentFile.mkdirs()
             writeText("$checksum  ${apk.name}\n")
@@ -94,18 +102,40 @@ abstract class ReleaseArtifactIntegrityTask : DefaultTask() {
     }
 }
 
-private fun ByteArray.containsAscii(value: String): Boolean {
-    val needle = value.toByteArray(Charsets.US_ASCII)
-    if (needle.isEmpty() || needle.size > size) return false
-    for (start in 0..size - needle.size) {
-        var matches = true
-        for (offset in needle.indices) {
-            if (this[start + offset] != needle[offset]) {
-                matches = false
-                break
+private fun InputStream.findAscii(values: List<String>): String? {
+    data class Matcher(
+        val value: String,
+        val needle: ByteArray,
+        val prefix: IntArray,
+        var matched: Int = 0,
+    )
+
+    val matchers = values.map { value ->
+        val needle = value.toByteArray(Charsets.US_ASCII)
+        val prefix = IntArray(needle.size)
+        var length = 0
+        for (index in 1 until needle.size) {
+            while (length > 0 && needle[index] != needle[length]) {
+                length = prefix[length - 1]
+            }
+            if (needle[index] == needle[length]) length++
+            prefix[index] = length
+        }
+        Matcher(value, needle, prefix)
+    }
+    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+    while (true) {
+        val count = read(buffer)
+        if (count <= 0) return null
+        for (index in 0 until count) {
+            val byte = buffer[index]
+            for (matcher in matchers) {
+                while (matcher.matched > 0 && byte != matcher.needle[matcher.matched]) {
+                    matcher.matched = matcher.prefix[matcher.matched - 1]
+                }
+                if (byte == matcher.needle[matcher.matched]) matcher.matched++
+                if (matcher.matched == matcher.needle.size) return matcher.value
             }
         }
-        if (matches) return true
     }
-    return false
 }

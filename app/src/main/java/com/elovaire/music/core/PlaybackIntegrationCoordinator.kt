@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 
@@ -79,16 +80,12 @@ internal class PlaybackIntegrationCoordinator(
                 }
         }
         scope.launch {
-            playback.queueState
-                .collect { persistSession() }
-        }
-        scope.launch {
-            playback.transportState
-                .collect { persistSession() }
-        }
-        scope.launch {
-            playback.progressState
-                .sample(PLAYBACK_POSITION_PERSIST_INTERVAL_MS)
+            merge(
+                combine(playback.queueState, playback.transportState) { _, _ -> Unit },
+                playback.progressState
+                    .sample(PLAYBACK_POSITION_PERSIST_INTERVAL_MS)
+                    .map { Unit },
+            )
                 .collect { persistSession() }
         }
     }
