@@ -10,9 +10,6 @@ import java.util.Locale
 
 internal object MediaFilePathResolver {
     @Suppress("DEPRECATION")
-    val dataColumn: String = MediaStore.MediaColumns.DATA
-
-    @Suppress("DEPRECATION")
     fun defaultMusicDirectory(): File {
         return Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC)
     }
@@ -30,36 +27,20 @@ internal object MediaFilePathResolver {
         if (mediaUri.scheme == ContentResolver.SCHEME_FILE) {
             return mediaUri.path?.takeIf { File(it).exists() }
         }
-        val preferredProjection = arrayOf(
-            dataColumn,
+        val projection = arrayOf(
             MediaStore.MediaColumns.RELATIVE_PATH,
             MediaStore.MediaColumns.DISPLAY_NAME,
             MediaStore.MediaColumns.VOLUME_NAME,
         )
-        val fallbackProjection = arrayOf(
-            MediaStore.MediaColumns.RELATIVE_PATH,
-            MediaStore.MediaColumns.DISPLAY_NAME,
-            MediaStore.MediaColumns.VOLUME_NAME,
-        )
-        return contentResolver.queryMediaStoreFilePath(context, mediaUri, preferredProjection)
-            ?: contentResolver.queryMediaStoreFilePath(context, mediaUri, fallbackProjection)
+        return contentResolver.queryMediaStoreFilePath(context, mediaUri, projection)
     }
 
     fun resolveMediaStoreFilePath(
         context: Context,
-        rawDataPath: String?,
         relativePath: String?,
         displayName: String?,
         volumeName: String?,
     ): String? {
-        val directPath = rawDataPath
-            ?.trim()
-            ?.ifBlank { null }
-            ?.let(::File)
-            ?.takeIf(File::exists)
-            ?.absolutePath
-        if (directPath != null) return directPath
-
         val normalizedName = displayName?.trim()?.ifBlank { null } ?: return null
         val normalizedRelativePath = relativePath
             ?.trim()
@@ -87,7 +68,6 @@ internal object MediaFilePathResolver {
                 if (!cursor.moveToFirst()) return@use null
                 resolveMediaStoreFilePath(
                     context = context,
-                    rawDataPath = cursor.optionalString(dataColumn),
                     relativePath = cursor.optionalString(MediaStore.MediaColumns.RELATIVE_PATH),
                     displayName = cursor.optionalString(MediaStore.MediaColumns.DISPLAY_NAME),
                     volumeName = cursor.optionalString(MediaStore.MediaColumns.VOLUME_NAME),

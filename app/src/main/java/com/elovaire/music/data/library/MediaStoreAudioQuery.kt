@@ -21,7 +21,6 @@ internal object MediaStoreAudioQuery {
         MediaStore.MediaColumns.DATE_MODIFIED,
         MediaStore.MediaColumns.RELATIVE_PATH,
         MediaStore.MediaColumns.VOLUME_NAME,
-        MediaFilePathResolver.dataColumn,
     )
 
     val collectionUri: Uri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)

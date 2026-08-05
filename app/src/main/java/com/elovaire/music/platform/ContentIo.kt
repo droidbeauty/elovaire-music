@@ -9,6 +9,7 @@ import androidx.annotation.WorkerThread
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
+import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.InputStream
 
@@ -32,6 +33,32 @@ internal class ContentIo(
     @WorkerThread
     fun replaceFromFile(uri: Uri, source: File) {
         check(source.isFile) { "The replacement file is unavailable." }
+        val output = try {
+            resolver.openOutputStream(uri, "rwt")
+        } catch (_: FileNotFoundException) {
+            null
+        } catch (_: UnsupportedOperationException) {
+            null
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        if (output != null) {
+            output.use { destination ->
+                source.inputStream().use { input ->
+                    input.copyTo(destination)
+                }
+                destination.flush()
+            }
+        } else {
+            replaceFromDescriptor(uri, source)
+        }
+        val persistedSize = resolver.openFileDescriptor(uri, "r")?.use(ParcelFileDescriptor::getStatSize)
+        check(persistedSize == null || persistedSize < 0L || persistedSize == source.length()) {
+            "The provider persisted an incomplete file."
+        }
+    }
+
+    private fun replaceFromDescriptor(uri: Uri, source: File) {
         openWritableDescriptor(uri).use { descriptor ->
             FileOutputStream(descriptor.fileDescriptor).channel.use { output ->
                 output.position(0L)
@@ -48,10 +75,6 @@ internal class ContentIo(
                 }
                 output.force(true)
             }
-        }
-        val persistedSize = resolver.openFileDescriptor(uri, "r")?.use(ParcelFileDescriptor::getStatSize)
-        check(persistedSize == null || persistedSize < 0L || persistedSize == source.length()) {
-            "The provider persisted an incomplete file."
         }
     }
 
@@ -79,6 +102,24 @@ internal class ContentIo(
         }
         accessFailure?.let { throw it }
         throw ProviderRejectedWriteModeException(uri)
+    }
+
+    @WorkerThread
+    fun probeWritable(uri: Uri) {
+        val stream = try {
+            resolver.openOutputStream(uri, "rw")
+        } catch (_: FileNotFoundException) {
+            null
+        } catch (_: UnsupportedOperationException) {
+            null
+        } catch (_: IllegalArgumentException) {
+            null
+        }
+        if (stream != null) {
+            stream.use { }
+        } else {
+            openWritableDescriptor(uri).use { }
+        }
     }
 
     @WorkerThread
