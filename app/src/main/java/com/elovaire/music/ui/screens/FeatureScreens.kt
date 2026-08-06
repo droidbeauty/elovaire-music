@@ -6923,7 +6923,7 @@ internal fun NowPlayingScreen(
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 634.dp
+                val queueSheetTopExtension = 706.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),

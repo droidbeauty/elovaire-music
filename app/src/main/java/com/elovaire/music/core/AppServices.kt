@@ -88,17 +88,6 @@ internal class AppServices(
         LyricsService(
             context = applicationContext,
             mediaMutationJournal = mediaMutationJournal,
-            onEmbeddedLyricsChanged = callback@{ song ->
-                if (released.get()) return@callback
-                appScope.launch {
-                    if (released.get()) return@launch
-                    libraryRepository.refreshChangedFiles(
-                        filePaths = listOfNotNull(song.libraryPath?.takeIf { it.isNotBlank() }),
-                        songIds = listOf(song.id),
-                        enrichMetadata = true,
-                    )
-                }
-            },
         )
     }
     val lyricsService get() = lyricsServiceDelegate.value

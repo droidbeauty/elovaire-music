@@ -20,7 +20,7 @@
     <entry
         title="Droid Beauty"
         description="Beautifully designed widgets and themes for Android to make your homescreen stunning. I'm also the creator of this music player app you're using right now"
-        logoUrl="@drawable/logosplashimage"
+        logoUrl="https://raw.githubusercontent.com/user774820/logoimages/refs/heads/main/DroidBeautyLogo.png"
         >
         <link
             label="Instagram"

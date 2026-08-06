@@ -72,7 +72,8 @@ internal object MediaIdentityResolver {
 
     fun resolve(song: Song): MediaSourceIdentity? {
         resolveContentUri(song.uri)?.let { return it }
-        return directFile(song.libraryPath)
+        if (song.uri.scheme.equals("content", ignoreCase = true)) return null
+        return directFile(song.libraryPath ?: song.uri.path)
     }
 
     fun stableKey(song: Song): String {

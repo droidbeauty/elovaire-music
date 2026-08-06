@@ -46,13 +46,6 @@ internal fun PrivacyPolicyScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(24.dp),
         ) {
-            item {
-                Text(
-                    text = copy.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
-            }
             itemsIndexed(
                 items = copy.sections,
                 key = { index, section -> "${section.title}-$index" },

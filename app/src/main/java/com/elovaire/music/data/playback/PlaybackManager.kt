@@ -671,22 +671,6 @@ class PlaybackManager(
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
     }
 
-    internal fun mergePersistedRecentPlayback(persisted: RecentPlaybackState) {
-        if (released.get()) return
-        _state.update { current ->
-            current.copy(
-                recentSongIds = (current.recentSongIds + persisted.recentSongIds)
-                    .distinct()
-                    .take(MAX_HISTORY_ITEMS),
-                recentAlbumIds = (current.recentAlbumIds + persisted.recentAlbumIds)
-                    .distinct()
-                    .take(MAX_HISTORY_ITEMS),
-                lastPlayedCollectionKind = current.lastPlayedCollectionKind ?: persisted.lastPlayedCollectionKind,
-                lastPlayedCollectionId = current.lastPlayedCollectionId ?: persisted.lastPlayedCollectionId,
-            )
-        }
-    }
-
     internal fun restoreSession(
         songs: List<Song>,
         currentIndex: Int,

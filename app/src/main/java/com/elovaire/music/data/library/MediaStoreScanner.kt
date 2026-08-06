@@ -31,6 +31,7 @@ class MediaStoreScanner(
         scanRoots = scanRoots::accessibleFileRoots,
     )
     private val safTreeScanner = SafTreeLibraryScanner(context)
+    internal val targetExistenceProbe = MediaTargetExistenceProbe(context)
 
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean {
         return scanRoots.setSelections(selections)

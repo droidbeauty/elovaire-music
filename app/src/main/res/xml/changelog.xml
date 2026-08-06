@@ -6,7 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.6.1">
-        <item>minor UI tweaks</item>
+    <release version="2.6.2">
+        <item>Various architecture upgrades for better efficiency</item>
+        <item>Improved perceived smoothness of the UI</item>
+        <item>Fixed tag editing system</item>
     </release>
 </changelog>

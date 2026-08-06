@@ -43,6 +43,16 @@ class MediaIdentityTest {
         assertNotEquals(MediaIdentityResolver.revision(original), MediaIdentityResolver.revision(edited))
     }
 
+    @Test
+    fun unknownContentProviderDoesNotFallBackToMutablePath() {
+        val song = song(10L).copy(uri = TestUri("content://example.provider/item/1"))
+
+        assertEquals(
+            "uri:content://example.provider/item/1",
+            MediaIdentityResolver.stableKey(song),
+        )
+    }
+
     private fun song(modifiedSeconds: Long): Song = Song(
         id = 1L,
         title = "Title",

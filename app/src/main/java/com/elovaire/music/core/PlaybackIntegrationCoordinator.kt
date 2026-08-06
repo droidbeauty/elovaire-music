@@ -7,6 +7,8 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
@@ -26,6 +28,7 @@ internal class PlaybackIntegrationCoordinator(
     private val playback: PlaybackManager,
     private val effects: PlaybackEffectsController,
     private val sessionStore: PlaybackSessionStore,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private var restorationAttempted = false
     private var cachedQueue: List<elovaire.music.droidbeauty.app.domain.model.Song>? = null
@@ -48,21 +51,6 @@ internal class PlaybackIntegrationCoordinator(
         scope.launch {
             preferences.volumeNormalizationEnabled
                 .collect(playback::setVolumeNormalizationEnabled)
-        }
-        scope.launch {
-            combine(
-                preferences.recentSongIds,
-                preferences.recentAlbumIds,
-                preferences.lastPlayedCollectionKind,
-                preferences.lastPlayedCollectionId,
-            ) { songIds, albumIds, collectionKind, collectionId ->
-                elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState(
-                    recentSongIds = songIds,
-                    recentAlbumIds = albumIds,
-                    lastPlayedCollectionKind = collectionKind,
-                    lastPlayedCollectionId = collectionId,
-                )
-            }.distinctUntilChanged().collect(playback::mergePersistedRecentPlayback)
         }
         scope.launch {
             playback.nowPlayingState
@@ -136,7 +124,7 @@ internal class PlaybackIntegrationCoordinator(
                 shuffleEnabled = transport.shuffleEnabled,
                 sourcePlaylistId = queue.sourcePlaylistId,
                 wasPlaying = transport.isPlaying || transport.transportShowsPause,
-                savedAtWallTimeMs = 0L,
+                savedAtWallTimeMs = clock.wallTimeMs(),
             ),
         )
     }

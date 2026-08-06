@@ -264,11 +264,6 @@ internal class AlbumTagEditorViewModel(
             }
             if (result.editedSongIds.isNotEmpty()) {
                 libraryRepository.applyVerifiedTagEdits(result.editedSongs)
-                libraryRepository.refreshChangedFiles(
-                    filePaths = result.editedFilePaths,
-                    songIds = result.editedSongIds,
-                    enrichMetadata = true,
-                )
             }
             val failures = result.failures.map { failure ->
                 TagEditFailureUi(

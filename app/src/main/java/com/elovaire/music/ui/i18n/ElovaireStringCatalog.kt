@@ -2366,31 +2366,31 @@ internal fun privacyPolicyCopy(language: AppLanguage): PrivacySafetyCopy {
         sections = listOf(
             PrivacySafetySectionCopy(
                 "Overview",
-                "Elovaire is a local music player distributed through GitHub. It does not require an account, advertising profile, analytics, or cloud music library.",
+                "Elovaire is a local music player distributed through GitHub. It does not require an account, advertising profile, analytics, or cloud music library",
             ),
             PrivacySafetySectionCopy(
                 "Music and media files",
-                "Elovaire reads the audio files, tags, artwork, and lyrics in folders and documents that you grant it access to. Tag and lyrics edits happen only after you request them and Android allows the write. Complete audio files are not uploaded.",
+                "Elovaire reads the audio files, tags, artwork, and lyrics in folders and documents that you grant it access to. Tag and lyrics edits happen only after you request them and Android allows the write. Complete audio files are not uploaded",
             ),
             PrivacySafetySectionCopy(
                 "Local app data",
-                "Playlists, smart mixes, favorites, play history, play counts, search history, settings, the library index, artwork cache, and update preferences are stored locally. Android backup may include portable settings; music files, permissions, caches, and operation journals are excluded.",
+                "Playlists, smart mixes, favorites, play history, play counts, search history, settings, the library index, artwork cache, and update preferences are stored locally. Android backup may include portable settings; music files, permissions, caches, and operation journals are excluded",
             ),
             PrivacySafetySectionCopy(
                 "Permissions",
-                "The app may request audio-media access, notifications for playback, document access for folders you choose, USB access for compatible audio devices, and permission to install GitHub updates. Each permission is used only for the related feature.",
+                "The app may request audio-media access, notifications for playback, document access for folders you choose, USB access for compatible audio devices, and permission to install GitHub updates. Each permission is used only for the related feature",
             ),
             PrivacySafetySectionCopy(
                 "Network",
-                "The GitHub-only updater checks public releases and downloads an APK and its checksum when you check for an update or an automatic foreground check is due. Remote lyrics and paid metadata services are not used. No music content or search history is sent to GitHub.",
+                "The GitHub-only updater checks public releases and downloads an APK and its checksum when you check for an update or an automatic foreground check is due. Remote lyrics and paid metadata services are not used. No music content or search history is sent to GitHub",
             ),
             PrivacySafetySectionCopy(
                 "GitHub updates",
-                "GitHub receives normal network request information when release metadata or update files are requested. Downloaded files remain in private app storage until Android's installer is opened. Elovaire verifies the checksum, package name, version, and signing certificate before handing an update to Android.",
+                "GitHub receives normal network request information when release metadata or update files are requested. Downloaded files remain in private app storage until Android's installer is opened. Elovaire verifies the checksum, package name, version, and signing certificate before handing an update to Android",
             ),
             PrivacySafetySectionCopy(
                 "Sharing, retention, and deletion",
-                "Elovaire does not sell or share your music data. Local data remains until you clear app data, remove it through an in-app feature, or uninstall the app. Temporary update files are cleaned when they are no longer needed. The source code and release APKs are published at github.com/droidbeauty/elovaire-music.",
+                "Elovaire does not sell or share your music data. Local data remains until you clear app data, remove it through an in-app feature, or uninstall the app. Temporary update files are cleaned when they are no longer needed. The source code and release APKs are published at github.com/droidbeauty/elovaire-music",
             ),
         ),
     )

@@ -64,6 +64,7 @@ data class LibraryDeleteRequest(
     val albumIds: Set<Long>,
     val uris: Set<Uri>,
     val filePaths: Set<String>,
+    val uriBySongId: Map<Long, Uri> = emptyMap(),
 )
 
 data class LibraryDeleteResult(
@@ -462,7 +463,10 @@ class LibraryRepository internal constructor(
                 scanner.clearMetadataCache()
             }
             refresh(
-                forceMediaIndex = true,
+                // A known item with no path (for example a SAF document) is
+                // still refreshable through its content URI. Re-indexing the
+                // entire storage tree here is both unnecessary and unsafe.
+                forceMediaIndex = false,
                 enrichMetadata = enrichMetadata,
                 showLoadingIndicator = false,
             )
@@ -528,7 +532,6 @@ class LibraryRepository internal constructor(
         scanner.invalidateMetadataCacheForSongIds(request.songIds)
         scanner.invalidateMetadataCacheForPaths(request.filePaths)
 
-        delay(DELETE_EXIT_ANIMATION_MS)
         val remainingSongs = _contentState.value.songs.filterNot { it.id in request.songIds }
         val updatedState = publishLibraryContent(remainingSongs)
         withContext(Dispatchers.IO) {
@@ -540,9 +543,25 @@ class LibraryRepository internal constructor(
             )
         }
 
-        delay(DELETE_CONFIRMATION_DELAY_MS)
-        val stillPresent = withContext(Dispatchers.IO) {
-            scanner.findExistingSongIds(request.songIds)
+        var remainingTargets = request.uriBySongId
+        var stillPresent = withContext(Dispatchers.IO) {
+            if (remainingTargets.isNotEmpty()) {
+                scanner.targetExistenceProbe.findExistingSongIds(remainingTargets)
+            } else {
+                scanner.findExistingSongIds(request.songIds)
+            }
+        }
+        repeat(DELETE_CONFIRMATION_MAX_POLLS) {
+            if (stillPresent.isEmpty()) return@repeat
+            delay(DELETE_CONFIRMATION_POLL_MS)
+            stillPresent = withContext(Dispatchers.IO) {
+                if (remainingTargets.isNotEmpty()) {
+                    remainingTargets = remainingTargets.filterKeys { it in stillPresent }
+                    scanner.targetExistenceProbe.findExistingSongIds(remainingTargets)
+                } else {
+                    scanner.findExistingSongIds(stillPresent)
+                }
+            }
         }
         val deletedSongIds = request.songIds - stillPresent
         val affectedAlbumIds = current.songs
@@ -597,12 +616,9 @@ class LibraryRepository internal constructor(
 
     suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
         if (editedSongs.isEmpty()) return
-        val updatesById = editedSongs.associateBy(Song::id)
         val current = _contentState.value
-        val updatedSongs = current.songs.map { song -> updatesById[song.id] ?: song }
-        if (updatedSongs == current.songs) return
-        val updatedState = publishLibraryContent(
-            songs = updatedSongs,
+        val updatedState = snapshotPublisher.patchSongs(
+            editedSongs = editedSongs,
             removingSongIds = current.removingSongIds,
             removingAlbumIds = current.removingAlbumIds,
         )
@@ -695,9 +711,9 @@ class LibraryRepository internal constructor(
 
     private companion object {
         const val AUTO_REFRESH_DEBOUNCE_MS = 350L
-        const val DELETE_EXIT_ANIMATION_MS = 190L
-        const val DELETE_CONFIRMATION_DELAY_MS = 500L
         const val DELETE_OBSERVER_SUPPRESSION_MS = 1_200L
+        const val DELETE_CONFIRMATION_POLL_MS = 100L
+        const val DELETE_CONFIRMATION_MAX_POLLS = 5
     }
 
     private fun releaseObserversAndJobs(clearPermissionState: Boolean) {

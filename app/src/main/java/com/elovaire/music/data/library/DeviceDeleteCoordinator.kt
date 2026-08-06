@@ -47,6 +47,7 @@ internal class DeviceDeleteCoordinator(
                 albumIds = plan.songs.mapTo(linkedSetOf(), Song::albumId),
                 uris = plan.songs.mapTo(linkedSetOf(), Song::uri),
                 filePaths = plan.filePaths,
+                uriBySongId = plan.songs.associate { it.id to it.uri },
             ),
         )
         cleanupEmptyDirectories(plan.parentDirectories)
