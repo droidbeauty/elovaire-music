@@ -296,6 +296,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.discLabel
 import elovaire.music.droidbeauty.app.ui.i18n.availableReleasesLabel
+import elovaire.music.droidbeauty.app.ui.i18n.artistTopTracksSubtitle
 import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.homeCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
@@ -2301,7 +2302,7 @@ internal fun ArtistDetailScreen(
                     ) {
                         ArtistSectionTitleRow(
                             title = rootUiCopy(LocalAppLanguage.current).mostPlayedSongs,
-                            subtitle = "${formatCountLabel(topSongs.size, "track")} you return to the most",
+                            subtitle = artistTopTracksSubtitle(topSongs.size, LocalAppLanguage.current),
                             iconResId = R.drawable.ic_lucide_music,
                         )
                         Column {
@@ -6923,7 +6924,7 @@ internal fun NowPlayingScreen(
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 706.dp
+                val queueSheetTopExtension = 778.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -7494,7 +7495,6 @@ private fun QueueSheet(
                     }
                 }
             }
-            QueueSeparator(tint = tint, modifier = Modifier.fillMaxWidth())
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -7540,8 +7540,6 @@ private fun QueueSheet(
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(20.dp))
-            QueueSeparator(tint = tint, modifier = Modifier.fillMaxWidth())
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -7669,6 +7667,9 @@ private fun SleepTimerDialog(
             selectedOption.durationMs?.div(60_000L)?.toFloat() ?: 30f,
         )
     }
+    var pendingEndOfSong by remember(selectedOption) {
+        mutableStateOf(selectedOption == SleepTimerOption.EndOfSong)
+    }
     BackHandler(onBack = onDismiss)
     Box(
         modifier = Modifier
@@ -7752,19 +7753,27 @@ private fun SleepTimerDialog(
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     SleepTimerSlider(
                         value = selectedMinutes,
-                        onValueChange = { selectedMinutes = it },
+                        onValueChange = {
+                            selectedMinutes = it
+                            pendingEndOfSong = false
+                        },
                     )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(
-                            text = "10${copy.minuteSuffix}",
+                            text = "10",
                             style = MaterialTheme.typography.labelLarge,
                             color = readableSecondaryTextColor(),
                         )
                         Text(
-                            text = "60${copy.minuteSuffix}",
+                            text = "30",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = readableSecondaryTextColor(),
+                        )
+                        Text(
+                            text = "60",
                             style = MaterialTheme.typography.labelLarge,
                             color = readableSecondaryTextColor(),
                         )
@@ -7775,27 +7784,26 @@ private fun SleepTimerDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     SleepTimerAction(
-                        text = copy.off,
-                        selected = selectedOption == SleepTimerOption.Off,
+                        text = copy.endOfSong,
+                        selected = pendingEndOfSong,
                         modifier = Modifier.weight(1f),
-                        onClick = { onOptionSelected(SleepTimerOption.Off) },
+                        onClick = { pendingEndOfSong = true },
                     )
                     SleepTimerAction(
-                        text = copy.endOfSong,
-                        selected = selectedOption == SleepTimerOption.EndOfSong,
+                        text = copy.confirm,
+                        selected = !pendingEndOfSong &&
+                            selectedOption.durationMs == selectedMinutes.roundToInt() * 60_000L,
                         modifier = Modifier.weight(1f),
-                        onClick = { onOptionSelected(SleepTimerOption.EndOfSong) },
+                        emphasized = true,
+                        onClick = {
+                            if (pendingEndOfSong) {
+                                onOptionSelected(SleepTimerOption.EndOfSong)
+                            } else {
+                                SleepTimerOption.forMinutes(selectedMinutes.roundToInt())?.let(onOptionSelected)
+                            }
+                        },
                     )
                 }
-                SleepTimerAction(
-                    text = copy.confirm,
-                    selected = selectedOption.durationMs == selectedMinutes.roundToInt() * 60_000L,
-                    modifier = Modifier.fillMaxWidth(),
-                    emphasized = true,
-                    onClick = {
-                        SleepTimerOption.forMinutes(selectedMinutes.roundToInt())?.let(onOptionSelected)
-                    },
-                )
             }
         }
     }
@@ -7813,7 +7821,7 @@ private fun SleepTimerSlider(
     } else {
         Color.White
     }
-    val barCount = 21
+    val barCount = 11
     val activeBarCount = (fraction * (barCount - 1)).roundToInt() + 1
 
     BoxWithConstraints(
@@ -7848,14 +7856,14 @@ private fun SleepTimerSlider(
                 modifier = Modifier
                     .fillMaxWidth()
                     .align(Alignment.BottomCenter),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.Bottom,
             ) {
                 repeat(barCount) { index ->
                     val active = index < activeBarCount
                     Box(
                         modifier = Modifier
-                            .weight(1f)
+                            .width(4.dp)
                             .height(if (active) 22.dp else 13.dp)
                             .clip(RoundedCornerShape(1.dp))
                             .background(lineColor.copy(alpha = if (active) 1f else 0.3f)),

@@ -52,6 +52,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
@@ -190,11 +191,13 @@ private fun SmartPlaylistDetailHeader(
     onPlay: () -> Unit,
     onShuffle: () -> Unit,
 ) {
+    val title = playlist.builtInType?.let { builtInSmartPlaylistTitle(it, LocalAppLanguage.current) } ?: playlist.name
     Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
         PlaylistArtworkPreview(
             songs = songs,
-            title = playlist.name,
+            title = title,
             modifier = Modifier.fillMaxWidth(),
+            placeholderIconSize = 30.dp,
         )
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -206,7 +209,7 @@ private fun SmartPlaylistDetailHeader(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = playlist.name,
+                    text = title,
                     style = MaterialTheme.typography.displayLarge.copy(
                         fontSize = elovaireScaledSp(ALBUM_HEADER_TITLE_TEXT_SIZE_SP),
                         fontWeight = FontWeight.SemiBold,
@@ -269,8 +272,9 @@ private fun SmartPlaylistDetailTopBar(
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val title = playlist.builtInType?.let { builtInSmartPlaylistTitle(it, LocalAppLanguage.current) } ?: playlist.name
     DetailListTopBar(
-        title = playlist.name,
+        title = title,
         subtitle = songCountLabel,
         onBack = onBack,
         actions = buildList {

@@ -266,6 +266,7 @@ internal fun PlaylistDetailScreen(
                             songs = playlistSongs,
                             title = playlistState.name,
                             modifier = Modifier.fillMaxWidth(),
+                            placeholderIconSize = 30.dp,
                         )
                         Row(
                             modifier = Modifier.fillMaxWidth(),

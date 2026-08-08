@@ -53,6 +53,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.PlaylistMainCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.playlistMainCopy
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
@@ -288,6 +289,7 @@ private fun SmartPlaylistListRow(
     onClick: (ExpandOrigin) -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val title = summary.playlist.builtInType?.let { builtInSmartPlaylistTitle(it, language) } ?: summary.playlist.name
     val screenSizePx = screenContainerSizePx()
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val songs = summary.result.songs
@@ -307,16 +309,17 @@ private fun SmartPlaylistListRow(
     ) {
         ArtworkImage(
             uri = songs.firstOrNull()?.artUri,
-            title = summary.playlist.name,
+            title = title,
             modifier = Modifier.size(62.dp),
             cornerRadius = ElovaireRadii.artworkSmall,
+            placeholderIconSize = 20.dp,
         )
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Text(
-                text = summary.playlist.name,
+                text = title,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

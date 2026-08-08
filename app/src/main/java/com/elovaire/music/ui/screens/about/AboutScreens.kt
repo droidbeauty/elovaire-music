@@ -275,6 +275,7 @@ internal fun ChangelogBottomSheetOverlay(
                                 ChangelogReleaseContent(
                                     release = release,
                                     contentHorizontalPadding = 20.dp,
+                                    pointedEntries = true,
                                 )
                             }
                         }
@@ -313,13 +314,12 @@ internal fun ChangelogReleaseContent(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(14.dp),
-                    verticalAlignment = Alignment.Top,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (pointedEntries) {
                         Box(
                             modifier = Modifier
-                                .padding(top = 10.dp)
-                                .size(4.dp)
+                            .size(4.dp)
                                 .clip(CircleShape)
                                 .background(textColor),
                         )

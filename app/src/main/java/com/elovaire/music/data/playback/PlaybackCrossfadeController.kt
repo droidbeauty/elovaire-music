@@ -108,7 +108,7 @@ internal class PlaybackCrossfadeController(
                 if (secondary !== incoming) return
                 when (playbackState) {
                     Player.STATE_READY -> {
-                        if (!secondary.isCurrentMediaItemSeekable || secondary.duration <= 0L) {
+                        if (!secondary.isCurrentMediaItemSeekable) {
                             cancel()
                             return
                         }

@@ -58,6 +58,7 @@ fun ArtworkImage(
     title: String = "",
     cornerRadius: Dp = ElovaireRadii.artwork,
     requestedSizePx: Int = 384,
+    placeholderIconSize: Dp = 30.dp,
     showArtworkGlow: Boolean = false,
     overlay: (@Composable BoxScope.() -> Unit)? = null,
 ) {
@@ -143,7 +144,7 @@ fun ArtworkImage(
                         painter = painterResource(id = R.drawable.ic_lucide_music),
                         contentDescription = title.ifBlank { "Artwork placeholder" },
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
-                        modifier = Modifier.size(42.dp),
+                        modifier = Modifier.size(placeholderIconSize),
                     )
                 }
             }

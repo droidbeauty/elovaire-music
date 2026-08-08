@@ -89,6 +89,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.equalizerStatusLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicyCopy
+import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicySettingsSubtitle
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
@@ -295,8 +297,8 @@ internal fun SettingsScreen(
                                 .padding(horizontal = 2.dp),
                         )
                         SettingNavigationRow(
-                            title = "Privacy policy",
-                            subtitle = "How Elovaire handles files, permissions, network requests, and app data",
+                            title = privacyPolicyCopy(appLanguage).title,
+                            subtitle = privacyPolicySettingsSubtitle(appLanguage),
                             onClick = onOpenPrivacyPolicy,
                             modifier = Modifier
                                 .fillMaxWidth()

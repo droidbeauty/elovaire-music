@@ -63,6 +63,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -89,6 +90,7 @@ internal fun PlaylistArtworkPreview(
     songs: List<Song>,
     title: String,
     modifier: Modifier = Modifier,
+    placeholderIconSize: Dp = 20.dp,
 ) {
     val language = LocalAppLanguage.current
     val copy = remember(language) { rootUiCopy(language) }
@@ -165,6 +167,7 @@ internal fun PlaylistArtworkPreview(
                         modifier = Modifier.fillMaxSize(),
                         cornerRadius = ElovaireRadii.artwork,
                         requestedSizePx = 384,
+                        placeholderIconSize = placeholderIconSize,
                     )
                 }
 
@@ -177,7 +180,7 @@ internal fun PlaylistArtworkPreview(
                             painter = painterResource(id = R.drawable.ic_lucide_music),
                             contentDescription = title.ifBlank { copy.playlistArtworkPlaceholder },
                             tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f),
-                            modifier = Modifier.size(20.dp),
+                            modifier = Modifier.size(placeholderIconSize),
                         )
                     }
                 }
