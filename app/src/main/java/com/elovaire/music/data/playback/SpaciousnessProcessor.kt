@@ -437,8 +437,8 @@ internal class SpaciousnessProcessor {
         )
         val integerDelay = delaySamples.toInt()
         val fractionalDelay = delaySamples - integerDelay
-        val newerIndex = (delayWriteIndex - integerDelay).floorMod(buffer.size)
-        val olderIndex = (newerIndex - 1).floorMod(buffer.size)
+        val newerIndex = wrapIndex(delayWriteIndex - integerDelay, buffer.size)
+        val olderIndex = wrapIndex(newerIndex - 1, buffer.size)
         val newerSample = buffer[newerIndex]
         val olderSample = buffer[olderIndex]
         return newerSample + ((olderSample - newerSample) * fractionalDelay)
@@ -449,7 +449,7 @@ internal class SpaciousnessProcessor {
         delaySamples: Int,
     ): Float {
         if (buffer.isEmpty()) return 0f
-        val index = (delayWriteIndex - delaySamples).floorMod(buffer.size)
+        val index = wrapIndex(delayWriteIndex - delaySamples, buffer.size)
         return buffer[index]
     }
 
@@ -489,8 +489,8 @@ internal class SpaciousnessProcessor {
         return (1.0 - exp(-1.0 / (safeSampleRate * safeTimeSeconds))).toFloat().coerceIn(0.002f, 0.25f)
     }
 
-    private fun Int.floorMod(modulus: Int): Int {
-        return ((this % modulus) + modulus) % modulus
+    private fun wrapIndex(index: Int, size: Int): Int {
+        return if (index < 0) index + size else index
     }
 
     private companion object {

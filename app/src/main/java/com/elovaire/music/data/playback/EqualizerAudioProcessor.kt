@@ -466,6 +466,8 @@ internal class EqualizerAudioProcessor(
     private var currentBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
     private var targetBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
     private var activeBandFrequenciesHz = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.copyOf()
+    private var activeBandIndices = IntArray(EqualizerDspModel.BAND_COUNT)
+    private var activeBandCount = 0
     private var bandFilters: Array<Array<BiquadFilterState>> = emptyArray()
     private var bassHighPassFilters: Array<BiquadFilterState> = emptyArray()
     private var bassDetectorFilters: Array<BiquadFilterState> = emptyArray()
@@ -617,6 +619,7 @@ internal class EqualizerAudioProcessor(
         currentBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
         targetBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
         activeBandFrequenciesHz = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.copyOf()
+        activeBandCount = 0
     }
 
     private fun resetProcessingState() {
@@ -682,6 +685,7 @@ internal class EqualizerAudioProcessor(
         bassEnergyEnvelope.fill(0f)
         currentBandGainsDb.fill(0f)
         targetBandGainsDb.fill(0f)
+        activeBandCount = 0
         resetFilterMemory()
     }
 
@@ -824,10 +828,12 @@ internal class EqualizerAudioProcessor(
     }
 
     private fun rebuildCoefficients() {
+        activeBandCount = 0
         for (channelIndex in 0 until channelCount) {
             for (bandIndex in currentBandGainsDb.indices) {
                 val frequencyHz = activeBandFrequenciesHz.getOrElse(bandIndex) { -1f }
-                val coefficients = if (frequencyHz > 0f && abs(currentBandGainsDb[bandIndex]) > 0.01f) {
+                val bandIsActive = frequencyHz > 0f && abs(currentBandGainsDb[bandIndex]) > 0.01f
+                val coefficients = if (bandIsActive) {
                     BiquadCoefficients.peaking(
                         sampleRateHz = sampleRateHz.toFloat(),
                         centerFrequencyHz = frequencyHz,
@@ -838,6 +844,9 @@ internal class EqualizerAudioProcessor(
                     BiquadCoefficients.identity()
                 }
                 bandFilters[channelIndex][bandIndex].setCoefficients(coefficients)
+                if (channelIndex == 0 && bandIsActive) {
+                    activeBandIndices[activeBandCount++] = bandIndex
+                }
             }
             bassHighPassFilters[channelIndex].setCoefficients(
                 if (currentBassAmount > 0.0005f) {
@@ -936,7 +945,11 @@ internal class EqualizerAudioProcessor(
         sample: Float,
     ): Float {
         var processed = sample * currentInputGainLinear
-        bandFilters[channelIndex].forEach { filter -> processed = filter.process(processed) }
+        var activeIndex = 0
+        while (activeIndex < activeBandCount) {
+            processed = bandFilters[channelIndex][activeBandIndices[activeIndex]].process(processed)
+            activeIndex += 1
+        }
         val bassDetectorInput = if (currentBassAmount > 0.0005f) {
             bassDetectorFilters[channelIndex].process(processed)
         } else {
@@ -1053,15 +1066,19 @@ internal class EqualizerAudioProcessor(
             limiterPeakReduction = max(limiterPeakReduction, reduction)
             limiterEvents += 1
         }
-        limiterGainReductionDb = if (limiterGain < 0.9999f) 20f * kotlin.math.log10(limiterGain.coerceAtLeast(1e-6f)) else 0f
         return limited
     }
 
     internal fun debugSnapshot(): EqualizerDiagnosticsSnapshot {
+        limiterGainReductionDb = if (limiterGain < 0.9999f) {
+            20f * kotlin.math.log10(limiterGain.coerceAtLeast(1e-6f))
+        } else {
+            0f
+        }
         return EqualizerDiagnosticsSnapshot(
             sampleRateHz = sampleRateHz,
             computedHeadroomDb = currentAutoHeadroomDb,
-            activeFilterCount = currentBandGainsDb.count { abs(it) > 0.01f } +
+            activeFilterCount = activeBandCount +
                 if (currentBassAmount > 0.0005f) 1 else 0 +
                 if (abs(currentBassShelfDb) > 0.01f) 1 else 0 +
                 if (abs(currentBassBodyDb) > 0.01f) 1 else 0 +

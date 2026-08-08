@@ -6,9 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.6.2">
-        <item>Reduced unnecessary processing and memory usage</item>
-        <item>Improved storage and tag-editing reliability</item>
-        <item>Cleaner privacy policy information in settings UI</item>
+    <release version="2.6.3">
+        <item>Further performance optimizations</item>
+        <item>Layout tweaks in queue menu and timer pop-up menu</item>
     </release>
 </changelog>

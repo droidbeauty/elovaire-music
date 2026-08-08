@@ -127,6 +127,12 @@ internal class ReverbProcessor {
         diffuseMs = 78,
         crossMs = 32,
     )
+    private var activeTapSamples = ReverbTapSamples(
+        primary = 1,
+        secondary = 1,
+        diffuse = 1,
+        cross = 1,
+    )
     private var smoothingAlpha = 1f
     private var leftDelay = FloatArray(1)
     private var rightDelay = FloatArray(1)
@@ -153,6 +159,7 @@ internal class ReverbProcessor {
         this.sampleRateHz = sampleRateHz.coerceAtLeast(8_000)
         samplesPerMillisecond = this.sampleRateHz / 1_000f
         this.channelCount = channelCount.coerceAtLeast(1)
+        activeTapSamples = activeTapDurations.toSamples(samplesPerMillisecond)
         smoothingAlpha = smoothingAlpha(
             sampleRateHz = this.sampleRateHz,
             smoothingTimeMs = activeConfig.smoothingTimeMs,
@@ -194,9 +201,9 @@ internal class ReverbProcessor {
 
         if (channels == 1 || frame.size == 1) {
             val dry = sanitize(frame[0])
-            val primary = readDelay(monoDelay, activeTapDurations.primaryMs)
-            val secondary = readDelay(monoDelay, activeTapDurations.secondaryMs)
-            val diffuse = readDelay(monoDelay, activeTapDurations.diffuseMs)
+            val primary = readDelay(monoDelay, activeTapSamples.primary)
+            val secondary = readDelay(monoDelay, activeTapSamples.secondary)
+            val diffuse = readDelay(monoDelay, activeTapSamples.diffuse)
             val wet = shapeWetSignal(monoDamping.process(
                 (primary * 0.34f) + (secondary * 0.28f) + (diffuse * 0.22f),
                 sampleRateHz,
@@ -210,14 +217,14 @@ internal class ReverbProcessor {
 
         val dryLeft = sanitize(frame[0])
         val dryRight = sanitize(frame[1])
-        val leftPrimary = readDelay(leftDelay, activeTapDurations.primaryMs)
-        val leftSecondary = readDelay(leftDelay, activeTapDurations.secondaryMs)
-        val leftDiffuse = readDelay(leftDelay, activeTapDurations.diffuseMs)
-        val rightPrimary = readDelay(rightDelay, activeTapDurations.primaryMs)
-        val rightSecondary = readDelay(rightDelay, activeTapDurations.secondaryMs)
-        val rightDiffuse = readDelay(rightDelay, activeTapDurations.diffuseMs)
-        val leftCross = readDelay(rightDelay, activeTapDurations.crossMs)
-        val rightCross = readDelay(leftDelay, activeTapDurations.crossMs)
+        val leftPrimary = readDelay(leftDelay, activeTapSamples.primary)
+        val leftSecondary = readDelay(leftDelay, activeTapSamples.secondary)
+        val leftDiffuse = readDelay(leftDelay, activeTapSamples.diffuse)
+        val rightPrimary = readDelay(rightDelay, activeTapSamples.primary)
+        val rightSecondary = readDelay(rightDelay, activeTapSamples.secondary)
+        val rightDiffuse = readDelay(rightDelay, activeTapSamples.diffuse)
+        val leftCross = readDelay(rightDelay, activeTapSamples.cross)
+        val rightCross = readDelay(leftDelay, activeTapSamples.cross)
 
         val wetLeft = shapeWetSignal(leftDamping.process(
             (leftPrimary * 0.34f) +
@@ -255,6 +262,7 @@ internal class ReverbProcessor {
         targetCrossMix = ReverbProcessorModel.crossMix(activeConfig.profile, activeConfig.decayMs)
         targetDampingFrequencyHz = ReverbProcessorModel.dampingFrequencyHz(activeConfig.profile, activeConfig.decayMs)
         activeTapDurations = ReverbProcessorModel.tapDurationsMs(activeConfig.decayMs)
+        activeTapSamples = activeTapDurations.toSamples(samplesPerMillisecond)
         if (ReverbProcessorModel.isBypassed(activeConfig)) {
             currentWetMix = 0f
             reset()
@@ -263,11 +271,14 @@ internal class ReverbProcessor {
 
     private fun readDelay(
         buffer: FloatArray,
-        delayMs: Int,
+        delaySamples: Int,
     ): Float {
-        val delaySamples = (samplesPerMillisecond * delayMs).toInt().coerceIn(1, buffer.lastIndex.coerceAtLeast(1))
-        val readIndex = (writeIndex - delaySamples).mod(buffer.size)
+        val readIndex = wrapIndex(writeIndex - delaySamples, buffer.size)
         return buffer[readIndex]
+    }
+
+    private fun wrapIndex(index: Int, size: Int): Int {
+        return if (index < 0) index + size else index
     }
 
     private fun advanceWriteIndex() {
@@ -302,6 +313,22 @@ internal data class ReverbTapDurations(
     val diffuseMs: Int,
     val crossMs: Int,
 )
+
+private data class ReverbTapSamples(
+    val primary: Int,
+    val secondary: Int,
+    val diffuse: Int,
+    val cross: Int,
+)
+
+private fun ReverbTapDurations.toSamples(samplesPerMillisecond: Float): ReverbTapSamples {
+    return ReverbTapSamples(
+        primary = (samplesPerMillisecond * primaryMs).toInt().coerceAtLeast(1),
+        secondary = (samplesPerMillisecond * secondaryMs).toInt().coerceAtLeast(1),
+        diffuse = (samplesPerMillisecond * diffuseMs).toInt().coerceAtLeast(1),
+        cross = (samplesPerMillisecond * crossMs).toInt().coerceAtLeast(1),
+    )
+}
 
 internal fun normalizeReverbDurationMs(valueMs: Int): Int {
     return ((valueMs.coerceIn(0, MAX_REVERB_DURATION_MS) + (REVERB_STEP_MS / 2)) / REVERB_STEP_MS) * REVERB_STEP_MS
