@@ -26,8 +26,7 @@ internal object ReverbProcessorModel {
     private const val FLAT_EPSILON = 0.0005f
 
     fun isBypassed(config: ReverbConfig): Boolean {
-        val safeConfig = config.sanitized()
-        return !safeConfig.enabled || safeConfig.decayMs <= 0
+        return !config.enabled || config.decayMs <= 0
     }
 
     fun normalizedAmount(decayMs: Int): Float {
@@ -112,6 +111,7 @@ internal class ReverbProcessor {
     @Volatile
     private var activeConfig = pendingConfig.sanitized()
     private var sampleRateHz = 48_000
+    private var samplesPerMillisecond = 48f
     private var channelCount = 2
     private var currentWetMix = 0f
     private var targetWetMix = 0f
@@ -151,6 +151,7 @@ internal class ReverbProcessor {
         channelCount: Int,
     ) {
         this.sampleRateHz = sampleRateHz.coerceAtLeast(8_000)
+        samplesPerMillisecond = this.sampleRateHz / 1_000f
         this.channelCount = channelCount.coerceAtLeast(1)
         smoothingAlpha = smoothingAlpha(
             sampleRateHz = this.sampleRateHz,
@@ -264,7 +265,7 @@ internal class ReverbProcessor {
         buffer: FloatArray,
         delayMs: Int,
     ): Float {
-        val delaySamples = ((sampleRateHz / 1_000f) * delayMs).toInt().coerceIn(1, buffer.lastIndex.coerceAtLeast(1))
+        val delaySamples = (samplesPerMillisecond * delayMs).toInt().coerceIn(1, buffer.lastIndex.coerceAtLeast(1))
         val readIndex = (writeIndex - delaySamples).mod(buffer.size)
         return buffer[readIndex]
     }
@@ -317,6 +318,9 @@ private fun smoothingAlpha(
 
 private class ReverbLowPassState {
     private var output = 0f
+    private var configuredSampleRateHz = 0
+    private var configuredCutoffFrequencyHz = Float.NaN
+    private var alpha = 0f
 
     fun reset() {
         output = 0f
@@ -327,10 +331,14 @@ private class ReverbLowPassState {
         sampleRateHz: Int,
         cutoffFrequencyHz: Float,
     ): Float {
-        val safeSampleRate = sampleRateHz.coerceAtLeast(8_000)
-        val safeCutoff = cutoffFrequencyHz.coerceIn(400f, safeSampleRate / 2f * 0.8f)
-        val alpha = (1f - exp((-2f * Math.PI.toFloat() * safeCutoff) / safeSampleRate.toFloat()))
-            .coerceIn(0.01f, 1f)
+        if (sampleRateHz != configuredSampleRateHz || cutoffFrequencyHz != configuredCutoffFrequencyHz) {
+            val safeSampleRate = sampleRateHz.coerceAtLeast(8_000)
+            val safeCutoff = cutoffFrequencyHz.coerceIn(400f, safeSampleRate / 2f * 0.8f)
+            alpha = (1f - exp((-2f * Math.PI.toFloat() * safeCutoff) / safeSampleRate.toFloat()))
+                .coerceIn(0.01f, 1f)
+            configuredSampleRateHz = sampleRateHz
+            configuredCutoffFrequencyHz = cutoffFrequencyHz
+        }
         output += (input - output) * alpha
         return output
     }

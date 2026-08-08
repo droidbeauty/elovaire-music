@@ -17,6 +17,8 @@ import kotlin.math.sinh
 import kotlin.math.sqrt
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 
+private const val COEFFICIENT_UPDATE_STRIDE_FRAMES = 256
+
 internal data class EqualizerPreset(
     val name: String,
     val bandGainsDb: List<Float>,
@@ -489,6 +491,9 @@ internal class EqualizerAudioProcessor(
     private var bassEnergyEnvelope = FloatArray(0)
     private var scratchDryFrame = FloatArray(2)
     private var scratchWetFrame = FloatArray(2)
+    // Smooth targets every audio block, but rebuild trigonometric filter coefficients at a bounded cadence.
+    private var framesSinceCoefficientUpdate = COEFFICIENT_UPDATE_STRIDE_FRAMES
+    private var coefficientUpdatePending = true
 
     fun updateSettings(settings: EqSettings) {
         val monoToggled = settings.monoEnabled != currentSettings.monoEnabled
@@ -551,6 +556,11 @@ internal class EqualizerAudioProcessor(
         var processedFrames = 0
         while (processedFrames < totalFrames) {
             stepTowardsTargets()
+            if (coefficientUpdatePending || framesSinceCoefficientUpdate >= COEFFICIENT_UPDATE_STRIDE_FRAMES) {
+                rebuildCoefficients()
+                framesSinceCoefficientUpdate = 0
+                coefficientUpdatePending = false
+            }
             val blockFrames = min(
                 safeConfig.updateStrideFrames,
                 totalFrames - processedFrames,
@@ -590,6 +600,7 @@ internal class EqualizerAudioProcessor(
                 }
             }
             processedFrames += blockFrames
+            framesSinceCoefficientUpdate += blockFrames
         }
         outputBuffer.flip()
     }
@@ -637,6 +648,8 @@ internal class EqualizerAudioProcessor(
         spaciousnessProcessor.configure(sampleRateHz = sampleRateHz, channelCount = channelCount)
         reverbProcessor.configure(sampleRateHz = sampleRateHz, channelCount = channelCount)
         resetRuntimeStates()
+        framesSinceCoefficientUpdate = COEFFICIENT_UPDATE_STRIDE_FRAMES
+        coefficientUpdatePending = true
         targetsDirty = true
         configInitialized = true
     }
@@ -757,6 +770,7 @@ internal class EqualizerAudioProcessor(
             reverbHeadroomDb = reverbHeadroomDb,
             config = safeConfig,
         )
+        coefficientUpdatePending = true
         targetsDirty = false
     }
 
@@ -807,7 +821,6 @@ internal class EqualizerAudioProcessor(
         currentBandGainsDb.indices.forEach { index ->
             currentBandGainsDb[index] = smooth(currentBandGainsDb[index], targetBandGainsDb[index], smoothingAlpha)
         }
-        rebuildCoefficients()
     }
 
     private fun rebuildCoefficients() {
@@ -1029,7 +1042,6 @@ internal class EqualizerAudioProcessor(
             shapedAbs.coerceAtMost(threshold) / sampleAbs.coerceAtLeast(1e-9f)
         }
         val attack = 0.42f
-        val release = 1f - exp(-1.0 / (sampleRateHz.coerceAtLeast(8_000) * 0.11)).toFloat()
         limiterGain = if (targetGain < limiterGain) {
             limiterGain + ((targetGain - limiterGain) * attack)
         } else {

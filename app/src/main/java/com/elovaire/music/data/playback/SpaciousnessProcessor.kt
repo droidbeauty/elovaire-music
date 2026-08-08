@@ -40,14 +40,20 @@ internal object SpaciousnessProcessorModel {
     private const val FLAT_EPSILON = 0.0005f
 
     fun isBypassed(config: SpaciousnessConfig): Boolean {
-        val safeConfig = config.sanitized()
-        return !safeConfig.enabled ||
-            safeConfig.mode == SpaciousnessMode.Off ||
-            safeConfig.amountNormalized <= FLAT_EPSILON
+        return !config.enabled ||
+            config.mode == SpaciousnessMode.Off ||
+            config.amountNormalized <= FLAT_EPSILON
     }
 
     fun mappedAmount(amountNormalized: Float): Float {
-        return amountNormalized.coerceIn(0f, 1f).toDouble().pow(1.18).toFloat()
+        return SpaciousnessLookup.mappedAmount(amountNormalized)
+    }
+
+    fun headroomGain(
+        mode: SpaciousnessMode,
+        amountNormalized: Float,
+    ): Float {
+        return SpaciousnessLookup.headroomGain(mode, amountNormalized)
     }
 
     fun automaticHeadroomDb(
@@ -77,6 +83,7 @@ internal class SpaciousnessProcessor {
     private var activeConfig = pendingConfig.sanitized()
     private var activeMode = activeConfig.mode
     private var sampleRateHz = 48_000
+    private var samplesPerMillisecond = 48f
     private var channelCount = 2
     private var currentAmount = 0f
     private var targetAmount = 0f
@@ -87,6 +94,8 @@ internal class SpaciousnessProcessor {
     private var peakIn = 0f
     private var peakOut = 0f
     private var resetEvents = 0L
+    private var processedLeft = 0f
+    private var processedRight = 0f
 
     private val sideLowPass = OnePoleLowPassState()
     private val crossfeedLowPassL = OnePoleLowPassState()
@@ -142,6 +151,7 @@ internal class SpaciousnessProcessor {
         channelCount: Int,
     ) {
         this.sampleRateHz = sampleRateHz.coerceAtLeast(8_000)
+        samplesPerMillisecond = this.sampleRateHz / 1_000f
         this.channelCount = channelCount.coerceAtLeast(1)
         smoothingAlpha = smoothingAlpha(
             sampleRateHz = this.sampleRateHz,
@@ -203,10 +213,13 @@ internal class SpaciousnessProcessor {
         peakIn = max(peakIn, max(abs(dryLeft), abs(dryRight)))
 
         val amount = SpaciousnessProcessorModel.mappedAmount(currentAmount)
-        val headroomGain = dbToLinear(SpaciousnessProcessorModel.automaticHeadroomDb(activeMode, currentAmount))
+        val headroomGain = SpaciousnessProcessorModel.headroomGain(activeMode, currentAmount)
 
-        val processed = when (activeMode) {
-            SpaciousnessMode.Off -> StereoPair(dryLeft, dryRight)
+        when (activeMode) {
+            SpaciousnessMode.Off -> {
+                processedLeft = dryLeft
+                processedRight = dryRight
+            }
             SpaciousnessMode.StereoWidth -> processStereoWidth(dryLeft, dryRight, amount)
             SpaciousnessMode.CrossfeedDepth -> processCrossfeedDepth(dryLeft, dryRight, amount)
             SpaciousnessMode.EarlyReflectionRoom -> processEarlyReflectionRoom(dryLeft, dryRight, amount)
@@ -215,8 +228,8 @@ internal class SpaciousnessProcessor {
             SpaciousnessMode.HarmonicAir -> processHarmonicAir(dryLeft, dryRight, amount)
         }
 
-        val outLeft = sanitizeSample(processed.left * headroomGain)
-        val outRight = sanitizeSample(processed.right * headroomGain)
+        val outLeft = sanitizeSample(processedLeft * headroomGain)
+        val outRight = sanitizeSample(processedRight * headroomGain)
         frame[0] = outLeft
         frame[1] = outRight
         peakOut = max(peakOut, max(abs(outLeft), abs(outRight)))
@@ -258,7 +271,7 @@ internal class SpaciousnessProcessor {
         left: Float,
         right: Float,
         amount: Float,
-    ): StereoPair {
+    ) {
         val mid = (left + right) * 0.5f
         val side = (left - right) * 0.5f
         val lowSide = if (activeConfig.preserveBassMono) {
@@ -278,17 +291,15 @@ internal class SpaciousnessProcessor {
             side * sideGain + (decorrelatedHighSide * decorrelatedGain)
         }
         val centerGain = 1f - (amount * 0.018f)
-        return StereoPair(
-            left = (mid * centerGain) + widenedSide,
-            right = (mid * centerGain) - widenedSide,
-        )
+        processedLeft = (mid * centerGain) + widenedSide
+        processedRight = (mid * centerGain) - widenedSide
     }
 
     private fun processCrossfeedDepth(
         left: Float,
         right: Float,
         amount: Float,
-    ): StereoPair {
+    ) {
         val crossDelayMs = 0.18f + (0.42f * amount)
         val lowPassedRight = crossfeedLowPassL.process(readDelayInterpolated(rightDelay, crossDelayMs), sampleRateHz, 1_050f)
         val lowPassedLeft = crossfeedLowPassR.process(readDelayInterpolated(leftDelay, crossDelayMs), sampleRateHz, 1_050f)
@@ -297,17 +308,15 @@ internal class SpaciousnessProcessor {
         val sideBlend = 1f + (amount * 0.12f)
         val crossGain = 0.022f + (amount * 0.055f)
         val presenceLift = 1f + (amount * 0.02f)
-        return StereoPair(
-            left = (mid * presenceLift) + (side * sideBlend) + (lowPassedRight * crossGain),
-            right = (mid * presenceLift) - (side * sideBlend) + (lowPassedLeft * crossGain),
-        )
+        processedLeft = (mid * presenceLift) + (side * sideBlend) + (lowPassedRight * crossGain)
+        processedRight = (mid * presenceLift) - (side * sideBlend) + (lowPassedLeft * crossGain)
     }
 
     private fun processEarlyReflectionRoom(
         left: Float,
         right: Float,
         amount: Float,
-    ): StereoPair {
+    ) {
         val tap1Ms = 2.2f + (0.8f * amount)
         val tap2Ms = 4.9f + (1.3f * amount)
         val tap3Ms = 7.6f + (1.8f * amount)
@@ -329,17 +338,15 @@ internal class SpaciousnessProcessor {
         val reflectionRight = reflectionDecorrelatorR.process(rawReflectionRight)
         val wetGain = 0.028f + (amount * 0.078f)
         val dryGain = 1f - (amount * 0.012f)
-        return StereoPair(
-            left = (left * dryGain) + (reflectionLeft * wetGain),
-            right = (right * dryGain) + (reflectionRight * wetGain),
-        )
+        processedLeft = (left * dryGain) + (reflectionLeft * wetGain)
+        processedRight = (right * dryGain) + (reflectionRight * wetGain)
     }
 
     private fun processPhilharmony(
         left: Float,
         right: Float,
         amount: Float,
-    ): StereoPair {
+    ) {
         val mid = (left + right) * 0.5f
         val side = (left - right) * 0.5f
         val lowSide = if (activeConfig.preserveBassMono) {
@@ -373,17 +380,15 @@ internal class SpaciousnessProcessor {
             (airySide * (1f + (amount * 0.14f))) +
             (widthBloom * (0.05f + (amount * 0.11f)))
         val hallGain = 0.026f + (amount * 0.072f)
-        return StereoPair(
-            left = preservedCenter + widenedSide + (hallDecorrLeft * hallGain),
-            right = preservedCenter - widenedSide + (hallDecorrRight * hallGain),
-        )
+        processedLeft = preservedCenter + widenedSide + (hallDecorrLeft * hallGain)
+        processedRight = preservedCenter - widenedSide + (hallDecorrRight * hallGain)
     }
 
     private fun processHaasSpace(
         left: Float,
         right: Float,
         amount: Float,
-    ): StereoPair {
+    ) {
         val delayLeftMs = 4.8f + (2.1f * amount)
         val delayRightMs = 6.1f + (2.5f * amount)
         val mid = (left + right) * 0.5f
@@ -393,17 +398,15 @@ internal class SpaciousnessProcessor {
         val delayedSide = haasDecorrelator.process((delayedLeftHigh - delayedRightHigh) * 0.5f)
         val wetGain = 0.045f + (amount * 0.12f)
         val sideGain = 1f + (amount * 0.12f)
-        return StereoPair(
-            left = mid + (side * sideGain) + (delayedSide * wetGain),
-            right = mid - (side * sideGain) - (delayedSide * wetGain),
-        )
+        processedLeft = mid + (side * sideGain) + (delayedSide * wetGain)
+        processedRight = mid - (side * sideGain) - (delayedSide * wetGain)
     }
 
     private fun processHarmonicAir(
         left: Float,
         right: Float,
         amount: Float,
-    ): StereoPair {
+    ) {
         val mid = (left + right) * 0.5f
         val side = (left - right) * 0.5f
         val highLeft = airHighPassL.process(left, sampleRateHz, 3_200f)
@@ -419,14 +422,8 @@ internal class SpaciousnessProcessor {
         val decorrelatedAir = (shapedLeft - shapedRight) * 0.5f
         val sideGain = 0.06f + (amount * 0.14f)
         val decorrelatedGain = 0.035f + (amount * 0.075f)
-        return StereoPair(
-            left = mid + side + (sideAir * sideGain) + ((decorrelatedSide + decorrelatedAir) * decorrelatedGain),
-            right = mid - side - (sideAir * sideGain) - ((decorrelatedSide + decorrelatedAir) * decorrelatedGain),
-        )
-    }
-
-    private fun delaySamples(delayMs: Float): Int {
-        return ((sampleRateHz / 1_000f) * delayMs).toInt().coerceIn(1, (leftDelay.size - 1).coerceAtLeast(1))
+        processedLeft = mid + side + (sideAir * sideGain) + ((decorrelatedSide + decorrelatedAir) * decorrelatedGain)
+        processedRight = mid - side - (sideAir * sideGain) - ((decorrelatedSide + decorrelatedAir) * decorrelatedGain)
     }
 
     private fun readDelayInterpolated(
@@ -434,7 +431,7 @@ internal class SpaciousnessProcessor {
         delayMs: Float,
     ): Float {
         if (buffer.isEmpty()) return 0f
-        val delaySamples = ((sampleRateHz / 1_000f) * delayMs).coerceIn(
+        val delaySamples = (samplesPerMillisecond * delayMs).coerceIn(
             1f,
             (buffer.size - 1).coerceAtLeast(1).toFloat(),
         )
@@ -475,10 +472,6 @@ internal class SpaciousnessProcessor {
         return current + ((target - current) * alpha.coerceIn(0f, 1f))
     }
 
-    private fun dbToLinear(db: Float): Float {
-        return 10f.pow(db / 20f)
-    }
-
     private fun sanitizeSample(sample: Float): Float {
         return if (sample.isFinite()) {
             sample.coerceIn(-1.8f, 1.8f)
@@ -496,11 +489,6 @@ internal class SpaciousnessProcessor {
         return (1.0 - exp(-1.0 / (safeSampleRate * safeTimeSeconds))).toFloat().coerceIn(0.002f, 0.25f)
     }
 
-    private data class StereoPair(
-        val left: Float,
-        val right: Float,
-    )
-
     private fun Int.floorMod(modulus: Int): Int {
         return ((this % modulus) + modulus) % modulus
     }
@@ -510,15 +498,63 @@ internal class SpaciousnessProcessor {
     }
 }
 
+private object SpaciousnessLookup {
+    private const val SIZE = 1_024
+    private val mappedAmounts = FloatArray(SIZE + 1) { index ->
+        (index / SIZE.toFloat()).toDouble().pow(1.18).toFloat()
+    }
+    private val headroomGains = Array(SpaciousnessMode.entries.size) { modeIndex ->
+        FloatArray(SIZE + 1) { index ->
+            val amount = mappedAmounts[index]
+            val compensationDb = when (SpaciousnessMode.entries[modeIndex]) {
+                SpaciousnessMode.Off -> 0f
+                SpaciousnessMode.StereoWidth -> 0.34f + (amount * 0.62f)
+                SpaciousnessMode.CrossfeedDepth -> 0.12f + (amount * 0.26f)
+                SpaciousnessMode.EarlyReflectionRoom -> 0.18f + (amount * 0.42f)
+                SpaciousnessMode.Philharmony -> 0.22f + (amount * 0.48f)
+                SpaciousnessMode.HaasSpace -> 0.24f + (amount * 0.5f)
+                SpaciousnessMode.HarmonicAir -> 0.16f + (amount * 0.3f)
+            }.coerceAtMost(1.35f)
+            10f.pow(-compensationDb / 20f)
+        }
+    }
+
+    fun mappedAmount(value: Float): Float = interpolate(mappedAmounts, value)
+
+    fun headroomGain(
+        mode: SpaciousnessMode,
+        value: Float,
+    ): Float = interpolate(headroomGains[mode.ordinal], value)
+
+    private fun interpolate(
+        values: FloatArray,
+        value: Float,
+    ): Float {
+        val normalized = value.coerceIn(0f, 1f)
+        val position = normalized * SIZE
+        val lower = position.toInt().coerceIn(0, SIZE)
+        if (lower == SIZE) return values[SIZE]
+        val fraction = position - lower
+        return values[lower] + ((values[lower + 1] - values[lower]) * fraction)
+    }
+}
+
 private class OnePoleLowPassState {
     private var previous = 0f
+    private var configuredSampleRateHz = 0
+    private var configuredCutoffHz = Float.NaN
+    private var alpha = 0f
 
     fun process(
         input: Float,
         sampleRateHz: Int,
         cutoffHz: Float,
     ): Float {
-        val alpha = lowPassAlpha(sampleRateHz, cutoffHz)
+        if (sampleRateHz != configuredSampleRateHz || cutoffHz != configuredCutoffHz) {
+            configuredSampleRateHz = sampleRateHz
+            configuredCutoffHz = cutoffHz
+            alpha = lowPassAlpha(sampleRateHz, cutoffHz)
+        }
         previous += alpha * (input - previous)
         return previous
     }
@@ -531,13 +567,20 @@ private class OnePoleLowPassState {
 private class OnePoleHighPassState {
     private var previousInput = 0f
     private var previousOutput = 0f
+    private var configuredSampleRateHz = 0
+    private var configuredCutoffHz = Float.NaN
+    private var alpha = 0f
 
     fun process(
         input: Float,
         sampleRateHz: Int,
         cutoffHz: Float,
     ): Float {
-        val alpha = highPassAlpha(sampleRateHz, cutoffHz)
+        if (sampleRateHz != configuredSampleRateHz || cutoffHz != configuredCutoffHz) {
+            configuredSampleRateHz = sampleRateHz
+            configuredCutoffHz = cutoffHz
+            alpha = highPassAlpha(sampleRateHz, cutoffHz)
+        }
         val output = alpha * (previousOutput + input - previousInput)
         previousInput = input
         previousOutput = output
@@ -568,13 +611,13 @@ private class CascadedAllPassState(
 }
 
 private class FirstOrderAllPassState(
-    private val coefficient: Float,
+    coefficient: Float,
 ) {
+    private val safeCoefficient = coefficient.coerceIn(-0.82f, 0.82f)
     private var previousInput = 0f
     private var previousOutput = 0f
 
     fun process(input: Float): Float {
-        val safeCoefficient = coefficient.coerceIn(-0.82f, 0.82f)
         val output = (-safeCoefficient * input) + previousInput + (safeCoefficient * previousOutput)
         previousInput = input
         previousOutput = output
