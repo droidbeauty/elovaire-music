@@ -10,6 +10,7 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -303,6 +304,7 @@ internal fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
+                            testTag = "settings_privacy_policy",
                         )
                         SettingActionRow(
                             title = copy.scanLibrary,
@@ -773,7 +775,7 @@ private fun TextSizeStepper(
                     ((if (isDragging) dragCenterPx else selectedCenterPx) - (knobSizePx / 2f)).toDp()
                 },
                 animationSpec = if (isDragging) {
-                    motionSpecs.tween(durationMillis = 60)
+                    snap()
                 } else {
                     motionSpecs.spring(
                         dampingRatio = 0.82f,

@@ -6,12 +6,12 @@ import org.junit.Test
 
 class MotionRuntimeTest {
     @Test
-    fun appliesSystemAnimationScale() {
+    fun keepsDurationsUnscaledForComposeMotionDurationScale() {
         val runtime = MotionRuntime(durationScale = 0.5f)
 
-        assertEquals(90, runtime.duration(180))
-        assertEquals(6, runtime.delay(12))
-        assertEquals(750L, runtime.duration(1_500L))
+        assertEquals(180, runtime.duration(180))
+        assertEquals(12, runtime.delay(12))
+        assertEquals(1_500L, runtime.duration(1_500L))
     }
 
     @Test

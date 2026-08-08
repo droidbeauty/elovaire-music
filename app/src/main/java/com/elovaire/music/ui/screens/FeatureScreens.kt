@@ -5207,8 +5207,8 @@ private fun AnimatedAudioLinesIcon(
     } else {
         0.35f
     }
-    val baseHeights = floatArrayOf(0.26f, 0.54f, 0.84f, 0.42f, 0.68f, 0.3f)
-    val phaseOffsets = floatArrayOf(0f, 0.17f, 0.31f, 0.48f, 0.67f, 0.83f)
+    val baseHeights = remember { floatArrayOf(0.26f, 0.54f, 0.84f, 0.42f, 0.68f, 0.3f) }
+    val phaseOffsets = remember { floatArrayOf(0f, 0.17f, 0.31f, 0.48f, 0.67f, 0.83f) }
     Canvas(modifier = modifier) {
         val lineWidth = size.width / 10f
         val gap = (size.width - (lineWidth * baseHeights.size)) / (baseHeights.size - 1).coerceAtLeast(1)
@@ -5242,7 +5242,7 @@ internal fun PlaybackActiveArtworkOverlay(
 ) {
     val artworkShape = RoundedCornerShape(ElovaireRadii.artworkSmall)
     val artworkBitmap = rememberArtworkBitmap(uri = uri, size = 256).value
-    val artworkKey = remember(uri, title) { uri?.toString().orEmpty() + title }
+    val artworkKey = remember(uri, title) { PlaybackArtworkKey(uri, title) }
     var entered by remember(artworkKey) { mutableStateOf(false) }
     val blurRadius by animateDpAsState(
         targetValue = if (entered) 18.dp else 0.dp,
@@ -5304,6 +5304,11 @@ internal fun PlaybackActiveArtworkOverlay(
         )
     }
 }
+
+private data class PlaybackArtworkKey(
+    val uri: Uri?,
+    val title: String,
+)
 
 @Composable
 private fun AlbumSongRow(

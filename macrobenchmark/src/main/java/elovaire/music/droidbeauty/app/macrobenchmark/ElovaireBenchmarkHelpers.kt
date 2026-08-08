@@ -49,6 +49,11 @@ internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
 }
 
 internal fun MacrobenchmarkScope.requireClickTestTag(tag: String) {
+    repeat(4) {
+        if (uiDevice.findObject(By.res(tag)) != null) return requireClick(By.res(tag), "testTag=$tag")
+        uiDevice.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.65f)
+        uiDevice.waitForIdle()
+    }
     requireClick(By.res(tag), "testTag=$tag")
 }
 
@@ -156,7 +161,7 @@ internal fun MacrobenchmarkScope.routeOpenBackJourney() {
     requireClickDescription("Menu")
     requireClickTestTag("top_menu_settings")
     waitForAppVisible()
-    requireClickText("Privacy policy")
+    requireClickTestTag("settings_privacy_policy")
     waitForAppVisible()
     uiDevice.pressBack()
     waitForAppVisible()

@@ -6,7 +6,7 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.6.3">
+    <release version="2.6.4">
         <item>Further performance optimizations</item>
         <item>Layout tweaks in queue menu and timer pop-up menu</item>
     </release>

@@ -6,6 +6,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -393,7 +394,7 @@ private fun ReverbStepSlider(
                 ((if (isDragging) dragCenterPx else selectedCenterPx) - (knobSizePx / 2f)).toDp()
             },
             animationSpec = if (isDragging) {
-                motionSpecs.tween(durationMillis = 60)
+                snap()
             } else {
                 motionSpecs.spring(
                     dampingRatio = 0.82f,
@@ -1693,6 +1694,7 @@ private fun ThinContinuousSlider(
     } else {
         Color.White.copy(alpha = 0.2f)
     }
+    var isDragging by remember { mutableStateOf(false) }
 
     BoxWithConstraints(
         modifier = modifier
@@ -1707,16 +1709,22 @@ private fun ThinContinuousSlider(
         val trackWidthPx = (maxWidthPx - knobSizePx).coerceAtLeast(1f)
         val trackStart = with(density) { trackStartPx.toDp() }
         val trackWidth = with(density) { trackWidthPx.toDp() }
-        val activeWidth by animateDpAsState(
+        val animatedActiveWidth by animateDpAsState(
             targetValue = trackWidth * fraction,
             animationSpec = motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_fill",
         )
-        val knobOffset by animateDpAsState(
+        val animatedKnobOffset by animateDpAsState(
             targetValue = with(density) { (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp() },
             animationSpec = motionSpecs.tween(durationMillis = 70),
             label = "eq_macro_slider_knob",
         )
+        val activeWidth = if (isDragging) trackWidth * fraction else animatedActiveWidth
+        val knobOffset = if (isDragging) {
+            with(density) { (trackStartPx + trackWidthPx * fraction - knobSizePx / 2f).toDp() }
+        } else {
+            animatedKnobOffset
+        }
 
         val updateFromX: (Float) -> Unit = { xPosition ->
             if (maxWidthPx > 0f) {
@@ -1731,16 +1739,22 @@ private fun ThinContinuousSlider(
                 .fillMaxSize()
                 .pointerInput(maxWidthPx, valueRange.start, valueRange.endInclusive) {
                     detectTapGestures { offset ->
+                        isDragging = false
                         updateFromX(offset.x)
                     }
                 }
                 .pointerInput(maxWidthPx, valueRange.start, valueRange.endInclusive) {
                     detectHorizontalDragGestures(
-                        onDragStart = { offset -> updateFromX(offset.x) },
+                        onDragStart = { offset ->
+                            isDragging = true
+                            updateFromX(offset.x)
+                        },
                         onHorizontalDrag = { change, _ ->
                             change.consume()
                             updateFromX(change.position.x)
                         },
+                        onDragEnd = { isDragging = false },
+                        onDragCancel = { isDragging = false },
                     )
                 },
         ) {

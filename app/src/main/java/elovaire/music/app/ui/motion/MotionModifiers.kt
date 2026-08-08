@@ -7,7 +7,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
-import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.graphicsLayer
 
 fun Modifier.elovairePressScaleMotion(
     pressed: Boolean,
@@ -21,7 +21,10 @@ fun Modifier.elovairePressScaleMotion(
         animationSpec = if (pressed) pressSpec else releaseSpec,
         label = label,
     )
-    scale(scale)
+    graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
 }
 
 @Composable
