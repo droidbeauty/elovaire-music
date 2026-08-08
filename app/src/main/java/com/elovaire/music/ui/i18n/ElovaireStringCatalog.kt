@@ -49,6 +49,7 @@ internal fun localizedAllSongsSource(language: AppLanguage): String = when (lang
     else -> commonUiCopy(language).songs.lowercase()
 }
 
+@Suppress("CyclomaticComplexMethod")
 internal fun builtInSmartPlaylistTitle(type: BuiltInSmartPlaylistType, language: AppLanguage): String = when (type) {
     BuiltInSmartPlaylistType.RecentlyAdded -> miscPhrase(language, MiscPhrase.RecentlyAdded)
     BuiltInSmartPlaylistType.MostPlayed -> when (language) {

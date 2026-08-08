@@ -12,6 +12,7 @@ import java.nio.charset.Charset
 import java.util.Locale
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
+import kotlinx.coroutines.CancellationException
 
 internal class LocalLyricsResolver(
     context: Context,
@@ -51,6 +52,8 @@ internal class LocalLyricsResolver(
             parseLrcOrPlain(rawLyrics)
                 ?.takeIf { it.lines.isNotEmpty() }
                 ?.let(::LocalLyricsMatch)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             null
         } finally {
@@ -307,9 +310,13 @@ internal class LocalLyricsResolver(
     }
 
     private fun readTextFile(file: File): String? {
-        val bytes = runCatching {
+        val bytes = try {
             file.takeIf { it.length() in 1..MAX_SIDECAR_FILE_BYTES }?.readBytes()
-        }.getOrNull() ?: return null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        } ?: return null
         return decodeBestEffortText(bytes)
     }
 

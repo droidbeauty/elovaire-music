@@ -7,6 +7,7 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 
 internal data class DetectedAudioFormat(
     val container: AudioContainerFormat,
@@ -111,6 +112,8 @@ internal class AudioFormatDetector(context: Context) {
                 isProtected = extractor.drmInitData != null,
                 evidence = DetectionEvidence.Extractor,
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             val container = signature?.toContainer()
                 ?: AudioFormatPolicy.resolveContainer(extension, mediaStoreMimeType, null)

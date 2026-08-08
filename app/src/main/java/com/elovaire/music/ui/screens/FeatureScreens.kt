@@ -6924,7 +6924,7 @@ internal fun NowPlayingScreen(
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 778.dp
+                val queueSheetTopExtension = 900.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -7701,7 +7701,7 @@ private fun SleepTimerDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .navigationBarsPadding()
-                    .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 18.dp),
+                    .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 28.dp),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
                 Row(
@@ -7750,7 +7750,7 @@ private fun SleepTimerDialog(
                     style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     SleepTimerSlider(
                         value = selectedMinutes,
                         onValueChange = {
@@ -7821,7 +7821,7 @@ private fun SleepTimerSlider(
     } else {
         Color.White
     }
-    val barCount = 11
+    val barCount = 25
     val activeBarCount = (fraction * (barCount - 1)).roundToInt() + 1
 
     BoxWithConstraints(
