@@ -247,14 +247,6 @@ internal fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         SettingToggleRow(
-                            title = "Online lyrics",
-                            subtitle = "Fetch missing lyrics from LRCLIB",
-                            enabled = onlineLyricsEnabled,
-                            onEnabledChanged = onOnlineLyricsChanged,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        SettingToggleRow(
                             title = copy.enableMono,
                             subtitle = copy.monoSubtitle,
                             enabled = eqSettings.monoEnabled,
@@ -282,23 +274,6 @@ internal fun SettingsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
-                        SettingActionRow(
-                            title = "GitHub updates",
-                            subtitle = updateSubtitle(updateState),
-                            actionLabel = updateActionLabel(updateState),
-                            actionIconResId = R.drawable.ic_lucide_refresh_cw,
-                            enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling,
-                            onAction = {
-                                if (updateState.availableRelease == null) {
-                                    updateController.checkForUpdates(force = true)
-                                } else {
-                                    updateController.startUpdate()
-                                }
-                            },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
                         SettingNavigationRow(
                             title = foldersCopy.title,
                             subtitle = foldersCopy.subtitle,
@@ -316,6 +291,13 @@ internal fun SettingsScreen(
                                 .padding(horizontal = 2.dp),
                             testTag = "settings_privacy_policy",
                         )
+                        SettingToggleRow(
+                            title = "Online lyrics",
+                            subtitle = "Fetch lyrics from LRCLIB",
+                            enabled = onlineLyricsEnabled,
+                            onEnabledChanged = onOnlineLyricsChanged,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                        )
                         SettingActionRow(
                             title = copy.scanLibrary,
                             subtitle = copy.scanLibrarySubtitle,
@@ -324,6 +306,17 @@ internal fun SettingsScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
+                        )
+                        SettingActionRow(
+                            title = "Check for updates",
+                            subtitle = "Check out newer release version availability",
+                            actionLabel = updateActionLabel(updateState),
+                            actionIconResId = R.drawable.ic_lucide_refresh_cw,
+                            enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling,
+                            onAction = {
+                                if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate()
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                     }
                 }

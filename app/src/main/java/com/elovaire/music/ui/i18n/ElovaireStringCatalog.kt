@@ -2529,10 +2529,6 @@ internal fun privacyPolicyCopy(language: AppLanguage): PrivacySafetyCopy {
                 "When Online lyrics is enabled, Elovaire may send the track title, artist, album, and duration to LRCLIB to retrieve missing lyrics. Lyrics may be cached locally. Turning Online lyrics off prevents LRCLIB lookup and use",
             ),
             PrivacySafetySectionCopy(
-                "Artist images",
-                "When artist imagery is needed, Elovaire may send an artist-name lookup to YouTube Music and download an artist image. Resolved metadata and images are cached locally to reduce repeat requests. No Google account login is required",
-            ),
-            PrivacySafetySectionCopy(
                 "Local app data",
                 "Playlists, smart mixes, favorites, play history, play counts, search history, settings, the library index, artwork cache, and update preferences are stored locally. Android backup may include portable settings; music files, permissions, caches, and operation journals are excluded",
             ),
