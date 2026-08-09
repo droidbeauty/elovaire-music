@@ -8,7 +8,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,7 +33,6 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.MotionRuntimeProvider
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRuntime
 import elovaire.music.droidbeauty.app.ui.screens.ElovaireRoot
-import elovaire.music.droidbeauty.app.ui.screens.elovaireAdaptiveInfo
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
 import elovaire.music.droidbeauty.app.ui.theme.themeBackgroundForMode
 import kotlinx.coroutines.delay
@@ -88,12 +86,10 @@ internal fun ElovaireAppShell(
             textSizePreset = textSizePreset.value,
         ) {
             PerformanceState("animation", if (showSplash) "cold_start_reveal" else null)
-            BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
-                val adaptiveInfo = elovaireAdaptiveInfo(width = maxWidth)
+            Box(modifier = Modifier.fillMaxSize()) {
                 ElovaireRoot(
                     container = container,
                     resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
-                    adaptiveInfo = adaptiveInfo,
                 )
                 if (themeOverlayAlpha.value > 0f) {
                     Box(

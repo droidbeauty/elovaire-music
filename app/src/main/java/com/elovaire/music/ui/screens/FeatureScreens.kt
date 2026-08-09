@@ -2366,6 +2366,7 @@ private fun ArtistHeroHeader(
 ) {
     val sourceUri = when (backdropState) {
         is ArtistBackdropState.Fallback -> backdropState.localArtworkUri
+        is ArtistBackdropState.Remote -> backdropState.imageUri
         ArtistBackdropState.Loading -> localArtworkUri
     } ?: localArtworkUri
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value

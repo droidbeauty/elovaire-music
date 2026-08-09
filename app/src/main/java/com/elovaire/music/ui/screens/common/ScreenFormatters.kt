@@ -10,13 +10,19 @@ import kotlin.math.roundToInt
 
 internal fun recentlyAddedAlbumsFor(
     libraryState: LibraryUiState,
+    nowSeconds: Long = System.currentTimeMillis() / 1_000L,
 ): List<Album> {
+    val cutoffSeconds = nowSeconds - RECENTLY_ADDED_WINDOW_SECONDS
     return libraryState.albums
-        .sortedByDescending { album ->
-            album.songs.maxOfOrNull(Song::dateAddedSeconds) ?: 0L
+        .mapNotNull { album ->
+            val addedAtSeconds = album.songs.maxOfOrNull(Song::dateAddedSeconds) ?: return@mapNotNull null
+            album.takeIf { addedAtSeconds in cutoffSeconds..nowSeconds }?.let { it to addedAtSeconds }
         }
-        .take(4)
+        .sortedWith(compareByDescending<Pair<Album, Long>> { it.second }.thenBy { it.first.id })
+        .map(Pair<Album, Long>::first)
 }
+
+private const val RECENTLY_ADDED_WINDOW_SECONDS = 14L * 24L * 60L * 60L
 
 internal fun recentAlbumsFor(
     libraryState: LibraryUiState,

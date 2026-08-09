@@ -22,6 +22,7 @@ internal class LyricsCache(
     fun get(
         identity: LyricsIdentity,
         includeNotFound: Boolean,
+        includeOnline: Boolean = true,
     ): LyricsResult? = synchronized(cacheLock) {
         ensureLoadedLocked()
         val now = clock.wallTimeMs()
@@ -41,6 +42,7 @@ internal class LyricsCache(
         }
         when {
             entry == null -> null
+            entry.online && !includeOnline -> null
             !includeNotFound && (entry.result == LyricsResult.NotFound || entry.result == LyricsResult.Timeout) -> null
             else -> entry.result
         }
@@ -107,6 +109,7 @@ internal class LyricsCache(
                 cacheEntries[key] = LyricsCacheEntry(
                     result = result,
                     expiresAtMillis = entryJson.optLong("expiresAtMillis", 0L),
+                    online = entryJson.optBoolean("online", false),
                 )
             }
         }
@@ -124,6 +127,7 @@ internal class LyricsCache(
                                 JSONObject().apply {
                                     put("key", key)
                                     put("expiresAtMillis", entry.expiresAtMillis)
+                                    put("online", entry.online)
                                     when (val result = entry.result) {
                                         is LyricsResult.Found -> {
                                             put("result", RESULT_FOUND)

@@ -17,6 +17,7 @@ class LyricsService internal constructor(
     context: Context,
     mediaMutationJournal: MediaMutationJournal? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val onlineLyricsEnabled: () -> Boolean = { true },
 ) {
     private val embeddedLyricsWriter = EmbeddedLyricsWriter(context.applicationContext, mediaMutationJournal)
     private val repository = LyricsRepository(
@@ -27,7 +28,7 @@ class LyricsService internal constructor(
     fun cachedLyrics(
         song: Song,
         includeNotFound: Boolean = true,
-    ): LyricsResult? = repository.cachedLyrics(song, includeNotFound)
+    ): LyricsResult? = repository.cachedLyrics(song, includeNotFound, onlineLyricsEnabled())
 
     fun clearCacheFor(song: Song) {
         repository.clearCacheFor(song)
@@ -55,13 +56,14 @@ class LyricsService internal constructor(
     suspend fun fetchLyrics(
         song: Song,
         allowCachedNotFound: Boolean = true,
-    ): LyricsResult = repository.fetchLyrics(song, allowCachedNotFound)
+    ): LyricsResult = repository.fetchLyrics(song, allowCachedNotFound, onlineLyricsEnabled())
 
     fun lyricsForSong(song: Song): Flow<LyricsResult> = flow {
         emit(
             repository.fetchLyrics(
                 song = song,
                 allowCachedNotFound = false,
+                onlineEnabled = onlineLyricsEnabled(),
             ),
         )
     }.catch { throwable ->

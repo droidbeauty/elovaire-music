@@ -26,7 +26,6 @@ internal data class RootChromeLayout(
     val topBarHeight: Dp,
     val sharedTopBarHeight: Dp,
     val bottomNavHeight: Dp,
-    val navigationRailWidth: Dp,
     val routePadding: RootRoutePadding,
 )
 
@@ -38,7 +37,6 @@ internal fun ElovaireRootShell(
     sharedBackIconPainter: Painter,
     sharedTopMenuIconPainter: Painter,
     appLanguage: AppLanguage,
-    adaptiveInfo: ElovaireAdaptiveInfo,
     chromeVisibility: RootChromeVisibility,
     sharedTopBarController: SharedTopBarController,
     navHostBlur: Dp,
@@ -67,7 +65,6 @@ internal fun ElovaireRootShell(
             ) { innerPadding ->
                 val layout = rootChromeLayout(
                     chromeVisibility = chromeVisibility,
-                    adaptiveInfo = adaptiveInfo,
                     innerTopPadding = innerPadding.calculateTopPadding(),
                 )
                 Box(modifier = Modifier.fillMaxSize()) {
@@ -84,7 +81,6 @@ internal fun ElovaireRootShell(
                                 layout.routePadding,
                                 Modifier
                                     .fillMaxSize()
-                                    .padding(start = layout.navigationRailWidth)
                                     .blur(navHostBlur),
                             )
                             if (navHostScrimAlpha > 0f) {
@@ -108,22 +104,15 @@ internal fun ElovaireRootShell(
 @Composable
 internal fun rootChromeLayout(
     chromeVisibility: RootChromeVisibility,
-    adaptiveInfo: ElovaireAdaptiveInfo,
     innerTopPadding: Dp,
 ): RootChromeLayout {
     val topBarHeight = topBarOccupiedHeight()
-    val showBottomNavigation = chromeVisibility.showBottomNavigation && !adaptiveInfo.useNavigationRail
+    val showBottomNavigation = chromeVisibility.showBottomNavigation
     val bottomNavHeight = if (showBottomNavigation) bottomNavigationOccupiedHeight() else 0.dp
-    val navigationRailWidth = if (chromeVisibility.showBottomNavigation && adaptiveInfo.useNavigationRail) {
-        88.dp
-    } else {
-        0.dp
-    }
     return RootChromeLayout(
         topBarHeight = topBarHeight,
         sharedTopBarHeight = sharedTopBarOccupiedHeight(),
         bottomNavHeight = bottomNavHeight,
-        navigationRailWidth = navigationRailWidth,
         routePadding = rootScaffoldPadding(
             showTopLevelChrome = chromeVisibility.showTopLevelChrome,
             showBottomNavigation = showBottomNavigation,

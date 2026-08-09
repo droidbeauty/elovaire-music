@@ -41,6 +41,7 @@ internal const val ALBUM_TAG_EDITOR_ROUTE = "album_tag_editor"
 internal const val LIBRARY_COLLECTION_ROUTE = "library_collection"
 internal const val GENRE_ROUTE = "genre"
 internal const val ARTIST_ROUTE = "artist"
+internal const val RECENTLY_ADDED_ROUTE = "recently_added"
 
 internal object Routes {
     fun album(albumId: Long): String = "$ALBUM_ROUTE/$albumId"

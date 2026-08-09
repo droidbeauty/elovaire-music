@@ -113,12 +113,14 @@ internal fun SettingsScreen(
     appLanguage: AppLanguage,
     eqSettings: EqSettings,
     volumeNormalizationEnabled: Boolean,
+    onlineLyricsEnabled: Boolean,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onThemeModeSelected: (ThemeMode) -> Unit,
     onTextSizePresetSelected: (TextSizePreset) -> Unit,
     onAppLanguageSelected: (AppLanguage) -> Unit,
     onVolumeNormalizationChanged: (Boolean) -> Unit,
+    onOnlineLyricsChanged: (Boolean) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
@@ -242,6 +244,14 @@ internal fun SettingsScreen(
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp)
                                 .align(Alignment.CenterHorizontally),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SettingToggleRow(
+                            title = "Online lyrics",
+                            subtitle = "Fetch missing lyrics from LRCLIB",
+                            enabled = onlineLyricsEnabled,
+                            onEnabledChanged = onOnlineLyricsChanged,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         SettingToggleRow(

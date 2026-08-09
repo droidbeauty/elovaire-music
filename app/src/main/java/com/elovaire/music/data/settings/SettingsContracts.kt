@@ -21,6 +21,7 @@ internal interface AppearanceSettingsStore {
     val albumCollectionSortMode: StateFlow<String>
     val songCollectionSortMode: StateFlow<String>
     val volumeNormalizationEnabled: StateFlow<Boolean>
+    val onlineLyricsEnabled: StateFlow<Boolean>
 }
 
 internal interface CollectionSettingsStore {
@@ -70,6 +71,7 @@ internal interface PlaybackSettingsWriter {
     fun setPlaybackVolume(value: Float)
     fun setCrossfadeEnabled(enabled: Boolean)
     fun setVolumeNormalizationEnabled(enabled: Boolean)
+    fun setOnlineLyricsEnabled(enabled: Boolean)
     fun updateBass(value: Float)
     fun updateMidrange(value: Float)
     fun updateTreble(value: Float)

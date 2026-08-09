@@ -17,14 +17,17 @@ internal class LyricsRepository(
 ) {
     private val cache = LyricsCache(appContext.applicationContext, clock)
     private val localLyricsResolver = LocalLyricsResolver(appContext.applicationContext)
+    private val lrclibClient = LrclibClient()
     private val memoryPositiveCache = ConcurrentHashMap<String, LyricsCacheEntry>()
 
     fun cachedLyrics(
         song: Song,
         includeNotFound: Boolean,
+        includeOnline: Boolean = true,
     ): LyricsResult? {
         val identity = song.toLyricsIdentity()
-        return memoryCachedLyrics(identity) ?: cache.get(identity, includeNotFound)
+        return memoryCachedLyrics(identity)?.takeUnless { it.online && !includeOnline }?.result
+            ?: cache.get(identity, includeNotFound, includeOnline)
     }
 
     fun localLyrics(song: Song): LyricsResult? {
@@ -50,17 +53,35 @@ internal class LyricsRepository(
     suspend fun fetchLyrics(
         song: Song,
         allowCachedNotFound: Boolean,
+        onlineEnabled: Boolean = true,
     ): LyricsResult = withContext(ioDispatcher) {
         val identity = song.toLyricsIdentity()
-        memoryCachedLyrics(identity)
-            ?: cache.get(identity, includeNotFound = allowCachedNotFound)
+        localLyricsResolver.resolve(song)?.let { local ->
+            local.toCacheEntry().also { entry ->
+                rememberPositive(identity, entry)
+                cache.put(identity, entry)
+            }.result
+        }
+            ?: memoryCachedLyrics(identity)?.takeUnless { it.online && !onlineEnabled }?.result
+            ?: cache.get(identity, includeNotFound = allowCachedNotFound, includeOnline = onlineEnabled)
             ?: localLyricsResolver.resolve(song)?.let { local ->
                 local.toCacheEntry().also { entry ->
                     rememberPositive(identity, entry)
                     cache.put(identity, entry)
                 }.result
             }
-            ?: LyricsResult.NotFound
+            ?: if (!onlineEnabled) LyricsResult.NotFound else lrclibClient.fetch(song).also { result ->
+                if (result is LyricsResult.Found || result == LyricsResult.NotFound) {
+                    cache.put(
+                        identity,
+                        LyricsCacheEntry(
+                            result = result,
+                            expiresAtMillis = clock.wallTimeMs() + if (result is LyricsResult.Found) POSITIVE_CACHE_TTL_MS else NEGATIVE_CACHE_TTL_MS,
+                            online = true,
+                        ),
+                    )
+                }
+            }
     }
 
     private fun LocalLyricsMatch.toCacheEntry(): LyricsCacheEntry = LyricsCacheEntry(
@@ -68,7 +89,7 @@ internal class LyricsRepository(
         expiresAtMillis = clock.wallTimeMs() + POSITIVE_CACHE_TTL_MS,
     )
 
-    private fun memoryCachedLyrics(identity: LyricsIdentity): LyricsResult? {
+    private fun memoryCachedLyrics(identity: LyricsIdentity): LyricsCacheEntry? {
         val now = clock.wallTimeMs()
         var entry: LyricsCacheEntry? = null
         identity.cacheKeys.forEach { key ->
@@ -79,7 +100,7 @@ internal class LyricsRepository(
                 entry = cached
             }
         }
-        return entry?.result
+        return entry
     }
 
     private fun rememberPositive(identity: LyricsIdentity, entry: LyricsCacheEntry) {
@@ -97,6 +118,7 @@ internal class LyricsRepository(
 
     private companion object {
         const val POSITIVE_CACHE_TTL_MS = 30L * 24L * 60L * 60L * 1_000L
+        const val NEGATIVE_CACHE_TTL_MS = 24L * 60L * 60L * 1_000L
         const val MAX_MEMORY_CACHE_KEYS = 96
         const val MODERATE_MEMORY_CACHE_KEYS = 24
     }

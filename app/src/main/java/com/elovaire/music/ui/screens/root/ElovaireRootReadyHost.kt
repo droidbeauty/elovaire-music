@@ -7,7 +7,6 @@ import androidx.compose.runtime.Composable
 internal fun ElovaireRootReadyHost(
     composition: RootComposition,
     resetHomeScrollOnColdStart: Boolean,
-    adaptiveInfo: ElovaireAdaptiveInfo,
 ) {
     val container = composition.container
     val appState = composition.appState
@@ -51,7 +50,6 @@ internal fun ElovaireRootReadyHost(
         sharedBackIconPainter = uiRuntime.shellInputs.sharedBackIconPainter,
         sharedTopMenuIconPainter = uiRuntime.shellInputs.sharedTopMenuIconPainter,
         appLanguage = appState.appLanguage,
-        adaptiveInfo = adaptiveInfo,
         chromeVisibility = uiRuntime.chromeVisibility,
         sharedTopBarController = uiRuntime.shellInputs.sharedTopBarController,
         navHostBlur = uiRuntime.shellInputs.navHostBlur,
@@ -76,7 +74,6 @@ internal fun ElovaireRootReadyHost(
                 chromeVisibility = uiRuntime.chromeVisibility,
                 playbackState = playbackState,
                 nowPlayingViewModel = composition.nowPlayingViewModel,
-                adaptiveInfo = adaptiveInfo,
                 activeBottomRoute = uiRuntime.routeObservation.activeBottomRoute,
                 currentRoute = currentRoute,
                 navigationState = navigationState,

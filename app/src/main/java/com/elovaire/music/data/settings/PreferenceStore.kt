@@ -70,6 +70,9 @@ class PreferenceStore internal constructor(
     private val _volumeNormalizationEnabled = MutableStateFlow(loadVolumeNormalizationEnabled())
     override val volumeNormalizationEnabled: StateFlow<Boolean> = _volumeNormalizationEnabled.asStateFlow()
 
+    private val _onlineLyricsEnabled = MutableStateFlow(preferences.getBoolean(KEY_ONLINE_LYRICS_ENABLED, true))
+    override val onlineLyricsEnabled: StateFlow<Boolean> = _onlineLyricsEnabled.asStateFlow()
+
     private val _albumCollectionLayoutMode = MutableStateFlow(loadAlbumCollectionLayoutMode())
     override val albumCollectionLayoutMode: StateFlow<String> = _albumCollectionLayoutMode.asStateFlow()
 
@@ -239,6 +242,12 @@ class PreferenceStore internal constructor(
     override fun setVolumeNormalizationEnabled(enabled: Boolean) {
         updateStateAndPreference(_volumeNormalizationEnabled, enabled) {
             putBoolean(KEY_VOLUME_NORMALIZATION_ENABLED, enabled)
+        }
+    }
+
+    override fun setOnlineLyricsEnabled(enabled: Boolean) {
+        updateStateAndPreference(_onlineLyricsEnabled, enabled) {
+            putBoolean(KEY_ONLINE_LYRICS_ENABLED, enabled)
         }
     }
 
@@ -559,6 +568,7 @@ class PreferenceStore internal constructor(
         const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
+        const val KEY_ONLINE_LYRICS_ENABLED = "online_lyrics_enabled"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
         const val KEY_ALBUM_COLLECTION_LAYOUT_MODE = "album_collection_layout_mode"
         const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"

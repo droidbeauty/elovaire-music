@@ -88,6 +88,7 @@ internal class AppServices(
         LyricsService(
             context = applicationContext,
             mediaMutationJournal = mediaMutationJournal,
+            onlineLyricsEnabled = { preferenceStore.onlineLyricsEnabled.value },
         )
     }
     val lyricsService get() = lyricsServiceDelegate.value

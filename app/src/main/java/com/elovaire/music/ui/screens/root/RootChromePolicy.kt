@@ -70,5 +70,6 @@ private val CompactNowPlayingHiddenRoutes = setOf(
     CHANGELOG_ROUTE,
     ABOUT_ROUTE,
     EQUALIZER_ROUTE,
+    PRIVACY_POLICY_ROUTE,
     "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
 )

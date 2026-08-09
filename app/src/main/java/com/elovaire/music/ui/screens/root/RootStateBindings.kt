@@ -49,6 +49,7 @@ internal data class RootAppState(
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
+    val onlineLyricsEnabled: Boolean,
 )
 
 internal data class RootLibraryDerivedState(

@@ -99,6 +99,7 @@ sealed interface LyricsResult {
 internal data class LyricsCacheEntry(
     val result: LyricsResult,
     val expiresAtMillis: Long,
+    val online: Boolean = false,
 ) {
     fun isExpired(nowMillis: Long): Boolean = nowMillis >= expiresAtMillis
 }

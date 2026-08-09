@@ -29,6 +29,9 @@ internal fun RootRouteGraph(
         composable(ALBUMS_ROUTE) {
             LibraryHubRouteHost(navState, routeState, routeActions, padding)
         }
+        composable(RECENTLY_ADDED_ROUTE) {
+            RecentlyAddedRouteHost(routeState, routeActions, padding)
+        }
         composable(PLAYLISTS_ROUTE) {
             PlaylistsRouteHost(navState, routeState.playlists, routeActions, padding)
         }

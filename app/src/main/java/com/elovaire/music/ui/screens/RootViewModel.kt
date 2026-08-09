@@ -26,6 +26,7 @@ internal data class RootAppearanceState(
     val albumCollectionSortModeName: String,
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
+    val onlineLyricsEnabled: Boolean,
 )
 
 internal data class RootCollectionState(
@@ -89,7 +90,8 @@ internal class RootViewModel(
             AppearanceLayout(albumLayout, songGrid, albumSort, songSort)
         },
         dependencies.rootSettingsReader.volumeNormalizationEnabled,
-    ) { core, layout, volumeNormalization ->
+        dependencies.rootSettingsReader.onlineLyricsEnabled,
+    ) { core, layout, volumeNormalization, onlineLyrics ->
         RootAppearanceState(
             eqSettings = core.eqSettings,
             themeMode = core.themeMode,
@@ -100,6 +102,7 @@ internal class RootViewModel(
             albumCollectionSortModeName = layout.albumCollectionSortModeName,
             songCollectionSortModeName = layout.songCollectionSortModeName,
             volumeNormalizationEnabled = volumeNormalization,
+            onlineLyricsEnabled = onlineLyrics,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -165,6 +168,7 @@ internal class RootViewModel(
             albumCollectionSortModeName = appearance.albumCollectionSortModeName,
             songCollectionSortModeName = appearance.songCollectionSortModeName,
             volumeNormalizationEnabled = appearance.volumeNormalizationEnabled,
+            onlineLyricsEnabled = appearance.onlineLyricsEnabled,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -186,6 +190,7 @@ internal class RootViewModel(
             albumCollectionSortModeName = appearanceState.value.albumCollectionSortModeName,
             songCollectionSortModeName = appearanceState.value.songCollectionSortModeName,
             volumeNormalizationEnabled = appearanceState.value.volumeNormalizationEnabled,
+            onlineLyricsEnabled = appearanceState.value.onlineLyricsEnabled,
         ),
     )
 }
@@ -215,4 +220,5 @@ private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.
         albumCollectionSortModeName = settings.albumCollectionSortMode.value,
         songCollectionSortModeName = settings.songCollectionSortMode.value,
         volumeNormalizationEnabled = settings.volumeNormalizationEnabled.value,
+        onlineLyricsEnabled = settings.onlineLyricsEnabled.value,
     )

@@ -73,6 +73,10 @@ internal class RootRouteActions(
         navController.navigate(Routes.libraryCollection(kind))
     }
 
+    fun openRecentlyAdded() {
+        navController.navigate(RECENTLY_ADDED_ROUTE)
+    }
+
     fun openArtist(artistName: String) {
         navController.navigate(Routes.artist(artistName))
     }
@@ -216,6 +220,10 @@ internal class SettingsRouteActions(
 
     fun setVolumeNormalizationEnabled(enabled: Boolean) {
         settingsDependencies.playbackSettings.setVolumeNormalizationEnabled(enabled)
+    }
+
+    fun setOnlineLyricsEnabled(enabled: Boolean) {
+        settingsDependencies.playbackSettings.setOnlineLyricsEnabled(enabled)
     }
 
 }

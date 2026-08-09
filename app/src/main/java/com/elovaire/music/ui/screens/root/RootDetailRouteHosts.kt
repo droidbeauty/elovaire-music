@@ -130,6 +130,46 @@ internal fun LibraryCollectionRouteHost(
 }
 
 @Composable
+internal fun RecentlyAddedRouteHost(
+    routeState: RootRouteState,
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    val appState = routeState.appState
+    val library = routeState.libraryState
+    LibraryCollectionScreen(
+        kind = LibraryCollectionKind.Albums,
+        libraryState = library.copy(albums = recentlyAddedAlbumsFor(library)),
+        playlists = appState.playlists,
+        songPlayCounts = appState.songPlayCounts,
+        favoriteSongIds = appState.favoriteSongIds,
+        albumCollectionLayoutMode = AlbumLayoutMode.Compact,
+        songCollectionLayoutMode = AlbumLayoutMode.Compact,
+        albumSortMode = AlbumSortMode.Artist,
+        songSortMode = SongSortMode.Title,
+        currentSongId = routeState.playbackState.currentSong?.id,
+        isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onAlbumSelected = { album, origin -> routeActions.openAlbum(album, origin, AlbumOpenSource.LibraryAlbums) },
+        onAddAlbumToQueue = routeActions::enqueueAlbum,
+        onSongSelected = { song, queue -> routeActions.playback.playSongQueue(song, queue) },
+        onToggleFavorite = routeActions.playlists::toggleFavorite,
+        onAddAlbumToPlaylist = routeActions.playlists::addAlbumToPlaylist,
+        onCreatePlaylist = routeActions.playlists::createPlaylist,
+        playlistSongsById = routeState.songsById,
+        onSetAlbumFavorite = routeActions.playlists::setSongsFavorite,
+        onDeleteAlbumFromDevice = routeActions.delete::deleteAlbumFromDevice,
+        onAlbumCollectionLayoutModeChanged = {},
+        onSongCollectionLayoutModeChanged = {},
+        onAlbumSortModeChanged = {},
+        onSongSortModeChanged = {},
+        onGenreSelected = routeActions::openGenre,
+        onArtistSelected = routeActions::openArtist,
+    )
+}
+
+@Composable
 internal fun GenreRouteHost(
     genre: String,
     routeState: RootRouteState,
@@ -259,12 +299,14 @@ internal fun SettingsRouteHost(
         appLanguage = appState.appLanguage,
         eqSettings = appState.eqSettings,
         volumeNormalizationEnabled = appState.volumeNormalizationEnabled,
+        onlineLyricsEnabled = appState.onlineLyricsEnabled,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onThemeModeSelected = routeActions.settings::setThemeMode,
         onTextSizePresetSelected = routeActions.settings::setTextSizePreset,
         onAppLanguageSelected = routeActions.settings::setAppLanguage,
         onVolumeNormalizationChanged = routeActions.settings::setVolumeNormalizationEnabled,
+        onOnlineLyricsChanged = routeActions.settings::setOnlineLyricsEnabled,
         onMonoPlaybackChanged = routeActions.settings::updateMonoPlaybackEnabled,
         onOpenEqualizer = routeActions::openEqualizer,
         onOpenLibraryFolders = routeActions::openLibraryFolders,

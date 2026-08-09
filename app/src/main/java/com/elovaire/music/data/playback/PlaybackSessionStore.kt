@@ -21,22 +21,44 @@ internal class PlaybackSessionStore(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
 ) {
-    private val preferences = allowStrictModeDiskReads {
-        context.applicationContext.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+    private val structurePreferences = allowStrictModeDiskReads {
+        context.applicationContext.getSharedPreferences(STRUCTURE_FILE_NAME, Context.MODE_PRIVATE)
+    }
+    private val recoveryPreferences = allowStrictModeDiskReads {
+        context.applicationContext.getSharedPreferences(RECOVERY_FILE_NAME, Context.MODE_PRIVATE)
+    }
+    private val legacyPreferences = allowStrictModeDiskReads {
+        context.applicationContext.getSharedPreferences(LEGACY_FILE_NAME, Context.MODE_PRIVATE)
     }
     private var lastSavedSession: PersistedPlaybackSession? = null
 
     fun load(): PersistedPlaybackSession? {
-        if (!isSupportedPlaybackSessionVersion(preferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION))) {
-            clear()
-            return null
+        return if (structurePreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
+            load(
+                structurePreferences,
+                recoveryPreferences,
+            )
+        } else {
+            val version = legacyPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION)
+            if (!isSupportedPlaybackSessionVersion(version)) {
+                clear()
+                null
+            } else {
+                load(legacyPreferences, legacyPreferences)
+            }
         }
-        val savedAtMs = preferences.getLong(KEY_SAVED_AT, 0L)
+    }
+
+    private fun load(
+        structure: android.content.SharedPreferences,
+        recovery: android.content.SharedPreferences,
+    ): PersistedPlaybackSession? {
+        val savedAtMs = recovery.getLong(KEY_SAVED_AT, 0L)
         if (savedAtMs <= 0L || clock.wallTimeMs() - savedAtMs !in 0L..MAX_SESSION_AGE_MS) {
             clear()
             return null
         }
-        val ids = preferences.getString(KEY_QUEUE_IDS, null)
+        val ids = structure.getString(KEY_QUEUE_IDS, null)
             ?.split(',')
             ?.asSequence()
             ?.mapNotNull(String::toLongOrNull)
@@ -51,15 +73,15 @@ internal class PlaybackSessionStore(
         return normalizePersistedPlaybackSession(
             PersistedPlaybackSession(
                 queueSongIds = ids,
-                currentSongId = preferences.getLong(KEY_CURRENT_SONG_ID, -1L).takeIf { it > 0L },
-                currentIndex = preferences.getInt(KEY_CURRENT_INDEX, -1),
-                positionMs = preferences.getLong(KEY_POSITION_MS, 0L),
-                repeatMode = preferences.getString(KEY_REPEAT_MODE, null)
+                currentSongId = recovery.getLong(KEY_CURRENT_SONG_ID, -1L).takeIf { it > 0L },
+                currentIndex = recovery.getInt(KEY_CURRENT_INDEX, -1),
+                positionMs = recovery.getLong(KEY_POSITION_MS, 0L),
+                repeatMode = structure.getString(KEY_REPEAT_MODE, null)
                     ?.let { stored -> PlaybackRepeatMode.entries.firstOrNull { it.name == stored } }
                     ?: PlaybackRepeatMode.Off,
-                shuffleEnabled = preferences.getBoolean(KEY_SHUFFLE, false),
-                sourcePlaylistId = preferences.getLong(KEY_SOURCE_PLAYLIST_ID, -1L).takeIf { it > 0L },
-                wasPlaying = preferences.getBoolean(KEY_WAS_PLAYING, false),
+                shuffleEnabled = structure.getBoolean(KEY_SHUFFLE, false),
+                sourcePlaylistId = structure.getLong(KEY_SOURCE_PLAYLIST_ID, -1L).takeIf { it > 0L },
+                wasPlaying = recovery.getBoolean(KEY_WAS_PLAYING, false),
                 savedAtWallTimeMs = savedAtMs,
             ),
         ).also { lastSavedSession = it.withoutSavedAt() }
@@ -72,30 +94,41 @@ internal class PlaybackSessionStore(
             return
         }
         val comparable = normalized.withoutSavedAt()
-        if (lastSavedSession == comparable) return
+        val plan = playbackSessionSavePlan(lastSavedSession, comparable)
+        if (plan == PlaybackSessionSavePlan.None) return
         lastSavedSession = comparable
-        preferences.edit()
-            .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
-            .putString(KEY_QUEUE_IDS, normalized.queueSongIds.joinToString(","))
-            .putLong(KEY_CURRENT_SONG_ID, normalized.currentSongId ?: -1L)
-            .putInt(KEY_CURRENT_INDEX, normalized.currentIndex)
-            .putLong(KEY_POSITION_MS, normalized.positionMs)
-            .putString(KEY_REPEAT_MODE, normalized.repeatMode.name)
-            .putBoolean(KEY_SHUFFLE, normalized.shuffleEnabled)
-            .putLong(KEY_SOURCE_PLAYLIST_ID, normalized.sourcePlaylistId ?: -1L)
-            .putBoolean(KEY_WAS_PLAYING, normalized.wasPlaying)
-            .putLong(KEY_SAVED_AT, clock.wallTimeMs())
-            .apply()
+        if (plan.saveStructure) {
+            structurePreferences.edit()
+                .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
+                .putString(KEY_QUEUE_IDS, normalized.queueSongIds.joinToString(","))
+                .putString(KEY_REPEAT_MODE, normalized.repeatMode.name)
+                .putBoolean(KEY_SHUFFLE, normalized.shuffleEnabled)
+                .putLong(KEY_SOURCE_PLAYLIST_ID, normalized.sourcePlaylistId ?: -1L)
+                .apply()
+        }
+        if (plan.saveRecovery) {
+            recoveryPreferences.edit()
+                .putLong(KEY_CURRENT_SONG_ID, normalized.currentSongId ?: -1L)
+                .putInt(KEY_CURRENT_INDEX, normalized.currentIndex)
+                .putLong(KEY_POSITION_MS, normalized.positionMs)
+                .putBoolean(KEY_WAS_PLAYING, normalized.wasPlaying)
+                .putLong(KEY_SAVED_AT, clock.wallTimeMs())
+                .apply()
+        }
+        if (legacyPreferences.all.isNotEmpty()) legacyPreferences.edit().clear().apply()
     }
 
     fun clear() {
         lastSavedSession = null
-        if (preferences.all.isEmpty()) return
-        preferences.edit().clear().apply()
+        listOf(structurePreferences, recoveryPreferences, legacyPreferences)
+            .filter { it.all.isNotEmpty() }
+            .forEach { it.edit().clear().apply() }
     }
 
     private companion object {
-        const val FILE_NAME = "playback_session"
+        const val LEGACY_FILE_NAME = "playback_session"
+        const val STRUCTURE_FILE_NAME = "playback_session_structure"
+        const val RECOVERY_FILE_NAME = "playback_session_recovery"
         const val MAX_QUEUE_SIZE = 10_000
         const val MAX_SESSION_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
         const val KEY_FORMAT_VERSION = "format_version"
@@ -112,13 +145,47 @@ internal class PlaybackSessionStore(
 }
 
 internal const val LEGACY_FORMAT_VERSION = 0
-internal const val CURRENT_FORMAT_VERSION = 1
+internal const val CURRENT_FORMAT_VERSION = 2
 
 internal fun isSupportedPlaybackSessionVersion(version: Int): Boolean {
     return version in LEGACY_FORMAT_VERSION..CURRENT_FORMAT_VERSION
 }
 
 private fun PersistedPlaybackSession.withoutSavedAt(): PersistedPlaybackSession = copy(savedAtWallTimeMs = 0L)
+
+internal enum class PlaybackSessionSavePlan(
+    val saveStructure: Boolean,
+    val saveRecovery: Boolean,
+) {
+    None(false, false),
+    Recovery(false, true),
+    StructureAndRecovery(true, true),
+}
+
+internal fun playbackSessionSavePlan(
+    previous: PersistedPlaybackSession?,
+    next: PersistedPlaybackSession,
+): PlaybackSessionSavePlan {
+    if (previous == next) return PlaybackSessionSavePlan.None
+    if (previous == null || previous.structure() != next.structure()) {
+        return PlaybackSessionSavePlan.StructureAndRecovery
+    }
+    return PlaybackSessionSavePlan.Recovery
+}
+
+private data class PlaybackSessionStructure(
+    val queueSongIds: List<Long>,
+    val repeatMode: PlaybackRepeatMode,
+    val shuffleEnabled: Boolean,
+    val sourcePlaylistId: Long?,
+)
+
+private fun PersistedPlaybackSession.structure() = PlaybackSessionStructure(
+    queueSongIds = queueSongIds,
+    repeatMode = repeatMode,
+    shuffleEnabled = shuffleEnabled,
+    sourcePlaylistId = sourcePlaylistId,
+)
 
 internal fun normalizePersistedPlaybackSession(session: PersistedPlaybackSession): PersistedPlaybackSession {
     val ids = session.queueSongIds.asSequence().filter { it > 0L }.take(10_000).toList()
