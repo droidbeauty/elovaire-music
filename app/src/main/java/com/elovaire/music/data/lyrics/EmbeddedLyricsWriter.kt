@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationCoordinator
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
@@ -22,7 +23,6 @@ import elovaire.music.droidbeauty.app.platform.mediaStoreWritePendingIntent
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
@@ -64,14 +64,13 @@ internal class EmbeddedLyricsWriter(
     private val audioFormatDetector = AudioFormatDetector(appContext)
     private val localLyricsResolver = LocalLyricsResolver(appContext)
     private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_DIRECTORY)
-    private val writeMutex = Mutex()
 
     suspend fun write(
         song: Song,
         rawLyrics: String,
         operationId: String? = null,
         approvedMediaUri: Uri? = null,
-    ): EmbeddedLyricsWriteResult = writeMutex.withLock {
+    ): EmbeddedLyricsWriteResult = MediaMutationCoordinator.mutex.withLock {
         writeLocked(song, rawLyrics, operationId, approvedMediaUri)
     }
 

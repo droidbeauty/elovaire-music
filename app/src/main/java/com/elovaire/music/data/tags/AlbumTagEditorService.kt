@@ -13,6 +13,7 @@ import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.artwork.isArtworkBoundsSafe
 import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationCoordinator
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
@@ -28,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.images.AndroidArtwork
@@ -108,6 +110,7 @@ internal class AlbumTagEditorService(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean = false,
     ): TagEditApplyResult = withContext(ioDispatcher) {
+        MediaMutationCoordinator.mutex.withLock {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
         val plans = TagEditPlanner.plansFor(request)
         TagEditPlanner.validationFailure(request)?.let { validationFailure ->
@@ -379,6 +382,7 @@ internal class AlbumTagEditorService(
             failures = failures,
             permissionRequest = permissionRequest,
         )
+        }
     }
 
     private fun updateTagFile(
