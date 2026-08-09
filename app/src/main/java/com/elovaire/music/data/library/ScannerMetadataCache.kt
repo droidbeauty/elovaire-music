@@ -9,9 +9,12 @@ internal class ScannerMetadataCache {
 
     operator fun get(mediaUri: String): CachedSongMetadata? = metadata[mediaUri]
 
-    fun replaceWith(refreshed: Map<String, CachedSongMetadata>) {
-        metadata.clear()
-        metadata.putAll(refreshed)
+    fun put(mediaUri: String, cachedMetadata: CachedSongMetadata) {
+        metadata[mediaUri] = cachedMetadata
+    }
+
+    fun retainOnly(mediaUris: Set<String>) {
+        metadata.keys.retainAll(mediaUris)
     }
 
     fun prime(songs: List<Song>) {

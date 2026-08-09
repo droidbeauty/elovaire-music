@@ -99,7 +99,7 @@ class MediaStoreScanner(
 
         var totalRows = 0
         val songs = mutableListOf<Song>()
-        val refreshedMetadataCache = mutableMapOf<String, CachedSongMetadata>()
+        val scannedMetadataUris = mutableSetOf<String>()
         val genreCache = mutableMapOf<MediaStoreGenreKey, String?>()
         val progressEmitter = ScannerProgressEmitter(onProgress)
         val audioFileFilter = buildAudioFileFilter()
@@ -169,6 +169,7 @@ class MediaStoreScanner(
                         }
                     }
                     val uriKey = row.uri.toString()
+                    scannedMetadataUris += uriKey
                     val cachedMetadata = metadataCache[uriKey]
                         ?.takeIf { cached ->
                             cached.matches(
@@ -216,7 +217,7 @@ class MediaStoreScanner(
                     val resolvedAlbum = songMetadata.album ?: row.album
                     val isExplicit = detectExplicit(resolvedTitle, row.fileName)
                     val title = sanitizeDisplayTitle(resolvedTitle, isExplicit)
-                    refreshedMetadataCache[uriKey] = CachedSongMetadata(
+                    metadataCache.put(uriKey, CachedSongMetadata(
                         songId = row.id,
                         fileName = row.fileName,
                         filePath = row.filePath,
@@ -226,7 +227,7 @@ class MediaStoreScanner(
                         metadata = songMetadata,
                         fileSizeBytes = row.fileSizeBytes,
                         durationMs = row.durationMs,
-                    )
+                    ))
                     val rawTrack = row.track
                     songs += Song(
                         id = row.id,
@@ -283,7 +284,7 @@ class MediaStoreScanner(
         )
         decisionMap.logSummary()
 
-        metadataCache.replaceWith(refreshedMetadataCache)
+        metadataCache.retainOnly(scannedMetadataUris)
 
         val sortedSongs = ElovaireTrace.section("library_song_sort") {
             mergedSongs.sortedByDescending { it.dateAddedSeconds }

@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.core.performance
 
 import androidx.tracing.Trace
 import androidx.tracing.trace
+import java.util.concurrent.atomic.AtomicInteger
 
 internal object ElovaireTrace {
     inline fun <T> section(
@@ -13,17 +14,22 @@ internal object ElovaireTrace {
         }
     }
 
-    suspend inline fun <T> suspendSection(
+    suspend fun <T> suspendSection(
         name: String,
-        crossinline block: suspend () -> T,
+        block: suspend () -> T,
     ): T {
-        Trace.beginSection(name.take(MAX_TRACE_NAME_LENGTH))
+        val traceName = name.take(MAX_TRACE_NAME_LENGTH)
+        val cookie = nextAsyncCookie.getAndUpdate { current ->
+            if (current == Int.MAX_VALUE) 1 else current + 1
+        }
+        Trace.beginAsyncSection(traceName, cookie)
         return try {
             block()
         } finally {
-            Trace.endSection()
+            Trace.endAsyncSection(traceName, cookie)
         }
     }
 
+    private val nextAsyncCookie = AtomicInteger(1)
     private const val MAX_TRACE_NAME_LENGTH = 120
 }

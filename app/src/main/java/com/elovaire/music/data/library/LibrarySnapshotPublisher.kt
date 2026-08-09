@@ -1,12 +1,18 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
+import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.util.Locale
 
 internal class LibrarySnapshotPublisher(
     private val publish: (LibraryContentState) -> Unit,
     private val currentState: () -> LibraryContentState,
 ) {
+    private var indexedSongs: List<Song>? = null
+    private var songPositions = emptyMap<Long, Int>()
+    private var albumSongPositions = emptyMap<Long, List<Int>>()
+    private var albumPositions = emptyMap<Long, Int>()
     fun publishSongs(
         songs: List<Song>,
         removingSongIds: Set<Long>,
@@ -37,24 +43,36 @@ internal class LibrarySnapshotPublisher(
     ): LibraryContentState {
         if (editedSongs.isEmpty()) return currentState()
         val current = currentState()
+        updateIndices(current)
         val replacements = editedSongs.associateBy(Song::id)
-        val updatedSongs = current.songs.map { replacements[it.id] ?: it }
-        if (updatedSongs == current.songs) return current
+        val replacementPositions = replacements.keys.mapNotNull(songPositions::get)
+        if (replacementPositions.isEmpty()) return current
+        val updatedSongs = current.songs.toMutableList()
+        replacementPositions.forEach { position ->
+            updatedSongs[position] = replacements.getValue(current.songs[position].id)
+        }
 
         val affectedAlbumIds = buildSet {
-            current.songs.filter { it.id in replacements }.forEach { add(it.albumId) }
-            editedSongs.forEach { add(it.albumId) }
+            replacementPositions.forEach { position -> add(current.songs[position].albumId) }
+            replacementPositions.forEach { position -> add(updatedSongs[position].albumId) }
         }
-        val unchangedAlbums = current.albums.filterNot { it.id in affectedAlbumIds }
-        val rebuiltAlbums = buildAlbumsFromSongs(updatedSongs.filter { it.albumId in affectedAlbumIds })
+        val affectedPositions = affectedAlbumIds.flatMap { albumSongPositions[it].orEmpty() }.toSet()
+        val rebuiltAlbums = affectedAlbumIds.flatMap { albumId ->
+            buildAlbumsFromSongs(
+                affectedPositions.map(updatedSongs::get).filter { it.albumId == albumId },
+            )
+        }
+        val updatedAlbums = current.albums.toMutableList()
+        albumPositions.filterKeys(affectedAlbumIds::contains).values.sortedDescending().forEach(updatedAlbums::removeAt)
+        rebuiltAlbums.sortedWith(ALBUM_COMPARATOR).forEach { album ->
+            val insertionPoint = updatedAlbums.binarySearch(album, ALBUM_COMPARATOR).let { index ->
+                if (index >= 0) index else -index - 1
+            }
+            updatedAlbums.add(insertionPoint, album)
+        }
         val nextState = LibraryContentState(
             songs = updatedSongs,
-            albums = (unchangedAlbums + rebuiltAlbums).sortedWith(
-                compareBy(
-                    { it.artist.lowercase(java.util.Locale.ROOT) },
-                    { it.title.lowercase(java.util.Locale.ROOT) },
-                ),
-            ),
+            albums = updatedAlbums,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
         )
@@ -66,6 +84,22 @@ internal class LibrarySnapshotPublisher(
         return LibrarySnapshot(
             songs = state.songs,
             albums = state.albums,
+        )
+    }
+
+    private fun updateIndices(state: LibraryContentState) {
+        if (indexedSongs === state.songs) return
+        indexedSongs = state.songs
+        songPositions = state.songs.mapIndexed { index, song -> song.id to index }.toMap()
+        albumSongPositions = state.songs.mapIndexed { index, song -> song.albumId to index }
+            .groupBy({ it.first }, { it.second })
+        albumPositions = state.albums.mapIndexed { index, album -> album.id to index }.toMap()
+    }
+
+    private companion object {
+        val ALBUM_COMPARATOR: Comparator<Album> = compareBy(
+            { it.artist.lowercase(Locale.ROOT) },
+            { it.title.lowercase(Locale.ROOT) },
         )
     }
 }
