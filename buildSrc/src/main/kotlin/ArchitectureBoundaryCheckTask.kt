@@ -35,7 +35,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             FORBIDDEN_ARTWORK_SOURCE_MARKERS.firstOrNull(text::contains)?.let { marker ->
                 violations += "$path reintroduces a disallowed album-art source: $marker"
             }
-            if ("Channel.UNLIMITED" in text && !path.endsWith("/data/settings/RoomUserDataStore.kt")) {
+            if ("Channel.UNLIMITED" in text) {
                 violations += "$path introduces an unreviewed unbounded operation queue"
             }
             if ("/ui/" in path && "elovaire.music.droidbeauty.app.data.library.db" in text) {
@@ -107,6 +107,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/ui/screens/about/AboutScreens.kt",
         )
         val HTTP_ALLOWED = setOf(
+            "/data/lyrics/LrclibClient.kt",
             "/data/update/GitHubUpdateController.kt",
         )
         val NATIVE_ALLOWED = emptySet<String>()

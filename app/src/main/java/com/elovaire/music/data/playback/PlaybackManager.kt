@@ -292,6 +292,7 @@ class PlaybackManager(
     private var interruptionResumeState = InterruptionResumeState()
     private var isStoppingQueue = false
     private val released = AtomicBoolean(false)
+    private var playbackOperationRevision = 0L
     private val failedPlaybackSongIds = mutableSetOf<Long>()
     private var unexpectedIdleRecoveryCount = 0
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
@@ -799,6 +800,7 @@ class PlaybackManager(
             playbackHandler.post { dispatchPlaybackCommand(command, origin) }
             return
         }
+        beginPlaybackOperation()
         val resolvedCommand = if (command == PlaybackCommand.Toggle) {
             if (isManualPausePending) {
                 PlaybackCommand.Play
@@ -1033,6 +1035,7 @@ class PlaybackManager(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
+        beginPlaybackOperation()
         runtimeTransition = PlaybackRuntimeTransition.Released
         pauseFadeJob?.cancel()
         crossfadeController.release()
@@ -1196,6 +1199,7 @@ class PlaybackManager(
         shuffleEnabled: Boolean,
         sourcePlaylistId: Long?,
     ) {
+        beginPlaybackOperation()
         crossfadeController.cancel()
         queueController.setQueue(
             songs = songs,
@@ -1209,6 +1213,7 @@ class PlaybackManager(
     }
 
     private fun stopAndClearQueue() {
+        beginPlaybackOperation()
         crossfadeController.cancel()
         cancelPauseFade(resetVolume = false)
         sleepTimerController.clear()
@@ -1374,6 +1379,7 @@ class PlaybackManager(
     }
 
     private fun startPlaybackWithFadeIn(reason: ResumeFadeReason) {
+        val operationRevision = playbackOperationRevision
         if (!requestAudioFocus()) {
             if (reason == ResumeFadeReason.AudioInterruption) {
                 scheduleAutoResumeRetry("fade-in-focus-failed")
@@ -1416,7 +1422,7 @@ class PlaybackManager(
         pauseFadeJob?.cancel()
         pauseFadeJob = scope.launch {
             repeat(PAUSE_FADE_STEP_COUNT) { step ->
-                if (!isActive) return@launch
+                if (!isActive || !isCurrentPlaybackOperation(operationRevision)) return@launch
                 val progress = (step + 1).toFloat() / PAUSE_FADE_STEP_COUNT.toFloat()
                 player.volume = lerp(
                     start = 0f,
@@ -1425,6 +1431,7 @@ class PlaybackManager(
                 )
                 delay(PAUSE_FADE_STEP_DURATION_MS)
             }
+            if (!isCurrentPlaybackOperation(operationRevision)) return@launch
             player.volume = targetGain
             pauseFadeJob = null
             if (reason == ResumeFadeReason.AudioInterruption) {
@@ -1439,6 +1446,7 @@ class PlaybackManager(
     }
 
     private fun beginPauseFadeOut(reason: PauseFadeReason) {
+        val operationRevision = playbackOperationRevision
         crossfadeController.cancel()
         if (!supportsSoftwarePlaybackFade()) {
             player.pause()
@@ -1458,7 +1466,7 @@ class PlaybackManager(
             val startVolume = player.volume.coerceIn(0f, 1f)
             if (startVolume > 0.001f) {
                 repeat(PAUSE_FADE_STEP_COUNT) { step ->
-                    if (!isActive) return@launch
+                    if (!isActive || !isCurrentPlaybackOperation(operationRevision)) return@launch
                     val progress = (step + 1).toFloat() / PAUSE_FADE_STEP_COUNT.toFloat()
                     player.volume = lerp(
                         start = startVolume,
@@ -1468,6 +1476,7 @@ class PlaybackManager(
                     delay(PAUSE_FADE_STEP_DURATION_MS)
                 }
             }
+            if (!isCurrentPlaybackOperation(operationRevision)) return@launch
             player.pause()
             if (reason == PauseFadeReason.Manual) {
                 abandonAudioFocus()
@@ -1504,6 +1513,7 @@ class PlaybackManager(
 
     private fun handleAudioFocusChange(focusChange: Int) {
         if (released.get() || !audioFocusController.isActive) return
+        beginPlaybackOperation()
         when (AudioFocusStateMachine.actionFor(focusChange)) {
             AudioFocusAction.Gain -> {
                 duckedForAudioFocus = false
@@ -1577,7 +1587,9 @@ class PlaybackManager(
         lastAppliedAudioPathDecisionKey = null
         scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
         runtimeTransition = PlaybackRuntimeTransition.Recovering(unexpectedIdleRecoveryCount)
+        val operationRevision = playbackOperationRevision
         scope.launch {
+            if (!isCurrentPlaybackOperation(operationRevision)) return@launch
             val mediaItems = snapshot.queue.mapTo(ArrayList(snapshot.queue.size)) { song ->
                 song.toPlaybackMediaItem()
             }
@@ -1585,6 +1597,7 @@ class PlaybackManager(
             player.shuffleModeEnabled = snapshot.shuffleEnabled
             player.repeatMode = snapshot.repeatMode.toPlayerRepeatMode()
             player.prepare()
+            if (!isCurrentPlaybackOperation(operationRevision)) return@launch
             if (shouldAutoPlay && requestAudioFocus()) {
                 player.volume = effectivePlayerGain()
                 player.playWhenReady = true
@@ -1747,10 +1760,11 @@ class PlaybackManager(
             updateState()
             return
         }
+        val operationRevision = playbackOperationRevision
         pendingAutoResumeRetryJob?.cancel()
         pendingAutoResumeRetryJob = scope.launch {
             delay(AUTO_RESUME_FOCUS_RETRY_DELAY_MS)
-            if (shouldKeepInterruptionResumeIntent()) {
+            if (isCurrentPlaybackOperation(operationRevision) && shouldKeepInterruptionResumeIntent()) {
                 attemptAutoResumeAfterInterruption("$trigger-retry")
             }
         }
@@ -1758,10 +1772,11 @@ class PlaybackManager(
 
     private fun scheduleExternalInterruptionResumeWatch() {
         if (!shouldKeepInterruptionResumeIntent() || externalInterruptionResumeJob?.isActive == true) return
+        val operationRevision = playbackOperationRevision
         externalInterruptionResumeJob = scope.launch {
             val startedAtMs = SystemClock.elapsedRealtime()
             var quietConfirmations = 0
-            while (isActive && shouldKeepInterruptionResumeIntent()) {
+            while (isActive && isCurrentPlaybackOperation(operationRevision) && shouldKeepInterruptionResumeIntent()) {
                 val elapsedMs = SystemClock.elapsedRealtime() - startedAtMs
                 if (elapsedMs >= EXTERNAL_INTERRUPTION_MAX_WATCH_MS) {
                     clearInterruptionResumeState()
@@ -1807,6 +1822,15 @@ class PlaybackManager(
 
     private fun hasActiveExternalMediaPlayback(): Boolean {
         return runCatching { audioManager?.isMusicActive == true }.getOrDefault(false)
+    }
+
+    private fun beginPlaybackOperation(): Long {
+        playbackOperationRevision = if (playbackOperationRevision == Long.MAX_VALUE) 1L else playbackOperationRevision + 1L
+        return playbackOperationRevision
+    }
+
+    private fun isCurrentPlaybackOperation(revision: Long): Boolean {
+        return !released.get() && playbackOperationRevision == revision
     }
 
     private fun recordManualPlaybackStart() {

@@ -192,7 +192,7 @@ internal class MediaLibraryCallbackRouter : MediaLibrarySession.Callback {
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return delegate?.onGetChildren(session, browser, parentId, page, pageSize, params)
-            ?: Futures.immediateFuture(LibraryResult.ofItemList(emptyList(), params))
+            ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_SESSION_SETUP_REQUIRED))
     }
 
     override fun onGetItem(
@@ -201,7 +201,7 @@ internal class MediaLibraryCallbackRouter : MediaLibrarySession.Callback {
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
         return delegate?.onGetItem(session, browser, mediaId)
-            ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_BAD_VALUE))
+            ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_SESSION_SETUP_REQUIRED))
     }
 
     override fun onSearch(
@@ -211,7 +211,7 @@ internal class MediaLibraryCallbackRouter : MediaLibrarySession.Callback {
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> {
         return delegate?.onSearch(session, browser, query, params)
-            ?: Futures.immediateFuture(LibraryResult.ofVoid(params))
+            ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_SESSION_SETUP_REQUIRED))
     }
 
     override fun onGetSearchResult(
@@ -223,7 +223,7 @@ internal class MediaLibraryCallbackRouter : MediaLibrarySession.Callback {
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<ImmutableList<MediaItem>>> {
         return delegate?.onGetSearchResult(session, browser, query, page, pageSize, params)
-            ?: Futures.immediateFuture(LibraryResult.ofItemList(emptyList(), params))
+            ?: Futures.immediateFuture(LibraryResult.ofError(SessionError.ERROR_SESSION_SETUP_REQUIRED))
     }
 
     override fun onSetMediaItems(
@@ -234,7 +234,7 @@ internal class MediaLibraryCallbackRouter : MediaLibrarySession.Callback {
         startPositionMs: Long,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         return delegate?.onSetMediaItems(mediaSession, controller, mediaItems, startIndex, startPositionMs)
-            ?: Futures.immediateFuture(MediaSession.MediaItemsWithStartPosition(mediaItems, startIndex, startPositionMs))
+            ?: Futures.immediateFuture(emptyMediaItemsWithStartPosition())
     }
 
     override fun onPlaybackResumption(

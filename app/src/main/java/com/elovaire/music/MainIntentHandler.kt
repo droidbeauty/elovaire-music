@@ -49,6 +49,7 @@ internal class MainIntentHandler(
     private fun handleExternalAudioIntent(intent: Intent?) {
         if (!ExternalAudioIntentHandler.canHandle(intent)) return
         val request = intent?.let(::Intent) ?: return
+        preservePersistableReadGrant(request)
         externalAudioJob?.cancel()
         val job = activity.lifecycleScope.launch {
             val song = ExternalAudioIntentHandler.buildSong(activity.applicationContext, request) ?: return@launch
@@ -68,6 +69,21 @@ internal class MainIntentHandler(
         externalAudioJob = job
         job.invokeOnCompletion {
             if (externalAudioJob == job) externalAudioJob = null
+        }
+    }
+
+    private fun preservePersistableReadGrant(intent: Intent) {
+        val uri = intent.data ?: return
+        if (uri.scheme != "content") return
+        if (intent.flags and Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION == 0) return
+        if (intent.flags and Intent.FLAG_GRANT_READ_URI_PERMISSION == 0) return
+        try {
+            activity.contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION,
+            )
+        } catch (_: SecurityException) {
+            // Providers without a persistable grant remain valid for the active component lifetime.
         }
     }
 

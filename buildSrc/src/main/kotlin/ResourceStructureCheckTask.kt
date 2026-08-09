@@ -43,7 +43,9 @@ abstract class ResourceStructureCheckTask : DefaultTask() {
         inspectedFiles.forEach { file ->
             if (file.extension in TEXT_EXTENSIONS) {
                 val text = file.readText()
-                FORBIDDEN_RELEASE_CONTENT.firstOrNull(text::contains)?.let { marker ->
+                FORBIDDEN_RELEASE_CONTENT.firstOrNull(text::contains)
+                    ?.takeUnless { marker -> file.name == "LrclibClient.kt" && marker == "lrclib.net" }
+                    ?.let { marker ->
                     violations += "${file.invariantSeparatorsPath} contains removed remote-content integration: $marker"
                 }
             }

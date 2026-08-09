@@ -247,6 +247,7 @@ internal class LibraryObserverController(
                 .maxDepth(8)
                 .onEnter { directory -> !directory.isSymbolicLinkSafely() }
                 .filter(File::isDirectory)
+                .take(MAX_RECURSIVE_DIRECTORY_OBSERVERS + 1)
                 .map(File::getAbsolutePath)
                 .toList()
             if (nextDirectories.size > MAX_RECURSIVE_DIRECTORY_OBSERVERS) {

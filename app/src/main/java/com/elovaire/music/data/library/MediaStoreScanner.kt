@@ -1,12 +1,12 @@
 package elovaire.music.droidbeauty.app.data.library
 
-import android.content.ContentUris
 import android.content.Context
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.AudioQualityFormatter
@@ -69,6 +69,10 @@ class MediaStoreScanner(
 
     fun clearMetadataCache() {
         metadataCache.clear()
+    }
+
+    internal fun onMemoryPressure(pressure: MemoryPressure) {
+        metadataCache.onMemoryPressure(pressure)
     }
 
     fun scanRoots(): List<File> = scanRoots.accessibleFileRoots()
@@ -136,6 +140,19 @@ class MediaStoreScanner(
                         }
                         continue
                     }
+                    val uriKey = row.uri.toString()
+                    val cachedMetadata = metadataCache[uriKey]
+                        ?.takeIf { cached ->
+                            cached.matches(
+                                fileName = row.fileName,
+                                filePath = row.filePath,
+                                dateAddedSeconds = row.dateAddedSeconds,
+                                dateModifiedSeconds = row.dateModifiedSeconds,
+                                fileSizeBytes = row.fileSizeBytes,
+                                durationMs = row.durationMs,
+                                requireEnriched = enrichMetadata,
+                            )
+                        }
                     val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)) {
                         audioFormatDetector.detect(
                             uri = row.uri,
@@ -168,20 +185,7 @@ class MediaStoreScanner(
                             continue
                         }
                     }
-                    val uriKey = row.uri.toString()
                     scannedMetadataUris += uriKey
-                    val cachedMetadata = metadataCache[uriKey]
-                        ?.takeIf { cached ->
-                            cached.matches(
-                                fileName = row.fileName,
-                                filePath = row.filePath,
-                                dateAddedSeconds = row.dateAddedSeconds,
-                                dateModifiedSeconds = row.dateModifiedSeconds,
-                                fileSizeBytes = row.fileSizeBytes,
-                                durationMs = row.durationMs,
-                                requireEnriched = enrichMetadata,
-                            )
-                        }
                     val songMetadata = cachedMetadata
                         ?.metadata
                         ?: if (enrichMetadata) {
@@ -248,7 +252,7 @@ class MediaStoreScanner(
                         dateModifiedSeconds = row.dateModifiedSeconds,
                         libraryPath = row.filePath,
                         uri = row.uri,
-                        artUri = albumArtworkUri(row.albumId),
+                        artUri = row.uri,
                         metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
                         albumArtist = songMetadata.albumArtist,
                         volumeNormalization = songMetadata.volumeNormalization,
@@ -336,14 +340,6 @@ class MediaStoreScanner(
             explicitCustomRootPaths = scanRoots.explicitCustomFileRootPaths(),
             explicitCustomRelativeRoots = scanRoots.explicitCustomRelativeRoots(),
         )
-    }
-
-    private fun albumArtworkUri(albumId: Long): Uri? {
-        return if (albumId <= 0L) {
-            null
-        } else {
-            ContentUris.withAppendedId(ALBUM_ART_URI, albumId)
-        }
     }
 
     private fun mergeMediaStoreAndSafSongs(
@@ -550,7 +546,6 @@ class MediaStoreScanner(
     }
 
     internal companion object {
-        val ALBUM_ART_URI: Uri = Uri.parse("content://media/external/audio/albumart")
         const val MEDIASTORE_ID_QUERY_CHUNK_SIZE = 400
         val YEAR_REGEX = Regex("""\b(19|20)\d{2}\b""")
         val EXPLICIT_MARKERS = listOf(

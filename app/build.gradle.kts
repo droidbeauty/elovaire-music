@@ -114,6 +114,10 @@ android {
             "DiscouragedPrivateApi",
         )
     }
+
+    testOptions {
+        execution = "ANDROIDX_TEST_ORCHESTRATOR"
+    }
 }
 
 configurations.matching { configuration ->
@@ -246,9 +250,11 @@ dependencies {
     debugImplementation(libs.leakcanary.android)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestUtil(libs.androidx.test.orchestrator)
     androidTestImplementation(libs.androidx.room.testing)
 }
 

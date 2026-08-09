@@ -90,7 +90,9 @@ internal class AppExitDiagnostics(
                     .put("category", record.category.name),
             )
         }
-        preferences.edit().putString(KEY_RECORDS, array.toString()).apply()
+        val serialized = array.toString()
+        if (preferences.getString(KEY_RECORDS, null) == serialized) return
+        preferences.edit().putString(KEY_RECORDS, serialized).apply()
     }
 
     private companion object {

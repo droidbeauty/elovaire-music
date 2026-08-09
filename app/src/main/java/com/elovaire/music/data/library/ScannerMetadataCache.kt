@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import java.io.File
 
 internal class ScannerMetadataCache {
@@ -50,6 +51,10 @@ internal class ScannerMetadataCache {
 
     fun clear() {
         metadata.clear()
+    }
+
+    fun onMemoryPressure(pressure: MemoryPressure) {
+        if (pressure != MemoryPressure.Normal) clear()
     }
 
     fun invalidatePaths(paths: Collection<String>) {

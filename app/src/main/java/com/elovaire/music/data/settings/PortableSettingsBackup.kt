@@ -49,10 +49,12 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
     }
 
     private fun syncAll() {
-        val editor = backup.edit().clear()
-        source.all.forEach { (key, value) ->
-            if (isPortableSettingKey(key)) editor.putPreferenceValue(key, value)
-        }
+        val desired = source.all.filterKeys(::isPortableSettingKey)
+        val current = backup.all.filterKeys(::isPortableSettingKey)
+        if (desired == current) return
+        val editor = backup.edit()
+        (current.keys - desired.keys).forEach(editor::remove)
+        desired.forEach { (key, value) -> editor.putPreferenceValue(key, value) }
         editor.apply()
     }
 

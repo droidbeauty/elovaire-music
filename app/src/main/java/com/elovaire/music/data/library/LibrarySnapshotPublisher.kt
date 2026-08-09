@@ -56,7 +56,12 @@ internal class LibrarySnapshotPublisher(
             replacementPositions.forEach { position -> add(current.songs[position].albumId) }
             replacementPositions.forEach { position -> add(updatedSongs[position].albumId) }
         }
-        val affectedPositions = affectedAlbumIds.flatMap { albumSongPositions[it].orEmpty() }.toSet()
+        val affectedPositions = buildSet {
+            affectedAlbumIds.forEach { albumId ->
+                addAll(albumSongPositions[albumId].orEmpty())
+            }
+            addAll(replacementPositions)
+        }
         val rebuiltAlbums = affectedAlbumIds.flatMap { albumId ->
             buildAlbumsFromSongs(
                 affectedPositions.map(updatedSongs::get).filter { it.albumId == albumId },

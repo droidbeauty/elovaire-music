@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.net.Uri
+import android.util.AtomicFile
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
@@ -10,6 +11,7 @@ import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
+import java.nio.charset.StandardCharsets
 
 internal data class LibrarySignature(
     val songCount: Int,
@@ -31,15 +33,16 @@ internal class LibrarySnapshotStore(
         // Snapshot loading is explicit and off-main; construction only resolves the app-private file.
         appContext.filesDir.resolve(SNAPSHOT_FILE_NAME)
     }
+    private val atomicFile = AtomicFile(snapshotFile)
     @Volatile
-    private var lastSerializedSnapshot: String? = null
+    private var lastSnapshotFingerprint: SnapshotFingerprint? = null
 
     fun load(): CachedLibrarySnapshot? {
-        if (!snapshotFile.exists()) return null
-
-        return runCatching {
-            val serialized = snapshotFile.readText()
-            lastSerializedSnapshot = serialized
+        return try {
+            val serialized = atomicFile.openRead().use { input ->
+                input.readBytes().toString(StandardCharsets.UTF_8)
+            }
+            lastSnapshotFingerprint = serialized.fingerprint()
             val root = JSONObject(serialized)
             if (root.optInt("version", 0) != SNAPSHOT_VERSION) {
                 discardSnapshot()
@@ -110,75 +113,79 @@ internal class LibrarySnapshotStore(
                 )
             }
             cachedSnapshot
-        }.onFailure {
+        } catch (_: Exception) {
             discardSnapshot()
-        }.getOrNull()
+            null
+        }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun save(
         snapshot: LibrarySnapshot,
         filterFingerprint: String,
         syncState: LibraryMediaStoreSyncState? = null,
     ) {
-        runCatching {
-            val songs = snapshot.songs.filter(::isSupportedLibrarySong)
-            val signature = signatureFromSongs(
-                songs = songs,
-                filterFingerprint = filterFingerprint,
+        val songs = snapshot.songs.filter(::isSupportedLibrarySong)
+        val signature = signatureFromSongs(
+            songs = songs,
+            filterFingerprint = filterFingerprint,
+        )
+        val serializedSnapshot = JSONObject().apply {
+            put("version", SNAPSHOT_VERSION)
+            put("songCount", signature.songCount)
+            put("newestDateAddedSeconds", signature.newestDateAddedSeconds)
+            put("idChecksum", signature.idChecksum)
+            put("filterFingerprint", signature.filterFingerprint)
+            syncState?.let { put("mediaStoreSyncState", it.toJson()) }
+            put(
+                "songs",
+                JSONArray().apply {
+                    songs.forEach { song ->
+                        put(
+                            JSONObject().apply {
+                                put("id", song.id)
+                                put("title", song.title)
+                                put("isExplicit", song.isExplicit)
+                                put("artist", song.artist)
+                                put("albumArtist", song.albumArtist.orEmpty())
+                                put("album", song.album)
+                                put("releaseYear", song.releaseYear ?: 0)
+                                put("genre", song.genre)
+                                put("audioFormat", song.audioFormat)
+                                put("audioQuality", song.audioQuality.orEmpty())
+                                put("fileName", song.fileName)
+                                put("albumId", song.albumId)
+                                put("durationMs", song.durationMs)
+                                put("trackNumber", song.trackNumber)
+                                put("discNumber", song.discNumber)
+                                put("dateAddedSeconds", song.dateAddedSeconds)
+                                put("dateModifiedSeconds", song.dateModifiedSeconds ?: 0L)
+                                put("libraryPath", song.libraryPath.orEmpty())
+                                put("uri", song.uri.toString())
+                                put("artUri", song.artUri?.toString().orEmpty())
+                                put("metadataResolved", song.metadataResolved)
+                                song.volumeNormalization
+                                    ?.toJson()
+                                    ?.takeIf { it.length() > 0 }
+                                    ?.let { put("volumeNormalization", it) }
+                            },
+                        )
+                    }
+                },
             )
-            val serializedSnapshot = JSONObject().apply {
-                put("version", SNAPSHOT_VERSION)
-                put("songCount", signature.songCount)
-                put("newestDateAddedSeconds", signature.newestDateAddedSeconds)
-                put("idChecksum", signature.idChecksum)
-                put("filterFingerprint", signature.filterFingerprint)
-                syncState?.let { put("mediaStoreSyncState", it.toJson()) }
-                put(
-                    "songs",
-                    JSONArray().apply {
-                        songs.forEach { song ->
-                            put(
-                                JSONObject().apply {
-                                    put("id", song.id)
-                                    put("title", song.title)
-                                    put("isExplicit", song.isExplicit)
-                                    put("artist", song.artist)
-                                    put("albumArtist", song.albumArtist.orEmpty())
-                                    put("album", song.album)
-                                    put("releaseYear", song.releaseYear ?: 0)
-                                    put("genre", song.genre)
-                                    put("audioFormat", song.audioFormat)
-                                    put("audioQuality", song.audioQuality.orEmpty())
-                                    put("fileName", song.fileName)
-                                    put("albumId", song.albumId)
-                                    put("durationMs", song.durationMs)
-                                    put("trackNumber", song.trackNumber)
-                                    put("discNumber", song.discNumber)
-                                    put("dateAddedSeconds", song.dateAddedSeconds)
-                                    put("dateModifiedSeconds", song.dateModifiedSeconds ?: 0L)
-                                    put("libraryPath", song.libraryPath.orEmpty())
-                                    put("uri", song.uri.toString())
-                                    put("artUri", song.artUri?.toString().orEmpty())
-                                    put("metadataResolved", song.metadataResolved)
-                                    song.volumeNormalization
-                                        ?.toJson()
-                                        ?.takeIf { it.length() > 0 }
-                                        ?.let { put("volumeNormalization", it) }
-                                },
-                            )
-                        }
-                    },
-                )
-            }.toString()
-            if (lastSerializedSnapshot == serializedSnapshot) return
+        }.toString()
+        val fingerprint = serializedSnapshot.fingerprint()
+        if (lastSnapshotFingerprint == fingerprint) return
 
-            val tempFile = snapshotFile.resolveSibling("${snapshotFile.name}.tmp")
-            tempFile.writeText(serializedSnapshot)
-            if (!tempFile.renameTo(snapshotFile)) {
-                snapshotFile.writeText(serializedSnapshot)
-                tempFile.delete()
-            }
-            lastSerializedSnapshot = serializedSnapshot
+        val output = atomicFile.startWrite()
+        try {
+            output.write(serializedSnapshot.toByteArray(StandardCharsets.UTF_8))
+            output.flush()
+            atomicFile.finishWrite(output)
+            lastSnapshotFingerprint = fingerprint
+        } catch (failure: Throwable) {
+            atomicFile.failWrite(output)
+            throw failure
         }
     }
 
@@ -188,9 +195,22 @@ internal class LibrarySnapshotStore(
     }
 
     private fun discardSnapshot() {
-        lastSerializedSnapshot = null
-        runCatching { snapshotFile.delete() }
+        lastSnapshotFingerprint = null
+        try {
+            atomicFile.delete()
+        } catch (_: Exception) {
+            // A corrupt snapshot is already unusable; a later scan can replace it.
+        }
     }
+}
+
+private data class SnapshotFingerprint(
+    val length: Int,
+    val hash: Int,
+)
+
+private fun String.fingerprint(): SnapshotFingerprint {
+    return SnapshotFingerprint(length = length, hash = hashCode())
 }
 
 private fun LibraryMediaStoreSyncState.toJson(): JSONObject {

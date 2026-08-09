@@ -41,10 +41,13 @@ import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -55,16 +58,19 @@ internal class RoomUserDataStore(
     context: Context,
     private val dao: UserDataDao,
     private val clock: AppClock = AndroidAppClock,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
     private val preferences = PreferenceStorage(context.applicationContext).preferences
     private val released = AtomicBoolean(false)
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
-    // Mandatory non-suspending mutations cannot be dropped or block the main thread. High-frequency
-    // history writes are coalesced before entering this serialized persistence queue.
-    private val operations = Channel<suspend () -> Unit>(Channel.UNLIMITED)
-    private val operationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // The channel is bounded. If it is full, a non-blocking sender is retained as a suspended
+    // submission until the actor accepts it, so durable actions are never silently discarded.
+    private val operations = Channel<RoomOperation>(MAX_OPERATION_QUEUE_DEPTH)
+    private val operationScope = CoroutineScope(SupervisorJob() + ioDispatcher)
     private val queueDepth = AtomicInteger()
     private val maxQueueDepth = AtomicInteger()
+    private val pendingSubmissions = AtomicInteger()
+    private val submissionLock = Any()
     private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueue)
     private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueue)
     private val ownerJob: Job = operationScope.launch {
@@ -96,7 +102,7 @@ internal class RoomUserDataStore(
     override fun createPlaylist(name: String): Long {
         if (normalizePlaylistName(name).isBlank()) return -1L
         val id = newId()
-        return if (tryEnqueue {
+        return if (tryEnqueue("playlist.create") {
             val result = createPlaylistEntries(_userPlaylists.value, name, id) ?: return@tryEnqueue
             dao.insertPlaylist(result.createdPlaylist.toEntity())
             _userPlaylists.value = result.playlists
@@ -104,7 +110,7 @@ internal class RoomUserDataStore(
     }
 
     override fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
-        enqueue {
+        enqueue("playlist.add_songs") {
             val updated = addSongsToPlaylistEntries(_userPlaylists.value, playlistId, songIds) ?: return@enqueue
             val playlist = updated.first { it.id == playlistId }
             dao.replacePlaylistEntries(playlistId, playlist.songIds)
@@ -113,7 +119,7 @@ internal class RoomUserDataStore(
     }
 
     override fun renamePlaylist(playlistId: Long, name: String) {
-        enqueue {
+        enqueue("playlist.rename") {
             val updated = renamePlaylistEntry(_userPlaylists.value, playlistId, name) ?: return@enqueue
             val playlist = updated.first { it.id == playlistId }
             dao.renamePlaylist(playlistId, playlist.name)
@@ -122,7 +128,7 @@ internal class RoomUserDataStore(
     }
 
     override fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>) {
-        enqueue {
+        enqueue("playlist.update_songs") {
             val updated = updatePlaylistSongIdsEntry(_userPlaylists.value, playlistId, songIds) ?: return@enqueue
             val playlist = updated.first { it.id == playlistId }
             dao.replacePlaylistEntries(playlistId, playlist.songIds)
@@ -131,7 +137,7 @@ internal class RoomUserDataStore(
     }
 
     override fun deletePlaylists(playlistIds: Set<Long>) {
-        enqueue {
+        enqueue("playlist.delete") {
             val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds) ?: return@enqueue
             dao.deletePlaylists(playlistIds)
             publishPlaylists(updated)
@@ -141,7 +147,7 @@ internal class RoomUserDataStore(
     override fun createSmartPlaylist(name: String): Long {
         if (name.isBlank()) return -1L
         val id = newId()
-        return if (tryEnqueue {
+        return if (tryEnqueue("smart_playlist.create") {
             val result = createSmartPlaylistEntry(
                 playlists = _userSmartPlaylists.value,
                 name = name,
@@ -154,7 +160,7 @@ internal class RoomUserDataStore(
     }
 
     override fun updateSmartPlaylist(playlist: SmartPlaylist) {
-        enqueue {
+        enqueue("smart_playlist.update") {
             val updated = updateSmartPlaylistEntry(
                 playlists = _userSmartPlaylists.value,
                 playlist = playlist,
@@ -166,7 +172,7 @@ internal class RoomUserDataStore(
     }
 
     override fun deleteSmartPlaylists(playlistIds: Set<Long>) {
-        enqueue {
+        enqueue("smart_playlist.delete") {
             val updated = deleteSmartPlaylistEntries(_userSmartPlaylists.value, playlistIds) ?: return@enqueue
             dao.deleteSmartPlaylists(playlistIds)
             publishSmartPlaylists(updated)
@@ -175,7 +181,7 @@ internal class RoomUserDataStore(
 
     override fun toggleFavoriteSong(songId: Long) {
         if (songId == 0L) return
-        enqueue {
+        enqueue("favorite.toggle") {
             if (songId in _favoriteSongIds.value) {
                 dao.removeFavorites(setOf(songId))
                 publishFavorites(_favoriteSongIds.value.filterNot { it == songId })
@@ -191,7 +197,7 @@ internal class RoomUserDataStore(
     override fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean) {
         val normalized = normalizeFavoriteSongIds(songIds)
         if (normalized.isEmpty()) return
-        enqueue {
+        enqueue("favorite.set") {
             if (favorite) {
                 var position = dao.lastFavoritePosition() + 1
                 val current = _favoriteSongIds.value.toMutableList()
@@ -212,7 +218,7 @@ internal class RoomUserDataStore(
 
     override fun removeSongReferences(songIds: Set<Long>) {
         if (songIds.isEmpty()) return
-        enqueue {
+        enqueue("playlist.remove_song_references") {
             dao.removeSongReferences(songIds)
             val playlists = removeSongReferencesFromPlaylists(_userPlaylists.value, songIds)
                 ?: _userPlaylists.value
@@ -249,7 +255,9 @@ internal class RoomUserDataStore(
 
     fun release(onDrained: () -> Unit = {}) {
         if (!released.compareAndSet(false, true)) return
-        operations.close()
+        synchronized(submissionLock) {
+            if (pendingSubmissions.get() == 0) operations.close()
+        }
         ownerJob.invokeOnCompletion {
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "User-data queue drained maxDepth=${maxQueueDepth.get()}")
@@ -363,29 +371,63 @@ internal class RoomUserDataStore(
         if (_favoriteSongIds.value != normalized) _favoriteSongIds.value = normalized
     }
 
+    private fun enqueue(name: String, operation: suspend () -> Unit) {
+        tryEnqueue(RoomOperation(name, operation))
+    }
+
     private fun enqueue(operation: suspend () -> Unit) {
-        tryEnqueue(operation)
+        enqueue("coalesced", operation)
     }
 
     private fun tryEnqueue(operation: suspend () -> Unit): Boolean {
-        if (released.get()) return false
-        val depth = queueDepth.incrementAndGet()
-        return if (operations.trySend(operation).isSuccess) {
-            maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
-            true
-        } else {
-            queueDepth.decrementAndGet()
-            false
-        }
+        return tryEnqueue(RoomOperation("user_data", operation))
     }
 
-    private suspend fun runOperation(operation: suspend () -> Unit) {
+    private fun tryEnqueue(name: String, operation: suspend () -> Unit): Boolean {
+        return tryEnqueue(RoomOperation(name, operation))
+    }
+
+    private fun tryEnqueue(operation: RoomOperation): Boolean {
+        val depth: Int
+        synchronized(submissionLock) {
+            if (released.get()) return false
+            depth = queueDepth.incrementAndGet()
+            pendingSubmissions.incrementAndGet()
+            if (operations.trySend(operation).isSuccess) {
+                pendingSubmissions.decrementAndGet()
+                maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
+                return true
+            }
+        }
+
+        // send() suspends only this IO-scoped submission coroutine; the caller remains non-blocking.
+        operationScope.launch(start = CoroutineStart.UNDISPATCHED) {
+            try {
+                operations.send(operation)
+                maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
+            } catch (_: ClosedSendChannelException) {
+                queueDepth.decrementAndGet()
+            } finally {
+                synchronized(submissionLock) {
+                    if (pendingSubmissions.decrementAndGet() == 0 && released.get()) {
+                        operations.close()
+                    }
+                }
+            }
+        }
+        return true
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun runOperation(operation: RoomOperation) {
         try {
-            operation()
+            operation.block()
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: SQLException) {
-            Log.e(TAG, "User-data operation failed.", failure)
+            Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
+        } catch (failure: RuntimeException) {
+            Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
         }
     }
 
@@ -398,8 +440,14 @@ internal class RoomUserDataStore(
         const val MIGRATION_ID = "shared_preferences_domain_data_v1"
         const val RECENT_KIND_SONG = "song"
         const val RECENT_KIND_ALBUM = "album"
+        const val MAX_OPERATION_QUEUE_DEPTH = 128
     }
 }
+
+private data class RoomOperation(
+    val name: String,
+    val block: suspend () -> Unit,
+)
 
 internal fun nextPersistentUserDataId(current: Long): Long {
     check(current in 1 until Long.MAX_VALUE) { "User-data ID space is exhausted." }

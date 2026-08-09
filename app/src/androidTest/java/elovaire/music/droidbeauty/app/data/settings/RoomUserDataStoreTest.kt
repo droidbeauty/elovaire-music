@@ -43,7 +43,7 @@ class RoomUserDataStoreTest {
     @Test
     fun releaseDrainsMandatoryWritesAndRejectsLaterCreates() = runBlocking {
         val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
-        val ids = List(64) { index -> store.createPlaylist("Playlist $index") }
+        val ids = List(512) { index -> store.createPlaylist("Playlist $index") }
         val drained = CompletableDeferred<Unit>()
 
         store.release { drained.complete(Unit) }
@@ -52,7 +52,7 @@ class RoomUserDataStoreTest {
         assertTrue(ids.all { it > 0L })
         assertEquals(ids, database.userDataDao().playlists().map { it.playlistId })
         assertEquals(-1L, store.createPlaylist("After release"))
-        assertEquals(64, database.userDataDao().playlists().size)
+        assertEquals(512, database.userDataDao().playlists().size)
     }
 
     private object FixedClock : AppClock {

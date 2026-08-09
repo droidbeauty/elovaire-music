@@ -7,9 +7,51 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
 }
 
+val checkTrackedSourceSecrets = tasks.register("checkTrackedSourceSecrets") {
+    group = "verification"
+    description = "Rejects high-signal credentials in tracked source files."
+    val projectRoot = layout.projectDirectory.asFile
+    doLast {
+        val sourceExtensions = setOf("c", "cc", "cpp", "gradle", "h", "hpp", "java", "json", "kt", "kts", "properties", "sh", "toml", "xml", "yaml", "yml")
+        val trackedFiles = ProcessBuilder("git", "ls-files", "-z")
+            .directory(projectRoot)
+            .redirectErrorStream(true)
+            .start()
+            .let { process ->
+                val output = process.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                check(process.waitFor() == 0) { "Unable to enumerate tracked source files." }
+                output.split('\u0000').filter(String::isNotBlank)
+            }
+        val credentialPatterns = listOf(
+            "AIza[0-9A-Za-z_-]{20,}".toRegex() to "Google API key",
+            "ghp_[A-Za-z0-9]{20,}".toRegex() to "GitHub token",
+            "github_pat_[A-Za-z0-9_]{20,}".toRegex() to "GitHub fine-grained token",
+            "-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----".toRegex() to "private key",
+            "AKIA[0-9A-Z]{16}".toRegex() to "AWS access key",
+            "(?i)Authorization\\s*:\\s*Bearer\\s+[A-Za-z0-9._~+/=-]{16,}".toRegex() to "Bearer credential",
+            "(?i)client[_-]?secret\\s*[:=]\\s*[\\\"'][^\\\"'\\n]{16,}[\\\"']".toRegex() to "client secret",
+        )
+        val violations = trackedFiles.asSequence()
+            .filter { path -> path.substringAfterLast('.', "") in sourceExtensions }
+            .flatMap { path ->
+                val file = projectRoot.resolve(path)
+                if (!file.isFile) return@flatMap emptySequence()
+                val text = file.readText()
+                credentialPatterns.asSequence().mapNotNull { (pattern, category) ->
+                    pattern.find(text)?.let { match -> "$path: $category (${match.value.take(8)})" }
+                }
+            }
+            .distinct()
+            .toList()
+        check(violations.isEmpty()) {
+            "High-signal credentials found in tracked source:\n${violations.joinToString("\n")}"
+        }
+    }
+}
+
 tasks.register("debugQualityCheck") {
     group = "verification"
-    dependsOn(":app:lintDebug", ":app:testDebugUnitTest", ":app:detekt", "buildStructureCheck")
+    dependsOn(":app:lintDebug", ":app:testDebugUnitTest", ":app:detekt", "buildStructureCheck", checkTrackedSourceSecrets)
 }
 
 tasks.register("performanceQualityCheck") {
@@ -19,19 +61,19 @@ tasks.register("performanceQualityCheck") {
 
 tasks.register("releaseQualityCheck") {
     group = "verification"
-    dependsOn(":app:verifyReleaseReadiness", "buildHealth")
+    dependsOn(":app:verifyReleaseReadiness", "buildHealth", checkTrackedSourceSecrets)
 }
 
 tasks.register<BaselineProfileResultCheckTask>("generateBaselineProfile") {
     group = "verification"
     dependsOn(":macrobenchmark:connectedCheck")
     testResultFiles.from(
-        fileTree("macrobenchmark/build/outputs/androidTest-results/connected/debug") {
+        fileTree("macrobenchmark/build/outputs/androidTest-results/connected/benchmark") {
             include("**/TEST-*.xml")
         },
     )
     generatedProfileFiles.from(
-        fileTree("macrobenchmark/build/outputs/connected_android_test_additional_output") {
+        fileTree("macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark") {
             include("**/BaselineProfileGenerator_generate-startup-prof.txt")
         },
     )

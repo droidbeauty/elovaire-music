@@ -6,7 +6,6 @@ import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
-import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
@@ -82,7 +81,6 @@ internal class AppServices(
         scanner = MediaStoreScanner(applicationContext),
         scope = appScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
-        indexStore = LibraryIndexStore(database.libraryDao()),
     ).also { it.setLibraryFolders(preferenceStore.libraryFolders.value) }
     private val lyricsServiceDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         LyricsService(
@@ -120,6 +118,7 @@ internal class AppServices(
 
     fun onMemoryPressure(pressure: MemoryPressure) {
         if (lyricsServiceDelegate.isInitialized()) lyricsService.onMemoryPressure(pressure)
+        libraryRepository.onMemoryPressure(pressure)
         mediaTree.onMemoryPressure(pressure)
     }
 

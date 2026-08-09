@@ -39,6 +39,29 @@ class LibrarySnapshotAssemblerTest {
         assertEquals(next, published)
     }
 
+    @Test
+    fun patchSongs_movingSongRetainsSongsAlreadyInDestinationAlbum() {
+        val moved = song(1L, "content://media/external/audio/media/1")
+        val destination = song(2L, "content://media/external/audio/media/2")
+            .copy(
+                albumId = 3L,
+                album = "Destination",
+                fileName = "destination.mp3",
+                libraryPath = "/music/destination.mp3",
+            )
+        val initial = LibrarySnapshotAssembler.assemble(listOf(moved, destination))
+        val current = LibraryContentState(initial.songs, initial.albums)
+        val publisher = LibrarySnapshotPublisher({}, { current })
+
+        val next = publisher.patchSongs(
+            editedSongs = listOf(moved.copy(albumId = 3L, album = "Destination")),
+            removingSongIds = emptySet(),
+            removingAlbumIds = emptySet(),
+        )
+        assertEquals(listOf(1L, 2L), next.albums.single { it.id == 3L }.songs.map(Song::id).sorted())
+        assertEquals(null, next.albums.firstOrNull { it.id == moved.albumId })
+    }
+
     private fun song(id: Long, uri: String) = Song(
         id = id,
         title = "Track",

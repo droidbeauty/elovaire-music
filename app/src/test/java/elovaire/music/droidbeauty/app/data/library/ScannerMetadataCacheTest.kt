@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -32,6 +33,30 @@ class ScannerMetadataCacheTest {
 
         assertNull(cache[first.uri.toString()])
         assertNull(cache[second.uri.toString()])
+    }
+
+    @Test
+    fun retainOnly_dropsRowsThatDisappearedFromTheScan() {
+        val first = song(uri = "content://media/external/audio/media/7", title = "First")
+        val second = song(uri = "content://media/secondary/audio/media/7", title = "Second")
+        val cache = ScannerMetadataCache()
+        cache.prime(listOf(first, second))
+
+        cache.retainOnly(setOf(first.uri.toString()))
+
+        assertTrue(cache[first.uri.toString()] != null)
+        assertNull(cache[second.uri.toString()])
+    }
+
+    @Test
+    fun memoryPressure_clearsReconstructableMetadataCache() {
+        val cached = song(uri = "content://media/external/audio/media/7", title = "First")
+        val cache = ScannerMetadataCache()
+        cache.prime(listOf(cached))
+
+        cache.onMemoryPressure(MemoryPressure.Critical)
+
+        assertNull(cache[cached.uri.toString()])
     }
 
     @Test

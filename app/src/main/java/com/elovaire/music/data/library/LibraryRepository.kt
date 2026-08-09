@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.core.AppBackgroundWorkPolicy
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.core.backend.BackendEvent
 import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
@@ -14,7 +15,6 @@ import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
-import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
@@ -84,7 +84,6 @@ class LibraryRepository internal constructor(
     private val scanner: MediaStoreScanner,
     private val scope: CoroutineScope,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
-    private val indexStore: LibraryIndexStore? = null,
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
     private val clock: AppClock = AndroidAppClock,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
@@ -341,11 +340,6 @@ class LibraryRepository internal constructor(
                             filterFingerprint = scanner.currentFilterFingerprint(),
                             syncState = scanner.currentSyncState(),
                         )
-                        indexStore?.indexSnapshot(
-                            snapshot = visibleSnapshot,
-                            filterFingerprint = scanner.currentFilterFingerprint(),
-                            source = "MediaStore",
-                        )
                     }
                     if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
                     val snapshotNeedsMetadata = visibleSnapshot.songs.any { song ->
@@ -488,6 +482,10 @@ class LibraryRepository internal constructor(
         startRefresh(request, showLoadingIndicator = false)
     }
 
+    internal fun onMemoryPressure(pressure: MemoryPressure) {
+        scanner.onMemoryPressure(pressure)
+    }
+
     fun markDeletingSongs(songIds: Collection<Long>) {
         if (songIds.isEmpty()) return
         deletionMarkers.markSongs(songIds)
@@ -564,20 +562,8 @@ class LibraryRepository internal constructor(
             }
         }
         val deletedSongIds = request.songIds - stillPresent
-        val affectedAlbumIds = current.songs
-            .asSequence()
-            .filter { it.id in deletedSongIds }
-            .map(Song::albumId)
-            .toSet()
         val deletedAlbumIds = fullyDeletedAlbumIds.filterTo(linkedSetOf()) { albumId ->
             updatedState.albums.none { it.id == albumId }
-        }
-        withContext(Dispatchers.IO) {
-            indexStore?.markRemoved(deletedSongIds, deletedAlbumIds)
-            indexStore?.applyChangedSongs(
-                songs = emptyList(),
-                albums = updatedState.albums.filter { it.id in affectedAlbumIds },
-            )
         }
         deletionMarkers.confirmDeletedSongs(deletedSongIds)
         clearPendingDeletedSongs(request.songIds)
@@ -628,11 +614,6 @@ class LibraryRepository internal constructor(
                 snapshot = updatedSnapshot,
                 filterFingerprint = scanner.currentFilterFingerprint(),
                 syncState = scanner.currentSyncState(),
-            )
-            val affectedAlbumIds = editedSongs.mapTo(hashSetOf(), Song::albumId)
-            indexStore?.applyChangedSongs(
-                songs = editedSongs,
-                albums = updatedSnapshot.albums.filter { it.id in affectedAlbumIds },
             )
         }
     }
