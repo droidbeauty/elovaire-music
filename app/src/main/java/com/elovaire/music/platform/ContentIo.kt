@@ -4,6 +4,7 @@ import android.content.ContentResolver
 import android.net.Uri
 import android.os.Build
 import android.os.ParcelFileDescriptor
+import android.provider.DocumentsContract
 import android.provider.MediaStore
 import androidx.annotation.WorkerThread
 import java.io.ByteArrayOutputStream
@@ -105,21 +106,32 @@ internal class ContentIo(
     }
 
     @WorkerThread
-    fun probeWritable(uri: Uri) {
-        val stream = try {
-            resolver.openOutputStream(uri, "rw")
-        } catch (_: FileNotFoundException) {
-            null
-        } catch (_: UnsupportedOperationException) {
-            null
-        } catch (_: IllegalArgumentException) {
-            null
+    fun requireSafWriteAccess(uri: Uri) {
+        check(hasPersistedWritePermission(uri)) { "The selected document has no persisted write permission." }
+        val flags = resolver.query(uri, arrayOf(DocumentsContract.Document.COLUMN_FLAGS), null, null, null)
+            ?.use { cursor ->
+                if (!cursor.moveToFirst()) null else cursor.getInt(0)
+            }
+            ?: error("Unable to query document write capability.")
+        check(flags and DocumentsContract.Document.FLAG_SUPPORTS_WRITE != 0) {
+            "The selected document provider does not support writing this file."
         }
-        if (stream != null) {
-            stream.use { }
-        } else {
-            openWritableDescriptor(uri).use { }
-        }
+    }
+
+    private fun hasPersistedWritePermission(uri: Uri): Boolean = resolver.persistedUriPermissions.any { permission ->
+        permission.isWritePermission && permissionGrantsUri(permission.uri, uri)
+    }
+
+    private fun permissionGrantsUri(grantUri: Uri, uri: Uri): Boolean {
+        if (grantUri == uri) return true
+        return runCatching {
+            DocumentsContract.isTreeUri(grantUri) &&
+                grantUri.authority == uri.authority &&
+                DocumentsContract.buildDocumentUriUsingTree(
+                    grantUri,
+                    DocumentsContract.getDocumentId(uri),
+                ) == uri
+        }.getOrDefault(false)
     }
 
     @WorkerThread

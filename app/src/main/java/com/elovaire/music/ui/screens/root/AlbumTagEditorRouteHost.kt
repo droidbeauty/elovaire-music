@@ -81,10 +81,7 @@ internal fun AlbumTagEditorRouteHost(
                     }
                     when (val request = requestResult.getOrNull()) {
                         null -> {
-                            tagEditorViewModel.onWritePermissionResult(
-                                operationId = event.operationId,
-                                granted = true,
-                            )
+                            tagEditorViewModel.onWritePermissionNotRequired(event.operationId)
                             pendingWriteOperationId = null
                         }
                         else -> runCatching {

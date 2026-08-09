@@ -229,6 +229,16 @@ internal class AlbumTagEditorViewModel(
         }
     }
 
+    /** A grouped MediaStore request is unavailable; the write itself must establish access. */
+    fun onWritePermissionNotRequired(operationId: String) {
+        if (!matchesPlatformActionResult(pendingWriteRequest?.operationId, operationId)) return
+        val pending = pendingWriteRequest ?: return
+        pendingWriteRequest = null
+        viewModelScope.launch {
+            performSave(pending.request, writeConsentGranted = false)
+        }
+    }
+
     fun onWritePermissionLaunchFailed(operationId: String) {
         if (!matchesPlatformActionResult(pendingWriteRequest?.operationId, operationId)) return
         pendingWriteRequest = null

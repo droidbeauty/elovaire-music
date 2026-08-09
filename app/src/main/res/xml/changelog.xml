@@ -9,6 +9,8 @@
     <release version="2.6.4">
         <item>Further performance optimizations</item>
         <item>Layout tweaks in queue menu and timer pop-up menu</item>
+        <item>Minor tweaks in the lyrics UI</item>
+        <item>Reorganized feature entries in the main settings UI for a more logical placement</item>
         <item>Online lyrics sync enabled again by default with an option to disable in settings</item>
     </release>
 </changelog>

@@ -8,7 +8,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import org.jaudiotagger.audio.AudioFileIO
+import org.jaudiotagger.audio.mp3.MP3File
 import org.jaudiotagger.tag.FieldKey
+import org.jaudiotagger.tag.id3.AbstractID3v2Tag
+import org.jaudiotagger.tag.id3.ID3v22Tag
+import org.jaudiotagger.tag.id3.ID3v24Tag
 
 class EmbeddedLyricsMetadataTest {
     @Test
@@ -74,6 +78,21 @@ class EmbeddedLyricsMetadataTest {
             val synced = "[00:01.00]First line"
             EmbeddedLyricsMetadata.write(file, request(file, synced))
         }
+    }
+
+    @Test
+    fun id3v22IsConvertedBeforeWritingLyricsFrames() {
+        val file = copyFixture("lyrics-id3v23.mp3")
+        val mp3 = AudioFileIO.read(file) as MP3File
+        mp3.setID3v2TagOnly(ID3v22Tag(mp3.tag as AbstractID3v2Tag))
+        mp3.commit()
+        assertTrue(AudioFileIO.read(file).tag is ID3v22Tag)
+
+        val lyrics = "Plain lyrics from a converted tag"
+        EmbeddedLyricsMetadata.write(file, request(file, lyrics))
+
+        assertTrue(AudioFileIO.read(file).tag is ID3v24Tag)
+        assertEquals(listOf(lyrics), AudioFileLyricsInspection.inspect(file).unsynced)
     }
 
     private fun request(file: File, lyrics: String): EmbeddedLyricsWriteRequest {

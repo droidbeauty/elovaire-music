@@ -24,7 +24,7 @@ internal class MediaFileMutationRunner(
     fun requireWritable(uri: Uri) {
         when (val target = MediaWriteTargetClassifier.classify(appContext, uri)) {
             is MediaWriteTarget.MediaStoreItem -> Unit
-            is MediaWriteTarget.SafDocument -> contentIo.probeWritable(target.uri)
+            is MediaWriteTarget.SafDocument -> contentIo.requireSafWriteAccess(target.uri)
             is MediaWriteTarget.FileUri -> {
                 val path = target.uri.path ?: error("The file path is unavailable.")
                 check(File(path).canWrite()) { "The song file is not writable." }
