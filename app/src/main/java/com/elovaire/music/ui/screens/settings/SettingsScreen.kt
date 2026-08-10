@@ -124,6 +124,7 @@ internal fun SettingsScreen(
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
+    onOpenManagePlaylists: () -> Unit,
     onOpenPrivacyPolicy: () -> Unit,
     onOpenChangelog: () -> Unit,
     onScanLibrary: () -> Unit,
@@ -274,23 +275,6 @@ internal fun SettingsScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(24.dp),
                     ) {
-                        SettingNavigationRow(
-                            title = foldersCopy.title,
-                            subtitle = foldersCopy.subtitle,
-                            onClick = onOpenLibraryFolders,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
-                        SettingNavigationRow(
-                            title = privacyPolicyCopy(appLanguage).title,
-                            subtitle = privacyPolicySettingsSubtitle(appLanguage),
-                            onClick = onOpenPrivacyPolicy,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                            testTag = "settings_privacy_policy",
-                        )
                         SettingToggleRow(
                             title = "Online lyrics",
                             subtitle = "Fetch lyrics from LRCLIB",
@@ -298,26 +282,63 @@ internal fun SettingsScreen(
                             onEnabledChanged = onOnlineLyricsChanged,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
+                        SettingNavigationRow(
+                            title = privacyPolicyCopy(appLanguage).title,
+                            subtitle = privacyPolicySettingsSubtitle(appLanguage),
+                            onClick = onOpenPrivacyPolicy,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                            testTag = "settings_privacy_policy",
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsSectionHeader(title = "Library", iconResId = R.drawable.ic_lucide_library)
+            }
+
+            item {
+                ModuleCard {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        SettingNavigationRow(
+                            title = foldersCopy.title,
+                            subtitle = foldersCopy.subtitle,
+                            onClick = onOpenLibraryFolders,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                        )
                         SettingActionRow(
                             title = copy.scanLibrary,
                             subtitle = copy.scanLibrarySubtitle,
                             actionLabel = copy.scan,
                             onAction = onScanLibrary,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
-                        )
-                        SettingActionRow(
-                            title = "Check for updates",
-                            subtitle = "Check out newer release version availability",
-                            actionLabel = updateActionLabel(updateState),
-                            actionIconResId = R.drawable.ic_lucide_refresh_cw,
-                            enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling,
-                            onAction = {
-                                if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate()
-                            },
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
+                        SettingNavigationRow(
+                            title = "Manage playlists",
+                            subtitle = "Import and export your playlists",
+                            onClick = onOpenManagePlaylists,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                        )
+                        SettingActionRow(
+                            title = copy.scanLibrary,
+                            subtitle = copy.scanLibrarySubtitle,
+                            actionLabel = copy.scan,
+                            onAction = onScanLibrary,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                        )
+                    }
+                }
+            }
+
+            item {
+                SettingsSectionHeader(title = copy.otherSettings, iconResId = R.drawable.ic_lucide_settings)
+            }
+            item {
+                ModuleCard {
+                    Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                        SettingToggleRow(title = "Online lyrics", subtitle = "Fetch lyrics from LRCLIB", enabled = onlineLyricsEnabled, onEnabledChanged = onOnlineLyricsChanged, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
+                        SettingActionRow(title = "Check for updates", subtitle = "Check out newer release version availability", actionLabel = updateActionLabel(updateState), actionIconResId = R.drawable.ic_lucide_refresh_cw, enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling, onAction = { if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
+                        SettingNavigationRow(title = privacyPolicyCopy(appLanguage).title, subtitle = privacyPolicySettingsSubtitle(appLanguage), onClick = onOpenPrivacyPolicy, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), testTag = "settings_privacy_policy")
                     }
                 }
             }

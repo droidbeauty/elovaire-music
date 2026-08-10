@@ -109,6 +109,10 @@ internal class RootRouteActions(
         navController.navigate(PRIVACY_POLICY_ROUTE)
     }
 
+    fun openManagePlaylists() {
+        navController.navigate(PLAYLISTS_ROUTE)
+    }
+
     fun refreshLibrary() {
         libraryDependencies.libraryRepository.refresh(
             forceMediaIndex = true,

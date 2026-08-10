@@ -11,7 +11,6 @@ import androidx.media3.exoplayer.audio.DefaultAudioSink
 internal class ElovaireRenderersFactory(
     context: Context,
     private val audioProcessors: Array<AudioProcessor>,
-    private val crossfadeSilenceDetector: CrossfadeSilenceDetector? = null,
 ) : DefaultRenderersFactory(context) {
     override fun buildAudioSink(
         context: Context,
@@ -25,8 +24,6 @@ internal class ElovaireRenderersFactory(
                 enableAudioOutputPlaybackParameters && audioProcessors.isNotEmpty(),
             )
             .build()
-        return crossfadeSilenceDetector?.let { detector ->
-            CrossfadeSilenceDetectingAudioSink(sink, detector)
-        } ?: sink
+        return sink
     }
 }

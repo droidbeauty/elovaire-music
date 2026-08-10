@@ -1,10 +1,9 @@
 package elovaire.music.droidbeauty.app.data.playback
 
-import kotlin.math.abs
+import androidx.media3.common.C
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
-import androidx.media3.common.C
-import androidx.media3.common.Format
+import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -32,45 +31,143 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
-    fun silenceDetector_usesMinusEightyDbBaseLevel() {
-        val detector = CrossfadeSilenceDetector()
-        detector.configure(
-            Format.Builder()
-                .setSampleRate(1_000)
-                .setChannelCount(1)
-                .setPcmEncoding(C.ENCODING_PCM_16BIT)
-                .build(),
+    fun trailingCue_trimsOnlyTrueTrailingSilence() {
+        val windows = listOf(
+            CrossfadeLevelWindow(0L, 100L, 0.2f),
+            CrossfadeLevelWindow(100L, 200L, 0f),
+            CrossfadeLevelWindow(200L, 300L, 0.4f),
+            CrossfadeLevelWindow(300L, 400L, 0f),
         )
-        val silentBuffer = ByteBuffer.allocateDirect(100 * 2).order(ByteOrder.nativeOrder())
-        repeat(100) { silentBuffer.putShort(3) }
-        silentBuffer.flip()
 
-        detector.observe(silentBuffer, presentationTimeUs = 0L)
+        assertEquals(300L to 100L, CrossfadeCueAlgorithm.trailingCue(windows, 400L))
+    }
 
-        assertTrue(
-            detector.isSilentAt(
-                positionUs = 0L,
-                minimumDurationMs = CrossfadeSilencePolicy.MIN_SILENCE_DURATION_MS,
+    @Test
+    fun trailingCue_keepsFixedTimingWhenSilenceIsShortOrEntireRegionIsSilent() {
+        val shortSilence = listOf(CrossfadeLevelWindow(0L, 20L, 0.2f), CrossfadeLevelWindow(20L, 80L, 0f))
+        val emptyAudio = listOf(CrossfadeLevelWindow(0L, 80L, 0f))
+
+        assertEquals(80L to 0L, CrossfadeCueAlgorithm.trailingCue(shortSilence, 80L))
+        assertEquals(80L to 0L, CrossfadeCueAlgorithm.trailingCue(emptyAudio, 80L))
+    }
+
+    @Test
+    fun leadingCue_trimsOnlySufficientLeadingSilence() {
+        val windows = listOf(
+            CrossfadeLevelWindow(0L, 120L, 0f),
+            CrossfadeLevelWindow(120L, 140L, 0.2f),
+        )
+
+        assertEquals(120L to 120L, CrossfadeCueAlgorithm.leadingCue(windows))
+        assertEquals(
+            0L to 0L,
+            CrossfadeCueAlgorithm.leadingCue(
+                windows = listOf(CrossfadeLevelWindow(0L, 80L, 0f), CrossfadeLevelWindow(80L, 100L, 0.2f)),
             ),
         )
     }
 
     @Test
-    fun silenceDetector_rejectsSamplesAboveMinusEightyDbBaseLevel() {
-        val detector = CrossfadeSilenceDetector()
-        detector.configure(
-            Format.Builder()
-                .setSampleRate(1_000)
-                .setChannelCount(1)
-                .setPcmEncoding(C.ENCODING_PCM_16BIT)
-                .build(),
+    fun transitionPlan_usesTwoPointFiveSecondsAndIncomingCue() {
+        val plan = CrossfadeTransitionPlan.from(
+            cue = CrossfadeCue(
+                outgoingMixOutMs = 20_000L,
+                incomingMixInMs = 120L,
+                outgoingTrailingSilenceMs = 5_000L,
+                incomingLeadingSilenceMs = 120L,
+                outgoingAnalysisSucceeded = true,
+                incomingAnalysisSucceeded = true,
+            ),
+            outgoingDurationMs = 25_000L,
         )
-        val noisyBuffer = ByteBuffer.allocateDirect(100 * 2).order(ByteOrder.nativeOrder())
-        repeat(100) { noisyBuffer.putShort(4) }
-        noisyBuffer.flip()
 
-        detector.observe(noisyBuffer, presentationTimeUs = 0L)
+        assertEquals(20_000L, plan.outgoingMixOutMs)
+        assertEquals(17_500L, plan.fadeStartMs)
+        assertEquals(2_500L, plan.fadeDurationMs)
+        assertEquals(120L, plan.incomingMixInMs)
+    }
 
-        assertTrue(!detector.isSilentAt(0L, CrossfadeSilencePolicy.MIN_SILENCE_DURATION_MS))
+    @Test
+    fun transitionPlan_shortIncomingTrackShortensOverlapToAvoidRunningPastIt() {
+        val plan = CrossfadeTransitionPlan.from(
+            cue = CrossfadeCue.fallback(outgoingDurationMs = 20_000L).copy(incomingMixInMs = 500L),
+            outgoingDurationMs = 20_000L,
+            incomingDurationMs = 2_000L,
+        )
+
+        assertEquals(1_500L, plan.fadeDurationMs)
+        assertEquals(18_500L, plan.fadeStartMs)
+    }
+
+    @Test
+    fun pcmEnvelopeAccumulator_supportsMedia3PcmEncodings() {
+        val samples = listOf(
+            C.ENCODING_PCM_8BIT to { buffer: ByteBuffer -> buffer.put(192.toByte()) },
+            C.ENCODING_PCM_16BIT to { buffer: ByteBuffer -> buffer.putShort(16_384) },
+            C.ENCODING_PCM_24BIT to { buffer: ByteBuffer ->
+                buffer.put(0x00).put(0x00).put(0x40)
+            },
+            C.ENCODING_PCM_32BIT to { buffer: ByteBuffer -> buffer.putInt(1_073_741_824) },
+            C.ENCODING_PCM_FLOAT to { buffer: ByteBuffer -> buffer.putFloat(0.5f) },
+        )
+
+        samples.forEach { (encoding, writeSample) ->
+            val accumulator = PcmEnvelopeAccumulator(
+                sampleRate = 1_000,
+                channelCount = 1,
+                encoding = encoding,
+                regionStartUs = 0L,
+                regionEndUs = 20_000L,
+            )
+            val bytesPerSample = when (encoding) {
+                C.ENCODING_PCM_8BIT -> 1
+                C.ENCODING_PCM_16BIT -> 2
+                C.ENCODING_PCM_24BIT -> 3
+                else -> 4
+            }
+            val buffer = ByteBuffer.allocate(bytesPerSample * 20).order(ByteOrder.nativeOrder())
+            repeat(20) { writeSample(buffer) }
+            buffer.flip()
+
+            accumulator.append(buffer, 0L)
+
+            assertEquals(0.5f, accumulator.finish().single().maxChannelRms, 0.001f)
+        }
+    }
+
+    @Test
+    fun pcmEnvelopeAccumulator_usesLoudestChannelAndRms() {
+        val accumulator = PcmEnvelopeAccumulator(
+            sampleRate = 1_000,
+            channelCount = 2,
+            encoding = C.ENCODING_PCM_16BIT,
+            regionStartUs = 0L,
+            regionEndUs = 20_000L,
+        )
+        val buffer = ByteBuffer.allocate(20 * 2 * 2).order(ByteOrder.nativeOrder())
+        repeat(20) {
+            buffer.putShort(0)
+            buffer.putShort(16_384)
+        }
+        buffer.flip()
+
+        accumulator.append(buffer, 0L)
+
+        assertEquals(0.5f, accumulator.finish().single().maxChannelRms, 0.001f)
+    }
+
+    @Test
+    fun trailingCue_usesMinusEightyDbfsRmsFloor() {
+        val belowFloor = CrossfadeLevelWindow(0L, 20L, 3f / 32_768f)
+        val aboveFloor = CrossfadeLevelWindow(20L, 40L, 4f / 32_768f)
+
+        assertEquals(
+            20L to 0L,
+            CrossfadeCueAlgorithm.trailingCue(
+                windows = listOf(belowFloor),
+                durationMs = 20L,
+            ),
+        )
+        assertEquals(40L to 0L, CrossfadeCueAlgorithm.trailingCue(listOf(belowFloor, aboveFloor), 40L))
     }
 }

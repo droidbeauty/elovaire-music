@@ -310,6 +310,7 @@ internal fun SettingsRouteHost(
         onMonoPlaybackChanged = routeActions.settings::updateMonoPlaybackEnabled,
         onOpenEqualizer = routeActions::openEqualizer,
         onOpenLibraryFolders = routeActions::openLibraryFolders,
+        onOpenManagePlaylists = routeActions::openManagePlaylists,
         onOpenPrivacyPolicy = routeActions::openPrivacyPolicy,
         onOpenChangelog = routeActions::openChangelog,
         onScanLibrary = routeActions::refreshLibrary,
