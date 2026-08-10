@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.Album
 
+@Suppress("TooManyFunctions")
 internal class RootRouteActions(
     private val context: Context,
     private val libraryDependencies: LibraryActionDependencies,
@@ -137,32 +138,26 @@ internal class RootRouteActions(
     fun renamePlaylist(
         playlistId: Long,
         name: String,
-    ) {
-        playlistDependencies.playlistStore.renamePlaylist(playlistId, name)
-    }
+    ): PlaylistMutationRequest = playlistDependencies.playlistStore.renamePlaylist(playlistId, name)
 
-    fun deletePlaylists(playlistIds: Set<Long>) {
+    fun deletePlaylists(playlistIds: Set<Long>): PlaylistMutationRequest =
         playlistDependencies.playlistStore.deletePlaylists(playlistIds)
-    }
 
     fun updatePlaylistSongOrder(
         playlistId: Long,
         songIds: List<Long>,
-    ) {
-        playlistDependencies.playlistStore.updatePlaylistSongIds(playlistId, songIds)
-    }
+    ): PlaylistMutationRequest = playlistDependencies.playlistStore.updatePlaylistSongIds(playlistId, songIds)
 
-    fun createSmartPlaylist(name: String): Long {
-        return playlistDependencies.playlistStore.createSmartPlaylist(name)
-    }
+    fun createSmartPlaylist(name: String): PlaylistMutationRequest = playlistDependencies.playlistStore.createSmartPlaylist(name)
 
-    fun updateSmartPlaylist(playlist: SmartPlaylist) {
+    fun createSmartPlaylist(playlist: SmartPlaylist): PlaylistMutationRequest =
+        playlistDependencies.playlistStore.createSmartPlaylist(playlist)
+
+    fun updateSmartPlaylist(playlist: SmartPlaylist): PlaylistMutationRequest =
         playlistDependencies.playlistStore.updateSmartPlaylist(playlist)
-    }
 
-    fun deleteSmartPlaylist(playlistId: Long) {
+    fun deleteSmartPlaylist(playlistId: Long): PlaylistMutationRequest =
         playlistDependencies.playlistStore.deleteSmartPlaylists(setOf(playlistId))
-    }
 
     fun removeLibraryFolder(selection: LibraryFolderSelection) {
         librarySettings.removeLibraryFolder(selection)

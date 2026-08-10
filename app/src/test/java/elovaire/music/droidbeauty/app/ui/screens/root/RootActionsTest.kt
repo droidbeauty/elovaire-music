@@ -8,17 +8,20 @@ import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.settings.PlaybackSettingsWriter
 import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class RootActionsTest {
     @Test
-    fun playlistActions_delegateThroughNarrowDependencies() {
+    fun playlistActions_delegateThroughNarrowDependencies() = runBlocking {
         val store = FakePlaylistStore()
         val favorites = FakeFavoritesStore()
         val actions = RootPlaylistActions(
@@ -28,13 +31,13 @@ class RootActionsTest {
             },
         )
 
-        val playlistId = actions.createPlaylistAndAddSongs("Road", listOf(7L, 9L))
+        val result = actions.createPlaylistAndAddSongs("Road", listOf(7L, 9L)).await()
         actions.toggleFavorite(7L)
         actions.setSongsFavorite(listOf(7L, 9L), true)
 
-        assertEquals(42L, playlistId)
+        assertEquals(PlaylistMutationResult.Success(42L), result)
         assertEquals("Road", store.createdName)
-        assertEquals(42L to listOf(7L, 9L), store.addedSongs)
+        assertEquals(42L to listOf(7L, 9L), store.createdSongs)
         assertEquals(7L, favorites.toggledSongId)
         assertEquals(listOf(7L, 9L) to true, favorites.favoriteBatch)
     }
@@ -61,24 +64,26 @@ class RootActionsTest {
 
 private class FakePlaylistStore : PlaylistStore {
     var createdName: String? = null
-    var addedSongs: Pair<Long, List<Long>>? = null
+    var createdSongs: Pair<Long, List<Long>>? = null
 
-    override fun createPlaylist(name: String): Long {
+    override fun createPlaylist(name: String) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(42L))
+
+    override fun createPlaylistWithSongs(name: String, songIds: List<Long>) = CompletableDeferred<PlaylistMutationResult>().also {
         createdName = name
-        return 42L
+        createdSongs = 42L to songIds
+        it.complete(PlaylistMutationResult.Success(42L))
     }
 
-    override fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
-        addedSongs = playlistId to songIds
-    }
+    override fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(playlistId))
 
-    override fun renamePlaylist(playlistId: Long, name: String) = Unit
-    override fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>) = Unit
-    override fun deletePlaylists(playlistIds: Set<Long>) = Unit
-    override fun removeSongReferences(songIds: Set<Long>) = Unit
-    override fun createSmartPlaylist(name: String): Long = 0L
-    override fun updateSmartPlaylist(playlist: SmartPlaylist) = Unit
-    override fun deleteSmartPlaylists(playlistIds: Set<Long>) = Unit
+    override fun renamePlaylist(playlistId: Long, name: String) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(playlistId))
+    override fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(playlistId))
+    override fun deletePlaylists(playlistIds: Set<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success())
+    override fun removeSongReferences(songIds: Set<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success())
+    override fun createSmartPlaylist(name: String) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(42L))
+    override fun createSmartPlaylist(playlist: SmartPlaylist) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(42L))
+    override fun updateSmartPlaylist(playlist: SmartPlaylist) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(playlist.id))
+    override fun deleteSmartPlaylists(playlistIds: Set<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success())
 }
 
 private class FakeFavoritesStore : FavoritesStore {

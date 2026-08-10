@@ -254,6 +254,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.uiautomator)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     androidTestUtil(libs.androidx.test.orchestrator)
     androidTestImplementation(libs.androidx.room.testing)
 }

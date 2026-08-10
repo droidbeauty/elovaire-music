@@ -3,11 +3,18 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
 import elovaire.music.droidbeauty.app.data.update.UpdateController
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
+import kotlinx.coroutines.launch
 import elovaire.music.droidbeauty.app.ui.screens.UpdateAvailableDialog
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
@@ -25,13 +32,15 @@ internal fun BoxScope.RootOverlayHost(
     onDismissChangelogSheet: () -> Unit,
     showPlaylistCreateDialog: Boolean,
     onDismissPlaylistCreateDialog: () -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onCreatePlaylist: PlaylistCreateAction,
     permissionState: RootPermissionState,
     onRequestAudioPermission: () -> Unit,
     updateController: UpdateController,
     updateState: AppUpdateUiState,
     motionTransitions: MotionTransitions,
 ) {
+    val scope = rememberCoroutineScope()
+    var isCreatingPlaylist by remember { mutableStateOf(false) }
     TopBarContextMenuOverlay(
         expanded = showTopBarMenu,
         modifier = Modifier
@@ -61,8 +70,15 @@ internal fun BoxScope.RootOverlayHost(
         PlaylistNameDialog(
             onDismiss = onDismissPlaylistCreateDialog,
             onConfirm = { name ->
-                if (onCreatePlaylist(name) > 0L) {
-                    onDismissPlaylistCreateDialog()
+                if (!isCreatingPlaylist) {
+                    isCreatingPlaylist = true
+                    scope.launch {
+                        when (onCreatePlaylist(name).await()) {
+                            is PlaylistMutationResult.Success -> onDismissPlaylistCreateDialog()
+                            else -> isCreatingPlaylist = false
+                        }
+                        if (isCreatingPlaylist) isCreatingPlaylist = false
+                    }
                 }
             },
         )

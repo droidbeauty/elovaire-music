@@ -13,11 +13,20 @@ internal interface UserDataDao {
     @Query("SELECT * FROM user_playlists ORDER BY playlistId")
     suspend fun playlists(): List<UserPlaylistEntity>
 
+    @Query("SELECT * FROM user_playlists WHERE playlistId = :playlistId")
+    suspend fun playlist(playlistId: Long): UserPlaylistEntity?
+
     @Query("SELECT * FROM user_playlist_entries ORDER BY playlistId, position")
     suspend fun playlistEntries(): List<UserPlaylistEntryEntity>
 
+    @Query("SELECT * FROM user_playlist_entries WHERE playlistId = :playlistId ORDER BY position")
+    suspend fun playlistEntries(playlistId: Long): List<UserPlaylistEntryEntity>
+
     @Query("SELECT * FROM user_smart_playlists ORDER BY playlistId")
     suspend fun smartPlaylists(): List<UserSmartPlaylistEntity>
+
+    @Query("SELECT * FROM user_smart_playlists WHERE playlistId = :playlistId")
+    suspend fun smartPlaylist(playlistId: Long): UserSmartPlaylistEntity?
 
     @Query("SELECT * FROM favorite_songs ORDER BY position")
     suspend fun favorites(): List<FavoriteSongEntity>
@@ -42,6 +51,15 @@ internal interface UserDataDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPlaylist(playlist: UserPlaylistEntity)
+
+    @Transaction
+    suspend fun insertPlaylistWithEntries(
+        playlist: UserPlaylistEntity,
+        songIds: List<Long>,
+    ) {
+        insertPlaylist(playlist)
+        replacePlaylistEntries(playlist.playlistId, songIds)
+    }
 
     @Query("UPDATE user_playlists SET name = :name WHERE playlistId = :playlistId")
     suspend fun renamePlaylist(playlistId: Long, name: String)

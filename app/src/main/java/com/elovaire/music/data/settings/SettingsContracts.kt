@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.StateFlow
 
 internal interface AppearanceSettingsStore {
@@ -79,15 +80,29 @@ internal interface PlaybackSettingsWriter {
 }
 
 internal interface PlaylistStore {
-    fun createPlaylist(name: String): Long
-    fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>)
-    fun renamePlaylist(playlistId: Long, name: String)
-    fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>)
-    fun deletePlaylists(playlistIds: Set<Long>)
-    fun removeSongReferences(songIds: Set<Long>)
-    fun createSmartPlaylist(name: String): Long
-    fun updateSmartPlaylist(playlist: SmartPlaylist)
-    fun deleteSmartPlaylists(playlistIds: Set<Long>)
+    fun createPlaylist(name: String): Deferred<PlaylistMutationResult>
+    fun createPlaylistWithSongs(name: String, songIds: List<Long>): Deferred<PlaylistMutationResult>
+    fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Deferred<PlaylistMutationResult>
+    fun renamePlaylist(playlistId: Long, name: String): Deferred<PlaylistMutationResult>
+    fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>): Deferred<PlaylistMutationResult>
+    fun deletePlaylists(playlistIds: Set<Long>): Deferred<PlaylistMutationResult>
+    fun removeSongReferences(songIds: Set<Long>): Deferred<PlaylistMutationResult>
+    fun createSmartPlaylist(name: String): Deferred<PlaylistMutationResult>
+    fun createSmartPlaylist(playlist: SmartPlaylist): Deferred<PlaylistMutationResult>
+    fun updateSmartPlaylist(playlist: SmartPlaylist): Deferred<PlaylistMutationResult>
+    fun deleteSmartPlaylists(playlistIds: Set<Long>): Deferred<PlaylistMutationResult>
+}
+
+internal sealed interface PlaylistMutationResult {
+    data class Success(
+        val playlistId: Long? = null,
+        val changed: Boolean = true,
+    ) : PlaylistMutationResult
+
+    data object NotFound : PlaylistMutationResult
+    data object InvalidInput : PlaylistMutationResult
+    data object NotAllowed : PlaylistMutationResult
+    data class Failure(val reason: String, val cause: Throwable? = null) : PlaylistMutationResult
 }
 
 internal interface FavoritesStore {

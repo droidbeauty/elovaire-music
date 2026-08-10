@@ -31,6 +31,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,6 +45,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
+import kotlinx.coroutines.launch
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -72,12 +75,13 @@ internal fun PlaylistsScreen(
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
-    onRenamePlaylist: (Long, String) -> Unit,
-    onDeletePlaylists: (Set<Long>) -> Unit,
+    onRenamePlaylist: (Long, String) -> PlaylistMutationRequest,
+    onDeletePlaylists: (Set<Long>) -> PlaylistMutationRequest,
     onOpenPlaylist: (Playlist, ExpandOrigin) -> Unit,
     onOpenSmartPlaylist: (SmartPlaylistSummary, ExpandOrigin) -> Unit,
 ) {
     val motionTransitions = rememberMotionTransitions()
+    val scope = rememberCoroutineScope()
     var playlistBeingRenamed by remember { mutableStateOf<Playlist?>(null) }
     var selectedPlaylistIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
     val playlistRows = remember(playlists, libraryState.songs) {
@@ -237,8 +241,12 @@ internal fun PlaylistsScreen(
                     label = uiPhrase(LocalAppLanguage.current, UiPhrase.RemoveFromList),
                     tint = DestructiveRed,
                     onClick = {
-                        onDeletePlaylists(selectedPlaylistIds)
-                        selectedPlaylistIds = emptySet()
+                        val ids = selectedPlaylistIds
+                        scope.launch {
+                            if (onDeletePlaylists(ids).await() is PlaylistMutationResult.Success) {
+                                selectedPlaylistIds = emptySet()
+                            }
+                        }
                     },
                 ),
             )
@@ -252,9 +260,12 @@ internal fun PlaylistsScreen(
                 initialName = playlist.name,
                 onDismiss = { playlistBeingRenamed = null },
                 onConfirm = { name ->
-                    onRenamePlaylist(playlist.id, name)
-                    playlistBeingRenamed = null
-                    selectedPlaylistIds = emptySet()
+                    scope.launch {
+                        if (onRenamePlaylist(playlist.id, name).await() is PlaylistMutationResult.Success) {
+                            playlistBeingRenamed = null
+                            selectedPlaylistIds = emptySet()
+                        }
+                    }
                 },
             )
         }

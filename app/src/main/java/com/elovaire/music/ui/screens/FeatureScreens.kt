@@ -244,6 +244,7 @@ import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNowPlayingState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
@@ -968,8 +969,8 @@ private fun AlbumCollectionContent(
     onSortModeChanged: (AlbumSortMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onAddAlbumToQueue: (Album) -> Unit,
-    onAddAlbumToPlaylist: (Long, Album) -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onAddAlbumToPlaylist: (Long, Album) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
     playlistSongsById: Map<Long, Song>,
     favoriteSongIds: Set<Long>,
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
@@ -1327,11 +1328,22 @@ private fun AlbumCollectionContent(
             playlistSongsById = playlistSongsById,
             onDismiss = { showPlaylistPicker = false },
             onPlaylistSelected = { playlistId ->
-                selectedAlbums.forEach { album ->
-                    onAddAlbumToPlaylist(playlistId, album)
+                val songs = selectedAlbums.flatMap(Album::songs).distinctBy(Song::id)
+                val combinedAlbum = Album(
+                    id = -1L,
+                    title = "",
+                    artist = "",
+                    artUri = null,
+                    songCount = songs.size,
+                    durationMs = songs.sumOf(Song::durationMs),
+                    songs = songs,
+                )
+                val result = onAddAlbumToPlaylist(playlistId, combinedAlbum).await()
+                if (result is PlaylistMutationResult.Success) {
+                    showPlaylistPicker = false
+                    selectedAlbumIds = emptySet()
                 }
-                showPlaylistPicker = false
-                selectedAlbumIds = emptySet()
+                result
             },
             onCreatePlaylist = onCreatePlaylist,
         )
@@ -1763,8 +1775,8 @@ internal fun LibraryCollectionScreen(
     onAddAlbumToQueue: (Album) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
-    onAddAlbumToPlaylist: (Long, Album) -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onAddAlbumToPlaylist: (Long, Album) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
     playlistSongsById: Map<Long, Song>,
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
     onDeleteAlbumFromDevice: (Album) -> Unit,
@@ -2181,8 +2193,8 @@ internal fun GenreAlbumsScreen(
     onSortModeChanged: (AlbumSortMode) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onAddAlbumToQueue: (Album) -> Unit,
-    onAddAlbumToPlaylist: (Long, Album) -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onAddAlbumToPlaylist: (Long, Album) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
     playlistSongsById: Map<Long, Song>,
     favoriteSongIds: Set<Long>,
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
@@ -4475,8 +4487,8 @@ private fun CompactAlbumRow(
     onOpen: (ExpandOrigin) -> Unit,
     onToggleFavorite: (() -> Unit)? = null,
     onAddToQueue: (() -> Unit)? = null,
-    onAddToPlaylist: ((Long) -> Unit)? = null,
-    onCreatePlaylist: ((String) -> Long)? = null,
+    onAddToPlaylist: ((Long) -> PlaylistMutationRequest)? = null,
+    onCreatePlaylist: PlaylistCreateAction? = null,
     onDeleteAlbum: (() -> Unit)? = null,
     onLongPress: (() -> Unit)? = null,
 ) {
@@ -4692,8 +4704,8 @@ internal fun AlbumScreen(
     onShuffleAlbum: (Album) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onArtistSelected: (String) -> Unit,
-    onAddSongsToPlaylist: (Long, List<Long>) -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onAddSongsToPlaylist: (Long, List<Long>) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
     onDeleteSongsFromDevice: (List<Song>) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onSetAlbumFavorite: (List<Long>, Boolean) -> Unit,
@@ -5147,9 +5159,12 @@ internal fun AlbumScreen(
             playlistSongsById = playlistSongsById,
             onDismiss = { showPlaylistPicker = false },
             onPlaylistSelected = { playlistId ->
-                onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id))
-                selectedSongIds = emptySet()
-                showPlaylistPicker = false
+                val result = onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id)).await()
+                if (result is PlaylistMutationResult.Success) {
+                    selectedSongIds = emptySet()
+                    showPlaylistPicker = false
+                }
+                result
             },
             onCreatePlaylist = onCreatePlaylist,
         )
@@ -5435,7 +5450,8 @@ internal fun AddSongsToPlaylistOverlay(
     val motionSpecs = rememberMotionSpecs()
     var selectedTab by rememberSaveable { mutableStateOf(PlaylistPickerTab.Songs) }
     var query by rememberSaveable { mutableStateOf("") }
-    var selectedSongIds by rememberSaveable { mutableStateOf(listOf<Long>()) }
+    val selectedSongIdsState = rememberSaveable { mutableStateOf(listOf<Long>()) }
+    val selectedSongIds = selectedSongIdsState.value
     var selectedAlbumId by rememberSaveable { mutableStateOf<Long?>(null) }
     var selectedArtistName by rememberSaveable { mutableStateOf<String?>(null) }
     var listResetVersion by remember { mutableLongStateOf(0L) }
@@ -5549,7 +5565,14 @@ internal fun AddSongsToPlaylistOverlay(
     }
     val overlayTopPadding = detailTopBarOccupiedHeight()
     val overlayBottomPadding = 124.dp + buttonNavigationScrollBoost()
-    val selectedSongIdsState = rememberUpdatedState(selectedSongIds)
+    val toggleSongSelection: (Long) -> Unit = { songId ->
+        val current = selectedSongIdsState.value
+        selectedSongIdsState.value = if (songId in current) {
+            current.filterNot { it == songId }
+        } else {
+            current + songId
+        }
+    }
     val topBarActions = remember(onAddSongs, onDismiss) {
         listOf(
             TopBarActionSpec(
@@ -5788,13 +5811,7 @@ internal fun AddSongsToPlaylistOverlay(
                                         selected = selected,
                                         selectionIndicatorOnRight = true,
                                         showDivider = song != filteredAlbumSongs.lastOrNull(),
-                                        onClick = {
-                                            selectedSongIds = if (selected) {
-                                                selectedSongIds.filterNot { it == song.id }
-                                            } else {
-                                                selectedSongIds + song.id
-                                            }
-                                        },
+                                        onClick = { toggleSongSelection(song.id) },
                                     )
                                 }
                             }
@@ -5810,13 +5827,7 @@ internal fun AddSongsToPlaylistOverlay(
                                         selected = selected,
                                         selectionIndicatorOnRight = true,
                                         showDivider = song != filteredArtistSongs.lastOrNull(),
-                                        onClick = {
-                                            selectedSongIds = if (selected) {
-                                                selectedSongIds.filterNot { it == song.id }
-                                            } else {
-                                                selectedSongIds + song.id
-                                            }
-                                        },
+                                        onClick = { toggleSongSelection(song.id) },
                                     )
                                 }
                             }
@@ -5833,11 +5844,12 @@ internal fun AddSongsToPlaylistOverlay(
                                         onOpen = { selectedAlbumId = album.id },
                                         onToggleSelection = {
                                             val albumSongIds = album.songs.map(Song::id)
-                                            val allSelected = albumSongIds.all { it in selectedSongIdSet }
-                                            selectedSongIds = if (allSelected) {
-                                                selectedSongIds.filterNot { it in albumSongIds }
+                                            val current = selectedSongIdsState.value
+                                            val allSelected = albumSongIds.all { it in current }
+                                            selectedSongIdsState.value = if (allSelected) {
+                                                current.filterNot { it in albumSongIds }
                                             } else {
-                                                (selectedSongIds + albumSongIds).distinct()
+                                                (current + albumSongIds).distinct()
                                             }
                                         },
                                     )
@@ -5872,13 +5884,7 @@ internal fun AddSongsToPlaylistOverlay(
                                         selected = selected,
                                         selectionIndicatorOnRight = true,
                                         showDivider = song != filteredSongs.lastOrNull(),
-                                        onClick = {
-                                            selectedSongIds = if (selected) {
-                                                selectedSongIds.filterNot { it == song.id }
-                                            } else {
-                                                selectedSongIds + song.id
-                                            }
-                                        },
+                                        onClick = { toggleSongSelection(song.id) },
                                     )
                                 }
                             }
@@ -6163,8 +6169,8 @@ internal fun NowPlayingScreen(
     onCycleRepeatMode: () -> Unit,
     onToggleShuffle: () -> Unit,
     onToggleFavorite: (Long) -> Unit,
-    onAddCurrentSongToPlaylist: (Long, Song) -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onAddCurrentSongToPlaylist: (Long, Song) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
     onQueueItemSelected: (Int) -> Unit,
     onQueueItemRemoved: (Int) -> Unit,
     onOpenEqualizer: () -> Unit,
@@ -7225,8 +7231,8 @@ internal fun NowPlayingScreen(
                 playlistSongsById = enrichedSongsById,
                 onDismiss = { showAddToPlaylistDialog = false },
                 onPlaylistSelected = { playlistId ->
-                    currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it) }
-                    showAddToPlaylistDialog = false
+                    currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it).await() }
+                        ?: PlaylistMutationResult.InvalidInput
                 },
                 onCreatePlaylist = onCreatePlaylist,
             )
@@ -7406,8 +7412,8 @@ private fun QueueSheet(
     onOpenEqualizer: () -> Unit,
     sleepTimerActive: Boolean,
     onOpenSleepTimer: () -> Unit,
-    onAddSongToPlaylist: (Long, Song) -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onAddSongToPlaylist: (Long, Song) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
     statusText: String?,
     onDismiss: () -> Unit,
     isPlaying: Boolean,
@@ -7638,8 +7644,7 @@ private fun QueueSheet(
             playlistSongsById = playlistSongsById,
             onDismiss = { playlistTargetSong = null },
             onPlaylistSelected = { playlistId ->
-                onAddSongToPlaylist(playlistId, song)
-                playlistTargetSong = null
+                onAddSongToPlaylist(playlistId, song).await()
             },
             onCreatePlaylist = onCreatePlaylist,
         )
@@ -7788,6 +7793,21 @@ private fun SleepTimerDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(46.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
+                            .clickable { onOptionSelected(SleepTimerOption.Off) },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(R.drawable.ic_lucide_timer_reset),
+                            contentDescription = "Reset timer",
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
                     SleepTimerAction(
                         text = copy.endOfSong,
                         selected = pendingEndOfSong,
@@ -7826,7 +7846,7 @@ private fun SleepTimerSlider(
     } else {
         Color.White
     }
-    val barCount = 25
+    val barCount = 30
     val activeBarCount = (fraction * (barCount - 1)).roundToInt() + 1
 
     BoxWithConstraints(
@@ -8571,8 +8591,8 @@ private fun AlbumOverflowMenuButton(
     playlistSongsById: Map<Long, Song>,
     tint: Color,
     onAddToQueue: () -> Unit,
-    onAddToPlaylist: (Long) -> Unit,
-    onCreatePlaylist: ((String) -> Long)?,
+    onAddToPlaylist: (Long) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction?,
     onDeleteAlbum: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
@@ -8672,8 +8692,7 @@ private fun AlbumOverflowMenuButton(
             playlistSongsById = playlistSongsById,
             onDismiss = { showPlaylistDialog = false },
             onPlaylistSelected = { playlistId ->
-                onAddToPlaylist(playlistId)
-                showPlaylistDialog = false
+                onAddToPlaylist(playlistId).await()
             },
             onCreatePlaylist = onCreatePlaylist,
         )
@@ -8795,8 +8814,7 @@ internal fun SongOverflowMenuButton(
             playlistSongsById = actions.songsById,
             onDismiss = { showPlaylistDialog = false },
             onPlaylistSelected = { playlistId ->
-                actions.onAddToPlaylist(playlistId, song)
-                showPlaylistDialog = false
+                actions.onAddToPlaylist(playlistId, song).await()
             },
             onCreatePlaylist = actions.onCreatePlaylist,
         )

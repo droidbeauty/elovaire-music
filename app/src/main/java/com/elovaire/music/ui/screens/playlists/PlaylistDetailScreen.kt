@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -61,6 +62,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
@@ -85,6 +87,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 @Composable
 internal fun PlaylistDetailScreen(
@@ -98,8 +101,8 @@ internal fun PlaylistDetailScreen(
     onPlayPlaylist: (List<Song>, String) -> Unit,
     onShufflePlaylist: (List<Song>, String) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
-    onUpdateSongOrder: (List<Long>) -> Unit,
-    onRenamePlaylist: (Long, String) -> Unit,
+    onUpdateSongOrder: (List<Long>) -> PlaylistMutationRequest,
+    onRenamePlaylist: (Long, String) -> PlaylistMutationRequest,
     onToggleFavorite: (Long) -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
@@ -146,25 +149,43 @@ internal fun PlaylistDetailScreen(
     val defaultSongMenuActions = LocalSongMenuActions.current
     var editMode by rememberSaveable(playlistState.id) { mutableStateOf(false) }
     var showAddSongsPicker by rememberSaveable(playlistState.id) { mutableStateOf(false) }
-    var editableSongIds by rememberSaveable(playlistState.id) { mutableStateOf(playlistState.songIds) }
-    var songIdsMarkedForRemoval by rememberSaveable(playlistState.id) { mutableStateOf(setOf<Long>()) }
+    val draftSaver = remember(playlistState.id) {
+        listSaver<PlaylistEditDraft, Any>(
+            save = { draft -> listOf(draft.playlistId, draft.originalSongIds, draft.songIds, draft.markedForRemoval.toList()) },
+            restore = { values ->
+                PlaylistEditDraft(
+                    playlistId = values[0] as Long,
+                    originalSongIds = values[1] as List<Long>,
+                    songIds = values[2] as List<Long>,
+                    markedForRemoval = (values[3] as List<Long>).toSet(),
+                )
+            },
+        )
+    }
+    var editDraft by rememberSaveable(playlistState.id, stateSaver = draftSaver) {
+        mutableStateOf(PlaylistEditDraft.fromPersisted(playlistState))
+    }
     var activelyDraggedSongId by rememberSaveable(playlistState.id) { mutableStateOf<Long?>(null) }
     var showEditModeMenu by rememberSaveable(playlistState.id) { mutableStateOf(false) }
     var showRenameDialog by rememberSaveable(playlistState.id) { mutableStateOf(false) }
+    var isSaving by rememberSaveable(playlistState.id) { mutableStateOf(false) }
+    var autoScrollJob by remember { mutableStateOf<Job?>(null) }
     val language = LocalAppLanguage.current
     val rootCopy = rootUiCopy(language)
-    LaunchedEffect(playlistState.id, playlistState.songIds, editMode) {
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(playlistState.id, editMode) {
         if (!editMode) {
-            editableSongIds = playlistState.songIds
-            songIdsMarkedForRemoval = emptySet()
+            editDraft = PlaylistEditDraft.fromPersisted(playlistState)
             activelyDraggedSongId = null
         }
     }
-    val displayedSongIds = if (editMode) editableSongIds else playlistState.songIds
+    val displayedSongIds = if (editMode) editDraft.songIds else playlistState.songIds
     val playlistSongMenuActions = remember(defaultSongMenuActions, playlistState.id, playlistState.songIds) {
         defaultSongMenuActions.copy(
             onDeleteFromLibrary = { song ->
-                onUpdateSongOrder(playlistState.songIds.filterNot { it == song.id })
+                scope.launch {
+                    onUpdateSongOrder(playlistState.songIds.filterNot { it == song.id }).await()
+                }
             },
             deletePhrase = UiPhrase.RemoveFromList,
         )
@@ -181,8 +202,7 @@ internal fun PlaylistDetailScreen(
     )
     val topBarActions = remember(
         editMode,
-        editableSongIds,
-        songIdsMarkedForRemoval,
+        editDraft,
         playlistState.isSystem,
         rootCopy,
     ) {
@@ -202,17 +222,27 @@ internal fun PlaylistDetailScreen(
                         iconResId = if (editMode) R.drawable.ic_lucide_check else R.drawable.ic_lucide_square_pen,
                         contentDescription = if (editMode) rootCopy.savePlaylistChanges else rootCopy.editPlaylist,
                         onClick = {
-                            if (editMode) {
-                                val updatedSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
-                                onUpdateSongOrder(updatedSongIds)
-                                editableSongIds = updatedSongIds
-                                songIdsMarkedForRemoval = emptySet()
-                                activelyDraggedSongId = null
-                                editMode = false
-                                showEditModeMenu = false
+                            if (editMode && !isSaving) {
+                                val updatedSongIds = editDraft.finalSongIds
+                                isSaving = true
+                                scope.launch {
+                                    try {
+                                        if (onUpdateSongOrder(updatedSongIds).await() is PlaylistMutationResult.Success) {
+                                            editDraft = editDraft.copy(
+                                                originalSongIds = updatedSongIds,
+                                                songIds = updatedSongIds,
+                                                markedForRemoval = emptySet(),
+                                            )
+                                            activelyDraggedSongId = null
+                                            editMode = false
+                                            showEditModeMenu = false
+                                        }
+                                    } finally {
+                                        isSaving = false
+                                    }
+                                }
                             } else {
-                                editableSongIds = playlistState.songIds
-                                songIdsMarkedForRemoval = emptySet()
+                                editDraft = PlaylistEditDraft.fromPersisted(playlistState)
                                 editMode = true
                                 showEditModeMenu = true
                             }
@@ -226,10 +256,7 @@ internal fun PlaylistDetailScreen(
         if (showAddSongsPicker) {
             showAddSongsPicker = false
         } else if (editMode) {
-            val updatedSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
-            onUpdateSongOrder(updatedSongIds)
-            editableSongIds = updatedSongIds
-            songIdsMarkedForRemoval = emptySet()
+            editDraft = PlaylistEditDraft.fromPersisted(playlistState)
             activelyDraggedSongId = null
             editMode = false
             showEditModeMenu = false
@@ -242,7 +269,6 @@ internal fun PlaylistDetailScreen(
                 .background(MaterialTheme.colorScheme.background),
         ) {
             val listState = rememberElovaireLazyListState(playlistState.id, "playlist_detail")
-            val scope = rememberCoroutineScope()
             val density = androidx.compose.ui.platform.LocalDensity.current
             LazyColumn(
                 state = listState,
@@ -394,24 +420,23 @@ internal fun PlaylistDetailScreen(
                                         onSongSelected(song, playlistSongs)
                                     }
                                 },
-                                markedForRemoval = song.id in songIdsMarkedForRemoval,
+                                markedForRemoval = song.id in editDraft.markedForRemoval,
                                 onLongPress = {
                                     if (!playlistState.isSystem && playlistSongs.isNotEmpty() && !editMode) {
-                                        editableSongIds = playlistState.songIds
-                                        songIdsMarkedForRemoval = emptySet()
+                                        editDraft = PlaylistEditDraft.fromPersisted(playlistState)
                                         editMode = true
                                         showEditModeMenu = true
                                     }
                                 },
                                 onToggleMarkedForRemoval = {
-                                    songIdsMarkedForRemoval = if (song.id in songIdsMarkedForRemoval) {
-                                        songIdsMarkedForRemoval - song.id
-                                    } else {
-                                        songIdsMarkedForRemoval + song.id
-                                    }
+                                    editDraft = editDraft.toggleRemoval(song.id)
                                 },
                                 isDragged = activelyDraggedSongId == song.id,
                                 onDragActiveChanged = { isActive ->
+                                    if (!isActive) {
+                                        autoScrollJob?.cancel()
+                                        autoScrollJob = null
+                                    }
                                     activelyDraggedSongId = when {
                                         isActive -> song.id
                                         activelyDraggedSongId == song.id -> null
@@ -421,19 +446,11 @@ internal fun PlaylistDetailScreen(
                                 onToggleFavorite = { onToggleFavorite(song.id) },
                                 onMoveBy = { delta ->
                                     if (editMode && delta != 0) {
-                                        val fromIndex = editableSongIds.indexOf(song.id)
-                                        if (fromIndex >= 0) {
-                                            val targetIndex = (fromIndex + delta).coerceIn(0, editableSongIds.lastIndex)
-                                            if (targetIndex != fromIndex) {
-                                                editableSongIds = editableSongIds.toMutableList().apply {
-                                                    add(targetIndex, removeAt(fromIndex))
-                                                }.toList()
-                                            }
-                                        }
+                                        editDraft = editDraft.move(song.id, delta)
                                     }
                                 },
                                 onReorderDrag = { dragAmount ->
-                                    if (editMode && editableSongIds.size > 1) {
+                                    if (editMode && editDraft.songIds.size > 1) {
                                         val layoutInfo = listState.layoutInfo
                                         val draggedItem = layoutInfo.visibleItemsInfo.firstOrNull { it.key == song.id }
                                         if (draggedItem != null) {
@@ -447,12 +464,14 @@ internal fun PlaylistDetailScreen(
                                                 layoutInfo.viewportEndOffset - edgeThresholdPx
                                             when {
                                                 dragAmount < 0f && nearTop && canScrollUp -> {
-                                                    scope.launch {
+                                                    autoScrollJob?.cancel()
+                                                    autoScrollJob = scope.launch {
                                                         listState.scrollBy((dragAmount * 0.72f).coerceAtLeast(-22f))
                                                     }
                                                 }
                                                 dragAmount > 0f && nearBottom && canScrollDown -> {
-                                                    scope.launch {
+                                                    autoScrollJob?.cancel()
+                                                    autoScrollJob = scope.launch {
                                                         listState.scrollBy((dragAmount * 0.72f).coerceAtMost(22f))
                                                     }
                                                 }
@@ -475,10 +494,7 @@ internal fun PlaylistDetailScreen(
                     if (showAddSongsPicker) {
                         showAddSongsPicker = false
                     } else if (editMode) {
-                        val updatedSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
-                        onUpdateSongOrder(updatedSongIds)
-                        editableSongIds = updatedSongIds
-                        songIdsMarkedForRemoval = emptySet()
+                        editDraft = PlaylistEditDraft.fromPersisted(playlistState)
                         activelyDraggedSongId = null
                         editMode = false
                         showEditModeMenu = false
@@ -510,11 +526,10 @@ internal fun PlaylistDetailScreen(
                         iconResId = R.drawable.ic_lucide_trash_2,
                         label = uiPhrase(LocalAppLanguage.current, UiPhrase.RemoveFromList),
                         tint = DestructiveRed,
-                        enabled = songIdsMarkedForRemoval.isNotEmpty(),
+                        enabled = editDraft.markedForRemoval.isNotEmpty(),
                         onClick = {
-                            if (songIdsMarkedForRemoval.isNotEmpty()) {
-                                editableSongIds = editableSongIds.filterNot { it in songIdsMarkedForRemoval }
-                                songIdsMarkedForRemoval = emptySet()
+                            if (editDraft.markedForRemoval.isNotEmpty()) {
+                                editDraft = editDraft.removeMarked()
                                 activelyDraggedSongId = null
                             }
                         },
@@ -527,10 +542,10 @@ internal fun PlaylistDetailScreen(
     if (showAddSongsPicker && !playlistState.isSystem) {
         AddSongsToPlaylistOverlay(
             availableSongs = librarySongs,
-            existingSongIds = editableSongIds.toSet(),
+            existingSongIds = editDraft.songIds.toSet(),
             onDismiss = { showAddSongsPicker = false },
             onAddSongs = { selectedSongIds ->
-                editableSongIds = (editableSongIds + selectedSongIds).distinct()
+                editDraft = editDraft.addSongs(selectedSongIds)
                 showAddSongsPicker = false
             },
         )
@@ -542,8 +557,11 @@ internal fun PlaylistDetailScreen(
             initialName = playlistState.name,
             onDismiss = { showRenameDialog = false },
             onConfirm = { name ->
-                onRenamePlaylist(playlistState.id, name)
-                showRenameDialog = false
+                scope.launch {
+                    if (onRenamePlaylist(playlistState.id, name).await() is PlaylistMutationResult.Success) {
+                        showRenameDialog = false
+                    }
+                }
             },
         )
     }

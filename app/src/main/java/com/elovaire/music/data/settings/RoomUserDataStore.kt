@@ -24,6 +24,7 @@ import elovaire.music.droidbeauty.app.data.playlists.createPlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.deletePlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
 import elovaire.music.droidbeauty.app.data.playlists.normalizePlaylistName
+import elovaire.music.droidbeauty.app.data.playlists.normalizePlaylistSongIds
 import elovaire.music.droidbeauty.app.data.playlists.removeSongReferencesFromPlaylists
 import elovaire.music.droidbeauty.app.data.playlists.renamePlaylistEntry
 import elovaire.music.droidbeauty.app.data.playlists.updatePlaylistSongIdsEntry
@@ -40,9 +41,11 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
@@ -54,6 +57,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+@Suppress("TooManyFunctions")
 internal class RoomUserDataStore(
     context: Context,
     private val dao: UserDataDao,
@@ -99,84 +103,199 @@ internal class RoomUserDataStore(
     override val lastPlayedCollectionId get() = playbackHistoryStore.lastPlayedCollectionId
     override val searchHistory get() = searchHistoryStore.searchHistory
 
-    override fun createPlaylist(name: String): Long {
-        if (normalizePlaylistName(name).isBlank()) return -1L
+    override fun createPlaylist(name: String): Deferred<PlaylistMutationResult> {
         val id = newId()
-        return if (tryEnqueue("playlist.create") {
-            val result = createPlaylistEntries(_userPlaylists.value, name, id) ?: return@tryEnqueue
+        return enqueueMutation("playlist.create") {
+            val result = createPlaylistEntries(_userPlaylists.value, name, id)
+                ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
             dao.insertPlaylist(result.createdPlaylist.toEntity())
-            _userPlaylists.value = result.playlists
-        }) id else -1L
-    }
-
-    override fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>) {
-        enqueue("playlist.add_songs") {
-            val updated = addSongsToPlaylistEntries(_userPlaylists.value, playlistId, songIds) ?: return@enqueue
-            val playlist = updated.first { it.id == playlistId }
-            dao.replacePlaylistEntries(playlistId, playlist.songIds)
-            publishPlaylists(updated)
+            dao.verifyPlaylist(result.createdPlaylist)
+            publishPlaylists(result.playlists)
+            PlaylistMutationResult.Success(result.createdPlaylist.id)
         }
     }
 
-    override fun renamePlaylist(playlistId: Long, name: String) {
-        enqueue("playlist.rename") {
-            val updated = renamePlaylistEntry(_userPlaylists.value, playlistId, name) ?: return@enqueue
-            val playlist = updated.first { it.id == playlistId }
-            dao.renamePlaylist(playlistId, playlist.name)
-            publishPlaylists(updated)
-        }
-    }
-
-    override fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>) {
-        enqueue("playlist.update_songs") {
-            val updated = updatePlaylistSongIdsEntry(_userPlaylists.value, playlistId, songIds) ?: return@enqueue
-            val playlist = updated.first { it.id == playlistId }
-            dao.replacePlaylistEntries(playlistId, playlist.songIds)
-            publishPlaylists(updated)
-        }
-    }
-
-    override fun deletePlaylists(playlistIds: Set<Long>) {
-        enqueue("playlist.delete") {
-            val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds) ?: return@enqueue
-            dao.deletePlaylists(playlistIds)
-            publishPlaylists(updated)
-        }
-    }
-
-    override fun createSmartPlaylist(name: String): Long {
-        if (name.isBlank()) return -1L
+    override fun createPlaylistWithSongs(
+        name: String,
+        songIds: List<Long>,
+    ): Deferred<PlaylistMutationResult> {
         val id = newId()
-        return if (tryEnqueue("smart_playlist.create") {
+        return enqueueMutation("playlist.create_with_songs") {
+            val result = createPlaylistEntries(_userPlaylists.value, name, id)
+                ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
+            val normalizedSongIds = normalizePlaylistSongIds(songIds)
+            dao.insertPlaylistWithEntries(result.createdPlaylist.toEntity(), normalizedSongIds)
+            dao.verifyPlaylist(result.createdPlaylist.copy(songIds = normalizedSongIds))
+            publishPlaylists(result.playlists.map { playlist ->
+                if (playlist.id == result.createdPlaylist.id) {
+                    playlist.copy(songIds = normalizedSongIds)
+                } else {
+                    playlist
+                }
+            })
+            PlaylistMutationResult.Success(result.createdPlaylist.id)
+        }
+    }
+
+    override fun addSongsToPlaylist(
+        playlistId: Long,
+        songIds: List<Long>,
+    ): Deferred<PlaylistMutationResult> = enqueueMutation("playlist.add_songs") {
+        if (normalizePlaylistSongIds(songIds).isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+        val current = _userPlaylists.value.firstOrNull { it.id == playlistId }
+            ?: return@enqueueMutation PlaylistMutationResult.NotFound
+        if (current.isSystem) return@enqueueMutation PlaylistMutationResult.NotAllowed
+        val updated = addSongsToPlaylistEntries(_userPlaylists.value, playlistId, songIds)
+            ?: return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
+        if (updated == _userPlaylists.value) {
+            return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
+        }
+        val playlist = updated.first { it.id == playlistId }
+        dao.replacePlaylistEntries(playlistId, playlist.songIds)
+        dao.verifyPlaylist(playlist)
+        publishPlaylists(updated)
+        PlaylistMutationResult.Success(playlistId)
+    }
+
+    override fun renamePlaylist(
+        playlistId: Long,
+        name: String,
+    ): Deferred<PlaylistMutationResult> = enqueueMutation("playlist.rename") {
+        val current = _userPlaylists.value.firstOrNull { it.id == playlistId }
+            ?: return@enqueueMutation PlaylistMutationResult.NotFound
+        if (current.isSystem) return@enqueueMutation PlaylistMutationResult.NotAllowed
+        val updated = renamePlaylistEntry(_userPlaylists.value, playlistId, name)
+        if (updated == null) {
+            return@enqueueMutation if (normalizePlaylistName(name).isBlank()) {
+                PlaylistMutationResult.InvalidInput
+            } else {
+                PlaylistMutationResult.Success(playlistId, changed = false)
+            }
+        }
+        if (updated == _userPlaylists.value) {
+            return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
+        }
+        val playlist = updated.first { it.id == playlistId }
+        dao.renamePlaylist(playlistId, playlist.name)
+        dao.verifyPlaylist(playlist)
+        publishPlaylists(updated)
+        PlaylistMutationResult.Success(playlistId)
+    }
+
+    override fun updatePlaylistSongIds(
+        playlistId: Long,
+        songIds: List<Long>,
+    ): Deferred<PlaylistMutationResult> = enqueueMutation("playlist.update_songs") {
+        val current = _userPlaylists.value.firstOrNull { it.id == playlistId }
+            ?: return@enqueueMutation PlaylistMutationResult.NotFound
+        if (current.isSystem) return@enqueueMutation PlaylistMutationResult.NotAllowed
+        val normalizedSongIds = normalizePlaylistSongIds(songIds)
+        val updated = updatePlaylistSongIdsEntry(_userPlaylists.value, playlistId, normalizedSongIds)
+            ?: return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
+        if (updated == _userPlaylists.value) {
+            return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
+        }
+        val playlist = updated.first { it.id == playlistId }
+        dao.replacePlaylistEntries(playlistId, playlist.songIds)
+        dao.verifyPlaylist(playlist)
+        publishPlaylists(updated)
+        PlaylistMutationResult.Success(playlistId)
+    }
+
+    override fun deletePlaylists(playlistIds: Set<Long>): Deferred<PlaylistMutationResult> = enqueueMutation("playlist.delete") {
+        if (playlistIds.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+        val selected = _userPlaylists.value.filter { it.id in playlistIds }
+        if (selected.isEmpty()) return@enqueueMutation PlaylistMutationResult.NotFound
+        if (selected.any(Playlist::isSystem)) return@enqueueMutation PlaylistMutationResult.NotAllowed
+        val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds)
+            ?: return@enqueueMutation PlaylistMutationResult.Success(changed = false)
+        dao.deletePlaylists(playlistIds)
+        check(playlistIds.all { dao.playlist(it) == null }) { "Playlist delete readback failed." }
+        publishPlaylists(updated)
+        PlaylistMutationResult.Success(changed = true)
+    }
+
+    override fun createSmartPlaylist(name: String): Deferred<PlaylistMutationResult> {
+        val id = newId()
+        return enqueueMutation("smart_playlist.create") {
             val result = createSmartPlaylistEntry(
                 playlists = _userSmartPlaylists.value,
                 name = name,
                 nextSmartPlaylistId = id,
                 nowMs = clock.wallTimeMs(),
-            ) ?: return@tryEnqueue
+            ) ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
             dao.upsertSmartPlaylist(result.createdPlaylist.toEntity())
+            check(dao.smartPlaylist(result.createdPlaylist.id) != null) { "Smart playlist create readback failed." }
             publishSmartPlaylists(result.playlists)
-        }) id else -1L
+            PlaylistMutationResult.Success(result.createdPlaylist.id)
+        }
     }
 
-    override fun updateSmartPlaylist(playlist: SmartPlaylist) {
-        enqueue("smart_playlist.update") {
-            val updated = updateSmartPlaylistEntry(
+    override fun createSmartPlaylist(playlist: SmartPlaylist): Deferred<PlaylistMutationResult> {
+        val id = newId()
+        return enqueueMutation("smart_playlist.create_definition") {
+            val nowMs = clock.wallTimeMs()
+            val result = createSmartPlaylistEntry(
                 playlists = _userSmartPlaylists.value,
-                playlist = playlist,
-                nowMs = clock.wallTimeMs(),
-            ) ?: return@enqueue
-            dao.upsertSmartPlaylist(updated.first { it.id == playlist.id }.toEntity())
-            publishSmartPlaylists(updated)
+                name = playlist.name,
+                nextSmartPlaylistId = id,
+                nowMs = nowMs,
+            ) ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
+            val created = result.createdPlaylist.copy(
+                matchMode = playlist.matchMode,
+                rules = playlist.rules,
+                sort = playlist.sort,
+                limit = playlist.limit,
+                createdAtMs = playlist.createdAtMs.takeIf { it > 0L } ?: nowMs,
+                updatedAtMs = nowMs,
+            )
+            val updatedPlaylists = result.playlists.map { current ->
+                if (current.id == created.id) created else current
+            }
+            dao.upsertSmartPlaylist(created.toEntity())
+            check(
+                dao.smartPlaylist(created.id)?.let { entity ->
+                    deserializeSmartPlaylists(entity.payload).firstOrNull { it.id == created.id } == created
+                } == true,
+            ) {
+                "Smart playlist create readback failed."
+            }
+            publishSmartPlaylists(updatedPlaylists)
+            PlaylistMutationResult.Success(created.id)
         }
     }
 
-    override fun deleteSmartPlaylists(playlistIds: Set<Long>) {
-        enqueue("smart_playlist.delete") {
-            val updated = deleteSmartPlaylistEntries(_userSmartPlaylists.value, playlistIds) ?: return@enqueue
-            dao.deleteSmartPlaylists(playlistIds)
-            publishSmartPlaylists(updated)
+    override fun updateSmartPlaylist(playlist: SmartPlaylist): Deferred<PlaylistMutationResult> = enqueueMutation("smart_playlist.update") {
+        val current = _userSmartPlaylists.value.firstOrNull { it.id == playlist.id }
+            ?: return@enqueueMutation PlaylistMutationResult.NotFound
+        if (current.isBuiltIn) return@enqueueMutation PlaylistMutationResult.NotAllowed
+        val updated = updateSmartPlaylistEntry(
+            playlists = _userSmartPlaylists.value,
+            playlist = playlist,
+            nowMs = clock.wallTimeMs(),
+        ) ?: return@enqueueMutation if (playlist.name.trim().isBlank()) {
+            PlaylistMutationResult.InvalidInput
+        } else {
+            PlaylistMutationResult.Success(playlist.id, changed = false)
         }
+        val persisted = updated.first { it.id == playlist.id }
+        dao.upsertSmartPlaylist(persisted.toEntity())
+        check(dao.smartPlaylist(playlist.id) != null) { "Smart playlist update readback failed." }
+        publishSmartPlaylists(updated)
+        PlaylistMutationResult.Success(playlist.id)
+    }
+
+    override fun deleteSmartPlaylists(playlistIds: Set<Long>): Deferred<PlaylistMutationResult> = enqueueMutation("smart_playlist.delete") {
+        if (playlistIds.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+        if (_userSmartPlaylists.value.any { it.id in playlistIds && it.isBuiltIn }) {
+            return@enqueueMutation PlaylistMutationResult.NotAllowed
+        }
+        val updated = deleteSmartPlaylistEntries(_userSmartPlaylists.value, playlistIds)
+            ?: return@enqueueMutation PlaylistMutationResult.NotFound
+        dao.deleteSmartPlaylists(playlistIds)
+        check(playlistIds.all { dao.smartPlaylist(it) == null }) { "Smart playlist delete readback failed." }
+        publishSmartPlaylists(updated)
+        PlaylistMutationResult.Success(changed = true)
     }
 
     override fun toggleFavoriteSong(songId: Long) {
@@ -216,15 +335,16 @@ internal class RoomUserDataStore(
         }
     }
 
-    override fun removeSongReferences(songIds: Set<Long>) {
-        if (songIds.isEmpty()) return
-        enqueue("playlist.remove_song_references") {
+    override fun removeSongReferences(songIds: Set<Long>): Deferred<PlaylistMutationResult> = enqueueMutation("playlist.remove_song_references") {
+        if (songIds.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+        run {
             dao.removeSongReferences(songIds)
             val playlists = removeSongReferencesFromPlaylists(_userPlaylists.value, songIds)
                 ?: _userPlaylists.value
             publishPlaylists(playlists)
             publishFavorites(_favoriteSongIds.value.filterNot(songIds::contains))
         }
+        PlaylistMutationResult.Success(changed = true)
     }
 
     override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
@@ -379,6 +499,24 @@ internal class RoomUserDataStore(
         enqueue("coalesced", operation)
     }
 
+    private fun enqueueMutation(
+        name: String,
+        operation: suspend () -> PlaylistMutationResult,
+    ): Deferred<PlaylistMutationResult> {
+        val completion = CompletableDeferred<PlaylistMutationResult>()
+        val accepted = tryEnqueue(
+            RoomOperation(
+                name = name,
+                block = { completion.complete(operation()) },
+                completion = completion,
+            ),
+        )
+        if (!accepted) {
+            completion.complete(PlaylistMutationResult.Failure("User-data store is released."))
+        }
+        return completion
+    }
+
     private fun tryEnqueue(operation: suspend () -> Unit): Boolean {
         return tryEnqueue(RoomOperation("user_data", operation))
     }
@@ -407,6 +545,11 @@ internal class RoomUserDataStore(
                 maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
             } catch (_: ClosedSendChannelException) {
                 queueDepth.decrementAndGet()
+                operation.completion?.complete(PlaylistMutationResult.Failure("User-data store is released."))
+            } catch (cancelled: CancellationException) {
+                queueDepth.decrementAndGet()
+                operation.completion?.cancel(cancelled)
+                throw cancelled
             } finally {
                 synchronized(submissionLock) {
                     if (pendingSubmissions.decrementAndGet() == 0 && released.get()) {
@@ -423,11 +566,14 @@ internal class RoomUserDataStore(
         try {
             operation.block()
         } catch (failure: CancellationException) {
+            operation.completion?.cancel(failure)
             throw failure
         } catch (failure: SQLException) {
             Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
+            operation.completion?.complete(PlaylistMutationResult.Failure("Database operation failed.", failure))
         } catch (failure: RuntimeException) {
             Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
+            operation.completion?.complete(PlaylistMutationResult.Failure("User-data operation failed.", failure))
         }
     }
 
@@ -447,6 +593,7 @@ internal class RoomUserDataStore(
 private data class RoomOperation(
     val name: String,
     val block: suspend () -> Unit,
+    val completion: CompletableDeferred<PlaylistMutationResult>? = null,
 )
 
 internal fun nextPersistentUserDataId(current: Long): Long {
@@ -552,6 +699,16 @@ private fun SharedPreferences.longOrNull(key: String): Long? {
 }
 
 private fun Playlist.toEntity(): UserPlaylistEntity = UserPlaylistEntity(id, name, isSystem)
+
+private suspend fun UserDataDao.verifyPlaylist(expected: Playlist) {
+    val persisted = playlist(expected.id)
+    check(persisted?.name == expected.name && persisted.isSystem == expected.isSystem) {
+        "Playlist row readback failed for ${expected.id}."
+    }
+    check(playlistEntries(expected.id).map(UserPlaylistEntryEntity::songId) == expected.songIds) {
+        "Playlist entry readback failed for ${expected.id}."
+    }
+}
 
 private fun Playlist.toEntryEntities(): List<UserPlaylistEntryEntity> = songIds.distinct().mapIndexed { index, songId ->
     UserPlaylistEntryEntity(id, songId, index)

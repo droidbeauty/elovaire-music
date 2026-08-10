@@ -2,6 +2,10 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun PlaylistsRouteHost(
@@ -45,6 +49,7 @@ internal fun SmartPlaylistDetailRouteHost(
     padding: RootRoutePadding,
 ) {
     val playlist = state.smartPlaylists.firstOrNull { it.id == playlistId }
+    val scope = rememberCoroutineScope()
     SmartPlaylistDetailScreen(
         playlist = playlist,
         songs = state.libraryState.songs,
@@ -55,7 +60,13 @@ internal fun SmartPlaylistDetailRouteHost(
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onEdit = { routeActions.openSmartPlaylistEditor(it.id) },
-        onDelete = routeActions::deleteSmartPlaylist,
+        onDelete = { id ->
+            scope.launch {
+                if (routeActions.deleteSmartPlaylist(id).await() is PlaylistMutationResult.Success) {
+                    routeActions.navigateUp()
+                }
+            }
+        },
         onPlay = { smart, songs, shuffle ->
             val queue = if (shuffle) songs.shuffled() else songs
             queue.firstOrNull()?.let { first ->
@@ -81,7 +92,7 @@ internal fun SmartPlaylistEditorRouteHost(
     padding: RootRoutePadding,
 ) {
     val playlist = playlistId?.let { id -> state.smartPlaylists.firstOrNull { it.id == id } }
-    val now = remember { System.currentTimeMillis() }
+    val scope = rememberCoroutineScope()
     SmartPlaylistEditorScreen(
         playlist = playlist,
         songs = state.libraryState.songs,
@@ -90,18 +101,19 @@ internal fun SmartPlaylistEditorRouteHost(
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onSave = { smart ->
-            if (playlistId == null) {
-                val id = routeActions.createSmartPlaylist(smart.name)
-                if (id > 0L) {
-                    routeActions.updateSmartPlaylist(
-                        smart.copy(id = id, createdAtMs = now, updatedAtMs = System.currentTimeMillis()),
-                    )
+            scope.launch {
+                if (playlistId == null) {
+                    when (val created = routeActions.createSmartPlaylist(smart).await()) {
+                        is PlaylistMutationResult.Success -> {
+                            val id = created.playlistId ?: return@launch
+                            routeActions.navigateUp()
+                            routeActions.openSmartPlaylist(id)
+                        }
+                        else -> Unit
+                    }
+                } else if (routeActions.updateSmartPlaylist(smart).await() is PlaylistMutationResult.Success) {
                     routeActions.navigateUp()
-                    routeActions.openSmartPlaylist(id)
                 }
-            } else {
-                routeActions.updateSmartPlaylist(smart)
-                routeActions.navigateUp()
             }
         },
     )
@@ -157,6 +169,7 @@ internal fun PlaylistDetailRouteHost(
         },
         onUpdateSongOrder = { songIds ->
             playlistId?.let { routeActions.updatePlaylistSongOrder(it, songIds) }
+                ?: CompletableDeferred(PlaylistMutationResult.InvalidInput)
         },
         onRenamePlaylist = routeActions::renamePlaylist,
         onToggleFavorite = routeActions.playlists::toggleFavorite,

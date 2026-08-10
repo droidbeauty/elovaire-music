@@ -41,6 +41,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -84,6 +85,8 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.foundation.gestures.detectTapGestures
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun PlaylistArtworkPreview(
@@ -390,8 +393,8 @@ internal fun AddAlbumToPlaylistDialog(
     playlists: List<Playlist>,
     playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
-    onPlaylistSelected: (Long, Album) -> Unit,
-    onCreatePlaylist: (String) -> Long,
+    onPlaylistSelected: (Long, Album) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
 ) {
     val language = LocalAppLanguage.current
     PlaylistSelectionDialog(
@@ -400,7 +403,7 @@ internal fun AddAlbumToPlaylistDialog(
         playlists = playlists,
         playlistSongsById = playlistSongsById,
         onDismiss = onDismiss,
-        onPlaylistSelected = { playlistId -> onPlaylistSelected(playlistId, album) },
+        onPlaylistSelected = { playlistId -> onPlaylistSelected(playlistId, album).await() },
         onCreatePlaylist = onCreatePlaylist,
     )
 }
@@ -412,8 +415,8 @@ internal fun PlaylistSelectionDialog(
     playlists: List<Playlist>,
     playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
-    onPlaylistSelected: (Long) -> Unit,
-    onCreatePlaylist: ((String) -> Long)?,
+    onPlaylistSelected: suspend (Long) -> PlaylistMutationResult,
+    onCreatePlaylist: PlaylistCreateAction?,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
@@ -421,6 +424,9 @@ internal fun PlaylistSelectionDialog(
     var draftPlaylistName by rememberSaveable(title, subtitle) { mutableStateOf("") }
     var showInlineCreator by rememberSaveable(title, subtitle) { mutableStateOf(false) }
     var selectedPlaylistId by rememberSaveable(title, subtitle) { mutableStateOf<Long?>(null) }
+    var isCreatingPlaylist by rememberSaveable(title, subtitle) { mutableStateOf(false) }
+    var isAddingToPlaylist by rememberSaveable(title, subtitle) { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val visibleRows = 4
     val rowHeight = 82.dp
     val rowSpacing = 12.dp
@@ -550,11 +556,19 @@ internal fun PlaylistSelectionDialog(
                                             onSave = {
                                                 val trimmedName = draftPlaylistName.trim()
                                                 if (trimmedName.isBlank()) return@InlinePlaylistCreatorRow
-                                                val createdId = onCreatePlaylist(trimmedName)
-                                                if (createdId > 0L) {
-                                                    selectedPlaylistId = createdId
-                                                    draftPlaylistName = ""
-                                                    showInlineCreator = false
+                                                if (!isCreatingPlaylist) {
+                                                    isCreatingPlaylist = true
+                                                    scope.launch {
+                                                        when (val result = onCreatePlaylist(trimmedName).await()) {
+                                                            is PlaylistMutationResult.Success -> {
+                                                                result.playlistId?.let { selectedPlaylistId = it }
+                                                                draftPlaylistName = ""
+                                                                showInlineCreator = false
+                                                            }
+                                                            else -> Unit
+                                                        }
+                                                        isCreatingPlaylist = false
+                                                    }
                                                 }
                                             },
                                         )
@@ -609,9 +623,19 @@ internal fun PlaylistSelectionDialog(
                         Spacer(modifier = Modifier.width(10.dp))
                         Surface(
                             onClick = {
-                                selectedPlaylistId?.let(onPlaylistSelected)
+                                val playlistId = selectedPlaylistId ?: return@Surface
+                                if (!isAddingToPlaylist) {
+                                    isAddingToPlaylist = true
+                                    scope.launch {
+                                        when (onPlaylistSelected(playlistId)) {
+                                            is PlaylistMutationResult.Success -> onDismiss()
+                                            else -> Unit
+                                        }
+                                        isAddingToPlaylist = false
+                                    }
+                                }
                             },
-                            enabled = selectedPlaylistId != null,
+                            enabled = selectedPlaylistId != null && !isAddingToPlaylist,
                             shape = RoundedCornerShape(ElovaireRadii.pill),
                             color = if (selectedPlaylistId != null) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
@@ -786,8 +810,8 @@ internal fun AddToPlaylistPickerDialog(
     playlists: List<Playlist>,
     playlistSongsById: Map<Long, Song>,
     onDismiss: () -> Unit,
-    onPlaylistSelected: (Long) -> Unit,
-    onCreatePlaylist: ((String) -> Long)? = null,
+    onPlaylistSelected: suspend (Long) -> PlaylistMutationResult,
+    onCreatePlaylist: PlaylistCreateAction? = null,
 ) {
     val language = LocalAppLanguage.current
     PlaylistSelectionDialog(

@@ -17,6 +17,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RoomUserDataStoreTest {
+    private val databaseName = "playlist_reliability_test.db"
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private lateinit var database: ElovaireDatabase
 
@@ -28,12 +29,14 @@ class RoomUserDataStoreTest {
                 .clear()
                 .commit(),
         )
-        database = Room.inMemoryDatabaseBuilder(context, ElovaireDatabase::class.java).build()
+        context.deleteDatabase(databaseName)
+        database = Room.databaseBuilder(context, ElovaireDatabase::class.java, databaseName).build()
     }
 
     @After
     fun tearDown() {
         database.close()
+        context.deleteDatabase(databaseName)
         context.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, 0)
             .edit()
             .clear()
@@ -43,16 +46,42 @@ class RoomUserDataStoreTest {
     @Test
     fun releaseDrainsMandatoryWritesAndRejectsLaterCreates() = runBlocking {
         val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
-        val ids = List(512) { index -> store.createPlaylist("Playlist $index") }
+        val results = List(512) { index -> store.createPlaylist("Playlist $index").await() }
+        val ids = results.map { (it as PlaylistMutationResult.Success).playlistId ?: error("missing playlist id") }
         val drained = CompletableDeferred<Unit>()
 
         store.release { drained.complete(Unit) }
         withTimeout(10_000L) { drained.await() }
 
-        assertTrue(ids.all { it > 0L })
+        assertTrue(results.all { it is PlaylistMutationResult.Success })
         assertEquals(ids, database.userDataDao().playlists().map { it.playlistId })
-        assertEquals(-1L, store.createPlaylist("After release"))
+        assertTrue(store.createPlaylist("After release").await() is PlaylistMutationResult.Failure)
         assertEquals(512, database.userDataDao().playlists().size)
+    }
+
+    @Test
+    fun acknowledgedEditsReadBackExactlyAndStoreContinuesAfterFailure() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        val created = store.createPlaylist("Interaction Test").await() as PlaylistMutationResult.Success
+        val playlistId = created.playlistId ?: error("missing playlist id")
+        val expectedOrder = List(500) { index -> index.toLong() + 1L }
+
+        assertTrue(store.updatePlaylistSongIds(playlistId, expectedOrder + expectedOrder.take(20)).await() is PlaylistMutationResult.Success)
+        assertEquals(expectedOrder, database.userDataDao().playlistEntries(playlistId).map { it.songId })
+        assertEquals((0 until expectedOrder.size).toList(), database.userDataDao().playlistEntries(playlistId).map { it.position })
+
+        assertTrue(store.updatePlaylistSongIds(999_999L, listOf(1L)).await() is PlaylistMutationResult.NotFound)
+        assertTrue(store.renamePlaylist(playlistId, "  Interaction   Test  ").await() is PlaylistMutationResult.Success)
+        assertEquals("Interaction Test", database.userDataDao().playlist(playlistId)?.name)
+
+        val drained = CompletableDeferred<Unit>()
+        store.release { drained.complete(Unit) }
+        withTimeout(10_000L) { drained.await() }
+
+        database.close()
+        database = Room.databaseBuilder(context, ElovaireDatabase::class.java, databaseName).build()
+        assertEquals(expectedOrder, database.userDataDao().playlistEntries(playlistId).map { it.songId })
+        assertEquals("Interaction Test", database.userDataDao().playlist(playlistId)?.name)
     }
 
     private object FixedClock : AppClock {

@@ -98,32 +98,22 @@ internal class RootPlaybackActions internal constructor(
 internal class RootPlaylistActions internal constructor(
     private val dependencies: PlaylistActionDependencies,
 ) {
-    fun createPlaylist(name: String): Long = dependencies.playlistStore.createPlaylist(name)
+    fun createPlaylist(name: String): PlaylistMutationRequest = dependencies.playlistStore.createPlaylist(name)
 
     fun createPlaylistAndAddSongs(
         name: String,
         songIds: List<Long>,
-    ): Long {
-        val createdId = createPlaylist(name)
-        if (createdId > 0L && songIds.isNotEmpty()) {
-            dependencies.playlistStore.addSongsToPlaylist(createdId, songIds)
-        }
-        return createdId
-    }
+    ): PlaylistMutationRequest = dependencies.playlistStore.createPlaylistWithSongs(name, songIds)
 
     fun addSongsToPlaylist(
         playlistId: Long,
         songIds: List<Long>,
-    ) {
-        dependencies.playlistStore.addSongsToPlaylist(playlistId, songIds)
-    }
+    ): PlaylistMutationRequest = dependencies.playlistStore.addSongsToPlaylist(playlistId, songIds)
 
     fun addAlbumToPlaylist(
         playlistId: Long,
         album: Album,
-    ) {
-        addSongsToPlaylist(playlistId, album.songs.map(Song::id))
-    }
+    ): PlaylistMutationRequest = addSongsToPlaylist(playlistId, album.songs.map(Song::id))
 
     fun setSongsFavorite(
         songIds: List<Long>,

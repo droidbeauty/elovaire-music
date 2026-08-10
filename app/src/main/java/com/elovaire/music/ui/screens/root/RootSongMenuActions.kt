@@ -5,6 +5,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -13,8 +14,12 @@ import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 internal data class SongMenuActions(
     val playlists: List<Playlist> = emptyList(),
     val songsById: Map<Long, Song> = emptyMap(),
-    val onAddToPlaylist: (playlistId: Long, song: Song) -> Unit = { _, _ -> },
-    val onCreatePlaylist: (String) -> Long = { -1L },
+    val onAddToPlaylist: (playlistId: Long, song: Song) -> PlaylistMutationRequest = { _, _ ->
+        kotlinx.coroutines.CompletableDeferred(PlaylistMutationResult.InvalidInput)
+    },
+    val onCreatePlaylist: PlaylistCreateAction = {
+        kotlinx.coroutines.CompletableDeferred(PlaylistMutationResult.InvalidInput)
+    },
     val onAddToQueue: (Song) -> Unit = {},
     val onGoToAlbum: (Song) -> Unit = {},
     val onDeleteFromLibrary: (Song) -> Unit = {},
