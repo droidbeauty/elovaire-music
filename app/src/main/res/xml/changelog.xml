@@ -9,8 +9,10 @@
     <release version="2.6.5">
         <item>New feature - playlist export and import in settings</item>
         <item>Separated music management features into Library category in settings</item>
-        <item>General performance optimizations</item>
+        <item>Layout </item>
         <item>Layout tweaks in queue menu</item>
         <item>Redesigned update pop-up UI</item>
+        <item>General performance optimizations</item>
+        <item>Fixed interaction bugs in playlist edit mode</item>
     </release>
 </changelog>

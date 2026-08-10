@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.update
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.TrafficStats
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
@@ -462,33 +463,38 @@ private suspend fun <T> withTrustedConnection(
     accept: String,
     block: suspend (HttpURLConnection) -> T,
 ): T {
-    var current = rawUrl
-    repeat(4) { attempt ->
-        val url = URL(current)
-        require(isTrustedUpdateUrl(url)) { "Update source is invalid" }
-        val connection = (url.openConnection() as HttpURLConnection).apply {
-            requestMethod = "GET"
-            connectTimeout = 12_000
-            readTimeout = 12_000
-            instanceFollowRedirects = false
-            setRequestProperty("Accept", accept)
-            setRequestProperty("User-Agent", "Elovaire/${elovaire.music.droidbeauty.app.BuildConfig.VERSION_NAME}")
-            setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
-        }
-        try {
-            connection.connect()
-            if (connection.responseCode in 300..399) {
-                val location = connection.getHeaderField("Location") ?: error("Update source redirect is invalid")
-                current = URL(url, location).toString()
-                if (attempt == 3) error("Too many update redirects")
-            } else {
-                return block(connection)
+    TrafficStats.setThreadStatsTag(UPDATE_NETWORK_TAG)
+    try {
+        var current = rawUrl
+        repeat(4) { attempt ->
+            val url = URL(current)
+            require(isTrustedUpdateUrl(url)) { "Update source is invalid" }
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                requestMethod = "GET"
+                connectTimeout = 12_000
+                readTimeout = 12_000
+                instanceFollowRedirects = false
+                setRequestProperty("Accept", accept)
+                setRequestProperty("User-Agent", "Elovaire/${elovaire.music.droidbeauty.app.BuildConfig.VERSION_NAME}")
+                setRequestProperty("X-GitHub-Api-Version", "2022-11-28")
             }
-        } finally {
-            connection.disconnect()
+            try {
+                connection.connect()
+                if (connection.responseCode in 300..399) {
+                    val location = connection.getHeaderField("Location") ?: error("Update source redirect is invalid")
+                    current = URL(url, location).toString()
+                    if (attempt == 3) error("Too many update redirects")
+                } else {
+                    return block(connection)
+                }
+            } finally {
+                connection.disconnect()
+            }
         }
+        error("Too many update redirects")
+    } finally {
+        TrafficStats.clearThreadStatsTag()
     }
-    error("Too many update redirects")
 }
 
 private fun isTrustedUpdateUrl(url: URL): Boolean {
@@ -512,3 +518,5 @@ private val TRUSTED_UPDATE_HOSTS = setOf(
     "release-assets.githubusercontent.com",
     "github-releases.githubusercontent.com",
 )
+
+private const val UPDATE_NETWORK_TAG = 0x454C

@@ -12,6 +12,8 @@ import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
+import elovaire.music.droidbeauty.app.data.playback.CrossfadeDurationPolicy
+import elovaire.music.droidbeauty.app.data.playback.CrossfadeSilencePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
@@ -66,6 +68,12 @@ class PreferenceStore internal constructor(
 
     private val _crossfadeEnabled = MutableStateFlow(loadCrossfadeEnabled())
     val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled.asStateFlow()
+
+    private val _crossfadeDurationMs = MutableStateFlow(loadCrossfadeDurationMs())
+    override val crossfadeDurationMs: StateFlow<Long> = _crossfadeDurationMs.asStateFlow()
+
+    private val _crossfadeSilenceThresholdDb = MutableStateFlow(loadCrossfadeSilenceThresholdDb())
+    override val crossfadeSilenceThresholdDb: StateFlow<Float> = _crossfadeSilenceThresholdDb.asStateFlow()
 
     private val _volumeNormalizationEnabled = MutableStateFlow(loadVolumeNormalizationEnabled())
     override val volumeNormalizationEnabled: StateFlow<Boolean> = _volumeNormalizationEnabled.asStateFlow()
@@ -236,6 +244,20 @@ class PreferenceStore internal constructor(
         updateStateAndPreference(_crossfadeEnabled, enabled) {
             putBoolean(KEY_CROSSFADE_ENABLED, enabled)
             remove(KEY_GAPLESS_PLAYBACK_ENABLED)
+        }
+    }
+
+    override fun setCrossfadeDurationMs(value: Long) {
+        val durationMs = CrossfadeDurationPolicy.sanitizeSettingsDuration(value)
+        updateStateAndPreference(_crossfadeDurationMs, durationMs) {
+            putLong(KEY_CROSSFADE_DURATION_MS, durationMs)
+        }
+    }
+
+    override fun setCrossfadeSilenceThresholdDb(value: Float) {
+        val thresholdDb = CrossfadeSilencePolicy.sanitizeLevelDb(value)
+        updateStateAndPreference(_crossfadeSilenceThresholdDb, thresholdDb) {
+            putFloat(KEY_CROSSFADE_SILENCE_THRESHOLD_DB, thresholdDb)
         }
     }
 
@@ -486,6 +508,24 @@ class PreferenceStore internal constructor(
         return enabled
     }
 
+    private fun loadCrossfadeDurationMs(): Long {
+        return CrossfadeDurationPolicy.sanitizeSettingsDuration(
+            preferences.getLong(
+                KEY_CROSSFADE_DURATION_MS,
+                CrossfadeDurationPolicy.DEFAULT_DURATION_MS,
+            ),
+        )
+    }
+
+    private fun loadCrossfadeSilenceThresholdDb(): Float {
+        return CrossfadeSilencePolicy.sanitizeLevelDb(
+            preferences.getFloat(
+                KEY_CROSSFADE_SILENCE_THRESHOLD_DB,
+                CrossfadeSilencePolicy.BASE_LEVEL_DB,
+            ),
+        )
+    }
+
     private fun loadVolumeNormalizationEnabled(): Boolean {
         return preferences.getBoolean(KEY_VOLUME_NORMALIZATION_ENABLED, false)
     }
@@ -566,6 +606,8 @@ class PreferenceStore internal constructor(
         const val KEY_APP_LANGUAGE = "app_language"
         const val KEY_PLAYBACK_VOLUME = "playback_volume"
         const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
+        const val KEY_CROSSFADE_DURATION_MS = "crossfade_duration_ms"
+        const val KEY_CROSSFADE_SILENCE_THRESHOLD_DB = "crossfade_silence_threshold_db"
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
         const val KEY_ONLINE_LYRICS_ENABLED = "online_lyrics_enabled"

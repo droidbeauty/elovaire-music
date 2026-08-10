@@ -23,6 +23,8 @@ internal interface AppearanceSettingsStore {
     val songCollectionSortMode: StateFlow<String>
     val volumeNormalizationEnabled: StateFlow<Boolean>
     val onlineLyricsEnabled: StateFlow<Boolean>
+    val crossfadeDurationMs: StateFlow<Long>
+    val crossfadeSilenceThresholdDb: StateFlow<Float>
 }
 
 internal interface CollectionSettingsStore {
@@ -42,6 +44,8 @@ internal interface RootSettingsReader : AppearanceSettingsStore, CollectionSetti
 internal interface PlaybackIntegrationSettings {
     val eqSettings: StateFlow<EqSettings>
     val crossfadeEnabled: StateFlow<Boolean>
+    val crossfadeDurationMs: StateFlow<Long>
+    val crossfadeSilenceThresholdDb: StateFlow<Float>
     val volumeNormalizationEnabled: StateFlow<Boolean>
     val recentSongIds: StateFlow<List<Long>>
     val recentAlbumIds: StateFlow<List<Long>>
@@ -71,6 +75,8 @@ internal interface LibrarySettingsWriter {
 internal interface PlaybackSettingsWriter {
     fun setPlaybackVolume(value: Float)
     fun setCrossfadeEnabled(enabled: Boolean)
+    fun setCrossfadeDurationMs(value: Long)
+    fun setCrossfadeSilenceThresholdDb(value: Float)
     fun setVolumeNormalizationEnabled(enabled: Boolean)
     fun setOnlineLyricsEnabled(enabled: Boolean)
     fun updateBass(value: Float)

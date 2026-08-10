@@ -55,6 +55,7 @@ internal data class CrossfadeTransitionPlan(
             cue: CrossfadeCue,
             outgoingDurationMs: Long,
             incomingDurationMs: Long = 0L,
+            fadeDurationMs: Long = CrossfadeDurationPolicy.DEFAULT_DURATION_MS,
         ): CrossfadeTransitionPlan {
             val duration = outgoingDurationMs.coerceAtLeast(0L)
             val mixOut = cue.outgoingMixOutMs.coerceIn(0L, duration)
@@ -65,7 +66,7 @@ internal data class CrossfadeTransitionPlan(
                 Long.MAX_VALUE
             }
             val fadeDuration = min(
-                min(CrossfadeDurationPolicy.DEFAULT_DURATION_MS, mixOut),
+                min(CrossfadeDurationPolicy.sanitize(fadeDurationMs), mixOut),
                 incomingAvailable,
             ).coerceAtLeast(0L)
             return CrossfadeTransitionPlan(
@@ -141,9 +142,14 @@ internal class CrossfadeCueAnalyzer(
     )
     private val inFlight = mutableMapOf<CacheKey, Deferred<SongCue>>()
 
-    suspend fun analyzePair(outgoing: Song, incoming: Song): CrossfadeCue {
-        val outgoingCue = analyzeSong(outgoing).await()
-        val incomingCue = analyzeSong(incoming).await()
+    suspend fun analyzePair(
+        outgoing: Song,
+        incoming: Song,
+        silenceLevelDb: Float = CrossfadeSilencePolicy.BASE_LEVEL_DB,
+    ): CrossfadeCue {
+        val normalizedSilenceLevelDb = CrossfadeSilencePolicy.sanitizeLevelDb(silenceLevelDb)
+        val outgoingCue = analyzeSong(outgoing, normalizedSilenceLevelDb).await()
+        val incomingCue = analyzeSong(incoming, normalizedSilenceLevelDb).await()
         val outgoingDurationMs = outgoing.durationMs.coerceAtLeast(0L)
         return CrossfadeCue(
             outgoingMixOutMs = outgoingCue.mixOutMs ?: outgoingDurationMs,
@@ -160,19 +166,20 @@ internal class CrossfadeCueAnalyzer(
         cache.clear()
     }
 
-    private fun analyzeSong(song: Song): Deferred<SongCue> {
+    private fun analyzeSong(song: Song, silenceLevelDb: Float): Deferred<SongCue> {
         val key = CacheKey(
             uri = song.uri.toString(),
             durationMs = song.durationMs,
             dateModifiedSeconds = song.dateModifiedSeconds,
             fileName = song.fileName,
+            silenceLevelDb = silenceLevelDb.toInt(),
         )
         cache[key]?.let { return scope.async { it } }
         synchronized(inFlight) {
             cache[key]?.let { return scope.async { it } }
             inFlight[key]?.let { return it }
             return scope.async(dispatcher) {
-                analyzeSongUncached(song)
+                analyzeSongUncached(song, silenceLevelDb)
             }.also { deferred ->
                 inFlight[key] = deferred
                 deferred.invokeOnCompletion {
@@ -195,7 +202,7 @@ internal class CrossfadeCueAnalyzer(
         }
     }
 
-    private fun analyzeSongUncached(song: Song): SongCue {
+    private fun analyzeSongUncached(song: Song, silenceLevelDb: Float): SongCue {
         val fallbackDuration = song.durationMs.coerceAtLeast(0L)
         val durationMs = findDurationMs(song) ?: fallbackDuration
         if (durationMs <= 0L) return SongCue(null, null, 0L, 0L)
@@ -204,11 +211,12 @@ internal class CrossfadeCueAnalyzer(
         val headEndMs = min(durationMs, CrossfadeCuePolicy.HEAD_ANALYSIS_WINDOW_MS)
         val tailWindows = decodeRegion(song, tailStartMs, durationMs)
         val headWindows = decodeRegion(song, 0L, headEndMs)
+        val silenceFloor = CrossfadeSilencePolicy.amplitudeThresholdForDb(silenceLevelDb)
         val (mixOutMs, trailingSilenceMs) = tailWindows?.let {
-            CrossfadeCueAlgorithm.trailingCue(it, durationMs)
+            CrossfadeCueAlgorithm.trailingCue(it, durationMs, silenceFloor)
         } ?: (null to 0L)
         val (mixInMs, leadingSilenceMs) = headWindows?.let {
-            CrossfadeCueAlgorithm.leadingCue(it)
+            CrossfadeCueAlgorithm.leadingCue(it, silenceFloor)
         } ?: (null to 0L)
         return SongCue(mixOutMs, mixInMs, trailingSilenceMs, leadingSilenceMs)
     }
@@ -375,6 +383,7 @@ internal class CrossfadeCueAnalyzer(
         val durationMs: Long,
         val dateModifiedSeconds: Long?,
         val fileName: String,
+        val silenceLevelDb: Int,
     )
 
     private data class SongCue(

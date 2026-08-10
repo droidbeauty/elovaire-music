@@ -17,6 +17,7 @@ internal fun rootPerformanceRouteLabel(route: String?): String? {
         ABOUT_ROUTE -> "about"
         PRIVACY_POLICY_ROUTE -> "privacy_policy"
         EQUALIZER_ROUTE -> "equalizer"
+        CROSSFADE_ROUTE -> "crossfade"
         PLAYER_ROUTE -> "now_playing"
         else -> when {
             route.startsWith("$ALBUM_ROUTE/") || route == "$ALBUM_ROUTE/{albumId}" -> "album_detail"

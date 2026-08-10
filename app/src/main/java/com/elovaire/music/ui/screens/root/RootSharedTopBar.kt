@@ -133,27 +133,43 @@ private fun ElovaireMotion.topBarActionsTransform(direction: TopBarMotionDirecti
 internal data class SharedTopBarRegistration(
     val id: Any,
     val spec: SharedTopBarSpec,
+    val priority: Int,
 )
 
 internal class SharedTopBarController {
     var registration by mutableStateOf<SharedTopBarRegistration?>(null)
+
+    fun register(registration: SharedTopBarRegistration) {
+        val current = this.registration
+        if (current == null || registration.priority >= current.priority) {
+            this.registration = registration
+        }
+    }
+
+    fun unregister(registrationId: Any) {
+        if (registration?.id == registrationId) {
+            registration = null
+        }
+    }
 }
 
 @Composable
-internal fun RegisterSharedTopBar(spec: SharedTopBarSpec) {
+internal fun RegisterSharedTopBar(
+    spec: SharedTopBarSpec,
+    priority: Int = 0,
+) {
     val controller = LocalSharedTopBarController.current ?: return
     val registrationId = remember { Any() }
     SideEffect {
-        controller.registration = SharedTopBarRegistration(
+        controller.register(SharedTopBarRegistration(
             id = registrationId,
             spec = spec,
-        )
+            priority = priority,
+        ))
     }
     DisposableEffect(controller, registrationId) {
         onDispose {
-            if (controller.registration?.id == registrationId) {
-                controller.registration = null
-            }
+            controller.unregister(registrationId)
         }
     }
 }

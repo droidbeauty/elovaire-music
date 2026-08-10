@@ -225,6 +225,8 @@ class PlaybackManager(
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var crossfadeEnabled = false
+    private var crossfadeDurationMs = CrossfadeDurationPolicy.DEFAULT_DURATION_MS
+    private var crossfadeSilenceThresholdDb = CrossfadeSilencePolicy.BASE_LEVEL_DB
     private var volumeNormalizationEnabled = false
     private var player = createPlayer(enableSignalProcessing = true)
     private val crossfadeController = PlaybackCrossfadeController(
@@ -1008,6 +1010,24 @@ class PlaybackManager(
         scheduleAudioPathReevaluation("crossfade-setting-updated", AUDIO_PATH_REEVALUATION_DELAY_MS)
     }
 
+    fun setCrossfadeDurationMs(value: Long) {
+        if (released.get()) return
+        val durationMs = CrossfadeDurationPolicy.sanitizeSettingsDuration(value)
+        if (crossfadeDurationMs == durationMs) return
+        crossfadeDurationMs = durationMs
+        crossfadeController.cancel()
+        if (crossfadeEnabled) prepareCrossfadeIfPossible()
+    }
+
+    fun setCrossfadeSilenceThresholdDb(value: Float) {
+        if (released.get()) return
+        val thresholdDb = CrossfadeSilencePolicy.sanitizeLevelDb(value)
+        if (crossfadeSilenceThresholdDb == thresholdDb) return
+        crossfadeSilenceThresholdDb = thresholdDb
+        crossfadeController.cancel()
+        if (crossfadeEnabled) prepareCrossfadeIfPossible()
+    }
+
     fun setVolumeNormalizationEnabled(enabled: Boolean) {
         if (released.get()) return
         if (volumeNormalizationEnabled == enabled) return
@@ -1332,6 +1352,8 @@ class PlaybackManager(
             incomingSong = queue[nextIndex],
             outgoingGain = effectivePlayerGain(currentSong()),
             incomingGain = effectivePlayerGain(queue[nextIndex]),
+            fadeDurationMs = crossfadeDurationMs,
+            silenceLevelDb = crossfadeSilenceThresholdDb,
         )
     }
 

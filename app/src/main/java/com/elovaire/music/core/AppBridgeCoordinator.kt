@@ -20,6 +20,8 @@ internal class AppBridgeCoordinator(
     private val playbackSettings = object : PlaybackIntegrationSettings {
         override val eqSettings get() = services.preferenceStore.eqSettings
         override val crossfadeEnabled get() = services.preferenceStore.crossfadeEnabled
+        override val crossfadeDurationMs get() = services.preferenceStore.crossfadeDurationMs
+        override val crossfadeSilenceThresholdDb get() = services.preferenceStore.crossfadeSilenceThresholdDb
         override val volumeNormalizationEnabled get() = services.preferenceStore.volumeNormalizationEnabled
         override val recentSongIds get() = services.preferenceStore.recentSongIds
         override val recentAlbumIds get() = services.preferenceStore.recentAlbumIds

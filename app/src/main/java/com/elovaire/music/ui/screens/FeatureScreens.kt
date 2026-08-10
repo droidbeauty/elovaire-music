@@ -5915,6 +5915,7 @@ internal fun AddSongsToPlaylistOverlay(
             },
             onBack = stableHandleBack,
             actions = topBarActions,
+            sharedTopBarPriority = 1,
             modifier = Modifier.align(Alignment.TopCenter),
         )
     }
@@ -9428,6 +9429,39 @@ private fun LyricsOverlay(
                                 )
                             }
                         }
+                    }
+                }
+            }
+            ElovaireAnimatedVisibility(
+                visible = isEditingLyrics,
+                enter = motionTransitions.standardEnter(),
+                exit = motionTransitions.standardExit(),
+                label = "cancel_lyrics_edit_action_visibility",
+            ) {
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .height(lyricsBottomBlurArea)
+                        .offset(y = (-12).dp)
+                        .padding(horizontal = 20.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Surface(
+                        onClick = {
+                            isEditingLyrics = false
+                            focusManager.clearFocus(force = true)
+                            onClearLyricsEditorError()
+                        },
+                        shape = RoundedCornerShape(ElovaireRadii.pill),
+                        color = contentColor.copy(alpha = 0.18f),
+                        contentColor = contentColor,
+                    ) {
+                        Text(
+                            text = "Cancel",
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                        )
                     }
                 }
             }

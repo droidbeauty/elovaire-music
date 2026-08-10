@@ -27,6 +27,8 @@ internal data class RootAppearanceState(
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
+    val crossfadeDurationMs: Long,
+    val crossfadeSilenceThresholdDb: Float,
 )
 
 internal data class RootCollectionState(
@@ -89,9 +91,19 @@ internal class RootViewModel(
         ) { albumLayout, songGrid, albumSort, songSort ->
             AppearanceLayout(albumLayout, songGrid, albumSort, songSort)
         },
-        dependencies.rootSettingsReader.volumeNormalizationEnabled,
-        dependencies.rootSettingsReader.onlineLyricsEnabled,
-    ) { core, layout, volumeNormalization, onlineLyrics ->
+        combine(
+            dependencies.rootSettingsReader.volumeNormalizationEnabled,
+            dependencies.rootSettingsReader.onlineLyricsEnabled,
+        ) { volumeNormalization, onlineLyrics ->
+            volumeNormalization to onlineLyrics
+        },
+        combine(
+            dependencies.rootSettingsReader.crossfadeDurationMs,
+            dependencies.rootSettingsReader.crossfadeSilenceThresholdDb,
+        ) { durationMs, silenceThresholdDb ->
+            durationMs to silenceThresholdDb
+        },
+    ) { core, layout, playback, crossfade ->
         RootAppearanceState(
             eqSettings = core.eqSettings,
             themeMode = core.themeMode,
@@ -101,8 +113,10 @@ internal class RootViewModel(
             songCollectionGridEnabled = layout.songCollectionGridEnabled,
             albumCollectionSortModeName = layout.albumCollectionSortModeName,
             songCollectionSortModeName = layout.songCollectionSortModeName,
-            volumeNormalizationEnabled = volumeNormalization,
-            onlineLyricsEnabled = onlineLyrics,
+            volumeNormalizationEnabled = playback.first,
+            onlineLyricsEnabled = playback.second,
+            crossfadeDurationMs = crossfade.first,
+            crossfadeSilenceThresholdDb = crossfade.second,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -169,6 +183,8 @@ internal class RootViewModel(
             songCollectionSortModeName = appearance.songCollectionSortModeName,
             volumeNormalizationEnabled = appearance.volumeNormalizationEnabled,
             onlineLyricsEnabled = appearance.onlineLyricsEnabled,
+            crossfadeDurationMs = appearance.crossfadeDurationMs,
+            crossfadeSilenceThresholdDb = appearance.crossfadeSilenceThresholdDb,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -191,6 +207,8 @@ internal class RootViewModel(
             songCollectionSortModeName = appearanceState.value.songCollectionSortModeName,
             volumeNormalizationEnabled = appearanceState.value.volumeNormalizationEnabled,
             onlineLyricsEnabled = appearanceState.value.onlineLyricsEnabled,
+            crossfadeDurationMs = appearanceState.value.crossfadeDurationMs,
+            crossfadeSilenceThresholdDb = appearanceState.value.crossfadeSilenceThresholdDb,
         ),
     )
 }
@@ -221,4 +239,6 @@ private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.
         songCollectionSortModeName = settings.songCollectionSortMode.value,
         volumeNormalizationEnabled = settings.volumeNormalizationEnabled.value,
         onlineLyricsEnabled = settings.onlineLyricsEnabled.value,
+        crossfadeDurationMs = settings.crossfadeDurationMs.value,
+        crossfadeSilenceThresholdDb = settings.crossfadeSilenceThresholdDb.value,
     )

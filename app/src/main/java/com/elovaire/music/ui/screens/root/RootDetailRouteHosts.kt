@@ -300,6 +300,8 @@ internal fun SettingsRouteHost(
         eqSettings = appState.eqSettings,
         volumeNormalizationEnabled = appState.volumeNormalizationEnabled,
         onlineLyricsEnabled = appState.onlineLyricsEnabled,
+        crossfadeDurationMs = appState.crossfadeDurationMs,
+        crossfadeSilenceThresholdDb = appState.crossfadeSilenceThresholdDb,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onThemeModeSelected = routeActions.settings::setThemeMode,
@@ -309,12 +311,29 @@ internal fun SettingsRouteHost(
         onOnlineLyricsChanged = routeActions.settings::setOnlineLyricsEnabled,
         onMonoPlaybackChanged = routeActions.settings::updateMonoPlaybackEnabled,
         onOpenEqualizer = routeActions::openEqualizer,
+        onOpenCrossfade = routeActions::openCrossfade,
         onOpenLibraryFolders = routeActions::openLibraryFolders,
         onOpenManagePlaylists = routeActions::openManagePlaylists,
         onOpenPrivacyPolicy = routeActions::openPrivacyPolicy,
         onOpenChangelog = routeActions::openChangelog,
         onScanLibrary = routeActions::refreshLibrary,
         updateController = routeActions.updateController,
+    )
+}
+
+@Composable
+internal fun CrossfadeRouteHost(
+    routeState: RootRouteState,
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    CrossfadeScreen(
+        durationMs = routeState.appState.crossfadeDurationMs,
+        silenceThresholdDb = routeState.appState.crossfadeSilenceThresholdDb,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onDurationChanged = routeActions.settings::setCrossfadeDurationMs,
+        onSilenceThresholdChanged = routeActions.settings::setCrossfadeSilenceThresholdDb,
     )
 }
 

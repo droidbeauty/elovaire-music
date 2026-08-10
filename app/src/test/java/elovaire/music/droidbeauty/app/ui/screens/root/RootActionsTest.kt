@@ -128,6 +128,8 @@ private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
 
     override fun setPlaybackVolume(value: Float) = Unit
     override fun setCrossfadeEnabled(enabled: Boolean) = Unit
+    override fun setCrossfadeDurationMs(value: Long) = Unit
+    override fun setCrossfadeSilenceThresholdDb(value: Float) = Unit
     override fun setVolumeNormalizationEnabled(enabled: Boolean) = Unit
     override fun setOnlineLyricsEnabled(enabled: Boolean) = Unit
     override fun updateBass(value: Float) = Unit

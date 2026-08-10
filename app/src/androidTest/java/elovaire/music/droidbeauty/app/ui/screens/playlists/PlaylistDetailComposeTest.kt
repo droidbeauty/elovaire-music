@@ -4,30 +4,29 @@ import android.net.Uri
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createEmptyComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.core.app.ActivityScenario
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.screens.PlaylistDetailScreen
 import kotlinx.coroutines.CompletableDeferred
 import org.junit.Assert.assertEquals
-import org.junit.Ignore
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-@Ignore("Compose test owner cannot attach a hierarchy on the API 36 physical-device harness")
 class PlaylistDetailComposeTest {
     @get:Rule
-    val composeRule = createEmptyComposeRule()
+    val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
 
     @Test
     fun addManySongsThenSaveSubmitsExactFinalDraft() {
@@ -36,10 +35,9 @@ class PlaylistDetailComposeTest {
         var submittedSongIds: List<Long>? = null
         val playlist = Playlist(42L, "Interaction Test", initialIds)
 
-        ActivityScenario.launch(PlaylistTestActivity::class.java).onActivity { activity ->
-            activity.setContent {
-                MaterialTheme {
-                    PlaylistDetailScreen(
+        composeRule.setContent {
+            MaterialTheme {
+                PlaylistDetailScreen(
                     playlist = playlist,
                     librarySongs = librarySongs,
                     favoriteSongIds = emptySet(),
@@ -58,16 +56,19 @@ class PlaylistDetailComposeTest {
                         CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(42L))
                     },
                     onToggleFavorite = {},
-                    )
-                }
+                )
             }
         }
         composeRule.waitForIdle()
 
         composeRule.onNodeWithContentDescription("Edit playlist").assertIsDisplayed().performClick()
         composeRule.onNodeWithContentDescription("Add songs").performClick()
+        val searchField = composeRule.onNode(hasSetTextAction())
         (21L..80L).forEach { id ->
-            composeRule.onNodeWithText("Song $id").performScrollTo().performClick()
+            searchField.performTextClearance()
+            searchField.performTextInput("Song $id")
+            composeRule.waitForIdle()
+            composeRule.onNode(hasText("Song $id", substring = true) and hasSetTextAction().not()).performClick()
         }
         composeRule.onNodeWithContentDescription("Confirm added songs").performClick()
         composeRule.onNodeWithContentDescription("Save playlist changes").performClick()

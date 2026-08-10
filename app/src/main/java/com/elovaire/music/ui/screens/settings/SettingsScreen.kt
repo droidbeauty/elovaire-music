@@ -114,6 +114,8 @@ internal fun SettingsScreen(
     eqSettings: EqSettings,
     volumeNormalizationEnabled: Boolean,
     onlineLyricsEnabled: Boolean,
+    crossfadeDurationMs: Long,
+    crossfadeSilenceThresholdDb: Float,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onThemeModeSelected: (ThemeMode) -> Unit,
@@ -123,6 +125,7 @@ internal fun SettingsScreen(
     onOnlineLyricsChanged: (Boolean) -> Unit,
     onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
+    onOpenCrossfade: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
     onOpenManagePlaylists: () -> Unit,
     onOpenPrivacyPolicy: () -> Unit,
@@ -257,37 +260,17 @@ internal fun SettingsScreen(
                                 .padding(horizontal = 2.dp)
                                 .align(Alignment.CenterHorizontally),
                         )
-                    }
-                }
-            }
-
-            item {
-                SettingsSectionHeader(
-                    title = copy.otherSettings,
-                    iconResId = R.drawable.ic_lucide_settings,
-                )
-            }
-
-            item {
-                ModuleCard {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(24.dp),
-                    ) {
-                        SettingToggleRow(
-                            title = "Online lyrics",
-                            subtitle = "Fetch lyrics from LRCLIB",
-                            enabled = onlineLyricsEnabled,
-                            onEnabledChanged = onOnlineLyricsChanged,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
+                        Spacer(modifier = Modifier.height(12.dp))
                         SettingNavigationRow(
-                            title = privacyPolicyCopy(appLanguage).title,
-                            subtitle = privacyPolicySettingsSubtitle(appLanguage),
-                            onClick = onOpenPrivacyPolicy,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                            testTag = "settings_privacy_policy",
+                            title = "Crossfade",
+                            subtitle = crossfadeSummary(
+                                durationMs = crossfadeDurationMs,
+                                silenceThresholdDb = crossfadeSilenceThresholdDb,
+                            ),
+                            onClick = onOpenCrossfade,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
                         )
                     }
                 }
@@ -304,13 +287,6 @@ internal fun SettingsScreen(
                             title = foldersCopy.title,
                             subtitle = foldersCopy.subtitle,
                             onClick = onOpenLibraryFolders,
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
-                        )
-                        SettingActionRow(
-                            title = copy.scanLibrary,
-                            subtitle = copy.scanLibrarySubtitle,
-                            actionLabel = copy.scan,
-                            onAction = onScanLibrary,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                         SettingNavigationRow(
@@ -1030,6 +1006,19 @@ private fun updateSubtitle(state: AppUpdateUiState): String = when {
     state.errorMessage != null -> state.errorMessage
     state.transientStatus != null -> "You are using the latest version"
     else -> "Check GitHub Releases for a newer version"
+}
+
+private fun crossfadeSummary(
+    durationMs: Long,
+    silenceThresholdDb: Float,
+): String {
+    val durationSeconds = durationMs.coerceIn(2_000L, 5_000L) / 1_000f
+    val formattedDuration = if (durationSeconds % 1f == 0f) {
+        durationSeconds.toInt().toString()
+    } else {
+        durationSeconds.toString()
+    }
+    return "$formattedDuration s fade · ${silenceThresholdDb.toInt()} dB silence"
 }
 
 private fun updateActionLabel(state: AppUpdateUiState): String = when {

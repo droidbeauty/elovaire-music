@@ -93,6 +93,8 @@ private val portableSettingKeys = setOf(
             "app_language",
             "playback_volume",
             "crossfade_enabled",
+            "crossfade_duration_ms",
+            "crossfade_silence_threshold_db",
             "volume_normalization_enabled",
             "online_lyrics_enabled",
             "album_collection_grid_enabled",

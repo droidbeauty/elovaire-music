@@ -49,6 +49,14 @@ internal class PlaybackIntegrationCoordinator(
                 .collect(playback::setCrossfadeEnabled)
         }
         scope.launch {
+            preferences.crossfadeDurationMs
+                .collect(playback::setCrossfadeDurationMs)
+        }
+        scope.launch {
+            preferences.crossfadeSilenceThresholdDb
+                .collect(playback::setCrossfadeSilenceThresholdDb)
+        }
+        scope.launch {
             preferences.volumeNormalizationEnabled
                 .collect(playback::setVolumeNormalizationEnabled)
         }

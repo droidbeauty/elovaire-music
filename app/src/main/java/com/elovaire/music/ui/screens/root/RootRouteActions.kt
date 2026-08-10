@@ -98,6 +98,10 @@ internal class RootRouteActions(
         navController.navigate(EQUALIZER_ROUTE)
     }
 
+    fun openCrossfade() {
+        navController.navigate(CROSSFADE_ROUTE)
+    }
+
     fun openLibraryFolders() {
         navController.navigate(LIBRARY_FOLDERS_ROUTE)
     }
@@ -223,6 +227,14 @@ internal class SettingsRouteActions(
 
     fun setOnlineLyricsEnabled(enabled: Boolean) {
         settingsDependencies.playbackSettings.setOnlineLyricsEnabled(enabled)
+    }
+
+    fun setCrossfadeDurationMs(value: Long) {
+        settingsDependencies.playbackSettings.setCrossfadeDurationMs(value)
+    }
+
+    fun setCrossfadeSilenceThresholdDb(value: Float) {
+        settingsDependencies.playbackSettings.setCrossfadeSilenceThresholdDb(value)
     }
 
 }

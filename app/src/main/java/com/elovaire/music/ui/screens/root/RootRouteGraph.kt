@@ -98,6 +98,9 @@ internal fun RootRouteGraph(
         composable(EQUALIZER_ROUTE) {
             EqualizerRouteHost(viewModelFactory, routeActions)
         }
+        composable(CROSSFADE_ROUTE) {
+            CrossfadeRouteHost(routeState, routeActions, padding)
+        }
         composable(SETTINGS_ROUTE) {
             SettingsRouteHost(routeState, routeActions, padding)
         }

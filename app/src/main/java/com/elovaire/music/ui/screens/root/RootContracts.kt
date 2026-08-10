@@ -31,6 +31,7 @@ internal const val SMART_PLAYLIST_EDITOR_ROUTE = "smart_playlist_editor"
 internal const val SEARCH_ROUTE = "search"
 internal const val PLAYER_ROUTE = "player"
 internal const val EQUALIZER_ROUTE = "equalizer"
+internal const val CROSSFADE_ROUTE = "crossfade"
 internal const val SETTINGS_ROUTE = "settings"
 internal const val LIBRARY_FOLDERS_ROUTE = "library_folders"
 internal const val CHANGELOG_ROUTE = "changelog"
@@ -226,6 +227,7 @@ internal object ElovaireNavigationTransitions {
             SETTINGS_ROUTE,
             LIBRARY_FOLDERS_ROUTE,
             EQUALIZER_ROUTE,
+            CROSSFADE_ROUTE,
             CHANGELOG_ROUTE,
             ABOUT_ROUTE,
             PRIVACY_POLICY_ROUTE,

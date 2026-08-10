@@ -39,8 +39,17 @@ internal object CrossfadeDurationPolicy {
     const val MIN_DURATION_MS = 1_000L
     const val DEFAULT_DURATION_MS = 2_500L
     const val MAX_DURATION_MS = 12_000L
+    const val SETTINGS_MIN_DURATION_MS = 2_000L
+    const val SETTINGS_MAX_DURATION_MS = 5_000L
+    const val SETTINGS_STEP_MS = 500L
 
     fun sanitize(durationMs: Long): Long = durationMs.coerceIn(MIN_DURATION_MS, MAX_DURATION_MS)
+
+    fun sanitizeSettingsDuration(durationMs: Long): Long {
+        val bounded = durationMs.coerceIn(SETTINGS_MIN_DURATION_MS, SETTINGS_MAX_DURATION_MS)
+        return ((bounded - SETTINGS_MIN_DURATION_MS + SETTINGS_STEP_MS / 2L) / SETTINGS_STEP_MS * SETTINGS_STEP_MS + SETTINGS_MIN_DURATION_MS)
+            .coerceIn(SETTINGS_MIN_DURATION_MS, SETTINGS_MAX_DURATION_MS)
+    }
 }
 
 @UnstableApi
@@ -96,6 +105,8 @@ internal class PlaybackCrossfadeController(
         incomingSong: Song,
         outgoingGain: Float,
         incomingGain: Float,
+        fadeDurationMs: Long = CrossfadeDurationPolicy.DEFAULT_DURATION_MS,
+        silenceLevelDb: Float = CrossfadeSilencePolicy.BASE_LEVEL_DB,
     ) {
         if (state != CrossfadeState.Idle || queue.isEmpty() || nextQueueIndex !in queue.indices) return
         val durationMs = primary.duration.takeIf { it > 0L } ?: outgoingSong.durationMs
@@ -110,7 +121,11 @@ internal class PlaybackCrossfadeController(
         this.incomingGain = incomingGain.coerceIn(0f, 1f)
         analysisJob = scope.launch {
             val cue = try {
-                cueAnalyzer.analyzePair(outgoingSong, incomingSong)
+                cueAnalyzer.analyzePair(
+                    outgoing = outgoingSong,
+                    incoming = incomingSong,
+                    silenceLevelDb = silenceLevelDb,
+                )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -118,7 +133,12 @@ internal class PlaybackCrossfadeController(
             }
             handler.post {
                 if (token != transitionToken || state != CrossfadeState.Analyzing) return@post
-                plan = CrossfadeTransitionPlan.from(cue, durationMs, incomingSong.durationMs)
+                plan = CrossfadeTransitionPlan.from(
+                    cue = cue,
+                    outgoingDurationMs = durationMs,
+                    incomingDurationMs = incomingSong.durationMs,
+                    fadeDurationMs = fadeDurationMs,
+                )
                 state = CrossfadeState.WaitingForPrewarm
                 logDebug(
                     "cue duration=$durationMs mixOut=${cue.outgoingMixOutMs} mixIn=${cue.incomingMixInMs} " +

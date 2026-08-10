@@ -17,6 +17,22 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
+    fun settingsPolicies_snapToRequestedRanges() {
+        assertEquals(2_000L, CrossfadeDurationPolicy.sanitizeSettingsDuration(0L))
+        assertEquals(3_500L, CrossfadeDurationPolicy.sanitizeSettingsDuration(3_499L))
+        assertEquals(5_000L, CrossfadeDurationPolicy.sanitizeSettingsDuration(Long.MAX_VALUE))
+        assertEquals(-100f, CrossfadeSilencePolicy.sanitizeLevelDb(-120f))
+        assertEquals(-85f, CrossfadeSilencePolicy.sanitizeLevelDb(-86f))
+        assertEquals(-80f, CrossfadeSilencePolicy.sanitizeLevelDb(0f))
+    }
+
+    @Test
+    fun silencePolicy_convertsDbfsToLinearAmplitude() {
+        assertEquals(0.0001f, CrossfadeSilencePolicy.amplitudeThresholdForDb(-80f), 0.000001f)
+        assertEquals(0.00001f, CrossfadeSilencePolicy.amplitudeThresholdForDb(-100f), 0.000001f)
+    }
+
+    @Test
     fun equalPowerEnvelope_startsAndEndsAtExpectedGains() {
         assertEquals(1f, equalPowerCrossfadeEnvelope(0f).first, 0.0001f)
         assertEquals(0f, equalPowerCrossfadeEnvelope(0f).second, 0.0001f)
@@ -97,6 +113,18 @@ class PlaybackCrossfadeEnvelopeTest {
 
         assertEquals(1_500L, plan.fadeDurationMs)
         assertEquals(18_500L, plan.fadeStartMs)
+    }
+
+    @Test
+    fun transitionPlan_usesConfiguredFadeDuration() {
+        val plan = CrossfadeTransitionPlan.from(
+            cue = CrossfadeCue.fallback(outgoingDurationMs = 20_000L),
+            outgoingDurationMs = 20_000L,
+            fadeDurationMs = 4_500L,
+        )
+
+        assertEquals(4_500L, plan.fadeDurationMs)
+        assertEquals(15_500L, plan.fadeStartMs)
     }
 
     @Test

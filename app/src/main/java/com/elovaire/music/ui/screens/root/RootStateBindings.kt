@@ -50,6 +50,8 @@ internal data class RootAppState(
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
+    val crossfadeDurationMs: Long,
+    val crossfadeSilenceThresholdDb: Float,
 )
 
 internal data class RootLibraryDerivedState(

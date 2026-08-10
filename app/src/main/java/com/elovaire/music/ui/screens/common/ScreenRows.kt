@@ -89,6 +89,7 @@ internal fun DetailListTopBar(
     subtitle: String?,
     onBack: () -> Unit,
     actions: List<TopBarActionSpec> = emptyList(),
+    sharedTopBarPriority: Int = 0,
     modifier: Modifier = Modifier,
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -101,6 +102,7 @@ internal fun DetailListTopBar(
                 onBack = onBack,
                 actions = actions,
             ),
+            priority = sharedTopBarPriority,
         )
         return
     }
