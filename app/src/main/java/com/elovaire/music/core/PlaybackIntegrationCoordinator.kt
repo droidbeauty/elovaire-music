@@ -10,14 +10,20 @@ import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @UnstableApi
 @OptIn(FlowPreview::class)
@@ -84,6 +90,22 @@ internal class PlaybackIntegrationCoordinator(
             )
                 .collect { persistSession() }
         }
+        scope.launch {
+            combine(playback.queueState, playback.transportState) { queue, transport ->
+                queue.queue.isNotEmpty() && transport.isPlaying
+            }
+                .distinctUntilChanged()
+                .collectLatest { isPlaying ->
+                    if (!isPlaying) return@collectLatest
+                    while (currentCoroutineContext().isActive) {
+                        val positionMs = withContext(Dispatchers.Main.immediate) {
+                            playback.currentPositionForPersistence()
+                        }
+                        persistSession(positionMs)
+                        delay(PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS)
+                    }
+                }
+        }
     }
 
     fun release() {
@@ -114,7 +136,7 @@ internal class PlaybackIntegrationCoordinator(
         playback.restoreSession(restoredQueue, currentIndex, persisted)
     }
 
-    private fun persistSession() {
+    private fun persistSession(positionOverrideMs: Long? = null) {
         if (!restorationAttempted) return
         val queue = playback.queueState.value
         if (queue.queue.isEmpty()) {
@@ -127,7 +149,7 @@ internal class PlaybackIntegrationCoordinator(
                 queueSongIds = queueSongIds(queue.queue),
                 currentSongId = queue.queue.getOrNull(queue.currentIndex)?.id,
                 currentIndex = queue.currentIndex,
-                positionMs = playback.progressState.value.positionMs,
+                positionMs = positionOverrideMs ?: playback.progressState.value.positionMs,
                 repeatMode = transport.repeatMode,
                 shuffleEnabled = transport.shuffleEnabled,
                 sourcePlaylistId = queue.sourcePlaylistId,
@@ -147,5 +169,6 @@ internal class PlaybackIntegrationCoordinator(
 
     private companion object {
         const val PLAYBACK_POSITION_PERSIST_INTERVAL_MS = 5_000L
+        const val PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS = 10_000L
     }
 }

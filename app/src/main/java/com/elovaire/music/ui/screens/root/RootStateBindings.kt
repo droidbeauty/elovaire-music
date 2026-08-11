@@ -15,7 +15,6 @@ import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
-import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
@@ -35,7 +34,6 @@ internal fun String?.toPlayerLayerStateOrDefault(): PlayerLayerState {
 internal data class RootAppState(
     val library: LibraryUiState,
     val playback: PlaybackUiState,
-    val eqSettings: EqSettings,
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
@@ -50,8 +48,6 @@ internal data class RootAppState(
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
-    val crossfadeDurationMs: Long,
-    val crossfadeSilenceThresholdDb: Float,
 )
 
 internal data class RootLibraryDerivedState(

@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
 import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
+import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.update.UpdateController
@@ -193,6 +194,9 @@ internal class RootRouteActions(
 internal class SettingsRouteActions(
     private val settingsDependencies: SettingsActionDependencies,
 ) {
+    val appearanceSettings: AppearanceSettingsStore
+        get() = settingsDependencies.appearanceSettingsReader
+
     fun setThemeMode(mode: elovaire.music.droidbeauty.app.domain.model.ThemeMode) {
         settingsDependencies.appearanceSettings.setThemeMode(mode)
     }

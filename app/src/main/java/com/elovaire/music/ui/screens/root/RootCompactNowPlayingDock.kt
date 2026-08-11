@@ -142,7 +142,7 @@ private fun StandaloneNowPlayingDock(
     modifier: Modifier = Modifier,
 ) {
     val motionTransitions = rememberMotionTransitions()
-    val artwork = rememberArtworkBitmap(song.artUri, size = 768)
+    val artwork = rememberArtworkBitmap(song.artUri, size = 256)
     val gradient = rememberArtworkGradient(song.artUri).value
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
@@ -227,25 +227,13 @@ private fun NowPlayingBar(
         label = "MiniPlayerButtonTint",
     )
     val controlIconTint by animateColorAsState(
-        targetValue = if (controlTint.luminance() > 0.42f) InkText else Color.White,
+        targetValue = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White,
         animationSpec = ElovaireMotion.colorFadeSpec(),
         label = "MiniPlayerButtonIconTint",
     )
-    val resolvedPrimaryTextColor by animateColorAsState(
-        targetValue = controlIconTint,
-        animationSpec = ElovaireMotion.colorFadeSpec(),
-        label = "MiniPlayerTextPrimary",
-    )
-    val resolvedSecondaryTextColor by animateColorAsState(
-        targetValue = controlIconTint.copy(alpha = 0.72f),
-        animationSpec = ElovaireMotion.colorFadeSpec(),
-        label = "MiniPlayerTextSecondary",
-    )
-    val compactControlBackground by animateColorAsState(
-        targetValue = resolvedPrimaryTextColor.copy(alpha = 0.2f),
-        animationSpec = ElovaireMotion.colorFadeSpec(),
-        label = "MiniPlayerControlBackground",
-    )
+    val resolvedPrimaryTextColor = controlIconTint
+    val resolvedSecondaryTextColor = controlIconTint.copy(alpha = 0.72f)
+    val compactControlBackground = controlIconTint.copy(alpha = 0.2f)
     val interactionSource = rememberElovaireInteractionSource()
     var dragOffsetX by remember(song.id) { mutableFloatStateOf(0f) }
     var barBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }

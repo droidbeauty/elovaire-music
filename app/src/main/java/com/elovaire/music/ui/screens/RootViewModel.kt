@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.ElovaireViewModelDependencies
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
-import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
@@ -17,7 +16,6 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
 internal data class RootAppearanceState(
-    val eqSettings: EqSettings,
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
@@ -27,8 +25,6 @@ internal data class RootAppearanceState(
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
-    val crossfadeDurationMs: Long,
-    val crossfadeSilenceThresholdDb: Float,
 )
 
 internal data class RootCollectionState(
@@ -76,12 +72,11 @@ internal class RootViewModel(
 
     val appearanceState = combine(
         combine(
-            dependencies.rootSettingsReader.eqSettings,
             dependencies.rootSettingsReader.themeMode,
             dependencies.rootSettingsReader.textSizePreset,
             dependencies.rootSettingsReader.appLanguage,
-        ) { eq, theme, textSize, language ->
-            AppearanceCore(eq, theme, textSize, language)
+        ) { theme, textSize, language ->
+            AppearanceCore(theme, textSize, language)
         },
         combine(
             dependencies.rootSettingsReader.albumCollectionLayoutMode,
@@ -97,15 +92,8 @@ internal class RootViewModel(
         ) { volumeNormalization, onlineLyrics ->
             volumeNormalization to onlineLyrics
         },
-        combine(
-            dependencies.rootSettingsReader.crossfadeDurationMs,
-            dependencies.rootSettingsReader.crossfadeSilenceThresholdDb,
-        ) { durationMs, silenceThresholdDb ->
-            durationMs to silenceThresholdDb
-        },
-    ) { core, layout, playback, crossfade ->
+    ) { core, layout, playback ->
         RootAppearanceState(
-            eqSettings = core.eqSettings,
             themeMode = core.themeMode,
             textSizePreset = core.textSizePreset,
             appLanguage = core.appLanguage,
@@ -115,8 +103,6 @@ internal class RootViewModel(
             songCollectionSortModeName = layout.songCollectionSortModeName,
             volumeNormalizationEnabled = playback.first,
             onlineLyricsEnabled = playback.second,
-            crossfadeDurationMs = crossfade.first,
-            crossfadeSilenceThresholdDb = crossfade.second,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -168,7 +154,6 @@ internal class RootViewModel(
         RootAppState(
             library = library,
             playback = playback,
-            eqSettings = appearance.eqSettings,
             themeMode = appearance.themeMode,
             textSizePreset = appearance.textSizePreset,
             appLanguage = appearance.appLanguage,
@@ -183,8 +168,6 @@ internal class RootViewModel(
             songCollectionSortModeName = appearance.songCollectionSortModeName,
             volumeNormalizationEnabled = appearance.volumeNormalizationEnabled,
             onlineLyricsEnabled = appearance.onlineLyricsEnabled,
-            crossfadeDurationMs = appearance.crossfadeDurationMs,
-            crossfadeSilenceThresholdDb = appearance.crossfadeSilenceThresholdDb,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -192,7 +175,6 @@ internal class RootViewModel(
         initialValue = RootAppState(
             library = libraryState.value,
             playback = playbackState.value,
-            eqSettings = appearanceState.value.eqSettings,
             themeMode = appearanceState.value.themeMode,
             textSizePreset = appearanceState.value.textSizePreset,
             appLanguage = appearanceState.value.appLanguage,
@@ -207,14 +189,11 @@ internal class RootViewModel(
             songCollectionSortModeName = appearanceState.value.songCollectionSortModeName,
             volumeNormalizationEnabled = appearanceState.value.volumeNormalizationEnabled,
             onlineLyricsEnabled = appearanceState.value.onlineLyricsEnabled,
-            crossfadeDurationMs = appearanceState.value.crossfadeDurationMs,
-            crossfadeSilenceThresholdDb = appearanceState.value.crossfadeSilenceThresholdDb,
         ),
     )
 }
 
 private data class AppearanceCore(
-    val eqSettings: EqSettings,
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
@@ -229,7 +208,6 @@ private data class AppearanceLayout(
 
 private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.settings.RootSettingsReader) =
     RootAppearanceState(
-        eqSettings = settings.eqSettings.value,
         themeMode = settings.themeMode.value,
         textSizePreset = settings.textSizePreset.value,
         appLanguage = settings.appLanguage.value,
@@ -239,6 +217,4 @@ private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.
         songCollectionSortModeName = settings.songCollectionSortMode.value,
         volumeNormalizationEnabled = settings.volumeNormalizationEnabled.value,
         onlineLyricsEnabled = settings.onlineLyricsEnabled.value,
-        crossfadeDurationMs = settings.crossfadeDurationMs.value,
-        crossfadeSilenceThresholdDb = settings.crossfadeSilenceThresholdDb.value,
     )

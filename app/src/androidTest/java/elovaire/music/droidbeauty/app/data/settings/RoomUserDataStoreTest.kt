@@ -84,6 +84,30 @@ class RoomUserDataStoreTest {
         assertEquals("Interaction Test", database.userDataDao().playlist(playlistId)?.name)
     }
 
+    @Test
+    fun bulkFavoriteChangesPreserveOrderWithoutRebuildingTheTable() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        val songIds = (1L..1_000L).toList()
+
+        store.setFavoriteSongs(songIds, favorite = true)
+        store.createPlaylist("Flush").await()
+
+        assertEquals(songIds, database.userDataDao().favorites().map { it.songId })
+
+        val removed = (401L..600L).toSet()
+        store.setFavoriteSongs(removed.toList(), favorite = false)
+        store.createPlaylist("Flush removal").await()
+
+        val remaining = songIds.filterNot(removed::contains)
+        assertEquals(remaining, database.userDataDao().favorites().map { it.songId })
+        assertEquals(0, database.userDataDao().favorites().first().position)
+        assertEquals(999, database.userDataDao().favorites().last().position)
+
+        val drained = CompletableDeferred<Unit>()
+        store.release { drained.complete(Unit) }
+        withTimeout(10_000L) { drained.await() }
+    }
+
     private object FixedClock : AppClock {
         override fun wallTimeMs(): Long = 1_000L
         override fun elapsedTimeMs(): Long = 500L

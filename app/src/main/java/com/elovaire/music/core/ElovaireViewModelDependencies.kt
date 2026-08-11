@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
+import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsWriter
 import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
@@ -40,6 +41,7 @@ internal interface LibraryActionDependencies {
 
 internal interface SettingsActionDependencies {
     val appearanceSettings: AppearanceSettingsWriter
+    val appearanceSettingsReader: AppearanceSettingsStore
     val librarySettings: LibrarySettingsWriter
     val playbackSettings: PlaybackSettingsWriter
 }

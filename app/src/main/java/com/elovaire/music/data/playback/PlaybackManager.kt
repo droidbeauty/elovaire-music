@@ -671,6 +671,10 @@ class PlaybackManager(
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
     }
 
+    internal fun currentPositionForPersistence(): Long {
+        return player.currentPosition.coerceAtLeast(0L)
+    }
+
     internal fun restoreSession(
         songs: List<Song>,
         currentIndex: Int,

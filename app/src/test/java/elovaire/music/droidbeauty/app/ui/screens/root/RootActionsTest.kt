@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
 import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
+import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsWriter
 import elovaire.music.droidbeauty.app.data.settings.FavoritesStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
@@ -11,6 +12,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -49,6 +51,7 @@ class RootActionsTest {
         val actions = SettingsRouteActions(
             object : SettingsActionDependencies {
                 override val appearanceSettings = appearance
+                override val appearanceSettingsReader = FakeAppearanceSettingsStore()
                 override val librarySettings = FakeLibrarySettingsWriter()
                 override val playbackSettings = playback
             },
@@ -108,6 +111,21 @@ private class FakeAppearanceSettingsWriter : AppearanceSettingsWriter {
     override fun setAppLanguage(language: AppLanguage) {
         this.language = language
     }
+}
+
+private class FakeAppearanceSettingsStore : AppearanceSettingsStore {
+    override val eqSettings = MutableStateFlow(EqSettings())
+    override val themeMode = MutableStateFlow(ThemeMode.System)
+    override val textSizePreset = MutableStateFlow(TextSizePreset.Default)
+    override val appLanguage = MutableStateFlow(AppLanguage.English)
+    override val albumCollectionLayoutMode = MutableStateFlow("List")
+    override val songCollectionGridEnabled = MutableStateFlow(false)
+    override val albumCollectionSortMode = MutableStateFlow("Title")
+    override val songCollectionSortMode = MutableStateFlow("Title")
+    override val volumeNormalizationEnabled = MutableStateFlow(false)
+    override val onlineLyricsEnabled = MutableStateFlow(false)
+    override val crossfadeDurationMs = MutableStateFlow(2_500L)
+    override val crossfadeSilenceThresholdDb = MutableStateFlow(-80f)
 }
 
 private class FakeLibrarySettingsWriter : LibrarySettingsWriter {

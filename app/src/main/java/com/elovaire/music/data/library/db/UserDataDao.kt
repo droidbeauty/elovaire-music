@@ -176,11 +176,6 @@ internal interface UserDataDao {
     suspend fun removeFavorites(songIds: Set<Long>) {
         if (songIds.isEmpty()) return
         deleteFavorites(songIds)
-        val remaining = favorites().map(FavoriteSongEntity::songId)
-        clearFavorites()
-        if (remaining.isNotEmpty()) {
-            insertFavorites(remaining.mapIndexed { position, songId -> FavoriteSongEntity(songId, position) })
-        }
     }
 
     @Query("SELECT DISTINCT playlistId FROM user_playlist_entries WHERE songId IN (:songIds)")

@@ -17,6 +17,7 @@ internal class AppDependencies(
     }
     val settingsActionDependencies: SettingsActionDependencies = object : SettingsActionDependencies {
         override val appearanceSettings get() = services.preferenceStore
+        override val appearanceSettingsReader get() = services.preferenceStore
         override val librarySettings get() = services.preferenceStore
         override val playbackSettings get() = services.preferenceStore
     }

@@ -292,16 +292,24 @@ internal fun SettingsRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val appState = routeState.appState
+    val settings = routeActions.settings.appearanceSettings
+    val themeMode by settings.themeMode.collectAsStateWithLifecycle()
+    val textSizePreset by settings.textSizePreset.collectAsStateWithLifecycle()
+    val appLanguage by settings.appLanguage.collectAsStateWithLifecycle()
+    val eqSettings by settings.eqSettings.collectAsStateWithLifecycle()
+    val volumeNormalizationEnabled by settings.volumeNormalizationEnabled.collectAsStateWithLifecycle()
+    val onlineLyricsEnabled by settings.onlineLyricsEnabled.collectAsStateWithLifecycle()
+    val crossfadeDurationMs by settings.crossfadeDurationMs.collectAsStateWithLifecycle()
+    val crossfadeSilenceThresholdDb by settings.crossfadeSilenceThresholdDb.collectAsStateWithLifecycle()
     SettingsScreen(
-        themeMode = appState.themeMode,
-        textSizePreset = appState.textSizePreset,
-        appLanguage = appState.appLanguage,
-        eqSettings = appState.eqSettings,
-        volumeNormalizationEnabled = appState.volumeNormalizationEnabled,
-        onlineLyricsEnabled = appState.onlineLyricsEnabled,
-        crossfadeDurationMs = appState.crossfadeDurationMs,
-        crossfadeSilenceThresholdDb = appState.crossfadeSilenceThresholdDb,
+        themeMode = themeMode,
+        textSizePreset = textSizePreset,
+        appLanguage = appLanguage,
+        eqSettings = eqSettings,
+        volumeNormalizationEnabled = volumeNormalizationEnabled,
+        onlineLyricsEnabled = onlineLyricsEnabled,
+        crossfadeDurationMs = crossfadeDurationMs,
+        crossfadeSilenceThresholdDb = crossfadeSilenceThresholdDb,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onThemeModeSelected = routeActions.settings::setThemeMode,
@@ -327,9 +335,12 @@ internal fun CrossfadeRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
+    val settings = routeActions.settings.appearanceSettings
+    val durationMs by settings.crossfadeDurationMs.collectAsStateWithLifecycle()
+    val silenceThresholdDb by settings.crossfadeSilenceThresholdDb.collectAsStateWithLifecycle()
     CrossfadeScreen(
-        durationMs = routeState.appState.crossfadeDurationMs,
-        silenceThresholdDb = routeState.appState.crossfadeSilenceThresholdDb,
+        durationMs = durationMs,
+        silenceThresholdDb = silenceThresholdDb,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onDurationChanged = routeActions.settings::setCrossfadeDurationMs,

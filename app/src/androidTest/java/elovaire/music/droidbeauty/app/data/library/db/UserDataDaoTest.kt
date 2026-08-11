@@ -42,7 +42,7 @@ class UserDataDaoTest {
     }
 
     @Test
-    fun removingSongsCompactsPlaylistAndFavoriteOrdering() = runBlocking {
+    fun removingSongsPreservesPlaylistAndFavoriteOrdering() = runBlocking {
         dao.insertPlaylist(UserPlaylistEntity(1L, "Test", false))
         dao.replacePlaylistEntries(1L, listOf(10L, 20L, 30L))
         listOf(10L, 20L, 30L).forEachIndexed { position, songId ->
@@ -56,7 +56,7 @@ class UserDataDaoTest {
             dao.playlistEntries().map { it.songId to it.position },
         )
         assertEquals(
-            listOf(10L to 0, 30L to 1),
+            listOf(10L to 0, 30L to 2),
             dao.favorites().map { it.songId to it.position },
         )
     }

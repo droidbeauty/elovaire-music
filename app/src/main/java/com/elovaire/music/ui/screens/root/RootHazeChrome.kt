@@ -40,7 +40,11 @@ import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.InkText
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.sample
+
+private const val SCROLL_POSITION_CACHE_SAMPLE_INTERVAL_MS = 100L
 
 internal val LocalChromeHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
@@ -100,6 +104,7 @@ internal fun blurSurfaceBorderColor(): Color {
 @Composable
 internal fun Modifier.horizontalGestureSafe(): Modifier = this.systemGestureExclusion()
 
+@OptIn(FlowPreview::class)
 @Composable
 internal fun rememberElovaireLazyListState(vararg inputs: Any?): LazyListState {
     val cacheKey = remember(*inputs) {
@@ -117,13 +122,20 @@ internal fun rememberElovaireLazyListState(vararg inputs: Any?): LazyListState {
     LaunchedEffect(state, cacheKey) {
         snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
+            .sample(SCROLL_POSITION_CACHE_SAMPLE_INTERVAL_MS)
             .collect { position ->
                 lazyListPositionCache[cacheKey] = position
             }
     }
+    androidx.compose.runtime.DisposableEffect(state, cacheKey) {
+        onDispose {
+            lazyListPositionCache[cacheKey] = state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+        }
+    }
     return state
 }
 
+@OptIn(FlowPreview::class)
 @Composable
 internal fun rememberElovaireLazyGridState(vararg inputs: Any?): LazyGridState {
     val cacheKey = remember(*inputs) {
@@ -141,13 +153,20 @@ internal fun rememberElovaireLazyGridState(vararg inputs: Any?): LazyGridState {
     LaunchedEffect(state, cacheKey) {
         snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
             .distinctUntilChanged()
+            .sample(SCROLL_POSITION_CACHE_SAMPLE_INTERVAL_MS)
             .collect { position ->
                 lazyGridPositionCache[cacheKey] = position
             }
     }
+    androidx.compose.runtime.DisposableEffect(state, cacheKey) {
+        onDispose {
+            lazyGridPositionCache[cacheKey] = state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset
+        }
+    }
     return state
 }
 
+@OptIn(FlowPreview::class)
 @Composable
 internal fun rememberElovaireScrollState(vararg inputs: Any?): androidx.compose.foundation.ScrollState {
     val cacheKey = remember(*inputs) {
@@ -158,9 +177,15 @@ internal fun rememberElovaireScrollState(vararg inputs: Any?): androidx.compose.
     LaunchedEffect(state, cacheKey) {
         snapshotFlow { state.value }
             .distinctUntilChanged()
+            .sample(SCROLL_POSITION_CACHE_SAMPLE_INTERVAL_MS)
             .collect { value ->
                 scrollPositionCache[cacheKey] = value
             }
+    }
+    androidx.compose.runtime.DisposableEffect(state, cacheKey) {
+        onDispose {
+            scrollPositionCache[cacheKey] = state.value
+        }
     }
     return state
 }

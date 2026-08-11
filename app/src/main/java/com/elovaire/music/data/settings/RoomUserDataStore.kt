@@ -318,14 +318,14 @@ internal class RoomUserDataStore(
         if (normalized.isEmpty()) return
         enqueue("favorite.set") {
             if (favorite) {
-                var position = dao.lastFavoritePosition() + 1
                 val current = _favoriteSongIds.value.toMutableList()
-                normalized.forEach { songId ->
-                    if (dao.insertFavorite(FavoriteSongEntity(songId, position)) != -1L) {
-                        current += songId
-                        position += 1
-                    }
-                }
+                val additions = normalized.filterNot(current::contains)
+                if (additions.isEmpty()) return@enqueue
+                val firstPosition = dao.lastFavoritePosition() + 1
+                dao.insertFavorites(additions.mapIndexed { index, songId ->
+                    FavoriteSongEntity(songId, firstPosition + index)
+                })
+                current += additions
                 publishFavorites(current)
             } else {
                 val ids = normalized.toSet()
