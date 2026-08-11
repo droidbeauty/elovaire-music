@@ -4,6 +4,7 @@ import androidx.media3.common.C
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.abs
+import kotlin.math.pow
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -33,6 +34,32 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
+    fun trailingCue_thresholdChangesClassificationOfQuietTail() {
+        val minus85Dbfs = 10f.pow(-85f / 20f)
+        val quietTail = listOf(CrossfadeLevelWindow(0L, 100L, minus85Dbfs))
+
+        val atMinus80 = CrossfadeCueAlgorithm.trailingCueDecision(
+            windows = quietTail,
+            durationMs = 100L,
+            analyzedStartMs = 0L,
+            analyzedEndMs = 100L,
+            silenceFloor = CrossfadeSilencePolicy.amplitudeThresholdForDb(-80f),
+        )
+        val atMinus90 = CrossfadeCueAlgorithm.trailingCueDecision(
+            windows = quietTail,
+            durationMs = 100L,
+            analyzedStartMs = 0L,
+            analyzedEndMs = 100L,
+            silenceFloor = CrossfadeSilencePolicy.amplitudeThresholdForDb(-90f),
+        )
+
+        assertEquals(CrossfadeCueEvidence.AllSilent, atMinus80.evidence)
+        assertEquals(CrossfadeCueEvidence.Audible, atMinus90.evidence)
+        assertEquals(0L, atMinus80.cueMs)
+        assertEquals(100L, atMinus90.cueMs)
+    }
+
+    @Test
     fun equalPowerEnvelope_startsAndEndsAtExpectedGains() {
         assertEquals(1f, equalPowerCrossfadeEnvelope(0f).first, 0.0001f)
         assertEquals(0f, equalPowerCrossfadeEnvelope(0f).second, 0.0001f)
@@ -59,12 +86,25 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
-    fun trailingCue_keepsFixedTimingWhenSilenceIsShortOrEntireRegionIsSilent() {
+    fun trailingCue_keepsFixedTimingWhenSilenceIsShortAndClassifiesAllSilentRegion() {
         val shortSilence = listOf(CrossfadeLevelWindow(0L, 20L, 0.2f), CrossfadeLevelWindow(20L, 80L, 0f))
         val emptyAudio = listOf(CrossfadeLevelWindow(0L, 80L, 0f))
 
         assertEquals(80L to 0L, CrossfadeCueAlgorithm.trailingCue(shortSilence, 80L))
-        assertEquals(80L to 0L, CrossfadeCueAlgorithm.trailingCue(emptyAudio, 80L))
+        assertEquals(0L to 80L, CrossfadeCueAlgorithm.trailingCue(emptyAudio, 80L))
+        assertEquals(
+            CrossfadeCueEvidence.AllSilent,
+            CrossfadeCueAlgorithm.trailingCueDecision(
+                windows = emptyAudio,
+                durationMs = 80L,
+                analyzedStartMs = 0L,
+                analyzedEndMs = 80L,
+            ).evidence,
+        )
+        assertEquals(
+            CrossfadeCueEvidence.NoUsableWindows,
+            CrossfadeCueAlgorithm.trailingCueDecision(emptyList(), 80L).evidence,
+        )
     }
 
     @Test
@@ -81,6 +121,18 @@ class PlaybackCrossfadeEnvelopeTest {
                 windows = listOf(CrossfadeLevelWindow(0L, 80L, 0f), CrossfadeLevelWindow(80L, 100L, 0.2f)),
             ),
         )
+    }
+
+    @Test
+    fun leadingCue_classifiesAllSilentAnalyzedBlock() {
+        val decision = CrossfadeCueAlgorithm.leadingCueDecision(
+            windows = listOf(CrossfadeLevelWindow(0L, 5_000L, 0f)),
+            analyzedStartMs = 0L,
+            analyzedEndMs = 5_000L,
+        )
+
+        assertEquals(CrossfadeCueEvidence.AllSilent, decision.evidence)
+        assertEquals(5_000L, decision.cueMs)
     }
 
     @Test
@@ -128,6 +180,25 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
+    fun transitionPlan_durationChangesStartWithoutChangingCue() {
+        val cue = CrossfadeCue.fallback(outgoingDurationMs = 25_000L).copy(
+            outgoingMixOutMs = 20_000L,
+        )
+
+        listOf(2_000L to 18_000L, 2_500L to 17_500L, 5_000L to 15_000L).forEach { (duration, start) ->
+            val plan = CrossfadeTransitionPlan.from(
+                cue = cue,
+                outgoingDurationMs = 25_000L,
+                fadeDurationMs = duration,
+            )
+
+            assertEquals(20_000L, plan.outgoingMixOutMs)
+            assertEquals(duration, plan.fadeDurationMs)
+            assertEquals(start, plan.fadeStartMs)
+        }
+    }
+
+    @Test
     fun pcmEnvelopeAccumulator_supportsMedia3PcmEncodings() {
         val samples = listOf(
             C.ENCODING_PCM_8BIT to { buffer: ByteBuffer -> buffer.put(192.toByte()) },
@@ -165,23 +236,25 @@ class PlaybackCrossfadeEnvelopeTest {
 
     @Test
     fun pcmEnvelopeAccumulator_usesLoudestChannelAndRms() {
-        val accumulator = PcmEnvelopeAccumulator(
-            sampleRate = 1_000,
-            channelCount = 2,
-            encoding = C.ENCODING_PCM_16BIT,
-            regionStartUs = 0L,
-            regionEndUs = 20_000L,
-        )
-        val buffer = ByteBuffer.allocate(20 * 2 * 2).order(ByteOrder.nativeOrder())
-        repeat(20) {
-            buffer.putShort(0)
-            buffer.putShort(16_384)
+        listOf(0 to 16_384, 16_384 to 0).forEach { (left, right) ->
+            val accumulator = PcmEnvelopeAccumulator(
+                sampleRate = 1_000,
+                channelCount = 2,
+                encoding = C.ENCODING_PCM_16BIT,
+                regionStartUs = 0L,
+                regionEndUs = 20_000L,
+            )
+            val buffer = ByteBuffer.allocate(20 * 2 * 2).order(ByteOrder.nativeOrder())
+            repeat(20) {
+                buffer.putShort(left.toShort())
+                buffer.putShort(right.toShort())
+            }
+            buffer.flip()
+
+            accumulator.append(buffer, 0L)
+
+            assertEquals(0.5f, accumulator.finish().single().maxChannelRms, 0.001f)
         }
-        buffer.flip()
-
-        accumulator.append(buffer, 0L)
-
-        assertEquals(0.5f, accumulator.finish().single().maxChannelRms, 0.001f)
     }
 
     @Test
@@ -190,7 +263,7 @@ class PlaybackCrossfadeEnvelopeTest {
         val aboveFloor = CrossfadeLevelWindow(20L, 40L, 4f / 32_768f)
 
         assertEquals(
-            20L to 0L,
+            0L to 20L,
             CrossfadeCueAlgorithm.trailingCue(
                 windows = listOf(belowFloor),
                 durationMs = 20L,

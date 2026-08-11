@@ -1015,8 +1015,14 @@ class PlaybackManager(
         val durationMs = CrossfadeDurationPolicy.sanitizeSettingsDuration(value)
         if (crossfadeDurationMs == durationMs) return
         crossfadeDurationMs = durationMs
-        crossfadeController.cancel()
-        if (crossfadeEnabled) prepareCrossfadeIfPossible()
+        crossfadeController.updateSettings(
+            primary = player,
+            fadeDurationMs = durationMs,
+            silenceLevelDb = crossfadeSilenceThresholdDb,
+        )
+        if (crossfadeEnabled && crossfadeController.state == CrossfadeState.Idle) {
+            prepareCrossfadeIfPossible()
+        }
     }
 
     fun setCrossfadeSilenceThresholdDb(value: Float) {
@@ -1024,8 +1030,14 @@ class PlaybackManager(
         val thresholdDb = CrossfadeSilencePolicy.sanitizeLevelDb(value)
         if (crossfadeSilenceThresholdDb == thresholdDb) return
         crossfadeSilenceThresholdDb = thresholdDb
-        crossfadeController.cancel()
-        if (crossfadeEnabled) prepareCrossfadeIfPossible()
+        crossfadeController.updateSettings(
+            primary = player,
+            fadeDurationMs = crossfadeDurationMs,
+            silenceLevelDb = thresholdDb,
+        )
+        if (crossfadeEnabled && crossfadeController.state == CrossfadeState.Idle) {
+            prepareCrossfadeIfPossible()
+        }
     }
 
     fun setVolumeNormalizationEnabled(enabled: Boolean) {

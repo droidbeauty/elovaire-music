@@ -67,6 +67,8 @@ class CrossfadePlaybackInstrumentedTest {
 
         instrumentation.runOnMainSync {
             playbackManager = PlaybackManager(context, scope)
+            playbackManager.setCrossfadeDurationMs(5_000L)
+            playbackManager.setCrossfadeSilenceThresholdDb(-90f)
             playbackManager.setCrossfadeEnabled(true)
             playbackManager.playAlbum(album)
         }

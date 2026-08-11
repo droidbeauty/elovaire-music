@@ -71,6 +71,12 @@ internal class PlaybackCrossfadeController(
     private var incomingGain = 1f
     private var queue: List<Song> = emptyList()
     private var nextQueueIndex = -1
+    private var outgoingSong: Song? = null
+    private var incomingSong: Song? = null
+    private var outgoingDurationMs = 0L
+    private var currentCue: CrossfadeCue? = null
+    private var configuredFadeDurationMs = CrossfadeDurationPolicy.DEFAULT_DURATION_MS
+    private var configuredSilenceLevelDb = CrossfadeSilencePolicy.BASE_LEVEL_DB
     private var plan: CrossfadeTransitionPlan? = null
     private var fadeDurationMs = CrossfadeDurationPolicy.DEFAULT_DURATION_MS
     private var fadeStartedAtElapsedMs = 0L
@@ -97,6 +103,7 @@ internal class PlaybackCrossfadeController(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun prepare(
         primary: ExoPlayer,
         queue: List<Song>,
@@ -112,41 +119,109 @@ internal class PlaybackCrossfadeController(
         val durationMs = primary.duration.takeIf { it > 0L } ?: outgoingSong.durationMs
         if (durationMs <= 0L || primary.getPauseAtEndOfMediaItems()) return
 
+        configuredFadeDurationMs = CrossfadeDurationPolicy.sanitize(fadeDurationMs)
+        configuredSilenceLevelDb = CrossfadeSilencePolicy.sanitizeLevelDb(silenceLevelDb)
         val token = ++transitionToken
         state = CrossfadeState.Analyzing
         outgoing = primary
         this.queue = queue.toList()
         this.nextQueueIndex = nextQueueIndex
+        this.outgoingSong = outgoingSong
+        this.incomingSong = incomingSong
+        this.outgoingDurationMs = durationMs
         this.outgoingGain = outgoingGain.coerceIn(0f, 1f)
         this.incomingGain = incomingGain.coerceIn(0f, 1f)
+        currentCue = null
+        logDebug(
+            "prepare crossfade_enabled=true configured_duration_ms=$configuredFadeDurationMs " +
+                "configured_silence_db=$configuredSilenceLevelDb",
+        )
         analysisJob = scope.launch {
             val cue = try {
                 cueAnalyzer.analyzePair(
                     outgoing = outgoingSong,
                     incoming = incomingSong,
-                    silenceLevelDb = silenceLevelDb,
+                    silenceLevelDb = configuredSilenceLevelDb,
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
-            } catch (_: Exception) {
-                CrossfadeCue.fallback(durationMs)
+            } catch (error: Exception) {
+                val reason = "controller_analysis_exception:${error.javaClass.simpleName}"
+                logDebug("analysis_fallback reason=$reason")
+                CrossfadeCue.fallback(durationMs).copy(
+                    outgoingFallbackReason = reason,
+                    incomingFallbackReason = reason,
+                )
             }
             handler.post {
                 if (token != transitionToken || state != CrossfadeState.Analyzing) return@post
+                currentCue = cue
                 plan = CrossfadeTransitionPlan.from(
                     cue = cue,
                     outgoingDurationMs = durationMs,
                     incomingDurationMs = incomingSong.durationMs,
-                    fadeDurationMs = fadeDurationMs,
+                    fadeDurationMs = configuredFadeDurationMs,
                 )
                 state = CrossfadeState.WaitingForPrewarm
                 logDebug(
-                    "cue duration=$durationMs mixOut=${cue.outgoingMixOutMs} mixIn=${cue.incomingMixInMs} " +
-                        "tailSilence=${cue.outgoingTrailingSilenceMs} headSilence=${cue.incomingLeadingSilenceMs} " +
-                        "analysis=${cue.outgoingAnalysisSucceeded}/${cue.incomingAnalysisSucceeded}",
+                        "cue configured_duration_ms=$configuredFadeDurationMs " +
+                        "analyzer_silence_db=$configuredSilenceLevelDb duration=$durationMs " +
+                        "detected_mix_out_ms=${cue.outgoingMixOutMs} " +
+                        "detected_mix_in_ms=${cue.incomingMixInMs} " +
+                        "trailing_silence_ms=${cue.outgoingTrailingSilenceMs} " +
+                        "leading_silence_ms=${cue.incomingLeadingSilenceMs} " +
+                        "planned_fade_ms=${plan?.fadeDurationMs} planned_fade_start_ms=${plan?.fadeStartMs} " +
+                        "analysis_success=${cue.outgoingAnalysisSucceeded}/${cue.incomingAnalysisSucceeded} " +
+                        "fallback_reason=${cue.outgoingFallbackReason ?: cue.incomingFallbackReason ?: "none"}",
                 )
                 schedulePrewarm(token)
             }
+        }
+    }
+
+    fun updateSettings(
+        primary: ExoPlayer,
+        fadeDurationMs: Long,
+        silenceLevelDb: Float,
+    ) {
+        if (state == CrossfadeState.Released) return
+        val normalizedDuration = CrossfadeDurationPolicy.sanitize(fadeDurationMs)
+        val normalizedSilence = CrossfadeSilencePolicy.sanitizeLevelDb(silenceLevelDb)
+        val durationChanged = configuredFadeDurationMs != normalizedDuration
+        val silenceChanged = configuredSilenceLevelDb != normalizedSilence
+        configuredFadeDurationMs = normalizedDuration
+        configuredSilenceLevelDb = normalizedSilence
+        if (!durationChanged && !silenceChanged) return
+        if (state == CrossfadeState.Fading || state == CrossfadeState.PromotingNext) return
+
+        if (silenceChanged && state != CrossfadeState.Idle) {
+            val currentQueue = queue
+            val currentNextQueueIndex = nextQueueIndex
+            val currentOutgoingSong = outgoingSong
+            val currentIncomingSong = incomingSong
+            val currentOutgoingGain = outgoingGain
+            val currentIncomingGain = incomingGain
+            cancel()
+            if (
+                currentOutgoingSong != null &&
+                currentIncomingSong != null &&
+                currentQueue.isNotEmpty() &&
+                currentNextQueueIndex in currentQueue.indices
+            ) {
+                prepare(
+                    primary = primary,
+                    queue = currentQueue,
+                    nextQueueIndex = currentNextQueueIndex,
+                    outgoingSong = currentOutgoingSong,
+                    incomingSong = currentIncomingSong,
+                    outgoingGain = currentOutgoingGain,
+                    incomingGain = currentIncomingGain,
+                    fadeDurationMs = configuredFadeDurationMs,
+                    silenceLevelDb = configuredSilenceLevelDb,
+                )
+            }
+        } else if (durationChanged && currentCue != null) {
+            replanForDuration(primary)
         }
     }
 
@@ -170,6 +245,10 @@ internal class PlaybackCrossfadeController(
         incomingReady = false
         queue = emptyList()
         nextQueueIndex = -1
+        outgoingSong = null
+        incomingSong = null
+        outgoingDurationMs = 0L
+        currentCue = null
         plan = null
         state = CrossfadeState.Cancelled
         state = CrossfadeState.Idle
@@ -178,6 +257,34 @@ internal class PlaybackCrossfadeController(
     fun release() {
         cancel()
         state = CrossfadeState.Released
+    }
+
+    private fun replanForDuration(primary: ExoPlayer) {
+        val cue = currentCue ?: return
+        val incomingTrack = incomingSong ?: return
+        val durationMs = primary.duration.takeIf { it > 0L } ?: outgoingDurationMs
+        if (durationMs <= 0L) return
+        plan = CrossfadeTransitionPlan.from(
+            cue = cue,
+            outgoingDurationMs = durationMs,
+            incomingDurationMs = incomingTrack.durationMs,
+            fadeDurationMs = configuredFadeDurationMs,
+        )
+        handler.removeCallbacks(prewarmRunnable)
+        handler.removeCallbacks(startRunnable)
+        when (state) {
+            CrossfadeState.WaitingForPrewarm -> schedulePrewarm(transitionToken)
+            CrossfadeState.PreparingNext -> if (incomingReady) scheduleFadeWhenReady(transitionToken)
+            CrossfadeState.Ready -> {
+                state = CrossfadeState.PreparingNext
+                scheduleFadeWhenReady(transitionToken)
+            }
+            else -> Unit
+        }
+        logDebug(
+            "duration_replan configured_duration_ms=$configuredFadeDurationMs " +
+                "planned_fade_ms=${plan?.fadeDurationMs} planned_fade_start_ms=${plan?.fadeStartMs}",
+        )
     }
 
     private fun schedulePrewarm(token: Long) {
@@ -200,7 +307,7 @@ internal class PlaybackCrossfadeController(
         val secondary = try {
             createPlayer()
         } catch (_: RuntimeException) {
-            fail()
+            fail("secondary_player_creation_failure")
             return
         }
         incoming = secondary
@@ -217,7 +324,7 @@ internal class PlaybackCrossfadeController(
             try {
                 secondary.setMediaItems(queue.map(Song::toPlaybackMediaItem), nextQueueIndex, 0L)
             } catch (_: RuntimeException) {
-                fail()
+                fail("secondary_media_item_setup_failure")
                 return
             }
         }
@@ -231,7 +338,7 @@ internal class PlaybackCrossfadeController(
             }
 
             override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                if (secondary === incoming && token == transitionToken) fail()
+                if (secondary === incoming && token == transitionToken) fail("secondary_player_error")
             }
         })
         secondary.prepare()
@@ -289,16 +396,20 @@ internal class PlaybackCrossfadeController(
         incomingReady = false
         queue = emptyList()
         nextQueueIndex = -1
+        outgoingSong = null
+        incomingSong = null
+        outgoingDurationMs = 0L
+        currentCue = null
         plan = null
         logDebug("promote")
         onPromote(outgoingPlayer, incomingPlayer)
         state = CrossfadeState.Idle
     }
 
-    private fun fail() {
+    private fun fail(reason: String) {
         if (state == CrossfadeState.Released) return
         state = CrossfadeState.Failed
-        logDebug("fallback normal transition")
+        logDebug("fallback normal transition fallback_reason=$reason")
         cancel()
         onFailed()
     }
