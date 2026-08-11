@@ -59,7 +59,7 @@ internal class AlbumTagEditorViewModel(
 
     private val _events = MutableSharedFlow<AlbumTagEditorEvent>(extraBufferCapacity = 1)
     val events: SharedFlow<AlbumTagEditorEvent> = _events.asSharedFlow()
-    private var pendingWriteRequest: PendingTagWrite? = null
+    private val writePermissionState = AlbumTagWritePermissionState(operationIdGenerator)
 
     init {
         viewModelScope.launch {
@@ -196,8 +196,7 @@ internal class AlbumTagEditorViewModel(
             statusMessage = null,
             saveFailures = emptyList(),
         ).recalculateFlags()
-        val pending = PendingTagWrite(operationIdGenerator.nextId(), request)
-        pendingWriteRequest = pending
+        val pending = writePermissionState.begin(request) ?: return
         viewModelScope.launch {
             _events.emit(
                 AlbumTagEditorEvent.RequestWritePermission(
@@ -213,17 +212,15 @@ internal class AlbumTagEditorViewModel(
         operationId: String,
         granted: Boolean,
     ) {
-        if (!matchesPlatformActionResult(pendingWriteRequest?.operationId, operationId)) return
-        val pending = pendingWriteRequest ?: return
+        if (!matchesPlatformActionResult(writePermissionState.pending(operationId)?.operationId, operationId)) return
+        val pending = writePermissionState.consume(operationId) ?: return
         if (!granted) {
-            pendingWriteRequest = null
             _uiState.value = _uiState.value.copy(
                 isSaving = false,
                 statusMessage = "Write access was not granted.",
             ).recalculateFlags()
             return
         }
-        pendingWriteRequest = null
         viewModelScope.launch {
             performSave(pending.request, writeConsentGranted = true)
         }
@@ -231,17 +228,51 @@ internal class AlbumTagEditorViewModel(
 
     /** A grouped MediaStore request is unavailable; the write itself must establish access. */
     fun onWritePermissionNotRequired(operationId: String) {
-        if (!matchesPlatformActionResult(pendingWriteRequest?.operationId, operationId)) return
-        val pending = pendingWriteRequest ?: return
-        pendingWriteRequest = null
+        if (!matchesPlatformActionResult(writePermissionState.pending(operationId)?.operationId, operationId)) return
+        val pending = writePermissionState.consume(operationId) ?: return
         viewModelScope.launch {
             performSave(pending.request, writeConsentGranted = false)
         }
     }
 
+    fun onSafWritePermissionResult(
+        operationId: String,
+        granted: Boolean,
+        failureMessage: String = "Write access was not granted.",
+    ) {
+        val pending = writePermissionState.pending(operationId) ?: return
+        if (!granted) {
+            writePermissionState.consume(operationId)
+            _uiState.value = _uiState.value.copy(
+                isSaving = false,
+                statusMessage = failureMessage,
+            ).recalculateFlags()
+            return
+        }
+        viewModelScope.launch {
+            _events.emit(
+                AlbumTagEditorEvent.RequestWritePermission(
+                    operationId = pending.operationId,
+                    request = pending.request,
+                    uris = pending.request.mutatedUris(),
+                ),
+            )
+        }
+    }
+
+    fun onWritePreflightFailed(
+        operationId: String,
+        message: String,
+    ) {
+        if (writePermissionState.consume(operationId) == null) return
+        _uiState.value = _uiState.value.copy(
+            isSaving = false,
+            statusMessage = message,
+        ).recalculateFlags()
+    }
+
     fun onWritePermissionLaunchFailed(operationId: String) {
-        if (!matchesPlatformActionResult(pendingWriteRequest?.operationId, operationId)) return
-        pendingWriteRequest = null
+        if (writePermissionState.consume(operationId) == null) return
         _uiState.value = _uiState.value.copy(
             isSaving = false,
             statusMessage = "Android could not open the write-access request.",
@@ -306,8 +337,14 @@ internal class AlbumTagEditorViewModel(
                 val retryRequest = request.retryForFailures(
                     failedSongIds = result.failures.map { it.songId }.toSet(),
                 )
-                val pending = PendingTagWrite(operationIdGenerator.nextId(), retryRequest)
-                pendingWriteRequest = pending
+                val pending = writePermissionState.begin(retryRequest)
+                if (pending == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        statusMessage = "A write-access request is already pending.",
+                    ).recalculateFlags()
+                    return@onSuccess
+                }
                 _events.emit(
                     AlbumTagEditorEvent.RequestRecoverableWritePermission(
                         operationId = pending.operationId,
@@ -330,8 +367,14 @@ internal class AlbumTagEditorViewModel(
                 else -> null
             }
             if (recoverableIntentSender != null) {
-                val pending = PendingTagWrite(operationIdGenerator.nextId(), request)
-                pendingWriteRequest = pending
+                val pending = writePermissionState.begin(request)
+                if (pending == null) {
+                    _uiState.value = _uiState.value.copy(
+                        isSaving = false,
+                        statusMessage = "A write-access request is already pending.",
+                    ).recalculateFlags()
+                    return@onFailure
+                }
                 _uiState.value = _uiState.value.copy(
                     isSaving = false,
                     statusMessage = null,
@@ -351,11 +394,6 @@ internal class AlbumTagEditorViewModel(
             }
         }
     }
-
-    private data class PendingTagWrite(
-        val operationId: String,
-        val request: AlbumTagEditRequest,
-    )
 
     private fun invalidateEditedArtwork(artworkUrisToInvalidate: List<Uri?>) {
         invalidateArtworkCaches(artworkUrisToInvalidate)

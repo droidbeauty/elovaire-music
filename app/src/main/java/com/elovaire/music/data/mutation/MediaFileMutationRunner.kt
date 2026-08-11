@@ -33,6 +33,24 @@ internal class MediaFileMutationRunner(
         }
     }
 
+    fun preflight(song: Song) {
+        requireWritable(song.uri)
+        val sourceSize = when (val target = MediaWriteTargetClassifier.classify(appContext, song.uri)) {
+            is MediaWriteTarget.FileUri -> target.uri.path?.let(::File)?.length() ?: -1L
+            else -> contentIo.openReadableDescriptor(song.uri).use { it.statSize }
+        }
+        check(sourceSize != 0L) { "The song file is empty." }
+        contentResolver.openInputStream(song.uri)?.use { input ->
+            check(input.read() >= 0) { "The song file is empty." }
+        } ?: error("Unable to open the source file.")
+        if (sourceSize > 0L) {
+            val requiredSpace = sourceSize.coerceAtMost(Long.MAX_VALUE / TEMP_COPY_COUNT) * TEMP_COPY_COUNT
+            check(appContext.filesDir.usableSpace >= requiredSpace) {
+                "There is not enough temporary storage to edit this song safely."
+            }
+        }
+    }
+
     fun copySongToTemp(
         song: Song,
         purpose: String,
@@ -103,5 +121,6 @@ internal class MediaFileMutationRunner(
 
     private companion object {
         const val COMPARE_BUFFER_SIZE = 64 * 1024
+        const val TEMP_COPY_COUNT = 3L
     }
 }

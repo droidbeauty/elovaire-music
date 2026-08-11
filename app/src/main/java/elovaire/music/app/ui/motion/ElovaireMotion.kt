@@ -9,6 +9,7 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -17,7 +18,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
 import kotlin.math.roundToInt
 
@@ -327,16 +330,24 @@ object ElovaireMotion {
     fun bottomSheetEnter(
         initialOffsetY: (Int) -> Int = { it / 5 },
     ): EnterTransition = overlayFadeEnter(initialAlpha = 0.74f) +
+        expandVertically(
+            expandFrom = Alignment.Bottom,
+            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = EmphasizedDecelerate),
+        ) +
         slideInVertically(
-            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = GentleDecelerate),
+            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = EmphasizedDecelerate),
             initialOffsetY = initialOffsetY,
         )
 
     fun bottomSheetExit(
         targetOffsetY: (Int) -> Int = { it / 8 },
     ): ExitTransition = overlayFadeExit(targetAlpha = 0.9f) +
+        shrinkVertically(
+            shrinkTowards = Alignment.Bottom,
+            animationSpec = scaledTween(durationMillis = FastBase, easing = EmphasizedAccelerate),
+        ) +
         slideOutVertically(
-            animationSpec = scaledTween(durationMillis = FastBase, easing = GentleAccelerate),
+            animationSpec = scaledTween(durationMillis = FastBase, easing = EmphasizedAccelerate),
             targetOffsetY = targetOffsetY,
         )
 

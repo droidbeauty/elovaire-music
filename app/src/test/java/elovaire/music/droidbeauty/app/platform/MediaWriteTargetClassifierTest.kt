@@ -17,6 +17,30 @@ class MediaWriteTargetClassifierTest {
     }
 
     @Test
+    fun classifyParts_recognizesExternalPrimaryMediaStoreItemUri() {
+        assertEquals(
+            MediaWriteTargetKind.MediaStoreItem,
+            MediaWriteTargetClassifier.classifyParts(
+                scheme = "content",
+                authority = "media",
+                pathSegments = listOf("external_primary", "audio", "media", "42"),
+            ),
+        )
+    }
+
+    @Test
+    fun classifyParts_recognizesSecondaryVolumeMediaStoreItemUri() {
+        assertEquals(
+            MediaWriteTargetKind.MediaStoreItem,
+            MediaWriteTargetClassifier.classifyParts(
+                scheme = "content",
+                authority = "media",
+                pathSegments = listOf("7A1B-2C3D", "audio", "media", "42"),
+            ),
+        )
+    }
+
+    @Test
     fun classifyParts_rejectsMediaStoreCollectionUri() {
         assertEquals(
             MediaWriteTargetKind.Unsupported,

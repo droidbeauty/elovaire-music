@@ -6936,7 +6936,7 @@ internal fun NowPlayingScreen(
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 900.dp
+                val queueSheetTopExtension = 960.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -7084,8 +7084,8 @@ internal fun NowPlayingScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter),
-                    enter = motionTransitions.queueMenuEnter(),
-                    exit = motionTransitions.queueMenuExit(),
+                    enter = ElovaireMotion.bottomSheetEnter(),
+                    exit = ElovaireMotion.bottomSheetExit(),
                 ) {
                     QueueSheet(
                         queue = playerUiState.queue,
@@ -7243,8 +7243,8 @@ internal fun NowPlayingScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .zIndex(20f),
-            enter = motionTransitions.bottomSheetEnter(),
-            exit = motionTransitions.bottomSheetExit(),
+            enter = motionTransitions.overlayFadeEnter(initialAlpha = 0.86f),
+            exit = motionTransitions.overlayFadeExit(targetAlpha = 0.94f),
             label = "SleepTimerSheetOverlay",
         ) {
             SleepTimerDialog(
@@ -7426,7 +7426,7 @@ private fun QueueSheet(
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
     val footerHeight by animateDpAsState(
-        targetValue = if (footerExpanded) 90.dp else 60.dp,
+        targetValue = if (footerExpanded) 76.dp else 46.dp,
         animationSpec = ElovaireMotion.queueMenuEnterSpec(),
         label = "queue_footer_height",
     )
@@ -7446,7 +7446,7 @@ private fun QueueSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(70.dp),
+                    .height(56.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 Row(
@@ -7518,7 +7518,7 @@ private fun QueueSheet(
                     modifier = Modifier
                         .fillMaxSize()
                         .ensureSingleItemRubberBand(listState),
-                    contentPadding = PaddingValues(vertical = 8.dp),
+                    contentPadding = PaddingValues(vertical = 4.dp),
                     verticalArrangement = Arrangement.spacedBy(1.dp),
                 ) {
                     itemsIndexed(
@@ -7697,65 +7697,71 @@ private fun SleepTimerDialog(
                     onClick = onDismiss,
                 ),
         )
-        DynamicBackdropSurface(
+        androidx.compose.animation.AnimatedVisibility(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
-            shape = RoundedCornerShape(
-                topStart = ElovaireRadii.dialog,
-                topEnd = ElovaireRadii.dialog,
-            ),
-            overlayAlpha = 0.6f,
-            borderColor = null,
+            visible = true,
+            enter = ElovaireMotion.bottomSheetEnter(),
+            exit = ElovaireMotion.bottomSheetExit(),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .navigationBarsPadding()
-                    .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 28.dp),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
+            DynamicBackdropSurface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(
+                    topStart = ElovaireRadii.dialog,
+                    topEnd = ElovaireRadii.dialog,
+                ),
+                overlayAlpha = 0.6f,
+                borderColor = null,
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 28.dp),
+                    verticalArrangement = Arrangement.spacedBy(18.dp),
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_timer),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Text(
-                            text = copy.title,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_timer),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(
+                                text = copy.title,
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onDismiss,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_x),
+                                contentDescription = copy.close,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onDismiss,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_x),
-                            contentDescription = copy.close,
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
                 Text(
                     text = "${selectedMinutes.roundToInt()}${copy.minuteSuffix}",
                     style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
@@ -7835,20 +7841,25 @@ private fun SleepTimerDialog(
     }
 }
 
+}
+
 @Composable
 private fun SleepTimerSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
 ) {
     val currentOnValueChange by rememberUpdatedState(onValueChange)
-    val fraction = ((value.coerceIn(10f, 60f) - 10f) / 50f).coerceIn(0f, 1f)
+    val fraction = when (val minutes = value.coerceIn(10f, 60f)) {
+        in 10f..30f -> (minutes - 10f) / 40f
+        else -> 0.5f + ((minutes - 30f) / 60f)
+    }.coerceIn(0f, 1f)
     val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
         InkText
     } else {
         Color.White
     }
-    val barCount = 30
-    val activeBarCount = (fraction * (barCount - 1)).roundToInt() + 1
+    val barCount = 41
+    val activeBarIndex = (fraction * (barCount - 1)).roundToInt()
 
     BoxWithConstraints(
         modifier = Modifier
@@ -7859,7 +7870,12 @@ private fun SleepTimerSlider(
         val maxWidthPx = with(LocalDensity.current) { maxWidth.toPx() }.coerceAtLeast(1f)
         val updateFromX: (Float) -> Unit = { xPosition ->
             val normalized = (xPosition / maxWidthPx).coerceIn(0f, 1f)
-            currentOnValueChange(10f + ((normalized * 10f).roundToInt() * 5f))
+            val minutes = if (normalized <= 0.5f) {
+                10f + (normalized * 40f)
+            } else {
+                30f + ((normalized - 0.5f) * 60f)
+            }
+            currentOnValueChange((minutes / 5f).roundToInt() * 5f)
         }
 
         Box(
@@ -7886,13 +7902,32 @@ private fun SleepTimerSlider(
                 verticalAlignment = Alignment.Bottom,
             ) {
                 repeat(barCount) { index ->
-                    val active = index < activeBarCount
+                    val active = index <= activeBarIndex
+                    val waveDelay = (kotlin.math.abs(index - activeBarIndex) * 7).coerceAtMost(140)
+                    val animatedHeight by animateDpAsState(
+                        targetValue = if (active) 22.dp else 13.dp,
+                        animationSpec = ElovaireMotion.standardTween(
+                            durationMillis = 220,
+                            delayMillis = waveDelay,
+                            easing = FastOutSlowInEasing,
+                        ),
+                        label = "sleep_timer_bar_height_$index",
+                    )
+                    val animatedAlpha by animateFloatAsState(
+                        targetValue = if (active) 1f else 0.3f,
+                        animationSpec = ElovaireMotion.standardTween(
+                            durationMillis = 180,
+                            delayMillis = waveDelay,
+                            easing = LinearOutSlowInEasing,
+                        ),
+                        label = "sleep_timer_bar_alpha_$index",
+                    )
                     Box(
                         modifier = Modifier
-                            .width(4.dp)
-                            .height(if (active) 22.dp else 13.dp)
-                            .clip(RoundedCornerShape(1.dp))
-                            .background(lineColor.copy(alpha = if (active) 1f else 0.3f)),
+                            .width(3.dp)
+                            .height(animatedHeight)
+                            .clip(RoundedCornerShape(percent = 50))
+                            .background(lineColor.copy(alpha = animatedAlpha)),
                     )
                 }
             }
@@ -7964,7 +7999,7 @@ private fun QueueSongRow(
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 6.dp, vertical = 6.dp),
+                .padding(horizontal = 6.dp, vertical = 3.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

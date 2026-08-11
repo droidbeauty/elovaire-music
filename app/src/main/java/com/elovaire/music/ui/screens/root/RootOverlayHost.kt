@@ -57,8 +57,8 @@ internal fun BoxScope.RootOverlayHost(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(RootLayerZ.ChangelogSheet),
-        enter = motionTransitions.bottomSheetEnter(),
-        exit = motionTransitions.bottomSheetExit(),
+        enter = motionTransitions.overlayFadeEnter(initialAlpha = 0.86f),
+        exit = motionTransitions.overlayFadeExit(targetAlpha = 0.94f),
         label = "ChangelogSheetOverlay",
     ) {
         ChangelogBottomSheetOverlay(

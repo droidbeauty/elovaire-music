@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.app.PendingIntent
 import android.app.RecoverableSecurityException
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
@@ -18,6 +19,7 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.platform.ContentIo
+import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -154,6 +156,23 @@ internal class AlbumTagEditorService(
                 },
             )
         }
+        val preflightFailures = plans.mapNotNull { plan ->
+            preflightFailure(
+                plan = plan,
+                hasArtwork = coverArtBytes != null,
+                writeConsentGranted = writeConsentGranted,
+            )
+        }
+        if (preflightFailures.isNotEmpty()) {
+            return@withContext TagEditApplyResult(
+                editedSongIds = emptyList(),
+                editedUris = emptyList(),
+                editedFilePaths = emptyList(),
+                editedSongs = emptyList(),
+                artworkChanged = false,
+                failures = preflightFailures,
+            )
+        }
         plans.forEach { plan ->
             val song = plan.song
             val trackEdit = plan.trackEdit
@@ -206,6 +225,7 @@ internal class AlbumTagEditorService(
             var rollbackFailed = false
             var originalOverwritten = false
             try {
+                logPhase(phase, song, writeConsentGranted)
                 mutationRunner.requireWritable(song.uri)
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
                 val originalBackup = mutationRunner.copySongToTemp(song, "backup")
@@ -215,6 +235,7 @@ internal class AlbumTagEditorService(
                 }
                 tempFile = workingFile
                 phase = TagEditWritePhase.TempWrite
+                logPhase(phase, song, writeConsentGranted)
                 updateTagFile(
                     tempFile = workingFile,
                     originalSong = song,
@@ -225,6 +246,7 @@ internal class AlbumTagEditorService(
                 )
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
                 phase = TagEditWritePhase.TempVerification
+                logPhase(phase, song, writeConsentGranted)
                 val verificationFailures = verifyWrittenTags(
                     tempFile = workingFile,
                     expected = ExpectedTagValues(
@@ -257,17 +279,17 @@ internal class AlbumTagEditorService(
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
                 phase = TagEditWritePhase.OriginalOverwrite
+                logPhase(phase, song, writeConsentGranted, replacementBytes = workingFile.length())
                 try {
                     mutationRunner.overwriteOriginal(song.uri, tempFile)
                     originalOverwritten = true
                 } catch (writeFailure: Throwable) {
-                    rollbackFailed = runCatching {
-                        mutationRunner.overwriteOriginal(song.uri, originalBackup)
-                    }.isFailure
+                    rollbackFailed = !restoreOriginal(song.uri, originalBackup)
                     throw writeFailure
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
                 phase = TagEditWritePhase.PersistedVerification
+                logPhase(phase, song, writeConsentGranted)
                 persistedVerificationFile = mutationRunner.copySongToTemp(song, "verify")
                 val persistedFailures = verifyWrittenTags(
                     tempFile = persistedVerificationFile,
@@ -291,9 +313,7 @@ internal class AlbumTagEditorService(
                     mutationId?.let {
                         mediaMutationJournal.mark(it, MediaMutationStatus.NeedsRepair, persistedFailures.joinToString())
                     }
-                    rollbackFailed = runCatching {
-                        mutationRunner.overwriteOriginal(song.uri, originalBackup)
-                    }.isFailure
+                    rollbackFailed = !restoreOriginal(song.uri, originalBackup)
                     error("Persisted tag verification failed: ${persistedFailures.joinToString()}")
                 }
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
@@ -312,12 +332,11 @@ internal class AlbumTagEditorService(
                     metadataResolved = true,
                 )
                 mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Completed) }
+                logDebug("Completed songId=${song.id} authority=${song.uri.authority.orEmpty()}")
             } catch (throwable: CancellationException) {
                 withContext(NonCancellable) {
                     if (originalOverwritten && backupFile != null) {
-                        rollbackFailed = runCatching {
-                            mutationRunner.overwriteOriginal(song.uri, backupFile)
-                        }.isFailure
+                        rollbackFailed = !restoreOriginal(song.uri, backupFile)
                     }
                     mutationId?.let {
                         mediaMutationJournal.mark(
@@ -383,6 +402,71 @@ internal class AlbumTagEditorService(
             permissionRequest = permissionRequest,
         )
         }
+    }
+
+    private fun preflightFailure(
+        plan: TagEditPlan,
+        hasArtwork: Boolean,
+        writeConsentGranted: Boolean,
+    ): TagEditFailure? {
+        val song = plan.song
+        val preflight = runCatching {
+            val detectedFormat = song.fileName
+                .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
+                ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
+            check(AudioFormatPolicy.tagWriteSupport(detectedFormat, song.fileName) == TagWriteSupport.Safe) {
+                "This audio format cannot be tagged safely."
+            }
+            check(!hasArtwork || AudioFormatPolicy.canEmbedArtwork(detectedFormat, song.fileName)) {
+                "Artwork cannot be embedded safely in this audio format."
+            }
+            mutationRunner.preflight(song)
+        }
+        preflight.exceptionOrNull()?.let { if (it is CancellationException) throw it }
+        val failure = preflight.exceptionOrNull() ?: run {
+            logPhase(TagEditWritePhase.PermissionPreflight, song, writeConsentGranted)
+            return null
+        }
+        logDebug(
+            "Preflight failed songId=${song.id} target=${MediaWriteTargetClassifier.classify(appContext, song.uri)::class.simpleName} " +
+                "authority=${song.uri.authority.orEmpty()} type=${failure.javaClass.simpleName} message=${failure.message.orEmpty()}",
+        )
+        val message = failure.message.orEmpty()
+        val cause = when {
+            message == "This audio format cannot be tagged safely." -> TagEditFailureCause.UnsupportedFormat
+            message == "Artwork cannot be embedded safely in this audio format." ->
+                TagEditFailureCause.UnsupportedArtworkFormat
+            message.contains("write", ignoreCase = true) -> TagEditFailureCause.CannotOpenOutput
+            else -> TagEditFailureCause.CannotOpenInput
+        }
+        return TagEditFailure(
+            songId = song.id,
+            fileName = song.fileName,
+            reason = message.ifBlank { "This song is not ready for safe tag editing." },
+            cause = cause,
+        )
+    }
+
+    private fun restoreOriginal(uri: Uri, backup: File): Boolean {
+        return runCatching {
+            mutationRunner.overwriteOriginal(uri, backup)
+            mutationRunner.verifyOriginalBytes(uri, backup)
+            logDebug("Rollback verified authority=${uri.authority.orEmpty()} bytes=${backup.length()}")
+        }.isSuccess
+    }
+
+    private fun logPhase(
+        phase: TagEditWritePhase,
+        song: Song,
+        writeConsentGranted: Boolean,
+        replacementBytes: Long? = null,
+    ) {
+        val target = MediaWriteTargetClassifier.classify(appContext, song.uri)
+        logDebug(
+            "phase=${phase.name} sdk=${Build.VERSION.SDK_INT} target=${target::class.simpleName} " +
+                "authority=${song.uri.authority.orEmpty()} consent=$writeConsentGranted " +
+                "replacementBytes=${replacementBytes ?: -1L}",
+        )
     }
 
     private fun updateTagFile(
@@ -631,6 +715,7 @@ private enum class TagEditWritePhase(
     val cause: TagEditFailureCause,
     val userMessage: String,
 ) {
+    PermissionPreflight(TagEditFailureCause.CannotOpenOutput, "This song is not ready for safe tag editing."),
     SourceRead(TagEditFailureCause.CannotOpenInput, "Unable to read this song for tag editing."),
     TempWrite(TagEditFailureCause.TempWriteFailed, "Unable to write tags safely."),
     TempVerification(TagEditFailureCause.TempVerificationFailed, "Changed tags could not be verified before saving."),

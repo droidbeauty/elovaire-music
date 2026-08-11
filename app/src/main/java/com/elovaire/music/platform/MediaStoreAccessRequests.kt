@@ -144,6 +144,24 @@ internal fun takePersistableTreePermission(
     }.isSuccess
 }
 
+internal fun takePersistableTreeWritePermission(
+    context: Context,
+    uri: Uri,
+): Boolean {
+    val resolver = context.contentResolver
+    val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+    if (runCatching { resolver.takePersistableUriPermission(uri, flags) }.isFailure) return false
+    return resolver.persistedUriPermissions.any { permission ->
+        permission.uri == uri && permission.isWritePermission
+    }
+}
+
+internal fun safTreeUriForDocument(uri: Uri): Uri? {
+    val authority = uri.authority ?: return null
+    val treeDocumentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull() ?: return null
+    return DocumentsContract.buildTreeDocumentUri(authority, treeDocumentId)
+}
+
 internal fun releasePersistableTreePermission(
     context: Context,
     uri: Uri,

@@ -6,13 +6,16 @@ import android.os.Build
 import android.os.ParcelFileDescriptor
 import android.provider.DocumentsContract
 import android.provider.MediaStore
+import android.util.Log
 import androidx.annotation.WorkerThread
+import elovaire.music.droidbeauty.app.BuildConfig
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileNotFoundException
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.nio.channels.FileChannel
 
 internal class ContentIo(
     private val resolver: ContentResolver,
@@ -34,26 +37,32 @@ internal class ContentIo(
     @WorkerThread
     fun replaceFromFile(uri: Uri, source: File) {
         check(source.isFile) { "The replacement file is unavailable." }
-        val output = try {
-            resolver.openOutputStream(uri, "rwt")
-        } catch (_: FileNotFoundException) {
-            null
-        } catch (_: UnsupportedOperationException) {
-            null
-        } catch (_: IllegalArgumentException) {
-            null
-        }
-        if (output != null) {
-            output.use { destination ->
-                source.inputStream().use { input ->
-                    input.copyTo(destination)
-                }
-                destination.flush()
-            }
-        } else {
+        if (Build.VERSION.SDK_INT >= 36 && uri.authority == MediaStore.AUTHORITY) {
             replaceFromDescriptor(uri, source)
+        } else {
+            val output = try {
+                resolver.openOutputStream(uri, "rwt")
+            } catch (_: FileNotFoundException) {
+                null
+            } catch (_: UnsupportedOperationException) {
+                null
+            } catch (_: IllegalArgumentException) {
+                null
+            }
+            if (output != null) {
+                output.use { destination ->
+                    source.inputStream().use { input ->
+                        input.copyTo(destination)
+                    }
+                    destination.flush()
+                }
+                logDebug(uri, "replace mode=rwt-stream bytes=${source.length()}")
+            } else {
+                replaceFromDescriptor(uri, source)
+            }
         }
-        val persistedSize = resolver.openFileDescriptor(uri, "r")?.use(ParcelFileDescriptor::getStatSize)
+        val persistedSize = openDescriptor(uri, "r")?.use(ParcelFileDescriptor::getStatSize)
+        logDebug(uri, "persisted-size bytes=$persistedSize expected=${source.length()}")
         check(persistedSize == null || persistedSize < 0L || persistedSize == source.length()) {
             "The provider persisted an incomplete file."
         }
@@ -62,17 +71,8 @@ internal class ContentIo(
     private fun replaceFromDescriptor(uri: Uri, source: File) {
         openWritableDescriptor(uri).use { descriptor ->
             FileOutputStream(descriptor.fileDescriptor).channel.use { output ->
-                output.position(0L)
-                output.truncate(0L)
                 FileInputStream(source).channel.use { input ->
-                    val expected = input.size()
-                    var copied = 0L
-                    while (copied < expected) {
-                        val count = input.transferTo(copied, expected - copied, output)
-                        check(count > 0L) { "The provider stopped before the file was fully replaced." }
-                        copied += count
-                    }
-                    check(copied == expected) { "The provider accepted an incomplete file." }
+                    replaceFileContents(input, output)
                 }
                 output.force(true)
             }
@@ -96,7 +96,10 @@ internal class ContentIo(
         var accessFailure: SecurityException? = null
         writeModes.forEach { mode ->
             try {
-                openDescriptorOrNull(uri, mode)?.let { return it }
+                openDescriptorOrNull(uri, mode)?.let {
+                    logDebug(uri, "open-write mode=$mode")
+                    return it
+                }
             } catch (failure: SecurityException) {
                 accessFailure = failure
             }
@@ -159,7 +162,12 @@ internal class ContentIo(
         }
     }
 
+    private fun logDebug(uri: Uri, message: String) {
+        if (BuildConfig.DEBUG) Log.d(TAG, "$message authority=${uri.authority.orEmpty()}")
+    }
+
     private companion object {
+        const val TAG = "ContentIo"
         val writeModes = arrayOf("rwt", "rw", "wt", "w")
     }
 }
@@ -178,4 +186,21 @@ internal fun InputStream.readBytesBounded(maxBytes: Int): ByteArray {
         check(total <= maxBytes) { "The provider response is too large." }
         output.write(buffer, 0, count)
     }
+}
+
+internal fun replaceFileContents(
+    input: FileChannel,
+    output: FileChannel,
+) {
+    output.position(0L)
+    output.truncate(0L)
+    val expected = input.size()
+    var copied = 0L
+    while (copied < expected) {
+        val count = input.transferTo(copied, expected - copied, output)
+        check(count > 0L) { "The provider stopped before the file was fully replaced." }
+        copied += count
+    }
+    check(copied == expected) { "The provider accepted an incomplete file." }
+    output.truncate(expected)
 }

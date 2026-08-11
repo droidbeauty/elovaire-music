@@ -176,7 +176,7 @@ internal fun DynamicBackdropSurface(
     showBottomEdgeLine: Boolean = false,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
-    val hazeState = LocalChromeHazeState.current
+    val hazeState = LocalPlayerHazeState.current ?: LocalChromeHazeState.current
     val overlayColor = blurSurfaceOverlayColor()
 
     Box(

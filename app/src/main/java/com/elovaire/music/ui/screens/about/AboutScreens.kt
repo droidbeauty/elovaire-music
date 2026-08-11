@@ -30,13 +30,15 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.AlertDialog
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -67,6 +69,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
+import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -184,68 +187,74 @@ internal fun ChangelogBottomSheetOverlay(
                     onClick = onDismiss,
                 ),
         )
-        DynamicBackdropSurface(
+        AnimatedVisibility(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .fillMaxHeight(0.5f),
-            shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            overlayAlpha = 0.6f,
-            borderColor = null,
+            visible = true,
+            enter = ElovaireMotion.bottomSheetEnter(),
+            exit = ElovaireMotion.bottomSheetExit(),
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(top = 18.dp),
+            DynamicBackdropSurface(
+                modifier = Modifier.fillMaxSize(),
+                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                overlayAlpha = 0.6f,
+                borderColor = null,
             ) {
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(start = 20.dp, end = 16.dp, bottom = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
+                        .fillMaxSize()
+                        .padding(top = 18.dp),
                 ) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(start = 20.dp, end = 16.dp, bottom = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(
-                            text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(ElovaireRadii.pill),
-                            color = MaterialTheme.colorScheme.background,
-                            contentColor = MaterialTheme.colorScheme.onSurface,
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(
-                                text = BuildConfig.VERSION_NAME,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                text = miscPhrase(LocalAppLanguage.current, MiscPhrase.WhatsNew),
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Surface(
+                                shape = RoundedCornerShape(ElovaireRadii.pill),
+                                color = MaterialTheme.colorScheme.background,
+                                contentColor = MaterialTheme.colorScheme.onSurface,
+                            ) {
+                                Text(
+                                    text = BuildConfig.VERSION_NAME,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                )
+                            }
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onDismiss,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_x),
+                                contentDescription = "Close changelog",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(32.dp)
-                            .clip(CircleShape)
-                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = onDismiss,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_x),
-                            contentDescription = "Close changelog",
-                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                            modifier = Modifier.size(16.dp),
-                        )
-                    }
-                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -281,6 +290,7 @@ internal fun ChangelogBottomSheetOverlay(
                         }
                     }
                 }
+            }
             }
         }
     }
@@ -399,36 +409,192 @@ internal fun AboutScreen(
 }
 
 @Composable
+@Suppress("LongMethod")
 internal fun UpdateAvailableDialog(
     controller: UpdateController,
     state: elovaire.music.droidbeauty.app.data.update.AppUpdateUiState,
     release: elovaire.music.droidbeauty.app.data.update.AppReleaseInfo,
 ) {
-    AlertDialog(
-        onDismissRequest = controller::dismissAvailableUpdate,
-        title = { Text("Update available") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("Version ${release.versionName} is available.")
-                release.notes.takeIf { it.isNotBlank() }?.let { Text(it, style = secondaryBodyTextStyle()) }
-                if (state.isDownloading) {
-                    LinearProgressIndicator(
-                        progress = { state.downloadProgress ?: 0f },
+    val changes = remember(release.notes) { releaseNotesAsChanges(release.notes) }
+    BackHandler(onBack = controller::dismissAvailableUpdate)
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {},
+            ),
+    ) {
+        AnimatedVisibility(
+            visible = true,
+            modifier = Modifier.matchParentSize(),
+            enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()),
+            exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()),
+        ) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = 0.46f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = controller::dismissAvailableUpdate,
+                    ),
+            )
+        }
+        AnimatedVisibility(
+            visible = true,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(0.78f)
+                .padding(start = 16.dp, end = 16.dp, bottom = navigationBarInsetDp() + 16.dp),
+            enter = ElovaireMotion.bottomSheetEnter(),
+            exit = ElovaireMotion.bottomSheetExit(),
+        ) {
+            DynamicBackdropSurface(
+                modifier = Modifier
+                    .fillMaxSize(),
+                shape = RoundedCornerShape(ElovaireRadii.card),
+                overlayAlpha = 0.6f,
+                borderColor = null,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                    )
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = "Update available",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                            Text(
+                                text = "Version ${release.versionName}",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = readableSecondaryTextColor(),
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = controller::dismissAvailableUpdate,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_x),
+                                contentDescription = "Close update",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    ) {
+                        LazyColumn(
+                            overscrollEffect = null,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(top = 4.dp, bottom = 4.dp),
+                        ) {
+                            item {
+                                ChangelogReleaseContent(
+                                    release = ChangelogRelease(
+                                        version = release.versionName,
+                                        changes = changes,
+                                    ),
+                                    contentHorizontalPadding = 0.dp,
+                                    pointedEntries = true,
+                                )
+                            }
+                        }
+                    }
+                    if (state.isDownloading || state.isInstalling) {
+                        LinearProgressIndicator(
+                            progress = { state.downloadProgress ?: 0f },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    state.errorMessage?.let { errorMessage ->
+                        Text(
+                            text = errorMessage,
+                            style = secondaryBodyTextStyle(),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        UpdateDialogButton(
+                            text = "Cancel",
+                            modifier = Modifier.weight(1f),
+                            onClick = controller::dismissAvailableUpdate,
+                        )
+                        UpdateDialogButton(
+                            text = "Download",
+                            modifier = Modifier.weight(1f),
+                            emphasized = true,
+                            onClick = controller::startUpdate,
+                        )
+                    }
                 }
-                state.errorMessage?.let { Text(it, style = secondaryBodyTextStyle()) }
             }
-        },
-        confirmButton = {
-            TextButton(onClick = controller::startUpdate) {
-                Text(if (state.isDownloading) "Downloading..." else "Download")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = controller::dismissAvailableUpdate) { Text("Not now") }
-        },
-    )
+        }
+    }
+}
+
+private fun releaseNotesAsChanges(notes: String): List<String> {
+    val lines = notes.lineSequence()
+        .map(String::trim)
+        .filter(String::isNotBlank)
+        .toList()
+    val bulletChanges = lines
+        .filter { it.startsWith("-") || it.startsWith("*") || it.startsWith("•") }
+        .map { line -> line.drop(1).trim() }
+        .filter(String::isNotBlank)
+    return bulletChanges.ifEmpty { lines.ifEmpty { notes.trim().takeIf(String::isNotBlank)?.let(::listOf).orEmpty() } }
+}
+
+@Composable
+private fun UpdateDialogButton(
+    text: String,
+    modifier: Modifier = Modifier,
+    emphasized: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .then(modifier)
+            .height(46.dp),
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = if (emphasized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+        contentColor = if (emphasized) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        onClick = onClick,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            )
+        }
+    }
 }
 
 @Composable
