@@ -65,4 +65,15 @@ class AppBackgroundWorkPolicyTest {
         assertTrue(policy.canStart(AppWorkKind.UserInitiatedShortWork, userInitiated = true))
         assertTrue(policy.canStart(AppWorkKind.MediaPlaybackRuntime))
     }
+
+    @Test
+    fun mediaStoreObserverIsForegroundBound() {
+        val foreground = MutableStateFlow(true)
+        val policy = AppBackgroundWorkPolicy(foreground)
+
+        assertTrue(policy.shouldKeepMediaStoreObserver(permissionGranted = true))
+        foreground.value = false
+        assertFalse(policy.shouldKeepMediaStoreObserver(permissionGranted = true))
+        assertFalse(policy.shouldKeepMediaStoreObserver(permissionGranted = false))
+    }
 }

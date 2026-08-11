@@ -8944,13 +8944,24 @@ private fun SongContextMenuItem(
     bottomPadding: Dp = 6.dp,
     onClick: () -> Unit,
 ) {
+    val interactionSource = rememberElovaireInteractionSource()
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = 10.dp, top = topPadding, end = 10.dp, bottom = bottomPadding)
+            .elovairePressScale(
+                pressedScale = 0.985f,
+                animationSpec = ElovaireMotion.softPressReturnSpec(),
+                interactionSource = interactionSource,
+                label = "${text}_context_menu_scale",
+            )
             .clip(RoundedCornerShape(cornerRadius))
             .background(containerColor)
-            .clickable(onClick = onClick)
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
             .padding(horizontal = 14.dp, vertical = 10.dp),
     ) {
         Row(

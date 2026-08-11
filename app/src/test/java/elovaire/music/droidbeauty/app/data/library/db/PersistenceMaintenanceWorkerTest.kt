@@ -11,7 +11,7 @@ class PersistenceMaintenanceWorkerTest {
         val request = PersistenceMaintenanceWorker.request()
 
         assertEquals("persistence-maintenance", PersistenceMaintenanceWorker.UNIQUE_WORK_NAME)
-        assertEquals(false, request.workSpec.constraints.requiresBatteryNotLow())
+        assertTrue(request.workSpec.constraints.requiresBatteryNotLow())
         assertTrue(request.workSpec.constraints.requiresStorageNotLow())
     }
 

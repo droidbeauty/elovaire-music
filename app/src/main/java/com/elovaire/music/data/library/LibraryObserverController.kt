@@ -93,6 +93,7 @@ internal class LibraryObserverController(
                 mediaObserver,
             )
         }.isSuccess
+        logDebug("media store observer active=$mediaObserverRegistered")
     }
 
     private fun unregisterMediaObserver() {
@@ -101,6 +102,7 @@ internal class LibraryObserverController(
             contentResolver.unregisterContentObserver(mediaObserver)
         }
         mediaObserverRegistered = false
+        logDebug("media store observer active=false")
     }
 
     fun ensureLibraryFolderObservers(forceRebuild: Boolean = false) {

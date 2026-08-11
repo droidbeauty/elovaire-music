@@ -61,6 +61,7 @@ class PersistenceMaintenanceWorker(
             return OneTimeWorkRequestBuilder<PersistenceMaintenanceWorker>()
                 .setConstraints(
                     Constraints.Builder()
+                        .setRequiresBatteryNotLow(true)
                         .setRequiresStorageNotLow(true)
                         .build(),
                 )

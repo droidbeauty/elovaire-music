@@ -107,6 +107,7 @@ class LibraryRepository internal constructor(
     @Volatile
     private var permissionChangeVersion = 0L
     private var didBootstrapLibrary = false
+    private var needsForegroundReconcile = false
     override val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     override val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
     val state: StateFlow<LibraryUiState> = combine(contentState, scanState) { content, scan ->
@@ -136,12 +137,30 @@ class LibraryRepository internal constructor(
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
         foregroundObserverJob = scope.launch {
+            var wasForeground = backgroundWorkPolicy.isForeground.value
             backgroundWorkPolicy.isForeground.collect { isForeground ->
                 if (released.get()) return@collect
+                val enteredForeground = isForeground && !wasForeground
+                if (!isForeground) {
+                    needsForegroundReconcile = true
+                }
+                wasForeground = isForeground
                 updateObserverRegistration()
                 val runtime = _runtimeState.value
                 if (isForeground && runtime is LibraryRuntimeState.BackgroundDirty && _scanState.value.permissionGranted) {
+                    needsForegroundReconcile = false
                     startRefresh(runtime.pending, showLoadingIndicator = false)
+                } else if (
+                    enteredForeground &&
+                    needsForegroundReconcile &&
+                    _scanState.value.permissionGranted
+                ) {
+                    needsForegroundReconcile = false
+                    refresh(
+                        forceMediaIndex = false,
+                        enrichMetadata = false,
+                        showLoadingIndicator = false,
+                    )
                 }
             }
         }
@@ -170,6 +189,7 @@ class LibraryRepository internal constructor(
         if (!released.compareAndSet(false, true)) return
         started.set(false)
         didBootstrapLibrary = false
+        needsForegroundReconcile = false
         releaseObserversAndJobs(clearPermissionState = true)
         foregroundObserverJob?.cancel()
         foregroundObserverJob = null

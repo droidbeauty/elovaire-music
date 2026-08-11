@@ -73,7 +73,9 @@ internal class AppBackgroundWorkPolicy(
         ) == WorkDecision.Admit
     }
 
-    fun shouldKeepMediaStoreObserver(permissionGranted: Boolean): Boolean = permissionGranted
+    fun shouldKeepMediaStoreObserver(permissionGranted: Boolean): Boolean {
+        return permissionGranted && isForeground.value
+    }
 
     fun shouldKeepRecursiveLibraryObservers(permissionGranted: Boolean): Boolean {
         return permissionGranted && isForeground.value
