@@ -237,10 +237,11 @@ class LibraryRepository internal constructor(
                     }
                     val currentSyncState = withContext(Dispatchers.IO) { scanner.currentSyncState() }
                     if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
-                    val syncDecision = decideLibrarySync(
+                    val syncDecision = decideLibrarySyncAtStartup(
                         cached = cachedSnapshot.syncState,
                         current = currentSyncState,
                         cachedSongCount = cachedSnapshot.snapshot.songs.size,
+                        hasSafSelections = scanner.hasSafSelections(),
                     )
                     if (syncDecision != LibrarySyncDecision.ReuseCached) {
                         refresh(
@@ -672,7 +673,11 @@ class LibraryRepository internal constructor(
         )
         if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
             val pending = refreshRequests.takePendingAfterScan() ?: return
-            _runtimeState.value = LibraryRuntimeState.BackgroundDirty(pending)
+            val merged = mergeBackgroundRefreshRequest(
+                existing = (_runtimeState.value as? LibraryRuntimeState.BackgroundDirty)?.pending,
+                incoming = pending,
+            )
+            _runtimeState.value = LibraryRuntimeState.BackgroundDirty(merged)
             return
         }
         refreshDebounceJob?.cancel()

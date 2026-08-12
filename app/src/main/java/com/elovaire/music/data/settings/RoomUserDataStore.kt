@@ -41,6 +41,7 @@ import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -56,9 +57,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "TooGenericExceptionCaught")
 internal class RoomUserDataStore(
     context: Context,
     private val dao: UserDataDao,
@@ -67,6 +70,8 @@ internal class RoomUserDataStore(
 ) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
     private val preferences = PreferenceStorage(context.applicationContext).preferences
     private val released = AtomicBoolean(false)
+    private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
+    private val actorFailure = AtomicReference<Throwable?>(null)
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
     // The channel is bounded. If it is full, a non-blocking sender is retained as a suspended
     // submission until the actor accepts it, so durable actions are never silently discarded.
@@ -79,10 +84,25 @@ internal class RoomUserDataStore(
     private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueue)
     private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueue)
     private val ownerJob: Job = operationScope.launch {
-        initialize()
-        for (operation in operations) {
-            queueDepth.decrementAndGet()
-            runOperation(operation)
+        try {
+            initialize()
+            if (!lifecycle.compareAndSet(StoreLifecycle.Initializing, StoreLifecycle.Ready)) {
+                rejectQueuedOperations()
+                return@launch
+            }
+            for (operation in operations) {
+                queueDepth.decrementAndGet()
+                runOperation(operation)
+            }
+        } catch (cancelled: CancellationException) {
+            if (!released.get()) failActor(cancelled)
+            throw cancelled
+        } catch (failure: RuntimeException) {
+            failActor(failure)
+        } catch (failure: Error) {
+            failActor(failure)
+        } finally {
+            if (released.get()) lifecycle.set(StoreLifecycle.Released)
         }
     }
 
@@ -105,8 +125,8 @@ internal class RoomUserDataStore(
     override val searchHistory get() = searchHistoryStore.searchHistory
 
     override fun createPlaylist(name: String): Deferred<PlaylistMutationResult> {
-        val id = newId()
         return enqueueMutation("playlist.create") {
+            val id = newId()
             val result = createPlaylistEntries(_userPlaylists.value, name, id)
                 ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
             dao.insertPlaylist(result.createdPlaylist.toEntity())
@@ -120,8 +140,8 @@ internal class RoomUserDataStore(
         name: String,
         songIds: List<Long>,
     ): Deferred<PlaylistMutationResult> {
-        val id = newId()
         return enqueueMutation("playlist.create_with_songs") {
+            val id = newId()
             val result = createPlaylistEntries(_userPlaylists.value, name, id)
                 ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
             val normalizedSongIds = normalizePlaylistSongIds(songIds)
@@ -209,10 +229,10 @@ internal class RoomUserDataStore(
             val imported = distinctImportedPlaylists(_userPlaylists.value, playlists)
                 .map { it.copy(id = newId()) }
             if (imported.isEmpty()) return@enqueueMutation PlaylistMutationResult.Success(changed = false)
-            imported.forEach { playlist ->
-                dao.insertPlaylistWithEntries(playlist.toEntity(), playlist.songIds)
-                dao.verifyPlaylist(playlist)
-            }
+            dao.insertPlaylistsWithEntries(
+                playlists = imported.map(Playlist::toEntity),
+                entries = imported.flatMap(Playlist::toEntryEntities),
+            )
             publishPlaylists(_userPlaylists.value + imported)
             PlaylistMutationResult.Success(changed = true)
         }
@@ -231,8 +251,8 @@ internal class RoomUserDataStore(
     }
 
     override fun createSmartPlaylist(name: String): Deferred<PlaylistMutationResult> {
-        val id = newId()
         return enqueueMutation("smart_playlist.create") {
+            val id = newId()
             val result = createSmartPlaylistEntry(
                 playlists = _userSmartPlaylists.value,
                 name = name,
@@ -247,8 +267,8 @@ internal class RoomUserDataStore(
     }
 
     override fun createSmartPlaylist(playlist: SmartPlaylist): Deferred<PlaylistMutationResult> {
-        val id = newId()
         return enqueueMutation("smart_playlist.create_definition") {
+            val id = newId()
             val nowMs = clock.wallTimeMs()
             val result = createSmartPlaylistEntry(
                 playlists = _userSmartPlaylists.value,
@@ -390,6 +410,7 @@ internal class RoomUserDataStore(
 
     fun release(onDrained: () -> Unit = {}) {
         if (!released.compareAndSet(false, true)) return
+        lifecycle.set(StoreLifecycle.Releasing)
         synchronized(submissionLock) {
             if (pendingSubmissions.get() == 0) operations.close()
         }
@@ -527,9 +548,18 @@ internal class RoomUserDataStore(
             ),
         )
         if (!accepted) {
-            completion.complete(PlaylistMutationResult.Failure("User-data store is released."))
+            completion.complete(submissionFailure())
         }
         return completion
+    }
+
+    private fun submissionFailure(): PlaylistMutationResult {
+        val failure = actorFailure.get()
+        return if (failure != null) {
+            PlaylistMutationResult.Failure("User-data store failed.", failure)
+        } else {
+            PlaylistMutationResult.Failure("User-data store is released.")
+        }
     }
 
     private fun tryEnqueue(operation: suspend () -> Unit): Boolean {
@@ -543,7 +573,7 @@ internal class RoomUserDataStore(
     private fun tryEnqueue(operation: RoomOperation): Boolean {
         val depth: Int
         synchronized(submissionLock) {
-            if (released.get()) return false
+            if (released.get() || lifecycle.get() == StoreLifecycle.Failed) return false
             depth = queueDepth.incrementAndGet()
             pendingSubmissions.incrementAndGet()
             if (operations.trySend(operation).isSuccess) {
@@ -560,10 +590,14 @@ internal class RoomUserDataStore(
                 maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
             } catch (_: ClosedSendChannelException) {
                 queueDepth.decrementAndGet()
-                operation.completion?.complete(PlaylistMutationResult.Failure("User-data store is released."))
+                operation.completion?.complete(submissionFailure())
             } catch (cancelled: CancellationException) {
                 queueDepth.decrementAndGet()
-                operation.completion?.cancel(cancelled)
+                if (lifecycle.get() == StoreLifecycle.Failed) {
+                    operation.completion?.complete(submissionFailure())
+                } else {
+                    operation.completion?.cancel(cancelled)
+                }
                 throw cancelled
             } finally {
                 synchronized(submissionLock) {
@@ -581,14 +615,38 @@ internal class RoomUserDataStore(
         try {
             operation.block()
         } catch (failure: CancellationException) {
-            operation.completion?.cancel(failure)
-            throw failure
+            if (currentCoroutineContext().isActive) {
+                operation.completion?.cancel(failure)
+            } else {
+                throw failure
+            }
         } catch (failure: SQLException) {
             Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
             operation.completion?.complete(PlaylistMutationResult.Failure("Database operation failed.", failure))
         } catch (failure: RuntimeException) {
             Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
             operation.completion?.complete(PlaylistMutationResult.Failure("User-data operation failed.", failure))
+        } catch (failure: Error) {
+            Log.e(TAG, "User-data actor encountered an unrecoverable operation failure: ${operation.name}.", failure)
+            operation.completion?.complete(PlaylistMutationResult.Failure("User-data actor failed.", failure))
+            throw failure
+        }
+    }
+
+    private fun failActor(failure: Throwable) {
+        if (released.get()) return
+        actorFailure.compareAndSet(null, failure)
+        lifecycle.set(StoreLifecycle.Failed)
+        Log.e(TAG, "User-data actor stopped; rejecting future operations.", failure)
+        operations.close()
+        rejectQueuedOperations()
+    }
+
+    private fun rejectQueuedOperations() {
+        while (true) {
+            val operation = operations.tryReceive().getOrNull() ?: break
+            queueDepth.decrementAndGet()
+            operation.completion?.complete(submissionFailure())
         }
     }
 
@@ -603,6 +661,14 @@ internal class RoomUserDataStore(
         const val RECENT_KIND_ALBUM = "album"
         const val MAX_OPERATION_QUEUE_DEPTH = 128
     }
+}
+
+private enum class StoreLifecycle {
+    Initializing,
+    Ready,
+    Failed,
+    Releasing,
+    Released,
 }
 
 private data class RoomOperation(

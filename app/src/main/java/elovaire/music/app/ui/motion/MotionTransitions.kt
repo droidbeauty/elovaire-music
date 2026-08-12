@@ -21,7 +21,6 @@ import androidx.compose.runtime.Stable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
-import elovaire.music.droidbeauty.app.BuildConfig
 import kotlin.math.roundToInt
 
 @Stable
@@ -36,7 +35,6 @@ class MotionTransitions internal constructor(
         create: () -> T,
     ): T {
         return cachedTransitions.getOrPut(key) {
-            MotionTransitionDebugCounters.recordConstruction(key)
             create()
         } as T
     }
@@ -533,18 +531,6 @@ internal enum class StaticMotionTransition {
     QueueMenuExit,
     AlbumDetailForwardExit,
     AlbumDetailBackEnter,
-}
-
-internal object MotionTransitionDebugCounters {
-    private val constructionCounts = IntArray(StaticMotionTransition.entries.size)
-
-    fun recordConstruction(transition: StaticMotionTransition) {
-        if (BuildConfig.DEBUG) constructionCounts[transition.ordinal] += 1
-    }
-
-    fun constructionCount(transition: StaticMotionTransition): Int {
-        return if (BuildConfig.DEBUG) constructionCounts[transition.ordinal] else 0
-    }
 }
 
 @Composable

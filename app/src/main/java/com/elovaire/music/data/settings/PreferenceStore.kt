@@ -49,6 +49,9 @@ class PreferenceStore internal constructor(
     private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
+    private var crossfadePersistJob: Job? = null
+    private var pendingCrossfadeDurationMs: Long? = null
+    private var pendingCrossfadeSilenceThresholdDb: Float? = null
 
 
     private val _themeMode = MutableStateFlow(loadThemeMode())
@@ -249,16 +252,18 @@ class PreferenceStore internal constructor(
 
     override fun setCrossfadeDurationMs(value: Long) {
         val durationMs = CrossfadeDurationPolicy.sanitizeSettingsDuration(value)
-        updateStateAndPreference(_crossfadeDurationMs, durationMs) {
-            putLong(KEY_CROSSFADE_DURATION_MS, durationMs)
-        }
+        if (_crossfadeDurationMs.value == durationMs && pendingCrossfadeDurationMs == null) return
+        _crossfadeDurationMs.value = durationMs
+        pendingCrossfadeDurationMs = durationMs
+        scheduleCrossfadePersistence()
     }
 
     override fun setCrossfadeSilenceThresholdDb(value: Float) {
         val thresholdDb = CrossfadeSilencePolicy.sanitizeLevelDb(value)
-        updateStateAndPreference(_crossfadeSilenceThresholdDb, thresholdDb) {
-            putFloat(KEY_CROSSFADE_SILENCE_THRESHOLD_DB, thresholdDb)
-        }
+        if (_crossfadeSilenceThresholdDb.value == thresholdDb && pendingCrossfadeSilenceThresholdDb == null) return
+        _crossfadeSilenceThresholdDb.value = thresholdDb
+        pendingCrossfadeSilenceThresholdDb = thresholdDb
+        scheduleCrossfadePersistence()
     }
 
     override fun setVolumeNormalizationEnabled(enabled: Boolean) {
@@ -342,6 +347,7 @@ class PreferenceStore internal constructor(
 
     fun release(onUserDataDrained: () -> Unit = {}) {
         flushEqSettingsPersistence(commit = true)
+        flushCrossfadePersistence(commit = true)
         userDataStore.release(onUserDataDrained)
         preferenceScope.cancel()
     }
@@ -393,6 +399,28 @@ class PreferenceStore internal constructor(
             putBoolean(KEY_MONO_ENABLED, settings.monoEnabled)
             putInt(KEY_REVERB_DURATION_MS, settings.reverbDurationMs)
             putString(KEY_REVERB_PROFILE, settings.reverbProfile.name)
+        }
+    }
+
+    private fun scheduleCrossfadePersistence() {
+        crossfadePersistJob?.cancel()
+        crossfadePersistJob = preferenceScope.launch {
+            delay(CROSSFADE_SETTINGS_PERSIST_DEBOUNCE_MS)
+            flushCrossfadePersistence(commit = false)
+        }
+    }
+
+    private fun flushCrossfadePersistence(commit: Boolean) {
+        crossfadePersistJob?.cancel()
+        crossfadePersistJob = null
+        val durationMs = pendingCrossfadeDurationMs
+        val thresholdDb = pendingCrossfadeSilenceThresholdDb
+        if (durationMs == null && thresholdDb == null) return
+        pendingCrossfadeDurationMs = null
+        pendingCrossfadeSilenceThresholdDb = null
+        preferences.edit(commit = commit) {
+            durationMs?.let { putLong(KEY_CROSSFADE_DURATION_MS, it) }
+            thresholdDb?.let { putFloat(KEY_CROSSFADE_SILENCE_THRESHOLD_DB, it) }
         }
     }
 
@@ -608,6 +636,7 @@ class PreferenceStore internal constructor(
         const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
         const val KEY_CROSSFADE_DURATION_MS = "crossfade_duration_ms"
         const val KEY_CROSSFADE_SILENCE_THRESHOLD_DB = "crossfade_silence_threshold_db"
+        const val CROSSFADE_SETTINGS_PERSIST_DEBOUNCE_MS = 250L
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
         const val KEY_ONLINE_LYRICS_ENABLED = "online_lyrics_enabled"

@@ -45,6 +45,23 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun backgroundRefreshesMergeInsteadOfReplacingEarlierWork() {
+        assertEquals(
+            LibraryRefreshRequest(
+                enrichMetadata = true,
+                targetedPaths = listOf("/music/a.mp3", "/music/b.mp3"),
+            ),
+            mergeBackgroundRefreshRequest(
+                existing = LibraryRefreshRequest(targetedPaths = listOf("/music/a.mp3")),
+                incoming = LibraryRefreshRequest(
+                    enrichMetadata = true,
+                    targetedPaths = listOf("/music/b.mp3"),
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun tooManyTargetedPaths_fallsBackToFullFastScan() {
         val requests = LibraryRefreshRequests()
 

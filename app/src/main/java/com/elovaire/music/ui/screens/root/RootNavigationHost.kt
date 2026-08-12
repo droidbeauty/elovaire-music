@@ -6,15 +6,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.NavHost
-import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
+import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Composable
 internal fun RootNavigationHost(
     navState: RootNavigationState,
+    motionTransitions: MotionTransitions,
     modifier: Modifier = Modifier,
     content: NavGraphBuilder.() -> Unit,
 ) {
-    val motionTransitions = rememberMotionTransitions()
     val navigationMotionResolver = remember { NavigationMotionResolver() }
     NavHost(
         navController = navState.navController,

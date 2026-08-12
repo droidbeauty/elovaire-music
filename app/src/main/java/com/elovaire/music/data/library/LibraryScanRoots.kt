@@ -60,6 +60,8 @@ internal class LibraryScanRoots(
         return selectedFolders.filter { it.uri != null }
     }
 
+    fun hasSafSelections(): Boolean = selectedFolders.any { it.uri != null }
+
     private fun normalizeAbsolutePath(path: String): String {
         return path
             .trim()

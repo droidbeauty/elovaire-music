@@ -4,12 +4,14 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -82,6 +84,31 @@ class RoomUserDataStoreTest {
         database = Room.databaseBuilder(context, ElovaireDatabase::class.java, databaseName).build()
         assertEquals(expectedOrder, database.userDataDao().playlistEntries(playlistId).map { it.songId })
         assertEquals("Interaction Test", database.userDataDao().playlist(playlistId)?.name)
+    }
+
+    @Test
+    fun firstCreateWaitsForInitializationBeforeAllocatingAnId() = runBlocking {
+        database.userDataDao().insertPlaylist(UserPlaylistEntity(1_000L, "Existing", false))
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+
+        val result = store.createPlaylist("Created after initialization").await()
+
+        assertTrue(result is PlaylistMutationResult.Success)
+        val createdId = (result as PlaylistMutationResult.Success).playlistId ?: error("missing playlist id")
+        assertTrue(createdId > 1_000L)
+        assertEquals("Created after initialization", database.userDataDao().playlist(createdId)?.name)
+        store.release()
+    }
+
+    @Test
+    fun acceptedMutationCompletesWhenTheDatabaseOwnerFails() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        database.close()
+
+        val result = withTimeout(10_000L) { store.createPlaylist("Database is closed").await() }
+
+        assertFalse(result is PlaylistMutationResult.Success)
+        store.release()
     }
 
     @Test

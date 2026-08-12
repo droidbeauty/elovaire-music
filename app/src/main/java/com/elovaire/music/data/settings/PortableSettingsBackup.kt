@@ -20,10 +20,12 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
     fun restore() {
         if (released.get()) return
         if (!restored.compareAndSet(false, true)) return
-        if (source.all.isEmpty() && backup.all.isNotEmpty()) {
-            copyValues(backup, source, PORTABLE_KEYS)
+        allowStrictModeDiskReads {
+            if (source.all.isEmpty() && backup.all.isNotEmpty()) {
+                copyValues(backup, source, PORTABLE_KEYS)
+            }
+            syncAll()
         }
-        syncAll()
     }
 
     fun start() {

@@ -564,6 +564,7 @@ class PlaybackManager(
     private val _playbackFormatFailure = MutableStateFlow<PlaybackFormatFailure?>(null)
     val playbackFormatFailure: StateFlow<PlaybackFormatFailure?> = _playbackFormatFailure.asStateFlow()
     private val _manualPlaybackStartVersion = MutableStateFlow(0L)
+    private var hasManualPlaybackStarted = false
     val manualPlaybackStartVersion: StateFlow<Long> = _manualPlaybackStartVersion.asStateFlow()
     val sleepTimerState: StateFlow<PlaybackSleepTimerState> = sleepTimerController.state
     val playerInstance: Player
@@ -707,6 +708,23 @@ class PlaybackManager(
         publishProgressSnapshot(force = true)
         syncRuntimeObservers()
         syncProgressUpdateLoop()
+    }
+
+    internal fun hydrateRecentPlayback(
+        songIds: List<Long>,
+        albumIds: List<Long>,
+        lastPlayedCollectionKind: PlaybackCollectionKind?,
+        lastPlayedCollectionId: Long?,
+    ) {
+        if (released.get() || hasManualPlaybackStarted) return
+        val current = _state.value
+        val hydrated = current.copy(
+            recentSongIds = songIds.distinct(),
+            recentAlbumIds = albumIds.distinct(),
+            lastPlayedCollectionKind = lastPlayedCollectionKind,
+            lastPlayedCollectionId = lastPlayedCollectionId,
+        )
+        if (hydrated != current) _state.value = hydrated
     }
 
     internal fun setProgressConsumerActive(
@@ -1868,6 +1886,7 @@ class PlaybackManager(
     }
 
     private fun recordManualPlaybackStart() {
+        hasManualPlaybackStarted = true
         _manualPlaybackStartVersion.value = _manualPlaybackStartVersion.value + 1L
     }
 

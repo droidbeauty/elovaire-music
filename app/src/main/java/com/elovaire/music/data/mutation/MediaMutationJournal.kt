@@ -49,8 +49,14 @@ internal class MediaMutationJournal(
     suspend fun create(operation: MediaMutationOperation): String = transitionMutex.withLock {
         val now = clock.wallTimeMs()
         val mutationId = operation.mutationId?.takeIf { it.isNotBlank() } ?: operationIdGenerator.nextId()
-        if (operation.mutationId != null && dao.mutation(mutationId) != null) {
-            activeMutationIds += mutationId
+        val existing = if (operation.mutationId != null) dao.mutation(mutationId) else null
+        if (existing != null) {
+            check(existing.type == operation.type.name) {
+                "Mutation ID $mutationId cannot be reused for ${operation.type.name}."
+            }
+            val status = existing.status.toMediaMutationStatusOrNull()
+            check(status != null) { "Mutation $mutationId has an unknown persisted status." }
+            if (!status.isTerminal()) activeMutationIds += mutationId
             return@withLock mutationId
         }
         dao.upsertMutation(

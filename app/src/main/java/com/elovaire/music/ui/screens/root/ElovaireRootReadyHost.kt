@@ -57,6 +57,7 @@ internal fun ElovaireRootReadyHost(
         routeHost = { routePadding, modifier ->
             RootRouteGraph(
                 navState = navigationState,
+                motionTransitions = composition.motionTransitions,
                 routeState = actionRuntime.routeState,
                 routeActions = actionRuntime.routeActions,
                 padding = routePadding,

@@ -29,25 +29,10 @@ class MotionRevealRegistry {
         revealedKeys[key] = true
     }
 
-    fun retainKeys(keys: Set<Any>) {
-        if (revealedKeys.isEmpty()) return
-        revealedKeys.keys.retainAll(keys)
-    }
-
-    fun clear() {
-        revealedKeys.clear()
-    }
 }
 
 @Composable
 fun rememberMotionRevealRegistry(): MotionRevealRegistry = remember { MotionRevealRegistry() }
-
-@Composable
-fun MotionRevealRegistry.RetainVisibleKeys(keys: Set<Any>) {
-    LaunchedEffect(this, keys) {
-        retainKeys(keys)
-    }
-}
 
 fun Modifier.elovaireListReveal(
     itemKey: Any,

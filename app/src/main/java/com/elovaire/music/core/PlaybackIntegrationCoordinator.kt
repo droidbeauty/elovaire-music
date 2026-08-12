@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.core
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
+import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
@@ -65,6 +66,25 @@ internal class PlaybackIntegrationCoordinator(
         scope.launch {
             preferences.volumeNormalizationEnabled
                 .collect(playback::setVolumeNormalizationEnabled)
+        }
+        scope.launch {
+            combine(
+                preferences.recentSongIds,
+                preferences.recentAlbumIds,
+                preferences.lastPlayedCollectionKind,
+                preferences.lastPlayedCollectionId,
+            ) { songIds, albumIds, collectionKind, collectionId ->
+                PersistedRecentPlayback(songIds, albumIds, collectionKind, collectionId)
+            }
+                .distinctUntilChanged()
+                .collect { recent ->
+                    playback.hydrateRecentPlayback(
+                        songIds = recent.songIds,
+                        albumIds = recent.albumIds,
+                        lastPlayedCollectionKind = recent.collectionKind,
+                        lastPlayedCollectionId = recent.collectionId,
+                    )
+                }
         }
         scope.launch {
             playback.nowPlayingState
@@ -172,3 +192,10 @@ internal class PlaybackIntegrationCoordinator(
         const val PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS = 10_000L
     }
 }
+
+private data class PersistedRecentPlayback(
+    val songIds: List<Long>,
+    val albumIds: List<Long>,
+    val collectionKind: PlaybackCollectionKind?,
+    val collectionId: Long?,
+)

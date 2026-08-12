@@ -62,6 +62,24 @@ class UserDataDaoTest {
     }
 
     @Test
+    fun playlistBatchImportRollsBackWhenAnyPlaylistInsertFails() = runBlocking {
+        val batch = listOf(
+            UserPlaylistEntity(1L, "First", false),
+            UserPlaylistEntity(1L, "Duplicate", false),
+        )
+
+        var failed = false
+        try {
+            dao.insertPlaylistsWithEntries(batch, emptyList())
+        } catch (_: RuntimeException) {
+            failed = true
+        }
+
+        assertTrue(failed)
+        assertTrue(dao.playlists().isEmpty())
+    }
+
+    @Test
     fun criticalPlaylistLookupUsesOrderingIndex() = runBlocking {
         dao.insertPlaylist(UserPlaylistEntity(1L, "Test", false))
         dao.replacePlaylistEntries(1L, listOf(10L, 20L, 30L))

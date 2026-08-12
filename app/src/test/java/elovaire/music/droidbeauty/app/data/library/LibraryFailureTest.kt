@@ -22,4 +22,13 @@ class LibraryFailureTest {
         assertEquals("query children", failure.operation)
         assertSame(cause, failure.cause)
     }
+
+    @Test
+    fun incompleteSafScanIsTypedAndDoesNotLookLikeSuccessfulContent() {
+        val failure = SafScanIncompleteException("example.documents", "document budget exceeded")
+            .toLibraryScanFailure("refresh")
+
+        assertTrue(failure is LibraryFailure.SafProviderFailure)
+        assertEquals("scan-incomplete:document budget exceeded", (failure as LibraryFailure.SafProviderFailure).operation)
+    }
 }

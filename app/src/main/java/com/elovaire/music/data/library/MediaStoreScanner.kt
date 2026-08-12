@@ -19,6 +19,7 @@ import java.util.Locale
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
+@Suppress("TooManyFunctions")
 class MediaStoreScanner(
     private val context: Context,
 ) {
@@ -76,6 +77,8 @@ class MediaStoreScanner(
     }
 
     fun scanRoots(): List<File> = scanRoots.accessibleFileRoots()
+
+    internal fun hasSafSelections(): Boolean = scanRoots.hasSafSelections()
 
     fun invalidateMetadataCacheForPaths(paths: Collection<String>) {
         metadataCache.invalidatePaths(paths)

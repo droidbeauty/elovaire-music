@@ -18,6 +18,11 @@ internal class SafProviderUnavailableException(
     cause: Throwable,
 ) : RuntimeException(cause)
 
+internal class SafScanIncompleteException(
+    val authority: String?,
+    val reason: String,
+) : RuntimeException("SAF scan incomplete: $reason")
+
 internal fun LibraryFailure.toUserMessage(): String = when (this) {
     LibraryFailure.PermissionMissing -> "Music access is required to scan the library."
     LibraryFailure.MediaStoreUnavailable -> "The device media library is unavailable."
@@ -28,6 +33,7 @@ internal fun LibraryFailure.toUserMessage(): String = when (this) {
 
 internal fun Throwable.toLibraryScanFailure(phase: String): LibraryFailure = when (this) {
     is SafProviderUnavailableException -> LibraryFailure.SafProviderFailure(authority, operation, cause)
+    is SafScanIncompleteException -> LibraryFailure.SafProviderFailure(authority, "scan-incomplete:$reason", this)
     is SecurityException -> LibraryFailure.PermissionMissing
     else -> LibraryFailure.ScanFailure(phase, this)
 }

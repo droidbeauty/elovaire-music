@@ -61,6 +61,27 @@ internal interface UserDataDao {
         replacePlaylistEntries(playlist.playlistId, songIds)
     }
 
+    @Transaction
+    suspend fun insertPlaylistsWithEntries(
+        playlists: List<UserPlaylistEntity>,
+        entries: List<UserPlaylistEntryEntity>,
+    ) {
+        playlists.forEach { insertPlaylist(it) }
+        if (entries.isNotEmpty()) insertPlaylistEntries(entries)
+        playlists.forEach { expected ->
+            check(playlist(expected.playlistId) == expected) {
+                "Playlist import row readback failed for ${expected.playlistId}."
+            }
+            check(
+                playlistEntries(expected.playlistId) == entries
+                    .filter { it.playlistId == expected.playlistId }
+                    .sortedBy(UserPlaylistEntryEntity::position),
+            ) {
+                "Playlist import entry readback failed for ${expected.playlistId}."
+            }
+        }
+    }
+
     @Query("UPDATE user_playlists SET name = :name WHERE playlistId = :playlistId")
     suspend fun renamePlaylist(playlistId: Long, name: String)
 

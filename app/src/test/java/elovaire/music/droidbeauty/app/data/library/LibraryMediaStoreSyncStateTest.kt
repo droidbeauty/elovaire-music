@@ -49,6 +49,21 @@ class LibraryMediaStoreSyncStateTest {
         assertEquals(LibrarySyncDecision.FullScan, decideLibrarySync(cached, current))
     }
 
+    @Test
+    fun startupSyncAlwaysReconcilesSelectedSafTrees() {
+        val state = syncState()
+
+        assertEquals(
+            LibrarySyncDecision.FullScan,
+            decideLibrarySyncAtStartup(
+                cached = state,
+                current = state,
+                cachedSongCount = 10,
+                hasSafSelections = true,
+            ),
+        )
+    }
+
     private fun syncState(
         filterFingerprint: String = "folders-a",
         generation: Long = 10L,

@@ -36,3 +36,16 @@ internal fun decideLibrarySync(
     }
     return LibrarySyncDecision.ReuseCached
 }
+
+internal fun decideLibrarySyncAtStartup(
+    cached: LibraryMediaStoreSyncState?,
+    current: LibraryMediaStoreSyncState?,
+    cachedSongCount: Int? = null,
+    hasSafSelections: Boolean,
+): LibrarySyncDecision {
+    return if (hasSafSelections) {
+        LibrarySyncDecision.FullScan
+    } else {
+        decideLibrarySync(cached, current, cachedSongCount)
+    }
+}

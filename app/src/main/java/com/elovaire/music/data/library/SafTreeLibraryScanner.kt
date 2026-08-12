@@ -49,6 +49,7 @@ internal class SafTreeLibraryScanner(
         return songs
     }
 
+    @Suppress("LongMethod")
     private suspend fun scanTree(
         selection: LibraryFolderSelection,
         treeUri: Uri,
@@ -77,7 +78,8 @@ internal class SafTreeLibraryScanner(
         pending += SafDirectory(documentId = rootDocumentId, relativePath = "")
         val songs = mutableListOf<Song>()
         var visitedDocuments = 0
-        while (pending.isNotEmpty() && visitedDocuments < MAX_DOCUMENTS) {
+        var incompleteReason: String? = null
+        while (pending.isNotEmpty() && incompleteReason == null) {
             currentCoroutineContext().ensureActive()
             val directory = pending.removeFirst()
             if (!visitedDirectories.add(SafDocumentKey(providerKey, directory.documentId))) continue
@@ -85,8 +87,11 @@ internal class SafTreeLibraryScanner(
                 queryChildren(treeUri, directory.documentId)
             }.forEach { child ->
                 currentCoroutineContext().ensureActive()
+                if (visitedDocuments >= MAX_DOCUMENTS) {
+                    incompleteReason = "document budget exceeded"
+                    return@forEach
+                }
                 visitedDocuments += 1
-                if (visitedDocuments > MAX_DOCUMENTS) return@forEach
                 if (child.name.startsWith('.')) return@forEach
                 val childRelativePath = listOf(directory.relativePath, child.name)
                     .filter(String::isNotBlank)
@@ -97,6 +102,8 @@ internal class SafTreeLibraryScanner(
                             documentId = child.documentId,
                             relativePath = childRelativePath,
                         )
+                    } else {
+                        incompleteReason = "directory depth budget exceeded"
                     }
                     return@forEach
                 }
@@ -170,6 +177,12 @@ internal class SafTreeLibraryScanner(
                     volumeNormalization = null,
                 )
             }
+        }
+        if (incompleteReason == null && pending.isNotEmpty()) {
+            incompleteReason = "directory traversal budget exceeded"
+        }
+        incompleteReason?.let { reason ->
+            throw SafScanIncompleteException(providerKey, reason)
         }
         return songs
     }

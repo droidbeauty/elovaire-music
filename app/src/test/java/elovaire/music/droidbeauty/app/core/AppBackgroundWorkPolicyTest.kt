@@ -14,31 +14,19 @@ class AppBackgroundWorkPolicyTest {
             decideWorkAdmission(
                 AppWorkKind.UserInitiatedLongTransfer,
                 userInitiated = true,
-                environment = WorkEnvironment(
-                    foreground = true,
-                    batterySaver = true,
-                    criticalUserOperationActive = true,
-                ),
+                environment = WorkEnvironment(foreground = true),
             ),
         )
     }
 
     @Test
-    fun automaticMaintenanceDefersDuringCriticalWorkOrBatterySaver() {
+    fun foregroundMaintenanceIsAdmittedWhenVisible() {
         assertEquals(
-            WorkDecision.Defer,
+            WorkDecision.Admit,
             decideWorkAdmission(
                 AppWorkKind.ForegroundOnlyMaintenance,
                 userInitiated = false,
-                environment = WorkEnvironment(foreground = true, criticalUserOperationActive = true),
-            ),
-        )
-        assertEquals(
-            WorkDecision.Defer,
-            decideWorkAdmission(
-                AppWorkKind.ForegroundOnlyMaintenance,
-                userInitiated = false,
-                environment = WorkEnvironment(foreground = true, batterySaver = true),
+                environment = WorkEnvironment(foreground = true),
             ),
         )
     }

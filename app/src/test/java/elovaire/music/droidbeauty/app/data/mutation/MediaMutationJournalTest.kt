@@ -99,6 +99,27 @@ class MediaMutationJournalTest {
     }
 
     @Test
+    fun mutationIdCannotBeReusedForAnotherMutationType() = runBlocking {
+        val stored = mutableMapOf<String, LibraryMutationEntity>()
+        val journal = MediaMutationJournal(
+            dao = libraryDao(stored),
+            clock = FixedClock,
+            operationIdGenerator = { "generated" },
+            backendEventSink = NoOpBackendEventSink,
+        )
+
+        journal.create(MediaMutationOperation("shared", MediaMutationType.TagEdit))
+
+        var failed = false
+        try {
+            journal.create(MediaMutationOperation("shared", MediaMutationType.Delete))
+        } catch (_: IllegalStateException) {
+            failed = true
+        }
+        assertTrue(failed)
+    }
+
+    @Test
     fun startupRecoveryDoesNotTouchActiveForegroundMutation() = runBlocking {
         val stored = mutableMapOf<String, LibraryMutationEntity>()
         val dao = libraryDao(stored)

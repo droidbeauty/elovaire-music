@@ -38,7 +38,7 @@ internal class AppServices(
     val exitDiagnostics = AppExitDiagnostics(applicationContext)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
-    private val portableSettingsBackup = PortableSettingsBackup(applicationContext)
+    private val portableSettingsBackup = PortableSettingsBackup(applicationContext).also { it.restore() }
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
         dao = database.userDataDao(),

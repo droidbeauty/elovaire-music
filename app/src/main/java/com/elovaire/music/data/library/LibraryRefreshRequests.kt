@@ -59,6 +59,11 @@ internal data class LibraryRefreshRequest(
     }
 }
 
+internal fun mergeBackgroundRefreshRequest(
+    existing: LibraryRefreshRequest?,
+    incoming: LibraryRefreshRequest,
+): LibraryRefreshRequest = existing?.mergedWith(incoming) ?: incoming.normalized()
+
 internal class LibraryRefreshRequests {
     private var pending: LibraryRefreshRequest? = null
 

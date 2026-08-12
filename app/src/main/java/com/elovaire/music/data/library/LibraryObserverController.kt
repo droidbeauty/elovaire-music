@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import java.io.File
+import java.util.ArrayDeque
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -186,11 +187,15 @@ internal class LibraryObserverController(
     private fun createMusicDirectoryObserver(rootDirectory: File): RecursiveMusicDirectoryObserver? {
         if (!rootDirectory.exists() || !rootDirectory.isDirectory) return null
 
-        return RecursiveMusicDirectoryObserver(rootDirectory) { event, changedFile ->
-            scope.launch(Dispatchers.IO) {
-                handleObservedDirectoryEvent(event, changedFile)
-            }
-        }
+        return RecursiveMusicDirectoryObserver(
+            rootDirectory = rootDirectory,
+            onEventReceived = { event, changedFile ->
+                scope.launch(Dispatchers.IO) {
+                    handleObservedDirectoryEvent(event, changedFile)
+                }
+            },
+            onCoverageIncomplete = { onObservedRefresh(true, null) },
+        )
     }
 
     private fun handleObservedDirectoryEvent(
@@ -203,17 +208,28 @@ internal class LibraryObserverController(
         }
         val requiresFullMediaIndexRefresh = event and FULL_INDEX_REFRESH_EVENT_MASK != 0
         val normalizedChangedPath = changedFile?.absolutePath?.normalizedObservedPath()
+        if (requiresFullMediaIndexRefresh) {
+            onObservedRefresh(true, null)
+            return
+        }
         if (
-            !requiresFullMediaIndexRefresh &&
             normalizedChangedPath != null &&
             shouldCoalesceObservedPath(normalizedChangedPath)
         ) {
             return
         }
-        if (changedFile == null || changedFile.isDirectory || isSupportedAudioExtension(changedFile.extension)) {
+        if (shouldNotifyForObservedDirectoryEvent(
+                event = event,
+                changedFileExists = changedFile != null,
+                changedFileIsDirectory = changedFile?.isDirectory == true,
+                changedFileHasSupportedAudioExtension = changedFile
+                    ?.let { isSupportedAudioExtension(it.extension) }
+                    == true,
+            )
+        ) {
             onObservedRefresh(
-                requiresFullMediaIndexRefresh,
-                if (requiresFullMediaIndexRefresh) null else normalizedChangedPath,
+                false,
+                normalizedChangedPath,
             )
         }
     }
@@ -221,10 +237,12 @@ internal class LibraryObserverController(
     private inner class RecursiveMusicDirectoryObserver(
         private val rootDirectory: File,
         private val onEventReceived: (event: Int, changedFile: File?) -> Unit,
+        private val onCoverageIncomplete: () -> Unit,
     ) {
         val rootPath: String = rootDirectory.absolutePath
         private val observers = linkedMapOf<String, FileObserver>()
-        private var lastTreeSignature: Int? = null
+        private var lastObservedDirectories: List<String>? = null
+        private var budgetExceeded = false
 
         fun startWatching() {
             rebuildObservers(force = true)
@@ -241,38 +259,60 @@ internal class LibraryObserverController(
 
         private fun rebuildObservers(force: Boolean) {
             if (!rootDirectory.exists() || !rootDirectory.isDirectory) {
-                lastTreeSignature = null
+                lastObservedDirectories = null
+                budgetExceeded = false
                 stopWatching()
                 return
             }
-            val nextDirectories = rootDirectory.walkTopDown()
-                .maxDepth(8)
-                .onEnter { directory -> !directory.isSymbolicLinkSafely() }
-                .filter(File::isDirectory)
-                .take(MAX_RECURSIVE_DIRECTORY_OBSERVERS + 1)
-                .map(File::getAbsolutePath)
-                .toList()
-            if (nextDirectories.size > MAX_RECURSIVE_DIRECTORY_OBSERVERS) {
-                if (lastTreeSignature != OBSERVER_BUDGET_EXCEEDED_SIGNATURE) {
+            val tree = snapshotObserverTree(rootDirectory)
+            if (tree.reason != null) {
+                if (!budgetExceeded) {
                     logDebug(
-                        "recursive observers disabled count=${nextDirectories.size} " +
-                            "limit=$MAX_RECURSIVE_DIRECTORY_OBSERVERS",
+                        "recursive observers disabled reason=${tree.reason} " +
+                            "count=${tree.directories.size} limit=$MAX_RECURSIVE_DIRECTORY_OBSERVERS",
                     )
+                    onCoverageIncomplete()
                 }
-                lastTreeSignature = OBSERVER_BUDGET_EXCEEDED_SIGNATURE
+                budgetExceeded = true
+                lastObservedDirectories = null
                 stopWatching()
                 return
             }
-            val nextSignature = nextDirectories
-                .sorted()
-                .fold(17) { acc, path -> 31 * acc + path.hashCode() }
-            if (!force && lastTreeSignature == nextSignature) return
-            lastTreeSignature = nextSignature
+            val normalizedDirectories = observerTreeIdentity(tree.directories)
+            budgetExceeded = false
+            if (!force && lastObservedDirectories == normalizedDirectories) return
+            lastObservedDirectories = normalizedDirectories
             stopWatching()
-            nextDirectories.forEach { path ->
+            normalizedDirectories.forEach { path ->
                 observeDirectory(File(path))
             }
-            logDebug("recursive observers active count=${nextDirectories.size}")
+            logDebug("recursive observers active count=${normalizedDirectories.size}")
+        }
+
+        private fun snapshotObserverTree(root: File): ObserverTreeSnapshot {
+            val pending = ArrayDeque<Pair<File, Int>>()
+            pending.add(root to 0)
+            val directories = ArrayList<String>()
+            var reason: String? = null
+            while (pending.isNotEmpty() && reason == null) {
+                val (directory, depth) = pending.removeFirst()
+                if (!directory.isDirectory || directory.isSymbolicLinkSafely()) continue
+                directories += directory.absolutePath
+                if (directories.size > MAX_RECURSIVE_DIRECTORY_OBSERVERS) {
+                    reason = "observer budget exceeded"
+                    break
+                }
+                directory.listFiles().orEmpty().forEach { child ->
+                    if (!child.isDirectory || child.isSymbolicLinkSafely()) return@forEach
+                    if (depth >= MAX_RECURSIVE_DIRECTORY_DEPTH) {
+                        reason = "directory depth budget exceeded"
+                        return@forEach
+                    }
+                    pending.add(child to depth + 1)
+                }
+            }
+            if (reason == null && pending.isNotEmpty()) reason = "directory traversal budget exceeded"
+            return ObserverTreeSnapshot(directories, reason)
         }
 
         private fun observeDirectory(directory: File) {
@@ -306,7 +346,7 @@ internal class LibraryObserverController(
         const val AUTO_REFRESH_DEBOUNCE_MS = 350L
         const val OBSERVED_PATH_COALESCE_WINDOW_MS = 900L
         const val MAX_RECURSIVE_DIRECTORY_OBSERVERS = 512
-        const val OBSERVER_BUDGET_EXCEEDED_SIGNATURE = Int.MIN_VALUE
+        const val MAX_RECURSIVE_DIRECTORY_DEPTH = 8
         const val OBSERVER_MASK =
             FileObserver.CREATE or
                 FileObserver.CLOSE_WRITE or
@@ -330,3 +370,28 @@ internal class LibraryObserverController(
                 FileObserver.MOVE_SELF
     }
 }
+
+private data class ObserverTreeSnapshot(
+    val directories: List<String>,
+    val reason: String?,
+)
+
+internal fun shouldNotifyForObservedDirectoryEvent(
+    event: Int,
+    changedFileExists: Boolean,
+    changedFileIsDirectory: Boolean,
+    changedFileHasSupportedAudioExtension: Boolean,
+): Boolean {
+    if (event and (
+            FileObserver.DELETE or
+                FileObserver.MOVED_FROM or
+                FileObserver.DELETE_SELF or
+                FileObserver.MOVE_SELF
+        ) != 0
+    ) {
+        return true
+    }
+    return !changedFileExists || changedFileIsDirectory || changedFileHasSupportedAudioExtension
+}
+
+internal fun observerTreeIdentity(paths: List<String>): List<String> = paths.sorted()

@@ -68,6 +68,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
@@ -84,14 +85,18 @@ internal fun CompactNowPlayingDockHost(
     onOpenPlayer: (NowPlayingTransitionSnapshot?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val motionRuntime = LocalMotionRuntime.current
     var keepProgressActive by remember(song.id) { mutableStateOf(visible) }
     val progressState = remember(song.id) { mutableFloatStateOf(0f) }
 
-    LaunchedEffect(visible, song.id) {
+    LaunchedEffect(visible, song.id, motionRuntime.reduceMotion) {
         if (visible) {
             keepProgressActive = true
         } else {
-            delay(ElovaireMotion.Standard.toLong().coerceAtLeast(120L))
+            delay(
+                motionRuntime.duration(ElovaireMotion.Standard.toLong())
+                    .coerceAtLeast(if (motionRuntime.reduceMotion) 0L else 120L),
+            )
             keepProgressActive = false
         }
     }

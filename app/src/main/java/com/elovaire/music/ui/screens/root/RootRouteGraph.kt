@@ -6,10 +6,12 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
+import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Composable
 internal fun RootRouteGraph(
     navState: RootNavigationState,
+    motionTransitions: MotionTransitions,
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
@@ -21,6 +23,7 @@ internal fun RootRouteGraph(
 ) {
     RootNavigationHost(
         navState = navState,
+        motionTransitions = motionTransitions,
         modifier = modifier,
     ) {
         composable(HOME_ROUTE) {

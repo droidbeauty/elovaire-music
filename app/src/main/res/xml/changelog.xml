@@ -10,6 +10,6 @@
         <item>Layout tweaks in queue menu</item>
         <item>Fixed scrollbar overlay with buttons in playlist edit mode</item>
         <item>Fixed pixelated album art rendering in the notification area player</item>
-        <item>General performance optimizations</item>
+        <item>Performance optimizations</item>
     </release>
 </changelog>
