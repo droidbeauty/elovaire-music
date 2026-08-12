@@ -145,19 +145,19 @@ internal fun ManagePlaylistsScreen(
             }
         }
 
-        PlaylistManagementActionBar(
-            exportAllLabel = copy.exportAll,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = bottomPadding + 18.dp),
-            onExportAll = {
-                if (userPlaylists.isNotEmpty()) {
+        if (userPlaylists.size >= 2) {
+            PlaylistManagementActionBar(
+                exportAllLabel = copy.exportAll,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = bottomPadding + 18.dp),
+                onExportAll = {
                     pendingExport = serializePlaylists(userPlaylists)
                     exportLauncher.launch("elovaire-playlists.elv")
-                }
-            },
-        )
+                },
+            )
+        }
 
         PinnedBackTopBar(
             title = copy.title,
@@ -186,6 +186,12 @@ private fun ManagePlaylistsEmptyState(copy: PlaylistManagementCopy) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_sticky_note_x),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier.size(20.dp),
+            )
             Text(
                 text = copy.emptyTitle,
                 style = MaterialTheme.typography.titleLarge,

@@ -635,6 +635,16 @@ internal fun PlaylistSongRow(
         animationSpec = ElovaireMotion.colorFadeSpec(),
         label = "playlist_reorder_drag_highlight",
     )
+    val rowInteractionModifier = if (editMode) {
+        Modifier
+    } else {
+        Modifier.combinedClickable(
+            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+            indication = null,
+            onClick = onClick,
+            onLongClick = onLongPress,
+        )
+    }
     Column {
         Row(
             modifier = Modifier
@@ -646,12 +656,7 @@ internal fun PlaylistSongRow(
                     scaleY = rowScale
                     translationY = rowTranslationY
                 }
-                .combinedClickable(
-                    interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
-                    indication = null,
-                    onClick = onClick,
-                    onLongClick = onLongPress,
-                )
+                .then(rowInteractionModifier)
                 .padding(horizontal = 14.dp, vertical = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,

@@ -6,14 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.6.5">
-        <item>New feature - playlist export and import in settings</item>
-        <item>Separated music management features into Library category in settings</item>
-        <item>Added customizable parameters for crossfade effect in settings</item>
-        <item>Improved linguistic quality of translations</item>
+    <release version="2.6.6">
         <item>Layout tweaks in queue menu</item>
-        <item>Redesigned update pop-up UI</item>
+        <item>Fixed scrollbar overlay with buttons in playlist edit mode</item>
+        <item>Fixed pixelated album art rendering in the notification area player</item>
         <item>General performance optimizations</item>
-        <item>Fixed interaction bugs in playlist edit mode</item>
     </release>
 </changelog>

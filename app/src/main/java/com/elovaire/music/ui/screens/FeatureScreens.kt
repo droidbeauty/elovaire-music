@@ -6052,7 +6052,16 @@ private fun SelectableSongRow(
                     textAlign = TextAlign.End,
                 )
                 if (selectionIndicatorOnRight) {
-                    Box(contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clickable(
+                                interactionSource = remember { MutableInteractionSource() },
+                                indication = null,
+                                onClick = onClick,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
                         SelectionIndicatorIcon(selected = selected)
                     }
                 }
