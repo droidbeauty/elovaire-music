@@ -35,18 +35,27 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.annotation.DrawableRes
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
 import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.ui.i18n.PlaylistManagementCopy
 import elovaire.music.droidbeauty.app.ui.i18n.playlistManagementCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
+import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -85,7 +94,6 @@ internal fun ManagePlaylistsScreen(
             }
         }
     }
-
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -106,14 +114,7 @@ internal fun ManagePlaylistsScreen(
         ) {
             if (userPlaylists.isEmpty()) {
                 item {
-                    Text(
-                        text = copy.empty,
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(top = 44.dp),
-                    )
+                    ManagePlaylistsEmptyState(copy)
                 }
             } else {
                 itemsIndexed(
@@ -125,6 +126,7 @@ internal fun ManagePlaylistsScreen(
                         playlist = playlist,
                         previewSongs = playlist.songIds.mapNotNull(songsById::get),
                         appLanguage = appLanguage,
+                        exportContentDescription = copy.exportAction,
                         onExport = {
                             pendingExport = serializePlaylists(listOf(playlist))
                             exportLauncher.launch(playlistExportFileName(playlist.name))
@@ -143,34 +145,77 @@ internal fun ManagePlaylistsScreen(
             }
         }
 
-        Row(
+        PlaylistManagementActionBar(
+            exportAllLabel = copy.exportAll,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
                 .padding(bottom = bottomPadding + 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            PlaylistActionPill(
-                text = copy.importAction,
-                accent = false,
-                onClick = { importLauncher.launch(arrayOf("application/octet-stream", "text/plain")) },
-            )
-            PlaylistActionPill(
-                text = copy.exportAll,
-                accent = true,
-                onClick = {
-                    if (userPlaylists.isNotEmpty()) {
-                        pendingExport = serializePlaylists(userPlaylists)
-                        exportLauncher.launch("elovaire-playlists.elovaire")
-                    }
-                },
-            )
-        }
+            onExportAll = {
+                if (userPlaylists.isNotEmpty()) {
+                    pendingExport = serializePlaylists(userPlaylists)
+                    exportLauncher.launch("elovaire-playlists.elv")
+                }
+            },
+        )
 
         PinnedBackTopBar(
             title = copy.title,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
+            actions = listOf(
+                TopBarActionSpec(
+                    iconResId = R.drawable.ic_lucide_plus,
+                    contentDescription = copy.importAction,
+                    onClick = { importLauncher.launch(arrayOf("application/octet-stream", "text/plain")) },
+                ),
+            ),
+        )
+    }
+}
+
+@Composable
+private fun ManagePlaylistsEmptyState(copy: PlaylistManagementCopy) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 14.dp, bottom = 10.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = copy.emptyTitle,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = copy.emptySubtitle,
+                style = secondaryBodyTextStyle(),
+                color = readableSecondaryTextColor(),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(0.74f),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlaylistManagementActionBar(
+    exportAllLabel: String,
+    modifier: Modifier = Modifier,
+    onExportAll: () -> Unit,
+) {
+    Row(
+        modifier = modifier,
+    ) {
+        PlaylistActionPill(
+            text = exportAllLabel,
+            accent = true,
+            iconResId = R.drawable.ic_file_up,
+            onClick = onExportAll,
         )
     }
 }
@@ -180,6 +225,7 @@ private fun ManagePlaylistRow(
     playlist: Playlist,
     previewSongs: List<Song>,
     appLanguage: AppLanguage,
+    exportContentDescription: String,
     onExport: () -> Unit,
 ) {
     Row(
@@ -192,7 +238,7 @@ private fun ManagePlaylistRow(
         PlaylistArtworkPreview(
             songs = previewSongs,
             title = playlist.name,
-            modifier = Modifier.size(62.dp),
+            modifier = Modifier.size(72.dp),
         )
         Column(
             modifier = Modifier.weight(1f),
@@ -206,14 +252,23 @@ private fun ManagePlaylistRow(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
-                text = localizedCountLabel(playlist.songIds.size, "song", appLanguage),
-                style = secondaryBodyTextStyle().copy(fontSize = MaterialTheme.typography.labelLarge.fontSize),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                text = buildAnnotatedString {
+                    withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface)) {
+                        append(localizedCountLabel(playlist.songIds.size, "track", appLanguage))
+                    }
+                    append("  •  ")
+                    withStyle(SpanStyle(color = readableSecondaryTextColor().copy(alpha = 0.7f))) {
+                        append(formatDuration(previewSongs.sumOf(Song::durationMs)))
+                    }
+                },
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
         Surface(
             modifier = Modifier
-                .size(30.dp)
+                .size(40.dp)
                 .clip(CircleShape)
                 .clickable(onClick = onExport),
             shape = CircleShape,
@@ -223,7 +278,7 @@ private fun ManagePlaylistRow(
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     painter = painterResource(R.drawable.ic_file_up),
-                    contentDescription = "Export playlist",
+                    contentDescription = exportContentDescription,
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.82f),
                     modifier = Modifier.size(16.dp),
                 )
@@ -236,27 +291,50 @@ private fun ManagePlaylistRow(
 private fun PlaylistActionPill(
     text: String,
     accent: Boolean,
+    @DrawableRes iconResId: Int? = null,
     onClick: () -> Unit,
 ) {
-    Surface(
+    val interactionSource = rememberElovaireInteractionSource()
+    Row(
         modifier = Modifier
             .clip(RoundedCornerShape(ElovaireRadii.pill))
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(ElovaireRadii.pill),
-        color = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
-        contentColor = if (accent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+            .background(
+                if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
+            )
+            .elovairePressScale(
+                pressedScale = 0.9f,
+                animationSpec = ElovaireMotion.bounceSpringSpec(),
+                interactionSource = interactionSource,
+                label = "playlistActionPillScale",
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 18.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        if (iconResId != null) {
+            Icon(
+                painter = painterResource(iconResId),
+                contentDescription = null,
+                tint = if (accent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(16.dp),
+            )
+        }
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-            modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+            color = if (accent) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
         )
     }
 }
 
 private fun playlistExportFileName(name: String): String {
     val safeName = name.replace(Regex("[^A-Za-z0-9._-]+"), "_").trim('_')
-    return "${safeName.ifBlank { "playlist" }}.elovaire"
+    return "${safeName.ifBlank { "playlist" }}.elv"
 }
 
 private fun writePlaylistFile(

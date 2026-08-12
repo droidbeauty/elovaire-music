@@ -176,6 +176,7 @@ internal fun ChangelogScreen(
 @Composable
 internal fun ChangelogBottomSheetOverlay(
     releases: List<ChangelogRelease>,
+    visible: Boolean,
     onDismiss: () -> Unit,
 ) {
     val listState = rememberLazyListState()
@@ -206,7 +207,7 @@ internal fun ChangelogBottomSheetOverlay(
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .fillMaxHeight(0.5f),
-            visible = true,
+            visible = visible,
             enter = ElovaireMotion.bottomSheetEnter(),
             exit = ElovaireMotion.bottomSheetExit(),
         ) {
@@ -428,6 +429,7 @@ internal fun UpdateAvailableDialog(
     controller: UpdateController,
     state: elovaire.music.droidbeauty.app.data.update.AppUpdateUiState,
     release: elovaire.music.droidbeauty.app.data.update.AppReleaseInfo,
+    visible: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val changes = remember(release.notes) { releaseNotesAsChanges(release.notes) }
@@ -442,11 +444,8 @@ internal fun UpdateAvailableDialog(
                 onClick = {},
             ),
     ) {
-        AnimatedVisibility(
-            visible = true,
+        Box(
             modifier = Modifier.matchParentSize(),
-            enter = fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()),
-            exit = fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec()),
         ) {
             Box(
                 modifier = Modifier
@@ -460,7 +459,7 @@ internal fun UpdateAvailableDialog(
             )
         }
         AnimatedVisibility(
-            visible = true,
+            visible = visible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()

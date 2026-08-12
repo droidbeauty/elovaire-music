@@ -107,7 +107,7 @@ internal fun PlaylistArtworkPreview(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(start = 12.dp, top = 18.dp, end = 12.dp, bottom = 8.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.artwork))
+                    .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
@@ -122,7 +122,7 @@ internal fun PlaylistArtworkPreview(
         }
         Surface(
             modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(ElovaireRadii.artwork),
+            shape = RoundedCornerShape(ElovaireRadii.artworkSmall),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
         ) {
             when {
@@ -168,7 +168,7 @@ internal fun PlaylistArtworkPreview(
                         uri = coverSong?.artUri,
                         title = coverSong?.title ?: title,
                         modifier = Modifier.fillMaxSize(),
-                        cornerRadius = ElovaireRadii.artwork,
+                        cornerRadius = ElovaireRadii.artworkSmall,
                         requestedSizePx = 384,
                         placeholderIconSize = placeholderIconSize,
                     )

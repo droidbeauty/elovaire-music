@@ -24,6 +24,33 @@ internal fun normalizePlaylistSongIds(songIds: List<Long>): List<Long> {
     return seen.toList()
 }
 
+internal fun distinctImportedPlaylists(
+    existing: List<Playlist>,
+    incoming: List<Playlist>,
+): List<Playlist> {
+    val knownKeys = existing
+        .filterNot(Playlist::isSystem)
+        .mapTo(mutableSetOf(), ::playlistIdentity)
+    return incoming.mapNotNull { source ->
+        val name = normalizePlaylistName(source.name)
+        if (name.isBlank()) return@mapNotNull null
+        val normalized = source.copy(
+            name = name,
+            songIds = normalizePlaylistSongIds(source.songIds),
+            isSystem = false,
+        )
+        normalized.takeIf { knownKeys.add(playlistIdentity(it)) }
+    }
+}
+
+private fun playlistIdentity(playlist: Playlist): String {
+    return buildString {
+        append(normalizePlaylistName(playlist.name))
+        append('\u001F')
+        append(normalizePlaylistSongIds(playlist.songIds).joinToString(","))
+    }
+}
+
 internal fun generatePlaylistId(
     existingIds: Set<Long>,
     initialCandidate: Long,

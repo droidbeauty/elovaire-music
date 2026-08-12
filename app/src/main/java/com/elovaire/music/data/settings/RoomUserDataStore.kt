@@ -23,6 +23,7 @@ import elovaire.music.droidbeauty.app.data.playlists.addSongsToPlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.createPlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.deletePlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
+import elovaire.music.droidbeauty.app.data.playlists.distinctImportedPlaylists
 import elovaire.music.droidbeauty.app.data.playlists.normalizePlaylistName
 import elovaire.music.droidbeauty.app.data.playlists.normalizePlaylistSongIds
 import elovaire.music.droidbeauty.app.data.playlists.removeSongReferencesFromPlaylists
@@ -204,17 +205,10 @@ internal class RoomUserDataStore(
 
     override fun importPlaylists(playlists: List<Playlist>): Deferred<PlaylistMutationResult> =
         enqueueMutation("playlist.import") {
-            val imported = playlists.mapNotNull { source ->
-                val name = normalizePlaylistName(source.name)
-                name.takeIf { it.isNotBlank() }?.let {
-                    Playlist(
-                        id = newId(),
-                        name = it,
-                        songIds = normalizePlaylistSongIds(source.songIds),
-                    )
-                }
-            }
-            if (imported.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+            if (playlists.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+            val imported = distinctImportedPlaylists(_userPlaylists.value, playlists)
+                .map { it.copy(id = newId()) }
+            if (imported.isEmpty()) return@enqueueMutation PlaylistMutationResult.Success(changed = false)
             imported.forEach { playlist ->
                 dao.insertPlaylistWithEntries(playlist.toEntity(), playlist.songIds)
                 dao.verifyPlaylist(playlist)

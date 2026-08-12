@@ -7250,6 +7250,7 @@ internal fun NowPlayingScreen(
         ) {
             SleepTimerDialog(
                 selectedOption = playerUiState.sleepTimer.option,
+                visible = showSleepTimerDialog,
                 onOptionSelected = { option ->
                     onSleepTimerSelected(option)
                     showSleepTimerDialog = false
@@ -7669,6 +7670,7 @@ private fun QueueSeparator(
 @Suppress("LongMethod")
 private fun SleepTimerDialog(
     selectedOption: SleepTimerOption,
+    visible: Boolean,
     onOptionSelected: (SleepTimerOption) -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -7702,7 +7704,7 @@ private fun SleepTimerDialog(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
-            visible = true,
+            visible = visible,
             enter = ElovaireMotion.bottomSheetEnter(),
             exit = ElovaireMotion.bottomSheetExit(),
         ) {

@@ -2532,52 +2532,56 @@ internal data class PlaylistManagementCopy(
     val title: String,
     val importAction: String,
     val exportAll: String,
-    val empty: String,
+    val emptyTitle: String,
+    val emptySubtitle: String,
+    val exportAction: String,
 )
 
 @Suppress("CyclomaticComplexMethod")
 internal fun playlistManagementCopy(language: AppLanguage): PlaylistManagementCopy {
     val labels = when (language) {
-        AppLanguage.Albanian -> listOf("Importo", "Eksporto të gjitha", "Nuk ka lista dëgjimi të krijuara")
-        AppLanguage.Bengali -> listOf("ইমপোর্ট", "সব এক্সপোর্ট করুন", "এখনও কোনো প্লেলিস্ট নেই")
-        AppLanguage.ChineseSimplified -> listOf("导入", "全部导出", "还没有用户创建的播放列表")
-        AppLanguage.Croatian -> listOf("Uvezi", "Izvezi sve", "Još nema korisničkih playlista")
-        AppLanguage.Czech -> listOf("Importovat", "Exportovat vše", "Zatím nejsou vytvořeny žádné playlisty")
-        AppLanguage.Danish -> listOf("Importér", "Eksportér alle", "Der er endnu ingen brugeroprettede afspilningslister")
-        AppLanguage.Dutch -> listOf("Importeren", "Alles exporteren", "Er zijn nog geen afspeellijsten")
-        AppLanguage.Estonian -> listOf("Impordi", "Ekspordi kõik", "Kasutaja loodud esitusloendeid pole veel")
-        AppLanguage.French -> listOf("Importer", "Tout exporter", "Aucune playlist créée par l’utilisateur")
-        AppLanguage.German -> listOf("Importieren", "Alle exportieren", "Noch keine Benutzer-Playlists vorhanden")
-        AppLanguage.Greek -> listOf("Εισαγωγή", "Εξαγωγή όλων", "Δεν υπάρχουν ακόμη λίστες αναπαραγωγής")
-        AppLanguage.Hindi -> listOf("आयात", "सभी निर्यात करें", "अभी तक कोई प्लेलिस्ट नहीं बनाई गई है")
-        AppLanguage.Hungarian -> listOf("Importálás", "Összes exportálása", "Még nincsenek létrehozott lejátszási listák")
-        AppLanguage.Italian -> listOf("Importa", "Esporta tutto", "Non ci sono ancora playlist create dall’utente")
-        AppLanguage.Japanese -> listOf("インポート", "すべてエクスポート", "作成されたプレイリストはまだありません")
-        AppLanguage.Korean -> listOf("가져오기", "모두 내보내기", "아직 만든 플레이리스트가 없습니다")
-        AppLanguage.Latin -> listOf("Importa", "Omnia exporta", "Nulli adhuc indices a usuario creati")
-        AppLanguage.Latvian -> listOf("Importēt", "Eksportēt visu", "Vēl nav lietotāja izveidotu atskaņošanas sarakstu")
-        AppLanguage.Lithuanian -> listOf("Importuoti", "Eksportuoti viską", "Naudotojo sukurtų grojaraščių dar nėra")
-        AppLanguage.Macedonian -> listOf("Увези", "Извези ги сите", "Сè уште нема кориснички плејлисти")
-        AppLanguage.Malay -> listOf("Import", "Eksport semua", "Belum ada senarai main yang dicipta")
-        AppLanguage.Norwegian -> listOf("Importer", "Eksporter alle", "Ingen brukeropprettede spillelister ennå")
-        AppLanguage.Polish -> listOf("Importuj", "Eksportuj wszystko", "Nie ma jeszcze żadnych utworzonych playlist")
-        AppLanguage.Portuguese -> listOf("Importar", "Exportar tudo", "Ainda não existem playlists criadas pelo utilizador")
-        AppLanguage.Russian -> listOf("Импортировать", "Экспортировать все", "Пользовательских плейлистов пока нет")
-        AppLanguage.Serbian -> listOf("Увези", "Извези све", "Још нема корисничких плејлиста")
-        AppLanguage.Slovak -> listOf("Importovať", "Exportovať všetko", "Zatiaľ nie sú vytvorené žiadne playlisty")
-        AppLanguage.Spanish -> listOf("Importar", "Exportar todo", "Todavía no hay playlists creadas")
-        AppLanguage.Swedish -> listOf("Importera", "Exportera alla", "Det finns inga skapade spellistor ännu")
-        AppLanguage.Thai -> listOf("นำเข้า", "ส่งออกทั้งหมด", "ยังไม่มีเพลย์ลิสต์ที่สร้างโดยผู้ใช้")
-        AppLanguage.Ukrainian -> listOf("Імпортувати", "Експортувати все", "Користувацьких плейлистів ще немає")
-        AppLanguage.Urdu -> listOf("درآمد", "سب برآمد کریں", "ابھی تک کوئی پلے لسٹ نہیں بنائی گئی")
-        AppLanguage.English -> listOf("Import", "Export all", "No user-created playlists yet")
+        AppLanguage.Albanian -> listOf("Importo", "Eksporto të gjitha", "Nuk ke lista dëgjimi", "Krijo të paktën një listë dëgjimi që të mund ta eksportosh", "Eksporto")
+        AppLanguage.Bengali -> listOf("ইমপোর্ট", "সব এক্সপোর্ট করুন", "আপনার কোনো প্লেলিস্ট নেই", "এক্সপোর্ট করতে অন্তত একটি প্লেলিস্ট তৈরি করুন", "এক্সপোর্ট")
+        AppLanguage.ChineseSimplified -> listOf("导入", "全部导出", "你还没有播放列表", "请至少创建一个播放列表后再导出", "导出")
+        AppLanguage.Croatian -> listOf("Uvezi", "Izvezi sve", "Nemate playlista", "Izradite barem jednu playlistu da biste je mogli izvesti", "Izvezi")
+        AppLanguage.Czech -> listOf("Importovat", "Exportovat vše", "Nemáte žádné playlisty", "Abyste mohli playlist exportovat, vytvořte alespoň jeden", "Exportovat")
+        AppLanguage.Danish -> listOf("Importér", "Eksportér alle", "Du har ingen afspilningslister", "Opret mindst én afspilningsliste for at kunne eksportere den", "Eksportér")
+        AppLanguage.Dutch -> listOf("Importeren", "Alles exporteren", "Je hebt geen afspeellijsten", "Maak minstens één afspeellijst om deze te kunnen exporteren", "Exporteren")
+        AppLanguage.Estonian -> listOf("Impordi", "Ekspordi kõik", "Sul pole esitusloendeid", "Ekspordi võimaldamiseks loo vähemalt üks esitusloend", "Ekspordi")
+        AppLanguage.French -> listOf("Importer", "Tout exporter", "Vous n’avez aucune playlist", "Créez au moins une playlist pour pouvoir l’exporter", "Exporter")
+        AppLanguage.German -> listOf("Importieren", "Alle exportieren", "Du hast keine Playlists", "Erstelle mindestens eine Playlist, um sie exportieren zu können", "Exportieren")
+        AppLanguage.Greek -> listOf("Εισαγωγή", "Εξαγωγή όλων", "Δεν έχεις λίστες αναπαραγωγής", "Δημιούργησε τουλάχιστον μία λίστα αναπαραγωγής για να μπορείς να την εξαγάγεις", "Εξαγωγή")
+        AppLanguage.Hindi -> listOf("आयात", "सभी निर्यात करें", "आपके पास कोई प्लेलिस्ट नहीं है", "निर्यात करने के लिए कम से कम एक प्लेलिस्ट बनाएं", "निर्यात")
+        AppLanguage.Hungarian -> listOf("Importálás", "Összes exportálása", "Nincsenek lejátszólistáid", "Hozz létre legalább egy lejátszólistát az exportálásához", "Exportálás")
+        AppLanguage.Italian -> listOf("Importa", "Esporta tutto", "Non hai playlist", "Crea almeno una playlist per poterla esportare", "Esporta")
+        AppLanguage.Japanese -> listOf("インポート", "すべてエクスポート", "プレイリストがありません", "エクスポートするには、少なくとも1つのプレイリストを作成してください", "エクスポート")
+        AppLanguage.Korean -> listOf("가져오기", "모두 내보내기", "플레이리스트가 없습니다", "내보내려면 플레이리스트를 하나 이상 만드세요", "내보내기")
+        AppLanguage.Latin -> listOf("Importa", "Omnia exporta", "Nullum indicem habes", "Crea saltem unum indicem ut eum exportare possis", "Exporta")
+        AppLanguage.Latvian -> listOf("Importēt", "Eksportēt visu", "Jums nav atskaņošanas sarakstu", "Izveidojiet vismaz vienu atskaņošanas sarakstu, lai to varētu eksportēt", "Eksportēt")
+        AppLanguage.Lithuanian -> listOf("Importuoti", "Eksportuoti viską", "Neturite grojaraščių", "Sukurkite bent vieną grojaraštį, kad galėtumėte jį eksportuoti", "Eksportuoti")
+        AppLanguage.Macedonian -> listOf("Увези", "Извези ги сите", "Немате плејлисти", "Создадете барем една плејлиста за да можете да ја извезете", "Извези")
+        AppLanguage.Malay -> listOf("Import", "Eksport semua", "Anda tiada senarai main", "Cipta sekurang-kurangnya satu senarai main untuk mengeksportnya", "Eksport")
+        AppLanguage.Norwegian -> listOf("Importer", "Eksporter alle", "Du har ingen spillelister", "Opprett minst én spilleliste for å kunne eksportere den", "Eksporter")
+        AppLanguage.Polish -> listOf("Importuj", "Eksportuj wszystko", "Nie masz żadnych playlist", "Utwórz co najmniej jedną playlistę, aby móc ją eksportować", "Eksportuj")
+        AppLanguage.Portuguese -> listOf("Importar", "Exportar tudo", "Não tem playlists", "Crie pelo menos uma playlist para a poder exportar", "Exportar")
+        AppLanguage.Russian -> listOf("Импортировать", "Экспортировать все", "У вас нет плейлистов", "Создайте хотя бы один плейлист, чтобы экспортировать его", "Экспортировать")
+        AppLanguage.Serbian -> listOf("Увези", "Извези све", "Немате плејлисте", "Направите бар једну плејлисту да бисте могли да је извезете", "Извези")
+        AppLanguage.Slovak -> listOf("Importovať", "Exportovať všetko", "Nemáte žiadne playlisty", "Vytvorte aspoň jeden playlist, aby ste ho mohli exportovať", "Exportovať")
+        AppLanguage.Spanish -> listOf("Importar", "Exportar todo", "No tienes playlists", "Crea al menos una playlist para poder exportarla", "Exportar")
+        AppLanguage.Swedish -> listOf("Importera", "Exportera alla", "Du har inga spellistor", "Skapa minst en spellista för att kunna exportera den", "Exportera")
+        AppLanguage.Thai -> listOf("นำเข้า", "ส่งออกทั้งหมด", "คุณยังไม่มีเพลย์ลิสต์", "สร้างเพลย์ลิสต์อย่างน้อยหนึ่งรายการเพื่อส่งออก", "ส่งออก")
+        AppLanguage.Ukrainian -> listOf("Імпортувати", "Експортувати все", "У вас немає плейлистів", "Створіть хоча б один плейлист, щоб експортувати його", "Експортувати")
+        AppLanguage.Urdu -> listOf("درآمد", "سب برآمد کریں", "آپ کے پاس کوئی پلے لسٹ نہیں", "برآمد کرنے کے لیے کم از کم ایک پلے لسٹ بنائیں", "برآمد کریں")
+        AppLanguage.English -> listOf("Import", "Export all", "You have no playlists", "Create at least one playlist to be able to export it", "Export")
     }
     val settings = settingsCopy(language)
     return PlaylistManagementCopy(
         title = settings.managePlaylistsTitle,
         importAction = labels[0],
         exportAll = labels[1],
-        empty = labels[2],
+        emptyTitle = labels[2],
+        emptySubtitle = labels[3],
+        exportAction = labels[4],
     )
 }
 

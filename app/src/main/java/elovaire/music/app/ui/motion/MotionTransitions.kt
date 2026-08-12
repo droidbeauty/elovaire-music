@@ -4,6 +4,7 @@ import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.ContentTransform
 import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.fadeIn
@@ -104,22 +105,34 @@ class MotionTransitions internal constructor(
         )
     }
 
-    fun bottomSheetEnter(): EnterTransition = overlayFadeEnter(initialAlpha = 0.74f) +
-        slideInVertically(
+    fun bottomSheetEnter(): EnterTransition = fadeIn(
+        initialAlpha = 0f,
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Emphasized,
+            easing = MotionEasing.RefinedDecelerate,
+        ),
+    ) +
+        expandVertically(
+            expandFrom = Alignment.Bottom,
             animationSpec = specs.tween(
                 durationMillis = MotionDuration.Emphasized,
                 easing = MotionEasing.RefinedDecelerate,
             ),
-            initialOffsetY = { it / 5 },
         )
 
-    fun bottomSheetExit(): ExitTransition = overlayFadeExit(targetAlpha = 0.9f) +
-        slideOutVertically(
+    fun bottomSheetExit(): ExitTransition = fadeOut(
+        targetAlpha = 0f,
+        animationSpec = specs.tween(
+            durationMillis = MotionDuration.Fast,
+            easing = MotionEasing.RefinedAccelerate,
+        ),
+    ) +
+        shrinkVertically(
+            shrinkTowards = Alignment.Bottom,
             animationSpec = specs.tween(
                 durationMillis = MotionDuration.Fast,
                 easing = MotionEasing.RefinedAccelerate,
             ),
-            targetOffsetY = { it / 8 },
         )
 
     fun bannerEnter(): EnterTransition = fadeSlideVerticalEnter(

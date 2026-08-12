@@ -80,6 +80,7 @@ internal sealed interface SharedTopBarSpec {
         val title: String,
         val onBack: () -> Unit,
         val centeredTitle: Boolean = false,
+        val actions: List<TopBarActionSpec> = emptyList(),
     ) : SharedTopBarSpec
 
     data class Detail(
@@ -273,6 +274,7 @@ internal fun PinnedBackTopBar(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
     centeredTitle: Boolean = false,
+    actions: List<TopBarActionSpec> = emptyList(),
 ) {
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val useSharedBackdrop = LocalUseSharedTopBarBackdrop.current
@@ -282,6 +284,7 @@ internal fun PinnedBackTopBar(
                 title = title,
                 onBack = onBack,
                 centeredTitle = centeredTitle,
+                actions = actions,
             ),
         )
         return
@@ -332,6 +335,10 @@ internal fun PinnedBackTopBar(
                         .zIndex(1f)
                         .padding(horizontal = 64.dp),
                 )
+                TopBarActions(
+                    actions = actions,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                )
             }
         } else {
             Row(
@@ -364,6 +371,30 @@ internal fun PinnedBackTopBar(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
+                TopBarActions(actions)
+            }
+        }
+    }
+}
+
+@Composable
+private fun TopBarActions(
+    actions: List<TopBarActionSpec>,
+    modifier: Modifier = Modifier,
+) {
+    if (actions.isNotEmpty()) {
+        Row(
+            modifier = modifier,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            actions.forEach { action ->
+                HeaderIconButton(
+                    iconResId = action.iconResId,
+                    contentDescription = action.contentDescription,
+                    showBackground = false,
+                    onClick = action.onClick,
+                )
             }
         }
     }
@@ -500,6 +531,10 @@ internal fun SharedTopBarOverlay(
                                     )
                                 }
                             }
+                            TopBarActions(
+                                actions = currentSpec.actions,
+                                modifier = Modifier.align(Alignment.CenterEnd),
+                            )
                         }
                     } else {
                         Row(
@@ -544,6 +579,7 @@ internal fun SharedTopBarOverlay(
                                     )
                                 }
                             }
+                            TopBarActions(currentSpec.actions)
                         }
                     }
                 }

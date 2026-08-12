@@ -10,16 +10,12 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.snap
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -48,12 +44,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -61,12 +54,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -721,152 +711,18 @@ private fun TextSizeStepper(
     onPresetSelected: (TextSizePreset) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val motionSpecs = rememberMotionSpecs()
     val presets = TextSizePreset.entries
-    val currentSelectedPreset by rememberUpdatedState(selectedPreset)
-    val currentOnPresetSelected by rememberUpdatedState(onPresetSelected)
     val selectedIndex = presets.indexOf(selectedPreset).coerceAtLeast(0)
-    val maxIndex = (presets.size - 1).coerceAtLeast(1)
-    val knobSize = 20.dp
-    val dotColor = MaterialTheme.colorScheme.onSurface
-    val knobColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        InkText
-    } else {
-        Color.White
-    }
-    val lineColor = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) {
-        InkText.copy(alpha = 0.18f)
-    } else {
-        Color.White.copy(alpha = 0.2f)
-    }
-    var isDragging by remember { mutableStateOf(false) }
-    var dragCenterPx by remember { mutableFloatStateOf(0f) }
 
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        BoxWithConstraints(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(36.dp)
-                .horizontalGestureSafe(),
-        ) {
-            val density = LocalDensity.current
-            val maxWidthPx = with(density) { maxWidth.toPx() }
-            val stepFraction = selectedIndex.toFloat() / maxIndex.toFloat()
-            val knobSizePx = with(density) { knobSize.toPx() }
-            val selectedCenterPx = maxWidthPx * stepFraction
-            val stepCenters = remember(maxWidthPx, maxIndex) {
-                presets.indices.map { index ->
-                    if (maxIndex == 0) {
-                        maxWidthPx / 2f
-                    } else {
-                        maxWidthPx * (index.toFloat() / maxIndex.toFloat())
-                    }
-                }
-            }
-            LaunchedEffect(selectedCenterPx, maxWidthPx) {
-                if (!isDragging) {
-                    dragCenterPx = selectedCenterPx
-                }
-            }
-            val knobOffset by animateDpAsState(
-                targetValue = with(density) {
-                    ((if (isDragging) dragCenterPx else selectedCenterPx) - (knobSizePx / 2f)).toDp()
-                },
-                animationSpec = if (isDragging) {
-                    snap()
-                } else {
-                    motionSpecs.spring(
-                        dampingRatio = 0.82f,
-                        stiffness = 480f,
-                    )
-                },
-                label = "text_size_knob_offset",
-            )
-            val updateFromPosition: (Float) -> Unit = { xPosition ->
-                val clampedX = xPosition.coerceIn(0f, maxWidthPx)
-                dragCenterPx = clampedX
-                val targetIndex = stepCenters
-                    .withIndex()
-                    .minByOrNull { (_, center) -> kotlin.math.abs(center - clampedX) }
-                    ?.index
-                    ?: presets.indexOf(currentSelectedPreset).coerceAtLeast(0)
-                val preset = presets[targetIndex]
-                if (preset != currentSelectedPreset) {
-                    currentOnPresetSelected(preset)
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .pointerInput(maxWidthPx) {
-                        detectTapGestures { offset ->
-                            if (maxWidthPx > 0f) {
-                                updateFromPosition(offset.x)
-                            }
-                        }
-                    }
-                    .pointerInput(maxWidthPx, presets.size) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { offset ->
-                                isDragging = true
-                                if (maxWidthPx > 0f) {
-                                    updateFromPosition(offset.x)
-                                }
-                            },
-                            onHorizontalDrag = { change, _ ->
-                                if (maxWidthPx > 0f) {
-                                    change.consume()
-                                    updateFromPosition(change.position.x)
-                                }
-                            },
-                            onDragEnd = {
-                                isDragging = false
-                            },
-                            onDragCancel = {
-                                isDragging = false
-                            },
-                        )
-                    },
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.Center)
-                        .height(2.dp)
-                        .clip(RoundedCornerShape(ElovaireRadii.pill))
-                        .background(lineColor),
-                )
-
-                Canvas(
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    val selectedDotRadius = 3.5.dp.toPx()
-                    val defaultDotRadius = 2.5.dp.toPx()
-                    val centerY = size.height / 2f
-                    presets.forEachIndexed { index, _ ->
-                        val fraction = if (maxIndex == 0) 0f else index.toFloat() / maxIndex.toFloat()
-                        drawCircle(
-                            color = dotColor,
-                            radius = if (index == selectedIndex) selectedDotRadius else defaultDotRadius,
-                            center = Offset(size.width * fraction, centerY),
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(x = knobOffset.roundToPx(), y = 0) }
-                        .size(knobSize)
-                        .clip(CircleShape)
-                        .background(knobColor)
-                        .align(Alignment.CenterStart),
-                )
-            }
-        }
+        SteppedSlider(
+            selectedIndex = selectedIndex,
+            stepCount = presets.size,
+            onSelectedIndexChanged = { index -> onPresetSelected(presets[index]) },
+        )
 
         Row(
             modifier = Modifier.fillMaxWidth(),

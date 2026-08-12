@@ -327,28 +327,22 @@ object ElovaireMotion {
         targetAlpha = targetAlpha,
     )
 
-    fun bottomSheetEnter(
-        initialOffsetY: (Int) -> Int = { it / 5 },
-    ): EnterTransition = overlayFadeEnter(initialAlpha = 0.74f) +
+    fun bottomSheetEnter(): EnterTransition = fadeIn(
+        initialAlpha = 0f,
+        animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = EmphasizedDecelerate),
+    ) +
         expandVertically(
             expandFrom = Alignment.Bottom,
             animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = EmphasizedDecelerate),
-        ) +
-        slideInVertically(
-            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = EmphasizedDecelerate),
-            initialOffsetY = initialOffsetY,
         )
 
-    fun bottomSheetExit(
-        targetOffsetY: (Int) -> Int = { it / 8 },
-    ): ExitTransition = overlayFadeExit(targetAlpha = 0.9f) +
+    fun bottomSheetExit(): ExitTransition = fadeOut(
+        targetAlpha = 0f,
+        animationSpec = scaledTween(durationMillis = FastBase, easing = EmphasizedAccelerate),
+    ) +
         shrinkVertically(
             shrinkTowards = Alignment.Bottom,
             animationSpec = scaledTween(durationMillis = FastBase, easing = EmphasizedAccelerate),
-        ) +
-        slideOutVertically(
-            animationSpec = scaledTween(durationMillis = FastBase, easing = EmphasizedAccelerate),
-            targetOffsetY = targetOffsetY,
         )
 
     fun bannerEnter(

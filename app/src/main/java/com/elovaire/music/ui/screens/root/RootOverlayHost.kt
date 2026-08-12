@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -12,11 +13,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.update.AppUpdateUiState
+import elovaire.music.droidbeauty.app.data.update.AppReleaseInfo
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import kotlinx.coroutines.launch
 import elovaire.music.droidbeauty.app.ui.screens.UpdateAvailableDialog
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
+import elovaire.music.droidbeauty.app.ui.motion.MotionVisibilityHost
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Composable
@@ -41,6 +44,10 @@ internal fun BoxScope.RootOverlayHost(
 ) {
     val scope = rememberCoroutineScope()
     var isCreatingPlaylist by remember { mutableStateOf(false) }
+    var displayedUpdateRelease by remember { mutableStateOf<AppReleaseInfo?>(null) }
+    LaunchedEffect(updateState.availableRelease) {
+        updateState.availableRelease?.let { displayedUpdateRelease = it }
+    }
     TopBarContextMenuOverlay(
         expanded = showTopBarMenu,
         modifier = Modifier
@@ -63,6 +70,7 @@ internal fun BoxScope.RootOverlayHost(
     ) {
         ChangelogBottomSheetOverlay(
             releases = changelogReleases,
+            visible = showChangelogSheet,
             onDismiss = onDismissChangelogSheet,
         )
     }
@@ -84,15 +92,23 @@ internal fun BoxScope.RootOverlayHost(
         )
     }
     if (updateController.isSupported) {
-        updateState.availableRelease?.let { release ->
-            UpdateAvailableDialog(
-                controller = updateController,
-                state = updateState,
-                release = release,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .zIndex(RootLayerZ.UpdateDialog),
-            )
+        MotionVisibilityHost(
+            visible = updateState.availableRelease != null,
+            modifier = Modifier
+                .fillMaxSize()
+                .zIndex(RootLayerZ.UpdateDialog),
+            enter = motionTransitions.overlayFadeEnter(initialAlpha = 0.86f),
+            exit = motionTransitions.overlayFadeExit(targetAlpha = 0.94f),
+            onExitFinished = { displayedUpdateRelease = null },
+        ) {
+            displayedUpdateRelease?.let { release ->
+                UpdateAvailableDialog(
+                    controller = updateController,
+                    state = updateState,
+                    release = release,
+                    visible = updateState.availableRelease != null,
+                )
+            }
         }
     }
     ElovaireAnimatedVisibility(

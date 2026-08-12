@@ -39,6 +39,27 @@ class PlaylistHelpersTest {
     }
 
     @Test
+    fun distinctImportedPlaylists_blocksExactDuplicatesAndKeepsDifferentPlaylists() {
+        val existing = listOf(
+            Playlist(id = 1L, name = "Road Trip", songIds = listOf(7L, 3L)),
+        )
+
+        val result = distinctImportedPlaylists(
+            existing = existing,
+            incoming = listOf(
+                Playlist(id = 99L, name = "  Road   Trip ", songIds = listOf(7L, 3L, 3L)),
+                Playlist(id = 100L, name = "Road Trip", songIds = listOf(7L)),
+                Playlist(id = 101L, name = "Road Trip", songIds = listOf(7L)),
+            ),
+        )
+
+        assertEquals(
+            listOf(Playlist(id = 100L, name = "Road Trip", songIds = listOf(7L))),
+            result,
+        )
+    }
+
+    @Test
     fun addSongsToPlaylistEntries_noOpsWhenPlaylistMissing() {
         val result = addSongsToPlaylistEntries(
             playlists = listOf(Playlist(id = 1L, name = "Test")),
