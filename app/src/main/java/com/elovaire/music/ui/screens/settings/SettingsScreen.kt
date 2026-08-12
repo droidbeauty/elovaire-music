@@ -133,7 +133,7 @@ internal fun SettingsScreen(
     onScanLibrary: () -> Unit,
     updateController: UpdateController,
 ) {
-    val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
+    val listState = rememberElovaireLazyListState("settings_screen")
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
     val updateState by updateController.uiState.collectAsStateWithLifecycle()
@@ -262,10 +262,11 @@ internal fun SettingsScreen(
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         SettingNavigationRow(
-                            title = "Crossfade",
+                            title = copy.crossfadeTitle,
                             subtitle = crossfadeSummary(
                                 durationMs = crossfadeDurationMs,
                                 silenceThresholdDb = crossfadeSilenceThresholdDb,
+                                language = appLanguage,
                             ),
                             onClick = onOpenCrossfade,
                             modifier = Modifier
@@ -277,7 +278,7 @@ internal fun SettingsScreen(
             }
 
             item {
-                SettingsSectionHeader(title = "Library", iconResId = R.drawable.ic_lucide_library)
+                SettingsSectionHeader(title = commonUiCopy(appLanguage).library, iconResId = R.drawable.ic_lucide_library)
             }
 
             item {
@@ -290,8 +291,8 @@ internal fun SettingsScreen(
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                         SettingNavigationRow(
-                            title = "Manage playlists",
-                            subtitle = "Import and export your playlists",
+                            title = copy.managePlaylistsTitle,
+                            subtitle = copy.managePlaylistsSubtitle,
                             onClick = onOpenManagePlaylists,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
@@ -312,8 +313,8 @@ internal fun SettingsScreen(
             item {
                 ModuleCard {
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                        SettingToggleRow(title = "Online lyrics", subtitle = "Fetch lyrics from LRCLIB", enabled = onlineLyricsEnabled, onEnabledChanged = onOnlineLyricsChanged, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
-                        SettingActionRow(title = "Check for updates", subtitle = "Check out newer release version availability", actionLabel = updateActionLabel(updateState), actionIconResId = R.drawable.ic_lucide_refresh_cw, enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling, onAction = { if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
+                        SettingToggleRow(title = copy.onlineLyricsTitle, subtitle = copy.onlineLyricsSubtitle, enabled = onlineLyricsEnabled, onEnabledChanged = onOnlineLyricsChanged, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
+                        SettingActionRow(title = copy.checkForUpdatesTitle, subtitle = copy.checkForUpdatesSubtitle, actionLabel = updateActionLabel(updateState, appLanguage), actionIconResId = R.drawable.ic_lucide_refresh_cw, enabled = !updateState.isChecking && !updateState.isDownloading && !updateState.isInstalling, onAction = { if (updateState.availableRelease == null) updateController.checkForUpdates(force = true) else updateController.startUpdate() }, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp))
                         SettingNavigationRow(title = privacyPolicyCopy(appLanguage).title, subtitle = privacyPolicySettingsSubtitle(appLanguage), onClick = onOpenPrivacyPolicy, modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp), testTag = "settings_privacy_policy")
                     }
                 }
@@ -1011,6 +1012,7 @@ private fun updateSubtitle(state: AppUpdateUiState): String = when {
 private fun crossfadeSummary(
     durationMs: Long,
     silenceThresholdDb: Float,
+    language: AppLanguage,
 ): String {
     val durationSeconds = durationMs.coerceIn(2_000L, 5_000L) / 1_000f
     val formattedDuration = if (durationSeconds % 1f == 0f) {
@@ -1018,17 +1020,87 @@ private fun crossfadeSummary(
     } else {
         durationSeconds.toString()
     }
-    return "$formattedDuration s fade · ${silenceThresholdDb.toInt()} dB silence"
+    val silence = silenceThresholdDb.toInt()
+    return when (language) {
+        AppLanguage.Albanian -> "$formattedDuration s kalim gradual · heshtje $silence dB"
+        AppLanguage.Bengali -> "$formattedDuration সেকেন্ড ক্রসফেড · নীরবতা $silence dB"
+        AppLanguage.ChineseSimplified -> "$formattedDuration 秒淡化 · 静音 $silence dB"
+        AppLanguage.Croatian -> "$formattedDuration s pretapanja · tišina $silence dB"
+        AppLanguage.Czech -> "$formattedDuration s prolínání · ticho $silence dB"
+        AppLanguage.Danish -> "$formattedDuration s crossfade · stilhed $silence dB"
+        AppLanguage.Dutch -> "$formattedDuration s crossfade · stilte $silence dB"
+        AppLanguage.Estonian -> "$formattedDuration s sujuvat üleminekut · vaikus $silence dB"
+        AppLanguage.French -> "$formattedDuration s de fondu · silence $silence dB"
+        AppLanguage.German -> "$formattedDuration s Überblendung · Stille $silence dB"
+        AppLanguage.Greek -> "$formattedDuration s ομαλής μετάβασης · σιωπή $silence dB"
+        AppLanguage.Hindi -> "$formattedDuration सेकंड क्रॉसफ़ेड · मौन $silence dB"
+        AppLanguage.Hungarian -> "$formattedDuration mp átkeverés · csend $silence dB"
+        AppLanguage.Italian -> "$formattedDuration s di dissolvenza · silenzio $silence dB"
+        AppLanguage.Japanese -> "$formattedDuration 秒クロスフェード · 無音 $silence dB"
+        AppLanguage.Korean -> "${formattedDuration}초 크로스페이드 · 무음 $silence dB"
+        AppLanguage.Latin -> "$formattedDuration s transitus · silentium $silence dB"
+        AppLanguage.Latvian -> "$formattedDuration s sapludināšanas · klusums $silence dB"
+        AppLanguage.Lithuanian -> "$formattedDuration s suliejimo · tyla $silence dB"
+        AppLanguage.Macedonian -> "$formattedDuration s вкрстено прелевање · тишина $silence dB"
+        AppLanguage.Malay -> "$formattedDuration s crossfade · senyap $silence dB"
+        AppLanguage.Norwegian -> "$formattedDuration s kryssfade · stillhet $silence dB"
+        AppLanguage.Polish -> "$formattedDuration s przenikania · cisza $silence dB"
+        AppLanguage.Portuguese -> "$formattedDuration s de crossfade · silêncio $silence dB"
+        AppLanguage.Russian -> "$formattedDuration с кроссфейда · тишина $silence дБ"
+        AppLanguage.Serbian -> "$formattedDuration s унакрсног преливања · тишина $silence dB"
+        AppLanguage.Slovak -> "$formattedDuration s prelínania · ticho $silence dB"
+        AppLanguage.Spanish -> "$formattedDuration s de fundido · silencio $silence dB"
+        AppLanguage.Swedish -> "$formattedDuration s övertoning · tystnad $silence dB"
+        AppLanguage.Thai -> "$formattedDuration วินาทีครอสเฟด · เงียบ $silence dB"
+        AppLanguage.Ukrainian -> "$formattedDuration с кросфейду · тиша $silence дБ"
+        AppLanguage.Urdu -> "$formattedDuration سیکنڈ کراس فیڈ · خاموشی $silence dB"
+        AppLanguage.English -> "$formattedDuration s fade · $silence dB silence"
+    }
 }
 
-private fun updateActionLabel(state: AppUpdateUiState): String = when {
+@Suppress("CyclomaticComplexMethod")
+private fun updateActionLabel(state: AppUpdateUiState, language: AppLanguage): String = when {
     state.isChecking -> "Checking..."
     state.isDownloading -> "Downloading..."
     state.isInstalling -> "Installing..."
     state.installPermissionRequired -> "Allow install"
     state.availableRelease != null -> "Update"
     state.errorMessage != null -> "Retry"
-    else -> "Check"
+    else -> when (language) {
+        AppLanguage.Albanian -> "Kontrollo"
+        AppLanguage.Bengali -> "পরীক্ষা করুন"
+        AppLanguage.ChineseSimplified -> "检查"
+        AppLanguage.Croatian -> "Provjeri"
+        AppLanguage.Czech -> "Zkontrolovat"
+        AppLanguage.Danish -> "Søg"
+        AppLanguage.Dutch -> "Controleren"
+        AppLanguage.Estonian -> "Kontrolli"
+        AppLanguage.French -> "Vérifier"
+        AppLanguage.German -> "Prüfen"
+        AppLanguage.Greek -> "Έλεγχος"
+        AppLanguage.Hindi -> "जाँचें"
+        AppLanguage.Hungarian -> "Ellenőrzés"
+        AppLanguage.Italian -> "Controlla"
+        AppLanguage.Japanese -> "確認"
+        AppLanguage.Korean -> "확인"
+        AppLanguage.Latin -> "Quaere"
+        AppLanguage.Latvian -> "Pārbaudīt"
+        AppLanguage.Lithuanian -> "Tikrinti"
+        AppLanguage.Macedonian -> "Провери"
+        AppLanguage.Malay -> "Semak"
+        AppLanguage.Norwegian -> "Sjekk"
+        AppLanguage.Polish -> "Sprawdź"
+        AppLanguage.Portuguese -> "Procurar"
+        AppLanguage.Russian -> "Проверить"
+        AppLanguage.Serbian -> "Провери"
+        AppLanguage.Slovak -> "Skontrolovať"
+        AppLanguage.Spanish -> "Comprobar"
+        AppLanguage.Swedish -> "Kontrollera"
+        AppLanguage.Thai -> "ตรวจสอบ"
+        AppLanguage.Ukrainian -> "Перевірити"
+        AppLanguage.Urdu -> "چیک کریں"
+        AppLanguage.English -> "Check"
+    }
 }
 
 @Composable

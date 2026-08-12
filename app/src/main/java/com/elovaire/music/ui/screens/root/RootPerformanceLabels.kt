@@ -12,6 +12,7 @@ internal fun rootPerformanceRouteLabel(route: String?): String? {
         PLAYLISTS_ROUTE -> "playlists"
         SEARCH_ROUTE -> "search"
         SETTINGS_ROUTE -> "settings"
+        MANAGE_PLAYLISTS_ROUTE -> "manage_playlists"
         LIBRARY_FOLDERS_ROUTE -> "library_folders"
         CHANGELOG_ROUTE -> "changelog"
         ABOUT_ROUTE -> "about"

@@ -104,7 +104,7 @@ internal class RootNavigationState(
         if (ownerRoute in TopLevelRoutes) {
             routeOwnerOverrides[concreteRoute] = ownerRoute
         }
-        if (concreteRoute in setOf(PLAYER_ROUTE, SETTINGS_ROUTE, EQUALIZER_ROUTE, CROSSFADE_ROUTE, LIBRARY_FOLDERS_ROUTE, CHANGELOG_ROUTE, ABOUT_ROUTE, PRIVACY_POLICY_ROUTE)) {
+        if (concreteRoute in setOf(PLAYER_ROUTE, SETTINGS_ROUTE, MANAGE_PLAYLISTS_ROUTE, EQUALIZER_ROUTE, CROSSFADE_ROUTE, LIBRARY_FOLDERS_ROUTE, CHANGELOG_ROUTE, ABOUT_ROUTE, PRIVACY_POLICY_ROUTE)) {
             return
         }
         if (normalizedConcreteRoute == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}") {

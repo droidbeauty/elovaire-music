@@ -91,6 +91,7 @@ internal interface PlaylistStore {
     fun addSongsToPlaylist(playlistId: Long, songIds: List<Long>): Deferred<PlaylistMutationResult>
     fun renamePlaylist(playlistId: Long, name: String): Deferred<PlaylistMutationResult>
     fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>): Deferred<PlaylistMutationResult>
+    fun importPlaylists(playlists: List<Playlist>): Deferred<PlaylistMutationResult>
     fun deletePlaylists(playlistIds: Set<Long>): Deferred<PlaylistMutationResult>
     fun removeSongReferences(songIds: Set<Long>): Deferred<PlaylistMutationResult>
     fun createSmartPlaylist(name: String): Deferred<PlaylistMutationResult>

@@ -9,4 +9,5 @@ internal object RootLayerZ {
     const val TopBarMenu = 10f
     const val ChangelogSheet = 11f
     const val PlayerOverlay = 20f
+    const val UpdateDialog = 21f
 }

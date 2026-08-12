@@ -85,7 +85,14 @@ internal fun BoxScope.RootOverlayHost(
     }
     if (updateController.isSupported) {
         updateState.availableRelease?.let { release ->
-            UpdateAvailableDialog(updateController, updateState, release)
+            UpdateAvailableDialog(
+                controller = updateController,
+                state = updateState,
+                release = release,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .zIndex(RootLayerZ.UpdateDialog),
+            )
         }
     }
     ElovaireAnimatedVisibility(

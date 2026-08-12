@@ -202,6 +202,27 @@ internal class RoomUserDataStore(
         PlaylistMutationResult.Success(playlistId)
     }
 
+    override fun importPlaylists(playlists: List<Playlist>): Deferred<PlaylistMutationResult> =
+        enqueueMutation("playlist.import") {
+            val imported = playlists.mapNotNull { source ->
+                val name = normalizePlaylistName(source.name)
+                name.takeIf { it.isNotBlank() }?.let {
+                    Playlist(
+                        id = newId(),
+                        name = it,
+                        songIds = normalizePlaylistSongIds(source.songIds),
+                    )
+                }
+            }
+            if (imported.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+            imported.forEach { playlist ->
+                dao.insertPlaylistWithEntries(playlist.toEntity(), playlist.songIds)
+                dao.verifyPlaylist(playlist)
+            }
+            publishPlaylists(_userPlaylists.value + imported)
+            PlaylistMutationResult.Success(changed = true)
+        }
+
     override fun deletePlaylists(playlistIds: Set<Long>): Deferred<PlaylistMutationResult> = enqueueMutation("playlist.delete") {
         if (playlistIds.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
         val selected = _userPlaylists.value.filter { it.id in playlistIds }

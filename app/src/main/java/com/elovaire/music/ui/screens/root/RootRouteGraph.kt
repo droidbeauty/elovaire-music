@@ -104,6 +104,9 @@ internal fun RootRouteGraph(
         composable(SETTINGS_ROUTE) {
             SettingsRouteHost(routeState, routeActions, padding)
         }
+        composable(MANAGE_PLAYLISTS_ROUTE) {
+            PlaylistsRouteHost(navState, routeState.playlists, routeActions, padding)
+        }
         composable(LIBRARY_FOLDERS_ROUTE) {
             LibraryFoldersRouteHost(routeState, routeActions, padding)
         }

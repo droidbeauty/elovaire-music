@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -17,6 +16,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
+import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.crossfadeCopy
+import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 
 @Composable
 internal fun CrossfadeScreen(
@@ -28,6 +30,7 @@ internal fun CrossfadeScreen(
     onSilenceThresholdChanged: (Float) -> Unit,
 ) {
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
+    val copy = crossfadeCopy(LocalAppLanguage.current)
     val durationSeconds = durationMs.coerceIn(2_000L, 5_000L) / 1_000f
     val silenceDb = silenceThresholdDb.coerceIn(-100f, -80f)
     BoxWithCrossfadeTopBar(
@@ -55,17 +58,22 @@ internal fun CrossfadeScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "Fade length",
+                            text = copy.fadeLength,
                             style = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                             ),
+                        )
+                        Text(
+                            text = copy.fadeLengthExplanation,
+                            style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
                         Text(
                             text = "${formatSeconds(durationSeconds)} seconds",
                             style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Slider(
+                        ThinContinuousSlider(
                             value = durationSeconds,
                             onValueChange = { value ->
                                 val snapped = ((value * 2f).roundToInt() / 2f)
@@ -73,7 +81,6 @@ internal fun CrossfadeScreen(
                                 onDurationChanged((snapped * 1_000f).roundToInt().toLong())
                             },
                             valueRange = 2f..5f,
-                            steps = 5,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -86,24 +93,28 @@ internal fun CrossfadeScreen(
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         Text(
-                            text = "Silence detection",
+                            text = copy.silenceDetection,
                             style = androidx.compose.material3.MaterialTheme.typography.titleMedium.copy(
                                 fontWeight = FontWeight.SemiBold,
                             ),
+                        )
+                        Text(
+                            text = copy.silenceDetectionExplanation,
+                            style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
+                            color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
                         Text(
                             text = "${silenceDb.toInt()} dB",
                             style = androidx.compose.material3.MaterialTheme.typography.labelLarge,
                             color = androidx.compose.material3.MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Slider(
+                        ThinContinuousSlider(
                             value = silenceDb,
                             onValueChange = { value ->
                                 val snapped = ((value + 100f) / 5f).roundToInt() * 5f - 100f
                                 onSilenceThresholdChanged(snapped.coerceIn(-100f, -80f))
                             },
                             valueRange = -100f..-80f,
-                            steps = 3,
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -127,7 +138,7 @@ private fun BoxWithCrossfadeTopBar(
     ) {
         content()
         PinnedBackTopBar(
-            title = "Crossfade",
+            title = settingsCopy(LocalAppLanguage.current).crossfadeTitle,
             onBack = onBack,
             modifier = Modifier.align(androidx.compose.ui.Alignment.TopCenter),
         )

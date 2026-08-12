@@ -6072,6 +6072,7 @@ private fun SelectableAlbumPickerRow(
     onOpen: () -> Unit,
     onToggleSelection: () -> Unit,
 ) {
+    val language = LocalAppLanguage.current
     Column {
         Row(
             modifier = Modifier
@@ -6115,7 +6116,7 @@ private fun SelectableAlbumPickerRow(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 1f),
                             ),
                         ) {
-                            append(formatCountLabel(album.songCount, "track"))
+                            append(formatCountLabel(album.songCount, "track", language))
                         }
                         append("  •  ")
                         withStyle(

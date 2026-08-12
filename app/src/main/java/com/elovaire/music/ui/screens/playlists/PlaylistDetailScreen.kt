@@ -322,7 +322,7 @@ internal fun PlaylistDetailScreen(
                                                 fontWeight = FontWeight.Normal,
                                             ),
                                         ) {
-                                            append(formatCountLabel(playlistSongs.size, "track"))
+                                            append(formatCountLabel(playlistSongs.size, "track", language))
                                         }
                                         append("  •  ")
                                         withStyle(

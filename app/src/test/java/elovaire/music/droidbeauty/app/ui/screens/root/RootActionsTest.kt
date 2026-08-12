@@ -13,6 +13,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
+import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,6 +82,7 @@ private class FakePlaylistStore : PlaylistStore {
 
     override fun renamePlaylist(playlistId: Long, name: String) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(playlistId))
     override fun updatePlaylistSongIds(playlistId: Long, songIds: List<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(playlistId))
+    override fun importPlaylists(playlists: List<Playlist>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success())
     override fun deletePlaylists(playlistIds: Set<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success())
     override fun removeSongReferences(songIds: Set<Long>) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success())
     override fun createSmartPlaylist(name: String) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success(42L))

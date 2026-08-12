@@ -716,7 +716,7 @@ internal fun PlaylistPickerRow(
                     Text(
                         text = buildAnnotatedString {
                             withStyle(SpanStyle(color = MaterialTheme.colorScheme.onSurface)) {
-                                append(formatCountLabel(playlist.songIds.size, "track"))
+                                append(formatCountLabel(playlist.songIds.size, "track", language))
                             }
                             append("  •  ")
                             withStyle(SpanStyle(color = readableSecondaryTextColor().copy(alpha = 0.82f))) {

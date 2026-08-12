@@ -368,6 +368,22 @@ internal fun LibraryFoldersRouteHost(
 }
 
 @Composable
+internal fun ManagePlaylistsRouteHost(
+    routeState: RootRouteState,
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    ManagePlaylistsScreen(
+        appLanguage = routeState.appState.appLanguage,
+        playlists = routeState.playlists.playlists,
+        songsById = routeState.songsById,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onImportPlaylists = routeActions::importPlaylists,
+    )
+}
+
+@Composable
 internal fun ChangelogRouteHost(
     releases: List<ChangelogRelease>,
     routeActions: RootRouteActions,

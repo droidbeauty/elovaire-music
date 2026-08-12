@@ -18,6 +18,19 @@ internal fun deserializePlaylists(value: String?): List<Playlist> {
     }
 }
 
+internal fun serializePlaylists(playlists: List<Playlist>): String {
+    return PlaylistSchemaV2Prefix + playlists
+        .filterNot(Playlist::isSystem)
+        .joinToString(PlaylistRecordSeparator) { playlist ->
+            listOf(
+                playlist.id.toString(),
+                playlist.name.encodePlaylistField(),
+                normalizePlaylistSongIds(playlist.songIds).joinToString(","),
+                false.toString(),
+            ).joinToString(PlaylistFieldSeparator)
+        }
+}
+
 private fun deserializePlaylistsV2(value: String): List<Playlist> {
     return value.split(PlaylistRecordSeparator)
         .mapNotNull { entry ->
@@ -70,4 +83,8 @@ private fun String.decodePlaylistField(): String? {
     return runCatching {
         String(Base64.getUrlDecoder().decode(this), Charsets.UTF_8)
     }.getOrNull()
+}
+
+private fun String.encodePlaylistField(): String {
+    return Base64.getUrlEncoder().withoutPadding().encodeToString(toByteArray(Charsets.UTF_8))
 }

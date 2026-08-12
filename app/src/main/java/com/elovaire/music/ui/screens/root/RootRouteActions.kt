@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Playlist
 
 @Suppress("TooManyFunctions")
 internal class RootRouteActions(
@@ -116,7 +117,7 @@ internal class RootRouteActions(
     }
 
     fun openManagePlaylists() {
-        navController.navigate(PLAYLISTS_ROUTE)
+        navController.navigate(MANAGE_PLAYLISTS_ROUTE)
     }
 
     fun refreshLibrary() {
@@ -152,6 +153,9 @@ internal class RootRouteActions(
         playlistId: Long,
         songIds: List<Long>,
     ): PlaylistMutationRequest = playlistDependencies.playlistStore.updatePlaylistSongIds(playlistId, songIds)
+
+    fun importPlaylists(playlists: List<Playlist>): PlaylistMutationRequest =
+        playlistDependencies.playlistStore.importPlaylists(playlists)
 
     fun createSmartPlaylist(name: String): PlaylistMutationRequest = playlistDependencies.playlistStore.createSmartPlaylist(name)
 

@@ -1671,7 +1671,7 @@ private fun SettingsCategoryText(
 }
 
 @Composable
-private fun ThinContinuousSlider(
+internal fun ThinContinuousSlider(
     value: Float,
     onValueChange: (Float) -> Unit,
     valueRange: ClosedFloatingPointRange<Float>,

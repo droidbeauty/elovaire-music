@@ -152,4 +152,19 @@ class PlaylistHelpersTest {
             deserialized,
         )
     }
+
+    @Test
+    fun playlistFile_roundTripsUserPlaylistsAndOmitsSystemPlaylists() {
+        val source = listOf(
+            Playlist(id = 42L, name = "Road Trip", songIds = listOf(7L, 3L, 3L)),
+            Playlist(id = 43L, name = "Built in", isSystem = true),
+        )
+
+        val imported = deserializePlaylists(serializePlaylists(source))
+
+        assertEquals(
+            listOf(Playlist(id = 42L, name = "Road Trip", songIds = listOf(7L, 3L))),
+            imported,
+        )
+    }
 }

@@ -23,6 +23,7 @@ internal fun rememberRootTopBarMenuActions(
         RootTopBarMenuActions(
             openSettings = {
                 overlayState.dismissTopBarMenu()
+                lazyListPositionCache["settings_screen"] = 0 to 0
                 navController.navigate(SETTINGS_ROUTE)
             },
             openEqualizer = {

@@ -57,8 +57,8 @@ class AppInteractionSmokeTest {
         clickDescription("Home")
         waitForApp()
 
-        device.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.5f)
-        device.findObject(By.scrollable(true))?.scroll(Direction.UP, 0.5f)
+        scrollIfAvailable(Direction.DOWN)
+        scrollIfAvailable(Direction.UP)
 
         clickDescription("Menu")
         clickObject(settingsSelector, "localized Settings")
@@ -103,6 +103,17 @@ class AppInteractionSmokeTest {
             }
         }
         throw lastStale ?: error("Could not find $label")
+    }
+
+    private fun scrollIfAvailable(direction: Direction) {
+        repeat(3) {
+            try {
+                device.findObject(By.scrollable(true))?.scroll(direction, 0.5f)
+                return
+            } catch (_: StaleObjectException) {
+                device.waitForIdle()
+            }
+        }
     }
 
     private fun grantRuntimePermission(permission: String) {

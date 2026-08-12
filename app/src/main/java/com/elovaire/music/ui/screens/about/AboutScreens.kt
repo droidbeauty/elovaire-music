@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -32,10 +33,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,8 +54,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -70,6 +82,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -414,11 +428,13 @@ internal fun UpdateAvailableDialog(
     controller: UpdateController,
     state: elovaire.music.droidbeauty.app.data.update.AppUpdateUiState,
     release: elovaire.music.droidbeauty.app.data.update.AppReleaseInfo,
+    modifier: Modifier = Modifier,
 ) {
     val changes = remember(release.notes) { releaseNotesAsChanges(release.notes) }
     BackHandler(onBack = controller::dismissAvailableUpdate)
     Box(
         modifier = Modifier
+            .then(modifier)
             .fillMaxSize()
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
@@ -448,29 +464,42 @@ internal fun UpdateAvailableDialog(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .fillMaxHeight(0.78f)
-                .padding(start = 16.dp, end = 16.dp, bottom = navigationBarInsetDp() + 16.dp),
+                .fillMaxHeight(0.5f),
             enter = ElovaireMotion.bottomSheetEnter(),
             exit = ElovaireMotion.bottomSheetExit(),
         ) {
             DynamicBackdropSurface(
                 modifier = Modifier
                     .fillMaxSize(),
-                shape = RoundedCornerShape(ElovaireRadii.card),
+                shape = RoundedCornerShape(
+                    topStart = ElovaireRadii.card,
+                    topEnd = ElovaireRadii.card,
+                ),
                 overlayAlpha = 0.6f,
                 borderColor = null,
             ) {
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(start = 20.dp, top = 20.dp, end = 20.dp, bottom = 16.dp),
+                        .padding(
+                            start = 20.dp,
+                            top = 18.dp,
+                            end = 20.dp,
+                            bottom = navigationBarInsetDp() + 20.dp,
+                        ),
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_download),
+                            contentDescription = null,
+                            tint = readableMutedIconColor(),
+                            modifier = Modifier.size(15.dp),
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
                         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                             Text(
                                 text = "Update available",
@@ -483,35 +512,17 @@ internal fun UpdateAvailableDialog(
                                 color = readableSecondaryTextColor(),
                             )
                         }
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
-                                .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
-                                    indication = null,
-                                    onClick = controller::dismissAvailableUpdate,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_x),
-                                contentDescription = "Close update",
-                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
                     }
+                    val visibleChangeCount = minOf(changes.size, 6).coerceAtLeast(1)
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .weight(1f),
+                            .height((visibleChangeCount * 24 + (visibleChangeCount - 1) * 18).dp),
                     ) {
                         LazyColumn(
                             overscrollEffect = null,
                             modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(top = 4.dp, bottom = 4.dp),
+                            contentPadding = PaddingValues.Zero,
                         ) {
                             item {
                                 ChangelogReleaseContent(
@@ -525,6 +536,7 @@ internal fun UpdateAvailableDialog(
                             }
                         }
                     }
+                    Spacer(modifier = Modifier.weight(1f))
                     if (state.isDownloading || state.isInstalling) {
                         LinearProgressIndicator(
                             progress = { state.downloadProgress ?: 0f },
@@ -543,7 +555,7 @@ internal fun UpdateAvailableDialog(
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         UpdateDialogButton(
-                            text = "Cancel",
+                            text = "Later",
                             modifier = Modifier.weight(1f),
                             onClick = controller::dismissAvailableUpdate,
                         )
@@ -551,6 +563,8 @@ internal fun UpdateAvailableDialog(
                             text = "Download",
                             modifier = Modifier.weight(1f),
                             emphasized = true,
+                            loading = state.isDownloading || state.isInstalling,
+                            enabled = !state.isDownloading && !state.isInstalling,
                             onClick = controller::startUpdate,
                         )
                     }
@@ -577,6 +591,8 @@ private fun UpdateDialogButton(
     text: String,
     modifier: Modifier = Modifier,
     emphasized: Boolean = false,
+    loading: Boolean = false,
+    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Surface(
@@ -584,16 +600,87 @@ private fun UpdateDialogButton(
             .then(modifier)
             .height(46.dp),
         shape = RoundedCornerShape(ElovaireRadii.pill),
-        color = if (emphasized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
-        contentColor = if (emphasized) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+        color = if (emphasized) {
+            MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else 0.65f)
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 0.08f else 0.05f)
+        },
+        contentColor = if (emphasized) {
+            MaterialTheme.colorScheme.onPrimary.copy(alpha = if (enabled) 1f else 0.7f)
+        } else {
+            MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.55f)
+        },
+        enabled = enabled,
         onClick = onClick,
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 18.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (loading) {
+                UpdateDownloadSpinner()
+                Spacer(modifier = Modifier.width(8.dp))
+            }
             Text(
                 text = text,
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
             )
         }
+    }
+}
+
+@Composable
+private fun UpdateDownloadSpinner() {
+    val motionRuntime = LocalMotionRuntime.current
+    val motionSpecs = rememberMotionSpecs()
+    val rotationDegrees = if (motionRuntime.reduceMotion) {
+        0f
+    } else {
+        val infiniteTransition = rememberInfiniteTransition(label = "update_download_spinner")
+        val animatedRotationDegrees by infiniteTransition.animateFloat(
+            initialValue = 0f,
+            targetValue = 360f,
+            animationSpec = infiniteRepeatable(
+                animation = motionSpecs.tween(
+                    durationMillis = 1_100,
+                    easing = LinearEasing,
+                ),
+                repeatMode = RepeatMode.Restart,
+            ),
+            label = "update_download_spinner_rotation",
+        )
+        animatedRotationDegrees
+    }
+    val spinnerColor = LocalContentColor.current
+    Canvas(
+        modifier = Modifier
+            .size(16.dp)
+            .graphicsLayer { rotationZ = rotationDegrees },
+    ) {
+        val stroke = 1.75.dp.toPx()
+        val inset = stroke / 2f + 1.dp.toPx()
+        val arcSize = size.minDimension - inset * 2f
+        drawArc(
+            color = spinnerColor.copy(alpha = 0.24f),
+            startAngle = 0f,
+            sweepAngle = 360f,
+            useCenter = false,
+            topLeft = Offset(inset, inset),
+            size = Size(arcSize, arcSize),
+            style = Stroke(width = stroke, cap = StrokeCap.Round),
+        )
+        drawArc(
+            color = spinnerColor,
+            startAngle = -80f,
+            sweepAngle = 88f,
+            useCenter = false,
+            topLeft = Offset(inset, inset),
+            size = Size(arcSize, arcSize),
+            style = Stroke(width = stroke, cap = StrokeCap.Round),
+        )
     }
 }
 
