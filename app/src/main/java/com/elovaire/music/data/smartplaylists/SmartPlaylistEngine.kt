@@ -23,45 +23,45 @@ internal object SmartPlaylistEngine {
             playCounts = playCounts,
             nowMs = nowMs,
         )
+        val preparedDefinition = PreparedSmartPlaylist(definition)
         val normalized = songs.map { NormalizedSong(it) }
         val matched = normalized
             .asSequence()
-            .filter { it.matches(definition, context) }
-            .map(NormalizedSong::song)
+            .filter { it.matches(preparedDefinition, context) }
             .toList()
         val sorted = sort(definition, matched, context)
         val limited = definition.limit?.takeIf { it > 0 }?.let(sorted::take) ?: sorted
         return SmartPlaylistResult(
             playlist = definition,
-            songs = limited,
+            songs = limited.map(NormalizedSong::song),
             totalMatchedBeforeLimit = matched.size,
         )
     }
 
     private fun NormalizedSong.matches(
-        definition: SmartPlaylist,
+        definition: PreparedSmartPlaylist,
         context: ResolutionContext,
     ): Boolean {
-        if (definition.builtInType == BuiltInSmartPlaylistType.RecentlyAdded) {
+        if (definition.source.builtInType == BuiltInSmartPlaylistType.RecentlyAdded) {
             val addedMs = song.dateAddedSeconds * 1000L
             if (addedMs > 0L && context.nowMs - addedMs > RecentlyAddedWindowMs) return false
         }
         if (definition.rules.isEmpty()) return true
-        return when (definition.matchMode) {
+        return when (definition.source.matchMode) {
             SmartPlaylistMatchMode.All -> definition.rules.all { rule -> matchesRule(rule, context) }
             SmartPlaylistMatchMode.Any -> definition.rules.any { rule -> matchesRule(rule, context) }
         }
     }
 
     private fun NormalizedSong.matchesRule(
-        rule: SmartPlaylistRule,
+        preparedRule: PreparedSmartPlaylistRule,
         context: ResolutionContext,
     ): Boolean {
-        return when (rule) {
-            is SmartPlaylistRule.TitleContains -> normalizedTitle.containsNormalized(rule.query, rule.negate)
-            is SmartPlaylistRule.ArtistContains -> normalizedArtist.containsNormalized(rule.query, rule.negate)
-            is SmartPlaylistRule.AlbumContains -> normalizedAlbum.containsNormalized(rule.query, rule.negate)
-            is SmartPlaylistRule.GenreMatches -> normalizedGenre.matchesTextRule(rule.query, rule.mode)
+        return when (val rule = preparedRule.source) {
+            is SmartPlaylistRule.TitleContains -> normalizedTitle.containsNormalized(preparedRule.normalizedText, rule.negate)
+            is SmartPlaylistRule.ArtistContains -> normalizedArtist.containsNormalized(preparedRule.normalizedText, rule.negate)
+            is SmartPlaylistRule.AlbumContains -> normalizedAlbum.containsNormalized(preparedRule.normalizedText, rule.negate)
+            is SmartPlaylistRule.GenreMatches -> normalizedGenre.matchesTextRule(preparedRule.normalizedText, rule.mode)
             is SmartPlaylistRule.FavoriteIs -> (song.id in context.favoriteSongIds) == rule.favorite
             is SmartPlaylistRule.DurationBetween -> {
                 val min = rule.minMs
@@ -77,35 +77,35 @@ internal object SmartPlaylistEngine {
                 }
             }
             is SmartPlaylistRule.FileFormatIs -> {
-                val expected = rule.extension.trim().trimStart('.').lowercase(Locale.ROOT)
+                val expected = preparedRule.normalizedText
                 expected.isNotBlank() && (
                     song.audioFormat.lowercase(Locale.ROOT) == expected ||
                         song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT) == expected
-                    )
+                )
             }
             is SmartPlaylistRule.FolderContains -> song.libraryPath.orEmpty().normalizeSmartText()
-                .contains(rule.query.normalizeSmartText())
+                .contains(preparedRule.normalizedText)
         }
     }
 
     private fun sort(
         definition: SmartPlaylist,
-        songs: List<Song>,
+        songs: List<NormalizedSong>,
         context: ResolutionContext,
-    ): List<Song> {
+    ): List<NormalizedSong> {
         if (definition.sort.field == SmartPlaylistSortField.Random) {
-            return songs.sortedBy { stableRandomKey(definition.id, it.id) }
+            return songs.sortedBy { stableRandomKey(definition.id, it.song.id) }
         }
         val comparator = when (definition.sort.field) {
-            SmartPlaylistSortField.Title -> compareBy<Song> { it.title.normalizeSmartText() }
-            SmartPlaylistSortField.Artist -> compareBy { (it.albumArtist ?: it.artist).normalizeSmartText() }
-            SmartPlaylistSortField.Album -> compareBy { it.album.normalizeSmartText() }
-            SmartPlaylistSortField.Genre -> compareBy { it.genre.normalizeSmartText() }
-            SmartPlaylistSortField.Duration -> compareBy { it.durationMs }
-            SmartPlaylistSortField.DateAdded -> compareBy { it.dateAddedSeconds }
-            SmartPlaylistSortField.PlayCount -> compareBy { context.playCounts[it.id] ?: 0 }
-            SmartPlaylistSortField.Random -> compareBy { it.id }
-        }.thenBy { it.title.normalizeSmartText() }.thenBy { it.id }
+            SmartPlaylistSortField.Title -> compareBy<NormalizedSong> { it.normalizedTitle }
+            SmartPlaylistSortField.Artist -> compareBy { it.normalizedArtist }
+            SmartPlaylistSortField.Album -> compareBy { it.normalizedAlbum }
+            SmartPlaylistSortField.Genre -> compareBy { it.normalizedGenre }
+            SmartPlaylistSortField.Duration -> compareBy { it.song.durationMs }
+            SmartPlaylistSortField.DateAdded -> compareBy { it.song.dateAddedSeconds }
+            SmartPlaylistSortField.PlayCount -> compareBy { context.playCounts[it.song.id] ?: 0 }
+            SmartPlaylistSortField.Random -> compareBy { it.song.id }
+        }.thenBy { it.normalizedTitle }.thenBy { it.song.id }
         return if (definition.sort.direction == SortDirection.Descending) {
             songs.sortedWith(comparator.reversed())
         } else {
@@ -129,20 +129,40 @@ private data class NormalizedSong(
     val normalizedGenre = song.genre.normalizeSmartText()
 }
 
+private data class PreparedSmartPlaylist(
+    val source: SmartPlaylist,
+    val rules: List<PreparedSmartPlaylistRule> = source.rules.map(::PreparedSmartPlaylistRule),
+)
+
+private data class PreparedSmartPlaylistRule(
+    val source: SmartPlaylistRule,
+) {
+    val normalizedText: String = when (val rule = source) {
+        is SmartPlaylistRule.TitleContains -> rule.query.normalizeSmartText()
+        is SmartPlaylistRule.ArtistContains -> rule.query.normalizeSmartText()
+        is SmartPlaylistRule.AlbumContains -> rule.query.normalizeSmartText()
+        is SmartPlaylistRule.GenreMatches -> rule.query.normalizeSmartText()
+        is SmartPlaylistRule.FileFormatIs -> rule.extension.trim().trimStart('.').lowercase(Locale.ROOT)
+        is SmartPlaylistRule.FolderContains -> rule.query.normalizeSmartText()
+        is SmartPlaylistRule.FavoriteIs,
+        is SmartPlaylistRule.DurationBetween,
+        is SmartPlaylistRule.PlayCount,
+        -> ""
+    }
+}
+
 private fun String.containsNormalized(
-    query: String,
+    normalizedQuery: String,
     negate: Boolean,
 ): Boolean {
-    val normalizedQuery = query.normalizeSmartText()
     val matched = normalizedQuery.isBlank() || contains(normalizedQuery)
     return if (negate) !matched else matched
 }
 
 private fun String.matchesTextRule(
-    query: String,
+    normalizedQuery: String,
     mode: TextRuleMode,
 ): Boolean {
-    val normalizedQuery = query.normalizeSmartText()
     if (normalizedQuery.isBlank()) return true
     return when (mode) {
         TextRuleMode.Is -> this == normalizedQuery

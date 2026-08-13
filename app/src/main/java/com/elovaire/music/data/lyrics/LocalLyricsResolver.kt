@@ -42,7 +42,17 @@ internal class LocalLyricsResolver(
         val tempFile = File.createTempFile("lyrics-${song.id}-", ".$extension", appContext.cacheDir)
         return try {
             contentResolver.openInputStream(song.uri)?.use { input ->
-                tempFile.outputStream().use(input::copyTo)
+                tempFile.outputStream().use { output ->
+                    val buffer = ByteArray(COPY_BUFFER_BYTES)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        check(total <= MAX_TEMP_COPY_BYTES) { "Audio input is too large." }
+                        output.write(buffer, 0, read)
+                    }
+                }
             } ?: return null
             val rawLyrics = AudioFileIO.read(tempFile)
                 .tag
@@ -426,6 +436,8 @@ internal class LocalLyricsResolver(
         const val MAX_EMBEDDED_TAG_BYTES = 1_500_000
         const val MAX_SIDECAR_FILE_BYTES = 256 * 1024L
         const val MAX_VORBIS_COMMENT_BYTES = 1_000_000
+        const val MAX_TEMP_COPY_BYTES = 512L * 1024L * 1024L
+        const val COPY_BUFFER_BYTES = 64 * 1024
         const val FLAC_BLOCK_VORBIS_COMMENT = 4
         const val ID3_UNSYNCHRONIZATION_FLAG = 0x80
         const val ID3_TIMESTAMP_MILLISECONDS = 0x02

@@ -13,12 +13,16 @@ internal class LibrarySnapshotPublisher(
     private var songPositions = emptyMap<Long, Int>()
     private var albumSongPositions = emptyMap<Long, List<Int>>()
     private var albumPositions = emptyMap<Long, Int>()
-    fun publishSongs(
-        songs: List<Song>,
+
+    fun prepareSongs(songs: List<Song>): LibrarySnapshot {
+        return LibrarySnapshotAssembler.assemble(songs)
+    }
+
+    fun publishSnapshot(
+        snapshot: LibrarySnapshot,
         removingSongIds: Set<Long>,
         removingAlbumIds: Set<Long>,
     ): LibraryContentState {
-        val snapshot = LibrarySnapshotAssembler.assemble(songs)
         val nextState = LibraryContentState(
             songs = snapshot.songs,
             albums = snapshot.albums,
@@ -29,6 +33,18 @@ internal class LibrarySnapshotPublisher(
             publish(nextState)
         }
         return nextState
+    }
+
+    fun publishSongs(
+        songs: List<Song>,
+        removingSongIds: Set<Long>,
+        removingAlbumIds: Set<Long>,
+    ): LibraryContentState {
+        return publishSnapshot(
+            snapshot = prepareSongs(songs),
+            removingSongIds = removingSongIds,
+            removingAlbumIds = removingAlbumIds,
+        )
     }
 
     /**

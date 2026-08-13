@@ -32,6 +32,7 @@ import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 
@@ -86,6 +87,11 @@ internal class SearchViewModel(
         .distinctUntilChangedBy(SearchLibrarySnapshot::signature)
         .map(SearchLibrarySnapshot::toSearchIndex)
         .flowOn(Dispatchers.Default)
+        .shareIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000L),
+            replay = 1,
+        )
 
     @OptIn(ExperimentalCoroutinesApi::class)
     private val normalizedQuery = _query

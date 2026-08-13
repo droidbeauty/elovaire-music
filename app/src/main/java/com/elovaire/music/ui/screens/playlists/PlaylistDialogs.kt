@@ -94,6 +94,7 @@ internal fun PlaylistArtworkPreview(
     title: String,
     modifier: Modifier = Modifier,
     placeholderIconSize: Dp = 20.dp,
+    cornerRadius: Dp = ElovaireRadii.artworkSmall,
 ) {
     val language = LocalAppLanguage.current
     val copy = remember(language) { rootUiCopy(language) }
@@ -107,7 +108,7 @@ internal fun PlaylistArtworkPreview(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(start = 12.dp, top = 18.dp, end = 12.dp, bottom = 8.dp)
-                    .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
+                    .clip(RoundedCornerShape(cornerRadius))
                     .background(
                         Brush.verticalGradient(
                             colors = listOf(
@@ -122,7 +123,7 @@ internal fun PlaylistArtworkPreview(
         }
         Surface(
             modifier = Modifier.fillMaxSize(),
-            shape = RoundedCornerShape(ElovaireRadii.artworkSmall),
+            shape = RoundedCornerShape(cornerRadius),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.32f),
         ) {
             when {
@@ -168,7 +169,7 @@ internal fun PlaylistArtworkPreview(
                         uri = coverSong?.artUri,
                         title = coverSong?.title ?: title,
                         modifier = Modifier.fillMaxSize(),
-                        cornerRadius = ElovaireRadii.artworkSmall,
+                        cornerRadius = cornerRadius,
                         requestedSizePx = 384,
                         placeholderIconSize = placeholderIconSize,
                     )

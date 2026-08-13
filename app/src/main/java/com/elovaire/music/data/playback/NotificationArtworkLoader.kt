@@ -142,8 +142,10 @@ private object NotificationArtworkCache {
         callbacksRegistered = true
     }
 
+    @Synchronized
     operator fun get(key: String): Bitmap? = cache.get(key)
 
+    @Synchronized
     fun put(
         key: String,
         bitmap: Bitmap,
@@ -151,6 +153,7 @@ private object NotificationArtworkCache {
         cache.put(key, bitmap)
     }
 
+    @Synchronized
     fun removeAllMatchingUris(uris: Collection<String>) {
         if (uris.isEmpty()) return
         val keysToRemove = cache.snapshot().keys.filter { key ->

@@ -34,11 +34,15 @@ internal class LibrarySnapshotStore(
         appContext.filesDir.resolve(SNAPSHOT_FILE_NAME)
     }
     private val atomicFile = AtomicFile(snapshotFile)
+    private val snapshotLock = Any()
     @Volatile
     private var lastSnapshotFingerprint: SnapshotFingerprint? = null
+    private var lastSavedSongs: List<Song>? = null
+    private var lastSavedFilterFingerprint: String? = null
+    private var lastSavedSyncState: LibraryMediaStoreSyncState? = null
 
-    fun load(): CachedLibrarySnapshot? {
-        return try {
+    fun load(): CachedLibrarySnapshot? = synchronized(snapshotLock) {
+        try {
             val serialized = atomicFile.openRead().use { input ->
                 input.readBytes().toString(StandardCharsets.UTF_8)
             }
@@ -46,7 +50,7 @@ internal class LibrarySnapshotStore(
             val root = JSONObject(serialized)
             if (root.optInt("version", 0) != SNAPSHOT_VERSION) {
                 discardSnapshot()
-                return null
+                return@synchronized null
             }
 
             val signature = LibrarySignature(
@@ -91,7 +95,7 @@ internal class LibrarySnapshotStore(
             }.filter(::isValidSnapshotSong)
             if (!isLibrarySignatureValid(signature, decodedSongs)) {
                 discardSnapshot()
-                return null
+                return@synchronized null
             }
             val loadedSongs = decodedSongs
             val songs = LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(loadedSongs)
@@ -112,6 +116,9 @@ internal class LibrarySnapshotStore(
                     syncState = cachedSnapshot.syncState,
                 )
             }
+            lastSavedSongs = cachedSnapshot.snapshot.songs
+            lastSavedFilterFingerprint = cachedSnapshot.signature.filterFingerprint
+            lastSavedSyncState = cachedSnapshot.syncState
             cachedSnapshot
         } catch (_: Exception) {
             discardSnapshot()
@@ -124,8 +131,15 @@ internal class LibrarySnapshotStore(
         snapshot: LibrarySnapshot,
         filterFingerprint: String,
         syncState: LibraryMediaStoreSyncState? = null,
-    ) {
+    ) = synchronized(snapshotLock) {
         val songs = snapshot.songs.filter(::isSupportedLibrarySong)
+        if (
+            lastSavedSongs == songs &&
+            lastSavedFilterFingerprint == filterFingerprint &&
+            lastSavedSyncState == syncState
+        ) {
+            return@synchronized
+        }
         val signature = signatureFromSongs(
             songs = songs,
             filterFingerprint = filterFingerprint,
@@ -175,7 +189,7 @@ internal class LibrarySnapshotStore(
             )
         }.toString()
         val fingerprint = serializedSnapshot.fingerprint()
-        if (lastSnapshotFingerprint == fingerprint) return
+        if (lastSnapshotFingerprint == fingerprint) return@synchronized
 
         val output = atomicFile.startWrite()
         try {
@@ -183,6 +197,9 @@ internal class LibrarySnapshotStore(
             output.flush()
             atomicFile.finishWrite(output)
             lastSnapshotFingerprint = fingerprint
+            lastSavedSongs = songs
+            lastSavedFilterFingerprint = filterFingerprint
+            lastSavedSyncState = syncState
         } catch (failure: Throwable) {
             atomicFile.failWrite(output)
             throw failure
@@ -196,6 +213,9 @@ internal class LibrarySnapshotStore(
 
     private fun discardSnapshot() {
         lastSnapshotFingerprint = null
+        lastSavedSongs = null
+        lastSavedFilterFingerprint = null
+        lastSavedSyncState = null
         try {
             atomicFile.delete()
         } catch (_: Exception) {

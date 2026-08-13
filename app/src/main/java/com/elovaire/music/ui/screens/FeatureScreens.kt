@@ -867,12 +867,12 @@ private fun LastPlayedPlaylistModule(
                 horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ArtworkImage(
-                    uri = artworkSong?.artUri,
+                PlaylistArtworkPreview(
+                    songs = songs,
                     title = playlist.name,
                     modifier = Modifier.size(88.dp),
                     cornerRadius = ElovaireRadii.artwork,
-                    showArtworkGlow = true,
+                    placeholderIconSize = 20.dp,
                 )
                 Column(
                     modifier = Modifier.weight(1f),
@@ -900,18 +900,42 @@ private fun LastPlayedPlaylistModule(
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Surface(
+                    modifier = Modifier
+                        .width(46.dp)
+                        .height(92.dp),
+                    shape = RoundedCornerShape(ElovaireRadii.pill),
+                    color = playBackground,
+                    contentColor = playTint,
                 ) {
-                    Surface(
-                        onClick = onPlay,
-                        shape = CircleShape,
-                        color = playBackground,
-                        contentColor = playTint,
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         Box(
-                            modifier = Modifier.size(46.dp),
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onShuffle,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_shuffle),
+                                contentDescription = "Shuffle playlist",
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(46.dp)
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onPlay,
+                                ),
                             contentAlignment = Alignment.Center,
                         ) {
                             Icon(
@@ -921,13 +945,6 @@ private fun LastPlayedPlaylistModule(
                             )
                         }
                     }
-                    AlbumHeaderActionButton(
-                        iconResId = R.drawable.ic_lucide_shuffle,
-                        contentDescription = "Shuffle playlist",
-                        tint = playTint,
-                        backgroundColor = playBackground,
-                        onClick = onShuffle,
-                    )
                 }
             }
         }

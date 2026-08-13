@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
 import android.content.Context
+import android.util.AtomicFile
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
@@ -15,6 +16,7 @@ internal class LyricsCache(
         // The lazy cache only needs its app-private file handle during service construction.
         appContext.filesDir.resolve(CACHE_FILE_NAME)
     }
+    private val atomicFile = AtomicFile(cacheFile)
     private val cacheLock = Any()
     private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>()
     private var cacheLoaded = false
@@ -87,10 +89,14 @@ internal class LyricsCache(
     private fun ensureLoadedLocked() {
         if (cacheLoaded) return
         cacheLoaded = true
-        if (!cacheFile.exists()) return
         runCatching {
-            if (cacheFile.length() !in 1..MAX_CACHE_FILE_BYTES.toLong()) return@runCatching
-            val root = JSONObject(cacheFile.readText())
+            val serialized = atomicFile.openRead().use { input ->
+                if (input.channel.size() !in 1..MAX_CACHE_FILE_BYTES.toLong()) {
+                    return@runCatching
+                }
+                input.readBytes().toString(Charsets.UTF_8)
+            }
+            val root = JSONObject(serialized)
             if (root.optInt("version") != CACHE_VERSION) return@runCatching
             val entries = root.optJSONArray("entries") ?: JSONArray()
             repeat(entries.length()) { index ->
@@ -146,7 +152,16 @@ internal class LyricsCache(
                     },
                 )
             }
-            cacheFile.writeText(root.toString())
+            val output = atomicFile.startWrite()
+            var committed = false
+            try {
+                output.write(root.toString().toByteArray(Charsets.UTF_8))
+                output.flush()
+                atomicFile.finishWrite(output)
+                committed = true
+            } finally {
+                if (!committed) atomicFile.failWrite(output)
+            }
         }
     }
 

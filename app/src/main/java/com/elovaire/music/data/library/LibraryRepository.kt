@@ -16,6 +16,7 @@ import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -339,14 +340,7 @@ class LibraryRepository internal constructor(
                     scanLibrary(refreshRequest, showLoadingIndicator, scanPermissionVersion, progressThrottler)
                 }.onSuccess { snapshot ->
                     if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
-                    val suppressedSongIds = deletionMarkers.suppressingSongIds()
-                    val visibleSongs = snapshot.songs.filterNot { it.id in suppressedSongIds }
-                    val scannedSongIds = snapshot.songs.mapTo(hashSetOf(), Song::id)
-                    deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
-                    val nextContentState = ElovaireTrace.section("library_publish_content") {
-                        publishLibraryContent(visibleSongs)
-                    }
-                    val visibleSnapshot = snapshotPublisher.snapshotOf(nextContentState)
+                    val visibleSnapshot = prepareVisibleSnapshot(snapshot.songs)
                     val nextScanState = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
@@ -420,6 +414,36 @@ class LibraryRepository internal constructor(
                 _runtimeState.value = LibraryRuntimeState.Idle
             }
         }
+    }
+
+    private suspend fun prepareVisibleSnapshot(songs: List<Song>): LibrarySnapshot {
+        val scannedSongIds = songs.mapTo(hashSetOf(), Song::id)
+        deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
+        var suppressedSongIds = deletionMarkers.suppressingSongIds()
+        var visibleSongs = songs.filterNot { it.id in suppressedSongIds }
+        var preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content") {
+            withContext(Dispatchers.Default) {
+                snapshotPublisher.prepareSongs(visibleSongs)
+            }
+        }
+        val latestSuppressedSongIds = deletionMarkers.suppressingSongIds()
+        if (latestSuppressedSongIds != suppressedSongIds) {
+            suppressedSongIds = latestSuppressedSongIds
+            visibleSongs = songs.filterNot { it.id in suppressedSongIds }
+            preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content_refresh") {
+                withContext(Dispatchers.Default) {
+                    snapshotPublisher.prepareSongs(visibleSongs)
+                }
+            }
+        }
+        val nextContentState = ElovaireTrace.section("library_publish_content") {
+            snapshotPublisher.publishSnapshot(
+                snapshot = preparedSnapshot,
+                removingSongIds = deletionMarkers.pendingSongIds.value,
+                removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
+            )
+        }
+        return snapshotPublisher.snapshotOf(nextContentState)
     }
 
     private suspend fun scanLibrary(
@@ -666,29 +690,31 @@ class LibraryRepository internal constructor(
         forceMediaIndex: Boolean = false,
         changedFilePath: String? = null,
     ) {
-        if (released.get() || !_scanState.value.permissionGranted) return
-        refreshRequests.enqueue(
-            forceMediaIndex = forceMediaIndex,
-            targetedPaths = listOfNotNull(changedFilePath),
-        )
-        if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
-            val pending = refreshRequests.takePendingAfterScan() ?: return
-            val merged = mergeBackgroundRefreshRequest(
-                existing = (_runtimeState.value as? LibraryRuntimeState.BackgroundDirty)?.pending,
-                incoming = pending,
+        scope.launch {
+            if (released.get() || !_scanState.value.permissionGranted) return@launch
+            refreshRequests.enqueue(
+                forceMediaIndex = forceMediaIndex,
+                targetedPaths = listOfNotNull(changedFilePath),
             )
-            _runtimeState.value = LibraryRuntimeState.BackgroundDirty(merged)
-            return
-        }
-        refreshDebounceJob?.cancel()
-        refreshDebounceJob = scope.launch {
-            delay(AUTO_REFRESH_DEBOUNCE_MS)
-            refreshDebounceJob = null
-            refresh(
-                forceMediaIndex = false,
-                enrichMetadata = false,
-                showLoadingIndicator = false,
-            )
+            if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
+                val pending = refreshRequests.takePendingAfterScan() ?: return@launch
+                val merged = mergeBackgroundRefreshRequest(
+                    existing = (_runtimeState.value as? LibraryRuntimeState.BackgroundDirty)?.pending,
+                    incoming = pending,
+                )
+                _runtimeState.value = LibraryRuntimeState.BackgroundDirty(merged)
+                return@launch
+            }
+            refreshDebounceJob?.cancel()
+            refreshDebounceJob = scope.launch {
+                delay(AUTO_REFRESH_DEBOUNCE_MS)
+                refreshDebounceJob = null
+                refresh(
+                    forceMediaIndex = false,
+                    enrichMetadata = false,
+                    showLoadingIndicator = false,
+                )
+            }
         }
     }
 

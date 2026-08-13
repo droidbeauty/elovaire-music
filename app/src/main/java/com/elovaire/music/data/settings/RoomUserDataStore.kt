@@ -83,7 +83,29 @@ internal class RoomUserDataStore(
     private val submissionLock = Any()
     private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueue)
     private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueue)
-    private val ownerJob: Job = operationScope.launch {
+
+    private val _userPlaylists = MutableStateFlow<List<Playlist>>(emptyList())
+    override val playlists: StateFlow<List<Playlist>> = _userPlaylists.asStateFlow()
+
+    private val _userSmartPlaylists = MutableStateFlow<List<SmartPlaylist>>(emptyList())
+    private val _smartPlaylists = MutableStateFlow(SmartPlaylistDefaults.builtIns())
+    override val smartPlaylists: StateFlow<List<SmartPlaylist>> = _smartPlaylists.asStateFlow()
+
+    private val _favoriteSongIds = MutableStateFlow<List<Long>>(emptyList())
+    override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
+
+    override val albumPlayCounts get() = playbackHistoryStore.albumPlayCounts
+    override val songPlayCounts get() = playbackHistoryStore.songPlayCounts
+    override val recentSongIds get() = playbackHistoryStore.recentSongIds
+    override val recentAlbumIds get() = playbackHistoryStore.recentAlbumIds
+    override val lastPlayedCollectionKind get() = playbackHistoryStore.lastPlayedCollectionKind
+    override val lastPlayedCollectionId get() = playbackHistoryStore.lastPlayedCollectionId
+    override val searchHistory get() = searchHistoryStore.searchHistory
+
+    // Start only after every state flow is initialized. The actor may run on another
+    // thread immediately, so starting it during an earlier property initializer can
+    // publish the startup snapshot into fields that do not exist yet.
+    private val ownerJob: Job = operationScope.launch(start = CoroutineStart.LAZY) {
         try {
             initialize()
             if (!lifecycle.compareAndSet(StoreLifecycle.Initializing, StoreLifecycle.Ready)) {
@@ -106,23 +128,9 @@ internal class RoomUserDataStore(
         }
     }
 
-    private val _userPlaylists = MutableStateFlow<List<Playlist>>(emptyList())
-    override val playlists: StateFlow<List<Playlist>> = _userPlaylists.asStateFlow()
-
-    private val _userSmartPlaylists = MutableStateFlow<List<SmartPlaylist>>(emptyList())
-    private val _smartPlaylists = MutableStateFlow(SmartPlaylistDefaults.builtIns())
-    override val smartPlaylists: StateFlow<List<SmartPlaylist>> = _smartPlaylists.asStateFlow()
-
-    private val _favoriteSongIds = MutableStateFlow<List<Long>>(emptyList())
-    override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
-
-    override val albumPlayCounts get() = playbackHistoryStore.albumPlayCounts
-    override val songPlayCounts get() = playbackHistoryStore.songPlayCounts
-    override val recentSongIds get() = playbackHistoryStore.recentSongIds
-    override val recentAlbumIds get() = playbackHistoryStore.recentAlbumIds
-    override val lastPlayedCollectionKind get() = playbackHistoryStore.lastPlayedCollectionKind
-    override val lastPlayedCollectionId get() = playbackHistoryStore.lastPlayedCollectionId
-    override val searchHistory get() = searchHistoryStore.searchHistory
+    init {
+        ownerJob.start()
+    }
 
     override fun createPlaylist(name: String): Deferred<PlaylistMutationResult> {
         return enqueueMutation("playlist.create") {
@@ -354,7 +362,8 @@ internal class RoomUserDataStore(
         enqueue("favorite.set") {
             if (favorite) {
                 val current = _favoriteSongIds.value.toMutableList()
-                val additions = normalized.filterNot(current::contains)
+                val currentIds = current.toHashSet()
+                val additions = normalized.filterNot(currentIds::contains)
                 if (additions.isEmpty()) return@enqueue
                 val firstPosition = dao.lastFavoritePosition() + 1
                 dao.insertFavorites(additions.mapIndexed { index, songId ->

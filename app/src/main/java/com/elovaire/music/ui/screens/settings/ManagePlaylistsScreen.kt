@@ -57,6 +57,8 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -358,7 +360,20 @@ private fun readPlaylistFile(
     uri: Uri,
 ): List<Playlist> {
     val content = context.contentResolver.openInputStream(uri)?.use { input ->
-        input.readBytes().toString(Charsets.UTF_8)
+        input.readUtf8Bounded(MAX_PLAYLIST_IMPORT_BYTES)
     } ?: return emptyList()
     return deserializePlaylists(content)
 }
+
+private fun InputStream.readUtf8Bounded(maxBytes: Int): String? {
+    val output = ByteArrayOutputStream(minOf(maxBytes, 8_192))
+    val buffer = ByteArray(8_192)
+    while (true) {
+        val count = read(buffer)
+        if (count < 0) return output.toByteArray().toString(Charsets.UTF_8)
+        if (output.size() > maxBytes - count) return null
+        output.write(buffer, 0, count)
+    }
+}
+
+private const val MAX_PLAYLIST_IMPORT_BYTES = 16 * 1024 * 1024

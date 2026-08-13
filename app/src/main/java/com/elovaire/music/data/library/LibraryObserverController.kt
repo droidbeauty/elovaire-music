@@ -154,9 +154,10 @@ internal class LibraryObserverController(
     }
 
     private fun requestMusicDirectoryObserverRebuild() {
-        observerRebuildJob?.cancel()
-        val rebuildJob = scope.launch(start = CoroutineStart.LAZY) {
+        scope.launch {
+            observerRebuildJob?.cancel()
             val currentJob = currentCoroutineContext()[Job] ?: return@launch
+            observerRebuildJob = currentJob
             delay(AUTO_REFRESH_DEBOUNCE_MS)
             if (observerRebuildJob !== currentJob) return@launch
             observerRebuildJob = null
@@ -168,8 +169,6 @@ internal class LibraryObserverController(
                 ensureLibraryFolderObservers(forceRebuild = true)
             }
         }
-        observerRebuildJob = rebuildJob
-        rebuildJob.start()
     }
 
     private fun shouldCoalesceObservedPath(path: String): Boolean {

@@ -64,12 +64,6 @@ internal class LyricsRepository(
         }
             ?: memoryCachedLyrics(identity)?.takeUnless { it.online && !onlineEnabled }?.result
             ?: cache.get(identity, includeNotFound = allowCachedNotFound, includeOnline = onlineEnabled)
-            ?: localLyricsResolver.resolve(song)?.let { local ->
-                local.toCacheEntry().also { entry ->
-                    rememberPositive(identity, entry)
-                    cache.put(identity, entry)
-                }.result
-            }
             ?: if (!onlineEnabled) LyricsResult.NotFound else lrclibClient.fetch(song).also { result ->
                 if (result is LyricsResult.Found || result == LyricsResult.NotFound) {
                     cache.put(

@@ -277,7 +277,7 @@ internal class GitHubUpdateController(
         val checksum = release.checksumSha256 ?: release.checksumUrl?.let { url ->
             withTrustedConnection(url, "text/plain") { connection ->
                 if (connection.responseCode !in 200..299) error("Unable to verify update")
-                connection.inputStream.bufferedReader().use { it.readText().take(MAX_CHECKSUM_TEXT_CHARS) }
+                connection.inputStream.bufferedReader().use { it.readLimitedText(MAX_CHECKSUM_TEXT_CHARS) }
             }.let { AppUpdateIntegrity.expectedSha256(it, release.assetFileName) }
         } ?: error("Unable to verify update")
         require(AppUpdateIntegrity.verifySha256(file, checksum)) { "Update verification failed" }
@@ -446,9 +446,7 @@ private object GitHubReleaseClient {
         return withTrustedConnection(url, "application/vnd.github+json") { connection ->
             if (connection.responseCode !in 200..299) error("GitHub update check failed")
             connection.inputStream.bufferedReader().use { reader ->
-                val value = reader.readText()
-                require(value.length <= MAX_RELEASE_METADATA_BYTES) { "GitHub update response is too large" }
-                value
+                reader.readLimitedText(MAX_RELEASE_METADATA_BYTES)
             }
         }
     }
@@ -456,6 +454,17 @@ private object GitHubReleaseClient {
     private const val LATEST_RELEASE_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases/latest"
     private const val RELEASES_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases?per_page=20"
     private const val MAX_RELEASE_METADATA_BYTES = 1 * 1024 * 1024
+}
+
+private fun java.io.Reader.readLimitedText(limit: Int): String {
+    val result = StringBuilder(minOf(limit, 8_192))
+    val buffer = CharArray(8_192)
+    while (true) {
+        val count = read(buffer)
+        if (count < 0) return result.toString()
+        if (result.length > limit - count) error("Network response is too large")
+        result.append(buffer, 0, count)
+    }
 }
 
 private suspend fun <T> withTrustedConnection(
