@@ -65,9 +65,11 @@ internal fun loadArtworkBitmap(
     val size = normalizeArtworkRequestSize(targetPx)
     val targetSize = ImageTargetSize(size, size)
 
-    runCatching {
-        context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
-    }.getOrNull()?.let { return it }
+    if (purpose != ArtworkPurpose.Notification) {
+        runCatching {
+            context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
+        }.getOrNull()?.let { return it }
+    }
 
     decodeBitmapStream(context, requestUri, targetSize, purpose)?.let { return it }
 
@@ -186,11 +188,11 @@ private fun calculateInSampleSize(
 internal fun bitmapConfigForPurpose(purpose: ArtworkPurpose): Bitmap.Config {
     return when (purpose) {
         ArtworkPurpose.UiGrid,
-        ArtworkPurpose.Notification,
         ArtworkPurpose.PlaylistPreview,
         -> Bitmap.Config.RGB_565
 
         ArtworkPurpose.UiLarge,
+        ArtworkPurpose.Notification,
         ArtworkPurpose.TagEditorPreview,
         -> Bitmap.Config.ARGB_8888
     }

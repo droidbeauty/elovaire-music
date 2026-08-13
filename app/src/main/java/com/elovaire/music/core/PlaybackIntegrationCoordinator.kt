@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
@@ -104,7 +105,8 @@ internal class PlaybackIntegrationCoordinator(
         scope.launch {
             merge(
                 combine(playback.queueState, playback.transportState) { _, _ -> Unit },
-                playback.progressState
+                combine(playback.progressState, playback.transportState) { _, transport -> transport.isPlaying }
+                    .filter { isPlaying -> !isPlaying }
                     .sample(PLAYBACK_POSITION_PERSIST_INTERVAL_MS)
                     .map { Unit },
             )

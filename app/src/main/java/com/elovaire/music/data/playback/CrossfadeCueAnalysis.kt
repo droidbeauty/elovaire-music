@@ -91,8 +91,23 @@ internal object CrossfadeCuePolicy {
     const val LEVEL_WINDOW_MS = 20L
     const val MIN_TRAILING_SILENCE_MS = 100L
     const val PREWARM_LEAD_MS = 5_000L
+    const val ANALYSIS_LEAD_MS = 60_000L
+    const val STARTUP_ANALYSIS_DELAY_MS = 500L
     const val MAX_EXPANDED_ANALYSIS_MS = 60_000L
     const val COVERAGE_TOLERANCE_MS = 100L
+}
+
+internal fun crossfadeAnalysisDelayMs(
+    outgoingDurationMs: Long,
+    currentPositionMs: Long,
+): Long {
+    val durationMs = outgoingDurationMs.coerceAtLeast(0L)
+    val positionMs = currentPositionMs.coerceIn(0L, durationMs)
+    val remainingMs = (durationMs - positionMs).coerceAtLeast(0L)
+    if (positionMs == 0L && remainingMs <= CrossfadeCuePolicy.ANALYSIS_LEAD_MS) {
+        return CrossfadeCuePolicy.STARTUP_ANALYSIS_DELAY_MS
+    }
+    return (remainingMs - CrossfadeCuePolicy.ANALYSIS_LEAD_MS).coerceAtLeast(0L)
 }
 
 internal data class CrossfadeLevelWindow(
@@ -353,7 +368,7 @@ internal class CrossfadeCueAnalyzer(
 
     private fun analyzeSongUncached(song: Song, silenceLevelDb: Float): SongCue {
         val fallbackDuration = song.durationMs.coerceAtLeast(0L)
-        val durationMs = findDurationMs(song) ?: fallbackDuration
+        val durationMs = fallbackDuration.takeIf { it > 0L } ?: findDurationMs(song) ?: 0L
         if (durationMs <= 0L) {
             return SongCue(
                 mixOutMs = null,

@@ -18,6 +18,13 @@ class PlaybackCrossfadeEnvelopeTest {
     }
 
     @Test
+    fun analysisDelay_avoidsDecodingLongTracksAtPlaybackStart() {
+        assertEquals(500L, crossfadeAnalysisDelayMs(20_000L, 0L))
+        assertEquals(3_540_000L, crossfadeAnalysisDelayMs(3_600_000L, 0L))
+        assertEquals(0L, crossfadeAnalysisDelayMs(3_600_000L, 3_550_000L))
+    }
+
+    @Test
     fun settingsPolicies_snapToRequestedRanges() {
         assertEquals(2_000L, CrossfadeDurationPolicy.sanitizeSettingsDuration(0L))
         assertEquals(3_500L, CrossfadeDurationPolicy.sanitizeSettingsDuration(3_499L))

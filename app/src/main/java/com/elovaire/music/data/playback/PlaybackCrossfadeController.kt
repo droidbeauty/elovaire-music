@@ -83,6 +83,7 @@ internal class PlaybackCrossfadeController(
     private var transitionToken = 0L
     private var analysisJob: Job? = null
 
+    private var analysisRunnable: Runnable? = null
     private val prewarmRunnable = Runnable { prewarmIncoming(transitionToken) }
     private val startRunnable = Runnable { startFade(transitionToken) }
     private val frameRunnable = object : Runnable {
@@ -136,19 +137,50 @@ internal class PlaybackCrossfadeController(
             "prepare crossfade_enabled=true configured_duration_ms=$configuredFadeDurationMs " +
                 "configured_silence_db=$configuredSilenceLevelDb",
         )
+        scheduleAnalysis(token)
+    }
+
+    private fun scheduleAnalysis(token: Long) {
+        val outgoingPlayer = outgoing ?: return cancel()
+        val delayMs = crossfadeAnalysisDelayMs(
+            outgoingDurationMs = outgoingDurationMs,
+            currentPositionMs = outgoingPlayer.currentPosition,
+        )
+        logDebug(
+            "analysis_scheduled delay_ms=$delayMs duration_ms=$outgoingDurationMs " +
+                "position_ms=${outgoingPlayer.currentPosition}",
+        )
+        analysisRunnable?.let(handler::removeCallbacks)
+        val runnable = object : Runnable {
+            override fun run() {
+                if (analysisRunnable === this) analysisRunnable = null
+                startAnalysis(token)
+            }
+        }
+        analysisRunnable = runnable
+        handler.postDelayed(runnable, delayMs)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun startAnalysis(token: Long) {
+        if (token != transitionToken || state != CrossfadeState.Analyzing) return
+        val outgoingTrack = outgoingSong ?: return cancel()
+        val incomingTrack = incomingSong ?: return cancel()
+        val outgoingDuration = outgoingDurationMs
+        val silenceLevelDb = configuredSilenceLevelDb
         analysisJob = scope.launch {
             val cue = try {
                 cueAnalyzer.analyzePair(
-                    outgoing = outgoingSong,
-                    incoming = incomingSong,
-                    silenceLevelDb = configuredSilenceLevelDb,
+                    outgoing = outgoingTrack,
+                    incoming = incomingTrack,
+                    silenceLevelDb = silenceLevelDb,
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 val reason = "controller_analysis_exception:${error.javaClass.simpleName}"
                 logDebug("analysis_fallback reason=$reason")
-                CrossfadeCue.fallback(durationMs).copy(
+                CrossfadeCue.fallback(outgoingDuration).copy(
                     outgoingFallbackReason = reason,
                     incomingFallbackReason = reason,
                 )
@@ -158,14 +190,14 @@ internal class PlaybackCrossfadeController(
                 currentCue = cue
                 plan = CrossfadeTransitionPlan.from(
                     cue = cue,
-                    outgoingDurationMs = durationMs,
-                    incomingDurationMs = incomingSong.durationMs,
+                    outgoingDurationMs = outgoingDuration,
+                    incomingDurationMs = incomingTrack.durationMs,
                     fadeDurationMs = configuredFadeDurationMs,
                 )
                 state = CrossfadeState.WaitingForPrewarm
                 logDebug(
-                        "cue configured_duration_ms=$configuredFadeDurationMs " +
-                        "analyzer_silence_db=$configuredSilenceLevelDb duration=$durationMs " +
+                    "cue configured_duration_ms=$configuredFadeDurationMs " +
+                        "analyzer_silence_db=$silenceLevelDb duration=$outgoingDuration " +
                         "detected_mix_out_ms=${cue.outgoingMixOutMs} " +
                         "detected_mix_in_ms=${cue.incomingMixInMs} " +
                         "trailing_silence_ms=${cue.outgoingTrailingSilenceMs} " +
@@ -235,6 +267,8 @@ internal class PlaybackCrossfadeController(
         transitionToken += 1L
         analysisJob?.cancel()
         analysisJob = null
+        analysisRunnable?.let(handler::removeCallbacks)
+        analysisRunnable = null
         handler.removeCallbacks(prewarmRunnable)
         handler.removeCallbacks(startRunnable)
         handler.removeCallbacks(frameRunnable)

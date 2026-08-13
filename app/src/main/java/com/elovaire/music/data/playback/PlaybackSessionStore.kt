@@ -31,6 +31,8 @@ internal class PlaybackSessionStore(
         context.applicationContext.getSharedPreferences(LEGACY_FILE_NAME, Context.MODE_PRIVATE)
     }
     private var lastSavedSession: PersistedPlaybackSession? = null
+    private var legacyPreferencesCleared = false
+    private var clearStateKnown = false
 
     fun load(): PersistedPlaybackSession? {
         return if (structurePreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
@@ -97,6 +99,7 @@ internal class PlaybackSessionStore(
         val plan = playbackSessionSavePlan(lastSavedSession, comparable)
         if (plan == PlaybackSessionSavePlan.None) return
         lastSavedSession = comparable
+        clearStateKnown = false
         if (plan.saveStructure) {
             structurePreferences.edit()
                 .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
@@ -115,14 +118,23 @@ internal class PlaybackSessionStore(
                 .putLong(KEY_SAVED_AT, clock.wallTimeMs())
                 .apply()
         }
-        if (legacyPreferences.all.isNotEmpty()) legacyPreferences.edit().clear().apply()
+        clearLegacyPreferencesIfNeeded()
     }
 
     fun clear() {
         lastSavedSession = null
-        listOf(structurePreferences, recoveryPreferences, legacyPreferences)
+        if (clearStateKnown) return
+        listOf(structurePreferences, recoveryPreferences)
             .filter { it.all.isNotEmpty() }
             .forEach { it.edit().clear().apply() }
+        clearLegacyPreferencesIfNeeded()
+        clearStateKnown = true
+    }
+
+    private fun clearLegacyPreferencesIfNeeded() {
+        if (legacyPreferencesCleared) return
+        legacyPreferencesCleared = true
+        if (legacyPreferences.all.isNotEmpty()) legacyPreferences.edit().clear().apply()
     }
 
     private companion object {

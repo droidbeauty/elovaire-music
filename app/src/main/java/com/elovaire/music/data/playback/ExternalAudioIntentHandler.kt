@@ -58,7 +58,7 @@ internal object ExternalAudioIntentHandler {
         }
 
         val title = ExternalAudioMetadataPolicy.titleFromDisplayName(displayName)
-        val durationMs = contentResolver.readDurationMs(context, uri)
+        val durationMs = detected.durationMs ?: contentResolver.readDurationMs(context, uri)
         val uriValue = uri.toString()
 
         Song(

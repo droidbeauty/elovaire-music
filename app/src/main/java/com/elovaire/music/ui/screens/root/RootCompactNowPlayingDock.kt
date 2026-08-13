@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -59,7 +60,6 @@ import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Song
-import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
@@ -219,6 +219,7 @@ private fun NowPlayingBar(
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
 ) {
+    val artwork = rememberArtworkBitmap(song.artUri, size = 192)
     val barGradient = rememberArtworkGradient(song.artUri).value
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val controlBaseTint = if (darkTheme) {
@@ -312,15 +313,52 @@ private fun NowPlayingBar(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                ArtworkImage(
-                    uri = song.artUri,
-                    title = song.title,
+                Box(
                     modifier = Modifier
                         .size(48.dp)
-                        .onGloballyPositioned { artworkBounds = it.boundsInRoot() },
-                    cornerRadius = ElovaireRadii.artworkSmall,
-                    requestedSizePx = 192,
-                )
+                        .onGloballyPositioned { artworkBounds = it.boundsInRoot() }
+                        .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    AnimatedContent(
+                        targetState = artwork.value,
+                        transitionSpec = {
+                            (
+                                fadeIn(animationSpec = tween(260, delayMillis = 25)) +
+                                    scaleIn(
+                                        initialScale = 0.96f,
+                                        animationSpec = tween(300),
+                                    )
+                                ) togetherWith (
+                                fadeOut(animationSpec = tween(170)) +
+                                    scaleOut(
+                                        targetScale = 1.04f,
+                                        animationSpec = tween(220),
+                                    )
+                                )
+                        },
+                        label = "mini_player_artwork_transition",
+                    ) { artworkBitmap ->
+                        if (artworkBitmap != null) {
+                            Image(
+                                bitmap = artworkBitmap,
+                                contentDescription = song.title,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp),
+                            )
+                        } else {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_music),
+                                contentDescription = song.title,
+                                tint = controlIconTint.copy(alpha = 0.72f),
+                                modifier = Modifier.size(20.dp),
+                            )
+                        }
+                    }
+                }
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(1.dp),
