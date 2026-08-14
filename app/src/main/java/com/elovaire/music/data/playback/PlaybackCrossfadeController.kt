@@ -84,8 +84,8 @@ internal class PlaybackCrossfadeController(
     private var analysisJob: Job? = null
 
     private var analysisRunnable: Runnable? = null
-    private val prewarmRunnable = Runnable { prewarmIncoming(transitionToken) }
-    private val startRunnable = Runnable { startFade(transitionToken) }
+    private var prewarmRunnable: Runnable? = null
+    private var startRunnable: Runnable? = null
     private val frameRunnable = object : Runnable {
         override fun run() {
             val outgoingPlayer = outgoing ?: return cancel()
@@ -269,8 +269,10 @@ internal class PlaybackCrossfadeController(
         analysisJob = null
         analysisRunnable?.let(handler::removeCallbacks)
         analysisRunnable = null
-        handler.removeCallbacks(prewarmRunnable)
-        handler.removeCallbacks(startRunnable)
+        prewarmRunnable?.let(handler::removeCallbacks)
+        prewarmRunnable = null
+        startRunnable?.let(handler::removeCallbacks)
+        startRunnable = null
         handler.removeCallbacks(frameRunnable)
         outgoing?.volume = outgoingGain
         incoming?.let { it.release() }
@@ -304,8 +306,10 @@ internal class PlaybackCrossfadeController(
             incomingDurationMs = incomingTrack.durationMs,
             fadeDurationMs = configuredFadeDurationMs,
         )
-        handler.removeCallbacks(prewarmRunnable)
-        handler.removeCallbacks(startRunnable)
+        prewarmRunnable?.let(handler::removeCallbacks)
+        prewarmRunnable = null
+        startRunnable?.let(handler::removeCallbacks)
+        startRunnable = null
         when (state) {
             CrossfadeState.WaitingForPrewarm -> schedulePrewarm(transitionToken)
             CrossfadeState.PreparingNext -> if (incomingReady) scheduleFadeWhenReady(transitionToken)
@@ -328,8 +332,15 @@ internal class PlaybackCrossfadeController(
         val prewarmPositionMs = (transitionPlan.fadeStartMs - CrossfadeCuePolicy.PREWARM_LEAD_MS)
             .coerceAtLeast(currentPositionMs)
         val delayMs = (prewarmPositionMs - currentPositionMs).coerceAtLeast(0L)
-        handler.postDelayed(prewarmRunnable, delayMs)
-        if (token != transitionToken) handler.removeCallbacks(prewarmRunnable)
+        prewarmRunnable?.let(handler::removeCallbacks)
+        val runnable = object : Runnable {
+            override fun run() {
+                if (prewarmRunnable === this) prewarmRunnable = null
+                prewarmIncoming(token)
+            }
+        }
+        prewarmRunnable = runnable
+        handler.postDelayed(runnable, delayMs)
     }
 
     private fun prewarmIncoming(token: Long) {
@@ -345,37 +356,42 @@ internal class PlaybackCrossfadeController(
             return
         }
         incoming = secondary
-        secondary.volume = 0f
-        secondary.repeatMode = outgoingPlayer.repeatMode
-        secondary.shuffleModeEnabled = outgoingPlayer.shuffleModeEnabled
         try {
-            secondary.setMediaItems(
-                queue.map(Song::toPlaybackMediaItem),
-                nextQueueIndex,
-                transitionPlan.incomingMixInMs,
-            )
-        } catch (_: RuntimeException) {
+            secondary.volume = 0f
+            secondary.repeatMode = outgoingPlayer.repeatMode
+            secondary.shuffleModeEnabled = outgoingPlayer.shuffleModeEnabled
             try {
-                secondary.setMediaItems(queue.map(Song::toPlaybackMediaItem), nextQueueIndex, 0L)
+                secondary.setMediaItems(
+                    queue.map(Song::toPlaybackMediaItem),
+                    nextQueueIndex,
+                    transitionPlan.incomingMixInMs,
+                )
             } catch (_: RuntimeException) {
-                fail("secondary_media_item_setup_failure")
-                return
-            }
-        }
-        secondary.addListener(object : Player.Listener {
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (secondary !== incoming || token != transitionToken) return
-                if (playbackState == Player.STATE_READY) {
-                    incomingReady = true
-                    scheduleFadeWhenReady(token)
+                try {
+                    secondary.setMediaItems(queue.map(Song::toPlaybackMediaItem), nextQueueIndex, 0L)
+                } catch (_: RuntimeException) {
+                    fail("secondary_media_item_setup_failure")
+                    return
                 }
             }
+            secondary.addListener(object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (secondary !== incoming || token != transitionToken) return
+                    if (playbackState == Player.STATE_READY) {
+                        incomingReady = true
+                        scheduleFadeWhenReady(token)
+                    }
+                }
 
-            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
-                if (secondary === incoming && token == transitionToken) fail("secondary_player_error")
-            }
-        })
-        secondary.prepare()
+                override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                    if (secondary === incoming && token == transitionToken) fail("secondary_player_error")
+                }
+            })
+            secondary.prepare()
+        } catch (_: RuntimeException) {
+            fail("secondary_prepare_failure")
+            return
+        }
     }
 
     private fun scheduleFadeWhenReady(token: Long) {
@@ -387,13 +403,33 @@ internal class PlaybackCrossfadeController(
         if (remainingMs <= 0L) {
             fadeDurationMs = 1L
             state = CrossfadeState.Ready
-            handler.post(startRunnable)
+            scheduleStartFade(token, immediate = true)
             return
         }
         fadeDurationMs = min(transitionPlan.fadeDurationMs.coerceAtLeast(1L), remainingMs)
         val delayMs = (remainingMs - fadeDurationMs).coerceAtLeast(0L)
         state = CrossfadeState.Ready
-        handler.postDelayed(startRunnable, delayMs)
+        scheduleStartFade(token, delayMs)
+    }
+
+    private fun scheduleStartFade(
+        token: Long,
+        delayMs: Long = 0L,
+        immediate: Boolean = false,
+    ) {
+        startRunnable?.let(handler::removeCallbacks)
+        val runnable = object : Runnable {
+            override fun run() {
+                if (startRunnable === this) startRunnable = null
+                startFade(token)
+            }
+        }
+        startRunnable = runnable
+        if (immediate || delayMs <= 0L) {
+            handler.post(runnable)
+        } else {
+            handler.postDelayed(runnable, delayMs)
+        }
     }
 
     private fun startFade(token: Long) {
@@ -421,8 +457,10 @@ internal class PlaybackCrossfadeController(
         state = CrossfadeState.PromotingNext
         transitionToken += 1L
         analysisJob = null
-        handler.removeCallbacks(prewarmRunnable)
-        handler.removeCallbacks(startRunnable)
+        prewarmRunnable?.let(handler::removeCallbacks)
+        prewarmRunnable = null
+        startRunnable?.let(handler::removeCallbacks)
+        startRunnable = null
         handler.removeCallbacks(frameRunnable)
         incomingPlayer.volume = incomingGain
         outgoing = null

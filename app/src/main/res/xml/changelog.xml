@@ -6,10 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.6.6">
-        <item>Fixed scrollbar overlay with buttons in playlist edit mode</item>
-        <item>Fixed pixelated album art rendering in the notification area player</item>
+    <release version="2.6.7">
+        <item>Performance optimizations by reducing CPU cycles the app triggers</item>
         <item>Improved animation quality in the compact now playing bar</item>
-        <item>Performance optimizations</item>
     </release>
 </changelog>

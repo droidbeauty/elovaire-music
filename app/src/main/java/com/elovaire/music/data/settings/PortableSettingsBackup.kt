@@ -28,14 +28,21 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun start() {
         if (released.get()) return
         restore()
         if (released.get()) return
         if (!started.compareAndSet(false, true)) return
-        source.registerOnSharedPreferenceChangeListener(this)
+        try {
+            source.registerOnSharedPreferenceChangeListener(this)
+        } catch (failure: RuntimeException) {
+            started.set(false)
+            runCatching { source.unregisterOnSharedPreferenceChangeListener(this) }
+            throw failure
+        }
         if (released.get() && started.compareAndSet(true, false)) {
-            source.unregisterOnSharedPreferenceChangeListener(this)
+            runCatching { source.unregisterOnSharedPreferenceChangeListener(this) }
         }
     }
 

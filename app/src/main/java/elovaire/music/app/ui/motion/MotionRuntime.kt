@@ -51,13 +51,13 @@ fun rememberMotionRuntime(): MotionRuntime {
             Settings.Global.TRANSITION_ANIMATION_SCALE,
             Settings.Global.WINDOW_ANIMATION_SCALE,
         ).map(Settings.Global::getUriFor)
-        settingUris.forEach { uri ->
-            resolver.registerContentObserver(uri, false, observer)
-        }
         try {
+            settingUris.forEach { uri ->
+                resolver.registerContentObserver(uri, false, observer)
+            }
             awaitCancellation()
         } finally {
-            resolver.unregisterContentObserver(observer)
+            runCatching { resolver.unregisterContentObserver(observer) }
         }
     }
     return MotionRuntime(durationScale = durationScale)

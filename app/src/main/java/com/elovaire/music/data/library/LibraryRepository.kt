@@ -594,8 +594,9 @@ class LibraryRepository internal constructor(
                 scanner.findExistingSongIds(request.songIds)
             }
         }
-        repeat(DELETE_CONFIRMATION_MAX_POLLS) {
-            if (stillPresent.isEmpty()) return@repeat
+        var pollCount = 0
+        while (stillPresent.isNotEmpty() && pollCount < DELETE_CONFIRMATION_MAX_POLLS) {
+            pollCount += 1
             delay(DELETE_CONFIRMATION_POLL_MS)
             stillPresent = withContext(Dispatchers.IO) {
                 if (remainingTargets.isNotEmpty()) {
