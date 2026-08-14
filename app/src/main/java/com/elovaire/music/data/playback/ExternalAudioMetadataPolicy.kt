@@ -21,16 +21,16 @@ internal object ExternalAudioMetadataPolicy {
     }
 
     fun sanitizeDisplayName(rawValue: String?): String {
-        return rawValue
-            ?.asSequence()
-            ?.filterNot { it.isISOControl() }
-            ?.joinToString(separator = "")
-            ?.replace('/', ' ')
-            ?.replace('\\', ' ')
-            ?.trim()
-            ?.take(MAX_DISPLAY_NAME_LENGTH)
-            ?.takeIf { it.isNotBlank() }
-            ?: DEFAULT_DISPLAY_NAME
+        val sanitized = rawValue?.let { value ->
+            buildString(minOf(value.length, MAX_DISPLAY_NAME_LENGTH)) {
+                for (character in value) {
+                    if (character.isISOControl()) continue
+                    append(if (character == '/' || character == '\\') ' ' else character)
+                    if (length == MAX_DISPLAY_NAME_LENGTH) break
+                }
+            }.trim()
+        }
+        return sanitized?.takeIf(String::isNotBlank) ?: DEFAULT_DISPLAY_NAME
     }
 
     fun titleFromDisplayName(displayName: String): String {

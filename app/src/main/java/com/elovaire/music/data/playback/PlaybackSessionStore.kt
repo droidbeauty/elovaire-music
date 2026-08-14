@@ -56,7 +56,7 @@ internal class PlaybackSessionStore(
         recovery: android.content.SharedPreferences,
     ): PersistedPlaybackSession? {
         val savedAtMs = recovery.getLong(KEY_SAVED_AT, 0L)
-        if (savedAtMs <= 0L || clock.wallTimeMs() - savedAtMs !in 0L..MAX_SESSION_AGE_MS) {
+        if (!isPlaybackSessionFresh(clock.wallTimeMs(), savedAtMs)) {
             clear()
             return null
         }
@@ -142,7 +142,6 @@ internal class PlaybackSessionStore(
         const val STRUCTURE_FILE_NAME = "playback_session_structure"
         const val RECOVERY_FILE_NAME = "playback_session_recovery"
         const val MAX_QUEUE_SIZE = 10_000
-        const val MAX_SESSION_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
         const val KEY_FORMAT_VERSION = "format_version"
         const val KEY_QUEUE_IDS = "queue_song_ids"
         const val KEY_CURRENT_SONG_ID = "current_song_id"
@@ -156,8 +155,22 @@ internal class PlaybackSessionStore(
     }
 }
 
+private const val MAX_PLAYBACK_SESSION_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
+
 internal const val LEGACY_FORMAT_VERSION = 0
 internal const val CURRENT_FORMAT_VERSION = 2
+
+internal fun isPlaybackSessionFresh(
+    nowWallTimeMs: Long,
+    savedAtWallTimeMs: Long,
+): Boolean {
+    if (savedAtWallTimeMs <= 0L) return false
+    return if (nowWallTimeMs >= savedAtWallTimeMs) {
+        nowWallTimeMs - savedAtWallTimeMs <= MAX_PLAYBACK_SESSION_AGE_MS
+    } else {
+        savedAtWallTimeMs - nowWallTimeMs <= MAX_PLAYBACK_SESSION_AGE_MS
+    }
+}
 
 internal fun isSupportedPlaybackSessionVersion(version: Int): Boolean {
     return version in LEGACY_FORMAT_VERSION..CURRENT_FORMAT_VERSION

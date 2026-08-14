@@ -228,6 +228,7 @@ class PlaybackManager(
     private var crossfadeDurationMs = CrossfadeDurationPolicy.DEFAULT_DURATION_MS
     private var crossfadeSilenceThresholdDb = CrossfadeSilencePolicy.BASE_LEVEL_DB
     private var volumeNormalizationEnabled = false
+    private var outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
     private var player = createPlayer(enableSignalProcessing = true)
     private val crossfadeController = PlaybackCrossfadeController(
         handler = playbackHandler,
@@ -774,11 +775,17 @@ class PlaybackManager(
     }
 
     private fun currentOffloadPolicy(): PlaybackOffloadPolicy {
-        return PlaybackOffloadPolicy.from(
-            signalProcessingEnabled = !isDirectPlaybackActive,
-            signalAlteringEffectsActive = hasActiveSignalAlteringEffects(),
-            crossfadeEnabled = crossfadeEnabled,
+        val decision = AudioOutputPolicy.decide(
+            capabilities = outputCapabilities,
+            requirements = AudioProcessingRequirements(
+                signalAlteringEffectsActive = hasActiveSignalAlteringEffects(),
+                normalizationActive = false,
+                monoOrChannelMappingActive = false,
+                crossfadeActive = false,
+            ),
+            directPathActive = isDirectPlaybackActive,
         )
+        return PlaybackOffloadPolicy(enabled = decision.offloadAllowed)
     }
 
     private fun attachPlayerObservers(target: ExoPlayer) {
@@ -1122,11 +1129,16 @@ class PlaybackManager(
     private fun refreshUsbAudioOutputState() {
         if (released.get()) return
         runCatching {
+            outputCapabilities = AudioOutputCapabilityReader.read(
+                audioManager = audioManager,
+                attributes = platformPlaybackAudioAttributes,
+            )
             val currentUsbOutput = currentUsbOutputDescriptor()
-            hasUsbOutputRoute = currentUsbOutput != null
+            hasUsbOutputRoute = outputCapabilities.hasUsbOutput
             usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutput)
             bitPerfectUsbManager.refreshConnectedDevices()
         }.onFailure {
+            outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
             hasUsbOutputRoute = false
             bitPerfectUsbManager.clearPlaybackFormat()
         }
@@ -1169,6 +1181,7 @@ class PlaybackManager(
             routeType = status.activeRouteType,
             preferredDeviceKey = bitPerfectUsbManager.preferredOutputDevice()
                 ?.let { PreferredAudioDeviceKey(it.id, it.type) },
+            outputCapabilitySignature = outputCapabilities.routeSignature,
         )
         if (nextDecisionKey == lastAppliedAudioPathDecisionKey) {
             player.volume = targetPlayerOutputGain()
@@ -1310,6 +1323,7 @@ class PlaybackManager(
             existingState = existingState,
             isPauseTransitioningToStopped = isPauseTransitioningToStopped,
         )
+        if (BuildConfig.DEBUG) assertPlaybackInvariants(updatedState)
         if (publishPlaybackState(updatedState, existingState)) {
             stateReducer.notifyRecentPlaybackChanged(updatedState, existingState)
         }
@@ -2131,6 +2145,7 @@ private data class AudioPathDecisionKey(
     val routeDeviceId: Int?,
     val routeType: Int?,
     val preferredDeviceKey: PreferredAudioDeviceKey?,
+    val outputCapabilitySignature: Int,
 )
 
 internal fun Song.toPlaybackMediaItem(): MediaItem {

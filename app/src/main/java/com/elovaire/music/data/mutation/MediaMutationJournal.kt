@@ -29,6 +29,18 @@ internal enum class MediaMutationType {
     Delete,
 }
 
+internal enum class MediaMutationDelivery {
+    AtMostOnce,
+    RetryableIdempotent,
+    LastWriteWins,
+}
+
+internal enum class MediaMutationReconciliation {
+    TargetedLibraryRefresh,
+    LibraryAndPlaybackRefresh,
+    None,
+}
+
 internal data class MediaMutationOperation(
     val mutationId: String? = null,
     val type: MediaMutationType,
@@ -36,7 +48,29 @@ internal data class MediaMutationOperation(
     val albumId: Long? = null,
     val uri: Uri? = null,
     val displayName: String? = null,
+    val delivery: MediaMutationDelivery = type.defaultDelivery(),
+    val reconciliation: MediaMutationReconciliation = type.defaultReconciliation(),
 )
+
+private fun MediaMutationType.defaultDelivery(): MediaMutationDelivery {
+    return when (this) {
+        MediaMutationType.Delete -> MediaMutationDelivery.RetryableIdempotent
+        MediaMutationType.TagEdit,
+        MediaMutationType.EmbeddedLyricsWrite,
+        MediaMutationType.ArtworkWrite,
+        -> MediaMutationDelivery.LastWriteWins
+    }
+}
+
+private fun MediaMutationType.defaultReconciliation(): MediaMutationReconciliation {
+    return when (this) {
+        MediaMutationType.Delete -> MediaMutationReconciliation.LibraryAndPlaybackRefresh
+        MediaMutationType.TagEdit,
+        MediaMutationType.EmbeddedLyricsWrite,
+        MediaMutationType.ArtworkWrite,
+        -> MediaMutationReconciliation.TargetedLibraryRefresh
+    }
+}
 
 internal class MediaMutationJournal(
     private val dao: LibraryDao,

@@ -31,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.sync.withLock
 import org.jaudiotagger.audio.AudioFileIO
 import org.jaudiotagger.tag.FieldKey
 import org.jaudiotagger.tag.images.AndroidArtwork
@@ -112,11 +111,11 @@ internal class AlbumTagEditorService(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean = false,
     ): TagEditApplyResult = withContext(ioDispatcher) {
-        MediaMutationCoordinator.mutex.withLock {
+        MediaMutationCoordinator.withTargets(request.album.songs.map(Song::uri)) {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
         val plans = TagEditPlanner.plansFor(request)
         TagEditPlanner.validationFailure(request)?.let { validationFailure ->
-            return@withContext TagEditApplyResult(
+            return@withTargets TagEditApplyResult(
                 editedSongIds = emptyList(),
                 editedUris = emptyList(),
                 editedFilePaths = emptyList(),
@@ -140,7 +139,7 @@ internal class AlbumTagEditorService(
         val failures = mutableListOf<TagEditFailure>()
         var permissionRequest: PendingIntent? = null
         if (request.coverArtUri != null && coverArtBytes == null) {
-            return@withContext TagEditApplyResult(
+            return@withTargets TagEditApplyResult(
                 editedSongIds = emptyList(),
                 editedUris = emptyList(),
                 editedFilePaths = emptyList(),
@@ -164,7 +163,7 @@ internal class AlbumTagEditorService(
             )
         }
         if (preflightFailures.isNotEmpty()) {
-            return@withContext TagEditApplyResult(
+            return@withTargets TagEditApplyResult(
                 editedSongIds = emptyList(),
                 editedUris = emptyList(),
                 editedFilePaths = emptyList(),

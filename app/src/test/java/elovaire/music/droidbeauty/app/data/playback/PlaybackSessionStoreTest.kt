@@ -32,6 +32,12 @@ class PlaybackSessionStoreTest {
     }
 
     @Test
+    fun clockRollbackDoesNotDiscardAnOtherwiseFreshSession() {
+        assertEquals(true, isPlaybackSessionFresh(nowWallTimeMs = 900L, savedAtWallTimeMs = 1_000L))
+        assertEquals(false, isPlaybackSessionFresh(nowWallTimeMs = 7L * 24L * 60L * 60L * 1_000L + 1_001L, savedAtWallTimeMs = 1_000L))
+    }
+
+    @Test
     fun positionOnlySaveDoesNotRewriteQueueStructure() {
         val previous = session(queueSongIds = (1L..10_000L).toList(), currentSongId = 1L)
         val next = previous.copy(positionMs = 5_000L)

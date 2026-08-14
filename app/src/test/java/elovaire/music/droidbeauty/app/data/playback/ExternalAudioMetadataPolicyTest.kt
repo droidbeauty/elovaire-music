@@ -15,6 +15,14 @@ class ExternalAudioMetadataPolicyTest {
     }
 
     @Test
+    fun sanitizeDisplayName_boundsOutputBeforeBuildingLargeIntermediateStrings() {
+        val result = ExternalAudioMetadataPolicy.sanitizeDisplayName(("track\u0000").repeat(100_000))
+
+        assertEquals(160, result.length)
+        assertEquals(false, result.any(Char::isISOControl))
+    }
+
+    @Test
     fun boundedDurationMs_rejectsMalformedNegativeAndImpossibleValues() {
         assertEquals(0L, ExternalAudioMetadataPolicy.boundedDurationMs("not-a-number"))
         assertEquals(0L, ExternalAudioMetadataPolicy.boundedDurationMs("-10"))

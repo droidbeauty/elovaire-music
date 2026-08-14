@@ -23,7 +23,6 @@ import elovaire.music.droidbeauty.app.platform.mediaStoreWritePendingIntent
 import java.io.File
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 internal enum class EmbeddedLyricsWriteFailure {
@@ -70,7 +69,7 @@ internal class EmbeddedLyricsWriter(
         rawLyrics: String,
         operationId: String? = null,
         approvedMediaUri: Uri? = null,
-    ): EmbeddedLyricsWriteResult = MediaMutationCoordinator.mutex.withLock {
+    ): EmbeddedLyricsWriteResult = MediaMutationCoordinator.withTarget(song.uri) {
         writeLocked(song, rawLyrics, operationId, approvedMediaUri)
     }
 

@@ -52,25 +52,7 @@ class MediaTreeSnapshotCacheTest {
 
     @Test
     fun blankGenreUsesSameUnknownGenreIdentityForGroupingAndLookup() {
-        val song = Song(
-            id = 1L,
-            title = "Song",
-            isExplicit = false,
-            artist = "Artist",
-            album = "Album",
-            releaseYear = null,
-            genre = "",
-            audioFormat = "MP3",
-            audioQuality = null,
-            fileName = "song.mp3",
-            albumId = 2L,
-            durationMs = 1L,
-            trackNumber = 1,
-            discNumber = 1,
-            dateAddedSeconds = 1L,
-            uri = TestUri("content://song/1"),
-            artUri = null,
-        )
+        val song = testSong(id = 1L, genre = "")
         val snapshot = MediaTreeSnapshotCache().snapshot(
             true, listOf(song), emptyList(), emptyList(), emptyList(), emptyList(), null, null,
         )
@@ -78,4 +60,43 @@ class MediaTreeSnapshotCacheTest {
         assertEquals(listOf("Unknown Genre"), snapshot.genreNames())
         assertEquals(listOf(song), snapshot.songsForGenre("Unknown Genre"))
     }
+
+    @Test
+    fun equalTitlesUseStableSongIdTieBreakers() {
+        val snapshot = MediaTreeSnapshotCache().snapshot(
+            true,
+            listOf(testSong(id = 2L), testSong(id = 1L)),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            null,
+            null,
+        )
+
+        assertEquals(listOf(1L, 2L), snapshot.songsByTitle().map(Song::id))
+    }
+
+    private fun testSong(
+        id: Long,
+        genre: String = "Genre",
+    ) = Song(
+        id = id,
+        title = "Song",
+        isExplicit = false,
+        artist = "Artist",
+        album = "Album",
+        releaseYear = null,
+        genre = genre,
+        audioFormat = "MP3",
+        audioQuality = null,
+        fileName = "song.mp3",
+        albumId = 2L,
+        durationMs = 1L,
+        trackNumber = 1,
+        discNumber = 1,
+        dateAddedSeconds = 1L,
+        uri = TestUri("content://song/$id"),
+        artUri = null,
+    )
 }

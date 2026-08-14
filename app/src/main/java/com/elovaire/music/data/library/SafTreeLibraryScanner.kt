@@ -9,8 +9,11 @@ import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
+import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
+import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
+import elovaire.music.droidbeauty.app.data.audio.toMetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.security.MessageDigest
@@ -174,7 +177,7 @@ internal class SafTreeLibraryScanner(
                     artUri = null,
                     metadataResolved = true,
                     albumArtist = albumArtist,
-                    volumeNormalization = null,
+                    volumeNormalization = metadata.volumeNormalization,
                 )
             }
         }
@@ -306,16 +309,20 @@ internal class SafTreeLibraryScanner(
             SafMetadata()
         }
         val embedded = embeddedTagMetadataReader.read(uri, filePath = null, fileName = fileName)
-            ?: return retrieverMetadata
+        val canonical = CanonicalMetadataResolver.resolve(
+            embedded = embedded?.toMetadataSourceValues(),
+            platform = retrieverMetadata.toMetadataSourceValues(),
+        )
         return retrieverMetadata.copy(
-            title = embedded.title ?: retrieverMetadata.title,
-            artist = embedded.artist ?: retrieverMetadata.artist,
-            albumArtist = embedded.albumArtist ?: retrieverMetadata.albumArtist,
-            album = embedded.album ?: retrieverMetadata.album,
-            year = embedded.releaseYear ?: retrieverMetadata.year,
-            genre = embedded.genre ?: retrieverMetadata.genre,
-            trackNumber = embedded.trackNumber ?: retrieverMetadata.trackNumber,
-            discNumber = embedded.discNumber ?: retrieverMetadata.discNumber,
+            title = canonical.title,
+            artist = canonical.artist,
+            albumArtist = canonical.albumArtist,
+            album = canonical.album,
+            year = canonical.releaseYear,
+            genre = canonical.genre,
+            trackNumber = canonical.trackNumber,
+            discNumber = canonical.discNumber,
+            volumeNormalization = canonical.volumeNormalization,
         )
     }
 
@@ -389,7 +396,22 @@ internal class SafTreeLibraryScanner(
         val genre: String? = null,
         val trackNumber: Int? = null,
         val discNumber: Int? = null,
+        val volumeNormalization: elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata? = null,
     )
+
+    private fun SafMetadata.toMetadataSourceValues(): MetadataSourceValues {
+        return MetadataSourceValues(
+            title = title,
+            artist = artist,
+            albumArtist = albumArtist,
+            album = album,
+            releaseYear = year,
+            genre = genre,
+            trackNumber = trackNumber?.toString(),
+            discNumber = discNumber?.toString(),
+            volumeNormalization = volumeNormalization,
+        )
+    }
 
     private companion object {
         const val MAX_DOCUMENTS = 5_000

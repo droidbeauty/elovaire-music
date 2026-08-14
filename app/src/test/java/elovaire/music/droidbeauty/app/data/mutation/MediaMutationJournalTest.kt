@@ -120,6 +120,17 @@ class MediaMutationJournalTest {
     }
 
     @Test
+    fun mutationDefaultsDeclareDeliveryAndReconciliationSemantics() {
+        val tagEdit = MediaMutationOperation(type = MediaMutationType.TagEdit)
+        val delete = MediaMutationOperation(type = MediaMutationType.Delete)
+
+        assertEquals(MediaMutationDelivery.LastWriteWins, tagEdit.delivery)
+        assertEquals(MediaMutationReconciliation.TargetedLibraryRefresh, tagEdit.reconciliation)
+        assertEquals(MediaMutationDelivery.RetryableIdempotent, delete.delivery)
+        assertEquals(MediaMutationReconciliation.LibraryAndPlaybackRefresh, delete.reconciliation)
+    }
+
+    @Test
     fun startupRecoveryDoesNotTouchActiveForegroundMutation() = runBlocking {
         val stored = mutableMapOf<String, LibraryMutationEntity>()
         val dao = libraryDao(stored)

@@ -42,7 +42,7 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         return Futures.immediateFuture(
-            LibraryResult.ofItemList(pageItems(browser.childrenOf(parsed), page, pageSize), params),
+            LibraryResult.ofItemList(browser.childrenOfPage(parsed, page, pageSize), params),
         )
     }
 
