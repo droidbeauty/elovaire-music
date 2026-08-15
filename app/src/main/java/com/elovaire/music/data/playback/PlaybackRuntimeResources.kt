@@ -29,12 +29,11 @@ internal class PlaybackRuntimeResources(
         hasQueue: Boolean,
         isPlaying: Boolean,
         playWhenReady: Boolean,
-        hasUsbOutputRoute: Boolean,
     ) {
         if (released) return
         val playbackRuntimeActive = hasQueue || isPlaying || playWhenReady
         setVolumeObserverRegistered(playbackRuntimeActive)
-        setAudioDeviceCallbackRegistered(playbackRuntimeActive || hasUsbOutputRoute)
+        setAudioDeviceCallbackRegistered(playbackRuntimeActive)
         setNoisyReceiverRegistered(isPlaying || playWhenReady)
     }
 

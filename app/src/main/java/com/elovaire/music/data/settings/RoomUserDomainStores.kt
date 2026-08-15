@@ -8,6 +8,7 @@ import elovaire.music.droidbeauty.app.data.library.db.UserDataDao
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -74,10 +75,19 @@ internal class RoomPlaybackHistoryStore(
         _lastPlayedCollectionId.value = collectionId
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun flushPlaybackCounts() {
         val batch = writeBuffer.takeTransitions()
-        batch.songCounts.forEach { (id, increment) -> dao.incrementSongPlayCount(id, increment) }
-        batch.albumCounts.forEach { (id, increment) -> dao.incrementAlbumPlayCount(id, increment) }
+        if (batch.songCounts.isEmpty() && batch.albumCounts.isEmpty()) return
+        try {
+            dao.incrementPlaybackCounts(batch.songCounts, batch.albumCounts)
+        } catch (failure: CancellationException) {
+            writeBuffer.restoreTransitions(batch)
+            throw failure
+        } catch (failure: RuntimeException) {
+            writeBuffer.restoreTransitions(batch)
+            throw failure
+        }
         if (batch.songCounts.isNotEmpty()) {
             _songPlayCounts.value = _songPlayCounts.value.incrementedBy(batch.songCounts)
         }
@@ -86,6 +96,7 @@ internal class RoomPlaybackHistoryStore(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun flushRecentPlayback() {
         val pending = writeBuffer.takeRecent() ?: return
         if (
@@ -94,14 +105,22 @@ internal class RoomPlaybackHistoryStore(
             pending.collectionKind == _lastPlayedCollectionKind.value &&
             pending.collectionId == _lastPlayedCollectionId.value
         ) return
-        dao.replaceRecentPlayback(
-            entries = pending.songIds.toRecentEntities(RECENT_KIND_SONG) +
-                pending.albumIds.toRecentEntities(RECENT_KIND_ALBUM),
-            state = PlaybackCollectionStateEntity(
-                kind = pending.collectionKind?.name,
-                collectionId = pending.collectionId,
-            ),
-        )
+        try {
+            dao.replaceRecentPlayback(
+                entries = pending.songIds.toRecentEntities(RECENT_KIND_SONG) +
+                    pending.albumIds.toRecentEntities(RECENT_KIND_ALBUM),
+                state = PlaybackCollectionStateEntity(
+                    kind = pending.collectionKind?.name,
+                    collectionId = pending.collectionId,
+                ),
+            )
+        } catch (failure: CancellationException) {
+            writeBuffer.restoreRecent(pending)
+            throw failure
+        } catch (failure: RuntimeException) {
+            writeBuffer.restoreRecent(pending)
+            throw failure
+        }
         publish(pending.songIds, pending.albumIds, pending.collectionKind, pending.collectionId)
     }
 
@@ -162,6 +181,17 @@ internal class PlaybackHistoryWriteBuffer {
     }
 
     @Synchronized
+    fun restoreTransitions(batch: PlaybackCountBatch) {
+        batch.songCounts.forEach { (id, increment) ->
+            songCounts[id] = incrementPlayCount(songCounts[id], increment)
+        }
+        batch.albumCounts.forEach { (id, increment) ->
+            albumCounts[id] = incrementPlayCount(albumCounts[id], increment)
+        }
+        countFlushScheduled = false
+    }
+
+    @Synchronized
     fun setRecent(value: RecentPlaybackWrite): Boolean {
         recent = value
         return if (recentFlushScheduled) false else true.also { recentFlushScheduled = it }
@@ -173,6 +203,12 @@ internal class PlaybackHistoryWriteBuffer {
         recent = null
         recentFlushScheduled = false
         return value
+    }
+
+    @Synchronized
+    fun restoreRecent(value: RecentPlaybackWrite) {
+        recent = value
+        recentFlushScheduled = false
     }
 }
 

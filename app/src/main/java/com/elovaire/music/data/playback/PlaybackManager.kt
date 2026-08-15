@@ -28,7 +28,7 @@ import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
-import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
+import elovaire.music.droidbeauty.app.core.safeActiveRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
 import kotlin.math.roundToInt
@@ -230,6 +231,9 @@ class PlaybackManager(
     private var volumeNormalizationEnabled = false
     private var outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
     private var player = createPlayer(enableSignalProcessing = true)
+    private val playerGenerationGate = PlaybackPlayerGenerationGate<ExoPlayer>()
+    private val playerObserverBindings = IdentityHashMap<ExoPlayer, Player.Listener>()
+    private val playerAnalyticsBindings = IdentityHashMap<ExoPlayer, AnalyticsListener>()
     private val crossfadeController = PlaybackCrossfadeController(
         handler = playbackHandler,
         scope = scope,
@@ -296,7 +300,6 @@ class PlaybackManager(
     private val failedPlaybackSongIds = mutableSetOf<Long>()
     private var unexpectedIdleRecoveryCount = 0
     private var lastUnexpectedIdleRecoveryElapsedMs = 0L
-    private var hasUsbOutputRoute = false
     private val playbackProgressController = PlaybackProgressController()
     private val progressDemandController = PlaybackProgressDemandController()
     private val playbackProgressTicker = PlaybackProgressTicker(
@@ -779,7 +782,7 @@ class PlaybackManager(
             capabilities = outputCapabilities,
             requirements = AudioProcessingRequirements(
                 signalAlteringEffectsActive = hasActiveSignalAlteringEffects(),
-                normalizationActive = false,
+                normalizationActive = volumeNormalizationEnabled,
                 monoOrChannelMappingActive = false,
                 crossfadeActive = false,
             ),
@@ -789,13 +792,32 @@ class PlaybackManager(
     }
 
     private fun attachPlayerObservers(target: ExoPlayer) {
-        target.addAnalyticsListener(playerAnalyticsListener)
-        target.addListener(playerListener)
+        if (playerObserverBindings.containsKey(target)) return
+        val generation = playerGenerationGate.activate(target)
+        val guardedListener = GuardedPlaybackPlayerListener(
+            target = target,
+            generation = generation,
+            gate = playerGenerationGate,
+            delegate = playerListener,
+            isAuthoritative = { player === target },
+        )
+        val guardedAnalyticsListener = GuardedPlaybackAnalyticsListener(
+            target = target,
+            generation = generation,
+            gate = playerGenerationGate,
+            delegate = playerAnalyticsListener,
+            isAuthoritative = { player === target },
+        )
+        playerObserverBindings[target] = guardedListener
+        playerAnalyticsBindings[target] = guardedAnalyticsListener
+        target.addAnalyticsListener(guardedAnalyticsListener)
+        target.addListener(guardedListener)
     }
 
     private fun detachPlayerObservers(target: ExoPlayer) {
-        target.removeAnalyticsListener(playerAnalyticsListener)
-        target.removeListener(playerListener)
+        playerAnalyticsBindings.remove(target)?.let(target::removeAnalyticsListener)
+        playerObserverBindings.remove(target)?.let(target::removeListener)
+        playerGenerationGate.invalidate(target)
     }
 
     fun playAlbum(
@@ -1134,12 +1156,10 @@ class PlaybackManager(
                 attributes = platformPlaybackAudioAttributes,
             )
             val currentUsbOutput = currentUsbOutputDescriptor()
-            hasUsbOutputRoute = outputCapabilities.hasUsbOutput
             usbDacHardwareVolumeManager.updateAudioOutputDevice(currentUsbOutput)
             bitPerfectUsbManager.refreshConnectedDevices()
         }.onFailure {
             outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
-            hasUsbOutputRoute = false
             bitPerfectUsbManager.clearPlaybackFormat()
         }
         syncRuntimeObservers()
@@ -1323,7 +1343,10 @@ class PlaybackManager(
             existingState = existingState,
             isPauseTransitioningToStopped = isPauseTransitioningToStopped,
         )
-        if (BuildConfig.DEBUG) assertPlaybackInvariants(updatedState)
+        if (BuildConfig.DEBUG) {
+            assertPlaybackInvariants(updatedState)
+            assertPlaybackEngineInvariants(updatedState)
+        }
         if (publishPlaybackState(updatedState, existingState)) {
             stateReducer.notifyRecentPlaybackChanged(updatedState, existingState)
         }
@@ -1338,6 +1361,19 @@ class PlaybackManager(
         if (nextState == currentState) return false
         _state.value = nextState
         return true
+    }
+
+    private fun assertPlaybackEngineInvariants(state: PlaybackUiState) {
+        check(playerObserverBindings.size == 1 && playerObserverBindings.containsKey(player)) {
+            "authoritative player must own exactly one observer binding"
+        }
+        val mediaId = player.currentMediaItem?.mediaId?.toLongOrNull()
+        val currentSong = state.currentSong
+        if (mediaId != null && currentSong != null) {
+            check(mediaId == currentSong.id) {
+                "authoritative player and logical current song disagree"
+            }
+        }
     }
 
     private fun handleUnsupportedPlaybackFormat(error: PlaybackException): Boolean {
@@ -1882,7 +1918,6 @@ class PlaybackManager(
             hasQueue = hasActiveQueue(),
             isPlaying = player.isPlaying,
             playWhenReady = player.playWhenReady,
-            hasUsbOutputRoute = hasUsbOutputRoute,
         )
     }
 
@@ -2094,7 +2129,7 @@ class PlaybackManager(
             Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
         ) {
-            manager.safeRoutedOutputDevicesForAttributes(platformPlaybackAudioAttributes)
+            manager.safeActiveRoutedOutputDevicesForAttributes(platformPlaybackAudioAttributes)
                 .firstOrNull { device ->
                     runCatching { device.type in USB_AUDIO_OUTPUT_DEVICE_TYPES }.getOrDefault(false)
                 }

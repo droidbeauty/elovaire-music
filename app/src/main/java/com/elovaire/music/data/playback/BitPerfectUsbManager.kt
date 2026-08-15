@@ -14,7 +14,7 @@ import androidx.media3.exoplayer.audio.AudioSink
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.safeDirectPlaybackSupport
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
-import elovaire.music.droidbeauty.app.core.safeRoutedOutputDevicesForAttributes
+import elovaire.music.droidbeauty.app.core.safeActiveRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -283,9 +283,9 @@ private data class DirectPlaybackRouteSnapshot(
             hasEligibleUsbRoute = preferredUsbDevice != null,
             hasVerifiedRoutedUsbRoute = isRouteVerified && preferredUsbDevice != null,
             hasVerifiedBluetoothRoute = isRouteVerified && hasBluetoothRoute,
-            activeRouteDeviceId = reportedDevice?.safeId(),
-            activeRouteType = reportedDevice?.safeType(),
-            activeRouteSignature = reportedFingerprint?.hashCode(),
+            activeRouteDeviceId = if (isRouteVerified) reportedDevice?.safeId() else null,
+            activeRouteType = if (isRouteVerified) reportedDevice?.safeType() else null,
+            activeRouteSignature = if (isRouteVerified) reportedFingerprint?.hashCode() else null,
             platformRoutingSupported = isRouteVerified,
         )
     }
@@ -304,13 +304,14 @@ private fun resolveRouteSnapshot(
     audioManager: AudioManager,
     playbackAudioAttributes: AudioAttributes,
 ): DirectPlaybackRouteSnapshot {
-    val routedDevices = if (
+    val routeQuerySupported =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-        AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
-    ) {
-        audioManager.safeRoutedOutputDevicesForAttributes(playbackAudioAttributes)
+            AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)
+    val availableDevices = audioManager.safeOutputDevices()
+    val routedDevices = if (routeQuerySupported) {
+        audioManager.safeActiveRoutedOutputDevicesForAttributes(playbackAudioAttributes)
     } else {
-        audioManager.safeOutputDevices()
+        availableDevices
     }
     val fingerprint = routedDevices
         .mapNotNull { device -> runCatching { device.toRouteFingerprint() }.getOrNull() }
@@ -328,7 +329,7 @@ private fun resolveRouteSnapshot(
         hasBluetoothRoute = routedDevices.any { device ->
             runCatching { device.type.isBluetoothOutputType() }.getOrDefault(false)
         },
-        isRouteVerified = AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT),
+        isRouteVerified = routeQuerySupported,
     )
 }
 

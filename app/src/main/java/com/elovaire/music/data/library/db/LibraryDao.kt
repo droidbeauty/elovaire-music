@@ -14,9 +14,8 @@ internal interface LibraryDao {
 
     @Query(
         "SELECT * FROM media_mutations " +
-            "WHERE status IN ('Created', 'PreflightPassed', 'NeedsPermission', 'PermissionGranted', " +
-            "'TempWritten', 'TempVerified', 'Committed', 'PersistedVerified', 'Published') " +
-            "ORDER BY updatedAtMs ASC",
+            "WHERE status NOT IN ('Completed', 'Cancelled', 'Failed', 'NeedsRepair') " +
+            "ORDER BY updatedAtMs ASC, mutationId ASC",
     )
     suspend fun recoverableMutations(): List<LibraryMutationEntity>
 

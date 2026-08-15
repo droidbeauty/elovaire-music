@@ -3,12 +3,11 @@ package elovaire.music.droidbeauty.app.data.mutation
 import android.net.Uri
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
 
 /** Serializes destructive media replacement per target while allowing independent files to proceed. */
 internal object MediaMutationCoordinator {
-    private val targetLocks = ConcurrentHashMap<String, TargetLock>()
+    private val registryLock = Any()
+    private val targetLocks = mutableMapOf<String, TargetLock>()
 
     suspend fun <T> withTarget(
         uri: Uri,
@@ -34,22 +33,27 @@ internal object MediaMutationCoordinator {
     ): T {
         if (index == keys.size) return block()
         val key = keys[index]
-        val targetLock = targetLocks.compute(key) { _, existing ->
-            (existing ?: TargetLock()).also { it.references.incrementAndGet() }
-        } ?: error("Unable to allocate media mutation lock")
+        val targetLock = synchronized(registryLock) {
+            targetLocks.getOrPut(key, ::TargetLock).also { it.references += 1 }
+        }
         return try {
             targetLock.mutex.withLock {
                 withTargetLocks(keys, index + 1, block)
             }
         } finally {
-            if (targetLock.references.decrementAndGet() == 0) {
-                targetLocks.remove(key, targetLock)
+            synchronized(registryLock) {
+                targetLock.references -= 1
+                if (targetLock.references == 0) {
+                    targetLocks.remove(key, targetLock)
+                }
             }
         }
     }
 
+    internal fun activeTargetLockCount(): Int = synchronized(registryLock) { targetLocks.size }
+
     private class TargetLock {
         val mutex = Mutex()
-        val references = AtomicInteger()
+        var references: Int = 0
     }
 }

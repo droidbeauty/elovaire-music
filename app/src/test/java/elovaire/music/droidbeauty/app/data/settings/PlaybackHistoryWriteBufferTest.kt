@@ -37,4 +37,35 @@ class PlaybackHistoryWriteBufferTest {
         assertEquals(latest, buffer.takeRecent())
         assertNull(buffer.takeRecent())
     }
+
+    @Test
+    fun failedCountFlushCanRestoreTheBatchForALaterAttempt() {
+        val buffer = PlaybackHistoryWriteBuffer()
+        assertTrue(buffer.addTransition(songId = 1L, albumId = 10L))
+        val batch = buffer.takeTransitions()
+
+        buffer.restoreTransitions(batch)
+
+        assertTrue(buffer.addTransition(songId = 1L, albumId = 10L))
+        assertEquals(
+            PlaybackCountBatch(
+                songCounts = mapOf(1L to 2),
+                albumCounts = mapOf(10L to 2),
+            ),
+            buffer.takeTransitions(),
+        )
+    }
+
+    @Test
+    fun failedRecentFlushCanRestoreTheLatestSnapshot() {
+        val buffer = PlaybackHistoryWriteBuffer()
+        val pending = RecentPlaybackWrite(listOf(1L), listOf(10L), PlaybackCollectionKind.Album, 10L)
+        assertTrue(buffer.setRecent(pending))
+        assertEquals(pending, buffer.takeRecent())
+
+        buffer.restoreRecent(pending)
+
+        assertTrue(buffer.setRecent(pending))
+        assertEquals(pending, buffer.takeRecent())
+    }
 }

@@ -179,6 +179,10 @@ internal class LibraryObserverController(
             }
             val lastObservedAtMs = recentObservedPaths[path]
             recentObservedPaths[path] = nowMs
+            trimRecentObservedPaths(
+                recentObservedPaths,
+                MAX_RECENT_OBSERVED_PATHS,
+            )
             return lastObservedAtMs != null && nowMs - lastObservedAtMs < OBSERVED_PATH_COALESCE_WINDOW_MS
         }
     }
@@ -344,6 +348,7 @@ internal class LibraryObserverController(
         const val TAG = "LibraryObserver"
         const val AUTO_REFRESH_DEBOUNCE_MS = 350L
         const val OBSERVED_PATH_COALESCE_WINDOW_MS = 900L
+        const val MAX_RECENT_OBSERVED_PATHS = 512
         const val MAX_RECURSIVE_DIRECTORY_OBSERVERS = 512
         const val MAX_RECURSIVE_DIRECTORY_DEPTH = 8
         const val OBSERVER_MASK =
@@ -367,6 +372,19 @@ internal class LibraryObserverController(
                 FileObserver.MOVED_FROM or
                 FileObserver.DELETE_SELF or
                 FileObserver.MOVE_SELF
+    }
+}
+
+internal fun trimRecentObservedPaths(
+    paths: MutableMap<String, Long>,
+    maxEntries: Int,
+) {
+    require(maxEntries > 0)
+    while (paths.size > maxEntries) {
+        val iterator = paths.entries.iterator()
+        if (!iterator.hasNext()) return
+        iterator.next()
+        iterator.remove()
     }
 }
 

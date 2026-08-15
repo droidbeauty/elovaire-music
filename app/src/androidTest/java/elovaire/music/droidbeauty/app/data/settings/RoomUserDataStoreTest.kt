@@ -6,6 +6,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
+import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
+import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
+import elovaire.music.droidbeauty.app.domain.model.Playlist
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -101,6 +104,32 @@ class RoomUserDataStoreTest {
     }
 
     @Test
+    fun legacyPlaylistStateMigratesBeforeNewMutationsAndIsClearedAfterCommit() = runBlocking {
+        val legacyPlaylist = Playlist(
+            id = 37L,
+            name = "Legacy Mix",
+            songIds = listOf(11L, 9L, 9L),
+        )
+        val preferences = context.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, 0)
+        assertTrue(
+            preferences.edit()
+                .putString("playlists", serializePlaylists(listOf(legacyPlaylist)))
+                .commit(),
+        )
+
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        val created = store.createPlaylist("Created after migration").await()
+
+        assertTrue(created is PlaylistMutationResult.Success)
+        assertEquals(
+            listOf("Legacy Mix", "Created after migration"),
+            database.userDataDao().playlists().map(UserPlaylistEntity::name),
+        )
+        assertFalse(preferences.contains("playlists"))
+        store.release()
+    }
+
+    @Test
     fun acceptedMutationCompletesWhenTheDatabaseOwnerFails() = runBlocking {
         val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
         database.close()
@@ -133,6 +162,27 @@ class RoomUserDataStoreTest {
         val drained = CompletableDeferred<Unit>()
         store.release { drained.complete(Unit) }
         withTimeout(10_000L) { drained.await() }
+    }
+
+    @Test
+    fun playbackHistoryBatchPersistsCountsAndLatestRecentState() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        store.recordPlaybackTransition(songId = 7L, albumId = 70L)
+        store.recordPlaybackTransition(songId = 7L, albumId = 70L)
+        store.setRecentPlaybackIds(
+            songIds = listOf(7L),
+            albumIds = listOf(70L),
+            lastPlayedCollectionKind = PlaybackCollectionKind.Album,
+            lastPlayedCollectionId = 70L,
+        )
+
+        store.createPlaylist("Flush playback history").await()
+
+        assertEquals(2, database.userDataDao().songPlayCounts().single().playCount)
+        assertEquals(2, database.userDataDao().albumPlayCounts().single().playCount)
+        assertEquals(listOf(7L), database.userDataDao().recentPlayback().filter { it.kind == "song" }.map { it.itemId })
+        assertEquals("Album", database.userDataDao().playbackCollectionState()?.kind)
+        store.release()
     }
 
     private object FixedClock : AppClock {

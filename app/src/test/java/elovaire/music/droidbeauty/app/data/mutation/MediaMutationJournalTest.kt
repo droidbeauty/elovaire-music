@@ -13,6 +13,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class MediaMutationJournalTest {
@@ -117,6 +118,64 @@ class MediaMutationJournalTest {
             failed = true
         }
         assertTrue(failed)
+    }
+
+    @Test
+    fun mutationIdCannotChangeItsDurableTarget() {
+        runBlocking {
+            val stored = mutableMapOf<String, LibraryMutationEntity>()
+            val journal = MediaMutationJournal(
+                dao = libraryDao(stored),
+                clock = FixedClock,
+                operationIdGenerator = { "generated" },
+                backendEventSink = NoOpBackendEventSink,
+            )
+            val original = MediaMutationOperation(
+                mutationId = "same-operation",
+                type = MediaMutationType.TagEdit,
+                songId = 10L,
+                albumId = 20L,
+                uri = android.net.TestUri("file:///music/a.mp3"),
+            )
+            journal.create(original)
+
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking {
+                    journal.create(original.copy(uri = android.net.TestUri("file:///music/b.mp3")))
+                }
+            }
+        }
+    }
+
+    @Test
+    fun malformedPersistedStatusIsMovedToRepairInsteadOfRemainingInvisible() = runBlocking {
+        val stored = mutableMapOf(
+            "malformed" to LibraryMutationEntity(
+                mutationId = "malformed",
+                type = MediaMutationType.TagEdit.name,
+                status = "not-a-real-status",
+                songId = 1L,
+                albumId = 2L,
+                uri = "file:///music/a.mp3",
+                displayName = "a.mp3",
+                createdAtMs = 1_000L,
+                updatedAtMs = 1_000L,
+                attemptCount = 0,
+                error = null,
+            ),
+        )
+        val journal = MediaMutationJournal(
+            dao = libraryDao(stored),
+            clock = FixedClock,
+            operationIdGenerator = { "recovery" },
+            backendEventSink = NoOpBackendEventSink,
+        )
+
+        val result = journal.recoverIncomplete()
+
+        assertEquals(1, (result as MediaMutationRecoveryResult.Success).recoveredCount)
+        assertEquals(MediaMutationStatus.NeedsRepair.name, stored.getValue("malformed").status)
+        assertTrue(stored.getValue("malformed").error.orEmpty().contains("not-a-real-status"))
     }
 
     @Test

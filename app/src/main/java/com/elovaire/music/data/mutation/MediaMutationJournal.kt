@@ -83,11 +83,14 @@ internal class MediaMutationJournal(
     suspend fun create(operation: MediaMutationOperation): String = transitionMutex.withLock {
         val now = clock.wallTimeMs()
         val mutationId = operation.mutationId?.takeIf { it.isNotBlank() } ?: operationIdGenerator.nextId()
-        val existing = if (operation.mutationId != null) dao.mutation(mutationId) else null
+        val existing = operation.mutationId
+            ?.takeIf { it.isNotBlank() }
+            ?.let { dao.mutation(mutationId) }
         if (existing != null) {
-            check(existing.type == operation.type.name) {
-                "Mutation ID $mutationId cannot be reused for ${operation.type.name}."
-            }
+            check(existing.type == operation.type.name) { "Mutation ID $mutationId cannot be reused for ${operation.type.name}." }
+            check(existing.songId == operation.songId) { "Mutation ID $mutationId cannot change song target." }
+            check(existing.albumId == operation.albumId) { "Mutation ID $mutationId cannot change album target." }
+            check(existing.uri == operation.uri?.toString()) { "Mutation ID $mutationId cannot change URI target." }
             val status = existing.status.toMediaMutationStatusOrNull()
             check(status != null) { "Mutation $mutationId has an unknown persisted status." }
             if (!status.isTerminal()) activeMutationIds += mutationId
@@ -125,10 +128,16 @@ internal class MediaMutationJournal(
         mutationId: String,
         status: MediaMutationStatus,
         error: String? = null,
-    ): Unit = transitionMutex.withLock {
-        val current = dao.mutation(mutationId) ?: return@withLock
-        val currentStatus = current.status.toMediaMutationStatusOrNull() ?: return@withLock
-        if (!isValidMutationTransition(currentStatus, status)) return@withLock
+    ): Unit = transitionMutex.withLock { markLocked(mutationId, status, error) }
+
+    private suspend fun markLocked(
+        mutationId: String,
+        status: MediaMutationStatus,
+        error: String? = null,
+    ) {
+        val current = dao.mutation(mutationId) ?: return
+        val currentStatus = current.status.toMediaMutationStatusOrNull() ?: return
+        if (!isValidMutationTransition(currentStatus, status)) return
         dao.upsertMutation(
             current.copy(
                 status = status.name,
@@ -149,15 +158,29 @@ internal class MediaMutationJournal(
             operationIdGenerator.nextId(), BackendSubsystem.MediaMutation, clock.elapsedTimeMs(),
         )
         val recovery = runCatching {
-            var recoveredCount = 0
-            dao.recoverableMutations().filterNot { it.mutationId in activeMutationIds }.forEach { mutation ->
-                val current = mutation.status.toMediaMutationStatusOrNull() ?: return@forEach
-                recoveryStatusFor(current)?.let { recoveredStatus ->
-                    mark(mutation.mutationId, recoveredStatus, mutation.error)
-                    recoveredCount += 1
+            transitionMutex.withLock {
+                var recoveredCount = 0
+                dao.recoverableMutations().filterNot { it.mutationId in activeMutationIds }.forEach { mutation ->
+                    val current = mutation.status.toMediaMutationStatusOrNull()
+                    if (current == null) {
+                        dao.upsertMutation(
+                            mutation.copy(
+                                status = MediaMutationStatus.NeedsRepair.name,
+                                updatedAtMs = clock.wallTimeMs(),
+                                attemptCount = mutation.attemptCount + 1,
+                                error = "Unknown persisted mutation status: ${mutation.status}",
+                            ),
+                        )
+                        recoveredCount += 1
+                        return@forEach
+                    }
+                    recoveryStatusFor(current)?.let { recoveredStatus ->
+                        markLocked(mutation.mutationId, recoveredStatus, mutation.error)
+                        recoveredCount += 1
+                    }
                 }
+                recoveredCount
             }
-            recoveredCount
         }
         val failure = recovery.exceptionOrNull()
         if (failure is CancellationException) throw failure

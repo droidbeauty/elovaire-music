@@ -17,6 +17,12 @@ internal enum class AudioOutputRouteKind {
     Unknown,
 }
 
+internal enum class AudioOutputCapabilitySource {
+    ActiveRoute,
+    AvailableDevices,
+    Unknown,
+}
+
 internal data class AudioOutputDeviceCapability(
     val id: Int,
     val type: Int,
@@ -30,23 +36,33 @@ internal data class AudioOutputDeviceCapability(
 internal data class AudioOutputCapabilitySnapshot(
     val devices: List<AudioOutputDeviceCapability>,
     val platformSdk: Int,
+    val source: AudioOutputCapabilitySource = AudioOutputCapabilitySource.ActiveRoute,
 ) {
-    val hasUsbOutput: Boolean
+    val hasActiveUsbOutput: Boolean
+        get() = source == AudioOutputCapabilitySource.ActiveRoute &&
+            devices.any { it.route == AudioOutputRouteKind.Usb }
+
+    val hasAvailableUsbOutput: Boolean
         get() = devices.any { it.route == AudioOutputRouteKind.Usb }
 
     val routeSignature: Int
-        get() = devices.fold(platformSdk) { result, device ->
+        get() = devices.sortedWith(compareBy(AudioOutputDeviceCapability::id, AudioOutputDeviceCapability::type))
+            .fold(31 * platformSdk + source.ordinal) { result, device ->
             var value = 31 * result + device.id
             value = 31 * value + device.type
             value = 31 * value + device.route.ordinal
-            value = 31 * value + device.sampleRates.hashCode()
-            value = 31 * value + device.channelCounts.hashCode()
-            value = 31 * value + device.channelMasks.hashCode()
-            31 * value + device.encodings.hashCode()
+            value = 31 * value + device.sampleRates.sorted().hashCode()
+            value = 31 * value + device.channelCounts.sorted().hashCode()
+            value = 31 * value + device.channelMasks.sorted().hashCode()
+            31 * value + device.encodings.sorted().hashCode()
         }
 
     companion object {
-        val Unknown = AudioOutputCapabilitySnapshot(emptyList(), Build.VERSION.SDK_INT)
+        val Unknown = AudioOutputCapabilitySnapshot(
+            devices = emptyList(),
+            platformSdk = Build.VERSION.SDK_INT,
+            source = AudioOutputCapabilitySource.Unknown,
+        )
     }
 }
 
@@ -57,17 +73,40 @@ internal object AudioOutputCapabilityReader {
         attributes: AudioAttributes,
         sdkInt: Int = Build.VERSION.SDK_INT,
     ): AudioOutputCapabilitySnapshot {
-        if (audioManager == null) return AudioOutputCapabilitySnapshot(emptyList(), sdkInt)
-        val devices = runCatching {
-            val routed = if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
-                readRoutedOutputDevices(audioManager, attributes)
-            } else emptyList()
-            (routed.ifEmpty { audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList() })
-                .filter { it.isSink }
-                .map(::toCapability)
-                .distinctBy { it.id to it.type }
-        }.getOrDefault(emptyList())
-        return AudioOutputCapabilitySnapshot(devices = devices, platformSdk = sdkInt)
+        if (audioManager == null) {
+            return AudioOutputCapabilitySnapshot(
+                devices = emptyList(),
+                platformSdk = sdkInt,
+                source = AudioOutputCapabilitySource.Unknown,
+            )
+        }
+        val (rawDevices, source) = if (sdkInt >= Build.VERSION_CODES.TIRAMISU) {
+            val routed = runCatching { readRoutedOutputDevices(audioManager, attributes) }
+                .getOrElse {
+                    return AudioOutputCapabilitySnapshot(
+                        devices = emptyList(),
+                        platformSdk = sdkInt,
+                        source = AudioOutputCapabilitySource.Unknown,
+                    )
+                }
+            routed to AudioOutputCapabilitySource.ActiveRoute
+        } else {
+            val available = runCatching { audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList() }
+                .getOrElse {
+                    return AudioOutputCapabilitySnapshot(
+                        devices = emptyList(),
+                        platformSdk = sdkInt,
+                        source = AudioOutputCapabilitySource.Unknown,
+                    )
+                }
+            available to AudioOutputCapabilitySource.AvailableDevices
+        }
+        val devices = rawDevices
+            .filter { runCatching { it.isSink }.getOrDefault(false) }
+            .map(::toCapability)
+            .distinctBy { it.id to it.type }
+            .sortedWith(compareBy(AudioOutputDeviceCapability::id, AudioOutputDeviceCapability::type))
+        return AudioOutputCapabilitySnapshot(devices = devices, platformSdk = sdkInt, source = source)
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
@@ -81,10 +120,10 @@ internal object AudioOutputCapabilityReader {
             id = device.id,
             type = device.type,
             route = device.type.toOutputRouteKind(),
-            sampleRates = device.sampleRates.toList(),
-            channelCounts = device.channelCounts.toList(),
-            channelMasks = device.channelMasks.toList(),
-            encodings = device.encodings.toList(),
+            sampleRates = device.sampleRates.toList().distinct().sorted(),
+            channelCounts = device.channelCounts.toList().distinct().sorted(),
+            channelMasks = device.channelMasks.toList().distinct().sorted(),
+            encodings = device.encodings.toList().distinct().sorted(),
         )
     }
 }
@@ -113,7 +152,7 @@ internal object AudioOutputPolicy {
             requirements.crossfadeActive
         return AudioOutputPolicyDecision(
             signalProcessingRequired = processingRequired || !directPathActive,
-            offloadAllowed = !processingRequired && !capabilities.hasUsbOutput,
+            offloadAllowed = !processingRequired && !capabilities.hasActiveUsbOutput,
         )
     }
 }

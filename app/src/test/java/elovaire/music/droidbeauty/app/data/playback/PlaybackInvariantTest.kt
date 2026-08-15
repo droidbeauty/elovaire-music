@@ -24,6 +24,22 @@ class PlaybackInvariantTest {
         assertTrue(violations.any { it.contains("current song") })
     }
 
+    @Test
+    fun stalePlayerGenerationCannotPublishAfterReplacement() {
+        val gate = PlaybackPlayerGenerationGate<Any>()
+        val oldPlayer = Any()
+        val newPlayer = Any()
+        val oldGeneration = gate.activate(oldPlayer)
+        val newGeneration = gate.activate(newPlayer)
+
+        assertTrue(!gate.isCurrent(oldPlayer, oldGeneration))
+        assertTrue(gate.isCurrent(newPlayer, newGeneration))
+
+        gate.invalidate(newPlayer)
+
+        assertTrue(!gate.isCurrent(newPlayer, newGeneration))
+    }
+
     private fun song(id: Long) = Song(
         id = id,
         title = "Song $id",

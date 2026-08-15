@@ -50,13 +50,12 @@ internal fun AudioManager.safeOutputDevices(): List<AudioDeviceInfo> {
         .filter { device -> runCatching { device.isSink }.getOrDefault(false) }
 }
 
-internal fun AudioManager.safeRoutedOutputDevicesForAttributes(attributes: AudioAttributes): List<AudioDeviceInfo> {
-    val routedDevices = if (AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)) {
-        runCatching { getAudioDevicesForAttributes(attributes) }.getOrDefault(emptyList())
-    } else {
-        emptyList()
-    }
-    return (routedDevices.ifEmpty { safeOutputDevices() })
+internal fun AudioManager.safeActiveRoutedOutputDevicesForAttributes(
+    attributes: AudioAttributes,
+): List<AudioDeviceInfo> {
+    if (!AndroidCapabilities.supportsDirectPlaybackQuery(Build.VERSION.SDK_INT)) return emptyList()
+    return runCatching { getAudioDevicesForAttributes(attributes) }
+        .getOrDefault(emptyList())
         .filter { device -> runCatching { device.isSink }.getOrDefault(false) }
 }
 

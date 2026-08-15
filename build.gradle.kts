@@ -64,6 +64,38 @@ tasks.register("releaseQualityCheck") {
     dependsOn(":app:verifyReleaseReadiness", "buildHealth", checkTrackedSourceSecrets)
 }
 
+val requireBackendQualificationDevice = tasks.register("requireBackendQualificationDevice") {
+    group = "verification"
+    description = "Requires an explicitly selected physical device for backend qualification."
+    doLast {
+        val serial = System.getenv("ANDROID_SERIAL")?.trim().orEmpty()
+        check(serial.isNotEmpty()) {
+            "backendQualification requires ANDROID_SERIAL to select a physical device."
+        }
+        check(!serial.contains(Regex("\\s"))) {
+            "ANDROID_SERIAL must contain one device serial without whitespace."
+        }
+    }
+}
+
+tasks.register("backendQualification") {
+    group = "verification"
+    description = "Runs backend, persistence, compatibility, playback, and release qualification on the selected device."
+    dependsOn(
+        requireBackendQualificationDevice,
+        ":app:propertyTest",
+        ":app:queryPlanCheck",
+        "debugQualityCheck",
+        "releaseQualityCheck",
+        ":app:lintDebug",
+        ":app:lintRelease",
+        ":app:assembleRelease",
+        ":app:verifyReleaseReadiness",
+        "buildHealth",
+        "dependencyIntegrityCheck",
+    )
+}
+
 tasks.register<BaselineProfileResultCheckTask>("generateBaselineProfile") {
     group = "verification"
     dependsOn(":macrobenchmark:connectedCheck")

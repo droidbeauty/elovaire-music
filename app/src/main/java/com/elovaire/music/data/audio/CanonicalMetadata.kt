@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.audio
 
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
+import java.text.Normalizer
 
 /** Metadata from one source, kept separate until the canonical precedence pass. */
 internal data class MetadataSourceValues(
@@ -43,7 +44,7 @@ internal object CanonicalMetadataResolver {
             genre = sources.firstValue { it.genre },
             trackNumber = sources.firstNotNullOfOrNull { it.trackNumber?.parsePositiveTagNumber() },
             discNumber = sources.firstNotNullOfOrNull { it.discNumber?.parsePositiveTagNumber() },
-            volumeNormalization = sources.firstNotNullOfOrNull { it.volumeNormalization },
+            volumeNormalization = sources.resolveVolumeNormalization(),
         )
     }
 
@@ -51,16 +52,54 @@ internal object CanonicalMetadataResolver {
         selector: (MetadataSourceValues) -> String?,
     ): String? = firstNotNullOfOrNull { source -> selector(source).canonicalText() }
 
-    private fun String?.canonicalText(): String? = this
-        ?.trim()
-        ?.takeIf(String::isNotBlank)
+    private fun String?.canonicalText(): String? {
+        val normalized = this
+            ?.let { Normalizer.normalize(it, Normalizer.Form.NFC) }
+            ?.filterNot(::isIgnorableTextCharacter)
+            ?.trim()
+            ?.takeIf(String::isNotBlank)
+            ?: return null
+        return normalized.takeIf { value ->
+            value.any { character ->
+                !character.isWhitespace() &&
+                    !isCombiningMark(character)
+            }
+        }
+    }
 
     private fun String.parsePositiveTagNumber(): Int? = substringBefore('/')
         .trim()
         .toIntOrNull()
         ?.takeIf { it > 0 }
 
+    private fun List<MetadataSourceValues>.resolveVolumeNormalization(): VolumeNormalizationMetadata? {
+        val resolved = VolumeNormalizationMetadata(
+            trackGainDb = mapNotNull { it.volumeNormalization?.trackGainDb }.firstOrNull(),
+            albumGainDb = mapNotNull { it.volumeNormalization?.albumGainDb }.firstOrNull(),
+            trackPeak = mapNotNull { it.volumeNormalization?.trackPeak }.firstOrNull(),
+            albumPeak = mapNotNull { it.volumeNormalization?.albumPeak }.firstOrNull(),
+        )
+        return resolved.takeIf {
+            it.hasUsableGain || it.trackPeak != null || it.albumPeak != null
+        }
+    }
+
     private fun isValidYear(year: Int): Boolean = year in 1..9_999
+
+    private val combiningMarkTypes = setOf<Int>(
+        Character.NON_SPACING_MARK.toInt(),
+        Character.COMBINING_SPACING_MARK.toInt(),
+        Character.ENCLOSING_MARK.toInt(),
+    )
+    private val ignorableTextCharacters = setOf(
+        '\u200B',
+        '\u200C',
+        '\uFEFF',
+    )
+
+    private fun isIgnorableTextCharacter(character: Char): Boolean = character in ignorableTextCharacters
+
+    private fun isCombiningMark(character: Char): Boolean = Character.getType(character) in combiningMarkTypes
 }
 
 internal fun EmbeddedTagMetadata.toMetadataSourceValues(): MetadataSourceValues {
@@ -76,4 +115,3 @@ internal fun EmbeddedTagMetadata.toMetadataSourceValues(): MetadataSourceValues 
         volumeNormalization = volumeNormalization,
     )
 }
-

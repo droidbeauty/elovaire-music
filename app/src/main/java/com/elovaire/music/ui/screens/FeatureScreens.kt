@@ -6963,7 +6963,7 @@ internal fun NowPlayingScreen(
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 960.dp
+                val queueSheetTopExtension = 980.dp
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -7274,15 +7274,17 @@ internal fun NowPlayingScreen(
             exit = motionTransitions.overlayFadeExit(targetAlpha = 0.94f),
             label = "SleepTimerSheetOverlay",
         ) {
-            SleepTimerDialog(
-                selectedOption = playerUiState.sleepTimer.option,
-                visible = showSleepTimerDialog,
-                onOptionSelected = { option ->
-                    onSleepTimerSelected(option)
-                    showSleepTimerDialog = false
-                },
-                onDismiss = { showSleepTimerDialog = false },
-            )
+            CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
+                SleepTimerDialog(
+                    selectedOption = playerUiState.sleepTimer.option,
+                    visible = showSleepTimerDialog,
+                    onOptionSelected = { option ->
+                        onSleepTimerSelected(option)
+                        showSleepTimerDialog = false
+                    },
+                    onDismiss = { showSleepTimerDialog = false },
+                )
+            }
         }
     }
 }
@@ -7547,7 +7549,7 @@ private fun QueueSheet(
                         .fillMaxSize()
                         .ensureSingleItemRubberBand(listState),
                     contentPadding = PaddingValues(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
                     itemsIndexed(
                         items = queue,
@@ -8028,7 +8030,7 @@ private fun QueueSongRow(
                     indication = null,
                     onClick = onClick,
                 )
-                .padding(horizontal = 6.dp, vertical = 3.dp),
+                .padding(horizontal = 6.dp, vertical = 4.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

@@ -137,8 +137,7 @@ internal class RoomUserDataStore(
             val id = newId()
             val result = createPlaylistEntries(_userPlaylists.value, name, id)
                 ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
-            dao.insertPlaylist(result.createdPlaylist.toEntity())
-            dao.verifyPlaylist(result.createdPlaylist)
+            dao.insertPlaylistAndVerify(result.createdPlaylist.toEntity())
             publishPlaylists(result.playlists)
             PlaylistMutationResult.Success(result.createdPlaylist.id)
         }
@@ -154,7 +153,6 @@ internal class RoomUserDataStore(
                 ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
             val normalizedSongIds = normalizePlaylistSongIds(songIds)
             dao.insertPlaylistWithEntries(result.createdPlaylist.toEntity(), normalizedSongIds)
-            dao.verifyPlaylist(result.createdPlaylist.copy(songIds = normalizedSongIds))
             publishPlaylists(result.playlists.map { playlist ->
                 if (playlist.id == result.createdPlaylist.id) {
                     playlist.copy(songIds = normalizedSongIds)
@@ -180,8 +178,7 @@ internal class RoomUserDataStore(
             return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
         }
         val playlist = updated.first { it.id == playlistId }
-        dao.replacePlaylistEntries(playlistId, playlist.songIds)
-        dao.verifyPlaylist(playlist)
+        dao.replacePlaylistEntriesAndVerify(playlistId, playlist.songIds)
         publishPlaylists(updated)
         PlaylistMutationResult.Success(playlistId)
     }
@@ -205,8 +202,7 @@ internal class RoomUserDataStore(
             return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
         }
         val playlist = updated.first { it.id == playlistId }
-        dao.renamePlaylist(playlistId, playlist.name)
-        dao.verifyPlaylist(playlist)
+        dao.renamePlaylistAndVerify(playlistId, playlist.name)
         publishPlaylists(updated)
         PlaylistMutationResult.Success(playlistId)
     }
@@ -225,8 +221,7 @@ internal class RoomUserDataStore(
             return@enqueueMutation PlaylistMutationResult.Success(playlistId, changed = false)
         }
         val playlist = updated.first { it.id == playlistId }
-        dao.replacePlaylistEntries(playlistId, playlist.songIds)
-        dao.verifyPlaylist(playlist)
+        dao.replacePlaylistEntriesAndVerify(playlistId, playlist.songIds)
         publishPlaylists(updated)
         PlaylistMutationResult.Success(playlistId)
     }
@@ -252,8 +247,7 @@ internal class RoomUserDataStore(
         if (selected.any(Playlist::isSystem)) return@enqueueMutation PlaylistMutationResult.NotAllowed
         val updated = deletePlaylistEntries(_userPlaylists.value, playlistIds)
             ?: return@enqueueMutation PlaylistMutationResult.Success(changed = false)
-        dao.deletePlaylists(playlistIds)
-        check(playlistIds.all { dao.playlist(it) == null }) { "Playlist delete readback failed." }
+        dao.deletePlaylistsAndVerify(playlistIds)
         publishPlaylists(updated)
         PlaylistMutationResult.Success(changed = true)
     }
@@ -267,8 +261,7 @@ internal class RoomUserDataStore(
                 nextSmartPlaylistId = id,
                 nowMs = clock.wallTimeMs(),
             ) ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
-            dao.upsertSmartPlaylist(result.createdPlaylist.toEntity())
-            check(dao.smartPlaylist(result.createdPlaylist.id) != null) { "Smart playlist create readback failed." }
+            dao.upsertSmartPlaylistAndVerify(result.createdPlaylist.toEntity())
             publishSmartPlaylists(result.playlists)
             PlaylistMutationResult.Success(result.createdPlaylist.id)
         }
@@ -295,14 +288,7 @@ internal class RoomUserDataStore(
             val updatedPlaylists = result.playlists.map { current ->
                 if (current.id == created.id) created else current
             }
-            dao.upsertSmartPlaylist(created.toEntity())
-            check(
-                dao.smartPlaylist(created.id)?.let { entity ->
-                    deserializeSmartPlaylists(entity.payload).firstOrNull { it.id == created.id } == created
-                } == true,
-            ) {
-                "Smart playlist create readback failed."
-            }
+            dao.upsertSmartPlaylistAndVerify(created.toEntity())
             publishSmartPlaylists(updatedPlaylists)
             PlaylistMutationResult.Success(created.id)
         }
@@ -322,8 +308,7 @@ internal class RoomUserDataStore(
             PlaylistMutationResult.Success(playlist.id, changed = false)
         }
         val persisted = updated.first { it.id == playlist.id }
-        dao.upsertSmartPlaylist(persisted.toEntity())
-        check(dao.smartPlaylist(playlist.id) != null) { "Smart playlist update readback failed." }
+        dao.upsertSmartPlaylistAndVerify(persisted.toEntity())
         publishSmartPlaylists(updated)
         PlaylistMutationResult.Success(playlist.id)
     }
@@ -335,8 +320,7 @@ internal class RoomUserDataStore(
         }
         val updated = deleteSmartPlaylistEntries(_userSmartPlaylists.value, playlistIds)
             ?: return@enqueueMutation PlaylistMutationResult.NotFound
-        dao.deleteSmartPlaylists(playlistIds)
-        check(playlistIds.all { dao.smartPlaylist(it) == null }) { "Smart playlist delete readback failed." }
+        dao.deleteSmartPlaylistsAndVerify(playlistIds)
         publishSmartPlaylists(updated)
         PlaylistMutationResult.Success(changed = true)
     }
@@ -465,9 +449,10 @@ internal class RoomUserDataStore(
         }
     }
 
-    private fun onMigrationFailure(legacy: UserDataSnapshot, failure: RuntimeException) {
+    private fun onMigrationFailure(legacy: UserDataSnapshot, failure: RuntimeException): Nothing {
         Log.e(TAG, "User-data migration failed; legacy data remains available for retry.", failure)
         publishSnapshot(legacy)
+        throw failure
     }
 
     private suspend fun loadSnapshot(): UserDataSnapshot {
@@ -790,15 +775,6 @@ private fun SharedPreferences.longOrNull(key: String): Long? {
 
 private fun Playlist.toEntity(): UserPlaylistEntity = UserPlaylistEntity(id, name, isSystem)
 
-private suspend fun UserDataDao.verifyPlaylist(expected: Playlist) {
-    val persisted = playlist(expected.id)
-    check(persisted?.name == expected.name && persisted.isSystem == expected.isSystem) {
-        "Playlist row readback failed for ${expected.id}."
-    }
-    check(playlistEntries(expected.id).map(UserPlaylistEntryEntity::songId) == expected.songIds) {
-        "Playlist entry readback failed for ${expected.id}."
-    }
-}
 
 private fun Playlist.toEntryEntities(): List<UserPlaylistEntryEntity> = songIds.distinct().mapIndexed { index, songId ->
     UserPlaylistEntryEntity(id, songId, index)

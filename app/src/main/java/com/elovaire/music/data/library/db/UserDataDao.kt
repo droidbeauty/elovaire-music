@@ -31,10 +31,10 @@ internal interface UserDataDao {
     @Query("SELECT * FROM favorite_songs ORDER BY position")
     suspend fun favorites(): List<FavoriteSongEntity>
 
-    @Query("SELECT * FROM song_play_counts")
+    @Query("SELECT * FROM song_play_counts ORDER BY songId")
     suspend fun songPlayCounts(): List<SongPlayCountEntity>
 
-    @Query("SELECT * FROM album_play_counts")
+    @Query("SELECT * FROM album_play_counts ORDER BY albumId")
     suspend fun albumPlayCounts(): List<AlbumPlayCountEntity>
 
     @Query("SELECT * FROM recent_playback ORDER BY kind, position")
@@ -59,6 +59,20 @@ internal interface UserDataDao {
     ) {
         insertPlaylist(playlist)
         replacePlaylistEntries(playlist.playlistId, songIds)
+        check(this.playlist(playlist.playlistId) == playlist) {
+            "Playlist create readback failed for ${playlist.playlistId}."
+        }
+        check(songIdsForPlaylist(playlist.playlistId) == songIds.distinct()) {
+            "Playlist entry create readback failed for ${playlist.playlistId}."
+        }
+    }
+
+    @Transaction
+    suspend fun insertPlaylistAndVerify(playlist: UserPlaylistEntity) {
+        insertPlaylist(playlist)
+        check(this.playlist(playlist.playlistId) == playlist) {
+            "Playlist create readback failed for ${playlist.playlistId}."
+        }
     }
 
     @Transaction
@@ -85,8 +99,24 @@ internal interface UserDataDao {
     @Query("UPDATE user_playlists SET name = :name WHERE playlistId = :playlistId")
     suspend fun renamePlaylist(playlistId: Long, name: String)
 
+    @Transaction
+    suspend fun renamePlaylistAndVerify(playlistId: Long, name: String) {
+        renamePlaylist(playlistId, name)
+        check(this.playlist(playlistId)?.name == name) {
+            "Playlist rename readback failed for $playlistId."
+        }
+    }
+
     @Query("DELETE FROM user_playlists WHERE playlistId IN (:playlistIds)")
     suspend fun deletePlaylists(playlistIds: Set<Long>)
+
+    @Transaction
+    suspend fun deletePlaylistsAndVerify(playlistIds: Set<Long>) {
+        deletePlaylists(playlistIds)
+        check(playlistIds.all { this.playlist(it) == null }) {
+            "Playlist delete readback failed."
+        }
+    }
 
     @Query("DELETE FROM user_playlist_entries WHERE playlistId = :playlistId")
     suspend fun deletePlaylistEntries(playlistId: Long)
@@ -97,8 +127,24 @@ internal interface UserDataDao {
     @Upsert
     suspend fun upsertSmartPlaylist(playlist: UserSmartPlaylistEntity)
 
+    @Transaction
+    suspend fun upsertSmartPlaylistAndVerify(playlist: UserSmartPlaylistEntity) {
+        upsertSmartPlaylist(playlist)
+        check(this.smartPlaylist(playlist.playlistId) == playlist) {
+            "Smart playlist write readback failed for ${playlist.playlistId}."
+        }
+    }
+
     @Query("DELETE FROM user_smart_playlists WHERE playlistId IN (:playlistIds)")
     suspend fun deleteSmartPlaylists(playlistIds: Set<Long>)
+
+    @Transaction
+    suspend fun deleteSmartPlaylistsAndVerify(playlistIds: Set<Long>) {
+        deleteSmartPlaylists(playlistIds)
+        check(playlistIds.all { this.smartPlaylist(it) == null }) {
+            "Smart playlist delete readback failed."
+        }
+    }
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertFavorite(favorite: FavoriteSongEntity): Long
@@ -123,6 +169,15 @@ internal interface UserDataDao {
             "ON CONFLICT(albumId) DO UPDATE SET playCount = MIN(playCount + :increment, 2147483647)",
     )
     suspend fun incrementAlbumPlayCount(albumId: Long, increment: Int = 1)
+
+    @Transaction
+    suspend fun incrementPlaybackCounts(
+        songCounts: Map<Long, Int>,
+        albumCounts: Map<Long, Int>,
+    ) {
+        songCounts.forEach { (songId, increment) -> incrementSongPlayCount(songId, increment) }
+        albumCounts.forEach { (albumId, increment) -> incrementAlbumPlayCount(albumId, increment) }
+    }
 
     @Query("DELETE FROM recent_playback")
     suspend fun clearRecentPlayback()
@@ -164,6 +219,14 @@ internal interface UserDataDao {
             UserPlaylistEntryEntity(playlistId, songId, position)
         }
         if (entries.isNotEmpty()) insertPlaylistEntries(entries)
+    }
+
+    @Transaction
+    suspend fun replacePlaylistEntriesAndVerify(playlistId: Long, songIds: List<Long>) {
+        replacePlaylistEntries(playlistId, songIds)
+        check(songIdsForPlaylist(playlistId) == songIds.distinct()) {
+            "Playlist entry write readback failed for $playlistId."
+        }
     }
 
     @Transaction

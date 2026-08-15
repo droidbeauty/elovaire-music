@@ -5,6 +5,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -69,5 +70,14 @@ class MediaMutationCoordinatorTest {
         first.await()
         second.await()
         }
+    }
+
+    @Test
+    fun targetLockRegistryIsReclaimedAfterIndependentMutations() = runBlocking {
+        repeat(256) { index ->
+            MediaMutationCoordinator.withTarget(android.net.TestUri("file:///music/$index.mp3")) { }
+        }
+
+        assertEquals(0, MediaMutationCoordinator.activeTargetLockCount())
     }
 }

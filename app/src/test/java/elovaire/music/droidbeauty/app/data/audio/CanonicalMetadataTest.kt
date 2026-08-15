@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.audio
 
+import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -38,5 +39,40 @@ class CanonicalMetadataTest {
         assertEquals(2, result.discNumber)
         assertNull(result.trackNumber)
     }
-}
 
+    @Test
+    fun replayGainFieldsResolveIndependentlyAcrossSources() {
+        val result = CanonicalMetadataResolver.resolve(
+            embedded = MetadataSourceValues(
+                volumeNormalization = VolumeNormalizationMetadata(trackPeak = 0.98f),
+            ),
+            platform = MetadataSourceValues(
+                volumeNormalization = VolumeNormalizationMetadata(
+                    trackGainDb = -7.5f,
+                    albumGainDb = -6.0f,
+                    albumPeak = 0.91f,
+                ),
+            ),
+        )
+
+        assertEquals(
+            VolumeNormalizationMetadata(
+                trackGainDb = -7.5f,
+                albumGainDb = -6.0f,
+                trackPeak = 0.98f,
+                albumPeak = 0.91f,
+            ),
+            result.volumeNormalization,
+        )
+    }
+
+    @Test
+    fun canonicalTextTrimsUnicodeAndFallsBackForWhitespaceOnlyValues() {
+        val result = CanonicalMetadataResolver.resolve(
+            embedded = MetadataSourceValues(title = " \u0301 "),
+            platform = MetadataSourceValues(title = "  東京 🎵  "),
+        )
+
+        assertEquals("東京 🎵", result.title)
+    }
+}
