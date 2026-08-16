@@ -158,6 +158,9 @@ internal interface UserDataDao {
     @Query("SELECT COALESCE(MAX(position), -1) FROM favorite_songs")
     suspend fun lastFavoritePosition(): Int
 
+    @Query("DELETE FROM song_play_counts")
+    suspend fun clearSongPlayCounts()
+
     @Query(
         "INSERT INTO song_play_counts(songId, playCount) VALUES(:songId, :increment) " +
             "ON CONFLICT(songId) DO UPDATE SET playCount = MIN(playCount + :increment, 2147483647)",
@@ -270,6 +273,82 @@ internal interface UserDataDao {
 
     @Query("DELETE FROM user_playlist_entries WHERE songId IN (:songIds)")
     suspend fun deleteSongReferencesFromPlaylists(songIds: Set<Long>)
+
+    /**
+     * Re-keys user data after a source adapter proves that one media item was rediscovered
+     * under another domain id. The operation is intentionally a single transaction so a
+     * restart cannot expose only part of the relocation.
+     */
+    @Transaction
+    suspend fun relocateSongReferences(replacements: Map<Long, Long>) {
+        val normalized = replacements.filter { (before, after) ->
+            before > 0L && after > 0L && before != after
+        }
+        if (normalized.isEmpty()) return
+
+        fun resolve(id: Long): Long {
+            var current = id
+            val visited = HashSet<Long>()
+            while (true) {
+                val next = normalized[current] ?: return current
+                if (!visited.add(current) || next == current) return current
+                current = next
+            }
+        }
+
+        playlistEntries()
+            .groupBy(UserPlaylistEntryEntity::playlistId)
+            .forEach { (playlistId, entries) ->
+                val relocatedIds = entries
+                    .sortedBy(UserPlaylistEntryEntity::position)
+                    .map(UserPlaylistEntryEntity::songId)
+                    .map(::resolve)
+                    .distinct()
+                val currentIds = entries.sortedBy(UserPlaylistEntryEntity::position).map(UserPlaylistEntryEntity::songId)
+                if (relocatedIds != currentIds) {
+                    replacePlaylistEntries(playlistId, relocatedIds)
+                }
+            }
+
+        val currentFavorites = favorites()
+        val relocatedFavorites = currentFavorites
+            .sortedBy(FavoriteSongEntity::position)
+            .map(FavoriteSongEntity::songId)
+            .map(::resolve)
+            .distinct()
+        val currentFavoriteIds = currentFavorites.sortedBy(FavoriteSongEntity::position).map(FavoriteSongEntity::songId)
+        if (relocatedFavorites != currentFavoriteIds) {
+            clearFavorites()
+            insertFavorites(relocatedFavorites.mapIndexed { position, songId -> FavoriteSongEntity(songId, position) })
+        }
+
+        val currentCounts = songPlayCounts()
+        val relocatedCounts = currentCounts
+            .groupBy { resolve(it.songId) }
+            .map { (songId, counts) ->
+                SongPlayCountEntity(songId, counts.maxOf(SongPlayCountEntity::playCount))
+            }
+            .sortedBy(SongPlayCountEntity::songId)
+        if (relocatedCounts != currentCounts) {
+            clearSongPlayCounts()
+            if (relocatedCounts.isNotEmpty()) insertSongPlayCounts(relocatedCounts)
+        }
+
+        val currentRecent = recentPlayback()
+        val currentSongRecent = currentRecent
+            .filter { it.kind == "song" }
+            .sortedBy(RecentPlaybackEntity::position)
+        val relocatedSongRecent = currentSongRecent
+            .map { it.copy(itemId = resolve(it.itemId)) }
+            .distinctBy(RecentPlaybackEntity::itemId)
+            .mapIndexed { position, entry -> entry.copy(position = position) }
+        val otherRecent = currentRecent.filterNot { it.kind == "song" }
+        val relocatedRecent = otherRecent + relocatedSongRecent
+        if (relocatedRecent != currentRecent) {
+            clearRecentPlayback()
+            if (relocatedRecent.isNotEmpty()) insertRecentPlayback(relocatedRecent)
+        }
+    }
 
     @Transaction
     suspend fun migrateLegacy(

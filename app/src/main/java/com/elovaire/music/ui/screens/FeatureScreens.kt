@@ -2403,7 +2403,6 @@ private fun ArtistHeroHeader(
     val sourceUri = when (backdropState) {
         is ArtistBackdropState.Fallback -> backdropState.localArtworkUri
         ArtistBackdropState.Loading -> localArtworkUri
-        is ArtistBackdropState.Remote -> backdropState.remoteArtworkUri
     } ?: localArtworkUri
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
     val localArtwork = rememberArtworkBitmap(localArtworkUri, size = 512).value
@@ -4048,7 +4047,7 @@ private fun rememberArtistArtworkUri(
             artistKey = artist.name,
         ),
     )
-    return (state as? ArtistBackdropState.Remote)?.remoteArtworkUri ?: artist.artUri
+    return (state as? ArtistBackdropState.Fallback)?.localArtworkUri ?: artist.artUri
 }
 
 @Composable

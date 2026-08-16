@@ -169,6 +169,7 @@ internal class SearchViewModel(
         )
     }
         .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
 
     val uiState: StateFlow<SearchUiState> = combine(
         searchUiConfig,

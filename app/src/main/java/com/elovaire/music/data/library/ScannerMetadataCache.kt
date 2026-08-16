@@ -35,7 +35,7 @@ internal class ScannerMetadataCache {
                 discNumber = song.discNumber.takeIf { it > 0 },
                 volumeNormalization = song.volumeNormalization,
             )
-            metadata[song.uri.toString()] = CachedSongMetadata(
+            metadata[MediaIdentityResolver.sourceKey(song)] = CachedSongMetadata(
                 songId = song.id,
                 fileName = song.fileName,
                 filePath = song.libraryPath,

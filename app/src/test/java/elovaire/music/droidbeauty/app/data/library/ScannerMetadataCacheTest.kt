@@ -18,8 +18,8 @@ class ScannerMetadataCacheTest {
 
         cache.prime(listOf(first, second))
 
-        assertEquals("First", cache[first.uri.toString()]?.metadata?.title)
-        assertEquals("Second", cache[second.uri.toString()]?.metadata?.title)
+        assertEquals("First", cache[MediaIdentityResolver.sourceKey(first)]?.metadata?.title)
+        assertEquals("Second", cache[MediaIdentityResolver.sourceKey(second)]?.metadata?.title)
     }
 
     @Test
@@ -31,8 +31,8 @@ class ScannerMetadataCacheTest {
 
         cache.invalidateSongIds(listOf(7L))
 
-        assertNull(cache[first.uri.toString()])
-        assertNull(cache[second.uri.toString()])
+        assertNull(cache[MediaIdentityResolver.sourceKey(first)])
+        assertNull(cache[MediaIdentityResolver.sourceKey(second)])
     }
 
     @Test
@@ -42,10 +42,10 @@ class ScannerMetadataCacheTest {
         val cache = ScannerMetadataCache()
         cache.prime(listOf(first, second))
 
-        cache.retainOnly(setOf(first.uri.toString()))
+        cache.retainOnly(setOf(MediaIdentityResolver.sourceKey(first)))
 
-        assertTrue(cache[first.uri.toString()] != null)
-        assertNull(cache[second.uri.toString()])
+        assertTrue(cache[MediaIdentityResolver.sourceKey(first)] != null)
+        assertNull(cache[MediaIdentityResolver.sourceKey(second)])
     }
 
     @Test
@@ -56,7 +56,7 @@ class ScannerMetadataCacheTest {
 
         cache.onMemoryPressure(MemoryPressure.Critical)
 
-        assertNull(cache[cached.uri.toString()])
+        assertNull(cache[MediaIdentityResolver.sourceKey(cached)])
     }
 
     @Test

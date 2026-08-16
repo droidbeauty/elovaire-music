@@ -113,6 +113,17 @@ private class RecordingLibraryDao : LibraryDao {
     override suspend fun markAlbumsRemoved(albumIds: Set<Long>, removedAtMs: Long) {
         removedAlbumIds = albumIds
     }
+    override suspend fun deleteMediaFiles(stableKeys: Set<String>, uris: Set<String>) = Unit
+    override suspend fun applyIncrementalChange(
+        songs: List<SongEntity>,
+        albums: List<AlbumEntity>,
+        files: List<MediaFileEntity>,
+        removedSongIds: Set<Long>,
+        removedAlbumIds: Set<Long>,
+        removedFileKeys: Set<String>,
+        removedUris: Set<String>,
+        removedAtMs: Long,
+    ) = Unit
 
     override suspend fun replaceGeneration(
         generation: LibraryScanGenerationEntity,

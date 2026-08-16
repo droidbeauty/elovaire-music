@@ -2219,8 +2219,8 @@ internal fun Song.playbackMetadataSignature(): Int {
     result = 31 * result + durationMs.hashCode()
     result = 31 * result + trackNumber
     result = 31 * result + discNumber
-    result = 31 * result + uri.hashCode()
-    result = 31 * result + (artUri?.hashCode() ?: 0)
+    result = 31 * result + uri.toString().hashCode()
+    result = 31 * result + (artUri?.toString()?.hashCode() ?: 0)
     result = 31 * result + fileName.hashCode()
     result = 31 * result + (volumeNormalization?.hashCode() ?: 0)
     return result

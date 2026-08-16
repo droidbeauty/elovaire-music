@@ -1,19 +1,16 @@
 package elovaire.music.droidbeauty.app.data.playback
 
-import android.content.ComponentCallbacks2
 import android.content.Context
-import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.net.Uri
-import android.util.LruCache
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.ui.PlayerNotificationManager
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkRequestKey
+import elovaire.music.droidbeauty.app.data.artwork.ArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
+import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
-import elovaire.music.droidbeauty.app.core.MemoryPressure
-import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,7 +27,7 @@ internal class NotificationArtworkLoader(
     private var currentKey: ArtworkRequestKey? = null
 
     init {
-        NotificationArtworkCache.ensureRegistered(context.applicationContext)
+        ArtworkBitmapCache.ensureRegistered(context.applicationContext)
     }
 
     fun setCurrentArtUri(uri: Uri?) {
@@ -40,7 +37,7 @@ internal class NotificationArtworkLoader(
 
     fun cachedBitmap(uri: Uri?): Bitmap? {
         val key = uri?.let(::notificationArtworkLoadKey) ?: return null
-        return NotificationArtworkCache[key.cacheKey]
+        return ArtworkBitmapCache[key.cacheKey]
     }
 
     fun loadAsync(
@@ -101,77 +98,11 @@ private fun loadBitmap(
     context: Context,
     key: ArtworkRequestKey,
 ): Bitmap? {
-    NotificationArtworkCache[key.cacheKey]?.let { return it }
-    val bitmap = loadArtworkBitmap(context, key)
-    return bitmap?.also { cachedBitmap ->
-        NotificationArtworkCache.put(key.cacheKey, cachedBitmap)
-    }
+    return loadArtworkBitmap(context, key)
 }
 
-private const val NOTIFICATION_ARTWORK_SIZE_PX = 512
-
-private object NotificationArtworkCache {
-    private val maxCacheBytes = (Runtime.getRuntime().maxMemory() / 16L)
-        .coerceAtMost(256L * 256L * 2L * 12L)
-        .coerceAtLeast(2L * 1024L * 1024L)
-        .toInt()
-    private var callbacksRegistered = false
-
-    private val cache = object : LruCache<String, Bitmap>(maxCacheBytes) {
-        override fun sizeOf(
-            key: String,
-            value: Bitmap,
-        ): Int {
-            return value.allocationByteCount
-        }
-    }
-
-    @Synchronized
-    fun ensureRegistered(appContext: Context) {
-        if (callbacksRegistered) return
-        appContext.registerComponentCallbacks(object : ComponentCallbacks2 {
-            override fun onConfigurationChanged(newConfig: Configuration) = Unit
-
-            @Deprecated("Deprecated Android callback")
-            override fun onLowMemory() = Unit
-
-            override fun onTrimMemory(level: Int) {
-                trim(level)
-            }
-        })
-        callbacksRegistered = true
-    }
-
-    @Synchronized
-    operator fun get(key: String): Bitmap? = cache.get(key)
-
-    @Synchronized
-    fun put(
-        key: String,
-        bitmap: Bitmap,
-    ) {
-        cache.put(key, bitmap)
-    }
-
-    @Synchronized
-    fun removeAllMatchingUris(uris: Collection<String>) {
-        if (uris.isEmpty()) return
-        val keysToRemove = cache.snapshot().keys.filter { key ->
-            uris.any { uri -> key == uri || key.startsWith("$uri|") }
-        }
-        keysToRemove.forEach(cache::remove)
-    }
-
-    @Synchronized
-    private fun trim(level: Int) {
-        when (memoryPressureForTrimLevel(level)) {
-            MemoryPressure.Critical -> cache.evictAll()
-            MemoryPressure.Moderate -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
-            MemoryPressure.Normal -> Unit
-        }
-    }
-}
+private const val NOTIFICATION_ARTWORK_SIZE_PX = 1024
 
 internal fun removeNotificationArtworkForUris(uris: Collection<String>) {
-    NotificationArtworkCache.removeAllMatchingUris(uris)
+    invalidateArtworkBitmapCache(uris)
 }

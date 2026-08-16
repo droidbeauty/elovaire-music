@@ -49,12 +49,20 @@ internal interface LibraryDao {
     @Query("UPDATE albums SET removedAtMs = :removedAtMs WHERE albumId IN (:albumIds)")
     suspend fun markAlbumsRemoved(albumIds: Set<Long>, removedAtMs: Long)
 
+    @Query("DELETE FROM media_files WHERE stableFileKey IN (:stableKeys) OR uri IN (:uris)")
+    suspend fun deleteMediaFiles(stableKeys: Set<String>, uris: Set<String>)
+
     @Transaction
     suspend fun applyIncrementalUpdate(
         songs: List<SongEntity>,
         albums: List<AlbumEntity>,
         files: List<MediaFileEntity>,
+        replacedFileKeys: Set<String> = emptySet(),
+        replacedUris: Set<String> = emptySet(),
     ) {
+        if (replacedFileKeys.isNotEmpty() || replacedUris.isNotEmpty()) {
+            deleteMediaFiles(replacedFileKeys, replacedUris)
+        }
         if (songs.isNotEmpty()) upsertSongs(songs)
         if (albums.isNotEmpty()) upsertAlbums(albums)
         if (files.isNotEmpty()) upsertMediaFiles(files)
@@ -68,6 +76,27 @@ internal interface LibraryDao {
     ) {
         if (songIds.isNotEmpty()) markSongsRemoved(songIds, removedAtMs)
         if (albumIds.isNotEmpty()) markAlbumsRemoved(albumIds, removedAtMs)
+    }
+
+    @Transaction
+    suspend fun applyIncrementalChange(
+        songs: List<SongEntity>,
+        albums: List<AlbumEntity>,
+        files: List<MediaFileEntity>,
+        removedSongIds: Set<Long>,
+        removedAlbumIds: Set<Long>,
+        removedFileKeys: Set<String>,
+        removedUris: Set<String>,
+        removedAtMs: Long,
+    ) {
+        if (removedFileKeys.isNotEmpty() || removedUris.isNotEmpty()) {
+            deleteMediaFiles(removedFileKeys, removedUris)
+        }
+        if (songs.isNotEmpty()) upsertSongs(songs)
+        if (albums.isNotEmpty()) upsertAlbums(albums)
+        if (files.isNotEmpty()) upsertMediaFiles(files)
+        if (removedSongIds.isNotEmpty()) markSongsRemoved(removedSongIds, removedAtMs)
+        if (removedAlbumIds.isNotEmpty()) markAlbumsRemoved(removedAlbumIds, removedAtMs)
     }
 
     @Transaction

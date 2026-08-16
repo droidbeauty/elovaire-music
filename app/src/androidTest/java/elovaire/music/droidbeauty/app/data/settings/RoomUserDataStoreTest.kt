@@ -6,6 +6,11 @@ import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
+import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
+import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEntity
+import elovaire.music.droidbeauty.app.data.library.db.RecentPlaybackEntity
+import elovaire.music.droidbeauty.app.data.library.db.SongPlayCountEntity
+import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntryEntity
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -87,6 +92,31 @@ class RoomUserDataStoreTest {
         database = Room.databaseBuilder(context, ElovaireDatabase::class.java, databaseName).build()
         assertEquals(expectedOrder, database.userDataDao().playlistEntries(playlistId).map { it.songId })
         assertEquals("Interaction Test", database.userDataDao().playlist(playlistId)?.name)
+    }
+
+    @Test
+    fun provenMediaRelocationPreservesAllSongReferences() = runBlocking {
+        database.userDataDao().insertPlaylist(UserPlaylistEntity(41L, "Saved", false))
+        database.userDataDao().insertPlaylistEntries(listOf(UserPlaylistEntryEntity(41L, 11L, 0)))
+        database.userDataDao().insertFavorite(FavoriteSongEntity(11L, 0))
+        database.userDataDao().insertSongPlayCounts(listOf(SongPlayCountEntity(11L, 4)))
+        database.userDataDao().replaceRecentPlayback(
+            entries = listOf(RecentPlaybackEntity("song", 11L, 0)),
+            state = PlaybackCollectionStateEntity(kind = null, collectionId = null),
+        )
+
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        val result = store.relocateSongReferences(mapOf(11L to 22L)).await()
+
+        assertTrue(result is PlaylistMutationResult.Success)
+        assertEquals(listOf(22L), database.userDataDao().playlistEntries(41L).map(UserPlaylistEntryEntity::songId))
+        assertEquals(listOf(22L), database.userDataDao().favorites().map(FavoriteSongEntity::songId))
+        assertEquals(listOf(22L), database.userDataDao().songPlayCounts().map(SongPlayCountEntity::songId))
+        assertEquals(listOf(22L), database.userDataDao().recentPlayback().map(RecentPlaybackEntity::itemId))
+        assertEquals(listOf(22L), store.playlists.value.single { it.id == 41L }.songIds)
+        assertEquals(listOf(22L), store.favoriteSongIds.value)
+        assertEquals(listOf(22L), store.recentSongIds.value)
+        store.release()
     }
 
     @Test

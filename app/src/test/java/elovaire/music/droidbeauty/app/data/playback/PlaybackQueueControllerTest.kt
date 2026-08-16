@@ -38,6 +38,26 @@ class PlaybackQueueControllerTest {
         assertTrue(runtime.state.shuffleEnabled)
     }
 
+    @Test
+    fun queueMetadataRefreshUsesUniquePathWhenProviderReindexesAnItem() {
+        val before = song(1L).copy(
+            libraryPath = "/music/track.mp3",
+            uri = TestUri("content://media/external/audio/media/1"),
+        )
+        val after = before.copy(
+            id = 2L,
+            uri = TestUri("content://media/external/audio/media/2"),
+        )
+
+        val refreshed = PlaybackQueueMetadataRefresher().refreshQueueIfNeeded(
+            queue = listOf(before),
+            librarySongsById = emptyMap(),
+            librarySongsByPath = mapOf("/music/track.mp3" to after),
+        )
+
+        assertEquals(listOf(after), refreshed)
+    }
+
     private fun song(id: Long) = Song(
         id = id,
         title = "Song $id",

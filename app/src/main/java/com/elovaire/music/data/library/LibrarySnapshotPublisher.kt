@@ -10,7 +10,6 @@ internal class LibrarySnapshotPublisher(
     private val currentState: () -> LibraryContentState,
 ) {
     private var indexedSongs: List<Song>? = null
-    private var songPositions = emptyMap<Long, Int>()
     private var albumSongPositions = emptyMap<Long, List<Int>>()
     private var albumPositions = emptyMap<Long, Int>()
 
@@ -23,16 +22,28 @@ internal class LibrarySnapshotPublisher(
         removingSongIds: Set<Long>,
         removingAlbumIds: Set<Long>,
     ): LibraryContentState {
-        val nextState = LibraryContentState(
+        val nextState = stateForSnapshot(snapshot, removingSongIds, removingAlbumIds)
+        publishState(nextState)
+        return nextState
+    }
+
+    fun stateForSnapshot(
+        snapshot: LibrarySnapshot,
+        removingSongIds: Set<Long>,
+        removingAlbumIds: Set<Long>,
+    ): LibraryContentState {
+        return LibraryContentState(
             songs = snapshot.songs,
             albums = snapshot.albums,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
         )
+    }
+
+    fun publishState(nextState: LibraryContentState) {
         if (currentState() != nextState) {
             publish(nextState)
         }
-        return nextState
     }
 
     fun publishSongs(
@@ -61,11 +72,20 @@ internal class LibrarySnapshotPublisher(
         val current = currentState()
         updateIndices(current)
         val replacements = editedSongs.associateBy(Song::id)
-        val replacementPositions = replacements.keys.mapNotNull(songPositions::get)
+        val replacementsByIdentity = editedSongs.associateBy(MediaIdentityResolver::stableKey)
+        val replacementPositions = current.songs.mapIndexedNotNull { position, song ->
+            if (song.id in replacements || MediaIdentityResolver.stableKey(song) in replacementsByIdentity) {
+                position
+            } else {
+                null
+            }
+        }
         if (replacementPositions.isEmpty()) return current
         val updatedSongs = current.songs.toMutableList()
         replacementPositions.forEach { position ->
-            updatedSongs[position] = replacements.getValue(current.songs[position].id)
+            val currentSong = current.songs[position]
+            updatedSongs[position] = replacements[currentSong.id]
+                ?: replacementsByIdentity.getValue(MediaIdentityResolver.stableKey(currentSong))
         }
 
         val affectedAlbumIds = buildSet {
@@ -111,7 +131,6 @@ internal class LibrarySnapshotPublisher(
     private fun updateIndices(state: LibraryContentState) {
         if (indexedSongs === state.songs) return
         indexedSongs = state.songs
-        songPositions = state.songs.mapIndexed { index, song -> song.id to index }.toMap()
         albumSongPositions = state.songs.mapIndexed { index, song -> song.albumId to index }
             .groupBy({ it.first }, { it.second })
         albumPositions = state.albums.mapIndexed { index, album -> album.id to index }.toMap()

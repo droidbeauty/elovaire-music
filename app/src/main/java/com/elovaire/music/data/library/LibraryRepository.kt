@@ -15,6 +15,8 @@ import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkBitmapCache
+import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -88,6 +90,8 @@ class LibraryRepository internal constructor(
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
     private val clock: AppClock = AndroidAppClock,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
+    private val libraryIndexStore: LibraryIndexStore? = null,
+    private val onSongRelocations: suspend (Map<Long, Long>) -> Unit = {},
 ) : LibraryReader {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
@@ -340,7 +344,7 @@ class LibraryRepository internal constructor(
                     scanLibrary(refreshRequest, showLoadingIndicator, scanPermissionVersion, progressThrottler)
                 }.onSuccess { snapshot ->
                     if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
-                    val visibleSnapshot = prepareVisibleSnapshot(snapshot.songs)
+                    val prepared = prepareVisibleSnapshot(snapshot.songs)
                     val nextScanState = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
@@ -351,13 +355,20 @@ class LibraryRepository internal constructor(
                     }
                     withContext(Dispatchers.IO) {
                         snapshotStore.save(
-                            snapshot = visibleSnapshot,
+                            snapshot = prepared.snapshot,
                             filterFingerprint = scanner.currentFilterFingerprint(),
                             syncState = scanner.currentSyncState(),
                         )
+                        libraryIndexStore?.applyChangeSet(
+                            changeSet = prepared.changeSet,
+                            snapshot = prepared.snapshot,
+                            fullRebuild = refreshRequest.forceMediaIndex &&
+                                prepared.changeSet.added.size == prepared.snapshot.songs.size,
+                        )
                     }
+                    invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
                     if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
-                    val snapshotNeedsMetadata = visibleSnapshot.songs.any { song ->
+                    val snapshotNeedsMetadata = prepared.snapshot.songs.any { song ->
                         !song.metadataResolved ||
                             song.releaseYear == null ||
                             song.qualityNeedsEnrichment() ||
@@ -373,8 +384,8 @@ class LibraryRepository internal constructor(
                                 phase = "scan_completed",
                                 elapsedTimeMs = clock.elapsedTimeMs(),
                                 extra = mapOf(
-                                    "songs" to visibleSnapshot.songs.size.toString(),
-                                    "albums" to visibleSnapshot.albums.size.toString(),
+                                    "songs" to prepared.snapshot.songs.size.toString(),
+                                    "albums" to prepared.snapshot.albums.size.toString(),
                                 ),
                             ),
                         )
@@ -416,7 +427,12 @@ class LibraryRepository internal constructor(
         }
     }
 
-    private suspend fun prepareVisibleSnapshot(songs: List<Song>): LibrarySnapshot {
+    private data class PreparedLibrarySnapshot(
+        val snapshot: LibrarySnapshot,
+        val changeSet: LibraryChangeSet,
+    )
+
+    private suspend fun prepareVisibleSnapshot(songs: List<Song>): PreparedLibrarySnapshot {
         val scannedSongIds = songs.mapTo(hashSetOf(), Song::id)
         deletionMarkers.retainConfirmedSongsStillIn(scannedSongIds)
         var suppressedSongIds = deletionMarkers.suppressingSongIds()
@@ -436,14 +452,28 @@ class LibraryRepository internal constructor(
                 }
             }
         }
-        val nextContentState = ElovaireTrace.section("library_publish_content") {
-            snapshotPublisher.publishSnapshot(
+        val previousSongs = _contentState.value.songs
+        val nextContentState = ElovaireTrace.section("library_prepare_content_state") {
+            snapshotPublisher.stateForSnapshot(
                 snapshot = preparedSnapshot,
                 removingSongIds = deletionMarkers.pendingSongIds.value,
                 removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
             )
         }
-        return snapshotPublisher.snapshotOf(nextContentState)
+        val nextSnapshot = snapshotPublisher.snapshotOf(nextContentState)
+        val changeSet = LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
+        if (changeSet.relocated.isNotEmpty()) {
+            onSongRelocations(
+                changeSet.relocated.associate { relocation ->
+                    relocation.before.id to relocation.after.id
+                },
+            )
+        }
+        snapshotPublisher.publishState(nextContentState)
+        return PreparedLibrarySnapshot(
+            snapshot = nextSnapshot,
+            changeSet = changeSet,
+        )
     }
 
     private suspend fun scanLibrary(
@@ -576,7 +606,8 @@ class LibraryRepository internal constructor(
         scanner.invalidateMetadataCacheForPaths(request.filePaths)
 
         val remainingSongs = _contentState.value.songs.filterNot { it.id in request.songIds }
-        val updatedState = publishLibraryContent(remainingSongs)
+        val publication = publishLibraryContent(remainingSongs)
+        val updatedState = publication.state
         withContext(Dispatchers.IO) {
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
             snapshotStore.save(
@@ -584,7 +615,12 @@ class LibraryRepository internal constructor(
                 filterFingerprint = scanner.currentFilterFingerprint(),
                 syncState = scanner.currentSyncState(),
             )
+            libraryIndexStore?.applyChangeSet(
+                changeSet = publication.changeSet,
+                snapshot = updatedSnapshot,
+            )
         }
+        invalidateArtworkBitmapCache(publication.changeSet.artworkInvalidatedUris)
 
         var remainingTargets = request.uriBySongId
         var stillPresent = withContext(Dispatchers.IO) {
@@ -654,6 +690,11 @@ class LibraryRepository internal constructor(
             removingSongIds = current.removingSongIds,
             removingAlbumIds = current.removingAlbumIds,
         )
+        val changeSet = LibraryChangeSetCalculator.between(
+            previous = current.songs,
+            next = updatedState.songs,
+        )
+        if (changeSet.isEmpty) return
         withContext(Dispatchers.IO) {
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
             snapshotStore.save(
@@ -661,7 +702,12 @@ class LibraryRepository internal constructor(
                 filterFingerprint = scanner.currentFilterFingerprint(),
                 syncState = scanner.currentSyncState(),
             )
+            libraryIndexStore?.applyChangeSet(
+                changeSet = changeSet,
+                snapshot = updatedSnapshot,
+            )
         }
+        invalidateArtworkBitmapCache(changeSet.artworkInvalidatedUris)
     }
 
     fun albumById(albumId: Long): Album? = _contentState.value.albums.firstOrNull { it.id == albumId }
@@ -730,15 +776,25 @@ class LibraryRepository internal constructor(
         )
     }
 
+    private data class LibraryContentPublication(
+        val state: LibraryContentState,
+        val changeSet: LibraryChangeSet,
+    )
+
     private fun publishLibraryContent(
         songs: List<Song>,
         removingSongIds: Set<Long> = deletionMarkers.pendingSongIds.value,
         removingAlbumIds: Set<Long> = deletionMarkers.pendingAlbumIds.value,
-    ): LibraryContentState {
-        return snapshotPublisher.publishSongs(
+    ): LibraryContentPublication {
+        val previousSongs = _contentState.value.songs
+        val state = snapshotPublisher.publishSongs(
             songs = songs,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
+        )
+        return LibraryContentPublication(
+            state = state,
+            changeSet = LibraryChangeSetCalculator.between(previousSongs, state.songs),
         )
     }
 

@@ -2,18 +2,13 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.database.sqlite.SQLiteException
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.RemoteException
 import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
-import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
-import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
-import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
-import elovaire.music.droidbeauty.app.data.audio.toMetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.security.MessageDigest
@@ -27,7 +22,7 @@ internal class SafTreeLibraryScanner(
     private val context: Context,
 ) {
     private val audioFormatDetector = AudioFormatDetector(context)
-    private val embeddedTagMetadataReader = EmbeddedTagMetadataReader(context)
+    private val localMetadataReader = LocalAudioMetadataReader(context)
     private var fileMetadataCache = emptyMap<SafDocumentKey, CachedSafFile>()
 
     suspend fun scan(selections: List<LibraryFolderSelection>): List<Song> {
@@ -132,8 +127,12 @@ internal class SafTreeLibraryScanner(
                 }
                 val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: return@forEach
                 val libraryPath = resolveSafLibraryPath(canonicalRoot, rootKey, childRelativePath)
+                val stableSongId = stableNegativeId(
+                    MediaIdentityResolver.safDocument(providerKey, child.documentId)?.stableKey
+                        ?: "saf-uri:${child.uri}",
+                )
                 val candidate = AudioScanCandidate(
-                    id = stableNegativeId("saf-song:${child.uri}"),
+                    id = stableSongId,
                     uri = child.uri,
                     displayName = child.name,
                     title = metadata.title,
@@ -152,14 +151,14 @@ internal class SafTreeLibraryScanner(
                 val artist = metadata.artist ?: "Unknown Artist"
                 val album = metadata.album ?: selection.displayName.ifBlank { "Unknown Album" }
                 val albumArtist = metadata.albumArtist ?: artist
-                val albumIdentity = "$albumArtist::$album"
+                val albumIdentity = "$providerKey|$rootKey|$albumArtist::$album"
                 songs += Song(
-                    id = candidate.id,
+                    id = stableSongId,
                     title = title,
                     isExplicit = false,
                     artist = artist,
                     album = album,
-                    releaseYear = metadata.year,
+                    releaseYear = metadata.releaseYear,
                     genre = metadata.genre ?: "Unknown Genre",
                     audioFormat = detectedFormat.displayName,
                     audioQuality = null,
@@ -272,62 +271,12 @@ internal class SafTreeLibraryScanner(
         )
     }
 
-    private fun readMetadata(uri: Uri, fileName: String): SafMetadata {
-        val retrieverMetadata = try {
-            val retriever = MediaMetadataRetriever()
-            try {
-                retriever.setDataSource(context, uri)
-                SafMetadata(
-                    durationMs = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-                        ?.toLongOrNull()
-                        ?.takeIf { it > 0L },
-                    title = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_TITLE),
-                    artist = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_ARTIST),
-                    albumArtist = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST),
-                    album = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_ALBUM),
-                    year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
-                        ?.take(4)
-                        ?.toIntOrNull(),
-                    genre = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_GENRE),
-                    trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
-                        ?.substringBefore('/')
-                        ?.trim()
-                        ?.toIntOrNull()
-                        ?.takeIf { it > 0 },
-                    discNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER)
-                        ?.substringBefore('/')
-                        ?.trim()
-                        ?.toIntOrNull()
-                        ?.takeIf { it > 0 },
-                )
-            } finally {
-                runCatching { retriever.release() }
-            }
-        } catch (throwable: CancellationException) {
-            throw throwable
-        } catch (_: Exception) {
-            SafMetadata()
-        }
-        val embedded = embeddedTagMetadataReader.read(uri, filePath = null, fileName = fileName)
-        val canonical = CanonicalMetadataResolver.resolve(
-            embedded = embedded?.toMetadataSourceValues(),
-            platform = retrieverMetadata.toMetadataSourceValues(),
+    private fun readMetadata(uri: Uri, fileName: String): LocalAudioMetadata {
+        return localMetadataReader.read(
+            uri = uri,
+            filePath = null,
+            fileName = fileName,
         )
-        return retrieverMetadata.copy(
-            title = canonical.title,
-            artist = canonical.artist,
-            albumArtist = canonical.albumArtist,
-            album = canonical.album,
-            year = canonical.releaseYear,
-            genre = canonical.genre,
-            trackNumber = canonical.trackNumber,
-            discNumber = canonical.discNumber,
-            volumeNormalization = canonical.volumeNormalization,
-        )
-    }
-
-    private fun MediaMetadataRetriever.metadata(keyCode: Int): String? {
-        return extractMetadata(keyCode)?.trim()?.takeIf(String::isNotBlank)
     }
 
     private data class SafDirectory(
@@ -344,7 +293,7 @@ internal class SafTreeLibraryScanner(
         val sizeBytes: Long?,
     ) {
         val isDirectory: Boolean = mimeType == DocumentsContract.Document.MIME_TYPE_DIR
-        val hasStableChangeSignal: Boolean = lastModifiedMs != null
+        val hasStableChangeSignal: Boolean = lastModifiedMs != null || sizeBytes != null
     }
 
     private data class SafDocumentKey(
@@ -358,7 +307,7 @@ internal class SafTreeLibraryScanner(
         val lastModifiedMs: Long?,
         val sizeBytes: Long?,
         val detectedFormat: DetectedAudioFormat,
-        val metadata: SafMetadata,
+        val metadata: LocalAudioMetadata,
     ) {
         fun matches(document: SafDocument): Boolean {
             return document.hasStableChangeSignal &&
@@ -372,7 +321,7 @@ internal class SafTreeLibraryScanner(
             fun from(
                 document: SafDocument,
                 detectedFormat: DetectedAudioFormat,
-                metadata: SafMetadata,
+                metadata: LocalAudioMetadata,
             ): CachedSafFile {
                 return CachedSafFile(
                     name = document.name,
@@ -384,33 +333,6 @@ internal class SafTreeLibraryScanner(
                 )
             }
         }
-    }
-
-    private data class SafMetadata(
-        val durationMs: Long? = null,
-        val title: String? = null,
-        val artist: String? = null,
-        val albumArtist: String? = null,
-        val album: String? = null,
-        val year: Int? = null,
-        val genre: String? = null,
-        val trackNumber: Int? = null,
-        val discNumber: Int? = null,
-        val volumeNormalization: elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata? = null,
-    )
-
-    private fun SafMetadata.toMetadataSourceValues(): MetadataSourceValues {
-        return MetadataSourceValues(
-            title = title,
-            artist = artist,
-            albumArtist = albumArtist,
-            album = album,
-            releaseYear = year,
-            genre = genre,
-            trackNumber = trackNumber?.toString(),
-            discNumber = discNumber?.toString(),
-            volumeNormalization = volumeNormalization,
-        )
     }
 
     private companion object {

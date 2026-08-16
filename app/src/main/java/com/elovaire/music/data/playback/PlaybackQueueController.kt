@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import androidx.media3.common.Player
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
+import elovaire.music.droidbeauty.app.data.library.LibrarySongDuplicateResolver
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal interface PlaybackQueueRuntime {
@@ -208,8 +210,30 @@ internal class PlaybackQueueController(
         if (state.queue.isEmpty() || updatedSongs.isEmpty()) return
         val queuedSongIds = state.queue.asSequence().mapTo(linkedSetOf(), Song::id)
         val songsById = updatedSongs.associateQueuedSongsById(queuedSongIds)
-        if (songsById.isEmpty()) return
-        val refreshedQueue = queueMetadataRefresher.refreshQueueIfNeeded(state.queue, songsById) ?: return
+        val queuedIdentities = state.queue.mapTo(hashSetOf(), MediaIdentityResolver::stableKey)
+        val songsByIdentity = updatedSongs
+            .asSequence()
+            .filter { MediaIdentityResolver.stableKey(it) in queuedIdentities }
+            .associateBy(MediaIdentityResolver::stableKey)
+        val queuedPaths = state.queue.mapNotNull { song ->
+            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)
+        }.toSet()
+        val songsByPath = updatedSongs
+            .asSequence()
+            .mapNotNull { song ->
+                LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { it to song }
+            }
+            .groupBy({ it.first }, { it.second })
+            .filterValues { songs -> songs.size == 1 }
+            .mapValues { (_, songs) -> songs.single() }
+            .filterKeys(queuedPaths::contains)
+        if (songsById.isEmpty() && songsByIdentity.isEmpty() && songsByPath.isEmpty()) return
+        val refreshedQueue = queueMetadataRefresher.refreshQueueIfNeeded(
+            queue = state.queue,
+            librarySongsById = songsById,
+            librarySongsByIdentity = songsByIdentity,
+            librarySongsByPath = songsByPath,
+        ) ?: return
         val player = runtime.player
         refreshedQueue.forEachIndexed { index, refreshedSong ->
             if (

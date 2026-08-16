@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
+import elovaire.music.droidbeauty.app.data.library.LibrarySongDuplicateResolver
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal class PlaybackQueueMetadataRefresher {
@@ -12,11 +14,19 @@ internal class PlaybackQueueMetadataRefresher {
     fun refreshQueueIfNeeded(
         queue: List<Song>,
         librarySongsById: Map<Long, Song>,
+        librarySongsByIdentity: Map<String, Song> = emptyMap(),
+        librarySongsByPath: Map<String, Song> = emptyMap(),
     ): List<Song>? {
-        if (queue.isEmpty() || librarySongsById.isEmpty()) return null
+        if (
+            queue.isEmpty() ||
+            (librarySongsById.isEmpty() && librarySongsByIdentity.isEmpty() && librarySongsByPath.isEmpty())
+        ) return null
         var changed = false
         val refreshedQueue = queue.map { queuedSong ->
             val librarySong = librarySongsById[queuedSong.id]
+                ?: librarySongsByIdentity[MediaIdentityResolver.stableKey(queuedSong)]
+                ?: LibrarySongDuplicateResolver.normalizedRealPath(queuedSong.libraryPath)
+                    ?.let(librarySongsByPath::get)
             if (librarySong != null && librarySong != queuedSong) {
                 changed = true
                 librarySong

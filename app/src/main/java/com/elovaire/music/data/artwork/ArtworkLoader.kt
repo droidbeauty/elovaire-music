@@ -1,13 +1,20 @@
 package elovaire.music.droidbeauty.app.data.artwork
 
+import android.content.ComponentCallbacks2
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
+import android.util.LruCache
 import android.util.Size
+import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import java.io.FileInputStream
 import java.io.InputStream
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 
 internal data class ArtworkRequestKey(
     val uri: Uri,
@@ -64,18 +71,23 @@ internal fun loadArtworkBitmap(
     purpose: ArtworkPurpose = if (targetPx <= 256) ArtworkPurpose.UiGrid else ArtworkPurpose.UiLarge,
 ): Bitmap? {
     val requestUri = uri ?: return null
+    ArtworkBitmapCache.ensureRegistered(context.applicationContext)
     val size = normalizeArtworkRequestSize(targetPx)
-    val targetSize = ImageTargetSize(size, size)
-
-    if (purpose != ArtworkPurpose.Notification) {
-        runCatching {
-            context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
-        }.getOrNull()?.let { return it }
+    val key = artworkRequestKey(requestUri, size, purpose)
+    val decode = {
+        val targetSize = ImageTargetSize(size, size)
+        val bitmap = if (purpose != ArtworkPurpose.Notification) {
+            runCatching {
+                context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
+            }.getOrNull()
+        } else {
+            null
+        }
+        bitmap
+            ?: decodeBitmapStream(context, requestUri, targetSize, purpose)
+            ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
     }
-
-    decodeBitmapStream(context, requestUri, targetSize, purpose)?.let { return it }
-
-    return decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
+    return key?.let { ArtworkBitmapCache.getOrLoad(it.cacheKey, decode) } ?: decode()
 }
 
 internal fun loadArtworkBitmap(
@@ -206,4 +218,153 @@ internal fun bitmapConfigForPurpose(purpose: ArtworkPurpose): Bitmap.Config {
         ArtworkPurpose.TagEditorPreview,
         -> Bitmap.Config.ARGB_8888
     }
+}
+
+/** One bounded decoded-bitmap cache shared by UI and notification artwork consumers. */
+internal object ArtworkBitmapCache {
+    private val maxCacheBytes = (Runtime.getRuntime().maxMemory() / 16L)
+        .coerceAtMost(8L * 1024L * 1024L)
+        .coerceAtLeast(2L * 1024L * 1024L)
+        .toInt()
+    private var callbacksRegistered = false
+    private val cache = object : LruCache<String, Bitmap>(maxCacheBytes) {
+        override fun sizeOf(key: String, value: Bitmap): Int {
+            return value.allocationByteCount.coerceAtLeast(1)
+        }
+    }
+    private val inFlight = mutableMapOf<String, CompletableFuture<Bitmap?>>()
+    private const val MAX_IN_FLIGHT = 8
+
+    @Synchronized
+    fun ensureRegistered(appContext: Context) {
+        if (callbacksRegistered) return
+        appContext.registerComponentCallbacks(object : ComponentCallbacks2 {
+            override fun onConfigurationChanged(newConfig: Configuration) = Unit
+
+            @Deprecated("Deprecated Android callback")
+            override fun onLowMemory() = Unit
+
+            override fun onTrimMemory(level: Int) {
+                trim(level)
+            }
+        })
+        callbacksRegistered = true
+    }
+
+    @Synchronized
+    operator fun get(key: String): Bitmap? = cache.get(key)
+
+    @Synchronized
+    fun bestForUri(
+        uri: Uri,
+        requestedSize: Int,
+        purpose: ArtworkPurpose,
+    ): Bitmap? {
+        val prefix = "$uri|"
+        var smallestSufficientSize = Int.MAX_VALUE
+        var largestAvailableSize = Int.MIN_VALUE
+        var smallestSufficient: Bitmap? = null
+        var largestAvailable: Bitmap? = null
+        cache.snapshot().forEach { (key, bitmap) ->
+            if (!key.startsWith(prefix)) return@forEach
+            val remainder = key.removePrefix(prefix)
+            val separator = remainder.indexOf('|')
+            if (separator <= 0 || remainder.substring(separator + 1) != purpose.name) return@forEach
+            val size = remainder.substring(0, separator).toIntOrNull() ?: return@forEach
+            if (size >= requestedSize && size < smallestSufficientSize) {
+                smallestSufficientSize = size
+                smallestSufficient = bitmap
+            }
+            if (size > largestAvailableSize) {
+                largestAvailableSize = size
+                largestAvailable = bitmap
+            }
+        }
+        return smallestSufficient ?: largestAvailable
+    }
+
+    @Synchronized
+    fun put(key: String, bitmap: Bitmap) {
+        cache.put(key, bitmap)
+    }
+
+    fun getOrLoad(
+        key: String,
+        decode: () -> Bitmap?,
+    ): Bitmap? {
+        var ownerFuture: CompletableFuture<Bitmap?>? = null
+        while (ownerFuture == null) {
+            val waitFor: CompletableFuture<Bitmap?>?
+            synchronized(this) {
+                cache.get(key)?.let { return it }
+                val existing = inFlight[key]
+                if (existing != null) {
+                    waitFor = existing
+                } else if (inFlight.size < MAX_IN_FLIGHT) {
+                    ownerFuture = CompletableFuture()
+                    inFlight[key] = ownerFuture
+                    waitFor = null
+                } else {
+                    waitFor = inFlight.values.firstOrNull()
+                }
+            }
+            if (ownerFuture == null) {
+                val completed = waitFor ?: continue
+                try {
+                    completed.get()
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    return null
+                } catch (_: ExecutionException) {
+                    // The owner completed with a failure; retry the requested key below.
+                }
+                synchronized(this) {
+                    cache.get(key)?.let { return it }
+                    if (inFlight[key] === completed) return null
+                }
+            }
+        }
+
+        val pending = requireNotNull(ownerFuture)
+        val outcome = runCatching {
+            decode()?.also { put(key, it) }
+        }
+        return try {
+            outcome.fold(
+                onSuccess = { loaded ->
+                    pending.complete(loaded)
+                    loaded
+                },
+                onFailure = { failure ->
+                    pending.completeExceptionally(failure)
+                    throw failure
+                },
+            )
+        } finally {
+            synchronized(this) {
+                if (inFlight[key] === pending) inFlight.remove(key)
+            }
+        }
+    }
+
+    @Synchronized
+    fun removeAllMatchingUris(uris: Collection<String>) {
+        if (uris.isEmpty()) return
+        cache.snapshot().keys
+            .filter { key -> uris.any { uri -> key == uri || key.startsWith("$uri|") } }
+            .forEach(cache::remove)
+    }
+
+    @Synchronized
+    private fun trim(level: Int) {
+        when (memoryPressureForTrimLevel(level)) {
+            MemoryPressure.Critical -> cache.evictAll()
+            MemoryPressure.Moderate -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
+            MemoryPressure.Normal -> Unit
+        }
+    }
+}
+
+internal fun invalidateArtworkBitmapCache(uris: Collection<String>) {
+    ArtworkBitmapCache.removeAllMatchingUris(uris)
 }

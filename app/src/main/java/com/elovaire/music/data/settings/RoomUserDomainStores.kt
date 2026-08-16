@@ -79,6 +79,18 @@ internal class RoomPlaybackHistoryStore(
         _lastPlayedCollectionId.value = collectionId
     }
 
+    fun relocateSongIds(replacements: Map<Long, Long>) {
+        if (replacements.isEmpty()) return
+        writeBuffer.relocateSongIds(replacements)
+        _songPlayCounts.value = _songPlayCounts.value
+            .entries
+            .groupBy { resolveRelocatedSongId(it.key, replacements) }
+            .mapValues { (_, entries) -> entries.maxOf { it.value } }
+        _recentSongIds.value = _recentSongIds.value
+            .map { resolveRelocatedSongId(it, replacements) }
+            .distinct()
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private suspend fun flushPlaybackCounts() {
         val batch = writeBuffer.takeTransitions()
@@ -213,6 +225,34 @@ internal class PlaybackHistoryWriteBuffer {
     fun restoreRecent(value: RecentPlaybackWrite) {
         recent = value
         recentFlushScheduled = false
+    }
+
+    @Synchronized
+    fun relocateSongIds(replacements: Map<Long, Long>) {
+        if (replacements.isEmpty()) return
+        val relocatedCounts = songCounts.entries
+            .groupBy { resolveRelocatedSongId(it.key, replacements) }
+            .mapValues { (_, entries) -> entries.sumOf { it.value }.coerceAtMost(Int.MAX_VALUE) }
+        songCounts.clear()
+        songCounts.putAll(relocatedCounts)
+        val pendingRecent = recent
+        if (pendingRecent != null) {
+            recent = pendingRecent.copy(
+                songIds = pendingRecent.songIds
+                    .map { resolveRelocatedSongId(it, replacements) }
+                    .distinct(),
+            )
+        }
+    }
+}
+
+internal fun resolveRelocatedSongId(id: Long, replacements: Map<Long, Long>): Long {
+    var current = id
+    val visited = HashSet<Long>()
+    while (true) {
+        val next = replacements[current] ?: return current
+        if (!visited.add(current) || next == current) return current
+        current = next
     }
 }
 

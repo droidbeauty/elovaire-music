@@ -376,6 +376,32 @@ internal class RoomUserDataStore(
         PlaylistMutationResult.Success(changed = true)
     }
 
+    /** Re-keys persisted media references after library reconciliation proves a relocation. */
+    fun relocateSongReferences(replacements: Map<Long, Long>): Deferred<PlaylistMutationResult> =
+        enqueueMutation("library.relocate_song_references") {
+            val normalized = replacements.filter { (before, after) ->
+                before > 0L && after > 0L && before != after
+            }
+            if (normalized.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
+
+            dao.relocateSongReferences(normalized)
+            val playlists = _userPlaylists.value.map { playlist ->
+                playlist.copy(
+                    songIds = playlist.songIds
+                        .map { resolveRelocatedSongId(it, normalized) }
+                        .distinct(),
+                )
+            }
+            publishPlaylists(playlists)
+            publishFavorites(
+                _favoriteSongIds.value
+                    .map { resolveRelocatedSongId(it, normalized) }
+                    .distinct(),
+            )
+            playbackHistoryStore.relocateSongIds(normalized)
+            PlaylistMutationResult.Success(changed = true)
+        }
+
     override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
         playbackHistoryStore.recordPlaybackTransition(songId, albumId)
     }

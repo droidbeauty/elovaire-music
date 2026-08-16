@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
-import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -10,11 +9,8 @@ import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.AudioQualityFormatter
-import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
-import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
-import elovaire.music.droidbeauty.app.data.audio.toMetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -28,7 +24,7 @@ class MediaStoreScanner(
 ) {
     private val metadataCache = ScannerMetadataCache()
     private val audioFormatDetector = AudioFormatDetector(context)
-    private val embeddedTagMetadataReader = EmbeddedTagMetadataReader(context)
+    private val localMetadataReader = LocalAudioMetadataReader(context)
     private val scanRoots = LibraryScanRoots()
     private val mediaStoreIndexer = MediaStoreIndexer(
         context = context,
@@ -146,7 +142,9 @@ class MediaStoreScanner(
                         }
                         continue
                     }
-                    val uriKey = row.uri.toString()
+                    val uriKey = MediaIdentityResolver.mediaStore(row.volumeName, row.id)
+                        ?.stableKey
+                        ?: row.uri.toString()
                     val cachedMetadata = metadataCache[uriKey]
                         ?.takeIf { cached ->
                             cached.matches(
@@ -412,98 +410,48 @@ class MediaStoreScanner(
         detectedFormat: DetectedAudioFormat,
         genreCache: MutableMap<MediaStoreGenreKey, String?>,
     ): SongMetadata {
-        val embeddedMetadata = embeddedTagMetadataReader.read(
+        val metadata = localMetadataReader.read(
             uri = songUri,
             filePath = filePath,
             fileName = fileName,
-        )
-        val retrieverMetadata = readRetrieverMetadata(songUri)
-        val canonicalMetadata = CanonicalMetadataResolver.resolve(
-            embedded = embeddedMetadata?.toMetadataSourceValues(),
-            platform = retrieverMetadata.toMetadataSourceValues(),
             indexed = MetadataSourceValues(
                 title = indexedTitle,
                 artist = indexedArtist,
                 album = indexedAlbum,
                 releaseYear = mediaStoreYear,
             ),
+            fallbackGenre = genreCache.getOrPut(MediaStoreGenreKey(songId, volumeName)) {
+                queryGenre(songId, volumeName)
+            },
         )
         val resolvedFormat = detectedFormat.displayName
-        val year = canonicalMetadata.releaseYear
-        val sampleRate = retrieverMetadata.sampleRate ?: detectedFormat.sampleRate
-        val bitDepth = retrieverMetadata.bitDepth
-        val bitrate = retrieverMetadata.bitrate
+        val sampleRate = metadata.sampleRate ?: detectedFormat.sampleRate
+        val bitrate = metadata.bitrate
             ?: detectedFormat.bitrate
             ?: estimateBitrateBitsPerSecond(
                 fileSizeBytes = fileSizeBytes,
                 durationMs = durationMs,
                 resolvedFormat = resolvedFormat,
             )
-        val genre = canonicalMetadata.genre
-            ?: genreCache.getOrPut(MediaStoreGenreKey(songId, volumeName)) {
-                queryGenre(songId, volumeName)
-            }
         return SongMetadata(
-            title = canonicalMetadata.title,
-            artist = canonicalMetadata.artist,
-            albumArtist = canonicalMetadata.albumArtist,
-            album = canonicalMetadata.album,
-            releaseYear = year,
-            genre = genre,
+            title = metadata.title,
+            artist = metadata.artist,
+            albumArtist = metadata.albumArtist,
+            album = metadata.album,
+            releaseYear = metadata.releaseYear,
+            genre = metadata.genre,
             format = resolvedFormat,
             quality = AudioQualityFormatter.format(
                 container = detectedFormat.container,
-                bitDepth = bitDepth,
+                bitDepth = metadata.bitDepth,
                 sampleRate = sampleRate,
                 bitrate = bitrate,
                 codecMimeType = detectedFormat.codecMimeType,
             ),
-            trackNumber = canonicalMetadata.trackNumber,
-            discNumber = canonicalMetadata.discNumber,
-            volumeNormalization = canonicalMetadata.volumeNormalization,
+            trackNumber = metadata.trackNumber,
+            discNumber = metadata.discNumber,
+            volumeNormalization = metadata.volumeNormalization,
         )
-    }
-
-    private fun readRetrieverMetadata(songUri: Uri): RetrieverMetadata {
-        return runCatching {
-            val retriever = MediaMetadataRetriever()
-            try {
-                retriever.setDataSource(context, songUri)
-                val platformMetadata = RetrieverMetadata(
-                    title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-                        ?.trim()
-                        ?.takeIf { it.isNotBlank() },
-                    artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                        ?.trim()
-                        ?.takeIf { it.isNotBlank() },
-                    albumArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
-                        ?.trim()
-                        ?.takeIf { it.isNotBlank() },
-                    album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-                        ?.trim()
-                        ?.takeIf { it.isNotBlank() },
-                    year = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_YEAR)
-                        ?.take(4)
-                        ?.toIntOrNull()
-                        ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DATE)
-                            ?.let(::parseYearFromDateTag),
-                    sampleRate = extractRetrieverSampleRate(retriever),
-                    bitDepth = extractRetrieverBitDepth(retriever),
-                    bitrate = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)?.toIntOrNull(),
-                    genre = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_GENRE)
-                        ?.substringBefore(';')
-                        ?.substringBefore('/')
-                        ?.trim()
-                        ?.takeIf { it.isNotBlank() },
-                    trackNumber = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_CD_TRACK_NUMBER)
-                        ?.let(::parseTrackNumberTag),
-                    discNumber = extractRetrieverDiscNumber(retriever),
-                )
-                platformMetadata
-            } finally {
-                runCatching { retriever.release() }
-            }
-        }.getOrDefault(RetrieverMetadata())
     }
 
     private fun queryGenre(
@@ -534,26 +482,6 @@ class MediaStoreScanner(
         }
     }
 
-    private fun parseYearFromDateTag(value: String): Int? {
-        return YEAR_REGEX.find(value)?.value?.toIntOrNull()
-    }
-
-    private fun parseTrackNumberTag(value: String): Int? {
-        return value
-            .substringBefore('/')
-            .trim()
-            .toIntOrNull()
-            ?.takeIf { it > 0 }
-    }
-
-    private fun extractRetrieverDiscNumber(retriever: MediaMetadataRetriever): Int? {
-        return retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DISC_NUMBER)
-            ?.substringBefore('/')
-            ?.trim()
-            ?.toIntOrNull()
-            ?.takeIf { it > 0 }
-    }
-
     private fun estimateBitrateBitsPerSecond(
         fileSizeBytes: Long?,
         durationMs: Long,
@@ -568,7 +496,6 @@ class MediaStoreScanner(
 
     internal companion object {
         const val MEDIASTORE_ID_QUERY_CHUNK_SIZE = 400
-        val YEAR_REGEX = Regex("""\b(19|20)\d{2}\b""")
         val EXPLICIT_MARKERS = listOf(
             "(explicit)",
             "[explicit]",
@@ -581,20 +508,6 @@ class MediaStoreScanner(
         )
         val TRAILING_REPLACEMENT_MARKERS = Regex("""\s*[\uFFFD?]{3,}\s*$""")
         val NON_BITRATE_ESTIMATED_FORMATS = setOf("WAV", "FLAC")
-    }
-
-    @Suppress("InlinedApi")
-    private fun extractRetrieverSampleRate(retriever: MediaMetadataRetriever): Int? {
-        return runCatching {
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_SAMPLERATE)?.toIntOrNull()
-        }.getOrNull()
-    }
-
-    @Suppress("InlinedApi")
-    private fun extractRetrieverBitDepth(retriever: MediaMetadataRetriever): Int? {
-        return runCatching {
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_BITS_PER_SAMPLE)?.toIntOrNull()
-        }.getOrNull()
     }
 
 }
@@ -634,33 +547,6 @@ internal fun sortAlbumSongs(albumSongs: List<Song>): List<Song> {
     } else {
         albumSongs.sortedBy { it.fileName.lowercase(Locale.ROOT) }
     }
-}
-
-private data class RetrieverMetadata(
-    val title: String? = null,
-    val artist: String? = null,
-    val albumArtist: String? = null,
-    val album: String? = null,
-    val year: Int? = null,
-    val sampleRate: Int? = null,
-    val bitDepth: Int? = null,
-    val bitrate: Int? = null,
-    val genre: String? = null,
-    val trackNumber: Int? = null,
-    val discNumber: Int? = null,
-)
-
-private fun RetrieverMetadata.toMetadataSourceValues(): MetadataSourceValues {
-    return MetadataSourceValues(
-        title = title,
-        artist = artist,
-        albumArtist = albumArtist,
-        album = album,
-        releaseYear = year,
-        genre = genre,
-        trackNumber = trackNumber?.toString(),
-        discNumber = discNumber?.toString(),
-    )
 }
 
 internal fun Song.qualityNeedsEnrichment(): Boolean {

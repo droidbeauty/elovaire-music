@@ -77,6 +77,19 @@ internal object MediaIdentityResolver {
     }
 
     fun stableKey(song: Song): String {
+        val source = resolve(song)
+        return source?.stableKey
+            ?: song.uri.toString()
+                .takeIf { song.uri.scheme.equals("content", ignoreCase = true) }
+                ?.trim()
+                ?.lowercase(Locale.ROOT)
+                ?.let { "uri:$it" }
+            ?: LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { "file:$it" }
+            ?: song.uri.toString().trim().lowercase(Locale.ROOT).let { "uri:$it" }
+    }
+
+    /** Source-local key used by scanner caches; unlike [stableKey], it never follows a path. */
+    fun sourceKey(song: Song): String {
         return resolve(song)?.stableKey
             ?: song.uri.toString().trim().lowercase(Locale.ROOT).let { "uri:$it" }
     }
@@ -102,6 +115,10 @@ internal object MediaIdentityResolver {
             val volume = segments.firstOrNull()
             mediaStore(volume, mediaId)?.let { return it }
         }
+        val isDocumentUri = uri.pathSegments.any { segment ->
+            segment.equals("document", ignoreCase = true) || segment.equals("tree", ignoreCase = true)
+        }
+        if (!isDocumentUri) return null
         val documentId = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
         val treeId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
         return safDocument(uri.authority, documentId, treeId)

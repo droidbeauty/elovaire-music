@@ -6,6 +6,7 @@ import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
+import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
@@ -17,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
@@ -58,10 +60,7 @@ internal class AppServices(
     }
     val updateController: UpdateController get() = updateControllerDelegate.value
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        ArtistImageRepository(
-            context = applicationContext,
-            appScope = appScope,
-        )
+        ArtistImageRepository()
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
     val albumTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -88,6 +87,13 @@ internal class AppServices(
         scanner = MediaStoreScanner(applicationContext),
         scope = appScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
+        libraryIndexStore = LibraryIndexStore(database.libraryDao()),
+        onSongRelocations = { replacements ->
+            when (val result = userDataStore.relocateSongReferences(replacements).await()) {
+                is PlaylistMutationResult.Success -> Unit
+                else -> error("Unable to preserve user-data references during media relocation: $result")
+            }
+        },
     ).also { it.setLibraryFolders(preferenceStore.libraryFolders.value) }
     private val lyricsServiceDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         LyricsService(
