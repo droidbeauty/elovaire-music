@@ -87,6 +87,7 @@ internal fun LibraryCollectionRouteHost(
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
+    artistImageRepository: ArtistImageRepository,
 ) {
     val appState = routeState.appState
     LibraryCollectionScreen(
@@ -99,6 +100,7 @@ internal fun LibraryCollectionRouteHost(
         songCollectionLayoutMode = if (appState.songCollectionGridEnabled) AlbumLayoutMode.Grid else AlbumLayoutMode.Compact,
         albumSortMode = appState.albumCollectionSortModeName.toAlbumSortMode(),
         songSortMode = appState.songCollectionSortModeName.toSongSortMode(),
+        artistImageRepository = artistImageRepository,
         currentSongId = routeState.playbackState.currentSong?.id,
         isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
         bottomPadding = padding.detailBottom,
@@ -134,12 +136,14 @@ internal fun RecentlyAddedRouteHost(
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
+    artistImageRepository: ArtistImageRepository,
 ) {
     val appState = routeState.appState
     val library = routeState.libraryState
     LibraryCollectionScreen(
         kind = LibraryCollectionKind.Albums,
         libraryState = library.copy(albums = recentlyAddedAlbumsFor(library)),
+        artistImageRepository = artistImageRepository,
         playlists = appState.playlists,
         songPlayCounts = appState.songPlayCounts,
         favoriteSongIds = appState.favoriteSongIds,

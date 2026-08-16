@@ -42,6 +42,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
+import java.util.LinkedHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
@@ -52,7 +53,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.ClosedSendChannelException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -73,16 +73,16 @@ internal class RoomUserDataStore(
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
-    // The channel is bounded. If it is full, a non-blocking sender is retained as a suspended
-    // submission until the actor accepts it, so durable actions are never silently discarded.
+    // Durable mutations are accepted only when they fit in the bounded channel. Coalescible
+    // state uses one replaceable slot per semantic operation instead of suspended senders.
     private val operations = Channel<RoomOperation>(MAX_OPERATION_QUEUE_DEPTH)
     private val operationScope = CoroutineScope(SupervisorJob() + ioDispatcher)
     private val queueDepth = AtomicInteger()
     private val maxQueueDepth = AtomicInteger()
-    private val pendingSubmissions = AtomicInteger()
     private val submissionLock = Any()
-    private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueue)
-    private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueue)
+    private val coalescedOperations = LinkedHashMap<String, RoomOperation>()
+    private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueueCoalesced)
+    private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueueCoalesced)
 
     private val _userPlaylists = MutableStateFlow<List<Playlist>>(emptyList())
     override val playlists: StateFlow<List<Playlist>> = _userPlaylists.asStateFlow()
@@ -115,6 +115,7 @@ internal class RoomUserDataStore(
             for (operation in operations) {
                 queueDepth.decrementAndGet()
                 runOperation(operation)
+                promoteCoalescedOperation()
             }
         } catch (cancelled: CancellationException) {
             if (!released.get()) failActor(cancelled)
@@ -405,7 +406,8 @@ internal class RoomUserDataStore(
         if (!released.compareAndSet(false, true)) return
         lifecycle.set(StoreLifecycle.Releasing)
         synchronized(submissionLock) {
-            if (pendingSubmissions.get() == 0) operations.close()
+            promoteCoalescedOperationLocked()
+            closeOperationsIfDrainedLocked()
         }
         ownerJob.invokeOnCompletion {
             if (BuildConfig.DEBUG) {
@@ -525,8 +527,8 @@ internal class RoomUserDataStore(
         tryEnqueue(RoomOperation(name, operation))
     }
 
-    private fun enqueue(operation: suspend () -> Unit) {
-        enqueue("coalesced", operation)
+    private fun enqueueCoalesced(name: String, operation: suspend () -> Unit) {
+        tryEnqueue(RoomOperation(name, operation), coalescible = true)
     }
 
     private fun enqueueMutation(
@@ -542,66 +544,56 @@ internal class RoomUserDataStore(
             ),
         )
         if (!accepted) {
-            completion.complete(submissionFailure())
+            completion.complete(submissionFailure("User-data queue is full."))
         }
         return completion
     }
 
-    private fun submissionFailure(): PlaylistMutationResult {
+    private fun submissionFailure(message: String = "User-data store is released."): PlaylistMutationResult {
         val failure = actorFailure.get()
         return if (failure != null) {
             PlaylistMutationResult.Failure("User-data store failed.", failure)
         } else {
-            PlaylistMutationResult.Failure("User-data store is released.")
+            PlaylistMutationResult.Failure(message)
         }
     }
 
-    private fun tryEnqueue(operation: suspend () -> Unit): Boolean {
-        return tryEnqueue(RoomOperation("user_data", operation))
-    }
-
-    private fun tryEnqueue(name: String, operation: suspend () -> Unit): Boolean {
-        return tryEnqueue(RoomOperation(name, operation))
-    }
-
-    private fun tryEnqueue(operation: RoomOperation): Boolean {
-        val depth: Int
+    private fun tryEnqueue(operation: RoomOperation, coalescible: Boolean = false): Boolean {
         synchronized(submissionLock) {
             if (released.get() || lifecycle.get() == StoreLifecycle.Failed) return false
-            depth = queueDepth.incrementAndGet()
-            pendingSubmissions.incrementAndGet()
             if (operations.trySend(operation).isSuccess) {
-                pendingSubmissions.decrementAndGet()
+                val depth = queueDepth.incrementAndGet()
                 maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
                 return true
             }
-        }
-
-        // send() suspends only this IO-scoped submission coroutine; the caller remains non-blocking.
-        operationScope.launch(start = CoroutineStart.UNDISPATCHED) {
-            try {
-                operations.send(operation)
-                maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
-            } catch (_: ClosedSendChannelException) {
-                queueDepth.decrementAndGet()
-                operation.completion?.complete(submissionFailure())
-            } catch (cancelled: CancellationException) {
-                queueDepth.decrementAndGet()
-                if (lifecycle.get() == StoreLifecycle.Failed) {
-                    operation.completion?.complete(submissionFailure())
-                } else {
-                    operation.completion?.cancel(cancelled)
-                }
-                throw cancelled
-            } finally {
-                synchronized(submissionLock) {
-                    if (pendingSubmissions.decrementAndGet() == 0 && released.get()) {
-                        operations.close()
-                    }
-                }
+            if (coalescible) {
+                coalescedOperations[operation.name] = operation
+                return true
             }
+            return false
         }
-        return true
+    }
+
+    private fun promoteCoalescedOperation() {
+        synchronized(submissionLock) {
+            promoteCoalescedOperationLocked()
+            closeOperationsIfDrainedLocked()
+        }
+    }
+
+    private fun promoteCoalescedOperationLocked() {
+        if (coalescedOperations.isEmpty()) return
+        val entry = coalescedOperations.entries.first()
+        if (!operations.trySend(entry.value).isSuccess) return
+        coalescedOperations.remove(entry.key)
+        val depth = queueDepth.incrementAndGet()
+        maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
+    }
+
+    private fun closeOperationsIfDrainedLocked() {
+        if (released.get() && queueDepth.get() == 0 && coalescedOperations.isEmpty()) {
+            operations.close()
+        }
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -632,8 +624,14 @@ internal class RoomUserDataStore(
         actorFailure.compareAndSet(null, failure)
         lifecycle.set(StoreLifecycle.Failed)
         Log.e(TAG, "User-data actor stopped; rejecting future operations.", failure)
-        operations.close()
-        rejectQueuedOperations()
+        synchronized(submissionLock) {
+            operations.close()
+            rejectQueuedOperations()
+            coalescedOperations.values.forEach { operation ->
+                operation.completion?.complete(submissionFailure())
+            }
+            coalescedOperations.clear()
+        }
     }
 
     private fun rejectQueuedOperations() {

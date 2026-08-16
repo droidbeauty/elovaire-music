@@ -3,7 +3,9 @@ package elovaire.music.droidbeauty.app.domain.search
 import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.nio.charset.StandardCharsets
 import java.text.Normalizer
+import java.security.MessageDigest
 import java.util.Locale
 import kotlin.math.min
 
@@ -66,23 +68,48 @@ internal data class SearchLibrarySnapshot(
     val songs: List<Song>,
     val albums: List<Album>,
 ) {
-    fun signature(): Long {
-        var result = 17L
-        result = 31L * result + songs.size
-        result = 31L * result + albums.size
+    fun signature(): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        digest.appendSearchRevisionValue(songs.size)
+        digest.appendSearchRevisionValue(albums.size)
         songs.forEach { song ->
-            result = 31L * result + song.id
-            result = 31L * result + song.title.hashCode()
-            result = 31L * result + song.artist.hashCode()
-            result = 31L * result + song.album.hashCode()
-            result = 31L * result + song.albumArtist.orEmpty().hashCode()
+            digest.appendSearchRevisionValue(song.id)
+            digest.appendSearchRevisionValue(song.title)
+            digest.appendSearchRevisionValue(song.artist)
+            digest.appendSearchRevisionValue(song.album)
+            digest.appendSearchRevisionValue(song.albumArtist.orEmpty())
         }
         albums.forEach { album ->
-            result = 31L * result + album.id
-            result = 31L * result + album.title.hashCode()
-            result = 31L * result + album.artist.hashCode()
+            digest.appendSearchRevisionValue(album.id)
+            digest.appendSearchRevisionValue(album.title)
+            digest.appendSearchRevisionValue(album.artist)
         }
-        return result
+        return digest.digest().toSearchRevisionHex()
+    }
+}
+
+private fun MessageDigest.appendSearchRevisionValue(value: Any?) {
+    if (value == null) {
+        update(0xFF.toByte())
+        return
+    }
+    val bytes = value.toString().toByteArray(StandardCharsets.UTF_8)
+    update(0)
+    update((bytes.size ushr 24).toByte())
+    update((bytes.size ushr 16).toByte())
+    update((bytes.size ushr 8).toByte())
+    update(bytes.size.toByte())
+    update(bytes)
+}
+
+private fun ByteArray.toSearchRevisionHex(): String {
+    val digits = "0123456789abcdef"
+    return buildString(size * 2) {
+        this@toSearchRevisionHex.forEach { byte ->
+            val value = byte.toInt() and 0xFF
+            append(digits[value ushr 4])
+            append(digits[value and 0x0F])
+        }
     }
 }
 

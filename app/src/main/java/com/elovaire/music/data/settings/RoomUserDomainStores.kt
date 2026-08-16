@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 internal class RoomPlaybackHistoryStore(
     private val dao: UserDataDao,
-    private val enqueue: (suspend () -> Unit) -> Unit,
+    private val enqueue: (String, suspend () -> Unit) -> Unit,
 ) : PlaybackHistoryStore {
     private val writeBuffer = PlaybackHistoryWriteBuffer()
     private val _albumPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
@@ -34,7 +34,9 @@ internal class RoomPlaybackHistoryStore(
 
     override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
         if (songId == null && albumId == null) return
-        if (writeBuffer.addTransition(songId, albumId)) enqueue(::flushPlaybackCounts)
+        if (writeBuffer.addTransition(songId, albumId)) {
+            enqueue("playback.counts", ::flushPlaybackCounts)
+        }
     }
 
     override fun setRecentPlaybackIds(
@@ -47,7 +49,9 @@ internal class RoomPlaybackHistoryStore(
         val albums = normalizeRecentIds(albumIds)
         val collectionId = lastPlayedCollectionId?.takeIf { it != 0L }
         val pending = RecentPlaybackWrite(songs, albums, lastPlayedCollectionKind, collectionId)
-        if (writeBuffer.setRecent(pending)) enqueue(::flushRecentPlayback)
+        if (writeBuffer.setRecent(pending)) {
+            enqueue("playback.recent", ::flushRecentPlayback)
+        }
     }
 
     fun publish(
@@ -223,33 +227,37 @@ private fun Map<Long, Int>.incrementedBy(increments: Map<Long, Int>): Map<Long, 
 
 internal class RoomSearchHistoryStore(
     private val dao: UserDataDao,
-    private val enqueue: (suspend () -> Unit) -> Unit,
+    private val enqueue: (String, suspend () -> Unit) -> Unit,
 ) : SearchHistoryStore {
     private val _searchHistory = MutableStateFlow<List<SearchHistoryEntry>>(emptyList())
     override val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
 
     override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
         val normalized = entry.normalized() ?: return
-        enqueue {
-            val updated = buildList {
-                add(normalized)
-                _searchHistory.value.asSequence()
-                    .filter { it.key != normalized.key }
-                    .take(MAX_SEARCH_HISTORY - 1)
-                    .forEach(::add)
-            }
-            if (updated == _searchHistory.value) return@enqueue
-            dao.replaceSearchHistory(updated.mapIndexed { index, item -> item.toEntity(index) })
-            _searchHistory.value = updated
-        }
+        enqueue("search_history") { persistSearchHistoryEntry(normalized) }
     }
 
     override fun clearSearchHistoryEntries() {
-        enqueue {
-            if (_searchHistory.value.isEmpty()) return@enqueue
-            dao.clearSearchHistory()
-            _searchHistory.value = emptyList()
+        enqueue("search_history") { clearPersistedSearchHistory() }
+    }
+
+    private suspend fun persistSearchHistoryEntry(entry: SearchHistoryEntry) {
+        val updated = buildList {
+            add(entry)
+            _searchHistory.value.asSequence()
+                .filter { it.key != entry.key }
+                .take(MAX_SEARCH_HISTORY - 1)
+                .forEach(::add)
         }
+        if (updated == _searchHistory.value) return
+        dao.replaceSearchHistory(updated.mapIndexed { index, item -> item.toEntity(index) })
+        _searchHistory.value = updated
+    }
+
+    private suspend fun clearPersistedSearchHistory() {
+        if (_searchHistory.value.isEmpty()) return
+        dao.clearSearchHistory()
+        _searchHistory.value = emptyList()
     }
 
     fun publish(entries: List<SearchHistoryEntry>) {

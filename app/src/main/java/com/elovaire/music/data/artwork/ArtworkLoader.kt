@@ -6,6 +6,8 @@ import android.graphics.BitmapFactory
 import android.media.MediaMetadataRetriever
 import android.net.Uri
 import android.util.Size
+import java.io.FileInputStream
+import java.io.InputStream
 
 internal data class ArtworkRequestKey(
     val uri: Uri,
@@ -107,15 +109,23 @@ private fun decodeBitmapStream(
 ): Bitmap? {
     return runCatching {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+        openArtworkInputStream(context, uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
         }
         val sampledOptions = artworkDecodeOptions(options, targetSize, purpose)
             ?: return@runCatching null
-        context.contentResolver.openInputStream(uri)?.use { inputStream ->
+        openArtworkInputStream(context, uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, sampledOptions)
         }
     }.getOrNull()
+}
+
+private fun openArtworkInputStream(context: Context, uri: Uri): InputStream? {
+    return if (uri.scheme == "file") {
+        uri.path?.let(::FileInputStream)
+    } else {
+        context.contentResolver.openInputStream(uri)
+    }
 }
 
 private fun decodeEmbeddedArtwork(

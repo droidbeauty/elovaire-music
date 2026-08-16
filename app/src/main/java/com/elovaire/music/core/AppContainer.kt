@@ -73,8 +73,9 @@ class AppContainer(
         if (released.get() || !started.compareAndSet(false, true)) return
         var completed = false
         try {
-            startPlayback()
+            services.start()
             bridgeCoordinator.start()
+            notificationController().setNotificationsEnabled(true)
             completed = true
         } finally {
             if (!completed) release()
@@ -85,7 +86,7 @@ class AppContainer(
         if (released.get() || !playbackStarted.compareAndSet(false, true)) return
         var completed = false
         try {
-            services.start()
+            services.startPlayback()
             bridgeCoordinator.startPlayback()
             notificationController().setNotificationsEnabled(true)
             completed = true

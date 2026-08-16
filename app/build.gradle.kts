@@ -16,10 +16,15 @@ fun releaseSecret(name: String): String? = providers.gradleProperty(name).orNull
     ?: System.getenv(name)
     ?: localProperties.getProperty(name)
 
+fun buildConfigString(value: String): String {
+    return "\"${value.replace("\\", "\\\\").replace("\"", "\\\"")}\""
+}
+
 val releaseStoreFile = releaseSecret("RELEASE_STORE_FILE")
 val releaseStorePassword = releaseSecret("RELEASE_STORE_PASSWORD")
 val releaseKeyAlias = releaseSecret("RELEASE_KEY_ALIAS")
 val releaseKeyPassword = releaseSecret("RELEASE_KEY_PASSWORD")
+val theAudioDbApiKey = releaseSecret("THEAUDIODB_API_KEY").orEmpty()
 val releaseSigningValues = listOf(
     releaseStoreFile,
     releaseStorePassword,
@@ -50,6 +55,7 @@ android {
         versionCode = AppBuildConfig.Application.versionCode
         versionName = AppBuildConfig.Application.versionName
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
+        buildConfigField("String", "THEAUDIODB_API_KEY", buildConfigString(theAudioDbApiKey))
         vectorDrawables {
             useSupportLibrary = true
         }

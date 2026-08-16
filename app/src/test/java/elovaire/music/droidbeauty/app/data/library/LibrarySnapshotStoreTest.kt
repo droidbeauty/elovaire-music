@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
@@ -61,6 +62,24 @@ class LibrarySnapshotStoreTest {
 
         assertEquals(true, isLibrarySignatureValid(signature, listOf(song)))
         assertEquals(false, isLibrarySignatureValid(signature, listOf(song.copy(dateModifiedSeconds = 11L))))
+    }
+
+    @Test
+    fun libraryContentRevisionIncludesPersistedSongFieldsWithoutRetainingSongs() {
+        val song = snapshotSong(id = 1L, modifiedSeconds = 10L)
+        val baseline = libraryContentRevision(listOf(song), "music", null)
+        val changed = libraryContentRevision(
+            songs = listOf(
+                song.copy(
+                    title = "Changed",
+                    volumeNormalization = VolumeNormalizationMetadata(trackGainDb = -6f),
+                ),
+            ),
+            filterFingerprint = "music",
+            syncState = null,
+        )
+
+        assertNotEquals(baseline, changed)
     }
 
     @Test

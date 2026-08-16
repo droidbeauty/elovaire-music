@@ -5,20 +5,21 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.data.library.libraryIndexContentRevision
 
 internal class LibraryIndexStore(
     private val dao: LibraryDao,
     private val clock: AppClock = AndroidAppClock,
 ) {
-    private var lastIndexedInput: LibraryIndexInput? = null
+    private var lastIndexedRevision: String? = null
 
     suspend fun indexSnapshot(
         snapshot: LibrarySnapshot,
         filterFingerprint: String,
         source: String,
     ) {
-        val input = LibraryIndexInput(snapshot, filterFingerprint, source)
-        if (input == lastIndexedInput) return
+        val revision = libraryIndexContentRevision(snapshot, filterFingerprint, source)
+        if (revision == lastIndexedRevision) return
         val now = clock.wallTimeMs()
         val generationId = nextLibraryGenerationId(now, dao.latestGenerationId())
         val indexed = LibraryDatabaseMapper.indexedSnapshot(snapshot, generationId, now)
@@ -37,7 +38,7 @@ internal class LibraryIndexStore(
             files = indexed.mediaFiles,
             removedAtMs = now,
         )
-        lastIndexedInput = input
+        lastIndexedRevision = revision
     }
 
     suspend fun applyChangedSongs(
@@ -51,7 +52,7 @@ internal class LibraryIndexStore(
             albums = albums.map { LibraryDatabaseMapper.albumEntity(it, now) },
             files = songs.map { LibraryDatabaseMapper.mediaFileEntity(it, now, now) },
         )
-        lastIndexedInput = null
+        lastIndexedRevision = null
     }
 
     suspend fun markRemoved(
@@ -60,7 +61,7 @@ internal class LibraryIndexStore(
     ) {
         if (songIds.isEmpty() && albumIds.isEmpty()) return
         dao.applyIncrementalRemoval(songIds, albumIds, clock.wallTimeMs())
-        lastIndexedInput = null
+        lastIndexedRevision = null
     }
 }
 
@@ -71,9 +72,3 @@ internal fun nextLibraryGenerationId(wallTimeMs: Long, latestGenerationId: Long?
         ?: 1L
     return maxOf(wallTimeMs.coerceAtLeast(1L), nextPersisted)
 }
-
-private data class LibraryIndexInput(
-    val snapshot: LibrarySnapshot,
-    val filterFingerprint: String,
-    val source: String,
-)

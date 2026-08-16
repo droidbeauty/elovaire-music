@@ -8,10 +8,11 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.util.Locale
 import org.json.JSONArray
 import org.json.JSONObject
-import java.util.Locale
-import java.nio.charset.StandardCharsets
 
 internal data class LibrarySignature(
     val songCount: Int,
@@ -35,9 +36,7 @@ internal class LibrarySnapshotStore(
     }
     private val atomicFile = AtomicFile(snapshotFile)
     private val snapshotLock = Any()
-    @Volatile
-    private var lastSnapshotFingerprint: SnapshotFingerprint? = null
-    private var lastSavedSongs: List<Song>? = null
+    private var lastSavedContentRevision: String? = null
     private var lastSavedFilterFingerprint: String? = null
     private var lastSavedSyncState: LibraryMediaStoreSyncState? = null
 
@@ -46,7 +45,6 @@ internal class LibrarySnapshotStore(
             val serialized = atomicFile.openRead().use { input ->
                 input.readBytes().toString(StandardCharsets.UTF_8)
             }
-            lastSnapshotFingerprint = serialized.fingerprint()
             val root = JSONObject(serialized)
             if (root.optInt("version", 0) != SNAPSHOT_VERSION) {
                 discardSnapshot()
@@ -116,7 +114,11 @@ internal class LibrarySnapshotStore(
                     syncState = cachedSnapshot.syncState,
                 )
             }
-            lastSavedSongs = cachedSnapshot.snapshot.songs
+            lastSavedContentRevision = libraryContentRevision(
+                songs = cachedSnapshot.snapshot.songs,
+                filterFingerprint = cachedSnapshot.signature.filterFingerprint,
+                syncState = cachedSnapshot.syncState,
+            )
             lastSavedFilterFingerprint = cachedSnapshot.signature.filterFingerprint
             lastSavedSyncState = cachedSnapshot.syncState
             cachedSnapshot
@@ -133,8 +135,13 @@ internal class LibrarySnapshotStore(
         syncState: LibraryMediaStoreSyncState? = null,
     ) = synchronized(snapshotLock) {
         val songs = snapshot.songs.filter(::isSupportedLibrarySong)
+        val contentRevision = libraryContentRevision(
+            songs = songs,
+            filterFingerprint = filterFingerprint,
+            syncState = syncState,
+        )
         if (
-            lastSavedSongs == songs &&
+            lastSavedContentRevision == contentRevision &&
             lastSavedFilterFingerprint == filterFingerprint &&
             lastSavedSyncState == syncState
         ) {
@@ -188,16 +195,12 @@ internal class LibrarySnapshotStore(
                 },
             )
         }.toString()
-        val fingerprint = serializedSnapshot.fingerprint()
-        if (lastSnapshotFingerprint == fingerprint) return@synchronized
-
         val output = atomicFile.startWrite()
         try {
             output.write(serializedSnapshot.toByteArray(StandardCharsets.UTF_8))
             output.flush()
             atomicFile.finishWrite(output)
-            lastSnapshotFingerprint = fingerprint
-            lastSavedSongs = songs
+            lastSavedContentRevision = contentRevision
             lastSavedFilterFingerprint = filterFingerprint
             lastSavedSyncState = syncState
         } catch (failure: Throwable) {
@@ -212,8 +215,7 @@ internal class LibrarySnapshotStore(
     }
 
     private fun discardSnapshot() {
-        lastSnapshotFingerprint = null
-        lastSavedSongs = null
+        lastSavedContentRevision = null
         lastSavedFilterFingerprint = null
         lastSavedSyncState = null
         try {
@@ -224,14 +226,92 @@ internal class LibrarySnapshotStore(
     }
 }
 
-private data class SnapshotFingerprint(
-    val length: Int,
-    val hash: Int,
-)
+internal fun libraryContentRevision(
+    songs: List<Song>,
+    filterFingerprint: String,
+    syncState: LibraryMediaStoreSyncState?,
+): String {
+    val digest = MessageDigest.getInstance("SHA-256")
 
-private fun String.fingerprint(): SnapshotFingerprint {
-    return SnapshotFingerprint(length = length, hash = hashCode())
+    digest.appendRevisionValue(filterFingerprint)
+    digest.appendRevisionValue(syncState?.filterFingerprint)
+    syncState?.volumes?.forEach { volume ->
+        digest.appendRevisionValue(volume.volumeName)
+        digest.appendRevisionValue(volume.version)
+        digest.appendRevisionValue(volume.generation)
+    }
+    songs.forEach { song -> digest.appendSongRevision(song) }
+
+    return digest.digest().toHexString()
 }
+
+internal fun libraryIndexContentRevision(
+    snapshot: LibrarySnapshot,
+    filterFingerprint: String,
+    source: String,
+): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    digest.appendRevisionValue(filterFingerprint)
+    digest.appendRevisionValue(source)
+    snapshot.songs.forEach { song -> digest.appendSongRevision(song) }
+    snapshot.albums.forEach { album ->
+        digest.appendRevisionValue(album.id)
+        digest.appendRevisionValue(album.title)
+        digest.appendRevisionValue(album.artist)
+        digest.appendRevisionValue(album.artUri?.toString().orEmpty())
+        digest.appendRevisionValue(album.songCount)
+        digest.appendRevisionValue(album.durationMs)
+        album.songs.forEach { song -> digest.appendRevisionValue(song.id) }
+    }
+    return digest.digest().toHexString()
+}
+
+private fun MessageDigest.appendSongRevision(song: Song) {
+    appendRevisionValue(song.id)
+    appendRevisionValue(song.title)
+    appendRevisionValue(song.isExplicit)
+    appendRevisionValue(song.artist)
+    appendRevisionValue(song.albumArtist.orEmpty())
+    appendRevisionValue(song.album)
+    appendRevisionValue(song.releaseYear ?: 0)
+    appendRevisionValue(song.genre)
+    appendRevisionValue(song.audioFormat)
+    appendRevisionValue(song.audioQuality.orEmpty())
+    appendRevisionValue(song.fileName)
+    appendRevisionValue(song.albumId)
+    appendRevisionValue(song.durationMs)
+    appendRevisionValue(song.trackNumber)
+    appendRevisionValue(song.discNumber)
+    appendRevisionValue(song.dateAddedSeconds)
+    appendRevisionValue(song.dateModifiedSeconds ?: 0L)
+    appendRevisionValue(song.libraryPath.orEmpty())
+    appendRevisionValue(song.uri)
+    appendRevisionValue(song.artUri?.toString().orEmpty())
+    appendRevisionValue(song.metadataResolved)
+    appendRevisionValue(song.volumeNormalization?.trackGainDb)
+    appendRevisionValue(song.volumeNormalization?.albumGainDb)
+    appendRevisionValue(song.volumeNormalization?.trackPeak)
+    appendRevisionValue(song.volumeNormalization?.albumPeak)
+}
+
+private fun MessageDigest.appendRevisionValue(value: Any?) {
+    update(value?.toString()?.toByteArray(StandardCharsets.UTF_8) ?: NULL_VALUE)
+    update(VALUE_SEPARATOR)
+}
+
+private fun ByteArray.toHexString(): String {
+    val digits = "0123456789abcdef"
+    return buildString(size * 2) {
+        this@toHexString.forEach { byte ->
+            val value = byte.toInt() and 0xFF
+            append(digits[value ushr 4])
+            append(digits[value and 0x0F])
+        }
+    }
+}
+
+private val VALUE_SEPARATOR = byteArrayOf(0)
+private val NULL_VALUE = byteArrayOf(1)
 
 private fun LibraryMediaStoreSyncState.toJson(): JSONObject {
     return JSONObject().apply {

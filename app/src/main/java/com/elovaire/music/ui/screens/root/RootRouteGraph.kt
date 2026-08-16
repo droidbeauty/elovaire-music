@@ -33,7 +33,12 @@ internal fun RootRouteGraph(
             LibraryHubRouteHost(navState, routeState, routeActions, padding)
         }
         composable(RECENTLY_ADDED_ROUTE) {
-            RecentlyAddedRouteHost(routeState, routeActions, padding)
+            RecentlyAddedRouteHost(
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
+                artistImageRepository = artistImageRepository,
+            )
         }
         composable(PLAYLISTS_ROUTE) {
             PlaylistsRouteHost(navState, routeState.playlists, routeActions, padding)
@@ -84,7 +89,13 @@ internal fun RootRouteGraph(
             route = "$LIBRARY_COLLECTION_ROUTE/{kind}",
             arguments = listOf(navArgument("kind") { type = NavType.StringType }),
         ) { backStackEntry ->
-            LibraryCollectionRouteHost(backStackEntry.libraryCollectionKindArg(), routeState, routeActions, padding)
+            LibraryCollectionRouteHost(
+                kind = backStackEntry.libraryCollectionKindArg(),
+                routeState = routeState,
+                routeActions = routeActions,
+                padding = padding,
+                artistImageRepository = artistImageRepository,
+            )
         }
         composable(
             route = "$GENRE_ROUTE/{genre}",

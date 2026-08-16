@@ -382,7 +382,18 @@ internal fun AboutScreen(
 ) {
     val context = LocalContext.current
     val language = LocalAppLanguage.current
-    val aboutModel = remember(context) { context.loadAboutScreenModel() }
+    val aboutModel = remember(context, BuildConfig.THEAUDIODB_API_KEY) {
+        val model = context.loadAboutScreenModel()
+        if (BuildConfig.THEAUDIODB_API_KEY.isNotBlank()) {
+            model
+        } else {
+            model.copy(
+                sections = model.sections.map { section ->
+                    section.copy(entries = section.entries.filterNot { it.title == "TheAudioDB" })
+                },
+            )
+        }
+    }
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     Box(
         modifier = Modifier

@@ -33,6 +33,7 @@ internal class AppServices(
     private val appScope: CoroutineScope,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
 ) {
+    private val playbackStarted = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     val exitDiagnostics = AppExitDiagnostics(applicationContext)
@@ -44,17 +45,23 @@ internal class AppServices(
         dao = database.userDataDao(),
     )
     val preferenceStore = PreferenceStore(applicationContext, userDataStore)
-    private val updatePreferences = allowStrictModeDiskReads {
-        UpdatePreferencesStoreImpl(PreferenceStorage(applicationContext).preferences)
+    private val updateControllerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        val updatePreferences = allowStrictModeDiskReads {
+            UpdatePreferencesStoreImpl(PreferenceStorage(applicationContext).preferences)
+        }
+        createUpdateController(
+            context = applicationContext,
+            scope = appScope,
+            preferences = updatePreferences,
+            backgroundWorkPolicy = backgroundWorkPolicy,
+        )
     }
-    val updateController: UpdateController = createUpdateController(
-        context = applicationContext,
-        scope = appScope,
-        preferences = updatePreferences,
-        backgroundWorkPolicy = backgroundWorkPolicy,
-    )
+    val updateController: UpdateController get() = updateControllerDelegate.value
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        ArtistImageRepository()
+        ArtistImageRepository(
+            context = applicationContext,
+            appScope = appScope,
+        )
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
     val albumTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -105,15 +112,20 @@ internal class AppServices(
 
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
-        libraryRepository.start()
+        startPlayback()
         updateController.start()
-        libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
         appScope.launch(Dispatchers.IO) {
             val exitSnapshot = exitDiagnostics.inspect()
             backgroundWorkPolicy.setOptionalStartupSuppressed(exitSnapshot.suppressOptionalStartup)
             portableSettingsBackup.start()
             updateController.scheduleStartupMaintenance()
         }
+    }
+
+    fun startPlayback() {
+        if (released.get() || !playbackStarted.compareAndSet(false, true)) return
+        libraryRepository.start()
+        libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
     }
 
     fun onMemoryPressure(pressure: MemoryPressure) {
@@ -125,8 +137,9 @@ internal class AppServices(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         started.set(false)
+        playbackStarted.set(false)
         playbackManager.release()
-        updateController.release()
+        if (updateControllerDelegate.isInitialized()) updateController.release()
         libraryRepository.release()
         portableSettingsBackup.release()
         preferenceStore.release(database::close)

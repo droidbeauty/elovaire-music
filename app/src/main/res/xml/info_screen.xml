@@ -52,4 +52,12 @@
             label="jaudiotagger"
             url="https://bitbucket.org/ijabz/jaudiotagger" />
     </entry>
+
+    <entry
+        title="TheAudioDB"
+        description="Dedicated artist artwork in Library > Artists is provided by TheAudioDB.com">
+        <link
+            label="TheAudioDB"
+            url="https://www.theaudiodb.com" />
+    </entry>
 </about-screen>

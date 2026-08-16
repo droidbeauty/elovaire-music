@@ -144,14 +144,20 @@ internal class SearchViewModel(
         searchIndex,
         preferenceStore.albumPlayCounts,
         playbackReader.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
-    ) { index, albumPlayCounts, recentAlbumIds ->
-        buildSuggestedAlbums(
-            albums = index.albums,
-            albumPlayCounts = albumPlayCounts,
-            recentAlbumIds = recentAlbumIds,
-        )
+        _query,
+    ) { index, albumPlayCounts, recentAlbumIds, query ->
+        if (query.trim().isNotBlank()) {
+            emptyList()
+        } else {
+            buildSuggestedAlbums(
+                albums = index.albums,
+                albumPlayCounts = albumPlayCounts,
+                recentAlbumIds = recentAlbumIds,
+            )
+        }
     }
         .distinctUntilChanged()
+        .flowOn(Dispatchers.Default)
 
     private val recentSearches = combine(
         preferenceStore.searchHistory,

@@ -239,6 +239,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
@@ -1777,6 +1778,7 @@ private fun LibraryHubRow(
 internal fun LibraryCollectionScreen(
     kind: LibraryCollectionKind,
     libraryState: LibraryUiState,
+    artistImageRepository: ArtistImageRepository,
     playlists: List<Playlist>,
     songPlayCounts: Map<Long, Int>,
     favoriteSongIds: Set<Long>,
@@ -1853,6 +1855,7 @@ internal fun LibraryCollectionScreen(
 
         LibraryCollectionKind.Artists -> ArtistCollectionScreen(
             songs = libraryState.songs,
+            artistImageRepository = artistImageRepository,
             bottomPadding = bottomPadding,
             onBack = onBack,
             onArtistSelected = onArtistSelected,
@@ -2074,20 +2077,21 @@ private fun SongSortControl(
 @Composable
 private fun ArtistCollectionScreen(
     songs: List<Song>,
+    artistImageRepository: ArtistImageRepository,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onArtistSelected: (String) -> Unit,
 ) {
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
-    val scrollState = rememberElovaireScrollState("artist_collection")
+    val listState = rememberElovaireLazyListState("artist_collection")
     val artists = remember(songs) {
         songs
             .groupBy { it.libraryArtistName() }
             .map { (name, artistSongs) ->
                 ArtistEntry(
                     name = name,
-                    artUri = artistSongs.firstOrNull()?.artUri,
+                    artUri = artistSongs.firstOrNull { it.artUri != null }?.artUri,
                     albumCount = artistSongs.map { it.albumId }.distinct().size,
                     songCount = artistSongs.size,
                 )
@@ -2096,32 +2100,35 @@ private fun ArtistCollectionScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        Column(
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(scrollState)
-                .padding(
-                    start = 20.dp,
-                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
-                    end = 20.dp,
-                    bottom = bottomPadding,
-                ),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(
+                start = 20.dp,
+                top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
+                end = 20.dp,
+                bottom = bottomPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            Column {
-                artists.forEachIndexed { index, artist ->
-                    ArtistRow(
-                        artist = artist,
-                        onClick = { onArtistSelected(artist.name) },
-                    )
-                    if (index != artists.lastIndex) {
-                        DividerLine()
-                    }
-                }
+            itemsIndexed(
+                items = artists,
+                key = { _, artist -> artist.name },
+                contentType = { _, _ -> "artist-row" },
+            ) { index, artist ->
+                ArtistRow(
+                    artist = artist,
+                    artistImageRepository = artistImageRepository,
+                    onClick = { onArtistSelected(artist.name) },
+                )
+                if (index != artists.lastIndex) DividerLine()
             }
         }
         FastScrollbar(
-            state = scrollState,
+            state = listState,
             topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
             bottomInset = bottomPadding + 16.dp,
         )
@@ -2396,6 +2403,7 @@ private fun ArtistHeroHeader(
     val sourceUri = when (backdropState) {
         is ArtistBackdropState.Fallback -> backdropState.localArtworkUri
         ArtistBackdropState.Loading -> localArtworkUri
+        is ArtistBackdropState.Remote -> backdropState.remoteArtworkUri
     } ?: localArtworkUri
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
     val localArtwork = rememberArtworkBitmap(localArtworkUri, size = 512).value
@@ -3971,9 +3979,11 @@ private fun ArtistGridCard(
 @Composable
 private fun ArtistRow(
     artist: ArtistEntry,
+    artistImageRepository: ArtistImageRepository? = null,
     onClick: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val artworkUri = rememberArtistArtworkUri(artist, artistImageRepository)
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -3982,12 +3992,19 @@ private fun ArtistRow(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ArtworkImage(
-            uri = artist.artUri,
-            title = artist.name,
-            modifier = Modifier.size(50.dp),
-            cornerRadius = ElovaireRadii.pill,
-        )
+        AnimatedContent(
+            targetState = artworkUri,
+            transitionSpec = { fadeIn() togetherWith fadeOut() },
+            label = "artist_artwork",
+        ) { uri ->
+            ArtworkImage(
+                uri = uri,
+                title = artist.name,
+                modifier = Modifier.size(50.dp),
+                cornerRadius = ElovaireRadii.pill,
+                requestedSizePx = 256,
+            )
+        }
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(3.dp),
@@ -4015,6 +4032,23 @@ private fun ArtistRow(
                 .rotate(180f),
         )
     }
+}
+
+@Composable
+private fun rememberArtistArtworkUri(
+    artist: ArtistEntry,
+    artistImageRepository: ArtistImageRepository?,
+): Uri? {
+    if (artistImageRepository == null) return artist.artUri
+    val state by remember(artist.name, artist.artUri, artistImageRepository) {
+        artistImageRepository.imageState(artist.name, artist.artUri)
+    }.collectAsStateWithLifecycle(
+        initialValue = ArtistBackdropState.Fallback(
+            localArtworkUri = artist.artUri,
+            artistKey = artist.name,
+        ),
+    )
+    return (state as? ArtistBackdropState.Remote)?.remoteArtworkUri ?: artist.artUri
 }
 
 @Composable
