@@ -11,8 +11,10 @@ import android.util.LruCache
 import android.util.Size
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
+import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.io.InputStream
+import java.util.Locale
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 
@@ -64,6 +66,21 @@ internal fun normalizeArtworkRequestSize(size: Int): Int {
     }
 }
 
+internal fun isLikelyAudioMediaUri(uri: Uri): Boolean {
+    val path = uri.toString()
+        .substringBefore('?')
+        .substringBefore('#')
+        .lowercase(Locale.ROOT)
+    return path.contains("/audio/media/") || AUDIO_FILE_EXTENSIONS.any(path::endsWith)
+}
+
+internal fun shouldUseContentResolverThumbnail(
+    uri: Uri,
+    purpose: ArtworkPurpose,
+): Boolean {
+    return purpose != ArtworkPurpose.Notification && !isLikelyAudioMediaUri(uri)
+}
+
 internal fun loadArtworkBitmap(
     context: Context,
     uri: Uri?,
@@ -76,7 +93,7 @@ internal fun loadArtworkBitmap(
     val key = artworkRequestKey(requestUri, size, purpose)
     val decode = {
         val targetSize = ImageTargetSize(size, size)
-        val bitmap = if (purpose != ArtworkPurpose.Notification) {
+        val bitmap = if (shouldUseContentResolverThumbnail(requestUri, purpose)) {
             runCatching {
                 context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
             }.getOrNull()
@@ -84,7 +101,11 @@ internal fun loadArtworkBitmap(
             null
         }
         bitmap
-            ?: decodeBitmapStream(context, requestUri, targetSize, purpose)
+            ?: if (isLikelyAudioMediaUri(requestUri)) {
+                null
+            } else {
+                decodeBitmapStream(context, requestUri, targetSize, purpose)
+            }
             ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
     }
     return key?.let { ArtworkBitmapCache.getOrLoad(it.cacheKey, decode) } ?: decode()
@@ -111,6 +132,17 @@ internal fun decodeArtworkBytes(
             ?: return@runCatching null
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
     }.getOrNull()
+}
+
+internal fun encodeArtworkForMediaSession(bitmap: Bitmap): ByteArray? {
+    fun encode(quality: Int): ByteArray? {
+        val output = ByteArrayOutputStream(
+            (bitmap.width * bitmap.height / 3).coerceAtLeast(16 * 1024),
+        )
+        if (!bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)) return null
+        return output.toByteArray().takeIf { it.size <= MAX_MEDIA_SESSION_ARTWORK_BYTES }
+    }
+    return encode(94) ?: encode(84)
 }
 
 private fun decodeBitmapStream(
@@ -164,8 +196,21 @@ private fun decodeEmbeddedArtwork(
 }
 
 private const val MAX_ENCODED_ARTWORK_BYTES = 16 * 1024 * 1024
+private const val MAX_MEDIA_SESSION_ARTWORK_BYTES = 2 * 1024 * 1024
 private const val MAX_ARTWORK_DIMENSION = 8_192
 private const val MAX_ARTWORK_PIXELS = 40_000_000L
+private val AUDIO_FILE_EXTENSIONS = setOf(
+    ".aac",
+    ".flac",
+    ".m4a",
+    ".m4b",
+    ".mp3",
+    ".ogg",
+    ".oga",
+    ".opus",
+    ".wav",
+    ".webm",
+)
 
 internal fun isArtworkBoundsSafe(width: Int, height: Int): Boolean {
     return width in 1..MAX_ARTWORK_DIMENSION &&

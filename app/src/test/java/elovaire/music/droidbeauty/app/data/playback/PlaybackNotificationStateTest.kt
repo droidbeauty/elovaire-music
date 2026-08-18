@@ -23,6 +23,7 @@ class PlaybackNotificationStateTest {
         assertEquals("Title", state.title)
         assertEquals("Artist", state.artist)
         assertEquals("Album", state.album)
+        assertSame(song.uri, state.mediaUri)
         assertSame(artUri, state.artUri)
         assertEquals(true, state.isPlaying)
     }
@@ -33,6 +34,7 @@ class PlaybackNotificationStateTest {
 
         assertNull(state.songId)
         assertNull(state.artUri)
+        assertNull(state.mediaUri)
         assertEquals(false, state.isPlaying)
     }
 

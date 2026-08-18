@@ -6440,14 +6440,7 @@ internal fun NowPlayingScreen(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .clipToBounds()
-            .then(
-                if (transitionInFlight) {
-                    Modifier
-                } else {
-                    Modifier.hazeSource(playerHazeState)
-                },
-            ),
+            .clipToBounds(),
     ) {
         val screenWidthPx = with(density) { maxWidth.toPx() }
         val screenHeightPx = with(density) { maxHeight.toPx() }
@@ -6507,26 +6500,37 @@ internal fun NowPlayingScreen(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    baseSurface.copy(alpha = 0.68f * effectiveTransitionProgress.coerceIn(0f, 1f)),
+                .then(
+                    if (transitionInFlight) {
+                        Modifier
+                    } else {
+                        Modifier.hazeSource(playerHazeState, zIndex = -1f)
+                    },
                 ),
-        )
-        Box(
-            modifier = Modifier
-                .offset {
-                    IntOffset(
-                        x = animatedSurfaceBounds.left.roundToInt(),
-                        y = animatedSurfaceBounds.top.roundToInt(),
-                    )
-                }
-                .width(with(density) { animatedSurfaceBounds.width.toDp() })
-                .height(with(density) { animatedSurfaceBounds.height.toDp() })
-                .clip(RoundedCornerShape(with(density) { playerSurfaceCorner.toDp() }))
-                .background(baseSurface)
-                .graphicsLayer {
-                    clip = true
-                },
         ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        baseSurface.copy(alpha = 0.68f * effectiveTransitionProgress.coerceIn(0f, 1f)),
+                    ),
+            )
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            x = animatedSurfaceBounds.left.roundToInt(),
+                            y = animatedSurfaceBounds.top.roundToInt(),
+                        )
+                    }
+                    .width(with(density) { animatedSurfaceBounds.width.toDp() })
+                    .height(with(density) { animatedSurfaceBounds.height.toDp() })
+                    .clip(RoundedCornerShape(with(density) { playerSurfaceCorner.toDp() }))
+                    .background(baseSurface)
+                    .graphicsLayer {
+                        clip = true
+                    },
+            ) {
         val backgroundArtworkBitmap = artwork.value
         if (backgroundArtworkBitmap != null) {
             Box(modifier = Modifier.fillMaxSize()) {
@@ -7276,7 +7280,6 @@ internal fun NowPlayingScreen(
                 lyricsUiState = lyricsUiState,
                 lyricsEditorUiState = lyricsEditorUiState,
                 activeLyricsLineIndex = activeLyricsLineIndex,
-                playbackManager = playbackManager,
                 tintColor = baseSurface.copy(alpha = 0.66f),
                 contentColor = contentColor,
                 secondaryContentColor = secondaryContentColor,
@@ -7297,6 +7300,7 @@ internal fun NowPlayingScreen(
                 },
                 onCreatePlaylist = onCreatePlaylist,
             )
+        }
         }
         ElovaireAnimatedVisibility(
             visible = showSleepTimerDialog,
@@ -7329,13 +7333,8 @@ private fun rememberRenderedPlaybackProgress(
     freezeUpdates: Boolean,
 ): PlaybackProgressState {
     val liveProgress by playbackManager.progressState.collectAsStateWithLifecycle()
-    var frozenProgress by remember(currentSongId) {
-        mutableStateOf(playbackManager.progressState.value)
-    }
-    LaunchedEffect(liveProgress, freezeUpdates, currentSongId) {
-        if (!freezeUpdates) {
-            frozenProgress = liveProgress
-        }
+    val frozenProgress = remember(currentSongId, freezeUpdates) {
+        liveProgress
     }
     return if (freezeUpdates) frozenProgress else liveProgress
 }
@@ -9088,7 +9087,6 @@ private fun LyricsOverlay(
     lyricsUiState: LyricsUiState,
     lyricsEditorUiState: LyricsEditorUiState,
     activeLyricsLineIndex: Int,
-    playbackManager: PlaybackManager,
     tintColor: Color,
     contentColor: Color,
     secondaryContentColor: Color,
@@ -9117,11 +9115,6 @@ private fun LyricsOverlay(
     var observedSaveRevision by remember(song?.id) {
         mutableLongStateOf(lyricsEditorUiState.savedRevision)
     }
-    val playbackProgress = rememberRenderedPlaybackProgress(
-        playbackManager = playbackManager,
-        currentSongId = song?.id,
-        freezeUpdates = false,
-    )
     val backgroundReveal by animateFloatAsState(
         targetValue = if (overlayEntered) 1f else 0f,
         animationSpec = motionSpecs.tween(
@@ -9436,7 +9429,6 @@ private fun LyricsOverlay(
                                     song = song,
                                     payload = state.payload,
                                     activeLyricLineIndex = activeLyricsLineIndex,
-                                    playbackProgress = playbackProgress,
                                     listState = listState,
                                     autoScrollHeld = autoScrollHeld,
                                     setAutoScrollHeld = { autoScrollHeld = it },
@@ -9673,7 +9665,6 @@ private fun LyricsReadyContent(
     song: Song?,
     payload: LyricsPayload,
     activeLyricLineIndex: Int,
-    playbackProgress: PlaybackProgressState,
     listState: LazyListState,
     autoScrollHeld: Boolean,
     setAutoScrollHeld: (Boolean) -> Unit,
@@ -9688,22 +9679,11 @@ private fun LyricsReadyContent(
     scope: kotlinx.coroutines.CoroutineScope,
 ) {
     val motionSpecs = rememberMotionSpecs()
-    val resolvedActiveLyricLineIndex = remember(
-        payload,
-        activeLyricLineIndex,
-        playbackProgress.displayPositionMs,
-    ) {
-        payload.currentLineIndexAt(
-            positionMs = playbackProgress.displayPositionMs,
-            timingOffsetMs = 0L,
-            switchGraceMs = 0L,
-        )?.takeIf { payload.isSynced && it >= 0 } ?: activeLyricLineIndex
-    }
     val autoScrollCenterOffsetPx = with(LocalDensity.current) { 180.dp.roundToPx() }
-    LaunchedEffect(resolvedActiveLyricLineIndex, payload.isSynced, autoScrollHeld) {
-        if (!autoScrollHeld && payload.isSynced && resolvedActiveLyricLineIndex >= 0) {
+    LaunchedEffect(activeLyricLineIndex, payload.isSynced, autoScrollHeld) {
+        if (!autoScrollHeld && payload.isSynced && activeLyricLineIndex >= 0) {
             listState.animateLyricJumpToItem(
-                index = resolvedActiveLyricLineIndex,
+                index = activeLyricLineIndex,
                 scrollOffset = -autoScrollCenterOffsetPx,
             )
         }
@@ -9747,7 +9727,7 @@ private fun LyricsReadyContent(
             items = payload.lines,
             key = { _, line -> "${line.index}:${line.startTimeMs}:${line.text}" },
         ) { index, line ->
-            val isActive = payload.isSynced && index == resolvedActiveLyricLineIndex
+            val isActive = payload.isSynced && index == activeLyricLineIndex
             val lineFontSize by animateFloatAsState(
                 targetValue = if (isActive) 24f else 22f,
                 animationSpec = motionSpecs.tween(MotionDuration.Standard, easing = FastOutSlowInEasing),
@@ -9772,7 +9752,7 @@ private fun LyricsReadyContent(
                 textAlign = androidx.compose.ui.text.style.TextAlign.Start,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .pointerInput(song?.id, payload.lines.size, payload.isSynced, resolvedActiveLyricLineIndex) {
+                    .pointerInput(song?.id, payload.lines.size, payload.isSynced, activeLyricLineIndex) {
                         detectTapGestures {
                             lyricsSeekPositionMs(
                                 lines = payload.lines,

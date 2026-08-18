@@ -163,10 +163,12 @@ class MediaStoreScanner(
                             fileName = row.fileName,
                             mediaStoreMimeType = row.mimeType,
                             revisionKey = if (row.dateModifiedSeconds != null || row.fileSizeBytes != null) {
-                                "${row.dateModifiedSeconds}:${row.fileSizeBytes}"
-                            } else {
-                                null
-                            },
+                                MediaIdentityResolver.sourceRevisionKey(
+                                    modifiedAtMs = row.dateModifiedSeconds?.times(1_000L),
+                                    sizeBytes = row.fileSizeBytes,
+                                )
+                            } else null,
+                            identityKey = MediaIdentityResolver.mediaStore(row.volumeName, row.id)?.stableKey,
                         )
                     } else {
                         AudioScanCandidateMapper.fastDetectedFormat(
@@ -259,7 +261,7 @@ class MediaStoreScanner(
                         dateModifiedSeconds = row.dateModifiedSeconds,
                         libraryPath = row.filePath,
                         uri = row.uri,
-                        artUri = row.uri,
+                        artUri = mediaStoreAlbumArtworkUri(row.volumeName, row.albumId),
                         metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
                         albumArtist = songMetadata.albumArtist,
                         volumeNormalization = songMetadata.volumeNormalization,

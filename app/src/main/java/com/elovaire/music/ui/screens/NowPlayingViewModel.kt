@@ -481,7 +481,7 @@ internal class NowPlayingViewModel(
     )
 
     private companion object {
-        const val LYRICS_SWITCH_GRACE_MS = 120L
+        const val LYRICS_SWITCH_GRACE_MS = 0L
         const val TAG = "LyricsPipeline"
     }
 

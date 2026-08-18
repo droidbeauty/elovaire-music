@@ -91,7 +91,7 @@ class LibraryRepository internal constructor(
     private val clock: AppClock = AndroidAppClock,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val libraryIndexStore: LibraryIndexStore? = null,
-    private val onSongRelocations: suspend (Map<Long, Long>) -> Unit = {},
+    private val onSongRelocations: suspend (Map<Long, Long>) -> Boolean = { true },
 ) : LibraryReader {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
@@ -463,11 +463,12 @@ class LibraryRepository internal constructor(
         val nextSnapshot = snapshotPublisher.snapshotOf(nextContentState)
         val changeSet = LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
         if (changeSet.relocated.isNotEmpty()) {
-            onSongRelocations(
+            val relocated = onSongRelocations(
                 changeSet.relocated.associate { relocation ->
                     relocation.before.id to relocation.after.id
                 },
             )
+            check(relocated) { "Unable to preserve user-data references during media relocation." }
         }
         snapshotPublisher.publishState(nextContentState)
         return PreparedLibrarySnapshot(

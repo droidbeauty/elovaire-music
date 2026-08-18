@@ -23,6 +23,21 @@ class LibraryChangeSetTest {
     }
 
     @Test
+    fun artworkLocatorChangeIsAnUpdateNotAUserDataRelocation() {
+        val before = song()
+        val after = before.copy(artUri = TestUri("content://media/external/audio/albumart/2"))
+
+        val changes = LibraryChangeSetCalculator.between(listOf(before), listOf(after))
+
+        assertTrue(changes.relocated.isEmpty())
+        assertEquals(listOf(after), changes.updated.map { it.after })
+        assertEquals(
+            setOf("content://art/1", "content://media/external/audio/albumart/2"),
+            changes.artworkInvalidatedUris,
+        )
+    }
+
+    @Test
     fun stableProviderIdentityTurnsMoveIntoRelocation() {
         val before = song()
         val after = before.copy(

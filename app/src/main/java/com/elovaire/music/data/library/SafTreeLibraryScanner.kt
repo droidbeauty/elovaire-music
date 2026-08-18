@@ -116,10 +116,15 @@ internal class SafTreeLibraryScanner(
                         fileName = child.name,
                         mediaStoreMimeType = child.mimeType,
                         revisionKey = if (child.lastModifiedMs != null || child.sizeBytes != null) {
-                            "${child.lastModifiedMs}:${child.sizeBytes}"
-                        } else {
-                            null
-                        },
+                            MediaIdentityResolver.sourceRevisionKey(
+                                modifiedAtMs = child.lastModifiedMs,
+                                sizeBytes = child.sizeBytes,
+                            )
+                        } else null,
+                        identityKey = MediaIdentityResolver.safDocument(
+                            providerKey,
+                            child.documentId,
+                        )?.stableKey,
                     )
                 val metadata = cachedFile?.metadata ?: readMetadata(child.uri, child.name)
                 if (child.hasStableChangeSignal) {

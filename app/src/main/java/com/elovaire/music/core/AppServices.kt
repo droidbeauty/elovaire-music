@@ -90,8 +90,8 @@ internal class AppServices(
         libraryIndexStore = LibraryIndexStore(database.libraryDao()),
         onSongRelocations = { replacements ->
             when (val result = userDataStore.relocateSongReferences(replacements).await()) {
-                is PlaylistMutationResult.Success -> Unit
-                else -> error("Unable to preserve user-data references during media relocation: $result")
+                is PlaylistMutationResult.Success -> true
+                else -> false
             }
         },
     ).also { it.setLibraryFolders(preferenceStore.libraryFolders.value) }

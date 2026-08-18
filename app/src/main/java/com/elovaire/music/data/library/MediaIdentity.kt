@@ -106,6 +106,19 @@ internal object MediaIdentityResolver {
         )
     }
 
+    fun sourceRevisionKey(
+        modifiedAtMs: Long?,
+        sizeBytes: Long?,
+        providerGeneration: Long? = null,
+    ): String {
+        return MediaRevision(
+            modifiedAtMs = modifiedAtMs?.takeIf { it >= 0L },
+            sizeBytes = sizeBytes?.takeIf { it >= 0L },
+            providerGeneration = providerGeneration?.takeIf { it >= 0L },
+            metadataRevision = 0L,
+        ).stableKey
+    }
+
     private fun resolveContentUri(uri: Uri): MediaSourceIdentity? {
         if (uri.scheme.equals("file", ignoreCase = true)) return directFile(uri.path)
         if (!uri.scheme.equals("content", ignoreCase = true)) return null

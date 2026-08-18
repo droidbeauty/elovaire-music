@@ -75,7 +75,7 @@ internal fun ElovaireRootShell(
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
-                                .hazeSource(chromeHazeState),
+                                .hazeSource(chromeHazeState, zIndex = -1f),
                         ) {
                             routeHost(
                                 layout.routePadding,

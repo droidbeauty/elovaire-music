@@ -35,12 +35,31 @@ class MediaIdentityTest {
     }
 
     @Test
+    fun mediaStoreAlbumArtworkUsesTheProviderArtworkEndpoint() {
+        assertEquals(
+            "content://media/external/audio/albumart/42",
+            mediaStoreAlbumArtworkUriString("external", 42L),
+        )
+        assertNull(mediaStoreAlbumArtworkUriString("external", -1L))
+    }
+
+    @Test
     fun revisionChangesWithoutChangingIdentity() {
         val original = song(modifiedSeconds = 10L)
         val edited = song(modifiedSeconds = 11L)
 
         assertEquals(MediaIdentityResolver.stableKey(original), MediaIdentityResolver.stableKey(edited))
         assertNotEquals(MediaIdentityResolver.revision(original), MediaIdentityResolver.revision(edited))
+    }
+
+    @Test
+    fun sourceRevisionIsIndependentOfLocatorAndChangesWithContentSignals() {
+        val first = MediaIdentityResolver.sourceRevisionKey(1_000L, 10L)
+        val same = MediaIdentityResolver.sourceRevisionKey(1_000L, 10L)
+        val changed = MediaIdentityResolver.sourceRevisionKey(1_000L, 11L)
+
+        assertEquals(first, same)
+        assertNotEquals(first, changed)
     }
 
     @Test

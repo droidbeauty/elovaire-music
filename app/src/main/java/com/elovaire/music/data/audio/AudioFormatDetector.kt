@@ -44,7 +44,7 @@ internal data class DeviceCodecProbeKey(
 )
 
 internal data class AudioProbeCacheKey(
-    val uri: String,
+    val identityKey: String,
     val revisionKey: String,
 )
 
@@ -66,8 +66,11 @@ internal class AudioFormatDetector(context: Context) {
         fileName: String,
         mediaStoreMimeType: String?,
         revisionKey: String? = null,
+        identityKey: String? = null,
     ): DetectedAudioFormat {
-        val cacheKey = revisionKey?.let { AudioProbeCacheKey(uri.toString(), it) }
+        val cacheKey = revisionKey?.let {
+            AudioProbeCacheKey(identityKey ?: uri.toString(), it)
+        }
         cacheKey?.let { key -> synchronized(detectedFormatCache) { detectedFormatCache[key] } }?.let { return it }
         val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
         val signature = readSignature(uri)

@@ -7,6 +7,8 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.6.7">
+        <item>Better default settings of crossfade feature for smoother transition</item>
+        <item>Technical upgrades to improve stability of the app</item>
         <item>Performance optimizations by reducing CPU cycles the app triggers</item>
         <item>Improved animation quality in the compact now playing bar</item>
     </release>

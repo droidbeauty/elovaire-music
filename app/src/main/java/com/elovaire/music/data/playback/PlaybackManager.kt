@@ -680,6 +680,32 @@ class PlaybackManager(
         return player.currentPosition.coerceAtLeast(0L)
     }
 
+    internal fun updateCurrentArtworkData(
+        songId: Long,
+        artworkData: ByteArray,
+    ) {
+        if (released.get() || artworkData.isEmpty()) return
+        playbackHandler.post {
+            if (released.get()) return@post
+            val currentSong = currentSong() ?: return@post
+            if (currentSong.id != songId) return@post
+            val currentIndex = player.currentMediaItemIndex
+            val currentItem = player.currentMediaItem ?: return@post
+            if (currentItem.mediaId != songId.toString() || currentItem.mediaMetadata.artworkData != null) {
+                return@post
+            }
+            val updatedMetadata = currentItem.mediaMetadata.buildUpon()
+                .setArtworkData(artworkData, MediaMetadata.PICTURE_TYPE_FRONT_COVER)
+                .build()
+            player.replaceMediaItem(
+                currentIndex,
+                currentItem.buildUpon()
+                    .setMediaMetadata(updatedMetadata)
+                    .build(),
+            )
+        }
+    }
+
     internal fun restoreSession(
         songs: List<Song>,
         currentIndex: Int,

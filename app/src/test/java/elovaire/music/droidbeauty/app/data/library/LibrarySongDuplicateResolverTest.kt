@@ -28,13 +28,13 @@ class LibrarySongDuplicateResolverTest {
     }
 
     @Test
-    fun metadataFallbackRemovesSafDuplicateWhenPathUnavailable() {
+    fun metadataAloneDoesNotMergeWhenPathUnavailable() {
         val result = LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
             mediaStoreSongs = listOf(song(id = 1L, path = null)),
             safSongs = listOf(song(id = -1L, path = "saf/abc/Album/Track.flac")),
         )
 
-        assertEquals(listOf(1L), result.map(Song::id))
+        assertEquals(listOf(1L, -1L), result.map(Song::id))
     }
 
     @Test
@@ -61,7 +61,7 @@ class LibrarySongDuplicateResolverTest {
     }
 
     @Test
-    fun loadedSnapshotDedupePrefersMediaStoreBackedSong() {
+    fun loadedSnapshotKeepsAmbiguousSourcesSeparate() {
         val result = LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(
             listOf(
                 song(id = -1L, path = "saf/abc/Album/Track.flac"),
@@ -69,7 +69,7 @@ class LibrarySongDuplicateResolverTest {
             ),
         )
 
-        assertEquals(listOf(1L), result.map(Song::id))
+        assertEquals(listOf(1L, -1L), result.map(Song::id))
     }
 
     @Test

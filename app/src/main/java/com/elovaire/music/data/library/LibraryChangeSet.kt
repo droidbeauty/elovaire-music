@@ -172,7 +172,6 @@ internal object LibraryChangeSetCalculator {
     private fun locatorChanged(first: Song, second: Song): Boolean {
         return first.fileName != second.fileName ||
             first.libraryPath != second.libraryPath ||
-            first.uri.toString() != second.uri.toString() ||
-            first.artUri?.toString() != second.artUri?.toString()
+            first.uri.toString() != second.uri.toString()
     }
 }

@@ -134,7 +134,10 @@ class PlaybackNotificationController(
                 .collectLatest { renderState ->
                     val state = playbackManager.state.value
                     if (!notificationsEnabled) return@collectLatest
-                    artworkLoader.setCurrentArtUri(renderState.artUri)
+                    artworkLoader.setCurrentArtwork(
+                        mediaUri = renderState.mediaUri,
+                        fallbackArtUri = renderState.artUri,
+                    )
                     notificationManager.invalidate()
                     when {
                         state.currentSong == null -> {
@@ -239,17 +242,25 @@ class PlaybackNotificationController(
             player: Player,
             callback: PlayerNotificationManager.BitmapCallback,
         ): Bitmap? {
-            val artworkUri = playbackManager.state.value.currentSong?.artUri ?: return null
-            artworkLoader.cachedBitmap(artworkUri)?.let { return it }
+            val song = playbackManager.state.value.currentSong ?: return null
+            val mediaUri = song.uri
+            val artworkUri = song.artUri
+            artworkLoader.cachedBitmap(mediaUri, artworkUri)?.let { return it }
             if (notificationsEnabled) {
                 artworkLoader.loadAsync(
-                    uri = artworkUri,
+                    mediaUri = mediaUri,
+                    fallbackArtUri = artworkUri,
                     isStillCurrent = { key ->
                         notificationsEnabled &&
                             artworkLoader.isCurrent(key) &&
+                            playbackManager.state.value.currentSong?.id == song.id &&
+                            playbackManager.state.value.currentSong?.uri == mediaUri &&
                             playbackManager.state.value.currentSong?.artUri == artworkUri
                     },
                     callback = callback,
+                    onMediaSessionArtworkLoaded = { artworkData ->
+                        playbackManager.updateCurrentArtworkData(song.id, artworkData)
+                    },
                 )
             }
             return null

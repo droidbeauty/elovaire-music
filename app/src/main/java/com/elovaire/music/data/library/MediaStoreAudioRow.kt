@@ -29,6 +29,23 @@ internal data class MediaStoreAudioRow(
     val extension: String,
 )
 
+internal fun mediaStoreAlbumArtworkUri(
+    volumeName: String?,
+    albumId: Long,
+): Uri? {
+    return mediaStoreAlbumArtworkUriString(volumeName, albumId)?.let(Uri::parse)
+}
+
+internal fun mediaStoreAlbumArtworkUriString(
+    volumeName: String?,
+    albumId: Long,
+): String? {
+    val volume = volumeName?.trim()?.takeIf { it.isNotBlank() }
+        ?: MediaStore.VOLUME_EXTERNAL
+    if (albumId < 0L) return null
+    return "content://${MediaStore.AUTHORITY}/$volume/audio/albumart/$albumId"
+}
+
 internal class MediaStoreAudioRowMapper(
     private val context: Context,
     cursor: Cursor,

@@ -8,6 +8,7 @@ internal data class PlaybackNotificationRenderState(
     val title: String,
     val artist: String,
     val album: String,
+    val mediaUri: Uri?,
     val artUri: Uri?,
     val isPlaying: Boolean,
 ) {
@@ -23,6 +24,7 @@ internal fun notificationRenderStateOf(
         title = song?.title.orEmpty(),
         artist = song?.artist.orEmpty(),
         album = song?.album.orEmpty(),
+        mediaUri = song?.uri,
         artUri = song?.artUri,
         isPlaying = isPlaying,
     )
