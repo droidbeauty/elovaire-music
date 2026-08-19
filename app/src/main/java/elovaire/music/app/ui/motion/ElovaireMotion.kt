@@ -39,6 +39,8 @@ object ElovaireMotion {
     private const val ChromeResizeBase = 180
     private const val MicroBase = MotionDuration.Micro
     private const val ComponentBase = MotionDuration.Component
+    private const val TopBarActionExitBase = MotionDuration.TopBarActionExit
+    private const val TopBarActionEnterBase = MotionDuration.TopBarActionEnter
     private const val EmphasizedBase = MotionDuration.Emphasized
     private const val FullScreenEnterBase = MotionDuration.FullScreenEnter
     private const val FullScreenExitBase = MotionDuration.FullScreenExit
@@ -343,23 +345,21 @@ object ElovaireMotion {
             targetOffsetX = { it / 28 },
         ))
 
-    fun topBarActionsForwardTransform(): ContentTransform =
-        (fadeIn(
-            animationSpec = scaledTween(durationMillis = ComponentBase, delayMillis = 34, easing = FadeIn),
-            initialAlpha = 0.7f,
-        ) + slideInHorizontally(
-            animationSpec = scaledTween(durationMillis = ComponentBase, delayMillis = 16, easing = GentleDecelerate),
-            initialOffsetX = { it / 10 },
-        )) togetherWith fadeOut(animationSpec = scaledTween(durationMillis = QuickBase, easing = FadeOut))
-
-    fun topBarActionsBackTransform(): ContentTransform =
-        (fadeIn(
-            animationSpec = scaledTween(durationMillis = ComponentBase, delayMillis = 16, easing = FadeIn),
-            initialAlpha = 0.76f,
-        ) + slideInHorizontally(
-            animationSpec = scaledTween(durationMillis = ComponentBase, easing = GentleDecelerate),
-            initialOffsetX = { it / 14 },
-        )) togetherWith fadeOut(animationSpec = scaledTween(durationMillis = QuickBase, easing = FadeOut))
+    fun topBarActionSwapTransform(): ContentTransform =
+        fadeIn(
+            animationSpec = scaledTween(
+                durationMillis = TopBarActionEnterBase,
+                delayMillis = TopBarActionExitBase,
+                easing = FadeIn,
+            ),
+            initialAlpha = 0f,
+        ) togetherWith fadeOut(
+            animationSpec = scaledTween(
+                durationMillis = TopBarActionExitBase,
+                easing = FadeOut,
+            ),
+            targetAlpha = 0f,
+        )
 
     fun fullScreenForwardEnter(
         initialOffsetX: (fullWidth: Int) -> Int = { it / 64 },

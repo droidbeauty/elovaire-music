@@ -20,6 +20,8 @@ class MotionTokensTest {
         assertEquals(540, MotionDuration.Player)
         assertEquals(260, MotionDuration.PlayerFade)
         assertEquals(240, MotionDuration.Component)
+        assertEquals(56, MotionDuration.TopBarActionExit)
+        assertEquals(88, MotionDuration.TopBarActionEnter)
         assertEquals(220, MotionDuration.ChromeResize)
         assertEquals(460, MotionDuration.Emphasized)
         assertEquals(320, MotionDuration.TopLevelEnter)

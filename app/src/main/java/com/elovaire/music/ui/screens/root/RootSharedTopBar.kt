@@ -23,6 +23,7 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +59,12 @@ internal data class TopBarActionSpec(
     @DrawableRes val iconResId: Int,
     val contentDescription: String,
     val onClick: () -> Unit,
+)
+
+private data class SharedTopBarActionVisual(
+    val slot: Int,
+    @DrawableRes val iconResId: Int,
+    val contentDescription: String,
 )
 
 internal enum class TopBarMotionDirection {
@@ -122,13 +129,6 @@ private fun ElovaireMotion.topBarTextTransform(direction: TopBarMotionDirection)
     TopBarMotionDirection.Forward -> topBarTextForwardTransform()
     TopBarMotionDirection.Back -> topBarTextBackTransform()
     TopBarMotionDirection.Lateral -> titleSwapTransform()
-}
-
-private fun ElovaireMotion.topBarActionsTransform(direction: TopBarMotionDirection) = when (direction) {
-    TopBarMotionDirection.Forward -> topBarActionsForwardTransform()
-    TopBarMotionDirection.Back,
-    TopBarMotionDirection.Lateral,
-    -> topBarActionsBackTransform()
 }
 
 internal data class SharedTopBarRegistration(
@@ -401,6 +401,52 @@ private fun TopBarActions(
 }
 
 @Composable
+private fun AnimatedSharedTopBarActions(
+    actions: List<TopBarActionSpec>,
+    modifier: Modifier = Modifier,
+) {
+    val latestActions by rememberUpdatedState(actions)
+    val visualActions = remember(actions) {
+        actions.mapIndexed { index, action ->
+            SharedTopBarActionVisual(
+                slot = index,
+                iconResId = action.iconResId,
+                contentDescription = action.contentDescription,
+            )
+        }
+    }
+    if (visualActions.isEmpty()) return
+
+    ElovaireAnimatedContent(
+        targetState = visualActions,
+        modifier = modifier,
+        transitionSpec = { ElovaireMotion.topBarActionSwapTransform() },
+        contentKey = { it },
+        label = "SharedTopBarActionSwap",
+    ) { currentVisualActions ->
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            currentVisualActions.forEach { visual ->
+                val currentAction = latestActions.getOrNull(visual.slot)
+                val isAuthoritative = currentAction?.let {
+                    it.iconResId == visual.iconResId &&
+                        it.contentDescription == visual.contentDescription
+                } == true
+                HeaderIconButton(
+                    iconResId = visual.iconResId,
+                    contentDescription = visual.contentDescription,
+                    enabled = isAuthoritative,
+                    showBackground = false,
+                    onClick = { if (isAuthoritative) currentAction.onClick.invoke() },
+                )
+            }
+        }
+    }
+}
+
+@Composable
 internal fun SharedTopBarOverlay(
     spec: SharedTopBarSpec,
     modifier: Modifier = Modifier,
@@ -466,18 +512,15 @@ internal fun SharedTopBarOverlay(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 if (currentSpec.supplementalActionIconResId != null && currentSpec.onSupplementalAction != null) {
-                                    ElovaireAnimatedContent(
-                                        targetState = currentSpec.supplementalActionIconResId,
-                                        transitionSpec = { ElovaireMotion.topBarActionsTransform(TopBarMotionDirection.Forward) },
-                                        label = "SharedTopBarUnifiedSupplementalAction",
-                                    ) { iconResId ->
-                                        HeaderIconButton(
-                                            iconResId = iconResId,
-                                            contentDescription = currentSpec.supplementalActionContentDescription ?: "Action",
-                                            showBackground = false,
-                                            onClick = currentSpec.onSupplementalAction,
-                                        )
-                                    }
+                                    AnimatedSharedTopBarActions(
+                                        actions = listOf(
+                                            TopBarActionSpec(
+                                                iconResId = currentSpec.supplementalActionIconResId,
+                                                contentDescription = currentSpec.supplementalActionContentDescription ?: "Action",
+                                                onClick = currentSpec.onSupplementalAction,
+                                            ),
+                                        ),
+                                    )
                                 }
                                 HeaderIconButton(
                                     iconResId = R.drawable.ic_lucide_menu,
@@ -531,7 +574,7 @@ internal fun SharedTopBarOverlay(
                                     )
                                 }
                             }
-                            TopBarActions(
+                            AnimatedSharedTopBarActions(
                                 actions = currentSpec.actions,
                                 modifier = Modifier.align(Alignment.CenterEnd),
                             )
@@ -579,7 +622,7 @@ internal fun SharedTopBarOverlay(
                                     )
                                 }
                             }
-                            TopBarActions(currentSpec.actions)
+                            AnimatedSharedTopBarActions(currentSpec.actions)
                         }
                     }
                 }
@@ -658,25 +701,7 @@ internal fun SharedTopBarOverlay(
                             }
                         }
                         if (currentSpec.actions.isNotEmpty()) {
-                            ElovaireAnimatedContent(
-                                targetState = currentSpec.actions.map { it.iconResId to it.contentDescription },
-                                transitionSpec = { ElovaireMotion.topBarActionsTransform(TopBarMotionDirection.Forward) },
-                                label = "SharedTopBarDetailActions",
-                            ) {
-                                Row(
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    currentSpec.actions.forEach { action ->
-                                        HeaderIconButton(
-                                            iconResId = action.iconResId,
-                                            contentDescription = action.contentDescription,
-                                            showBackground = false,
-                                            onClick = action.onClick,
-                                        )
-                                    }
-                                }
-                            }
+                            AnimatedSharedTopBarActions(currentSpec.actions)
                         }
                     }
                 }
