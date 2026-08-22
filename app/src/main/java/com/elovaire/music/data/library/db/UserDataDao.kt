@@ -161,6 +161,9 @@ internal interface UserDataDao {
     @Query("DELETE FROM song_play_counts")
     suspend fun clearSongPlayCounts()
 
+    @Query("DELETE FROM album_play_counts")
+    suspend fun clearAlbumPlayCounts()
+
     @Query(
         "INSERT INTO song_play_counts(songId, playCount) VALUES(:songId, :increment) " +
             "ON CONFLICT(songId) DO UPDATE SET playCount = MIN(playCount + :increment, 2147483647)",
@@ -246,6 +249,56 @@ internal interface UserDataDao {
     suspend fun replaceSearchHistory(entries: List<SearchHistoryEntity>) {
         clearSearchHistory()
         if (entries.isNotEmpty()) insertSearchHistory(entries)
+    }
+
+    /**
+     * Repairs only ordering/counter fields whose intended value is deterministic from the
+     * existing rows. Membership and smart-playlist definitions are deliberately untouched.
+     */
+    @Transaction
+    suspend fun repairDeterministicUserData(plan: UserDataRepairPlan) {
+        if (plan.normalizePlaylistPositions) {
+            playlists().forEach { playlist ->
+                val normalizedSongIds = playlistEntries(playlist.playlistId)
+                    .sortedWith(compareBy(UserPlaylistEntryEntity::position, UserPlaylistEntryEntity::songId))
+                    .map(UserPlaylistEntryEntity::songId)
+                    .distinct()
+                replacePlaylistEntries(playlist.playlistId, normalizedSongIds)
+            }
+        }
+        if (plan.normalizeFavoritePositions) {
+            val normalizedFavorites = favorites()
+                .sortedWith(compareBy(FavoriteSongEntity::position, FavoriteSongEntity::songId))
+                .mapIndexed { position, favorite -> FavoriteSongEntity(favorite.songId, position) }
+            clearFavorites()
+            if (normalizedFavorites.isNotEmpty()) insertFavorites(normalizedFavorites)
+        }
+        if (plan.normalizeRecentPositions) {
+            val normalizedRecent = recentPlayback()
+                .groupBy(RecentPlaybackEntity::kind)
+                .toSortedMap()
+                .flatMap { (kind, entries) ->
+                    entries
+                        .sortedWith(compareBy(RecentPlaybackEntity::position, RecentPlaybackEntity::itemId))
+                        .mapIndexed { position, entry -> entry.copy(kind = kind, position = position) }
+                }
+            clearRecentPlayback()
+            if (normalizedRecent.isNotEmpty()) insertRecentPlayback(normalizedRecent)
+        }
+        if (plan.normalizeSongPlayCounts) {
+            val normalizedCounts = songPlayCounts().map { count ->
+                count.copy(playCount = count.playCount.coerceAtLeast(0))
+            }
+            clearSongPlayCounts()
+            if (normalizedCounts.isNotEmpty()) insertSongPlayCounts(normalizedCounts)
+        }
+        if (plan.normalizeAlbumPlayCounts) {
+            val normalizedCounts = albumPlayCounts().map { count ->
+                count.copy(playCount = count.playCount.coerceAtLeast(0))
+            }
+            clearAlbumPlayCounts()
+            if (normalizedCounts.isNotEmpty()) insertAlbumPlayCounts(normalizedCounts)
+        }
     }
 
     @Transaction

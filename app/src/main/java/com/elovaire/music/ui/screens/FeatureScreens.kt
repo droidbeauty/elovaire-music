@@ -8052,36 +8052,45 @@ private fun SleepTimerDialog(
                             )
                         }
                     }
-                AnimatedContent(
-                    targetState = selectedMinutes.roundToInt(),
-                    transitionSpec = {
-                        val direction = if (targetState >= initialState) 1 else -1
-                        (
-                            fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
-                                slideInVertically(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                    initialOffsetY = { direction * it },
-                                ) +
-                                scaleIn(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                    initialScale = 0.88f,
-                                )
-                            ) togetherWith (
-                                fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
-                                    slideOutVertically(
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    AnimatedContent(
+                        targetState = selectedMinutes.roundToInt(),
+                        transitionSpec = {
+                            val direction = if (targetState >= initialState) 1 else -1
+                            (
+                                fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                                    slideInVertically(
                                         animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                        targetOffsetY = { -direction * it },
+                                        initialOffsetY = { direction * it },
                                     ) +
-                                    scaleOut(
-                                        animationSpec = ElovaireMotion.fadeFast(),
-                                        targetScale = 1.08f,
+                                    scaleIn(
+                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        initialScale = 0.88f,
                                     )
-                                )
-                    },
-                    label = "sleep_timer_minutes_flip",
-                ) { minutes ->
+                                ) togetherWith (
+                                    fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                                        slideOutVertically(
+                                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                            targetOffsetY = { -direction * it },
+                                        ) +
+                                        scaleOut(
+                                            animationSpec = ElovaireMotion.fadeFast(),
+                                            targetScale = 1.08f,
+                                        )
+                                    )
+                        },
+                        label = "sleep_timer_minutes_flip",
+                    ) { minutes ->
+                        Text(
+                            text = minutes.toString(),
+                            style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
+                            color = MaterialTheme.colorScheme.onSurface,
+                        )
+                    }
                     Text(
-                        text = "$minutes${copy.minuteSuffix}",
+                        text = copy.minuteSuffix,
                         style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
                         color = MaterialTheme.colorScheme.onSurface,
                     )

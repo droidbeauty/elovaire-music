@@ -44,6 +44,30 @@ internal data class MediaRevision(
     ).joinToString(":")
 }
 
+@JvmInline
+internal value class LogicalTrackId(val value: Long)
+
+internal enum class MediaSourceAvailability {
+    Available,
+    Unavailable,
+    Unknown,
+}
+
+internal data class MediaSource(
+    val identity: MediaSourceIdentity,
+    val uri: Uri,
+    val revision: MediaRevision,
+    val availability: MediaSourceAvailability = MediaSourceAvailability.Unknown,
+)
+
+/** A logical track keeps user-facing identity stable while its physical locator can change. */
+internal data class LogicalTrack(
+    val id: LogicalTrackId,
+    val canonicalSong: Song,
+    val preferredSource: MediaSource,
+    val sources: List<MediaSource>,
+)
+
 internal object MediaIdentityResolver {
     fun mediaStore(volumeName: String?, mediaId: Long?): MediaSourceIdentity.MediaStoreItem? {
         val volume = volumeName.normalizedIdentityPart() ?: return null
@@ -74,6 +98,26 @@ internal object MediaIdentityResolver {
         resolveContentUri(song.uri)?.let { return it }
         if (song.uri.scheme.equals("content", ignoreCase = true)) return null
         return directFile(song.libraryPath ?: song.uri.path)
+    }
+
+    fun logicalTrackId(song: Song): LogicalTrackId? {
+        return song.id.takeIf { it != 0L }?.let(::LogicalTrackId)
+    }
+
+    fun source(
+        song: Song,
+        sizeBytes: Long? = null,
+        providerGeneration: Long? = null,
+        availability: MediaSourceAvailability = MediaSourceAvailability.Unknown,
+    ): MediaSource? {
+        return resolve(song)?.let { identity ->
+            MediaSource(
+                identity = identity,
+                uri = song.uri,
+                revision = revision(song, sizeBytes, providerGeneration),
+                availability = availability,
+            )
+        }
     }
 
     fun stableKey(song: Song): String {

@@ -63,6 +63,18 @@ class MediaIdentityTest {
     }
 
     @Test
+    fun logicalTrackIdStaysStableWhenSourceRevisionChanges() {
+        val original = song(modifiedSeconds = 10L)
+        val edited = song(modifiedSeconds = 11L)
+
+        assertEquals(
+            MediaIdentityResolver.logicalTrackId(original),
+            MediaIdentityResolver.logicalTrackId(edited),
+        )
+        assertEquals(1L, MediaIdentityResolver.logicalTrackId(original)?.value)
+    }
+
+    @Test
     fun unknownContentProviderDoesNotFallBackToMutablePath() {
         val song = song(10L).copy(uri = TestUri("content://example.provider/item/1"))
 

@@ -8,8 +8,9 @@
     -->
     <release version="2.7.1">
         <item>Minor UI tweaks in settings and search results screens</item>
+        <item>Redesigned language switcher UI in settings</item>
         <item>General performance improvements</item>
-        <item>Stability and performance upgrades</item>
-        <item>General bug fixes</item>
+        <item>Various tweaks to improve stability and reduce battery usage</item>
+        <item>Bug fixes</item>
     </release>
 </changelog>

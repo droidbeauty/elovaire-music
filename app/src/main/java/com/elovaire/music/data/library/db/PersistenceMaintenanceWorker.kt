@@ -26,6 +26,7 @@ class PersistenceMaintenanceWorker(
             val health = PersistenceMaintenance(
                 database.persistenceMaintenanceDao(),
                 MediaMutationJournal(database.libraryDao()),
+                userDataDao = database.userDataDao(),
             ).recoverAndPrune()
             if (!health.isMaintenanceSuccessful()) {
                 Result.failure()

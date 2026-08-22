@@ -87,6 +87,33 @@ class LibrarySongDuplicateResolverTest {
         assertTrue(first?.contains("primary:music/album/track.flac") == true)
     }
 
+    @Test
+    fun matchingCheapEvidenceIsOnlyProbableUntilContentIsProven() {
+        val evidence = LibrarySongDuplicateResolver.duplicateEvidence(
+            song(id = 1L, path = "/storage/emulated/0/Music/One/Track.flac"),
+            song(id = -1L, path = "/storage/emulated/0/Music/Two/Track.flac"),
+        )
+
+        assertEquals(
+            LibrarySongDuplicateResolver.DuplicateConfidence.ProbableDuplicate,
+            evidence.confidence,
+        )
+    }
+
+    @Test
+    fun sameSourceProducesLogicalTrackEvidence() {
+        val evidence = LibrarySongDuplicateResolver.duplicateEvidence(
+            song(id = 1L),
+            song(id = 1L),
+        )
+
+        assertEquals(
+            LibrarySongDuplicateResolver.DuplicateConfidence.SameSource,
+            evidence.confidence,
+        )
+        assertEquals(1L, evidence.logicalTrackId?.value)
+    }
+
     private fun song(
         id: Long,
         path: String? = "/storage/emulated/0/Music/Album/Track.flac",

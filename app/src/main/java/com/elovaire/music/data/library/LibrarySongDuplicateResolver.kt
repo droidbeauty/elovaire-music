@@ -7,6 +7,18 @@ import java.util.Locale
 
 /** Resolves duplicate scan results while preserving MediaStore as the preferred source. */
 internal object LibrarySongDuplicateResolver {
+    internal enum class DuplicateConfidence {
+        SameSource,
+        ProvenSameContent,
+        ProbableDuplicate,
+        Unrelated,
+    }
+
+    internal data class DuplicateEvidence(
+        val confidence: DuplicateConfidence,
+        val logicalTrackId: LogicalTrackId?,
+    )
+
     fun mergeMediaStoreAndSafSongs(
         mediaStoreSongs: List<Song>,
         safSongs: List<Song>,
@@ -17,17 +29,46 @@ internal object LibrarySongDuplicateResolver {
         val acceptedSafSongs = dedupeByStrongIdentity(safSongs)
         if (acceptedMediaStoreSongs.isEmpty()) return acceptedSafSongs
 
-        val mediaStrongKeys = acceptedMediaStoreSongs.flatMapTo(linkedSetOf(), ::strongKeys)
         val accepted = ArrayList<Song>(acceptedMediaStoreSongs.size + acceptedSafSongs.size)
         accepted += acceptedMediaStoreSongs
 
         acceptedSafSongs.forEach { safSong ->
-            val strongDuplicate = strongKeys(safSong).any { it in mediaStrongKeys }
-            if (!strongDuplicate) {
+            val duplicate = acceptedMediaStoreSongs.any { mediaSong ->
+                duplicateEvidence(mediaSong, safSong).confidence in setOf(
+                    DuplicateConfidence.SameSource,
+                    DuplicateConfidence.ProvenSameContent,
+                )
+            }
+            if (!duplicate) {
                 accepted += safSong
             }
         }
         return accepted
+    }
+
+    internal fun duplicateEvidence(left: Song, right: Song): DuplicateEvidence {
+        val leftSource = MediaIdentityResolver.resolve(left)
+        val rightSource = MediaIdentityResolver.resolve(right)
+        val sameSource = leftSource?.stableKey != null && leftSource.stableKey == rightSource?.stableKey
+        val sameUri = left.uri.toString().trim().lowercase(Locale.ROOT).let { leftUri ->
+            leftUri.isNotBlank() && leftUri == right.uri.toString().trim().lowercase(Locale.ROOT)
+        }
+        if (sameSource || sameUri) {
+            return DuplicateEvidence(DuplicateConfidence.SameSource, MediaIdentityResolver.logicalTrackId(left))
+        }
+        val leftPath = normalizedRealPath(left.libraryPath)
+        val rightPath = normalizedRealPath(right.libraryPath)
+        if (leftPath != null && leftPath == rightPath) {
+            return DuplicateEvidence(DuplicateConfidence.ProvenSameContent, MediaIdentityResolver.logicalTrackId(left))
+        }
+        val probable = left.durationMs > 0L &&
+            left.durationMs == right.durationMs &&
+            left.audioFormat.equals(right.audioFormat, ignoreCase = true) &&
+            left.fileName.equals(right.fileName, ignoreCase = true)
+        return DuplicateEvidence(
+            confidence = if (probable) DuplicateConfidence.ProbableDuplicate else DuplicateConfidence.Unrelated,
+            logicalTrackId = null,
+        )
     }
 
     fun dedupeLoadedSnapshotSongs(songs: List<Song>): List<Song> {
