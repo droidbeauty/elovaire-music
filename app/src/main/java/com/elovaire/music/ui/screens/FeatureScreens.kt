@@ -2654,6 +2654,7 @@ private fun ArtistAlbumGallery(
 internal fun SearchRoute(
     viewModel: SearchViewModel,
     libraryState: LibraryUiState,
+    playlists: List<Playlist>,
     favoriteSongIds: Set<Long>,
     topPadding: Dp,
     bottomPadding: Dp,
@@ -2664,11 +2665,13 @@ internal fun SearchRoute(
     onPlaySong: (Song, List<Song>) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onArtistSelected: (String) -> Unit,
+    onPlaylistSelected: (Playlist) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     SearchScreen(
         libraryState = libraryState,
+        playlists = playlists,
         state = state,
         favoriteSongIds = favoriteSongIds,
         topPadding = topPadding,
@@ -2692,6 +2695,7 @@ internal fun SearchRoute(
             onAlbumSelected(album, origin)
         },
         onArtistSelected = onArtistSelected,
+        onPlaylistSelected = onPlaylistSelected,
         onToggleFavorite = onToggleFavorite,
         onClearSearchHistory = viewModel::clearSearchHistory,
         onResetSearchUi = viewModel::resetSearchUi,
@@ -2701,6 +2705,7 @@ internal fun SearchRoute(
 @Composable
 private fun SearchScreen(
     libraryState: LibraryUiState,
+    playlists: List<Playlist>,
     state: SearchUiState,
     favoriteSongIds: Set<Long>,
     topPadding: Dp,
@@ -2716,6 +2721,7 @@ private fun SearchScreen(
     onSongSelected: (Song, List<Song>) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin, Boolean) -> Unit,
     onArtistSelected: (String) -> Unit,
+    onPlaylistSelected: (Playlist) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onClearSearchHistory: () -> Unit,
     onResetSearchUi: () -> Unit,
@@ -2772,6 +2778,18 @@ private fun SearchScreen(
     LaunchedEffect(scrollToTopRequestVersion, state.contentMode) {
         if (scrollToTopRequestVersion > 0L && state.contentMode == SearchContentMode.AllSongs) {
             allSongsListState.animateScrollToItem(0)
+        }
+    }
+    val matchingPlaylists = remember(playlists, trimmedQuery) {
+        if (trimmedQuery.isBlank()) {
+            emptyList()
+        } else {
+            playlists
+                .asSequence()
+                .filterNot(Playlist::isSystem)
+                .filter { it.name.contains(trimmedQuery, ignoreCase = true) }
+                .take(6)
+                .toList()
         }
     }
     val matchingArtists = remember(state.matchingArtists, language) {
@@ -3068,9 +3086,10 @@ private fun SearchScreen(
 
                                 SearchContentMode.Results -> {
                                     if (matchingArtists.isNotEmpty()) {
-                                        SectionTitleRow(
+                                        SearchResultsCategoryHeader(
                                             title = commonUiCopy(language).artists,
                                             subtitle = searchCopy(language).matchingArtists(matchingArtists.size),
+                                            iconResId = R.drawable.ic_lucide_mic_vocal,
                                         )
                                         SearchHistoryListCard(
                                             entries = matchingArtists,
@@ -3088,10 +3107,10 @@ private fun SearchScreen(
                                             contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
                                         ) {
                                             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                                SectionTitleRow(
+                                                SearchResultsCategoryHeader(
                                                     title = commonUiCopy(language).albums,
                                                     subtitle = copy.matchingAlbums(state.matchingAlbums.size),
-                                                    compact = true,
+                                                    iconResId = R.drawable.ic_lucide_disc_album,
                                                 )
                                                 ArtistAlbumGallery(
                                                     albums = state.matchingAlbums,
@@ -3137,7 +3156,26 @@ private fun SearchScreen(
                                         }
                                     }
 
-                                    if (state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() && matchingArtists.isEmpty()) {
+                                    if (matchingPlaylists.isNotEmpty()) {
+                                        SearchResultsCategoryHeader(
+                                            title = commonUiCopy(language).playlists,
+                                            subtitle = localizedCountLabel(
+                                                matchingPlaylists.size,
+                                                "playlist",
+                                                language,
+                                            ),
+                                            iconResId = R.drawable.ic_lucide_list_music,
+                                        )
+                                        SearchPlaylistListCard(
+                                            playlists = matchingPlaylists,
+                                            songs = libraryState.songs,
+                                            onPlaylistSelected = onPlaylistSelected,
+                                        )
+                                    }
+
+                                    if (state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() &&
+                                        matchingArtists.isEmpty() && matchingPlaylists.isEmpty()
+                                    ) {
                                         Column(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -3266,6 +3304,39 @@ private fun SearchHistorySectionHeader(
 }
 
 @Composable
+private fun SearchResultsCategoryHeader(
+    title: String,
+    subtitle: String,
+    @DrawableRes iconResId: Int,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(id = iconResId),
+            contentDescription = null,
+            tint = readableMutedIconColor(),
+            modifier = Modifier.size(15.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelLarge,
+                color = readableSecondaryTextColor(),
+            )
+        }
+    }
+}
+
+@Composable
 private fun SearchSongsPreviewHeader(
     resultCount: Int,
     showSeeAll: Boolean,
@@ -3278,9 +3349,10 @@ private fun SearchSongsPreviewHeader(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        SectionTitleRow(
+        SearchResultsCategoryHeader(
             title = commonUiCopy(language).songs,
             subtitle = copy.matchingSongs(resultCount),
+            iconResId = R.drawable.ic_lucide_music,
         )
         AnimatedVisibility(visible = showSeeAll) {
             Box(
@@ -3325,9 +3397,10 @@ private fun SearchSongsResultsHeader(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionTitleRow(
+            SearchResultsCategoryHeader(
                 title = commonUiCopy(language).songs,
                 subtitle = copy.matchingSongs(resultCount),
+                iconResId = R.drawable.ic_lucide_music,
                 modifier = Modifier.weight(1f),
             )
             Surface(
@@ -3397,6 +3470,83 @@ private fun SearchSongsResultsHeader(
 }
 
 @Composable
+private fun SearchPlaylistListCard(
+    playlists: List<Playlist>,
+    songs: List<Song>,
+    onPlaylistSelected: (Playlist) -> Unit,
+) {
+    val songsById = remember(songs) { songs.associateBy(Song::id) }
+    Surface(
+        shape = RoundedCornerShape(ElovaireRadii.card),
+        color = MaterialTheme.colorScheme.surface,
+    ) {
+        Column {
+            playlists.forEachIndexed { index, playlist ->
+                SearchPlaylistListRow(
+                    playlist = playlist,
+                    songs = playlist.songIds.mapNotNull(songsById::get),
+                    onClick = { onPlaylistSelected(playlist) },
+                )
+                if (index != playlists.lastIndex) {
+                    DividerLine()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchPlaylistListRow(
+    playlist: Playlist,
+    songs: List<Song>,
+    onClick: () -> Unit,
+) {
+    val language = LocalAppLanguage.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PlaylistArtworkPreview(
+            songs = songs,
+            title = playlist.name,
+            modifier = Modifier.size(50.dp),
+            placeholderIconSize = 18.dp,
+            cornerRadius = ElovaireRadii.artworkSmall,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = playlist.name,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = localizedCountLabel(playlist.songIds.size, "track", language),
+                style = MaterialTheme.typography.labelLarge,
+                color = readableSecondaryTextColor(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        Icon(
+            painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+            contentDescription = null,
+            tint = readableMutedIconColor().copy(alpha = 0.5f),
+            modifier = Modifier
+                .size(18.dp)
+                .rotate(180f),
+        )
+    }
+}
+
+@Composable
 private fun SearchHistoryListCard(
     entries: List<SearchHistoryEntry>,
     onAlbumSelected: (Long) -> Unit,
@@ -3435,13 +3585,17 @@ private fun SearchHistoryListRow(
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(horizontal = 14.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(
+            if (entry.kind == SearchHistoryKind.Artist) 14.dp else 12.dp,
+        ),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         ArtworkImage(
             uri = entry.artUri,
             title = entry.title,
-            modifier = Modifier.size(46.dp),
+            modifier = Modifier.size(
+                if (entry.kind == SearchHistoryKind.Artist) 50.dp else 46.dp,
+            ),
             cornerRadius = if (entry.kind == SearchHistoryKind.Artist) ElovaireRadii.pill else ElovaireRadii.artworkSmall,
             showArtworkGlow = entry.kind == SearchHistoryKind.Album,
         )
@@ -3461,6 +3615,16 @@ private fun SearchHistoryListRow(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+            )
+        }
+        if (entry.kind == SearchHistoryKind.Artist) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+                contentDescription = null,
+                tint = readableMutedIconColor().copy(alpha = 0.5f),
+                modifier = Modifier
+                    .size(18.dp)
+                    .rotate(180f),
             )
         }
     }

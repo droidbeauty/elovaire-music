@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.AppWorkKind
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStore
+import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
@@ -46,6 +47,10 @@ internal class GitHubUpdateController(
     private val clock: AppClock = AndroidAppClock,
 ) : UpdateController {
     private val appContext = context.applicationContext
+    private val boundedHttpTransport = BoundedHttpTransport(
+        connectTimeoutMs = 12_000,
+        readTimeoutMs = 12_000,
+    )
     private val _uiState = MutableStateFlow(AppUpdateUiState())
     override val uiState: StateFlow<AppUpdateUiState> = _uiState.asStateFlow()
     override val isSupported: Boolean = true
@@ -275,10 +280,20 @@ internal class GitHubUpdateController(
     private suspend fun verifyDownloadedApk(file: File, release: AppReleaseInfo) {
         require(file.isFile && file.length() > 0L) { "Downloaded update is invalid" }
         val checksum = release.checksumSha256 ?: release.checksumUrl?.let { url ->
-            withTrustedConnection(url, "text/plain") { connection ->
-                if (connection.responseCode !in 200..299) error("Unable to verify update")
-                connection.inputStream.bufferedReader().use { it.readLimitedText(MAX_CHECKSUM_TEXT_CHARS) }
-            }.let { AppUpdateIntegrity.expectedSha256(it, release.assetFileName) }
+            val response = boundedHttpTransport.get(
+                rawUrl = url,
+                headers = mapOf(
+                    "Accept" to "text/plain",
+                    "User-Agent" to "Elovaire/${BuildConfig.VERSION_NAME}",
+                ),
+                maxBytes = MAX_CHECKSUM_TEXT_CHARS,
+                urlPolicy = ::isTrustedUpdateUrl,
+            )
+            if (response.statusCode !in 200..299) error("Unable to verify update")
+            AppUpdateIntegrity.expectedSha256(
+                response.body.toString(Charsets.UTF_8),
+                release.assetFileName,
+            )
         } ?: error("Unable to verify update")
         require(AppUpdateIntegrity.verifySha256(file, checksum)) { "Update verification failed" }
         val packageInfo = appContext.packageManager.getPackageArchiveInfo(
@@ -388,12 +403,17 @@ internal class GitHubUpdateController(
 }
 
 private object GitHubReleaseClient {
+    private val transport = BoundedHttpTransport(
+        connectTimeoutMs = 12_000,
+        readTimeoutMs = 12_000,
+    )
+
     suspend fun fetchNewerRelease(installedVersion: String): AppReleaseInfo? {
-        val latest = runCatching { parseRelease(JSONObject(getText(LATEST_RELEASE_URL))) }.getOrNull()
+        val latest = runNetworkCatching { parseRelease(JSONObject(getText(LATEST_RELEASE_URL))) }.getOrNull()
         if (latest != null && AppVersionPolicy.isNewer(latest.versionName, installedVersion)) {
             return latest
         }
-        val releases = runCatching { JSONArray(getText(RELEASES_URL)) }.getOrNull() ?: return null
+        val releases = runNetworkCatching { JSONArray(getText(RELEASES_URL)) }.getOrNull() ?: return null
         return buildList {
             for (index in 0 until releases.length()) {
                 parseRelease(releases.optJSONObject(index))?.let(::add)
@@ -401,6 +421,17 @@ private object GitHubReleaseClient {
         }
             .filter { AppVersionPolicy.isNewer(it.versionName, installedVersion) }
             .maxWithOrNull { left, right -> AppVersionPolicy.compare(left.versionName, right.versionName) }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun <T> runNetworkCatching(block: suspend () -> T): Result<T> {
+        return try {
+            Result.success(block())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            Result.failure(failure)
+        }
     }
 
     private fun parseRelease(json: JSONObject?): AppReleaseInfo? {
@@ -442,29 +473,28 @@ private object GitHubReleaseClient {
         )
     }
 
-    private suspend fun getText(url: String): String {
-        return withTrustedConnection(url, "application/vnd.github+json") { connection ->
-            if (connection.responseCode !in 200..299) error("GitHub update check failed")
-            connection.inputStream.bufferedReader().use { reader ->
-                reader.readLimitedText(MAX_RELEASE_METADATA_BYTES)
-            }
-        }
+    private suspend fun getText(
+        url: String,
+        accept: String = "application/vnd.github+json",
+        maxBytes: Int = MAX_RELEASE_METADATA_BYTES,
+    ): String {
+        val response = transport.get(
+            rawUrl = url,
+            headers = mapOf(
+                "Accept" to accept,
+                "User-Agent" to "Elovaire/${BuildConfig.VERSION_NAME}",
+                "X-GitHub-Api-Version" to "2022-11-28",
+            ),
+            maxBytes = maxBytes,
+            urlPolicy = ::isTrustedUpdateUrl,
+        )
+        if (response.statusCode !in 200..299) error("GitHub update check failed")
+        return response.body.toString(Charsets.UTF_8)
     }
 
     private const val LATEST_RELEASE_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases/latest"
     private const val RELEASES_URL = "https://api.github.com/repos/droidbeauty/elovaire-music/releases?per_page=20"
     private const val MAX_RELEASE_METADATA_BYTES = 1 * 1024 * 1024
-}
-
-private fun java.io.Reader.readLimitedText(limit: Int): String {
-    val result = StringBuilder(minOf(limit, 8_192))
-    val buffer = CharArray(8_192)
-    while (true) {
-        val count = read(buffer)
-        if (count < 0) return result.toString()
-        if (result.length > limit - count) error("Network response is too large")
-        result.append(buffer, 0, count)
-    }
 }
 
 private suspend fun <T> withTrustedConnection(

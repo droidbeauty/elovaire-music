@@ -148,6 +148,7 @@ private fun SearchRouteHost(
     SearchRoute(
         viewModel = searchViewModel,
         libraryState = routeState.libraryState,
+        playlists = routeState.playlists.playlists,
         favoriteSongIds = routeState.appState.favoriteSongIds,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
@@ -166,6 +167,7 @@ private fun SearchRouteHost(
             routeActions.openAlbum(album, origin, AlbumOpenSource.SearchResults)
         },
         onArtistSelected = routeActions::openArtist,
+        onPlaylistSelected = { playlist -> routeActions.openPlaylist(playlist.id) },
         onToggleFavorite = routeActions.playlists::toggleFavorite,
     )
 }

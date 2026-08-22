@@ -1336,6 +1336,9 @@ internal fun localizedCountLabel(
     noun: String,
     language: AppLanguage,
 ): String {
+    if (noun == "playlist") {
+        return localizedPlaylistCountLabel(count, language)
+    }
     localizedComplexCountLabel(count, noun, language)?.let { return it }
     val (singular, plural) = when (language) {
         AppLanguage.Albanian -> when (noun) {
@@ -1583,6 +1586,84 @@ internal fun localizedCountLabel(
         }
     }
     val label = if (count == 1) singular else plural
+    return "$count $label"
+}
+
+@Suppress("CyclomaticComplexMethod")
+private fun localizedPlaylistCountLabel(count: Int, language: AppLanguage): String {
+    val forms = when (language) {
+        AppLanguage.Albanian -> Triple("listë dëgjimi", "lista dëgjimi", "lista dëgjimi")
+        AppLanguage.ChineseSimplified -> Triple("播放列表", "播放列表", "播放列表")
+        AppLanguage.Croatian -> Triple("playlista", "playliste", "playlista")
+        AppLanguage.Czech -> Triple("playlist", "playlisty", "playlistů")
+        AppLanguage.Danish -> Triple("afspilningsliste", "afspilningslister", "afspilningslister")
+        AppLanguage.Dutch -> Triple("afspeellijst", "afspeellijsten", "afspeellijsten")
+        AppLanguage.Bengali -> Triple("প্লেলিস্ট", "প্লেলিস্ট", "প্লেলিস্ট")
+        AppLanguage.Estonian -> Triple("esitusloend", "esitusloendit", "esitusloendit")
+        AppLanguage.French -> Triple("playlist", "playlists", "playlists")
+        AppLanguage.German -> Triple("Playlist", "Playlists", "Playlists")
+        AppLanguage.Greek -> Triple("λίστα αναπαραγωγής", "λίστες αναπαραγωγής", "λίστες αναπαραγωγής")
+        AppLanguage.Hindi -> Triple("प्लेलिस्ट", "प्लेलिस्ट", "प्लेलिस्ट")
+        AppLanguage.Hungarian -> Triple("lejátszási lista", "lejátszási listák", "lejátszási listák")
+        AppLanguage.Italian -> Triple("playlist", "playlist", "playlist")
+        AppLanguage.Japanese -> Triple("プレイリスト", "プレイリスト", "プレイリスト")
+        AppLanguage.Korean -> Triple("재생목록", "재생목록", "재생목록")
+        AppLanguage.Latin -> Triple("index cantuum", "indices cantuum", "indices cantuum")
+        AppLanguage.Latvian -> Triple("atskaņošanas saraksts", "atskaņošanas saraksti", "atskaņošanas sarakstu")
+        AppLanguage.Lithuanian -> Triple("grojaraštis", "grojaraščiai", "grojaraščių")
+        AppLanguage.Malay -> Triple("senarai main", "senarai main", "senarai main")
+        AppLanguage.Macedonian -> Triple("плејлиста", "плејлисти", "плејлисти")
+        AppLanguage.Norwegian -> Triple("spilleliste", "spillelister", "spillelister")
+        AppLanguage.Polish -> Triple("playlista", "playlisty", "playlistów")
+        AppLanguage.Portuguese -> Triple("playlist", "playlists", "playlists")
+        AppLanguage.Russian -> Triple("плейлист", "плейлиста", "плейлистов")
+        AppLanguage.Slovak -> Triple("zoznam skladieb", "zoznamy skladieb", "zoznamov skladieb")
+        AppLanguage.Serbian -> Triple("плејлиста", "плејлисте", "плејлиста")
+        AppLanguage.Spanish -> Triple("lista de reproducción", "listas de reproducción", "listas de reproducción")
+        AppLanguage.Swedish -> Triple("spellista", "spellistor", "spellistor")
+        AppLanguage.Thai -> Triple("เพลย์ลิสต์", "เพลย์ลิสต์", "เพลย์ลิสต์")
+        AppLanguage.Ukrainian -> Triple("плейлист", "плейлисти", "плейлистів")
+        AppLanguage.Urdu -> Triple("پلے لسٹ", "پلے لسٹیں", "پلے لسٹیں")
+        AppLanguage.English -> Triple("playlist", "playlists", "playlists")
+    }
+    val number = count.coerceAtLeast(0)
+    val lastTwo = number % 100
+    val last = number % 10
+    val label = when {
+        language == AppLanguage.Latvian && (last == 0 || lastTwo in 11..19) -> forms.third
+        language == AppLanguage.Lithuanian && (last == 0 || lastTwo in 11..19) -> forms.third
+        language in setOf(
+            AppLanguage.Croatian,
+            AppLanguage.Czech,
+            AppLanguage.Polish,
+            AppLanguage.Russian,
+            AppLanguage.Serbian,
+            AppLanguage.Slovak,
+            AppLanguage.Ukrainian,
+        ) && last == 1 && lastTwo != 11 -> forms.first
+        language in setOf(
+            AppLanguage.Croatian,
+            AppLanguage.Czech,
+            AppLanguage.Polish,
+            AppLanguage.Russian,
+            AppLanguage.Serbian,
+            AppLanguage.Slovak,
+            AppLanguage.Ukrainian,
+        ) && last in 2..4 && lastTwo !in 12..14 -> forms.second
+        language in setOf(
+            AppLanguage.Croatian,
+            AppLanguage.Czech,
+            AppLanguage.Polish,
+            AppLanguage.Russian,
+            AppLanguage.Serbian,
+            AppLanguage.Slovak,
+            AppLanguage.Ukrainian,
+        ) -> forms.third
+        language == AppLanguage.Lithuanian && last == 1 && lastTwo != 11 -> forms.first
+        language == AppLanguage.Lithuanian && last in 2..9 -> forms.second
+        last == 1 && lastTwo != 11 -> forms.first
+        else -> forms.second
+    }
     return "$count $label"
 }
 

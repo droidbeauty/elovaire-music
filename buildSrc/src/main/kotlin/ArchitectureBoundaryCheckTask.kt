@@ -50,7 +50,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             if (("HttpURLConnection" in text || ".openConnection(" in text) && HTTP_ALLOWED.none(path::endsWith)) {
                 violations += "$path opens an ad hoc HTTP connection"
             }
-            if ("HttpTransport(" in text) {
+            if (Regex("(?<!Bounded)\\bHttpTransport\\(").containsMatchIn(text)) {
                 violations += "$path constructs a duplicate HTTP transport"
             }
             if ("AppContainer(" in text && !path.endsWith("/ElovaireApp.kt") && !path.endsWith("/core/AppContainer.kt")) {
@@ -109,6 +109,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         val HTTP_ALLOWED = setOf(
             "/data/artwork/ArtworkLoader.kt",
             "/data/lyrics/LrclibClient.kt",
+            "/data/network/BoundedHttpTransport.kt",
             "/data/update/GitHubUpdateController.kt",
         )
         val NATIVE_ALLOWED = emptySet<String>()

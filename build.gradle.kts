@@ -106,7 +106,8 @@ tasks.register<BaselineProfileResultCheckTask>("generateBaselineProfile") {
     )
     generatedProfileFiles.from(
         fileTree("macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark") {
-            include("**/BaselineProfileGenerator_generate-startup-prof.txt")
+            include("**/*-startup-prof.txt")
+            include("**/*-baseline-prof.txt")
         },
     )
 }

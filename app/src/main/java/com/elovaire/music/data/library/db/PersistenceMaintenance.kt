@@ -30,12 +30,53 @@ internal interface PersistenceMaintenanceDao {
 
     @Query("SELECT COUNT(*) FROM media_mutations WHERE status = 'NeedsRepair'")
     suspend fun repairRequiredMutationCount(): Int
+
+    @Query(
+        "SELECT COUNT(*) FROM user_playlist_entries AS entry " +
+            "LEFT JOIN user_playlists AS playlist ON playlist.playlistId = entry.playlistId " +
+            "WHERE playlist.playlistId IS NULL OR entry.position < 0 OR entry.position >= " +
+            "(SELECT COUNT(*) FROM user_playlist_entries AS sibling WHERE sibling.playlistId = entry.playlistId)",
+    )
+    suspend fun invalidPlaylistEntryCount(): Int
+
+    @Query(
+        "SELECT COUNT(*) FROM favorite_songs AS favorite " +
+            "WHERE favorite.position < 0 OR favorite.position >= (SELECT COUNT(*) FROM favorite_songs)",
+    )
+    suspend fun invalidFavoritePositionCount(): Int
+
+    @Query("SELECT COUNT(*) FROM song_play_counts WHERE playCount < 0")
+    suspend fun invalidSongPlayCountCount(): Int
+
+    @Query("SELECT COUNT(*) FROM album_play_counts WHERE playCount < 0")
+    suspend fun invalidAlbumPlayCountCount(): Int
+
+    @Query(
+        "SELECT COUNT(*) FROM recent_playback AS recent " +
+            "WHERE recent.position < 0 OR recent.position >= " +
+            "(SELECT COUNT(*) FROM recent_playback AS sibling WHERE sibling.kind = recent.kind)",
+    )
+    suspend fun invalidRecentPositionCount(): Int
+
+    @Query("SELECT COUNT(*) FROM user_smart_playlists WHERE trim(payload) = ''")
+    suspend fun invalidSmartPlaylistCount(): Int
+
+}
+
+internal enum class PersistenceHealthStatus {
+    Healthy,
+    RebuildableDerivedState,
+    RepairableUserState,
+    AmbiguousUserState,
+    FatalStorageFailure,
 }
 
 internal data class DatabaseHealth(
     val foreignKeysValid: Boolean,
     val orphanCount: Int,
     val recoveryRequired: Boolean,
+    val userDataConsistent: Boolean = true,
+    val status: PersistenceHealthStatus = PersistenceHealthStatus.Healthy,
 )
 
 internal class PersistenceMaintenance(
@@ -49,17 +90,32 @@ internal class PersistenceMaintenance(
                 foreignKeysValid = false,
                 orphanCount = -1,
                 recoveryRequired = true,
+                status = PersistenceHealthStatus.FatalStorageFailure,
             )
         }
         val foreignKeyViolationCount = dao.foreignKeyViolationCount()
         val orphanCount = dao.activeOrphanSongCount()
         val repairRequired = dao.repairRequiredMutationCount() > 0
+        val userDataConsistent = dao.invalidPlaylistEntryCount() == 0 &&
+            dao.invalidFavoritePositionCount() == 0 &&
+            dao.invalidSongPlayCountCount() == 0 &&
+            dao.invalidAlbumPlayCountCount() == 0 &&
+            dao.invalidRecentPositionCount() == 0 &&
+            dao.invalidSmartPlaylistCount() == 0
         dao.deleteTerminalMutationsBefore(terminalMutationCutoff(clock.wallTimeMs()))
         dao.pruneScanGenerations(SCAN_GENERATION_RETENTION_COUNT)
         return DatabaseHealth(
             foreignKeysValid = foreignKeyViolationCount == 0,
             orphanCount = orphanCount,
-            recoveryRequired = repairRequired,
+            recoveryRequired = repairRequired || !userDataConsistent,
+            userDataConsistent = userDataConsistent,
+            status = when {
+                foreignKeyViolationCount > 0 -> PersistenceHealthStatus.FatalStorageFailure
+                repairRequired -> PersistenceHealthStatus.AmbiguousUserState
+                !userDataConsistent -> PersistenceHealthStatus.RepairableUserState
+                orphanCount > 0 -> PersistenceHealthStatus.RebuildableDerivedState
+                else -> PersistenceHealthStatus.Healthy
+            },
         )
     }
 }

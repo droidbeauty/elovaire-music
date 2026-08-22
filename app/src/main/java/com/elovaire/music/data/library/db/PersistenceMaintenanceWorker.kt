@@ -72,7 +72,7 @@ class PersistenceMaintenanceWorker(
 }
 
 internal fun DatabaseHealth.isMaintenanceSuccessful(): Boolean {
-    return foreignKeysValid && orphanCount == 0 && !recoveryRequired
+    return foreignKeysValid && orphanCount == 0 && !recoveryRequired && userDataConsistent
 }
 
 private fun Throwable.isTransientMaintenanceFailure(): Boolean {

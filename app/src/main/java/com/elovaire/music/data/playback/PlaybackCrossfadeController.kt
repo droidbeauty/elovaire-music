@@ -64,6 +64,9 @@ internal class PlaybackCrossfadeController(
     var state: CrossfadeState = CrossfadeState.Idle
         private set
 
+    internal val hasSecondaryPlayer: Boolean
+        get() = incoming != null
+
     private var outgoing: ExoPlayer? = null
     private var incoming: ExoPlayer? = null
     private var incomingReady = false
@@ -474,8 +477,8 @@ internal class PlaybackCrossfadeController(
         currentCue = null
         plan = null
         logDebug("promote")
-        onPromote(outgoingPlayer, incomingPlayer)
         state = CrossfadeState.Idle
+        onPromote(outgoingPlayer, incomingPlayer)
     }
 
     private fun fail(reason: String) {

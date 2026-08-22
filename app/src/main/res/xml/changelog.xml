@@ -6,10 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.7">
-        <item>New feature - customizable look of now playing bar</item>
-        <item>Redesigned layout of the About screen</item>
-        <item>Added scrollable list entry in the Recently added module</item>
+    <release version="2.7.1">
+        <item>Minor UI tweaks in settings and search results screens</item>
         <item>General performance improvements</item>
+        <item>Stability and performance upgrades</item>
+        <item>General bug fixes</item>
     </release>
 </changelog>

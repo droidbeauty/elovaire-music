@@ -10,10 +10,6 @@ import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -64,7 +60,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
@@ -96,7 +94,6 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.ToggleEnabledGreen
-import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import kotlin.math.roundToInt
 
 @Composable
@@ -411,14 +408,11 @@ private fun LanguagePickerRow(
     ) {
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(5.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = copy.language,
-                style = MaterialTheme.typography.titleMedium.copy(
-                    fontSize = elovaireScaledSp(16f),
-                    fontWeight = FontWeight.SemiBold,
-                ),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
                 color = MaterialTheme.colorScheme.onSurface,
             )
             Text(
@@ -492,12 +486,12 @@ private fun LanguageSelectionDialog(
         AppLanguage.entries.sortedBy { it.englishName }
     }
     var pendingLanguage by rememberSaveable(selectedLanguage) { mutableStateOf(selectedLanguage) }
-    val visibleRows = 5
-    val rowHeight = 56.dp
     val rowSpacing = 2.dp
-    val listHeight = (rowHeight * visibleRows) + (rowSpacing * (visibleRows - 1))
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -506,48 +500,85 @@ private fun LanguageSelectionDialog(
                     indication = null,
                     onClick = onDismiss,
                 ),
-            contentAlignment = Alignment.Center,
+            contentAlignment = Alignment.BottomCenter,
         ) {
-            DynamicBackdropSurface(
+            AnimatedVisibility(
                 modifier = Modifier
+                    .align(Alignment.BottomCenter)
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = {},
-                    ),
-                shape = RoundedCornerShape(ElovaireRadii.card),
-                overlayAlpha = 0.6f,
-                borderColor = blurSurfaceBorderColor(),
+                    .fillMaxHeight(0.5f),
+                visible = true,
+                enter = ElovaireMotion.bottomSheetEnter(),
+                exit = ElovaireMotion.bottomSheetExit(),
             ) {
-                Column(
+                DynamicBackdropSurface(
                     modifier = Modifier
-                        .padding(horizontal = 20.dp, vertical = 20.dp)
-                        .animateContentSize(animationSpec = ElovaireMotion.sizeSoft()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                        .fillMaxSize()
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {},
+                        ),
+                    shape = RoundedCornerShape(
+                        topStart = ElovaireRadii.card,
+                        topEnd = ElovaireRadii.card,
+                    ),
+                    overlayAlpha = 0.6f,
+                    borderColor = null,
                 ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_languages),
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface,
-                            modifier = Modifier.size(16.dp),
-                        )
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                    }
-                    Box(
+                    Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .height(listHeight),
+                            .fillMaxSize()
+                            .padding(start = 20.dp, top = 18.dp, end = 16.dp, bottom = 18.dp)
+                            .animateContentSize(animationSpec = ElovaireMotion.sizeSoft()),
+                        verticalArrangement = Arrangement.spacedBy(14.dp),
                     ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_lucide_languages),
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurface,
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    Text(
+                                        text = title,
+                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                    )
+                                }
+                                Box(
+                                    modifier = Modifier
+                                        .size(32.dp)
+                                        .clip(CircleShape)
+                                        .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null,
+                                            onClick = onDismiss,
+                                        ),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_lucide_x),
+                                        contentDescription = "Close $title",
+                                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .weight(1f),
+                            ) {
                         LazyColumn(
                             state = listState,
                             overscrollEffect = null,
@@ -579,37 +610,38 @@ private fun LanguageSelectionDialog(
                             bottomInset = 0.dp,
                             modifier = Modifier.padding(end = 2.dp),
                         )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        TextButton(onClick = onDismiss) {
-                            Text(
-                                text = uiPhrase(selectedLanguage, UiPhrase.Cancel),
-                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(10.dp))
-                        val confirmInteractionSource = rememberElovaireInteractionSource()
-                        Surface(
-                            modifier = Modifier.elovaireActionBump(
-                                interactionSource = confirmInteractionSource,
-                                label = "language_confirm_bump",
-                            ),
-                            onClick = { onConfirm(pendingLanguage) },
-                            interactionSource = confirmInteractionSource,
-                            shape = RoundedCornerShape(ElovaireRadii.pill),
-                            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
-                            contentColor = MaterialTheme.colorScheme.onPrimary,
-                        ) {
-                            Text(
-                                text = copy.ok,
-                                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                        }
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                TextButton(onClick = onDismiss) {
+                                    Text(
+                                        text = uiPhrase(selectedLanguage, UiPhrase.Cancel),
+                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(10.dp))
+                                val confirmInteractionSource = rememberElovaireInteractionSource()
+                                Surface(
+                                    modifier = Modifier.elovaireActionBump(
+                                        interactionSource = confirmInteractionSource,
+                                        label = "language_confirm_bump",
+                                    ),
+                                    onClick = { onConfirm(pendingLanguage) },
+                                    interactionSource = confirmInteractionSource,
+                                    shape = RoundedCornerShape(ElovaireRadii.pill),
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
+                                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                                ) {
+                                    Text(
+                                        text = copy.ok,
+                                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    )
+                                }
+                            }
                     }
                 }
             }
@@ -624,7 +656,6 @@ private fun LanguagePickerOptionRow(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
-    val motionSpecs = rememberMotionSpecs()
     val highlightColor by animateColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
@@ -654,38 +685,17 @@ private fun LanguagePickerOptionRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier
+                    .size(width = 28.dp, height = 20.dp)
+                    .clip(RoundedCornerShape(4.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_circle),
-                    contentDescription = null,
-                    tint = if (selected) {
-                        MaterialTheme.colorScheme.primary.copy(alpha = 0.94f)
-                    } else {
-                        MaterialTheme.colorScheme.onSurface.copy(alpha = 0.42f)
-                    },
-                    modifier = Modifier.size(20.dp),
+                Text(
+                    text = languageFlag(language),
+                    style = MaterialTheme.typography.bodyLarge.copy(fontSize = 16.sp),
+                    textAlign = TextAlign.Center,
                 )
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = selected,
-                    enter = fadeIn(animationSpec = motionSpecs.tween(40)) + scaleIn(
-                        initialScale = 0.8f,
-                        animationSpec = ElovaireMotion.releaseSpringSpec(),
-                    ),
-                    exit = fadeOut(animationSpec = motionSpecs.tween(20)) + scaleOut(
-                        targetScale = 0.8f,
-                        animationSpec = motionSpecs.tween(20),
-                    ),
-                    label = "language_picker_check",
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_check),
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.94f),
-                        modifier = Modifier.size(12.dp),
-                    )
-                }
             }
             Text(
                 text = language.nativeName,
@@ -693,9 +703,49 @@ private fun LanguagePickerOptionRow(
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 ),
                 color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
+            SelectionIndicatorIcon(selected = selected)
         }
     }
+}
+
+private fun languageFlag(language: AppLanguage): String = when (language) {
+    AppLanguage.Albanian -> "🇦🇱"
+    AppLanguage.ChineseSimplified -> "🇨🇳"
+    AppLanguage.Croatian -> "🇭🇷"
+    AppLanguage.Czech -> "🇨🇿"
+    AppLanguage.Danish -> "🇩🇰"
+    AppLanguage.Dutch -> "🇳🇱"
+    AppLanguage.Bengali -> "🇧🇩"
+    AppLanguage.Estonian -> "🇪🇪"
+    AppLanguage.French -> "🇫🇷"
+    AppLanguage.German -> "🇩🇪"
+    AppLanguage.Greek -> "🇬🇷"
+    AppLanguage.Hindi -> "🇮🇳"
+    AppLanguage.Hungarian -> "🇭🇺"
+    AppLanguage.Italian -> "🇮🇹"
+    AppLanguage.Japanese -> "🇯🇵"
+    AppLanguage.Korean -> "🇰🇷"
+    AppLanguage.Latin -> "🇻🇦"
+    AppLanguage.Latvian -> "🇱🇻"
+    AppLanguage.Lithuanian -> "🇱🇹"
+    AppLanguage.Malay -> "🇲🇾"
+    AppLanguage.Macedonian -> "🇲🇰"
+    AppLanguage.Norwegian -> "🇳🇴"
+    AppLanguage.Polish -> "🇵🇱"
+    AppLanguage.Portuguese -> "🇵🇹"
+    AppLanguage.Russian -> "🇷🇺"
+    AppLanguage.Slovak -> "🇸🇰"
+    AppLanguage.Serbian -> "🇷🇸"
+    AppLanguage.Spanish -> "🇪🇸"
+    AppLanguage.Swedish -> "🇸🇪"
+    AppLanguage.Thai -> "🇹🇭"
+    AppLanguage.Ukrainian -> "🇺🇦"
+    AppLanguage.Urdu -> "🇵🇰"
+    AppLanguage.English -> "🇬🇧"
 }
 
 @Composable

@@ -1395,16 +1395,22 @@ class PlaybackManager(
     }
 
     private fun assertPlaybackEngineInvariants(state: PlaybackUiState) {
-        check(playerObserverBindings.size == 1 && playerObserverBindings.containsKey(player)) {
-            "authoritative player must own exactly one observer binding"
-        }
         val mediaId = player.currentMediaItem?.mediaId?.toLongOrNull()
         val currentSong = state.currentSong
-        if (mediaId != null && currentSong != null) {
-            check(mediaId == currentSong.id) {
-                "authoritative player and logical current song disagree"
-            }
-        }
+        assertPlaybackEngineInvariants(
+            PlaybackEngineInvariantSnapshot(
+                observerBindingCount = playerObserverBindings.size,
+                authoritativePlayerBound = playerObserverBindings.containsKey(player),
+                queueSize = state.queue.size,
+                currentIndex = state.currentIndex,
+                playerMediaItemCount = player.mediaItemCount,
+                playerCurrentMediaId = mediaId,
+                logicalCurrentSongId = currentSong?.id,
+                crossfadeState = crossfadeController.state,
+                crossfadeHasSecondary = crossfadeController.hasSecondaryPlayer,
+                released = released.get(),
+            ),
+        )
     }
 
     private fun handleUnsupportedPlaybackFormat(error: PlaybackException): Boolean {

@@ -14,6 +14,7 @@ import kotlinx.coroutines.CancellationException
 internal class LocalAudioMetadataReader(context: Context) {
     private val appContext = context.applicationContext
     private val embeddedReader = EmbeddedTagMetadataReader(appContext)
+    private val failureRegistry = MediaFailureRegistry()
 
     fun read(
         uri: Uri,
@@ -21,8 +22,17 @@ internal class LocalAudioMetadataReader(context: Context) {
         fileName: String,
         indexed: MetadataSourceValues? = null,
         fallbackGenre: String? = null,
+        identityKey: String? = null,
+        revisionKey: String? = null,
     ): LocalAudioMetadata {
-        val platform = readPlatformMetadata(uri)
+        val platformFailureKey = revisionKey?.let {
+            MediaFailureKey(
+                identity = identityKey ?: uri.toString(),
+                revision = it,
+                domain = MediaFailureDomain.Metadata,
+            )
+        }
+        val platform = readPlatformMetadata(uri, platformFailureKey)
         val embedded = embeddedReader.read(uri, filePath, fileName)
         val canonical = CanonicalMetadataResolver.resolve(
             embedded = embedded?.toMetadataSourceValues(),
@@ -46,7 +56,9 @@ internal class LocalAudioMetadataReader(context: Context) {
         )
     }
 
-    private fun readPlatformMetadata(uri: Uri): PlatformAudioMetadata {
+    @Suppress("TooGenericExceptionCaught")
+    private fun readPlatformMetadata(uri: Uri, failureKey: MediaFailureKey?): PlatformAudioMetadata {
+        if (failureKey != null && failureRegistry.shouldSuppress(failureKey)) return PlatformAudioMetadata()
         return try {
             val retriever = MediaMetadataRetriever()
             try {
@@ -79,13 +91,14 @@ internal class LocalAudioMetadataReader(context: Context) {
                         ?.toIntOrNull(),
                     bitrate = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_BITRATE)
                         ?.toIntOrNull(),
-                )
+                ).also { failureKey?.let(failureRegistry::recordSuccess) }
             } finally {
                 runCatching { retriever.release() }
             }
         } catch (cancellation: CancellationException) {
             throw cancellation
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            failureKey?.let { failureRegistry.recordFailure(it, mediaFailureCategory(failure)) }
             PlatformAudioMetadata()
         }
     }

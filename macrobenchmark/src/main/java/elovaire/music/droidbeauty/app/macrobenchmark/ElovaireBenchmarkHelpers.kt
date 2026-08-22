@@ -50,8 +50,13 @@ internal fun MacrobenchmarkScope.requireClickDescription(description: String) {
 
 internal fun MacrobenchmarkScope.requireClickTestTag(tag: String) {
     repeat(4) {
-        if (uiDevice.findObject(By.res(tag)) != null) return requireClick(By.res(tag), "testTag=$tag")
-        uiDevice.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.65f)
+        try {
+            uiDevice.waitForIdle()
+            if (uiDevice.findObject(By.res(tag)) != null) return requireClick(By.res(tag), "testTag=$tag")
+            uiDevice.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.65f)
+        } catch (_: StaleObjectException) {
+            // The scrollable semantics node can be replaced while Compose settles a route.
+        }
         uiDevice.waitForIdle()
     }
     requireClick(By.res(tag), "testTag=$tag")
@@ -61,6 +66,7 @@ private fun MacrobenchmarkScope.clickIfAvailable(selector: BySelector) {
     val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
     while (SystemClock.uptimeMillis() < deadlineMs) {
         val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
+        uiDevice.waitForIdle()
         val node = uiDevice.wait(Until.findObject(selector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
             ?: return
         try {
@@ -77,9 +83,11 @@ private fun MacrobenchmarkScope.requireClick(selector: BySelector, label: String
     var lastStale: StaleObjectException? = null
     while (SystemClock.uptimeMillis() < deadlineMs) {
         val remainingMs = (deadlineMs - SystemClock.uptimeMillis()).coerceAtLeast(1L)
+        uiDevice.waitForIdle()
         val node = uiDevice.wait(Until.findObject(selector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
             ?: continue
         try {
+            uiDevice.waitForIdle()
             node.clickActionable()
             uiDevice.waitForIdle()
             return

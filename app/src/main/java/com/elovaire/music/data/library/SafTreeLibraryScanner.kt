@@ -126,7 +126,17 @@ internal class SafTreeLibraryScanner(
                             child.documentId,
                         )?.stableKey,
                     )
-                val metadata = cachedFile?.metadata ?: readMetadata(child.uri, child.name)
+                val metadata = cachedFile?.metadata ?: readMetadata(
+                    uri = child.uri,
+                    fileName = child.name,
+                    identityKey = MediaIdentityResolver.safDocument(providerKey, child.documentId)?.stableKey,
+                    revisionKey = if (child.lastModifiedMs != null || child.sizeBytes != null) {
+                        MediaIdentityResolver.sourceRevisionKey(
+                            modifiedAtMs = child.lastModifiedMs,
+                            sizeBytes = child.sizeBytes,
+                        )
+                    } else null,
+                )
                 if (child.hasStableChangeSignal) {
                     refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
                 }
@@ -276,11 +286,18 @@ internal class SafTreeLibraryScanner(
         )
     }
 
-    private fun readMetadata(uri: Uri, fileName: String): LocalAudioMetadata {
+    private fun readMetadata(
+        uri: Uri,
+        fileName: String,
+        identityKey: String?,
+        revisionKey: String?,
+    ): LocalAudioMetadata {
         return localMetadataReader.read(
             uri = uri,
             filePath = null,
             fileName = fileName,
+            identityKey = identityKey,
+            revisionKey = revisionKey,
         )
     }
 

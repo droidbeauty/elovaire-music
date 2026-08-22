@@ -40,6 +40,26 @@ class PlaybackInvariantTest {
         assertTrue(!gate.isCurrent(newPlayer, newGeneration))
     }
 
+    @Test
+    fun engineSnapshotRejectsLogicalQueueWithoutPlayerMediaItems() {
+        val violations = playbackEngineInvariantViolations(
+            PlaybackEngineInvariantSnapshot(
+                observerBindingCount = 1,
+                authoritativePlayerBound = true,
+                queueSize = 1,
+                currentIndex = 0,
+                playerMediaItemCount = 0,
+                playerCurrentMediaId = null,
+                logicalCurrentSongId = 1L,
+                crossfadeState = CrossfadeState.Idle,
+                crossfadeHasSecondary = false,
+                released = false,
+            ),
+        )
+
+        assertTrue(violations.any { it.contains("no media items") })
+    }
+
     private fun song(id: Long) = Song(
         id = id,
         title = "Song $id",

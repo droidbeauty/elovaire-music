@@ -6,6 +6,10 @@ import android.media.AudioFormat
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.net.Uri
+import elovaire.music.droidbeauty.app.data.library.MediaFailureDomain
+import elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry
+import elovaire.music.droidbeauty.app.data.library.MediaFailureKey
+import elovaire.music.droidbeauty.app.data.library.mediaFailureCategory
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 
@@ -60,7 +64,9 @@ internal class AudioFormatDetector(context: Context) {
             return size > MAX_PROBE_CACHE_ENTRIES
         }
     }
+    private val failureRegistry = MediaFailureRegistry()
 
+    @Suppress("TooGenericExceptionCaught")
     fun detect(
         uri: Uri,
         fileName: String,
@@ -73,6 +79,16 @@ internal class AudioFormatDetector(context: Context) {
         }
         cacheKey?.let { key -> synchronized(detectedFormatCache) { detectedFormatCache[key] } }?.let { return it }
         val extension = fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+        val failureKey = revisionKey?.let {
+            MediaFailureKey(
+                identity = identityKey ?: uri.toString(),
+                revision = it,
+                domain = MediaFailureDomain.FormatProbe,
+            )
+        }
+        if (failureKey != null && failureRegistry.shouldSuppress(failureKey)) {
+            return fallbackFormat(extension, mediaStoreMimeType, signature = null)
+        }
         val signature = readSignature(uri)
         val extractor = MediaExtractor()
         val detected = try {
@@ -117,7 +133,8 @@ internal class AudioFormatDetector(context: Context) {
             )
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
+        } catch (failure: Exception) {
+            failureKey?.let { failureRegistry.recordFailure(it, mediaFailureCategory(failure)) }
             val container = signature?.toContainer()
                 ?: AudioFormatPolicy.resolveContainer(extension, mediaStoreMimeType, null)
             DetectedAudioFormat(
@@ -142,8 +159,39 @@ internal class AudioFormatDetector(context: Context) {
         } finally {
             runCatching { extractor.release() }
         }
-        cacheKey?.let { key -> synchronized(detectedFormatCache) { detectedFormatCache[key] = detected } }
+        if (detected.detectionSucceeded) failureKey?.let(failureRegistry::recordSuccess)
+        if (detected.detectionSucceeded) {
+            cacheKey?.let { key -> synchronized(detectedFormatCache) { detectedFormatCache[key] = detected } }
+        }
         return detected
+    }
+
+    private fun fallbackFormat(
+        extension: String,
+        mediaStoreMimeType: String?,
+        signature: AudioContainerSignature?,
+    ): DetectedAudioFormat {
+        val container = signature?.toContainer()
+            ?: AudioFormatPolicy.resolveContainer(extension, mediaStoreMimeType, null)
+        return DetectedAudioFormat(
+            container = container,
+            displayName = AudioFormatPolicy.displayName(container, extension),
+            mimeType = mediaStoreMimeType,
+            codecMimeType = null,
+            detectionSucceeded = false,
+            hasAudioTrack = false,
+            hasVideoTrack = false,
+            decoderAvailable = null,
+            sampleRate = null,
+            channelCount = null,
+            bitrate = null,
+            bitDepth = null,
+            evidence = when {
+                signature != null -> DetectionEvidence.Signature
+                !mediaStoreMimeType.isNullOrBlank() -> DetectionEvidence.ProviderMime
+                else -> DetectionEvidence.ExtensionFallback
+            },
+        )
     }
 
     @Synchronized

@@ -95,6 +95,7 @@ class AppInteractionSmokeTest {
             val target = device.wait(Until.findObject(selector), remainingMs.coerceAtMost(FIND_TIMEOUT_MS))
                 ?: continue
             try {
+                device.waitForIdle()
                 val bounds = target.visibleBounds
                 device.click(bounds.centerX(), bounds.centerY())
                 return
@@ -109,6 +110,7 @@ class AppInteractionSmokeTest {
         repeat(3) {
             try {
                 device.findObject(By.scrollable(true))?.scroll(direction, 0.5f)
+                device.waitForIdle()
                 return
             } catch (_: StaleObjectException) {
                 device.waitForIdle()

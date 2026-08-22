@@ -209,6 +209,13 @@ class MediaStoreScanner(
                                 durationMs = row.durationMs,
                                 detectedFormat = detectedFormat,
                                 genreCache = genreCache,
+                                identityKey = uriKey,
+                                revisionKey = if (row.dateModifiedSeconds != null || row.fileSizeBytes != null) {
+                                    MediaIdentityResolver.sourceRevisionKey(
+                                        modifiedAtMs = row.dateModifiedSeconds?.times(1_000L),
+                                        sizeBytes = row.fileSizeBytes,
+                                    )
+                                } else null,
                             )
                         } else {
                             SongMetadata(
@@ -411,6 +418,8 @@ class MediaStoreScanner(
         durationMs: Long,
         detectedFormat: DetectedAudioFormat,
         genreCache: MutableMap<MediaStoreGenreKey, String?>,
+        identityKey: String,
+        revisionKey: String?,
     ): SongMetadata {
         val metadata = localMetadataReader.read(
             uri = songUri,
@@ -425,6 +434,8 @@ class MediaStoreScanner(
             fallbackGenre = genreCache.getOrPut(MediaStoreGenreKey(songId, volumeName)) {
                 queryGenre(songId, volumeName)
             },
+            identityKey = identityKey,
+            revisionKey = revisionKey,
         )
         val resolvedFormat = detectedFormat.displayName
         val sampleRate = metadata.sampleRate ?: detectedFormat.sampleRate
