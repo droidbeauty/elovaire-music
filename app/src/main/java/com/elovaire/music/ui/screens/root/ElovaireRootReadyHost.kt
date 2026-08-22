@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 
 /** Owns the ready-state shell after the root permission gate has granted media access. */
 @Composable
@@ -9,8 +11,14 @@ internal fun ElovaireRootReadyHost(
     resetHomeScrollOnColdStart: Boolean,
 ) {
     val container = composition.container
-    val appState = composition.appState
-    val derivedState = composition.derivedState
+    val appState by composition.rootViewModel.appState.collectAsStateWithLifecycle()
+    val derivedState = rememberRootLibraryDerivedState(
+        library = appState.library,
+        playback = appState.playback,
+        playlists = appState.playlists,
+        songPlayCounts = appState.songPlayCounts,
+    )
+    val albumCollectionLayoutMode = appState.albumCollectionLayoutModeName.toAlbumLayoutMode()
     val libraryState = appState.library
     val playbackState = appState.playback
     val isPlaybackActuallyPlaying = playbackState.isPlaying && playbackState.currentSong != null
@@ -28,6 +36,7 @@ internal fun ElovaireRootReadyHost(
     RootEffectsHost(
         composition = composition,
         uiRuntime = uiRuntime,
+        derivedState = derivedState,
     )
 
     val actionRuntime = rememberRootActionRuntime(
@@ -36,7 +45,7 @@ internal fun ElovaireRootReadyHost(
         navController = composition.navController,
         appState = appState,
         derivedState = derivedState,
-        albumCollectionLayoutMode = composition.albumCollectionLayoutMode,
+        albumCollectionLayoutMode = albumCollectionLayoutMode,
         resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
         permissionController = composition.permissionController,
         deleteController = composition.deleteController,
@@ -64,7 +73,6 @@ internal fun ElovaireRootReadyHost(
                 searchViewModel = composition.searchViewModel,
                 viewModelFactory = composition.viewModelFactory,
                 artistImageRepository = container.artistImageRepository,
-                changelogReleases = composition.changelogReleases,
                 modifier = modifier,
             )
         },
@@ -74,6 +82,7 @@ internal fun ElovaireRootReadyHost(
                 sharedTopBarSpec = uiRuntime.sharedTopBarSpec,
                 chromeVisibility = uiRuntime.chromeVisibility,
                 playbackState = playbackState,
+                nowPlayingBarStyle = appState.nowPlayingBarStyle,
                 nowPlayingViewModel = composition.nowPlayingViewModel,
                 activeBottomRoute = uiRuntime.routeObservation.activeBottomRoute,
                 currentRoute = currentRoute,
@@ -87,7 +96,6 @@ internal fun ElovaireRootReadyHost(
             RootOverlaySlot(
                 overlayState = uiRuntime.overlayState,
                 topBarMenuActions = uiRuntime.topBarMenuActions,
-                changelogReleases = composition.changelogReleases,
                 playlistActions = actionRuntime.playlistActions,
                 permissionController = composition.permissionController,
                 updateController = container.updateController,

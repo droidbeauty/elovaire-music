@@ -84,6 +84,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicyCopy
 import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicySettingsSubtitle
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
+import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingBarStyleCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
@@ -118,6 +119,7 @@ internal fun SettingsScreen(
     onOpenCrossfade: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
     onOpenManagePlaylists: () -> Unit,
+    onOpenNowPlayingBarStyle: () -> Unit,
     onOpenPrivacyPolicy: () -> Unit,
     onOpenChangelog: () -> Unit,
     onScanLibrary: () -> Unit,
@@ -125,6 +127,7 @@ internal fun SettingsScreen(
 ) {
     val listState = rememberElovaireLazyListState("settings_screen")
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
+    val styleCopy = remember(appLanguage) { nowPlayingBarStyleCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
     val updateState by updateController.uiState.collectAsStateWithLifecycle()
     Box(
@@ -197,6 +200,12 @@ internal fun SettingsScreen(
                             copy = copy,
                             onLanguageSelected = onAppLanguageSelected,
                             modifier = Modifier.fillMaxWidth(),
+                        )
+                        SettingNavigationRow(
+                            title = styleCopy.title,
+                            subtitle = styleCopy.subtitle,
+                            onClick = onOpenNowPlayingBarStyle,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                     }
                 }

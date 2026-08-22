@@ -55,6 +55,11 @@ enum class ThemeMode {
     Dark,
 }
 
+enum class NowPlayingBarStyle {
+    Floating,
+    Compact,
+}
+
 enum class TextSizePreset(
     val scaleFactor: Float,
 ) {

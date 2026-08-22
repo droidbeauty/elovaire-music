@@ -6,6 +6,7 @@ import android.net.Uri
 import androidx.core.content.edit
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
@@ -84,6 +85,9 @@ class PreferenceStore internal constructor(
     private val _onlineLyricsEnabled = MutableStateFlow(preferences.getBoolean(KEY_ONLINE_LYRICS_ENABLED, true))
     override val onlineLyricsEnabled: StateFlow<Boolean> = _onlineLyricsEnabled.asStateFlow()
 
+    private val _nowPlayingBarStyle = MutableStateFlow(loadNowPlayingBarStyle())
+    override val nowPlayingBarStyle: StateFlow<NowPlayingBarStyle> = _nowPlayingBarStyle.asStateFlow()
+
     private val _albumCollectionLayoutMode = MutableStateFlow(loadAlbumCollectionLayoutMode())
     override val albumCollectionLayoutMode: StateFlow<String> = _albumCollectionLayoutMode.asStateFlow()
 
@@ -125,6 +129,12 @@ class PreferenceStore internal constructor(
     override fun setAppLanguage(language: AppLanguage) {
         updateStateAndPreference(_appLanguage, language) {
             putString(KEY_APP_LANGUAGE, language.name)
+        }
+    }
+
+    override fun setNowPlayingBarStyle(style: NowPlayingBarStyle) {
+        updateStateAndPreference(_nowPlayingBarStyle, style) {
+            putString(KEY_NOW_PLAYING_BAR_STYLE, style.name)
         }
     }
 
@@ -558,6 +568,12 @@ class PreferenceStore internal constructor(
         return preferences.getBoolean(KEY_VOLUME_NORMALIZATION_ENABLED, false)
     }
 
+    private fun loadNowPlayingBarStyle(): NowPlayingBarStyle {
+        return preferences.getString(KEY_NOW_PLAYING_BAR_STYLE, NowPlayingBarStyle.Floating.name)
+            ?.let { saved -> NowPlayingBarStyle.entries.firstOrNull { it.name == saved } }
+            ?: NowPlayingBarStyle.Floating
+    }
+
     private fun loadAlbumCollectionLayoutMode(): String {
         preferences.getString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, null)
             ?.trim()
@@ -640,6 +656,7 @@ class PreferenceStore internal constructor(
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
         const val KEY_ONLINE_LYRICS_ENABLED = "online_lyrics_enabled"
+        const val KEY_NOW_PLAYING_BAR_STYLE = "now_playing_bar_style"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
         const val KEY_ALBUM_COLLECTION_LAYOUT_MODE = "album_collection_layout_mode"
         const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"

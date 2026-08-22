@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
@@ -28,6 +29,7 @@ internal fun BoxScope.RootChromeHost(
     sharedTopBarHeight: Dp,
     canHostCompactNowPlaying: Boolean,
     playbackState: PlaybackUiState,
+    nowPlayingBarStyle: NowPlayingBarStyle,
     nowPlayingViewModel: NowPlayingViewModel,
     showGlobalNowPlaying: Boolean,
     reenteringFromPlayer: Boolean,
@@ -64,25 +66,39 @@ internal fun BoxScope.RootChromeHost(
     }
     if (canHostCompactNowPlaying) {
         playbackState.currentSong?.let { song: Song ->
-            Box(
-                modifier = Modifier
+            val dockModifier = if (nowPlayingBarStyle == NowPlayingBarStyle.Compact) {
+                Modifier
+                    .fillMaxWidth()
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = if (showCompactBottomNavigation) bottomNavHeight else navigationBarInsetDp())
+            } else {
+                Modifier
                     .fillMaxSize()
-                    .zIndex(RootLayerZ.CompactPlayer)
                     .padding(
                         start = 16.dp,
                         end = 16.dp,
                         bottom = if (showCompactBottomNavigation) bottomNavHeight + 8.dp else navigationBarInsetDp() + 10.dp,
-                    ),
+                    )
+            }
+            Box(
+                modifier = dockModifier.zIndex(RootLayerZ.CompactPlayer),
                 contentAlignment = Alignment.BottomCenter,
             ) {
                 CompactNowPlayingDockHost(
                     viewModel = nowPlayingViewModel,
                     song = song,
+                    style = nowPlayingBarStyle,
                     transportShowsPause = playbackState.transportShowsPause,
                     visible = showGlobalNowPlaying,
                     suppressEnterAnimation = reenteringFromPlayer,
                     onOpenPlayer = onOpenPlayer,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = if (nowPlayingBarStyle == NowPlayingBarStyle.Compact) {
+                        Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                    } else {
+                        Modifier.fillMaxWidth()
+                    },
                 )
             }
         }

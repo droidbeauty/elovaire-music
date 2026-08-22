@@ -46,6 +46,7 @@ class AppContainer(
     internal val albumTagEditorService get() = services.albumTagEditorService
     val playbackManager get() = services.playbackManager
     val libraryRepository get() = services.libraryRepository
+    internal val interactionWorkPolicy get() = backgroundWorkPolicy
     internal val rootReadDependencies get() = dependencies.rootReadDependencies
     internal val playbackActionDependencies get() = dependencies.playbackActionDependencies
     internal val libraryActionDependencies get() = dependencies.libraryActionDependencies

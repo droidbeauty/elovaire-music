@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.ElovaireViewModelDependencies
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
@@ -19,6 +20,7 @@ internal data class RootAppearanceState(
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
+    val nowPlayingBarStyle: NowPlayingBarStyle,
     val albumCollectionLayoutModeName: String,
     val songCollectionGridEnabled: Boolean,
     val albumCollectionSortModeName: String,
@@ -75,8 +77,9 @@ internal class RootViewModel(
             dependencies.rootSettingsReader.themeMode,
             dependencies.rootSettingsReader.textSizePreset,
             dependencies.rootSettingsReader.appLanguage,
-        ) { theme, textSize, language ->
-            AppearanceCore(theme, textSize, language)
+            dependencies.rootSettingsReader.nowPlayingBarStyle,
+        ) { theme, textSize, language, nowPlayingBarStyle ->
+            AppearanceCore(theme, textSize, language, nowPlayingBarStyle)
         },
         combine(
             dependencies.rootSettingsReader.albumCollectionLayoutMode,
@@ -97,6 +100,7 @@ internal class RootViewModel(
             themeMode = core.themeMode,
             textSizePreset = core.textSizePreset,
             appLanguage = core.appLanguage,
+            nowPlayingBarStyle = core.nowPlayingBarStyle,
             albumCollectionLayoutModeName = layout.albumCollectionLayoutModeName,
             songCollectionGridEnabled = layout.songCollectionGridEnabled,
             albumCollectionSortModeName = layout.albumCollectionSortModeName,
@@ -157,6 +161,7 @@ internal class RootViewModel(
             themeMode = appearance.themeMode,
             textSizePreset = appearance.textSizePreset,
             appLanguage = appearance.appLanguage,
+            nowPlayingBarStyle = appearance.nowPlayingBarStyle,
             playlists = collections.playlists,
             smartPlaylists = collections.smartPlaylists,
             favoriteSongIds = collections.favoriteSongIds,
@@ -178,6 +183,7 @@ internal class RootViewModel(
             themeMode = appearanceState.value.themeMode,
             textSizePreset = appearanceState.value.textSizePreset,
             appLanguage = appearanceState.value.appLanguage,
+            nowPlayingBarStyle = appearanceState.value.nowPlayingBarStyle,
             playlists = collectionState.value.playlists,
             smartPlaylists = collectionState.value.smartPlaylists,
             favoriteSongIds = collectionState.value.favoriteSongIds,
@@ -197,6 +203,7 @@ private data class AppearanceCore(
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
+    val nowPlayingBarStyle: NowPlayingBarStyle,
 )
 
 private data class AppearanceLayout(
@@ -211,6 +218,7 @@ private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.
         themeMode = settings.themeMode.value,
         textSizePreset = settings.textSizePreset.value,
         appLanguage = settings.appLanguage.value,
+        nowPlayingBarStyle = settings.nowPlayingBarStyle.value,
         albumCollectionLayoutModeName = settings.albumCollectionLayoutMode.value,
         songCollectionGridEnabled = settings.songCollectionGridEnabled.value,
         albumCollectionSortModeName = settings.albumCollectionSortMode.value,

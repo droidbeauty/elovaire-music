@@ -107,6 +107,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/ui/screens/about/AboutScreens.kt",
         )
         val HTTP_ALLOWED = setOf(
+            "/data/artwork/ArtworkLoader.kt",
             "/data/lyrics/LrclibClient.kt",
             "/data/update/GitHubUpdateController.kt",
         )

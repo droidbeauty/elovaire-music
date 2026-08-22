@@ -18,7 +18,6 @@ internal fun RootRouteGraph(
     searchViewModel: SearchViewModel,
     viewModelFactory: ElovaireViewModelFactory,
     artistImageRepository: ArtistImageRepository,
-    changelogReleases: List<elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease>,
     modifier: Modifier = Modifier,
 ) {
     RootNavigationHost(
@@ -37,7 +36,6 @@ internal fun RootRouteGraph(
                 routeState = routeState,
                 routeActions = routeActions,
                 padding = padding,
-                artistImageRepository = artistImageRepository,
             )
         }
         composable(PLAYLISTS_ROUTE) {
@@ -124,8 +122,11 @@ internal fun RootRouteGraph(
         composable(LIBRARY_FOLDERS_ROUTE) {
             LibraryFoldersRouteHost(routeState, routeActions, padding)
         }
+        composable(NOW_PLAYING_BAR_STYLE_ROUTE) {
+            NowPlayingBarStyleRouteHost(routeState, routeActions, padding)
+        }
         composable(CHANGELOG_ROUTE) {
-            ChangelogRouteHost(changelogReleases, routeActions)
+            ChangelogRouteHost(routeActions)
         }
         composable(ABOUT_ROUTE) {
             AboutRouteHost(routeActions, padding)

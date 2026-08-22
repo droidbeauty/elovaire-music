@@ -1,7 +1,11 @@
 package elovaire.music.droidbeauty.app.core
 
+import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 internal enum class AppWorkKind {
     ForegroundOnlyUiWork,
@@ -14,6 +18,7 @@ internal enum class AppWorkKind {
 
 internal data class WorkEnvironment(
     val foreground: Boolean,
+    val interactionCritical: Boolean = false,
 )
 
 internal enum class WorkDecision {
@@ -22,6 +27,11 @@ internal enum class WorkDecision {
     Reject,
 }
 
+private val OPTIONAL_AUTOMATIC_WORK = setOf(
+    AppWorkKind.ForegroundOnlyUiWork,
+    AppWorkKind.ForegroundOnlyMaintenance,
+)
+
 internal fun decideWorkAdmission(
     kind: AppWorkKind,
     userInitiated: Boolean,
@@ -29,6 +39,13 @@ internal fun decideWorkAdmission(
 ): WorkDecision {
     if (kind == AppWorkKind.PersistentScheduledWork) return WorkDecision.Reject
     if (kind == AppWorkKind.MediaPlaybackRuntime) return WorkDecision.Admit
+    if (
+        environment.interactionCritical &&
+        !userInitiated &&
+        kind in OPTIONAL_AUTOMATIC_WORK
+    ) {
+        return WorkDecision.Defer
+    }
     if (!environment.foreground) return WorkDecision.Defer
     if (userInitiated) return WorkDecision.Admit
     return when (kind) {
@@ -48,6 +65,9 @@ internal class AppBackgroundWorkPolicy(
     val isForeground: StateFlow<Boolean>,
 ) {
     private val optionalStartupSuppressed = AtomicBoolean(false)
+    private val interactionOwners = AtomicInteger(0)
+    private val _interactionCritical = MutableStateFlow(false)
+    val interactionCritical: StateFlow<Boolean> = _interactionCritical.asStateFlow()
 
     fun canStart(
         kind: AppWorkKind,
@@ -56,14 +76,17 @@ internal class AppBackgroundWorkPolicy(
         if (
             optionalStartupSuppressed.get() &&
             !userInitiated &&
-            kind in OPTIONAL_STARTUP_WORK
+            kind in OPTIONAL_AUTOMATIC_WORK
         ) {
             return false
         }
         return decideWorkAdmission(
             kind = kind,
             userInitiated = userInitiated,
-            environment = WorkEnvironment(foreground = isForeground.value),
+            environment = WorkEnvironment(
+                foreground = isForeground.value,
+                interactionCritical = interactionCritical.value,
+            ),
         ) == WorkDecision.Admit
     }
 
@@ -75,7 +98,25 @@ internal class AppBackgroundWorkPolicy(
         return permissionGranted && isForeground.value
     }
 
-    fun shouldDeferLibraryRefresh(): Boolean = !isForeground.value
+    fun shouldDeferLibraryRefresh(): Boolean =
+        !isForeground.value || interactionCritical.value
+
+    fun acquireInteractionCritical(): Closeable {
+        interactionOwners.incrementAndGet()
+        _interactionCritical.value = true
+        val released = AtomicBoolean(false)
+        return Closeable {
+            if (!released.compareAndSet(false, true)) return@Closeable
+            while (true) {
+                val current = interactionOwners.get()
+                if (current <= 0) return@Closeable
+                if (interactionOwners.compareAndSet(current, current - 1)) {
+                    if (current == 1) _interactionCritical.value = false
+                    return@Closeable
+                }
+            }
+        }
+    }
 
     fun shouldStartLyricsPrefetch(): Boolean {
         return canStart(AppWorkKind.ForegroundOnlyUiWork)
@@ -85,10 +126,4 @@ internal class AppBackgroundWorkPolicy(
         optionalStartupSuppressed.set(suppressed)
     }
 
-    private companion object {
-        val OPTIONAL_STARTUP_WORK = setOf(
-            AppWorkKind.ForegroundOnlyUiWork,
-            AppWorkKind.ForegroundOnlyMaintenance,
-        )
-    }
 }

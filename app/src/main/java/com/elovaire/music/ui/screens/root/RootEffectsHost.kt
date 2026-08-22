@@ -13,10 +13,12 @@ import kotlinx.coroutines.launch
 internal fun RootEffectsHost(
     composition: RootComposition,
     uiRuntime: RootUiRuntime,
+    derivedState: RootLibraryDerivedState,
 ) {
     val playerLayerController = uiRuntime.playerLayerController
     val currentPlayerLayerController by rememberUpdatedState(playerLayerController)
     val currentComposition by rememberUpdatedState(composition)
+    val currentDerivedState by rememberUpdatedState(derivedState)
     val currentUiRuntime by rememberUpdatedState(uiRuntime)
     LaunchedEffect(composition.container) {
         composition.container.openNowPlayingCommands.collect {
@@ -28,16 +30,18 @@ internal fun RootEffectsHost(
             when (command) {
                 AppShortcutCommand.LastPlayed -> {
                     launch {
-                        val current = snapshotFlow { currentComposition }.first { state ->
-                            val playlist = state.derivedState.lastPlayedPlaylist
+                        snapshotFlow { currentDerivedState }.first { state ->
+                            val playlist = state.lastPlayedPlaylist
                             val hasPlayablePlaylist = playlist?.songIds
-                                ?.any(state.derivedState.songsById::containsKey) == true
+                                ?.any(state.songsById::containsKey) == true
                             hasPlayablePlaylist ||
-                                state.derivedState.lastPlayedAlbum?.songs?.isNotEmpty() == true
+                                state.lastPlayedAlbum?.songs?.isNotEmpty() == true
                         }
-                        val playlist = current.derivedState.lastPlayedPlaylist
+                        val current = currentComposition
+                        val playlist = currentDerivedState.lastPlayedPlaylist
+                        val lastPlayedAlbum = currentDerivedState.lastPlayedAlbum
                         val playlistSongs = playlist?.songIds
-                            ?.mapNotNull(current.derivedState.songsById::get)
+                            ?.mapNotNull(currentDerivedState.songsById::get)
                             .orEmpty()
                         when {
                             playlist != null && playlistSongs.isNotEmpty() -> {
@@ -48,9 +52,9 @@ internal fun RootEffectsHost(
                                     sourcePlaylistId = playlist.id,
                                 )
                             }
-                            current.derivedState.lastPlayedAlbum != null -> {
+                            lastPlayedAlbum != null -> {
                                 current.container.playbackManager.playAlbum(
-                                    current.derivedState.lastPlayedAlbum,
+                                    lastPlayedAlbum,
                                 )
                             }
                         }

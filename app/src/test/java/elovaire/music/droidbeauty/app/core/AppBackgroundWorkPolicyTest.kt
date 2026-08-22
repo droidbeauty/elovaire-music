@@ -64,4 +64,43 @@ class AppBackgroundWorkPolicyTest {
         assertFalse(policy.shouldKeepMediaStoreObserver(permissionGranted = true))
         assertFalse(policy.shouldKeepMediaStoreObserver(permissionGranted = false))
     }
+
+    @Test
+    fun interactionCriticalWindowDefersAutomaticLibraryRefresh() {
+        val policy = AppBackgroundWorkPolicy(MutableStateFlow(true))
+        val first = policy.acquireInteractionCritical()
+        val second = policy.acquireInteractionCritical()
+
+        assertTrue(policy.interactionCritical.value)
+        assertTrue(policy.shouldDeferLibraryRefresh())
+
+        first.close()
+        assertTrue(policy.interactionCritical.value)
+        second.close()
+        assertFalse(policy.interactionCritical.value)
+        assertFalse(policy.shouldDeferLibraryRefresh())
+    }
+
+    @Test
+    fun interactionLeaseIsIdempotent() {
+        val policy = AppBackgroundWorkPolicy(MutableStateFlow(true))
+        val lease = policy.acquireInteractionCritical()
+
+        lease.close()
+        lease.close()
+
+        assertFalse(policy.interactionCritical.value)
+    }
+
+    @Test
+    fun optionalAutomaticWorkDefersButUserWorkStillStartsDuringInteraction() {
+        val policy = AppBackgroundWorkPolicy(MutableStateFlow(true))
+        val lease = policy.acquireInteractionCritical()
+
+        assertFalse(policy.canStart(AppWorkKind.ForegroundOnlyMaintenance))
+        assertTrue(policy.canStart(AppWorkKind.ForegroundOnlyMaintenance, userInitiated = true))
+        assertTrue(policy.canStart(AppWorkKind.MediaPlaybackRuntime))
+
+        lease.close()
+    }
 }

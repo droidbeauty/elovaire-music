@@ -60,6 +60,7 @@ import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
@@ -79,6 +80,7 @@ import kotlinx.coroutines.delay
 internal fun CompactNowPlayingDockHost(
     viewModel: NowPlayingViewModel,
     song: Song,
+    style: NowPlayingBarStyle,
     transportShowsPause: Boolean,
     visible: Boolean,
     suppressEnterAnimation: Boolean,
@@ -121,6 +123,7 @@ internal fun CompactNowPlayingDockHost(
 
     StandaloneNowPlayingDock(
         song = song,
+        style = style,
         isPlaying = transportShowsPause,
         progressState = progressState,
         visible = visible,
@@ -136,6 +139,7 @@ internal fun CompactNowPlayingDockHost(
 @Composable
 private fun StandaloneNowPlayingDock(
     song: Song,
+    style: NowPlayingBarStyle,
     isPlaying: Boolean,
     progressState: MutableFloatState,
     visible: Boolean,
@@ -146,6 +150,21 @@ private fun StandaloneNowPlayingDock(
     onSkipNext: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    if (style == NowPlayingBarStyle.Compact) {
+        CompactNowPlayingBar(
+            song = song,
+            isPlaying = isPlaying,
+            progressState = progressState,
+            visible = visible,
+            suppressEnterAnimation = suppressEnterAnimation,
+            onOpenPlayer = onOpenPlayer,
+            onTogglePlayback = onTogglePlayback,
+            onSkipPrevious = onSkipPrevious,
+            onSkipNext = onSkipNext,
+            modifier = modifier,
+        )
+        return
+    }
     val motionTransitions = rememberMotionTransitions()
     val artwork = rememberArtworkBitmap(song.artUri, size = 256)
     val gradient = rememberArtworkGradient(song.artUri).value
@@ -209,6 +228,228 @@ private fun StandaloneNowPlayingDock(
 }
 
 @Composable
+@Suppress("LongMethod")
+private fun CompactNowPlayingBar(
+    song: Song,
+    isPlaying: Boolean,
+    progressState: MutableFloatState,
+    visible: Boolean,
+    suppressEnterAnimation: Boolean,
+    onOpenPlayer: (NowPlayingTransitionSnapshot?) -> Unit,
+    onTogglePlayback: () -> Unit,
+    onSkipPrevious: () -> Unit,
+    onSkipNext: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val motionTransitions = rememberMotionTransitions()
+    val artwork = rememberArtworkBitmap(song.artUri, size = 192)
+    val barGradient = rememberArtworkGradient(song.artUri).value
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val baseTint = if (darkTheme) Color(0xFF141414).copy(alpha = 0.82f) else Color.White.copy(alpha = 0.82f)
+    val albumTint = barGradient.first().copy(alpha = 0.5f)
+    val controlBaseTint = if (darkTheme) {
+        barGradient.last().copy(alpha = 0.28f).compositeOver(Color.Black.copy(alpha = 0.16f))
+    } else {
+        barGradient.last().copy(alpha = 0.22f).compositeOver(Color.White.copy(alpha = 0.16f))
+    }
+    val controlIconTint by animateColorAsState(
+        targetValue = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White,
+        animationSpec = ElovaireMotion.colorFadeSpec(),
+        label = "MiniPlayerButtonIconTint",
+    )
+    val contentColor = controlIconTint
+    val secondaryContentColor = controlIconTint.copy(alpha = 0.72f)
+    val interactionSource = rememberElovaireInteractionSource()
+
+    ForceDarkColorScheme {
+        ElovaireAnimatedVisibility(
+            visible = visible,
+            modifier = modifier,
+            enter = motionTransitions.compactBarEnter(suppressEnterAnimation),
+            exit = motionTransitions.compactBarExit(),
+            label = "CompactNowPlayingDockVisibility",
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(60.dp)
+                    .background(baseTint),
+            ) {
+                val artworkBitmap = artwork.value
+                if (artworkBitmap != null) {
+                    Image(
+                        bitmap = artworkBitmap,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .blur(48.dp),
+                        alpha = 0.9f,
+                    )
+                }
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .background(albumTint),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(2.dp)
+                        .background(controlIconTint.copy(alpha = 0.18f)),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth(progressState.floatValue.coerceIn(0f, 1f))
+                        .height(2.dp)
+                        .background(controlIconTint),
+                )
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(60.dp)
+                        .padding(start = 12.dp, end = 14.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp)
+                            .padding(end = 54.dp)
+                            .compactBarGestures(
+                                enabled = visible,
+                                actions = CompactBarGestureActions(
+                                    onTap = { onOpenPlayer(null) },
+                                    onSwipePrevious = onSkipPrevious,
+                                    onSwipeNext = onSkipNext,
+                                ),
+                            ),
+                    )
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(60.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(ElovaireRadii.artworkSmall))
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AnimatedContent(
+                                targetState = artwork.value,
+                                transitionSpec = {
+                                    (
+                                        fadeIn(animationSpec = tween(260, delayMillis = 25)) +
+                                            scaleIn(initialScale = 0.96f, animationSpec = tween(300))
+                                        ) togetherWith (
+                                        fadeOut(animationSpec = tween(170)) +
+                                            scaleOut(targetScale = 1.04f, animationSpec = tween(220))
+                                        )
+                                },
+                                label = "compact_player_artwork_transition",
+                            ) { artworkBitmap ->
+                                if (artworkBitmap != null) {
+                                    Image(
+                                        bitmap = artworkBitmap,
+                                        contentDescription = song.title,
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier.size(40.dp),
+                                    )
+                                } else {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_lucide_music),
+                                        contentDescription = song.title,
+                                        tint = contentColor.copy(alpha = 0.72f),
+                                        modifier = Modifier.size(20.dp),
+                                    )
+                                }
+                            }
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(1.dp),
+                        ) {
+                            Text(
+                                text = song.title,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                maxLines = 1,
+                                color = contentColor,
+                                overflow = TextOverflow.Clip,
+                                modifier = Modifier.basicMarquee(
+                                    iterations = Int.MAX_VALUE,
+                                    animationMode = MarqueeAnimationMode.Immediately,
+                                    repeatDelayMillis = 2500,
+                                    initialDelayMillis = 2500,
+                                    velocity = 24.dp,
+                                ),
+                            )
+                            Text(
+                                text = song.artist,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = secondaryContentColor,
+                                maxLines = 1,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .elovairePressScale(
+                                    enabled = visible,
+                                    pressedScale = 0.88f,
+                                    animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                                    interactionSource = interactionSource,
+                                    label = "CompactMiniPlayerButtonScale",
+                                )
+                                .clickable(
+                                    enabled = visible,
+                                    interactionSource = interactionSource,
+                                    indication = null,
+                                    onClick = onTogglePlayback,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            AnimatedContent(
+                                targetState = isPlaying,
+                                transitionSpec = {
+                                    (
+                                        fadeIn(animationSpec = ElovaireMotion.iconSwapInSpec()) +
+                                            scaleIn(
+                                                initialScale = 0.9f,
+                                                animationSpec = ElovaireMotion.releaseSpringSpec(),
+                                            )
+                                        ) togetherWith (
+                                        fadeOut(animationSpec = ElovaireMotion.iconSwapOutSpec()) +
+                                            scaleOut(
+                                                targetScale = 1.04f,
+                                                animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                            )
+                                        )
+                                },
+                                label = "compact_mini_player_play_pause_icon",
+                            ) { playing ->
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (playing) R.drawable.ic_lucide_pause else R.drawable.ic_lucide_play,
+                                    ),
+                                    contentDescription = if (playing) "Pause" else "Play",
+                                    tint = contentColor,
+                                    modifier = Modifier.size(22.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun NowPlayingBar(
     song: Song,
     isPlaying: Boolean,
@@ -227,16 +468,7 @@ private fun NowPlayingBar(
     } else {
         barGradient.last().copy(alpha = 0.22f).compositeOver(Color.White.copy(alpha = 0.16f))
     }
-    val controlTint by animateColorAsState(
-        targetValue = controlBaseTint,
-        animationSpec = ElovaireMotion.colorFadeSpec(),
-        label = "MiniPlayerButtonTint",
-    )
-    val controlIconTint by animateColorAsState(
-        targetValue = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White,
-        animationSpec = ElovaireMotion.colorFadeSpec(),
-        label = "MiniPlayerButtonIconTint",
-    )
+    val controlIconTint = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White
     val resolvedPrimaryTextColor = controlIconTint
     val resolvedSecondaryTextColor = controlIconTint.copy(alpha = 0.72f)
     val compactControlBackground = controlIconTint.copy(alpha = 0.2f)

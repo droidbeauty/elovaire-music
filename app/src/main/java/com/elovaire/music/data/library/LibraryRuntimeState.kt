@@ -9,6 +9,7 @@ internal sealed interface LibraryRuntimeState {
         val permissionVersion: Long,
     ) : LibraryRuntimeState
     data class BackgroundDirty(val pending: LibraryRefreshRequest) : LibraryRuntimeState
+    data class InteractionDirty(val pending: LibraryRefreshRequest) : LibraryRuntimeState
     data class Failed(
         val failure: LibraryFailure,
         val recoverable: Boolean,

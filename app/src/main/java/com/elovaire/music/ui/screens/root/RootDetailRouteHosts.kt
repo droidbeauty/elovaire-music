@@ -8,7 +8,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -26,6 +25,7 @@ internal fun LibraryHubRouteHost(
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.libraryScrollRequestVersion,
         onOpenCollection = routeActions::openLibraryCollection,
+        onOpenRecentlyAdded = routeActions::openRecentlyAdded,
         onAlbumSelected = { album, origin ->
             routeActions.openAlbum(album, origin, AlbumOpenSource.LibraryAlbums)
         },
@@ -136,40 +136,12 @@ internal fun RecentlyAddedRouteHost(
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
-    artistImageRepository: ArtistImageRepository,
 ) {
-    val appState = routeState.appState
-    val library = routeState.libraryState
-    LibraryCollectionScreen(
-        kind = LibraryCollectionKind.Albums,
-        libraryState = library.copy(albums = recentlyAddedAlbumsFor(library)),
-        artistImageRepository = artistImageRepository,
-        playlists = appState.playlists,
-        songPlayCounts = appState.songPlayCounts,
-        favoriteSongIds = appState.favoriteSongIds,
-        albumCollectionLayoutMode = AlbumLayoutMode.Compact,
-        songCollectionLayoutMode = AlbumLayoutMode.Compact,
-        albumSortMode = AlbumSortMode.Artist,
-        songSortMode = SongSortMode.Title,
-        currentSongId = routeState.playbackState.currentSong?.id,
-        isCurrentSongPlaying = routeState.isPlaybackActuallyPlaying,
+    RecentlyAddedAlbumsScreen(
+        albums = recentlyAddedAlbumsFor(routeState.libraryState),
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onAlbumSelected = { album, origin -> routeActions.openAlbum(album, origin, AlbumOpenSource.LibraryAlbums) },
-        onAddAlbumToQueue = routeActions::enqueueAlbum,
-        onSongSelected = { song, queue -> routeActions.playback.playSongQueue(song, queue) },
-        onToggleFavorite = routeActions.playlists::toggleFavorite,
-        onAddAlbumToPlaylist = routeActions.playlists::addAlbumToPlaylist,
-        onCreatePlaylist = routeActions.playlists::createPlaylist,
-        playlistSongsById = routeState.songsById,
-        onSetAlbumFavorite = routeActions.playlists::setSongsFavorite,
-        onDeleteAlbumFromDevice = routeActions.delete::deleteAlbumFromDevice,
-        onAlbumCollectionLayoutModeChanged = {},
-        onSongCollectionLayoutModeChanged = {},
-        onAlbumSortModeChanged = {},
-        onSongSortModeChanged = {},
-        onGenreSelected = routeActions::openGenre,
-        onArtistSelected = routeActions::openArtist,
     )
 }
 
@@ -326,10 +298,27 @@ internal fun SettingsRouteHost(
         onOpenCrossfade = routeActions::openCrossfade,
         onOpenLibraryFolders = routeActions::openLibraryFolders,
         onOpenManagePlaylists = routeActions::openManagePlaylists,
+        onOpenNowPlayingBarStyle = routeActions::openNowPlayingBarStyle,
         onOpenPrivacyPolicy = routeActions::openPrivacyPolicy,
         onOpenChangelog = routeActions::openChangelog,
         onScanLibrary = routeActions::refreshLibrary,
         updateController = routeActions.updateController,
+    )
+}
+
+@Composable
+internal fun NowPlayingBarStyleRouteHost(
+    routeState: RootRouteState,
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    val settings = routeActions.settings.appearanceSettings
+    val nowPlayingBarStyle by settings.nowPlayingBarStyle.collectAsStateWithLifecycle()
+    NowPlayingBarStyleScreen(
+        selectedStyle = nowPlayingBarStyle,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onStyleSelected = routeActions.settings::setNowPlayingBarStyle,
     )
 }
 
@@ -389,11 +378,10 @@ internal fun ManagePlaylistsRouteHost(
 
 @Composable
 internal fun ChangelogRouteHost(
-    releases: List<ChangelogRelease>,
     routeActions: RootRouteActions,
 ) {
     ChangelogScreen(
-        releases = releases,
+        releases = rememberChangelogReleases(),
         onBack = routeActions::navigateUp,
     )
 }

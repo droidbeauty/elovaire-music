@@ -143,20 +143,42 @@ class LibraryRepository internal constructor(
         if (released.get() || !started.compareAndSet(false, true)) return
         foregroundObserverJob = scope.launch {
             var wasForeground = backgroundWorkPolicy.isForeground.value
-            backgroundWorkPolicy.isForeground.collect { isForeground ->
+            var wasInteractionCritical = backgroundWorkPolicy.interactionCritical.value
+            combine(
+                backgroundWorkPolicy.isForeground,
+                backgroundWorkPolicy.interactionCritical,
+            ) { isForeground, interactionCritical ->
+                isForeground to interactionCritical
+            }.collect { (isForeground, interactionCritical) ->
                 if (released.get()) return@collect
                 val enteredForeground = isForeground && !wasForeground
+                val interactionEnded = wasInteractionCritical && !interactionCritical
                 if (!isForeground) {
                     needsForegroundReconcile = true
                 }
                 wasForeground = isForeground
+                wasInteractionCritical = interactionCritical
                 updateObserverRegistration()
                 val runtime = _runtimeState.value
-                if (isForeground && runtime is LibraryRuntimeState.BackgroundDirty && _scanState.value.permissionGranted) {
+                val canResumeDeferredRefresh =
+                    isForeground &&
+                        !interactionCritical &&
+                        _scanState.value.permissionGranted
+                if (
+                    canResumeDeferredRefresh &&
+                        runtime is LibraryRuntimeState.BackgroundDirty
+                ) {
                     needsForegroundReconcile = false
                     startRefresh(runtime.pending, showLoadingIndicator = false)
                 } else if (
+                    canResumeDeferredRefresh &&
+                    (interactionEnded || enteredForeground) &&
+                    runtime is LibraryRuntimeState.InteractionDirty
+                ) {
+                    startRefresh(runtime.pending, showLoadingIndicator = false)
+                } else if (
                     enteredForeground &&
+                    !interactionCritical &&
                     needsForegroundReconcile &&
                     _scanState.value.permissionGranted
                 ) {
@@ -420,7 +442,11 @@ class LibraryRepository internal constructor(
             if (scanJob != null || !hasCurrentPermission(scanPermissionVersion)) return@launch
             val pendingRequest = refreshRequests.takePendingAfterScan()
             if (pendingRequest != null && _scanState.value.permissionGranted) {
-                startRefresh(pendingRequest, showLoadingIndicator = false)
+                if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
+                    holdDeferredRefresh(pendingRequest)
+                } else {
+                    startRefresh(pendingRequest, showLoadingIndicator = false)
+                }
             } else if (_runtimeState.value is LibraryRuntimeState.Scanning) {
                 _runtimeState.value = LibraryRuntimeState.Idle
             }
@@ -746,11 +772,7 @@ class LibraryRepository internal constructor(
             )
             if (backgroundWorkPolicy.shouldDeferLibraryRefresh()) {
                 val pending = refreshRequests.takePendingAfterScan() ?: return@launch
-                val merged = mergeBackgroundRefreshRequest(
-                    existing = (_runtimeState.value as? LibraryRuntimeState.BackgroundDirty)?.pending,
-                    incoming = pending,
-                )
-                _runtimeState.value = LibraryRuntimeState.BackgroundDirty(merged)
+                holdDeferredRefresh(pending)
                 return@launch
             }
             refreshDebounceJob?.cancel()
@@ -763,6 +785,20 @@ class LibraryRepository internal constructor(
                     showLoadingIndicator = false,
                 )
             }
+        }
+    }
+
+    private fun holdDeferredRefresh(incoming: LibraryRefreshRequest) {
+        val existing = when (val runtime = _runtimeState.value) {
+            is LibraryRuntimeState.BackgroundDirty -> runtime.pending
+            is LibraryRuntimeState.InteractionDirty -> runtime.pending
+            else -> null
+        }
+        val merged = mergeBackgroundRefreshRequest(existing = existing, incoming = incoming)
+        _runtimeState.value = if (backgroundWorkPolicy.isForeground.value) {
+            LibraryRuntimeState.InteractionDirty(merged)
+        } else {
+            LibraryRuntimeState.BackgroundDirty(merged)
         }
     }
 

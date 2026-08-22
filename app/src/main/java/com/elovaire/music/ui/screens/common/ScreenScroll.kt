@@ -56,6 +56,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.interaction.InteractionCriticalWindow
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import kotlinx.coroutines.channels.Channel
@@ -278,6 +279,7 @@ private fun BoxScope.FastScrollbarTrack(
     var dragFraction by remember { mutableFloatStateOf(scrollFraction.coerceIn(0f, 1f)) }
     var dragGrabOffsetPx by remember { mutableFloatStateOf(0f) }
     var dragThumbLengthPx by remember { mutableFloatStateOf(0f) }
+    InteractionCriticalWindow(isScrollInProgress || isDragging)
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val trackColor = fastScrollbarTrackColor(darkTheme)
     val thumbColor = fastScrollbarThumbColor(darkTheme)

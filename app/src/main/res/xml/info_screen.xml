@@ -36,21 +36,37 @@
             url="https://ko-fi.com/droidbeauty" />
     </entry>
 
-    <entry
+    <section
         title="Resources"
         description="Elovaire uses Apache-2.0 Android and Kotlin components, Lucide icons (ISC/MIT), Geist fonts (OFL-1.1), and jaudiotagger (LGPL). Full license texts are bundled with the app.">
-        <link
-            label="Android Developer"
-            url="https://developer.android.com" />
-        <link
-            label="Lucide icons"
-            url="https://lucide.dev/" />
-        <link
-            label="Geist font"
-            url="https://github.com/vercel/geist-font" />
-        <link
-            label="jaudiotagger"
-            url="https://bitbucket.org/ijabz/jaudiotagger" />
-    </entry>
+        <entry
+            title="Android Developer"
+            logoUrl="https://github.com/android.png?size=256">
+            <link
+                label="Website"
+                url="https://developer.android.com" />
+        </entry>
+        <entry
+            title="Lucide icons"
+            logoUrl="https://github.com/lucide-icons.png?size=256">
+            <link
+                label="Website"
+                url="https://lucide.dev/" />
+        </entry>
+        <entry
+            title="Geist font"
+            logoUrl="https://github.com/vercel.png?size=256">
+            <link
+                label="Website"
+                url="https://github.com/vercel/geist-font" />
+        </entry>
+        <entry
+            title="jaudiotagger"
+            logoUrl="https://bitbucket.org/ijabz/jaudiotagger/avatar/64/">
+            <link
+                label="Website"
+                url="https://bitbucket.org/ijabz/jaudiotagger" />
+        </entry>
+    </section>
 
 </about-screen>

@@ -376,6 +376,7 @@ internal fun HomeScreen(
     onPlayAlbum: (Album) -> Unit,
     onPlayPlaylist: (Playlist, List<Song>) -> Unit,
     onShufflePlaylist: (Playlist, List<Song>) -> Unit,
+    onOpenRecentlyAdded: () -> Unit,
     onSongSelected: (Song) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
@@ -566,6 +567,7 @@ internal fun HomeScreen(
                                         MutedSectionHeader(
                                             title = miscPhrase(LocalAppLanguage.current, MiscPhrase.RecentlyAdded),
                                             iconResId = R.drawable.ic_lucide_gallery_vertical_end,
+                                            onClick = onOpenRecentlyAdded,
                                         )
                                         recentlyAddedAlbums.take(4).chunked(2).forEach { rowAlbums ->
                                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -1624,6 +1626,7 @@ internal fun LibraryHubScreen(
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
     onOpenCollection: (LibraryCollectionKind) -> Unit,
+    onOpenRecentlyAdded: () -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
     val language = LocalAppLanguage.current
@@ -1702,6 +1705,7 @@ internal fun LibraryHubScreen(
                             MutedSectionHeader(
                                 title = miscPhrase(LocalAppLanguage.current, MiscPhrase.RecentlyAdded),
                                 iconResId = R.drawable.ic_lucide_gallery_vertical_end,
+                                onClick = onOpenRecentlyAdded,
                             )
                             recentlyAddedAlbums.chunked(2).take(4).forEach { rowAlbums ->
                                 Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -3657,22 +3661,44 @@ internal fun SectionTitleRow(
 private fun MutedSectionHeader(
     title: String,
     iconResId: Int,
+    onClick: (() -> Unit)? = null,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(
+                enabled = onClick != null,
+                onClick = { onClick?.invoke() },
+            ),
+        horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            painter = painterResource(id = iconResId),
-            contentDescription = null,
-            tint = readableMutedIconColor(),
-            modifier = Modifier.size(15.dp),
-        )
-        Text(
-            text = title,
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.onSurface,
-        )
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = iconResId),
+                contentDescription = null,
+                tint = readableMutedIconColor(),
+                modifier = Modifier.size(15.dp),
+            )
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+        }
+        if (onClick != null) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.74f),
+                modifier = Modifier
+                    .size(18.dp)
+                    .rotate(180f),
+            )
+        }
     }
 }
 
@@ -9239,10 +9265,12 @@ private fun LyricsOverlay(
                     .padding(horizontal = 20.dp, vertical = 18.dp),
             ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .alpha(headerReveal)
-                        .offset(y = ((1f - headerReveal) * (-18f)).dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer {
+                        alpha = headerReveal
+                        translationY = (1f - headerReveal) * (-18.dp.toPx())
+                    },
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -9322,8 +9350,10 @@ private fun LyricsOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 14.dp)
-                        .alpha(dividerReveal)
-                        .offset(y = ((1f - dividerReveal) * (-12f)).dp),
+                        .graphicsLayer {
+                            alpha = dividerReveal
+                            translationY = (1f - dividerReveal) * (-12.dp.toPx())
+                        },
                     contentAlignment = Alignment.Center,
                 ) {
                     Box(
@@ -9338,8 +9368,10 @@ private fun LyricsOverlay(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f)
-                        .alpha(contentReveal)
-                        .offset(y = ((1f - contentReveal) * (-10f)).dp),
+                        .graphicsLayer {
+                            alpha = contentReveal
+                            translationY = (1f - contentReveal) * (-10.dp.toPx())
+                        },
                 ) {
                     AnimatedContent(
                         targetState = isEditingLyrics,

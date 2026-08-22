@@ -9,12 +9,13 @@ import org.junit.Test
 
 class ScreenFormattersTest {
     @Test
-    fun recentlyAddedAlbumsFor_sortsAllIndexedAlbumsAndKeepsFour() {
-        val albums = (1L..5L).map { id -> album(id, addedAtSeconds = id) }
+    fun recentlyAddedAlbumsFor_sortsRecentAlbumsByLatestTimestamp() {
+        val nowSeconds = System.currentTimeMillis() / 1_000L
+        val albums = (1L..5L).map { id -> album(id, addedAtSeconds = nowSeconds - id) }
 
         val result = recentlyAddedAlbumsFor(LibraryUiState(albums = albums))
 
-        assertEquals(listOf(5L, 4L, 3L, 2L), result.map(Album::id))
+        assertEquals(listOf(1L, 2L, 3L, 4L, 5L), result.map(Album::id))
     }
 
     private fun album(id: Long, addedAtSeconds: Long): Album {

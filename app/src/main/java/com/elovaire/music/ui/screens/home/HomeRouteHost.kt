@@ -35,6 +35,7 @@ internal fun HomeRouteHost(
         onShufflePlaylist = { playlist, songs ->
             routeActions.playback.playPlaylist(playlist, songs, shuffle = true)
         },
+        onOpenRecentlyAdded = routeActions::openRecentlyAdded,
         onSongSelected = routeActions.playback::playSongFromAlbumOrSingle,
         onToggleFavorite = routeActions.playlists::toggleFavorite,
     )

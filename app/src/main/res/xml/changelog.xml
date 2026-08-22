@@ -6,10 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.6.7">
-        <item>Better default settings of crossfade feature for smoother transition</item>
-        <item>Technical upgrades to improve stability of the app</item>
-        <item>Performance optimizations by reducing CPU cycles the app triggers</item>
-        <item>Improved animation quality in the compact now playing bar</item>
+    <release version="2.7">
+        <item>New feature - customizable look of now playing bar</item>
+        <item>Redesigned layout of the About screen</item>
+        <item>Added scrollable list entry in the Recently added module</item>
+        <item>General performance improvements</item>
     </release>
 </changelog>

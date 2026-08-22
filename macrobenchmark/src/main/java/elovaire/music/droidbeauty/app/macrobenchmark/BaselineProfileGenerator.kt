@@ -14,13 +14,29 @@ class BaselineProfileGenerator {
     val baselineProfileRule = BaselineProfileRule()
 
     @Test
-    fun generate() {
+    fun generateStartupProfile() {
         assumeMacrobenchmarksEnabled()
         baselineProfileRule.collect(
             packageName = TARGET_PACKAGE,
             maxIterations = baselineProfileMaxIterations(),
             stableIterations = baselineProfileStableIterations(),
             includeInStartupProfile = true,
+        ) {
+            grantMediaPermission()
+            pressHome()
+            startActivityAndWait()
+            waitForAppVisible()
+        }
+    }
+
+    @Test
+    fun generateBaselineProfile() {
+        assumeMacrobenchmarksEnabled()
+        baselineProfileRule.collect(
+            packageName = TARGET_PACKAGE,
+            maxIterations = baselineProfileMaxIterations(),
+            stableIterations = baselineProfileStableIterations(),
+            includeInStartupProfile = false,
         ) {
             grantMediaPermission()
             pressHome()

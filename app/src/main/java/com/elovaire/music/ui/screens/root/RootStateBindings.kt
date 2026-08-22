@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
@@ -37,6 +38,7 @@ internal data class RootAppState(
     val themeMode: ThemeMode,
     val textSizePreset: TextSizePreset,
     val appLanguage: AppLanguage,
+    val nowPlayingBarStyle: NowPlayingBarStyle,
     val playlists: List<Playlist>,
     val smartPlaylists: List<SmartPlaylist>,
     val favoriteSongIds: Set<Long>,

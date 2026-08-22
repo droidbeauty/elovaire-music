@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
@@ -23,6 +24,7 @@ internal interface AppearanceSettingsStore {
     val songCollectionSortMode: StateFlow<String>
     val volumeNormalizationEnabled: StateFlow<Boolean>
     val onlineLyricsEnabled: StateFlow<Boolean>
+    val nowPlayingBarStyle: StateFlow<NowPlayingBarStyle>
     val crossfadeDurationMs: StateFlow<Long>
     val crossfadeSilenceThresholdDb: StateFlow<Float>
 }
@@ -58,6 +60,7 @@ internal interface AppearanceSettingsWriter {
     fun setThemeMode(themeMode: ThemeMode)
     fun setTextSizePreset(textSizePreset: TextSizePreset)
     fun setAppLanguage(language: AppLanguage)
+    fun setNowPlayingBarStyle(style: NowPlayingBarStyle)
 }
 
 internal interface LibrarySettingsWriter {

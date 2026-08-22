@@ -16,6 +16,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 
 @Suppress("TooManyFunctions")
 internal class RootRouteActions(
@@ -120,6 +121,10 @@ internal class RootRouteActions(
         navController.navigate(MANAGE_PLAYLISTS_ROUTE)
     }
 
+    fun openNowPlayingBarStyle() {
+        navController.navigate(NOW_PLAYING_BAR_STYLE_ROUTE)
+    }
+
     fun refreshLibrary() {
         libraryDependencies.libraryRepository.refresh(
             forceMediaIndex = true,
@@ -211,6 +216,10 @@ internal class SettingsRouteActions(
 
     fun setAppLanguage(language: elovaire.music.droidbeauty.app.domain.model.AppLanguage) {
         settingsDependencies.appearanceSettings.setAppLanguage(language)
+    }
+
+    fun setNowPlayingBarStyle(style: NowPlayingBarStyle) {
+        settingsDependencies.appearanceSettings.setNowPlayingBarStyle(style)
     }
 
     fun updateBass(value: Float) {

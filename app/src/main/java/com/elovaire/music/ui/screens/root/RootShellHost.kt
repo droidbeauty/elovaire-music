@@ -5,18 +5,24 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.navigation.NavHostController
 import dev.chrisbanes.haze.HazeState
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
+import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 internal fun RootShellHost(
@@ -59,6 +65,7 @@ internal fun BoxScope.RootChromeSlot(
     sharedTopBarSpec: SharedTopBarSpec?,
     chromeVisibility: RootChromeVisibility,
     playbackState: PlaybackUiState,
+    nowPlayingBarStyle: NowPlayingBarStyle,
     nowPlayingViewModel: NowPlayingViewModel,
     activeBottomRoute: String,
     currentRoute: String?,
@@ -73,6 +80,7 @@ internal fun BoxScope.RootChromeSlot(
         sharedTopBarHeight = layout.sharedTopBarHeight,
         canHostCompactNowPlaying = chromeVisibility.canHostCompactNowPlaying,
         playbackState = playbackState,
+        nowPlayingBarStyle = nowPlayingBarStyle,
         nowPlayingViewModel = nowPlayingViewModel,
         showGlobalNowPlaying = chromeVisibility.showGlobalNowPlaying,
         reenteringFromPlayer = chromeVisibility.reenteringFromPlayer,
@@ -91,13 +99,17 @@ internal fun BoxScope.RootChromeSlot(
 internal fun BoxScope.RootOverlaySlot(
     overlayState: RootOverlayStateHolder,
     topBarMenuActions: RootTopBarMenuActions,
-    changelogReleases: List<ChangelogRelease>,
     playlistActions: RootPlaylistActions,
     permissionController: RootPermissionController,
     updateController: elovaire.music.droidbeauty.app.data.update.UpdateController,
     motionTransitions: MotionTransitions,
 ) {
     val updateState by updateController.uiState.collectAsStateWithLifecycle()
+    val changelogReleases = if (overlayState.showChangelogSheet) {
+        rememberChangelogReleases()
+    } else {
+        emptyList()
+    }
     RootOverlayHost(
         showTopBarMenu = overlayState.showTopBarMenu,
         onDismissTopBarMenu = overlayState::dismissTopBarMenu,
@@ -117,6 +129,20 @@ internal fun BoxScope.RootOverlaySlot(
         updateState = updateState,
         motionTransitions = motionTransitions,
     )
+}
+
+@Composable
+internal fun rememberChangelogReleases(): List<ChangelogRelease> {
+    val context = LocalContext.current.applicationContext
+    val releases by produceState<List<ChangelogRelease>>(
+        initialValue = emptyList(),
+        key1 = context,
+    ) {
+        value = withContext(Dispatchers.IO) {
+            ChangelogRepository(context).loadReleases()
+        }
+    }
+    return releases
 }
 
 @Composable

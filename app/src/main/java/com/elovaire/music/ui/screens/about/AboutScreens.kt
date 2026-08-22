@@ -2,8 +2,6 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Bitmap
-import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
@@ -71,6 +69,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
+import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
+import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -408,6 +408,7 @@ internal fun AboutScreen(
                     AboutSectionBlock(
                         section = section,
                         showEntryLogo = index == 0,
+                        isResourceSection = section.title == "Resources",
                     )
                     if (index != aboutModel.sections.lastIndex) {
                         DividerLine()
@@ -687,6 +688,7 @@ private fun UpdateDownloadSpinner() {
 private fun AboutSectionBlock(
     section: AboutSection,
     showEntryLogo: Boolean = false,
+    isResourceSection: Boolean = false,
 ) {
     Column(
         modifier = Modifier
@@ -695,15 +697,32 @@ private fun AboutSectionBlock(
         verticalArrangement = Arrangement.spacedBy(18.dp),
         horizontalAlignment = Alignment.Start,
     ) {
-        section.entries.forEachIndexed { index, entry ->
-            AboutEntryBlock(
-                entry = entry,
-                horizontalScrollableLinks = true,
-                useRoseAccentButtons = index == 0 && showEntryLogo,
-                showLogo = showEntryLogo && index == 0,
+        if (isResourceSection) {
+            AboutEntryTextStack(
+                entry = AboutEntry(
+                    title = section.title,
+                    description = section.description,
+                    logoUri = null,
+                    links = emptyList(),
+                ),
             )
-            if (index != section.entries.lastIndex) {
-                DividerLine()
+            Spacer(modifier = Modifier.height(2.dp))
+            section.entries.forEachIndexed { index, entry ->
+                AboutResourceEntry(entry = entry)
+                if (index != section.entries.lastIndex) DividerLine()
+            }
+        } else {
+            section.entries.forEachIndexed { index, entry ->
+                AboutEntryBlock(
+                    entry = entry,
+                    horizontalScrollableLinks = true,
+                    useRoseAccentButtons = index == 0 && showEntryLogo,
+                    showLogo = showEntryLogo && index == 0,
+                    showPlayStoreCard = showEntryLogo && index == 0,
+                )
+                if (index != section.entries.lastIndex) {
+                    DividerLine()
+                }
             }
         }
     }
@@ -716,8 +735,13 @@ private fun AboutEntryBlock(
     useCardAccentButtons: Boolean = false,
     useRoseAccentButtons: Boolean = false,
     showLogo: Boolean = false,
+    showPlayStoreCard: Boolean = false,
 ) {
     val context = LocalContext.current
+    val playStoreLink = entry.links.firstOrNull { it.label.equals("Play Store", ignoreCase = true) }
+    val visibleLinks = entry.links.filterNot { link ->
+        showPlayStoreCard && link.label.equals("Play Store", ignoreCase = true)
+    }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         if (showLogo) {
             Row(
@@ -736,7 +760,7 @@ private fun AboutEntryBlock(
         } else {
             AboutEntryTextStack(entry = entry)
         }
-        if (entry.links.isNotEmpty()) {
+        if (visibleLinks.isNotEmpty()) {
             if (horizontalScrollableLinks) {
                 Row(
                     modifier = Modifier
@@ -744,7 +768,7 @@ private fun AboutEntryBlock(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    entry.links.forEach { link ->
+                    visibleLinks.forEach { link ->
                         AboutLinkPill(
                             link = link,
                             useCardAccent = useCardAccentButtons,
@@ -766,7 +790,7 @@ private fun AboutEntryBlock(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    entry.links.forEach { link ->
+                    visibleLinks.forEach { link ->
                         Box(modifier = Modifier.weight(1f)) {
                             AboutLinkPill(
                                 link = link,
@@ -785,6 +809,14 @@ private fun AboutEntryBlock(
                         }
                     }
                 }
+            }
+        }
+        if (showPlayStoreCard) {
+            playStoreLink?.let { link ->
+                AboutPlayStoreCard(
+                    link = link,
+                    onClick = { context.openAboutLink(link.url) },
+                )
             }
         }
     }
@@ -819,6 +851,7 @@ private fun AboutEntryTextStack(
 private fun AboutEntryLogo(
     logoUri: String?,
     title: String,
+    size: Dp = 60.dp,
 ) {
     val context = LocalContext.current
     val drawableRes = remember(context, logoUri) {
@@ -838,7 +871,12 @@ private fun AboutEntryLogo(
         value = null
         value = withContext(Dispatchers.IO) {
             try {
-                context.decodeAboutLogo(Uri.parse(source))?.asImageBitmap()?.also { bitmap ->
+                loadArtworkBitmap(
+                    context = context,
+                    uri = Uri.parse(source),
+                    targetPx = ABOUT_LOGO_TARGET_PX,
+                    purpose = ArtworkPurpose.AboutLogo,
+                )?.asImageBitmap()?.also { bitmap ->
                     aboutLogoImageCache.put(source, bitmap)
                 }
             } catch (cancelled: CancellationException) {
@@ -856,7 +894,7 @@ private fun AboutEntryLogo(
     }
     Box(
         modifier = Modifier
-            .size(60.dp)
+            .size(size)
             .clip(CircleShape)
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.42f)),
         contentAlignment = Alignment.Center,
@@ -880,12 +918,19 @@ private fun AboutEntryLogo(
                 )
             }
 
-            else -> {
+            else -> if (uri?.scheme == "http" || uri?.scheme == "https") {
+                Icon(
+                    painter = painterResource(id = aboutIconForUrl(uri.toString())),
+                    contentDescription = title,
+                    tint = readableMutedIconColor(),
+                    modifier = Modifier.size(size * 0.38f),
+                )
+            } else {
                 ArtworkImage(
                     uri = uri,
                     title = title,
                     modifier = Modifier.fillMaxSize(),
-                    cornerRadius = 30.dp,
+                    cornerRadius = size / 2,
                     requestedSizePx = 160,
                 )
             }
@@ -893,39 +938,140 @@ private fun AboutEntryLogo(
     }
 }
 
-private const val MAX_ABOUT_LOGO_DIMENSION = 8_192
-private const val MAX_ABOUT_LOGO_PIXELS = 16_000_000L
-private const val ABOUT_LOGO_TARGET_PX = 320
-private val aboutLogoImageCache = android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(4)
-
-private fun Context.decodeAboutLogo(uri: Uri): Bitmap? {
-    if (uri.scheme !in setOf("content", "file", "android.resource")) return null
-    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
-    contentResolver.openInputStream(uri)?.use { input ->
-        BitmapFactory.decodeStream(input, null, bounds)
-    } ?: return null
-    val options = aboutLogoDecodeOptions(bounds) ?: return null
-    return contentResolver.openInputStream(uri)?.use { input ->
-        BitmapFactory.decodeStream(input, null, options)
-    }
-}
-
-private fun aboutLogoDecodeOptions(bounds: BitmapFactory.Options): BitmapFactory.Options? {
-    val width = bounds.outWidth
-    val height = bounds.outHeight
-    if (
-        width <= 0 || height <= 0 ||
-        width > MAX_ABOUT_LOGO_DIMENSION || height > MAX_ABOUT_LOGO_DIMENSION ||
-        width.toLong() * height > MAX_ABOUT_LOGO_PIXELS
+@Composable
+private fun AboutResourceEntry(
+    entry: AboutEntry,
+) {
+    val context = LocalContext.current
+    val link = entry.links.firstOrNull() ?: return
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        return null
+        AboutEntryLogo(
+            logoUri = entry.logoUri,
+            title = entry.title,
+            size = 48.dp,
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Text(
+                text = localizedAboutTitle(entry.title, LocalAppLanguage.current),
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = entry.links.first().url.removePrefix("https://").removeSuffix("/"),
+                style = MaterialTheme.typography.labelLarge,
+                color = readableSecondaryTextColor(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+        AboutResourceLinkButton(
+            link = link,
+            onClick = { context.openAboutLink(link.url) },
+        )
     }
-    var sampleSize = 1
-    while (width / sampleSize > ABOUT_LOGO_TARGET_PX * 2 || height / sampleSize > ABOUT_LOGO_TARGET_PX * 2) {
-        sampleSize *= 2
-    }
-    return BitmapFactory.Options().apply { inSampleSize = sampleSize }
 }
+
+@Composable
+private fun AboutResourceLinkButton(
+    link: AboutLink,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(ElovaireRadii.pill),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f),
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = aboutIconForUrl(link.url)),
+                contentDescription = null,
+                modifier = Modifier.size(15.dp),
+            )
+            Text(
+                text = localizedAboutLinkLabel(link.label, LocalAppLanguage.current),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            )
+        }
+    }
+}
+
+@Composable
+private fun AboutPlayStoreCard(
+    link: AboutLink,
+    onClick: () -> Unit,
+) {
+    val cardColor = AboutCardButtonAccent.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) 0.28f else 0.18f)
+    val contentColor = if (cardColor.luminance() > 0.42f) InkText else Color.White
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        shape = RoundedCornerShape(ElovaireRadii.module),
+        color = cardColor,
+        contentColor = contentColor,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 18.dp, vertical = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_store),
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
+            ) {
+                Text(
+                    text = localizedAboutLinkLabel(link.label, LocalAppLanguage.current),
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                )
+                Text(
+                    text = "Droid Beauty",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = contentColor.copy(alpha = 0.76f),
+                )
+            }
+            Icon(
+                painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+                contentDescription = null,
+                modifier = Modifier
+                    .size(18.dp)
+                    .graphicsLayer { rotationZ = 180f },
+            )
+        }
+    }
+}
+
+private fun Context.openAboutLink(url: String) {
+    runCatching {
+        startActivity(
+            Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            },
+        )
+    }
+}
+
+private const val ABOUT_LOGO_TARGET_PX = 320
+private val aboutLogoImageCache = android.util.LruCache<String, androidx.compose.ui.graphics.ImageBitmap>(8)
 
 private fun Context.resolveAboutLogoDrawableRes(logoUri: String?): Int? {
     val source = logoUri?.trim()?.takeIf { it.isNotBlank() } ?: return null

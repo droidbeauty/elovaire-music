@@ -2449,6 +2449,49 @@ internal data class SettingsLanguageCopy(
     val checkForUpdatesSubtitle: String = "Check whether a newer version is available",
 )
 
+internal data class NowPlayingBarStyleCopy(
+    val title: String,
+    val subtitle: String,
+    val floating: String,
+    val compact: String,
+)
+
+internal fun nowPlayingBarStyleCopy(language: AppLanguage): NowPlayingBarStyleCopy = when (language) {
+    AppLanguage.Albanian -> NowPlayingBarStyleCopy("Stili i shiritit të riprodhimit", "Personalizo modulin e riprodhimit", "Lundrues", "Kompakt")
+    AppLanguage.Bengali -> NowPlayingBarStyleCopy("এখন বাজছে বারের স্টাইল", "এখন বাজছে মডিউলটি কাস্টমাইজ করুন", "ভাসমান", "কমপ্যাক্ট")
+    AppLanguage.ChineseSimplified -> NowPlayingBarStyleCopy("正在播放栏样式", "自定义正在播放模块", "浮动", "紧凑")
+    AppLanguage.Croatian -> NowPlayingBarStyleCopy("Stil trake reprodukcije", "Prilagodite modul reprodukcije", "Plutajući", "Kompaktni")
+    AppLanguage.Czech -> NowPlayingBarStyleCopy("Styl lišty přehrávání", "Přizpůsobte modul přehrávání", "Plovoucí", "Kompaktní")
+    AppLanguage.Danish -> NowPlayingBarStyleCopy("Stil for afspilningslinjen", "Tilpas afspilningsmodulet", "Flydende", "Kompakt")
+    AppLanguage.Dutch -> NowPlayingBarStyleCopy("Stijl van de afspeelbalk", "Pas de afspeelmodule aan", "Zwevend", "Compact")
+    AppLanguage.English -> NowPlayingBarStyleCopy("Now playing bar style", "Customize the now playing module", "Floating", "Compact")
+    AppLanguage.Estonian -> NowPlayingBarStyleCopy("Esitusriba stiil", "Kohanda esituse moodulit", "Hõljuv", "Kompaktne")
+    AppLanguage.French -> NowPlayingBarStyleCopy("Style de la barre de lecture", "Personnalisez le module de lecture", "Flottant", "Compact")
+    AppLanguage.German -> NowPlayingBarStyleCopy("Stil der Wiedergabeleiste", "Passe das Wiedergabemodul an", "Schwebend", "Kompakt")
+    AppLanguage.Greek -> NowPlayingBarStyleCopy("Στυλ γραμμής αναπαραγωγής", "Προσαρμόστε τη μονάδα αναπαραγωγής", "Αιωρούμενο", "Συμπαγές")
+    AppLanguage.Hindi -> NowPlayingBarStyleCopy("नाउ प्लेइंग बार शैली", "नाउ प्लेइंग मॉड्यूल को कस्टमाइज़ करें", "फ्लोटिंग", "कॉम्पैक्ट")
+    AppLanguage.Hungarian -> NowPlayingBarStyleCopy("Lejátszósáv stílusa", "A lejátszási modul testreszabása", "Lebegő", "Kompakt")
+    AppLanguage.Italian -> NowPlayingBarStyleCopy("Stile della barra di riproduzione", "Personalizza il modulo di riproduzione", "Fluttuante", "Compatto")
+    AppLanguage.Japanese -> NowPlayingBarStyleCopy("再生バーのスタイル", "再生モジュールをカスタマイズ", "フローティング", "コンパクト")
+    AppLanguage.Korean -> NowPlayingBarStyleCopy("재생 바 스타일", "재생 모듈 맞춤설정", "플로팅", "컴팩트")
+    AppLanguage.Latin -> NowPlayingBarStyleCopy("Stylus vectis lusionis", "Modulum lusionis customiza", "Fluitans", "Compactus")
+    AppLanguage.Latvian -> NowPlayingBarStyleCopy("Atskaņošanas joslas stils", "Pielāgo atskaņošanas moduli", "Peldošs", "Kompakts")
+    AppLanguage.Lithuanian -> NowPlayingBarStyleCopy("Atkūrimo juostos stilius", "Pritaikykite atkūrimo modulį", "Slankusis", "Kompaktiškas")
+    AppLanguage.Macedonian -> NowPlayingBarStyleCopy("Стил на лентата за репродукција", "Приспособете го модулот за репродукција", "Пловечки", "Компактен")
+    AppLanguage.Malay -> NowPlayingBarStyleCopy("Gaya bar sedang dimainkan", "Sesuaikan modul sedang dimainkan", "Terapung", "Kompak")
+    AppLanguage.Norwegian -> NowPlayingBarStyleCopy("Stil for avspillingslinje", "Tilpass avspillingsmodulen", "Flytende", "Kompakt")
+    AppLanguage.Polish -> NowPlayingBarStyleCopy("Styl paska odtwarzania", "Dostosuj moduł odtwarzania", "Pływający", "Kompaktowy")
+    AppLanguage.Portuguese -> NowPlayingBarStyleCopy("Estilo da barra de reprodução", "Personalize o módulo de reprodução", "Flutuante", "Compacto")
+    AppLanguage.Russian -> NowPlayingBarStyleCopy("Стиль панели воспроизведения", "Настройте модуль воспроизведения", "Плавающий", "Компактный")
+    AppLanguage.Serbian -> NowPlayingBarStyleCopy("Стил траке за репродукцију", "Прилагодите модул за репродукцију", "Плутајући", "Компактан")
+    AppLanguage.Slovak -> NowPlayingBarStyleCopy("Štýl lišty prehrávania", "Prispôsobte modul prehrávania", "Plávajúci", "Kompaktný")
+    AppLanguage.Spanish -> NowPlayingBarStyleCopy("Estilo de la barra de reproducción", "Personaliza el módulo de reproducción", "Flotante", "Compacto")
+    AppLanguage.Swedish -> NowPlayingBarStyleCopy("Stil på uppspelningsfältet", "Anpassa uppspelningsmodulen", "Flytande", "Kompakt")
+    AppLanguage.Thai -> NowPlayingBarStyleCopy("รูปแบบแถบกำลังเล่น", "ปรับแต่งโมดูลกำลังเล่น", "ลอย", "กะทัดรัด")
+    AppLanguage.Ukrainian -> NowPlayingBarStyleCopy("Стиль панелі відтворення", "Налаштуйте модуль відтворення", "Плаваючий", "Компактний")
+    AppLanguage.Urdu -> NowPlayingBarStyleCopy("اب چلنے والی بار کا انداز", "اب چلنے والے ماڈیول کو حسبِ ضرورت بنائیں", "فلوٹنگ", "کمپیکٹ")
+}
+
 internal fun settingsCopy(language: AppLanguage): SettingsLanguageCopy = when (language) {
     AppLanguage.Polish -> SettingsLanguageCopy("Ustawienia", "Wygląd", "Motyw", "Rozmiar tekstu", "Język", "Obecnie używany: ${language.nativeName}", "Dźwięk", "Podbicie basu", "Przestrzenność", "Korektor", "Włącz mono", "Przełącza odtwarzanie stereo na mono", "Inne ustawienia", "Skanuj bibliotekę", "Odśwież indeksowanie w poszukiwaniu nowych multimediów", "Skanuj", "Lista zmian", "Zaprojektowane z pasją do muzyki i świetnego designu")
     AppLanguage.ChineseSimplified -> SettingsLanguageCopy("设置", "外观", "主题", "文字大小", "语言", "当前使用：${language.nativeName}", "声音", "低音增强", "空间感", "均衡器", "启用单声道", "将立体声播放切换为单声道", "其他设置", "扫描媒体库", "刷新索引以查找新媒体", "扫描", "更新日志", "为音乐和优秀设计倾注热情")

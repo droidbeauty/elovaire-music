@@ -14,6 +14,8 @@ import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.io.InputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Locale
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
@@ -33,6 +35,7 @@ internal enum class ArtworkPurpose {
     Notification,
     PlaylistPreview,
     TagEditorPreview,
+    AboutLogo,
 }
 
 internal data class ImageTargetSize(
@@ -152,6 +155,11 @@ private fun decodeBitmapStream(
     purpose: ArtworkPurpose,
 ): Bitmap? {
     return runCatching {
+        if (uri.scheme == "https") {
+            return@runCatching downloadRemoteArtwork(uri)?.let { bytes ->
+                decodeArtworkBytes(bytes, targetSize.widthPx, purpose)
+            }
+        }
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         openArtworkInputStream(context, uri)?.use { inputStream ->
             BitmapFactory.decodeStream(inputStream, null, options)
@@ -162,6 +170,34 @@ private fun decodeBitmapStream(
             BitmapFactory.decodeStream(inputStream, null, sampledOptions)
         }
     }.getOrNull()
+}
+
+private fun downloadRemoteArtwork(uri: Uri): ByteArray? {
+    val connection = (URL(uri.toString()).openConnection() as? HttpURLConnection)?.apply {
+        requestMethod = "GET"
+        connectTimeout = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS
+        readTimeout = REMOTE_ARTWORK_READ_TIMEOUT_MS
+        instanceFollowRedirects = true
+        setRequestProperty("Accept", "image/*")
+    } ?: return null
+    return try {
+        connection.connect()
+        if (connection.responseCode !in 200..299 || connection.url.protocol != "https") return null
+        if (connection.contentLengthLong > MAX_REMOTE_ARTWORK_BYTES) return null
+        connection.inputStream.use { input ->
+            val output = ByteArrayOutputStream(minOf(MAX_REMOTE_ARTWORK_BYTES, 32 * 1024))
+            val buffer = ByteArray(8 * 1024)
+            while (true) {
+                val count = input.read(buffer)
+                if (count < 0) break
+                if (output.size() > MAX_REMOTE_ARTWORK_BYTES - count) return null
+                output.write(buffer, 0, count)
+            }
+            output.toByteArray().takeIf { it.isNotEmpty() }
+        }
+    } finally {
+        connection.disconnect()
+    }
 }
 
 private fun openArtworkInputStream(context: Context, uri: Uri): InputStream? {
@@ -199,6 +235,9 @@ private const val MAX_ENCODED_ARTWORK_BYTES = 16 * 1024 * 1024
 private const val MAX_MEDIA_SESSION_ARTWORK_BYTES = 2 * 1024 * 1024
 private const val MAX_ARTWORK_DIMENSION = 8_192
 private const val MAX_ARTWORK_PIXELS = 40_000_000L
+private const val MAX_REMOTE_ARTWORK_BYTES = 2 * 1024 * 1024
+private const val REMOTE_ARTWORK_CONNECT_TIMEOUT_MS = 5_000
+private const val REMOTE_ARTWORK_READ_TIMEOUT_MS = 5_000
 private val AUDIO_FILE_EXTENSIONS = setOf(
     ".aac",
     ".flac",
@@ -261,6 +300,7 @@ internal fun bitmapConfigForPurpose(purpose: ArtworkPurpose): Bitmap.Config {
         ArtworkPurpose.UiLarge,
         ArtworkPurpose.Notification,
         ArtworkPurpose.TagEditorPreview,
+        ArtworkPurpose.AboutLogo,
         -> Bitmap.Config.ARGB_8888
     }
 }

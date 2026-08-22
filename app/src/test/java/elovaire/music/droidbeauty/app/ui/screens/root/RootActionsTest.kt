@@ -13,6 +13,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
+import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
@@ -109,6 +110,7 @@ private class FakeAppearanceSettingsWriter : AppearanceSettingsWriter {
 
     override fun setThemeMode(themeMode: ThemeMode) = Unit
     override fun setTextSizePreset(textSizePreset: TextSizePreset) = Unit
+    override fun setNowPlayingBarStyle(style: NowPlayingBarStyle) = Unit
 
     override fun setAppLanguage(language: AppLanguage) {
         this.language = language
@@ -126,6 +128,7 @@ private class FakeAppearanceSettingsStore : AppearanceSettingsStore {
     override val songCollectionSortMode = MutableStateFlow("Title")
     override val volumeNormalizationEnabled = MutableStateFlow(false)
     override val onlineLyricsEnabled = MutableStateFlow(false)
+    override val nowPlayingBarStyle = MutableStateFlow(NowPlayingBarStyle.Compact)
     override val crossfadeDurationMs = MutableStateFlow(2_500L)
     override val crossfadeSilenceThresholdDb = MutableStateFlow(-80f)
 }

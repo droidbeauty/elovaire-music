@@ -35,6 +35,7 @@ internal const val CROSSFADE_ROUTE = "crossfade"
 internal const val SETTINGS_ROUTE = "settings"
 internal const val MANAGE_PLAYLISTS_ROUTE = "manage_playlists"
 internal const val LIBRARY_FOLDERS_ROUTE = "library_folders"
+internal const val NOW_PLAYING_BAR_STYLE_ROUTE = "now_playing_bar_style"
 internal const val CHANGELOG_ROUTE = "changelog"
 internal const val ABOUT_ROUTE = "about"
 internal const val PRIVACY_POLICY_ROUTE = "privacy_policy"
@@ -228,11 +229,13 @@ internal object ElovaireNavigationTransitions {
             SETTINGS_ROUTE,
             MANAGE_PLAYLISTS_ROUTE,
             LIBRARY_FOLDERS_ROUTE,
+            NOW_PLAYING_BAR_STYLE_ROUTE,
             EQUALIZER_ROUTE,
             CROSSFADE_ROUTE,
             CHANGELOG_ROUTE,
             ABOUT_ROUTE,
             PRIVACY_POLICY_ROUTE,
+            RECENTLY_ADDED_ROUTE,
             "$LIBRARY_COLLECTION_ROUTE/{kind}",
             "$GENRE_ROUTE/{genre}",
             "$ARTIST_ROUTE/{artistName}",
