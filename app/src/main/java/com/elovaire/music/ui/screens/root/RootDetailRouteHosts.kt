@@ -139,9 +139,17 @@ internal fun RecentlyAddedRouteHost(
 ) {
     RecentlyAddedAlbumsScreen(
         albums = recentlyAddedAlbumsFor(routeState.libraryState),
+        playlists = routeState.appState.playlists,
+        playlistSongsById = routeState.songsById,
+        favoriteSongIds = routeState.appState.favoriteSongIds,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onAlbumSelected = { album, origin -> routeActions.openAlbum(album, origin, AlbumOpenSource.LibraryAlbums) },
+        onAddAlbumToQueue = routeActions::enqueueAlbum,
+        onAddAlbumToPlaylist = routeActions.playlists::addAlbumToPlaylist,
+        onCreatePlaylist = routeActions.playlists::createPlaylist,
+        onSetAlbumFavorite = routeActions.playlists::setSongsFavorite,
+        onDeleteAlbumFromDevice = routeActions.delete::deleteAlbumFromDevice,
     )
 }
 

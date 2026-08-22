@@ -854,8 +854,12 @@ private fun AboutEntryLogo(
     size: Dp = 60.dp,
 ) {
     val context = LocalContext.current
-    val drawableRes = remember(context, logoUri) {
-        context.resolveAboutLogoDrawableRes(logoUri)
+    val drawableRes = remember(context, logoUri, title) {
+        if (title == "Droid Beauty") {
+            R.drawable.droid_beauty_logo
+        } else {
+            context.resolveAboutLogoDrawableRes(logoUri)
+        }
     }
     val logoBitmap by produceState<androidx.compose.ui.graphics.ImageBitmap?>(
         initialValue = logoUri?.trim()?.let(aboutLogoImageCache::get),

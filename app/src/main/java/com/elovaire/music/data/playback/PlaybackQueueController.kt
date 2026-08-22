@@ -235,15 +235,17 @@ internal class PlaybackQueueController(
             librarySongsByPath = songsByPath,
         ) ?: return
         val player = runtime.player
+        val currentIndex = runtime.resolveCurrentQueueIndex(state)
+        val playbackActive = player.isPlaying || player.playWhenReady
         refreshedQueue.forEachIndexed { index, refreshedSong ->
             if (
                 state.queue.getOrNull(index)?.playbackMetadataSignature() != refreshedSong.playbackMetadataSignature() &&
-                index < player.mediaItemCount
+                index < player.mediaItemCount &&
+                !(playbackActive && index == currentIndex)
             ) {
                 player.replaceMediaItem(index, refreshedSong.toPlaybackMediaItem())
             }
         }
-        val currentIndex = runtime.resolveCurrentQueueIndex(state)
         val previousCurrentSong = state.queue.getOrNull(currentIndex)
         val refreshedCurrentSong = refreshedQueue.getOrNull(currentIndex)
         val refreshedSourceLabel = when {

@@ -689,6 +689,11 @@ class PlaybackManager(
             if (released.get()) return@post
             val currentSong = currentSong() ?: return@post
             if (currentSong.id != songId) return@post
+            // Media3 permits a seamless replacement, but does not guarantee it for every
+            // renderer/device. Artwork is ancillary metadata and must never interrupt an
+            // actively playing source. The notification bitmap is already supplied through
+            // the description adapter; embed it when playback is settled instead.
+            if (player.isPlaying || player.playWhenReady) return@post
             val currentIndex = player.currentMediaItemIndex
             val currentItem = player.currentMediaItem ?: return@post
             if (currentItem.mediaId != songId.toString() || currentItem.mediaMetadata.artworkData != null) {

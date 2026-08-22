@@ -4552,7 +4552,7 @@ private fun AlbumGridCard(
 }
 
 @Composable
-private fun CompactAlbumRow(
+internal fun CompactAlbumRow(
     album: Album,
     selectionMode: Boolean = false,
     selected: Boolean = false,

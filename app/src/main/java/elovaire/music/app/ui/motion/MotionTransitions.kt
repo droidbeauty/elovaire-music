@@ -278,12 +278,6 @@ class MotionTransitions internal constructor(
                 slideDuration = MotionDuration.Emphasized,
                 initialAlpha = 0.52f,
                 initialOffsetY = { it / 10 },
-            ) + expandVertically(
-                expandFrom = Alignment.Bottom,
-                animationSpec = specs.tween(
-                    durationMillis = MotionDuration.Emphasized,
-                    easing = MotionEasing.RefinedDecelerate,
-                ),
             )
         }
     }
