@@ -79,6 +79,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.formatCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
@@ -266,9 +268,16 @@ internal fun PlaylistNameDialog(
                             )
                         }
                         Spacer(modifier = Modifier.width(4.dp))
+                        val confirmInteractionSource = rememberElovaireInteractionSource()
                         Surface(
+                            modifier = Modifier.elovaireActionBump(
+                                enabled = canConfirm,
+                                interactionSource = confirmInteractionSource,
+                                label = "playlist_create_confirm_bump",
+                            ),
                             onClick = { onConfirm(name.trim()) },
                             enabled = canConfirm,
+                            interactionSource = confirmInteractionSource,
                             shape = RoundedCornerShape(ElovaireRadii.pill),
                             color = if (canConfirm) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
@@ -357,12 +366,21 @@ internal fun PlaylistNameInputField(
                         targetScale = 0.92f,
                     ),
             ) {
+                val clearInteractionSource = rememberElovaireInteractionSource()
                 Box(
                     modifier = Modifier
                         .size(28.dp)
                         .clip(CircleShape)
                         .background(contentColor.copy(alpha = 0.1f))
-                        .clickable(onClick = { onValueChange("") }),
+                        .elovaireActionBump(
+                            interactionSource = clearInteractionSource,
+                            label = "playlist_name_clear_bump",
+                        )
+                        .clickable(
+                            interactionSource = clearInteractionSource,
+                            indication = null,
+                            onClick = { onValueChange("") },
+                        ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
@@ -780,9 +798,16 @@ internal fun InlinePlaylistCreatorRow(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                val saveInteractionSource = rememberElovaireInteractionSource()
                 Surface(
+                    modifier = Modifier.elovaireActionBump(
+                        enabled = canSave,
+                        interactionSource = saveInteractionSource,
+                        label = "playlist_rename_save_bump",
+                    ),
                     onClick = onSave,
                     enabled = canSave,
+                    interactionSource = saveInteractionSource,
                     shape = RoundedCornerShape(ElovaireRadii.pill),
                     color = if (canSave) {
                         MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)

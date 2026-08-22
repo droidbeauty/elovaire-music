@@ -86,7 +86,9 @@ import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingBarStyleCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
@@ -590,8 +592,14 @@ private fun LanguageSelectionDialog(
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
+                        val confirmInteractionSource = rememberElovaireInteractionSource()
                         Surface(
+                            modifier = Modifier.elovaireActionBump(
+                                interactionSource = confirmInteractionSource,
+                                label = "language_confirm_bump",
+                            ),
                             onClick = { onConfirm(pendingLanguage) },
+                            interactionSource = confirmInteractionSource,
                             shape = RoundedCornerShape(ElovaireRadii.pill),
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.92f),
                             contentColor = MaterialTheme.colorScheme.onPrimary,

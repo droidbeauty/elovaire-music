@@ -86,7 +86,9 @@ import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
@@ -1951,6 +1953,7 @@ private fun SelectablePill(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    val interactionSource = rememberElovaireInteractionSource()
     Surface(
         color = if (selected) {
             MaterialTheme.colorScheme.onSurface.copy(
@@ -1962,8 +1965,16 @@ private fun SelectablePill(
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(ElovaireRadii.pill),
         modifier = Modifier
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "equalizer_selectable_pill_bump",
+            )
             .clip(RoundedCornerShape(ElovaireRadii.pill))
-            .clickable(onClick = onClick),
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            ),
     ) {
         Text(
             text = label,
@@ -1980,13 +1991,20 @@ private fun ControlButton(
     onClick: () -> Unit,
     emphasized: Boolean = false,
 ) {
+    val interactionSource = rememberElovaireInteractionSource()
     Surface(
         onClick = onClick,
         shape = CircleShape,
         color = if (emphasized) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.surface.copy(alpha = 0.58f),
         contentColor = if (emphasized) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.onSurface,
         shadowElevation = if (emphasized) 22.dp else 0.dp,
-        modifier = Modifier.size(if (emphasized) 88.dp else 64.dp),
+        modifier = Modifier
+            .size(if (emphasized) 88.dp else 64.dp)
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "${contentDescription}_equalizer_control_bump",
+            ),
+        interactionSource = interactionSource,
     ) {
         Box(contentAlignment = Alignment.Center) {
             Icon(

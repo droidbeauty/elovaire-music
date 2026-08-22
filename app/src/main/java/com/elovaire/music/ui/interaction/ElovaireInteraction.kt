@@ -26,6 +26,23 @@ object ElovaireInteraction {
     val specs = ElovaireInteractionSpecs()
 }
 
+/** Shared press/release response for discrete pill and circular actions. */
+fun Modifier.elovaireActionBump(
+    enabled: Boolean = true,
+    pressedScale: Float = 0.9f,
+    interactionSource: MutableInteractionSource? = null,
+    label: String = "elovaireActionBump",
+): Modifier = composed {
+    if (!enabled) return@composed this
+    val motionSpecs = rememberMotionSpecs()
+    elovairePressScale(
+        pressedScale = pressedScale,
+        animationSpec = motionSpecs.mediaRelease(),
+        interactionSource = interactionSource,
+        label = label,
+    )
+}
+
 @Composable
 fun rememberElovaireInteractionSource(): MutableInteractionSource {
     return remember { MutableInteractionSource() }

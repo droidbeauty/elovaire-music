@@ -81,7 +81,6 @@ import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
-import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.RoseAccent
@@ -525,7 +524,7 @@ internal fun PlaylistDetailScreen(
                     trailingAction = TopBarMenuAction(
                         iconResId = R.drawable.ic_lucide_trash_2,
                         label = uiPhrase(LocalAppLanguage.current, UiPhrase.RemoveFromList),
-                        tint = DestructiveRed,
+                        tint = MaterialTheme.colorScheme.error,
                         enabled = editDraft.markedForRemoval.isNotEmpty(),
                         onClick = {
                             if (editDraft.markedForRemoval.isNotEmpty()) {

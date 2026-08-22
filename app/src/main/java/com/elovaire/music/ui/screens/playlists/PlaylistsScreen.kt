@@ -64,7 +64,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSortLabel
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
-import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 
 @Composable
@@ -239,7 +238,7 @@ internal fun PlaylistsScreen(
                 trailingAction = TopBarMenuAction(
                     iconResId = R.drawable.ic_lucide_trash_2,
                     label = uiPhrase(LocalAppLanguage.current, UiPhrase.RemoveFromList),
-                    tint = DestructiveRed,
+                    tint = MaterialTheme.colorScheme.error,
                     onClick = {
                         val ids = selectedPlaylistIds
                         scope.launch {

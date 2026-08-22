@@ -60,7 +60,6 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.gestures.scrollBy
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
@@ -278,6 +277,7 @@ import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
@@ -774,8 +774,14 @@ private fun LastPlayedAlbumModule(
                         )
                     }
                 }
+                val playInteractionSource = rememberElovaireInteractionSource()
                 Surface(
+                    modifier = Modifier.elovaireActionBump(
+                        interactionSource = playInteractionSource,
+                        label = "album_header_play_bump",
+                    ),
                     onClick = onPlay,
+                    interactionSource = playInteractionSource,
                     shape = CircleShape,
                     color = playBackground,
                     contentColor = playTint,
@@ -1414,7 +1420,7 @@ private fun TopBarSelectionMenu(
             AlbumCollectionActionButton(
                 iconResId = R.drawable.ic_lucide_trash_2,
                 label = uiPhrase(language, UiPhrase.Delete),
-                tint = DestructiveRed,
+                tint = MaterialTheme.colorScheme.error,
                 modifier = Modifier.weight(1f),
                 onClick = onDelete,
             )
@@ -1492,13 +1498,19 @@ private fun AlbumCollectionActionButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val interactionSource = rememberElovaireInteractionSource()
     Box(
         modifier = modifier
             .fillMaxHeight()
             .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .elovaireActionBump(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                label = "${label}_album_collection_action_bump",
+            )
             .clickable(
                 enabled = enabled,
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             ),
@@ -1532,9 +1544,15 @@ private fun AlbumSortControl(
     onSelect: (AlbumSortMode) -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
+    val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Surface(
+            modifier = Modifier.elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "album_sort_bump",
+            ),
             onClick = onToggleExpanded,
+            interactionSource = interactionSource,
             shape = RoundedCornerShape(ElovaireRadii.pill),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -1991,9 +2009,15 @@ private fun SongSortControl(
     onSelect: (SongSortMode) -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
+    val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Surface(
+            modifier = Modifier.elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "song_sort_bump",
+            ),
             onClick = onToggleExpanded,
+            interactionSource = interactionSource,
             shape = RoundedCornerShape(ElovaireRadii.pill),
             color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -3198,6 +3222,7 @@ private fun SearchHistorySectionHeader(
 ) {
     val language = LocalAppLanguage.current
     val copy = searchCopy(language)
+    val interactionSource = rememberElovaireInteractionSource()
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -3210,7 +3235,12 @@ private fun SearchHistorySectionHeader(
         )
         AnimatedVisibility(visible = showClearAction) {
             Surface(
+                modifier = Modifier.elovaireActionBump(
+                    interactionSource = interactionSource,
+                    label = "search_clear_history_bump",
+                ),
                 onClick = onClearHistory,
+                interactionSource = interactionSource,
                 shape = RoundedCornerShape(ElovaireRadii.pill),
                 color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                 contentColor = if (MaterialTheme.colorScheme.primary.luminance() > 0.5f) InkText else Color.White,
@@ -3288,6 +3318,7 @@ private fun SearchSongsResultsHeader(
 ) {
     val language = LocalAppLanguage.current
     val copy = searchCopy(language)
+    val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -3300,7 +3331,12 @@ private fun SearchSongsResultsHeader(
                 modifier = Modifier.weight(1f),
             )
             Surface(
+                modifier = Modifier.elovaireActionBump(
+                    interactionSource = interactionSource,
+                    label = "search_song_sort_bump",
+                ),
                 onClick = onToggleExpanded,
+                interactionSource = interactionSource,
                 shape = RoundedCornerShape(ElovaireRadii.pill),
                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
                 contentColor = MaterialTheme.colorScheme.onSurface,
@@ -3499,8 +3535,7 @@ private fun ToggleIconChip(
     onClick: () -> Unit,
 ) {
     val motionSpecs = rememberMotionSpecs()
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     val contentColor by animateColorAsState(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.onSurface
@@ -3510,29 +3545,11 @@ private fun ToggleIconChip(
         animationSpec = motionSpecs.tween(MotionDuration.Quick),
         label = "toggle_chip_content",
     )
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.88f else 1f,
-        animationSpec = if (pressed) {
-            ElovaireMotion.pressDownSpec()
-        } else {
-            ElovaireMotion.bounceSpringSpec()
-        },
-        label = "toggle_chip_scale",
-    )
-    val iconScale by animateFloatAsState(
-        targetValue = if (pressed) 0.92f else 1f,
-        animationSpec = if (pressed) {
-            ElovaireMotion.pressDownSpec()
-        } else {
-            ElovaireMotion.releaseSpringSpec(
-                dampingRatio = 0.78f,
-                stiffness = 520f,
-            )
-        },
-        label = "toggle_chip_icon_scale",
-    )
     Surface(
-        modifier = Modifier.scale(scale),
+        modifier = Modifier.elovaireActionBump(
+            interactionSource = interactionSource,
+            label = "toggle_chip_bump",
+        ),
         onClick = onClick,
         shape = RoundedCornerShape(ElovaireRadii.button),
         color = Color.Transparent,
@@ -3548,8 +3565,7 @@ private fun ToggleIconChip(
                 painter = painterResource(id = iconResId),
                 contentDescription = contentDescription,
                 modifier = Modifier
-                    .size(15.dp)
-                    .scale(iconScale),
+                    .size(15.dp),
             )
         }
     }
@@ -6059,6 +6075,7 @@ private fun SelectableSongRow(
     showDivider: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val selectionInteractionSource = rememberElovaireInteractionSource()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -6131,8 +6148,12 @@ private fun SelectableSongRow(
                     Box(
                         modifier = Modifier
                             .size(36.dp)
+                            .elovaireActionBump(
+                                interactionSource = selectionInteractionSource,
+                                label = "song_selection_indicator_bump",
+                            )
                             .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
+                                interactionSource = selectionInteractionSource,
                                 indication = null,
                                 onClick = onClick,
                             ),
@@ -6158,6 +6179,7 @@ private fun SelectableAlbumPickerRow(
     onToggleSelection: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
+    val selectionInteractionSource = rememberElovaireInteractionSource()
     Column {
         Row(
             modifier = Modifier
@@ -6219,8 +6241,12 @@ private fun SelectableAlbumPickerRow(
                 modifier = Modifier
                     .size(32.dp)
                     .clip(CircleShape)
+                    .elovaireActionBump(
+                        interactionSource = selectionInteractionSource,
+                        label = "album_selection_indicator_bump",
+                    )
                     .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
+                        interactionSource = selectionInteractionSource,
                         indication = null,
                         onClick = onToggleSelection,
                     ),
@@ -6785,7 +6811,13 @@ internal fun NowPlayingScreen(
                     BoxWithConstraints(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .then(if (showQueueSheet) Modifier else Modifier.nowPlayingDismissGesture()),
+                            .then(
+                                if (showQueueSheet || showSleepTimerDialog) {
+                                    Modifier
+                                } else {
+                                    Modifier.nowPlayingDismissGesture()
+                                },
+                            ),
                     ) {
                         val expandedArtworkWidth = maxWidth
                         val compactArtworkWidth = (maxWidth * 0.38f) - 10.dp
@@ -7573,13 +7605,18 @@ private fun QueueSheet(
                             style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
                             color = secondaryTint.copy(alpha = 0.7f),
                         )
+                        val closeQueueInteractionSource = rememberElovaireInteractionSource()
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
                                 .clip(CircleShape)
                                 .background(tint.copy(alpha = 0.1f))
+                                .elovaireActionBump(
+                                    interactionSource = closeQueueInteractionSource,
+                                    label = "close_queue_bump",
+                                )
                                 .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
+                                    interactionSource = closeQueueInteractionSource,
                                     indication = null,
                                     onClick = onDismiss,
                                 ),
@@ -7851,11 +7888,40 @@ private fun SleepTimerDialog(
                             )
                         }
                     }
-                Text(
-                    text = "${selectedMinutes.roundToInt()}${copy.minuteSuffix}",
-                    style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
-                    color = MaterialTheme.colorScheme.onSurface,
-                )
+                AnimatedContent(
+                    targetState = selectedMinutes.roundToInt(),
+                    transitionSpec = {
+                        val direction = if (targetState >= initialState) 1 else -1
+                        (
+                            fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
+                                slideInVertically(
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                    initialOffsetY = { direction * it },
+                                ) +
+                                scaleIn(
+                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                    initialScale = 0.88f,
+                                )
+                            ) togetherWith (
+                                fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
+                                    slideOutVertically(
+                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                        targetOffsetY = { -direction * it },
+                                    ) +
+                                    scaleOut(
+                                        animationSpec = ElovaireMotion.fadeFast(),
+                                        targetScale = 1.08f,
+                                    )
+                                )
+                    },
+                    label = "sleep_timer_minutes_flip",
+                ) { minutes ->
+                    Text(
+                        text = "$minutes${copy.minuteSuffix}",
+                        style = MaterialTheme.typography.displayLarge.copy(fontSize = elovaireScaledSp(34f)),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     SleepTimerSlider(
                         value = selectedMinutes,
@@ -8032,6 +8098,7 @@ private fun SleepTimerAction(
     emphasized: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val interactionSource = rememberElovaireInteractionSource()
     val backgroundColor = when {
         emphasized -> MaterialTheme.colorScheme.primary
         selected -> MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
@@ -8042,8 +8109,12 @@ private fun SleepTimerAction(
             .height(44.dp)
             .clip(RoundedCornerShape(ElovaireRadii.pill))
             .background(backgroundColor)
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "sleep_timer_action_bump",
+            )
             .clickable(
-                interactionSource = remember { MutableInteractionSource() },
+                interactionSource = interactionSource,
                 indication = null,
                 onClick = onClick,
             ),
@@ -8371,8 +8442,7 @@ private fun FavoriteSongButton(
     frosted: Boolean = false,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     val motionRuntime = LocalMotionRuntime.current
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
@@ -8386,7 +8456,6 @@ private fun FavoriteSongButton(
     }
     val buttonScale by animateFloatAsState(
         targetValue = when {
-            pressed -> 0.88f
             shouldBounce -> 1.08f
             else -> 1f
         },
@@ -8399,7 +8468,6 @@ private fun FavoriteSongButton(
     )
     val iconScale by animateFloatAsState(
         targetValue = when {
-            pressed -> 0.84f
             shouldBounce -> 1.12f
             isFavorite -> 1f
             else -> 0.96f
@@ -8419,6 +8487,10 @@ private fun FavoriteSongButton(
         modifier = modifier
             .size(44.dp)
             .scale(buttonScale)
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "favorite_button_bump",
+            )
             .clip(CircleShape)
             .clickable(
                 interactionSource = interactionSource,
@@ -8496,18 +8568,15 @@ internal fun AlbumHeaderActionButton(
     iconSize: Dp = 20.dp,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.88f else 1f,
-        animationSpec = ElovaireMotion.releaseSpringSpec(),
-        label = "${contentDescription}_album_header_scale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
 
     Box(
         modifier = Modifier
             .size(44.dp)
-            .scale(scale)
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "${contentDescription}_album_header_bump",
+            )
             .clip(CircleShape)
             .background(backgroundColor)
             .clickable(
@@ -8533,16 +8602,13 @@ internal fun AlbumHeaderPlayButton(
     onClick: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.88f else 1f,
-        animationSpec = ElovaireMotion.releaseSpringSpec(),
-        label = "album_play_button_scale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
 
     Surface(
-        modifier = Modifier.scale(scale),
+        modifier = Modifier.elovaireActionBump(
+            interactionSource = interactionSource,
+            label = "album_play_button_bump",
+        ),
         onClick = onClick,
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = backgroundColor,
@@ -8577,8 +8643,7 @@ internal fun InlineFavoriteSongButton(
     tint: Color,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     val motionRuntime = LocalMotionRuntime.current
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
@@ -8592,7 +8657,6 @@ internal fun InlineFavoriteSongButton(
     }
     val buttonScale by animateFloatAsState(
         targetValue = when {
-            pressed -> 0.8f
             shouldBounce -> 1.12f
             else -> 1f
         },
@@ -8608,7 +8672,6 @@ internal fun InlineFavoriteSongButton(
     )
     val iconScale by animateFloatAsState(
         targetValue = when {
-            pressed -> 0.8f
             shouldBounce -> 1.18f
             isFavorite -> 1f
             else -> 0.96f
@@ -8628,6 +8691,10 @@ internal fun InlineFavoriteSongButton(
         modifier = Modifier
             .size(24.dp)
             .scale(buttonScale)
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "inline_favorite_bump",
+            )
             .clickable(
                 interactionSource = interactionSource,
                 indication = null,
@@ -8725,17 +8792,7 @@ private fun AlbumOverflowMenuButton(
     var shouldRenderMenu by remember(album.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(album.id) { mutableStateOf(false) }
     val motionRuntime = LocalMotionRuntime.current
-    val motionSpecs = rememberMotionSpecs()
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val buttonScale by animateFloatAsState(
-        targetValue = if (pressed) 0.86f else 1f,
-        animationSpec = motionSpecs.spring(
-            dampingRatio = 0.6f,
-            stiffness = 380f,
-        ),
-        label = "album_overflow_scale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
 
     LaunchedEffect(expanded) {
         if (expanded) {
@@ -8750,7 +8807,10 @@ private fun AlbumOverflowMenuButton(
         Box(
             modifier = Modifier
                 .size(24.dp)
-                .scale(buttonScale)
+                .elovaireActionBump(
+                    interactionSource = interactionSource,
+                    label = "album_overflow_bump",
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -8836,17 +8896,7 @@ internal fun SongOverflowMenuButton(
     var shouldRenderMenu by remember(song.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(song.id) { mutableStateOf(false) }
     val motionRuntime = LocalMotionRuntime.current
-    val motionSpecs = rememberMotionSpecs()
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val buttonScale by animateFloatAsState(
-        targetValue = if (pressed) 0.86f else 1f,
-        animationSpec = motionSpecs.spring(
-            dampingRatio = 0.6f,
-            stiffness = 380f,
-        ),
-        label = "song_overflow_scale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
     LaunchedEffect(expanded) {
         if (expanded) {
             shouldRenderMenu = true
@@ -8860,7 +8910,10 @@ internal fun SongOverflowMenuButton(
         Box(
             modifier = Modifier
                 .size(24.dp)
-                .scale(buttonScale)
+                .elovaireActionBump(
+                    interactionSource = interactionSource,
+                    label = "song_overflow_bump",
+                )
                 .clickable(
                     interactionSource = interactionSource,
                     indication = null,
@@ -9541,8 +9594,14 @@ private fun LyricsOverlay(
                             .zIndex(4f),
                         contentAlignment = Alignment.Center,
                     ) {
+                        val hideLyricsInteractionSource = rememberElovaireInteractionSource()
                         Surface(
                             onClick = onHideLyrics,
+                            interactionSource = hideLyricsInteractionSource,
+                            modifier = Modifier.elovaireActionBump(
+                                interactionSource = hideLyricsInteractionSource,
+                                label = "hide_lyrics_bump",
+                            ),
                             shape = RoundedCornerShape(ElovaireRadii.pill),
                             color = contentColor.copy(alpha = 0.18f),
                             contentColor = contentColor,
@@ -9580,16 +9639,22 @@ private fun LyricsOverlay(
                         .offset(y = (-12).dp)
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center,
-                ) {
-                    Surface(
-                        onClick = {
-                            isEditingLyrics = false
-                            focusManager.clearFocus(force = true)
-                            onClearLyricsEditorError()
-                        },
-                        shape = RoundedCornerShape(ElovaireRadii.pill),
-                        color = contentColor.copy(alpha = 0.18f),
-                        contentColor = contentColor,
+                    ) {
+                        val cancelLyricsInteractionSource = rememberElovaireInteractionSource()
+                        Surface(
+                            onClick = {
+                                isEditingLyrics = false
+                                focusManager.clearFocus(force = true)
+                                onClearLyricsEditorError()
+                            },
+                            interactionSource = cancelLyricsInteractionSource,
+                            modifier = Modifier.elovaireActionBump(
+                                interactionSource = cancelLyricsInteractionSource,
+                                label = "cancel_lyrics_edit_bump",
+                            ),
+                            shape = RoundedCornerShape(ElovaireRadii.pill),
+                            color = contentColor.copy(alpha = 0.18f),
+                            contentColor = contentColor,
                     ) {
                         Text(
                             text = "Cancel",
@@ -9612,17 +9677,15 @@ private fun LyricsEditorActionButton(
     backgroundAlpha: Float = 0f,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
-    val scale by animateFloatAsState(
-        targetValue = if (pressed) 0.88f else 1f,
-        animationSpec = ElovaireMotion.releaseSpringSpec(),
-        label = "lyrics_editor_action_scale",
-    )
+    val interactionSource = rememberElovaireInteractionSource()
     Box(
         modifier = Modifier
             .size(44.dp)
-            .scale(scale)
+            .elovaireActionBump(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                label = "lyrics_editor_action_bump",
+            )
             .clip(CircleShape)
             .background(
                 if (backgroundAlpha > 0f) {
@@ -9820,8 +9883,7 @@ private fun PlayerSecondaryActionButton(
     showBackground: Boolean,
     onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
-    val pressed by interactionSource.collectIsPressedAsState()
+    val interactionSource = rememberElovaireInteractionSource()
     var transientHighlight by remember { mutableStateOf(false) }
     val motionRuntime = LocalMotionRuntime.current
     val motionSpecs = rememberMotionSpecs()
@@ -9832,7 +9894,6 @@ private fun PlayerSecondaryActionButton(
     )
     val buttonScale by animateFloatAsState(
         targetValue = when {
-            pressed -> 0.9f
             showBackground -> 1f
             else -> 0.96f
         },
@@ -9845,6 +9906,10 @@ private fun PlayerSecondaryActionButton(
     Box(
         modifier = Modifier
             .scale(buttonScale)
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "${label}_player_secondary_bump",
+            )
             .clip(RoundedCornerShape(ElovaireRadii.pill))
             .playerFrostedSurface(tint = tint)
             .background(tint.copy(alpha = backgroundAlpha))

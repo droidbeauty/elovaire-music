@@ -53,9 +53,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.PlaylistManagementCopy
 import elovaire.music.droidbeauty.app.ui.i18n.playlistManagementCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
-import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -274,11 +273,20 @@ private fun ManagePlaylistRow(
                 overflow = TextOverflow.Ellipsis,
             )
         }
+        val exportInteractionSource = rememberElovaireInteractionSource()
         Surface(
             modifier = Modifier
                 .size(40.dp)
+                .elovaireActionBump(
+                    interactionSource = exportInteractionSource,
+                    label = "playlist_export_bump",
+                )
                 .clip(CircleShape)
-                .clickable(onClick = onExport),
+                .clickable(
+                    interactionSource = exportInteractionSource,
+                    indication = null,
+                    onClick = onExport,
+                ),
             shape = CircleShape,
             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f),
             contentColor = MaterialTheme.colorScheme.onSurface,
@@ -309,9 +317,7 @@ private fun PlaylistActionPill(
             .background(
                 if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f),
             )
-            .elovairePressScale(
-                pressedScale = 0.9f,
-                animationSpec = ElovaireMotion.bounceSpringSpec(),
+            .elovaireActionBump(
                 interactionSource = interactionSource,
                 label = "playlistActionPillScale",
             )

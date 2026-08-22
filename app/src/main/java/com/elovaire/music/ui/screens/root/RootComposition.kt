@@ -41,18 +41,16 @@ internal fun rememberRootComposition(container: AppContainer): RootComposition {
     val deleteController = rememberRootDeleteController(container)
     val searchViewModel: SearchViewModel = viewModel(factory = viewModelFactory)
     val nowPlayingViewModel: NowPlayingViewModel = viewModel(factory = viewModelFactory)
-    return remember(context) {
-        RootComposition(
-            container = container,
-            context = context,
-            navController = navController,
-            motionTransitions = motionTransitions,
-            viewModelFactory = viewModelFactory,
-            rootViewModel = rootViewModel,
-            permissionController = permissionController,
-            deleteController = deleteController,
-            searchViewModel = searchViewModel,
-            nowPlayingViewModel = nowPlayingViewModel,
-        )
-    }
+    return RootComposition(
+        container = container,
+        context = context,
+        navController = navController,
+        motionTransitions = motionTransitions,
+        viewModelFactory = viewModelFactory,
+        rootViewModel = rootViewModel,
+        permissionController = permissionController,
+        deleteController = deleteController,
+        searchViewModel = searchViewModel,
+        nowPlayingViewModel = nowPlayingViewModel,
+    )
 }

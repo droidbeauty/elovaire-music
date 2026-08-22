@@ -51,6 +51,8 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.SortDirection
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.i18n.builtInSmartPlaylistTitle
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -478,6 +480,7 @@ private fun SmartRuleRow(
         is SmartPlaylistRule.FileFormatIs -> "Format is"
         is SmartPlaylistRule.FolderContains -> "Folder contains"
     }
+    val interactionSource = rememberElovaireInteractionSource()
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -491,7 +494,18 @@ private fun SmartRuleRow(
             Icon(
                 painter = painterResource(id = R.drawable.ic_lucide_x),
                 contentDescription = "Remove rule",
-                modifier = Modifier.size(18.dp).clickable(onClick = onRemove),
+                modifier = Modifier
+                    .size(28.dp)
+                    .elovaireActionBump(
+                        interactionSource = interactionSource,
+                        label = "smart_rule_remove_bump",
+                    )
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClick = onRemove,
+                    )
+                    .padding(5.dp),
             )
         }
         when (rule) {

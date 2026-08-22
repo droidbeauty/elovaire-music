@@ -81,6 +81,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.miscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
+import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
@@ -595,9 +597,15 @@ private fun UpdateDialogButton(
     enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
+    val interactionSource = rememberElovaireInteractionSource()
     Surface(
         modifier = Modifier
             .then(modifier)
+            .elovaireActionBump(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                label = "update_dialog_button_bump",
+            )
             .height(46.dp),
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = if (emphasized) {
@@ -611,6 +619,7 @@ private fun UpdateDialogButton(
             MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.55f)
         },
         enabled = enabled,
+        interactionSource = interactionSource,
         onClick = onClick,
     ) {
         Row(
@@ -991,8 +1000,14 @@ private fun AboutResourceLinkButton(
     link: AboutLink,
     onClick: () -> Unit,
 ) {
+    val interactionSource = rememberElovaireInteractionSource()
     Surface(
+        modifier = Modifier.elovaireActionBump(
+            interactionSource = interactionSource,
+            label = "about_resource_link_bump",
+        ),
         onClick = onClick,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f),
         contentColor = MaterialTheme.colorScheme.onSurface,
@@ -1108,9 +1123,14 @@ private fun AboutLinkPill(
         else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.46f)
     }
     val contentColor = if (containerColor.luminance() > 0.42f) InkText else Color.White
+    val interactionSource = rememberElovaireInteractionSource()
     Surface(
-        modifier = Modifier,
+        modifier = Modifier.elovaireActionBump(
+            interactionSource = interactionSource,
+            label = "about_link_pill_bump",
+        ),
         onClick = onClick,
+        interactionSource = interactionSource,
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = containerColor,
         contentColor = contentColor,

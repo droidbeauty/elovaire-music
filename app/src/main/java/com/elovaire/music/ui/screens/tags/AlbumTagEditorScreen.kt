@@ -65,6 +65,7 @@ import elovaire.music.droidbeauty.app.data.artwork.decodeArtworkBytes
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
+import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
@@ -541,12 +542,10 @@ private fun AccentPillButton(
 ) {
     val interactionSource = rememberElovaireInteractionSource()
     Surface(
-        modifier = Modifier.elovairePressScale(
+        modifier = Modifier.elovaireActionBump(
             enabled = enabled && !loading,
-            pressedScale = 0.94f,
-            animationSpec = ElovaireMotion.releaseSpringSpec(),
             interactionSource = interactionSource,
-            label = "tagEditorPillScale",
+            label = "tagEditorPillBump",
         ),
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = RoseAccent.copy(alpha = if (enabled) 1f else 0.55f),
