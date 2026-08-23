@@ -234,7 +234,7 @@ internal fun LibraryFoldersScreen(
             }
             }
             AnimatedVisibility(
-                visible = !editMode,
+                visible = !editMode && !showSourceChooser,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
