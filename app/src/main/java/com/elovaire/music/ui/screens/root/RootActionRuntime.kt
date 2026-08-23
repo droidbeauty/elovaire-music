@@ -50,7 +50,6 @@ internal fun rememberRootActionRuntime(
         albumCollectionLayoutMode = albumCollectionLayoutMode,
         resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
         playFirstLaunchHomeReveal = permissionController.state.playFirstLaunchHomeReveal,
-        searchFieldFocused = uiRuntime.searchChromeState.isFieldFocused,
     )
     val routeActions = rememberRootRouteActions(
         context = context,
@@ -65,8 +64,7 @@ internal fun rememberRootActionRuntime(
         updateController = container.updateController,
         onRequestCreatePlaylist = uiRuntime.overlayState::requestCreatePlaylist,
         onInitialRevealFinished = permissionController::onInitialRevealFinished,
-        onSearchFieldFocusedChange = uiRuntime.searchChromeState::onFieldFocusedChanged,
-        onSearchQueryActiveChanged = uiRuntime.searchChromeState::onQueryActiveChanged,
+        onSearchActiveChanged = uiRuntime.searchChromeState::onActiveChanged,
         openAlbum = uiRuntime.openAlbum,
     )
     return RootActionRuntime(

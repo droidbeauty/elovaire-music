@@ -332,12 +332,8 @@ private fun BoxScope.FastScrollbarTrack(
             dragFraction = fraction
             targetFractions.trySend(fraction)
         }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .semantics {
-                    progressBarRangeInfo = ProgressBarRangeInfo(displayedScrollFraction, 0f..1f)
-                }
+        val scrollbarGestureModifier = if (visible || isDragging) {
+            Modifier
                 .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
                     detectTapGestures { offset ->
                         jumpToPointer(offset.y, layout.thumbLengthPx / 2f)
@@ -372,7 +368,15 @@ private fun BoxScope.FastScrollbarTrack(
                             dragThumbLengthPx = 0f
                         },
                     )
-                },
+                }
+        } else Modifier
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .semantics {
+                    progressBarRangeInfo = ProgressBarRangeInfo(displayedScrollFraction, 0f..1f)
+                }
+                .then(scrollbarGestureModifier),
         ) {
             FastScrollbarChrome(
                 trackColor = trackColor,

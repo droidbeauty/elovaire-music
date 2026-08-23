@@ -55,7 +55,6 @@ internal data class RootRouteState(
     val isPlaybackActuallyPlaying: Boolean,
     val resetHomeScrollOnColdStart: Boolean,
     val playFirstLaunchHomeReveal: Boolean,
-    val searchFieldFocused: Boolean,
 )
 
 internal fun rootRouteStateOf(
@@ -64,7 +63,6 @@ internal fun rootRouteStateOf(
     albumCollectionLayoutMode: AlbumLayoutMode,
     resetHomeScrollOnColdStart: Boolean,
     playFirstLaunchHomeReveal: Boolean,
-    searchFieldFocused: Boolean,
 ): RootRouteState {
     val playbackState = appState.playback
     val recentSongs = playbackState.recentSongIds.mapNotNull(derivedState.songsById::get).take(5)
@@ -113,6 +111,5 @@ internal fun rootRouteStateOf(
         isPlaybackActuallyPlaying = playbackState.isPlaying && playbackState.currentSong != null,
         resetHomeScrollOnColdStart = resetHomeScrollOnColdStart,
         playFirstLaunchHomeReveal = playFirstLaunchHomeReveal,
-        searchFieldFocused = searchFieldFocused,
     )
 }

@@ -74,7 +74,7 @@ internal fun rememberRootUiRuntime(
     val chromeVisibility = rootChromeVisibility(
         currentRoute = routeObservation.route,
         keyboardVisible = keyboardVisible,
-        searchQueryActive = searchChromeState.isQueryActive,
+        searchQueryActive = searchChromeState.isActive,
         currentSongPresent = currentSongPresent,
         playerLayerState = playerLayerController.state,
     )

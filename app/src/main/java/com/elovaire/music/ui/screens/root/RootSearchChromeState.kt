@@ -3,30 +3,23 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 
 internal class RootSearchChromeState(
-    isQueryActive: Boolean,
-    isFieldFocused: Boolean,
-    private val setQueryActive: (Boolean) -> Unit,
-    private val setFieldFocused: (Boolean) -> Unit,
+    isActive: Boolean,
+    private val setActive: (Boolean) -> Unit,
 ) {
-    val isQueryActive: Boolean = isQueryActive
-    val isFieldFocused: Boolean = isFieldFocused
+    val isActive: Boolean = isActive
 
-    fun onQueryActiveChanged(active: Boolean) = setQueryActive(active)
-    fun onFieldFocusedChanged(focused: Boolean) = setFieldFocused(focused)
+    fun onActiveChanged(active: Boolean) = setActive(active)
 }
 
 @Composable
 internal fun rememberRootSearchChromeState(): RootSearchChromeState {
-    var isQueryActive by rememberSaveable { mutableStateOf(false) }
-    var isFieldFocused by rememberSaveable { mutableStateOf(false) }
+    var isActive by remember { mutableStateOf(false) }
     return RootSearchChromeState(
-        isQueryActive = isQueryActive,
-        isFieldFocused = isFieldFocused,
-        setQueryActive = { isQueryActive = it },
-        setFieldFocused = { isFieldFocused = it },
+        isActive = isActive,
+        setActive = { isActive = it },
     )
 }

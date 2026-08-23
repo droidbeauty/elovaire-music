@@ -32,6 +32,7 @@ internal data class SearchableArtist(
 )
 
 internal data class SearchIndex(
+    val revision: String = "",
     val songs: List<SearchableSong> = emptyList(),
     val albums: List<SearchableAlbum> = emptyList(),
     val artists: List<SearchableArtist> = emptyList(),
@@ -117,7 +118,7 @@ internal fun SearchLibrarySnapshot.toSearchIndex(): SearchIndex {
     return buildSearchIndex(
         songs = songs,
         albums = albums,
-    )
+    ).copy(revision = signature())
 }
 
 internal fun buildSearchIndex(

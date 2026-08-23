@@ -2692,9 +2692,7 @@ internal fun SearchRoute(
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
-    isSearchFieldFocused: Boolean,
-    onSearchFieldFocusedChange: (Boolean) -> Unit,
-    onSearchQueryActiveChanged: (Boolean) -> Unit,
+    onSearchActiveChanged: (Boolean) -> Unit,
     onPlaySong: (Song, List<Song>) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onArtistSelected: (String) -> Unit,
@@ -2710,13 +2708,11 @@ internal fun SearchRoute(
         topPadding = topPadding,
         bottomPadding = bottomPadding,
         scrollToTopRequestVersion = scrollToTopRequestVersion,
-        isSearchFieldFocused = isSearchFieldFocused,
         onQueryChange = viewModel::onQueryChange,
-        onSearchFieldFocusedChange = onSearchFieldFocusedChange,
         onShowAllSongResultsChange = viewModel::onShowAllSongResultsChange,
         onSearchSongSortModeChange = viewModel::onSearchSongSortModeChange,
         onShowSearchSongSortOptionsChange = viewModel::onShowSearchSongSortOptionsChange,
-        onSearchQueryActiveChanged = onSearchQueryActiveChanged,
+        onSearchActiveChanged = onSearchActiveChanged,
         onSongSelected = { song, queue ->
             viewModel.rememberArtistSearch(song)
             onPlaySong(song, queue)
@@ -2731,6 +2727,7 @@ internal fun SearchRoute(
         onPlaylistSelected = onPlaylistSelected,
         onToggleFavorite = onToggleFavorite,
         onClearSearchHistory = viewModel::clearSearchHistory,
+        onClearQuery = viewModel::clearQuery,
         onResetSearchUi = viewModel::resetSearchUi,
     )
 }
@@ -2744,19 +2741,18 @@ private fun SearchScreen(
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
-    isSearchFieldFocused: Boolean,
     onQueryChange: (String) -> Unit,
-    onSearchFieldFocusedChange: (Boolean) -> Unit,
     onShowAllSongResultsChange: (Boolean) -> Unit,
     onSearchSongSortModeChange: (SearchSongSortMode) -> Unit,
     onShowSearchSongSortOptionsChange: (Boolean) -> Unit,
-    onSearchQueryActiveChanged: (Boolean) -> Unit,
+    onSearchActiveChanged: (Boolean) -> Unit,
     onSongSelected: (Song, List<Song>) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin, Boolean) -> Unit,
     onArtistSelected: (String) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onClearSearchHistory: () -> Unit,
+    onClearQuery: () -> Unit,
     onResetSearchUi: () -> Unit,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
@@ -2771,17 +2767,41 @@ private fun SearchScreen(
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val trimmedQuery = state.query.trim()
+    val browsingContentMode = if (state.contentMode == SearchContentMode.AllSongs) {
+        SearchContentMode.Results
+    } else {
+        state.contentMode
+    }
     val allSongsListState = rememberElovaireLazyListState("search_all_songs", trimmedQuery, state.searchSongSortMode)
-    val isSearchUiActive = trimmedQuery.isNotBlank() || isSearchFieldFocused || state.showAllSongResults
+    var isFieldFocused by remember { mutableStateOf(false) }
+    val imeVisible = WindowInsets.ime.getBottom(LocalDensity.current) > 0
+    val isSearchUiActive = trimmedQuery.isNotBlank() || isFieldFocused || state.showAllSongResults
     val collapseAllSongResults: () -> Unit = {
         onShowAllSongResultsChange(false)
-        onShowSearchSongSortOptionsChange(false)
     }
-    val resetSearchToMain: () -> Unit = {
-        onResetSearchUi()
-        onSearchFieldFocusedChange(false)
-        keyboardController?.hide()
+    val dismissSearchInput: () -> Unit = {
         focusManager.clearFocus(force = true)
+        keyboardController?.hide()
+    }
+    val resetSearchToDiscover: () -> Unit = {
+        onResetSearchUi()
+        dismissSearchInput()
+    }
+    val selectSong: (Song, List<Song>) -> Unit = { song, queue ->
+        dismissSearchInput()
+        onSongSelected(song, queue)
+    }
+    val selectAlbum: (Album, ExpandOrigin, Boolean) -> Unit = { album, origin, rememberSearch ->
+        dismissSearchInput()
+        onAlbumSelected(album, origin, rememberSearch)
+    }
+    val selectArtist: (String) -> Unit = { artist ->
+        dismissSearchInput()
+        onArtistSelected(artist)
+    }
+    val selectPlaylist: (Playlist) -> Unit = { playlist ->
+        dismissSearchInput()
+        onPlaylistSelected(playlist)
     }
     if (state.showAllSongResults && trimmedQuery.isNotBlank()) {
         RegisterSharedTopBar(
@@ -2793,34 +2813,32 @@ private fun SearchScreen(
             priority = 10,
         )
     }
-    BackHandler(enabled = isSearchUiActive) {
+    BackHandler(
+        enabled = state.showSearchSongSortOptions ||
+            state.showAllSongResults ||
+            (trimmedQuery.isNotBlank() && !imeVisible),
+    ) {
         when {
             state.showSearchSongSortOptions -> onShowSearchSongSortOptionsChange(false)
             state.showAllSongResults && trimmedQuery.isNotBlank() -> collapseAllSongResults()
-            else -> resetSearchToMain()
+            else -> resetSearchToDiscover()
         }
     }
     LaunchedEffect(isSearchUiActive) {
-        onSearchQueryActiveChanged(isSearchUiActive)
-    }
-    LaunchedEffect(trimmedQuery) {
-        if (trimmedQuery.isBlank()) {
-            onShowAllSongResultsChange(false)
-            onShowSearchSongSortOptionsChange(false)
-        }
+        onSearchActiveChanged(isSearchUiActive)
     }
     LaunchedEffect(scrollToTopRequestVersion, state.contentMode) {
         if (scrollToTopRequestVersion > 0L && state.contentMode == SearchContentMode.AllSongs) {
             allSongsListState.animateScrollToItem(0)
         }
     }
-    val matchingPlaylists = remember(playlists, trimmedQuery) {
-        if (trimmedQuery.isBlank()) {
+    val matchingPlaylists = remember(playlists, state.resultQuery) {
+        if (state.resultQuery.trim().isBlank()) {
             emptyList()
         } else {
             searchPlaylists(
                 playlists = playlists.filterNot(Playlist::isSystem),
-                rawQuery = trimmedQuery,
+                rawQuery = state.resultQuery,
             ).take(6)
         }
     }
@@ -2843,15 +2861,11 @@ private fun SearchScreen(
             value = state.query,
             onValueChange = {
                 onQueryChange(it)
-                if (it.trim().isBlank()) {
-                    onShowAllSongResultsChange(false)
-                    onShowSearchSongSortOptionsChange(false)
-                }
             },
             modifier = Modifier
                 .fillMaxWidth()
                 .onFocusChanged { focusState ->
-                    onSearchFieldFocusedChange(focusState.isFocused)
+                    isFieldFocused = focusState.isFocused
                 },
             shape = RoundedCornerShape(ElovaireRadii.input),
             singleLine = true,
@@ -2865,37 +2879,32 @@ private fun SearchScreen(
                 )
             },
             trailingIcon = {
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = isSearchUiActive,
-                    enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()) +
-                        scaleIn(
-                            animationSpec = ElovaireMotion.scaleSoft(),
-                            initialScale = 0.92f,
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clickable(
+                            enabled = trimmedQuery.isNotBlank(),
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onClearQuery,
                         ),
-                    exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()) +
-                        scaleOut(
-                            animationSpec = ElovaireMotion.fadeFast(),
-                            targetScale = 0.92f,
-                        ),
+                    contentAlignment = Alignment.Center,
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
-                            .background(searchBarContentColor.copy(alpha = 0.1f))
-                            .clickable(
-                                interactionSource = remember { MutableInteractionSource() },
-                                indication = null,
-                                onClick = resetSearchToMain,
-                            ),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_x),
-                            contentDescription = copy.clearSearch,
-                            tint = searchBarContentColor.copy(alpha = 0.86f),
-                            modifier = Modifier.size(14.dp),
-                        )
+                    if (trimmedQuery.isNotBlank()) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(searchBarContentColor.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_x),
+                                contentDescription = copy.clearSearch,
+                                tint = searchBarContentColor.copy(alpha = 0.86f),
+                                modifier = Modifier.size(14.dp),
+                            )
+                        }
                     }
                 }
             },
@@ -2913,43 +2922,19 @@ private fun SearchScreen(
 
     Box(modifier = Modifier.fillMaxSize()) {
         ElovaireAnimatedContent(
-            targetState = state.contentMode,
+            targetState = state.contentMode == SearchContentMode.AllSongs,
             modifier = Modifier.fillMaxSize(),
             transitionSpec = {
                 when {
-                    initialState == SearchContentMode.Results && targetState == SearchContentMode.AllSongs -> {
+                    !initialState && targetState -> {
                         ElovaireMotion.fullScreenForwardEnter(
                             initialOffsetX = { it / 10 },
                         ) togetherWith ElovaireMotion.fullScreenForwardExit()
                     }
 
-                    initialState == SearchContentMode.AllSongs && targetState == SearchContentMode.Results -> {
+                    initialState && !targetState -> {
                         ElovaireMotion.fullScreenBackEnter() togetherWith ElovaireMotion.fullScreenBackExit(
                             targetOffsetX = { it / 10 },
-                        )
-                    }
-
-                    targetState == SearchContentMode.Discover -> {
-                        (fadeIn(
-                            animationSpec = ElovaireMotion.contentFadeInSpec(delayMillis = 60),
-                        ) + slideInVertically(
-                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Medium),
-                            initialOffsetY = { it / 14 },
-                        )) togetherWith (fadeOut(
-                            animationSpec = ElovaireMotion.contentFadeOutSpec(),
-                        ) + slideOutVertically(
-                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
-                            targetOffsetY = { -it / 18 },
-                        ))
-                    }
-
-                    initialState == SearchContentMode.Discover -> {
-                        (fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
-                            slideInVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                initialOffsetY = { it / 16 },
-                            )) togetherWith fadeOut(
-                            animationSpec = ElovaireMotion.contentFadeOutSpec(),
                         )
                     }
 
@@ -2957,8 +2942,8 @@ private fun SearchScreen(
                 }
             },
             label = "SearchScreenContent",
-        ) { mode ->
-            if (mode == SearchContentMode.AllSongs) {
+        ) { showAllSongs ->
+            if (showAllSongs) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -2978,7 +2963,6 @@ private fun SearchScreen(
                     },
                     onSelect = { selectedMode ->
                         onSearchSongSortModeChange(selectedMode)
-                        onShowSearchSongSortOptionsChange(false)
                     },
                 )
                 Box(modifier = Modifier.weight(1f)) {
@@ -3017,7 +3001,7 @@ private fun SearchScreen(
                                         isCurrentSong = song.id == state.currentSongId,
                                         isPlaybackActive = state.isPlaybackActive,
                                         onClick = {
-                                            onSongSelected(song, state.allMatchingSongs)
+                                            selectSong(song, state.allMatchingSongs)
                                         },
                                         onToggleFavorite = { onToggleFavorite(song.id) },
                                         showDivider = index != state.allMatchingSongs.lastIndex,
@@ -3056,7 +3040,7 @@ private fun SearchScreen(
                         modifier = Modifier.fillMaxWidth(),
                         verticalArrangement = Arrangement.spacedBy(18.dp),
                     ) {
-                        when (mode) {
+                        when (browsingContentMode) {
                                 SearchContentMode.AllSongs -> {
                                     Spacer(modifier = Modifier)
                                 }
@@ -3071,10 +3055,10 @@ private fun SearchScreen(
                                             entries = state.recentSearches.take(6),
                                             onAlbumSelected = { albumId ->
                                                 libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                                    onAlbumSelected(album, ExpandOrigin(), false)
+                                                    selectAlbum(album, ExpandOrigin(), false)
                                                 }
                                             },
-                                            onArtistSelected = onArtistSelected,
+                                            onArtistSelected = selectArtist,
                                         )
                                     } else {
                                         Box(
@@ -3109,7 +3093,7 @@ private fun SearchScreen(
                                             subtitle = searchCopy(language).suggestedAlbumsSubtitle,
                                             iconResId = R.drawable.ic_lucide_eye,
                                             onAlbumSelected = { album, origin ->
-                                                onAlbumSelected(album, origin, false)
+                                                selectAlbum(album, origin, false)
                                             },
                                         )
                                     }
@@ -3126,10 +3110,10 @@ private fun SearchScreen(
                                             entries = matchingArtists,
                                             onAlbumSelected = { albumId ->
                                                 libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                                    onAlbumSelected(album, ExpandOrigin(), false)
+                                                    selectAlbum(album, ExpandOrigin(), false)
                                                 }
                                             },
-                                            onArtistSelected = onArtistSelected,
+                                            onArtistSelected = selectArtist,
                                         )
                                     }
 
@@ -3146,7 +3130,7 @@ private fun SearchScreen(
                                                 ArtistAlbumGallery(
                                                     albums = state.matchingAlbums,
                                                     onAlbumSelected = { album, origin ->
-                                                        onAlbumSelected(album, origin, true)
+                                                        selectAlbum(album, origin, true)
                                                     },
                                                 )
                                             }
@@ -3159,10 +3143,8 @@ private fun SearchScreen(
                                             resultCount = state.totalSongMatchCount,
                                             showSeeAll = state.totalSongMatchCount > 10,
                                             onShowAll = {
+                                                dismissSearchInput()
                                                 onShowAllSongResultsChange(true)
-                                                focusManager.clearFocus(force = true)
-                                                keyboardController?.hide()
-                                                onSearchFieldFocusedChange(false)
                                             },
                                         )
                                         Column {
@@ -3178,7 +3160,7 @@ private fun SearchScreen(
                                                         song = song,
                                                         isFavorite = song.id in favoriteSongIds,
                                                         onClick = {
-                                                            onSongSelected(song, state.matchingSongs)
+                                                            selectSong(song, state.matchingSongs)
                                                         },
                                                         onToggleFavorite = { onToggleFavorite(song.id) },
                                                         showDivider = index != previewSongs.lastIndex,
@@ -3201,11 +3183,11 @@ private fun SearchScreen(
                                         SearchPlaylistListCard(
                                             playlists = matchingPlaylists,
                                             songs = libraryState.songs,
-                                            onPlaylistSelected = onPlaylistSelected,
+                                            onPlaylistSelected = selectPlaylist,
                                         )
                                     }
 
-                                    if (state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() &&
+                                    if (!state.isSearchPending && state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() &&
                                         matchingArtists.isEmpty() && matchingPlaylists.isEmpty()
                                     ) {
                                         Column(
@@ -3230,20 +3212,18 @@ private fun SearchScreen(
                                         }
                                     }
                                 }
-                            }
                         }
                     }
                 }
             }
-            if (mode != SearchContentMode.AllSongs) {
-                FastScrollbar(
-                    state = listState,
-                    topInset = topPadding + 16.dp,
-                    bottomInset = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
-                )
-            }
+            FastScrollbar(
+                state = listState,
+                topInset = topPadding + 88.dp,
+                bottomInset = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
+            )
         }
     }
+}
 }
 
 @Composable

@@ -35,8 +35,7 @@ internal class RootRouteActions(
     val updateController: UpdateController,
     val onRequestCreatePlaylist: () -> Unit,
     val onInitialRevealFinished: () -> Unit,
-    val onSearchFieldFocusedChange: (Boolean) -> Unit,
-    val onSearchQueryActiveChanged: (Boolean) -> Unit,
+    val onSearchActiveChanged: (Boolean) -> Unit,
     private val openAlbumRoute: (Album, ExpandOrigin, AlbumOpenSource) -> Unit,
 ) {
     val libraryFolders = librarySettings.libraryFolders
@@ -282,8 +281,7 @@ internal fun rememberRootRouteActions(
     updateController: UpdateController,
     onRequestCreatePlaylist: () -> Unit,
     onInitialRevealFinished: () -> Unit,
-    onSearchFieldFocusedChange: (Boolean) -> Unit,
-    onSearchQueryActiveChanged: (Boolean) -> Unit,
+    onSearchActiveChanged: (Boolean) -> Unit,
     openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit,
 ): RootRouteActions {
     return remember(
@@ -299,8 +297,7 @@ internal fun rememberRootRouteActions(
         updateController,
         onRequestCreatePlaylist,
         onInitialRevealFinished,
-        onSearchFieldFocusedChange,
-        onSearchQueryActiveChanged,
+        onSearchActiveChanged,
         openAlbum,
     ) {
         RootRouteActions(
@@ -317,8 +314,7 @@ internal fun rememberRootRouteActions(
             updateController = updateController,
             onRequestCreatePlaylist = onRequestCreatePlaylist,
             onInitialRevealFinished = onInitialRevealFinished,
-            onSearchFieldFocusedChange = onSearchFieldFocusedChange,
-            onSearchQueryActiveChanged = onSearchQueryActiveChanged,
+            onSearchActiveChanged = onSearchActiveChanged,
             openAlbumRoute = openAlbum,
         )
     }

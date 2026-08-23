@@ -153,9 +153,7 @@ private fun SearchRouteHost(
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.searchScrollRequestVersion,
-        isSearchFieldFocused = routeState.searchFieldFocused,
-        onSearchFieldFocusedChange = routeActions.onSearchFieldFocusedChange,
-        onSearchQueryActiveChanged = routeActions.onSearchQueryActiveChanged,
+        onSearchActiveChanged = routeActions.onSearchActiveChanged,
         onPlaySong = { song, queue ->
             routeActions.playback.playSongQueue(
                 song = song,

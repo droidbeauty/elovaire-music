@@ -23,6 +23,7 @@ import elovaire.music.droidbeauty.app.domain.search.toSearchIndex
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -30,11 +31,11 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.distinctUntilChangedBy
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.flow.update
 
 internal data class SearchUiState(
     val query: String = "",
@@ -49,33 +50,48 @@ internal data class SearchUiState(
     val matchingAlbums: List<Album> = emptyList(),
     val matchingArtists: List<SearchArtistResult> = emptyList(),
     val suggestedAlbums: List<Album> = emptyList(),
+    val isSearchPending: Boolean = false,
+    val resultQuery: String = "",
     val currentSongId: Long? = null,
     val isPlaybackActive: Boolean = false,
 )
+
+internal data class SearchInteractionConfig(
+    val query: String = "",
+    val showAllSongs: Boolean = false,
+    val sortMode: SearchSongSortMode = SearchSongSortMode.Title,
+    val showSortOptions: Boolean = false,
+    val queryGeneration: Long = 0L,
+) {
+    fun normalized(): SearchInteractionConfig {
+        val showAllSongs = showAllSongs && query.trim().isNotBlank()
+        return copy(
+            showAllSongs = showAllSongs,
+            showSortOptions = showSortOptions && showAllSongs,
+        )
+    }
+}
+
+internal data class SearchResultKey(
+    val queryGeneration: Long,
+    val sortMode: SearchSongSortMode,
+    val includeAllSongs: Boolean,
+    val indexRevision: String,
+) {
+    fun matches(config: SearchInteractionConfig, indexRevision: String): Boolean {
+        return queryGeneration == config.queryGeneration &&
+            sortMode == config.sortMode &&
+            includeAllSongs == config.showAllSongs &&
+            this.indexRevision == indexRevision
+    }
+}
 
 internal class SearchViewModel(
     libraryRepository: LibraryRepository,
     private val preferenceStore: PreferenceStore,
     playbackReader: PlaybackReader,
 ) : ViewModel() {
-    private val _query = MutableStateFlow("")
-    private val _showAllSongResults = MutableStateFlow(false)
-    private val _searchSongSortMode = MutableStateFlow(SearchSongSortMode.Title)
-    private val _showSearchSongSortOptions = MutableStateFlow(false)
-    private val searchUiConfig = combine(
-        _query,
-        _showAllSongResults,
-        _searchSongSortMode,
-        _showSearchSongSortOptions,
-    ) { query, showAllSongs, sortMode, showSortOptions ->
-        SearchUiConfig(
-            query = query,
-            showAllSongs = showAllSongs,
-            sortMode = sortMode,
-            showSortOptions = showSortOptions,
-        )
-    }
-        .distinctUntilChanged()
+    private val searchUiConfig = MutableStateFlow(SearchInteractionConfig())
 
     private val searchIndex = libraryRepository.contentState
         .map { content ->
@@ -94,37 +110,64 @@ internal class SearchViewModel(
         )
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val normalizedQuery = _query
-        .transformLatest { rawQuery ->
-            if (rawQuery.trim().isNotBlank()) {
+    private val settledQuery = searchUiConfig
+        .map { config -> SearchQueryToken(config.query, config.queryGeneration) }
+        .distinctUntilChanged()
+        .transformLatest { token ->
+            if (token.rawQuery.trim().isNotBlank()) {
                 delay(SEARCH_QUERY_DEBOUNCE_MS)
             }
-            emit(NormalizedSearchQuery.from(rawQuery))
+            emit(token)
         }
-        .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
 
-    @OptIn(ExperimentalCoroutinesApi::class)
-    private val searchResults = combine(
-        normalizedQuery,
-        _searchSongSortMode,
-        searchIndex,
-        _showAllSongResults,
-    ) { query, sortMode, index, showAllSongs ->
-        SearchRequest(
-            query = query,
-            sortMode = sortMode.toSearchSortMode(),
-            index = index,
-            includeAllSongs = showAllSongs,
-        )
+    private val uiConfigWithIndex = combine(searchUiConfig, searchIndex) { config, index ->
+        SearchUiConfigWithIndex(config = config, indexRevision = index.revision)
     }
-        .mapLatest { request ->
-            buildSearchResults(
-                query = request.query,
-                sortMode = request.sortMode,
-                index = request.index,
-                includeAllSongs = request.includeAllSongs,
+        .distinctUntilChanged()
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    private val searchResults: Flow<SearchResultSnapshot?> = combine(
+        searchUiConfig,
+        searchIndex,
+        settledQuery,
+    ) { config, index, settled ->
+        if (settled.matches(config)) {
+            SearchRequest(
+                key = SearchResultKey(
+                    queryGeneration = config.queryGeneration,
+                    sortMode = config.sortMode,
+                    includeAllSongs = config.showAllSongs,
+                    indexRevision = index.revision,
+                ),
+                rawQuery = config.query,
+                query = NormalizedSearchQuery.from(config.query),
+                sortMode = config.sortMode.toSearchSortMode(),
+                index = index,
+                includeAllSongs = config.showAllSongs,
             )
+        } else {
+            null
+        }
+    }
+        .distinctUntilChanged()
+        .transformLatest<SearchRequest?, SearchResultSnapshot?> { request ->
+            if (request != null) {
+                emit(
+                    SearchResultSnapshot(
+                        key = request.key,
+                        rawQuery = request.rawQuery,
+                        results = buildSearchResults(
+                            query = request.query,
+                            sortMode = request.sortMode,
+                            index = request.index,
+                            includeAllSongs = request.includeAllSongs,
+                        ),
+                    ),
+                )
+            } else {
+                emit(null)
+            }
         }
         .distinctUntilChanged()
         .flowOn(Dispatchers.Default)
@@ -144,7 +187,7 @@ internal class SearchViewModel(
         searchIndex,
         preferenceStore.albumPlayCounts,
         playbackReader.recentPlaybackState.map { it.recentAlbumIds }.distinctUntilChanged(),
-        _query,
+        searchUiConfig.map { it.query }.distinctUntilChanged(),
     ) { index, albumPlayCounts, recentAlbumIds, query ->
         if (query.trim().isNotBlank()) {
             emptyList()
@@ -172,13 +215,18 @@ internal class SearchViewModel(
         .flowOn(Dispatchers.Default)
 
     val uiState: StateFlow<SearchUiState> = combine(
-        searchUiConfig,
+        uiConfigWithIndex,
         recentSearches,
         searchResults,
         suggestedAlbums,
         playbackSnapshot,
-    ) { config, history, results, suggested, playback ->
+    ) { configWithIndex, history, resultSnapshot, suggested, playback ->
+        val config = configWithIndex.config
         val trimmedQuery = config.query.trim()
+        val results = resultSnapshot?.takeIf {
+            it.key.matches(config, configWithIndex.indexRevision)
+        }
+        val isSearchPending = trimmedQuery.isNotBlank() && results == null
         SearchUiState(
             query = config.query,
             showAllSongResults = config.showAllSongs,
@@ -190,12 +238,14 @@ internal class SearchViewModel(
                 else -> SearchContentMode.Results
             },
             recentSearches = history,
-            allMatchingSongs = results.allMatchingSongs,
-            matchingSongs = results.matchingSongs,
-            totalSongMatchCount = results.totalSongMatchCount,
-            matchingAlbums = results.matchingAlbums,
-            matchingArtists = results.matchingArtists,
+            allMatchingSongs = results?.results?.allMatchingSongs.orEmpty(),
+            matchingSongs = results?.results?.matchingSongs.orEmpty(),
+            totalSongMatchCount = results?.results?.totalSongMatchCount ?: 0,
+            matchingAlbums = results?.results?.matchingAlbums.orEmpty(),
+            matchingArtists = results?.results?.matchingArtists.orEmpty(),
             suggestedAlbums = if (trimmedQuery.isBlank()) suggested else emptyList(),
+            isSearchPending = isSearchPending,
+            resultQuery = results?.rawQuery.orEmpty(),
             currentSongId = playback.currentSongId,
             isPlaybackActive = playback.isPlaybackActive,
         )
@@ -208,29 +258,35 @@ internal class SearchViewModel(
         )
 
     fun onQueryChange(query: String) {
-        _query.value = query
-        if (query.trim().isBlank()) {
-            _showAllSongResults.value = false
-            _showSearchSongSortOptions.value = false
+        updateConfig { config ->
+            if (config.query == query) config else config.copy(
+                query = query,
+                queryGeneration = config.queryGeneration + 1,
+            )
         }
     }
 
+    fun clearQuery() = updateConfig { config ->
+        config.copy(
+            query = "",
+            queryGeneration = if (config.query.isBlank()) config.queryGeneration else config.queryGeneration + 1,
+        )
+    }
+
     fun onShowAllSongResultsChange(show: Boolean) {
-        _showAllSongResults.value = show
+        updateConfig { it.copy(showAllSongs = show) }
     }
 
     fun onSearchSongSortModeChange(mode: SearchSongSortMode) {
-        _searchSongSortMode.value = mode
+        updateConfig { it.copy(sortMode = mode, showSortOptions = false) }
     }
 
     fun onShowSearchSongSortOptionsChange(show: Boolean) {
-        _showSearchSongSortOptions.value = show
+        updateConfig { it.copy(showSortOptions = show) }
     }
 
     fun resetSearchUi() {
-        _query.value = ""
-        _showAllSongResults.value = false
-        _showSearchSongSortOptions.value = false
+        clearQuery()
     }
 
     fun clearSearchHistory() {
@@ -250,11 +306,24 @@ internal class SearchViewModel(
     }
 
     private companion object {
-        data class SearchUiConfig(
-            val query: String,
-            val showAllSongs: Boolean,
-            val sortMode: SearchSongSortMode,
-            val showSortOptions: Boolean,
+        data class SearchQueryToken(
+            val rawQuery: String,
+            val generation: Long,
+        ) {
+            fun matches(config: SearchInteractionConfig): Boolean {
+                return rawQuery == config.query && generation == config.queryGeneration
+            }
+        }
+
+        data class SearchResultSnapshot(
+            val key: SearchResultKey,
+            val rawQuery: String,
+            val results: elovaire.music.droidbeauty.app.domain.search.SearchResults,
+        )
+
+        data class SearchUiConfigWithIndex(
+            val config: SearchInteractionConfig,
+            val indexRevision: String,
         )
 
         data class PlaybackSearchSnapshot(
@@ -263,6 +332,8 @@ internal class SearchViewModel(
         )
 
         data class SearchRequest(
+            val key: SearchResultKey,
+            val rawQuery: String,
             val query: NormalizedSearchQuery,
             val sortMode: SearchSortMode,
             val index: SearchIndex,
@@ -270,6 +341,10 @@ internal class SearchViewModel(
         )
 
         const val SEARCH_QUERY_DEBOUNCE_MS = 150L
+    }
+
+    private fun updateConfig(transform: (SearchInteractionConfig) -> SearchInteractionConfig) {
+        searchUiConfig.update { current -> transform(current).normalized() }
     }
 }
 
