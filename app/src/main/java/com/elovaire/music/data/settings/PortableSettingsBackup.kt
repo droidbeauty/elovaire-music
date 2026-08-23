@@ -8,11 +8,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSharedPreferenceChangeListener {
     private val appContext = context.applicationContext
-    private val source = allowStrictModeDiskReads {
-        appContext.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
+    private val source by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        allowStrictModeDiskReads {
+            appContext.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
+        }
     }
-    private val backup = allowStrictModeDiskReads {
-        appContext.getSharedPreferences(BACKUP_FILE_NAME, Context.MODE_PRIVATE)
+    private val backup by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        allowStrictModeDiskReads {
+            appContext.getSharedPreferences(BACKUP_FILE_NAME, Context.MODE_PRIVATE)
+        }
     }
     private val restored = AtomicBoolean(false)
     private val started = AtomicBoolean(false)

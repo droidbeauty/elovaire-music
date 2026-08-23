@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
+import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -25,12 +26,29 @@ internal class LibraryScanCoordinator(
         return true
     }
 
+    internal fun networkSourceIdsChanged(sources: List<NetworkLibrarySource>): Set<String> {
+        val normalized = sources
+            .distinctBy(NetworkLibrarySource::id)
+            .sortedBy { it.id }
+        val previousById = networkSources.associateBy(NetworkLibrarySource::id)
+        return normalized
+            .filter { previousById[it.id] != it }
+            .mapTo(linkedSetOf(), NetworkLibrarySource::id)
+    }
+
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean =
         localScanner.setLibraryFolders(selections)
 
     fun currentFilterFingerprint(): String {
         val remote = networkSources.joinToString("|") { source ->
-            listOf(source.id, source.protocol.name, source.server, source.shareOrPath, source.username)
+            listOf(
+                source.id,
+                source.protocol.name,
+                source.server,
+                source.shareOrPath,
+                source.username,
+                source.enabled,
+            )
                 .joinToString("@")
                 .lowercase(Locale.ROOT)
         }
@@ -58,19 +76,30 @@ internal class LibraryScanCoordinator(
         refreshMediaIndex: Boolean = false,
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
+        targetedNetworkSourceIds: Set<String>? = null,
+        baseSnapshot: LibrarySnapshot? = null,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): LibrarySnapshot {
-        val local = localScanner.scan(
-            refreshMediaIndex = refreshMediaIndex,
-            refreshMediaPaths = refreshMediaPaths,
-            enrichMetadata = enrichMetadata,
-            onProgress = onProgress,
-        )
-        val safSongs = safScanner.scan(localScanner.safTreeSelections())
-        val localSongs = LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
-            mediaStoreSongs = local.songs,
-            safSongs = safSongs,
-        )
+        val canReuseLocalState = targetedNetworkSourceIds != null &&
+            baseSnapshot != null &&
+            !refreshMediaIndex &&
+            refreshMediaPaths.isEmpty() &&
+            !enrichMetadata
+        val localSongs = if (canReuseLocalState) {
+            requireNotNull(baseSnapshot).songs.filterNot { NetworkResourceUri.isNetworkUri(it.uri) }
+        } else {
+            val local = localScanner.scan(
+                refreshMediaIndex = refreshMediaIndex,
+                refreshMediaPaths = refreshMediaPaths,
+                enrichMetadata = enrichMetadata,
+                onProgress = onProgress,
+            )
+            val safSongs = safScanner.scan(localScanner.safTreeSelections())
+            LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
+                mediaStoreSongs = local.songs,
+                safSongs = safSongs,
+            )
+        }
         if (networkSources.none(NetworkLibrarySource::enabled)) {
             return LibrarySnapshotAssembler.assemble(
                 localSongs.sortedWith(
@@ -80,12 +109,40 @@ internal class LibraryScanCoordinator(
             )
         }
 
-        val networkSongs = networkScannerProvider().scan(
-            sources = networkSources,
+        val activeNetworkSourceIds = networkSources
+            .filter(NetworkLibrarySource::enabled)
+            .mapTo(hashSetOf(), NetworkLibrarySource::id)
+        val existingNetworkSongs = if (canReuseLocalState) {
+            requireNotNull(baseSnapshot).songs
+                .asSequence()
+                .filter { song ->
+                    NetworkResourceUri.sourceId(song.uri)?.let(activeNetworkSourceIds::contains) == true
+                }
+                .groupBy { song -> NetworkResourceUri.sourceId(song.uri)!! }
+        } else {
+            emptyMap()
+        }
+        val sourcesToScan = if (targetedNetworkSourceIds == null) {
+            networkSources
+        } else if (!canReuseLocalState) {
+            networkSources
+        } else {
+            networkSources.filter { it.id in targetedNetworkSourceIds }
+        }
+        val scannedNetworkSongs = networkScannerProvider().scan(
+            sources = sourcesToScan,
             forceRefresh = refreshMediaIndex,
         )
+        val networkSongsBySource = existingNetworkSongs.toMutableMap()
+        if (targetedNetworkSourceIds == null) networkSongsBySource.clear()
+        sourcesToScan.forEach { source -> networkSongsBySource[source.id] = emptyList() }
+        scannedNetworkSongs
+            .groupBy { song -> NetworkResourceUri.sourceId(song.uri) }
+            .forEach { (sourceId, songs) ->
+                if (sourceId != null) networkSongsBySource[sourceId] = songs
+            }
         return LibrarySnapshotAssembler.assemble(
-            (localSongs + networkSongs).sortedWith(
+            (localSongs + networkSongsBySource.values.flatten()).sortedWith(
                 compareByDescending<Song> { it.dateAddedSeconds }
                     .thenBy { MediaIdentityResolver.stableKey(it) },
             ),

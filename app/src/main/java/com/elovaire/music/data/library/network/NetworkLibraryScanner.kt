@@ -48,9 +48,10 @@ internal class NetworkLibraryScanner(
         }
         val credentials = registry.credentials(source)
         if (credentials == null) {
-            onAvailabilityChanged(
-                source.id,
-                NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
+            publishAvailability(
+                source = source,
+                credentials = null,
+                result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
             return cached.map(NetworkInventoryEntry::song)
         }
@@ -59,19 +60,19 @@ internal class NetworkLibraryScanner(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: IOException) {
-            onAvailabilityChanged(source.id, failure.toProbeResult())
+            publishAvailability(source, credentials, failure.toProbeResult())
             return cached.map(NetworkInventoryEntry::song)
         } catch (failure: SMBRuntimeException) {
-            onAvailabilityChanged(source.id, failure.toProbeResult())
+            publishAvailability(source, credentials, failure.toProbeResult())
             return cached.map(NetworkInventoryEntry::song)
         } catch (failure: IllegalArgumentException) {
-            onAvailabilityChanged(source.id, failure.toProbeResult())
+            publishAvailability(source, credentials, failure.toProbeResult())
             return cached.map(NetworkInventoryEntry::song)
         }
         // A source edit/removal may have completed while the blocking listing was in flight.
         // Never commit or republish the result for an obsolete configuration.
-        if (registry.source(source.id) != source || registry.credentials(source) != credentials) return emptyList()
-        onAvailabilityChanged(source.id, NetworkProbeResult(NetworkAvailability.Available))
+        if (!isCurrent(source, credentials)) return emptyList()
+        publishAvailability(source, credentials, NetworkProbeResult(NetworkAvailability.Available))
         val audioEntries = entries
             .asSequence()
             .filterNot(NetworkFileEntry::isDirectory)
@@ -133,6 +134,7 @@ internal class NetworkLibraryScanner(
                 previous.song.artUri != current.song.artUri
         }
         val nowMs = System.currentTimeMillis()
+        if (!isCurrent(source, credentials)) return emptyList()
         if (inventoryChanged) {
             inventory.replace(
                 source = source,
@@ -145,6 +147,20 @@ internal class NetworkLibraryScanner(
         }
         return inventoryEntries.map(NetworkInventoryEntry::song)
     }
+
+    private fun publishAvailability(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials?,
+        result: NetworkProbeResult,
+    ) {
+        if (!isCurrent(source, credentials)) return
+        onAvailabilityChanged(source.id, result)
+    }
+
+    private fun isCurrent(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials?,
+    ): Boolean = registry.source(source.id) == source && registry.credentials(source) == credentials
 
     private fun NetworkFileEntry.toSong(
         source: NetworkLibrarySource,

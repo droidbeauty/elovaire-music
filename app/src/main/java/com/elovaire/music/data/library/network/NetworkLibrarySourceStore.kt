@@ -10,22 +10,25 @@ import org.json.JSONObject
 
 internal class NetworkLibrarySourceStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    private val mutationLock = Any()
     private val _sources = MutableStateFlow(load())
     val sources: StateFlow<List<NetworkLibrarySource>> = _sources.asStateFlow()
 
     fun upsert(source: NetworkLibrarySource): NetworkLibrarySource {
-        val normalized = source.copy(
-            name = source.name.trim().ifBlank { source.server.trim() },
-            server = source.server.trim(),
-            shareOrPath = NetworkPathPolicy.normalizeRelativePath(source.shareOrPath),
-            username = source.username.trim(),
-            credentialKey = source.credentialKey.trim().ifBlank { "network-credential-${source.id}" },
-        )
-        val next = (_sources.value.filterNot { it.id == normalized.id } + normalized)
-            .sortedBy { it.name.lowercase() }
-        save(next)
-        _sources.value = next
-        return normalized
+        return synchronized(mutationLock) {
+            val normalized = source.copy(
+                name = source.name.trim().ifBlank { source.server.trim() },
+                server = source.server.trim(),
+                shareOrPath = NetworkPathPolicy.normalizeRelativePath(source.shareOrPath),
+                username = source.username.trim(),
+                credentialKey = source.credentialKey.trim().ifBlank { "network-credential-${source.id}" },
+            )
+            val next = (_sources.value.filterNot { it.id == normalized.id } + normalized)
+                .sortedBy { it.name.lowercase() }
+            save(next)
+            _sources.value = next
+            normalized
+        }
     }
 
     fun create(
@@ -47,9 +50,11 @@ internal class NetworkLibrarySourceStore(context: Context) {
     }
 
     fun remove(sourceId: String) {
-        val next = _sources.value.filterNot { it.id == sourceId }
-        save(next)
-        _sources.value = next
+        synchronized(mutationLock) {
+            val next = _sources.value.filterNot { it.id == sourceId }
+            save(next)
+            _sources.value = next
+        }
     }
 
     private fun load(): List<NetworkLibrarySource> {

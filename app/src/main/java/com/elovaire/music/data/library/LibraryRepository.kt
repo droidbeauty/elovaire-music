@@ -313,11 +313,13 @@ class LibraryRepository internal constructor(
         forceMediaIndex: Boolean = false,
         enrichMetadata: Boolean = false,
         showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
+        targetedNetworkSourceIds: Set<String>? = null,
     ) {
         if (released.get() || !_scanState.value.permissionGranted) return
         val request = LibraryRefreshRequest(
             forceMediaIndex = forceMediaIndex,
             enrichMetadata = enrichMetadata,
+            targetedNetworkSourceIds = targetedNetworkSourceIds,
         )
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
@@ -360,6 +362,8 @@ class LibraryRepository internal constructor(
                             "force_index" to refreshRequest.forceMediaIndex.toString(),
                             "enrich_metadata" to refreshRequest.enrichMetadata.toString(),
                             "targeted_paths" to refreshRequest.targetedPaths.size.toString(),
+                            "targeted_network_sources" to
+                                (refreshRequest.targetedNetworkSourceIds?.size?.toString() ?: "all"),
                         ),
                     ),
                 )
@@ -513,11 +517,21 @@ class LibraryRepository internal constructor(
         permissionVersion: Long,
         progressThrottler: LibraryScanProgressThrottler,
     ) = withContext(Dispatchers.IO) {
+        val existingSnapshot = if (
+            request.targetedNetworkSourceIds != null &&
+            _scanState.value.scanProgress >= 1f
+        ) {
+            snapshotPublisher.snapshotOf(_contentState.value)
+        } else {
+            null
+        }
         ElovaireTrace.suspendSection("library_refresh_scan") {
             scanner.scan(
                 refreshMediaIndex = request.forceMediaIndex,
                 refreshMediaPaths = request.targetedPaths,
                 enrichMetadata = request.enrichMetadata,
+                targetedNetworkSourceIds = request.targetedNetworkSourceIds,
+                baseSnapshot = existingSnapshot,
                 onProgress = if (showLoadingIndicator) progress@{ current, total ->
                     if (!hasCurrentPermission(permissionVersion)) return@progress
                     val progress = if (total <= 0) {
@@ -769,11 +783,13 @@ class LibraryRepository internal constructor(
         enrichMetadata: Boolean = false,
         showLoadingIndicator: Boolean = true,
     ) {
+        val changedNetworkSourceIds = scanner.networkSourceIdsChanged(sources)
         if (!scanner.setNetworkSources(sources)) return
         refresh(
             forceMediaIndex = false,
             enrichMetadata = enrichMetadata,
             showLoadingIndicator = showLoadingIndicator,
+            targetedNetworkSourceIds = changedNetworkSourceIds,
         )
     }
 

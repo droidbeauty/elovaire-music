@@ -16,6 +16,7 @@ import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
 import java.io.InputStream
 import java.util.Locale
+import java.util.TreeMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 
@@ -297,9 +298,24 @@ internal object ArtworkBitmapCache {
         .coerceAtLeast(2L * 1024L * 1024L)
         .toInt()
     private var callbacksRegistered = false
+    private val indexedBitmaps = mutableMapOf<String, TreeMap<Int, Bitmap>>()
     private val cache = object : LruCache<String, Bitmap>(maxCacheBytes) {
         override fun sizeOf(key: String, value: Bitmap): Int {
             return value.allocationByteCount.coerceAtLeast(1)
+        }
+
+        override fun entryRemoved(
+            evicted: Boolean,
+            key: String,
+            oldValue: Bitmap,
+            newValue: Bitmap?,
+        ) {
+            val parsed = parseArtworkCacheKey(key) ?: return
+            val sizes = indexedBitmaps[parsed.first] ?: return
+            if (sizes[parsed.second] === oldValue) {
+                sizes.remove(parsed.second)
+                if (sizes.isEmpty()) indexedBitmaps.remove(parsed.first)
+            }
         }
     }
     private val inFlight = mutableMapOf<String, CompletableFuture<Bitmap?>>()
@@ -330,32 +346,17 @@ internal object ArtworkBitmapCache {
         requestedSize: Int,
         purpose: ArtworkPurpose,
     ): Bitmap? {
-        val prefix = "$uri|"
-        var smallestSufficientSize = Int.MAX_VALUE
-        var largestAvailableSize = Int.MIN_VALUE
-        var smallestSufficient: Bitmap? = null
-        var largestAvailable: Bitmap? = null
-        cache.snapshot().forEach { (key, bitmap) ->
-            if (!key.startsWith(prefix)) return@forEach
-            val remainder = key.removePrefix(prefix)
-            val separator = remainder.indexOf('|')
-            if (separator <= 0 || remainder.substring(separator + 1) != purpose.name) return@forEach
-            val size = remainder.substring(0, separator).toIntOrNull() ?: return@forEach
-            if (size >= requestedSize && size < smallestSufficientSize) {
-                smallestSufficientSize = size
-                smallestSufficient = bitmap
-            }
-            if (size > largestAvailableSize) {
-                largestAvailableSize = size
-                largestAvailable = bitmap
-            }
-        }
-        return smallestSufficient ?: largestAvailable
+        val sizes = indexedBitmaps["$uri|${purpose.name}"] ?: return null
+        return sizes.ceilingEntry(requestedSize)?.value ?: sizes.lastEntry()?.value
     }
 
-    @Synchronized
     fun put(key: String, bitmap: Bitmap) {
-        cache.put(key, bitmap)
+        synchronized(this) {
+            cache.put(key, bitmap)
+            if (cache.get(key) !== bitmap) return
+            val parsed = parseArtworkCacheKey(key) ?: return
+            indexedBitmaps.getOrPut(parsed.first) { TreeMap() }[parsed.second] = bitmap
+        }
     }
 
     fun getOrLoad(
@@ -432,6 +433,14 @@ internal object ArtworkBitmapCache {
             MemoryPressure.Moderate -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
             MemoryPressure.Normal -> Unit
         }
+    }
+
+    private fun parseArtworkCacheKey(key: String): Pair<String, Int>? {
+        val purposeSeparator = key.lastIndexOf('|')
+        val sizeSeparator = key.lastIndexOf('|', purposeSeparator - 1)
+        if (purposeSeparator <= 0 || sizeSeparator <= 0) return null
+        val size = key.substring(sizeSeparator + 1, purposeSeparator).toIntOrNull() ?: return null
+        return "${key.substring(0, sizeSeparator)}|${key.substring(purposeSeparator + 1)}" to size
     }
 }
 

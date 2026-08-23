@@ -42,13 +42,18 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.security.GeneralSecurityException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 @OptIn(UnstableApi::class)
 internal class AppServices(
@@ -62,14 +67,17 @@ internal class AppServices(
     val exitDiagnostics = AppExitDiagnostics(applicationContext)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
-    private val portableSettingsBackup = PortableSettingsBackup(applicationContext).also { it.restore() }
+    private val portableSettingsBackup = PortableSettingsBackup(applicationContext)
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
         dao = database.userDataDao(),
     )
-    val preferenceStore = PreferenceStore(applicationContext, userDataStore)
+    // Restore portable settings before PreferenceStore snapshots its initial StateFlows.
+    val preferenceStore = createPreferenceStore()
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
     private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
+    private val networkMutationGenerations = ConcurrentHashMap<String, AtomicLong>()
+    private val networkMutationJobs = ConcurrentHashMap<String, Job>()
     private val networkInventoryStore = NetworkInventoryStore(applicationContext, database.libraryDao())
     private val networkCredentialStoreDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         NetworkCredentialStore(applicationContext)
@@ -175,28 +183,73 @@ internal class AppServices(
     val networkProbeResults: StateFlow<Map<String, NetworkProbeResult>> =
         _networkProbeResults.asStateFlow()
 
+    private fun createPreferenceStore(): PreferenceStore {
+        portableSettingsBackup.restore()
+        return PreferenceStore(applicationContext, userDataStore)
+    }
+
     fun saveNetworkSource(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
     ) {
+        val generation = nextNetworkMutationGeneration(source.id)
+        networkMutationJobs[source.id]?.cancel()
         _networkProbeResults.update { it + (source.id to NetworkProbeResult(NetworkAvailability.Checking)) }
-        appScope.launch(Dispatchers.IO) {
-            val result = networkSourceCoordinator.save(source, credentials)
-            _networkProbeResults.update { it + (source.id to result) }
-            libraryRepository.setNetworkSources(
-                networkSourceStore.sources.value,
-                enrichMetadata = false,
-                showLoadingIndicator = true,
-            )
+        val job = appScope.launch(Dispatchers.IO) {
+            try {
+                val result = networkSourceCoordinator.save(source, credentials)
+                if (!isCurrentNetworkMutation(source.id, generation)) return@launch
+                _networkProbeResults.update { it + (source.id to result) }
+                libraryRepository.setNetworkSources(
+                    networkSourceStore.sources.value,
+                    enrichMetadata = false,
+                    showLoadingIndicator = true,
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: GeneralSecurityException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } catch (failure: SecurityException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } catch (failure: IllegalArgumentException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } catch (failure: IllegalStateException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } finally {
+                networkMutationJobs.remove(source.id, coroutineContext[Job])
+            }
         }
+        networkMutationJobs[source.id] = job
     }
 
-    fun removeNetworkSource(source: elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource) {
-        appScope.launch(Dispatchers.IO) {
-            networkSourceCoordinator.remove(source)
-            _networkProbeResults.update { it - source.id }
-            libraryRepository.setNetworkSources(networkSourceStore.sources.value, enrichMetadata = false, showLoadingIndicator = true)
+    fun removeNetworkSource(source: NetworkLibrarySource) {
+        val generation = nextNetworkMutationGeneration(source.id)
+        networkMutationJobs[source.id]?.cancel()
+        val job = appScope.launch(Dispatchers.IO) {
+            try {
+                networkSourceCoordinator.remove(source)
+                if (!isCurrentNetworkMutation(source.id, generation)) return@launch
+                _networkProbeResults.update { it - source.id }
+                libraryRepository.setNetworkSources(
+                    networkSourceStore.sources.value,
+                    enrichMetadata = false,
+                    showLoadingIndicator = true,
+                )
+            } catch (cancellation: CancellationException) {
+                throw cancellation
+            } catch (failure: GeneralSecurityException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } catch (failure: SecurityException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } catch (failure: IllegalArgumentException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } catch (failure: IllegalStateException) {
+                recordNetworkMutationFailure(source.id, generation, failure)
+            } finally {
+                networkMutationJobs.remove(source.id, coroutineContext[Job])
+            }
         }
+        networkMutationJobs[source.id] = job
     }
 
     private val mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore)
@@ -239,10 +292,34 @@ internal class AppServices(
         if (!released.compareAndSet(false, true)) return
         started.set(false)
         playbackStarted.set(false)
+        networkMutationJobs.values.forEach(Job::cancel)
+        networkMutationJobs.clear()
         playbackManager.release()
         if (updateControllerDelegate.isInitialized()) updateController.release()
         libraryRepository.release()
         preferenceStore.release(database::close)
         portableSettingsBackup.release()
+    }
+
+    private fun nextNetworkMutationGeneration(sourceId: String): Long =
+        networkMutationGenerations
+            .computeIfAbsent(sourceId) { AtomicLong() }
+            .incrementAndGet()
+
+    private fun isCurrentNetworkMutation(sourceId: String, generation: Long): Boolean =
+        !released.get() && networkMutationGenerations[sourceId]?.get() == generation
+
+    private fun recordNetworkMutationFailure(
+        sourceId: String,
+        generation: Long,
+        failure: Throwable,
+    ) {
+        if (!isCurrentNetworkMutation(sourceId, generation)) return
+        _networkProbeResults.update {
+            it + (sourceId to NetworkProbeResult(
+                availability = NetworkAvailability.Unavailable,
+                message = failure::class.simpleName,
+            ))
+        }
     }
 }

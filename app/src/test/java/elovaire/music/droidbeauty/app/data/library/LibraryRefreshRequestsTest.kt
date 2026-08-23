@@ -95,6 +95,22 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun sourceTargetedRefreshes_mergeWithoutEscalatingToAllSources() {
+        val merged = LibraryRefreshRequest(targetedNetworkSourceIds = setOf("nas-a"))
+            .mergedWith(LibraryRefreshRequest(targetedNetworkSourceIds = setOf("nas-b")))
+
+        assertEquals(setOf("nas-a", "nas-b"), merged.targetedNetworkSourceIds)
+    }
+
+    @Test
+    fun fullRefreshSupersedesSourceTargetedRefresh() {
+        val merged = LibraryRefreshRequest(targetedNetworkSourceIds = setOf("nas-a"))
+            .mergedWith(LibraryRefreshRequest())
+
+        assertNull(merged.targetedNetworkSourceIds)
+    }
+
+    @Test
     fun resolveTargetedRefreshPaths_usesKnownSongPathWithoutFullScan() {
         val paths = resolveTargetedRefreshPaths(
             requestedPaths = emptyList(),

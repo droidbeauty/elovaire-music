@@ -6,6 +6,8 @@ internal data class LibraryRefreshRequest(
     val forceMediaIndex: Boolean = false,
     val enrichMetadata: Boolean = false,
     val targetedPaths: List<String> = emptyList(),
+    /** Null means reconcile every source; an empty set means only merge current source state. */
+    val targetedNetworkSourceIds: Set<String>? = null,
 ) {
     fun mergedWith(other: LibraryRefreshRequest): LibraryRefreshRequest {
         val force = forceMediaIndex || other.forceMediaIndex
@@ -19,6 +21,10 @@ internal data class LibraryRefreshRequest(
                 .distinct()
                 .toList()
         }
+        val mergedNetworkSourceIds = when {
+            force || targetedNetworkSourceIds == null || other.targetedNetworkSourceIds == null -> null
+            else -> targetedNetworkSourceIds + other.targetedNetworkSourceIds
+        }
         if (mergedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
             return LibraryRefreshRequest(
                 forceMediaIndex = true,
@@ -29,6 +35,7 @@ internal data class LibraryRefreshRequest(
             forceMediaIndex = force,
             enrichMetadata = enrichMetadata || other.enrichMetadata,
             targetedPaths = mergedPaths,
+            targetedNetworkSourceIds = mergedNetworkSourceIds,
         )
     }
 
@@ -51,6 +58,10 @@ internal data class LibraryRefreshRequest(
         }
         return copy(
             targetedPaths = normalizedPaths,
+            targetedNetworkSourceIds = targetedNetworkSourceIds
+                ?.map(String::trim)
+                ?.filter(String::isNotBlank)
+                ?.toSet(),
         )
     }
 

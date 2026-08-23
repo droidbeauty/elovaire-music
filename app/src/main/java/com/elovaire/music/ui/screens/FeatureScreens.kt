@@ -2989,47 +2989,41 @@ private fun SearchScreen(
                     },
                 )
                 Box(modifier = Modifier.weight(1f)) {
-                    Surface(
-                        modifier = Modifier.fillMaxSize(),
-                        shape = RoundedCornerShape(ElovaireRadii.card),
-                        color = MaterialTheme.colorScheme.surface,
+                    LazyColumn(
+                        state = allSongsListState,
+                        overscrollEffect = null,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .ensureSingleItemRubberBand(allSongsListState),
+                        contentPadding = PaddingValues(bottom = bottomPadding + 20.dp),
                     ) {
-                        LazyColumn(
-                            state = allSongsListState,
-                            overscrollEffect = null,
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .ensureSingleItemRubberBand(allSongsListState),
-                            contentPadding = PaddingValues(bottom = bottomPadding + 20.dp),
-                        ) {
-                            itemsIndexed(
-                                items = state.allMatchingSongs,
-                                key = { _, song -> song.id },
-                                contentType = { _, _ -> "search_song_row" },
-                            ) { index, song ->
-                                Box(
-                                    modifier = Modifier
-                                        .animateItem(
-                                            placementSpec = ElovaireMotion.listPlacementSpec(),
-                                        )
-                                        .elovaireListReveal(
-                                            itemKey = song.id,
-                                            index = index,
-                                            registry = revealRegistry,
-                                        ),
-                                ) {
-                                    HomeRecentSongRow(
-                                        song = song,
-                                        isFavorite = song.id in favoriteSongIds,
-                                        isCurrentSong = song.id == state.currentSongId,
-                                        isPlaybackActive = state.isPlaybackActive,
-                                        onClick = {
-                                            selectSong(song, state.allMatchingSongs)
-                                        },
-                                        onToggleFavorite = { onToggleFavorite(song.id) },
-                                        showDivider = index != state.allMatchingSongs.lastIndex,
+                        itemsIndexed(
+                            items = state.allMatchingSongs,
+                            key = { _, song -> song.id },
+                            contentType = { _, _ -> "search_song_row" },
+                        ) { index, song ->
+                            Box(
+                                modifier = Modifier
+                                    .animateItem(
+                                        placementSpec = ElovaireMotion.listPlacementSpec(),
                                     )
-                                }
+                                    .elovaireListReveal(
+                                        itemKey = song.id,
+                                        index = index,
+                                        registry = revealRegistry,
+                                    ),
+                            ) {
+                                HomeRecentSongRow(
+                                    song = song,
+                                    isFavorite = song.id in favoriteSongIds,
+                                    isCurrentSong = song.id == state.currentSongId,
+                                    isPlaybackActive = state.isPlaybackActive,
+                                    onClick = {
+                                        selectSong(song, state.allMatchingSongs)
+                                    },
+                                    onToggleFavorite = { onToggleFavorite(song.id) },
+                                    showDivider = index != state.allMatchingSongs.lastIndex,
+                                )
                             }
                         }
                     }
