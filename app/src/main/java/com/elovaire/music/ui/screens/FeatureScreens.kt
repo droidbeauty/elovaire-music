@@ -3157,12 +3157,12 @@ private fun SearchScreen(
                                         val previewSongs = state.matchingSongs.take(10)
                                         SearchSongsPreviewHeader(
                                             resultCount = state.totalSongMatchCount,
-                                            showSeeAll = state.totalSongMatchCount > previewSongs.size,
+                                            showSeeAll = state.totalSongMatchCount > 10,
                                             onShowAll = {
+                                                onShowAllSongResultsChange(true)
                                                 focusManager.clearFocus(force = true)
                                                 keyboardController?.hide()
                                                 onSearchFieldFocusedChange(false)
-                                                onShowAllSongResultsChange(true)
                                             },
                                         )
                                         Column {
@@ -3387,26 +3387,28 @@ private fun SearchSongsPreviewHeader(
             iconResId = R.drawable.ic_lucide_music,
         )
         AnimatedVisibility(visible = showSeeAll) {
-            Box(
+            Surface(
                 modifier = Modifier
                     .size(34.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f))
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onShowAll,
-                    ),
-                contentAlignment = Alignment.Center,
+                    .clip(CircleShape),
+                onClick = onShowAll,
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f),
+                contentColor = MaterialTheme.colorScheme.onSurface,
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
-                    contentDescription = "Show all song results",
-                    tint = readableMutedIconColor().copy(alpha = 0.82f),
-                    modifier = Modifier
-                        .size(16.dp)
-                        .rotate(180f),
-                )
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+                        contentDescription = "Show all song results",
+                        tint = readableMutedIconColor().copy(alpha = 0.82f),
+                        modifier = Modifier
+                            .size(16.dp)
+                            .rotate(180f),
+                    )
+                }
             }
         }
     }

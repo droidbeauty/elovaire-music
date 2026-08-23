@@ -6,6 +6,8 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
@@ -15,9 +17,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -27,7 +31,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -55,6 +58,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
@@ -69,6 +73,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
+import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -102,6 +107,9 @@ internal fun LibraryFoldersScreen(
     var showNetworkEditor by rememberSaveable { mutableStateOf(false) }
     var editingNetworkSource by remember { mutableStateOf<NetworkLibrarySource?>(null) }
     var pendingNetworkRemoval by remember { mutableStateOf<NetworkLibrarySource?>(null) }
+    BackHandler(enabled = showSourceChooser) {
+        showSourceChooser = false
+    }
     BackHandler(enabled = editMode) {
         editMode = false
     }
@@ -116,19 +124,20 @@ internal fun LibraryFoldersScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background),
     ) {
-        LazyColumn(
-            state = listState,
-            overscrollEffect = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .ensureSingleItemRubberBand(listState),
-            contentPadding = PaddingValues(
-                start = 18.dp,
-                top = topBarOccupiedHeight() + 60.dp,
-                end = 18.dp,
-                bottom = bottomPadding + buttonNavigationScrollBoost() + 104.dp,
-            ),
-        ) {
+        if (!showNetworkEditor) {
+            LazyColumn(
+                state = listState,
+                overscrollEffect = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .ensureSingleItemRubberBand(listState),
+                contentPadding = PaddingValues(
+                    start = 18.dp,
+                    top = topBarOccupiedHeight() + 60.dp,
+                    end = 18.dp,
+                    bottom = bottomPadding + buttonNavigationScrollBoost() + 104.dp,
+                ),
+            ) {
             if (networkSources.isNotEmpty()) {
                 item {
                     Text(
@@ -223,111 +232,106 @@ internal fun LibraryFoldersScreen(
                     )
                 }
             }
-        }
-        AddFolderPill(
-            text = "Add source",
-            onClick = { showSourceChooser = true },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
-        )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .padding(
-                    start = 18.dp,
-                    top = topBarOccupiedHeight(),
-                    end = 18.dp,
-                )
-                .height(60.dp),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = copy.removalSafety.trimEnd('.'),
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        PinnedBackTopBar(
-            title = "Library",
-            onBack = onBack,
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .statusBarsPadding()
-                .padding(top = 12.dp, end = 14.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            TextButton(onClick = { editMode = !editMode }) {
-                Text(if (editMode) copy.done else copy.edit)
             }
-            HeaderIconButton(
-                iconResId = R.drawable.ic_lucide_refresh_ccw,
-                contentDescription = copy.refresh,
-                showBackground = false,
-                onClick = onRefresh,
+            AnimatedVisibility(
+                visible = !editMode,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = bottomPadding + navigationBarInsetDp() + 20.dp),
+                enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
+                exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+            ) {
+                AddFolderPill(
+                    text = "Add source",
+                    onClick = { showSourceChooser = true },
+                )
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .fillMaxWidth()
+                    .padding(
+                        start = 18.dp,
+                        top = topBarOccupiedHeight(),
+                        end = 18.dp,
+                    )
+                    .height(60.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = copy.removalSafety.trimEnd('.'),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            PinnedBackTopBar(
+                title = "Library",
+                onBack = onBack,
+                modifier = Modifier.align(Alignment.TopCenter),
             )
-        }
-        if (showSourceChooser) {
-            AlertDialog(
-                onDismissRequest = { showSourceChooser = false },
-                title = { Text("Add library source") },
-                text = {
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        TextButton(
-                            onClick = {
-                                showSourceChooser = false
-                                folderPicker.launch(null)
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text(copy.addFolder) }
-                        TextButton(
-                            onClick = {
-                                showSourceChooser = false
-                                editingNetworkSource = null
-                                showNetworkEditor = true
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) { Text("NAS or WebDAV") }
-                    }
+            Row(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 12.dp, end = 14.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { editMode = !editMode }) {
+                    Text(if (editMode) copy.done else copy.edit)
+                }
+                HeaderIconButton(
+                    iconResId = R.drawable.ic_lucide_refresh_ccw,
+                    contentDescription = copy.refresh,
+                    showBackground = false,
+                    onClick = onRefresh,
+                )
+            }
+            LibrarySourceChooserSheet(
+                visible = showSourceChooser,
+                addFolderLabel = copy.addFolder,
+                onDismiss = { showSourceChooser = false },
+                onAddFolder = {
+                    showSourceChooser = false
+                    folderPicker.launch(null)
                 },
-                confirmButton = {},
+                onAddNetwork = {
+                    showSourceChooser = false
+                    editingNetworkSource = null
+                    showNetworkEditor = true
+                },
             )
-        }
-        if (showNetworkEditor) {
-            NetworkSourceEditorDialog(
+            pendingNetworkRemoval?.let { source ->
+                AlertDialog(
+                    onDismissRequest = { pendingNetworkRemoval = null },
+                    title = { Text("Remove network source?") },
+                    text = { Text("This removes the source from the library. Files on the network are not deleted.") },
+                    dismissButton = {
+                        TextButton(onClick = { pendingNetworkRemoval = null }) { Text("Cancel") }
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                pendingNetworkRemoval = null
+                                onRemoveNetworkSource(source)
+                            },
+                        ) { Text("Remove") }
+                    },
+                )
+            }
+        } else {
+            NetworkSourceEditorScreen(
                 source = editingNetworkSource,
                 probeResults = networkProbeResults,
+                bottomPadding = bottomPadding,
                 onDismiss = {
                     showNetworkEditor = false
                     editingNetworkSource = null
                 },
                 onSave = { source, credentials ->
                     onAddNetworkSource(source, credentials)
-                },
-            )
-        }
-        pendingNetworkRemoval?.let { source ->
-            AlertDialog(
-                onDismissRequest = { pendingNetworkRemoval = null },
-                title = { Text("Remove network source?") },
-                text = { Text("This removes the source from the library. Files on the network are not deleted.") },
-                dismissButton = {
-                    TextButton(onClick = { pendingNetworkRemoval = null }) { Text("Cancel") }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            pendingNetworkRemoval = null
-                            onRemoveNetworkSource(source)
-                        },
-                    ) { Text("Remove") }
                 },
             )
         }
@@ -374,9 +378,176 @@ private fun AddFolderPill(
 }
 
 @Composable
-private fun NetworkSourceEditorDialog(
+private fun LibrarySourceChooserSheet(
+    visible: Boolean,
+    addFolderLabel: String,
+    onDismiss: () -> Unit,
+    onAddFolder: () -> Unit,
+    onAddNetwork: () -> Unit,
+) {
+    AnimatedVisibility(
+        visible = visible,
+        modifier = Modifier
+            .fillMaxSize()
+            .zIndex(10f),
+        enter = ElovaireMotion.bottomSheetEnter(),
+        exit = ElovaireMotion.bottomSheetExit(),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black.copy(alpha = 0.4f))
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = onDismiss,
+                ),
+        ) {
+            DynamicBackdropSurface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {},
+                    ),
+                shape = RoundedCornerShape(
+                    topStart = ElovaireRadii.dialog,
+                    topEnd = ElovaireRadii.dialog,
+                ),
+                overlayAlpha = 0.6f,
+                borderColor = null,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .padding(start = 20.dp, top = 18.dp, end = 20.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_library),
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                modifier = Modifier.size(18.dp),
+                            )
+                            Text(
+                                text = "Add source",
+                                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                color = MaterialTheme.colorScheme.onSurface,
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(34.dp)
+                                .clip(CircleShape)
+                                .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                .clickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = onDismiss,
+                                ),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.ic_lucide_x),
+                                contentDescription = "Close source picker",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
+                                modifier = Modifier.size(16.dp),
+                            )
+                        }
+                    }
+                    LibrarySourceChoice(
+                        iconResId = R.drawable.ic_lucide_library,
+                        title = addFolderLabel,
+                        subtitle = "Choose a folder on this device",
+                        onClick = onAddFolder,
+                    )
+                    LibrarySourceChoice(
+                        iconResId = R.drawable.ic_about_globe,
+                        title = "NAS or WebDAV",
+                        subtitle = "Connect to a network music source",
+                        onClick = onAddNetwork,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LibrarySourceChoice(
+    @DrawableRes iconResId: Int,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    val interactionSource = rememberElovaireInteractionSource()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(ElovaireRadii.tile))
+            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f))
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "library_source_choice_bump",
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 13.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(id = iconResId),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.86f),
+            modifier = Modifier.size(20.dp),
+        )
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                color = MaterialTheme.colorScheme.onSurface,
+            )
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
+            )
+        }
+        Icon(
+            painter = painterResource(id = R.drawable.ic_lucide_chevron_left),
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.58f),
+            modifier = Modifier
+                .size(18.dp)
+                .rotate(180f),
+        )
+    }
+}
+
+@Composable
+private fun NetworkSourceEditorScreen(
     source: NetworkLibrarySource?,
     probeResults: Map<String, NetworkProbeResult>,
+    bottomPadding: Dp,
     onDismiss: () -> Unit,
     onSave: (NetworkLibrarySource, NetworkCredentials) -> Unit,
 ) {
@@ -393,90 +564,247 @@ private fun NetworkSourceEditorDialog(
     val probeResult = probeResults[sourceId]
     val canSave = server.isNotBlank() && path.isNotBlank()
     val isChecking = probeResult?.availability == NetworkAvailability.Checking
+    val listState = rememberElovaireLazyListState("network_source_editor", sourceId)
+    BackHandler(onBack = onDismiss)
     LaunchedEffect(probeResult?.availability) {
         if (probeResult?.availability == NetworkAvailability.Available) onDismiss()
     }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Network library") },
-        text = {
-            Column(
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(
+                start = 18.dp,
+                top = topBarOccupiedHeight() + 20.dp,
+                end = 18.dp,
+                bottom = bottomPadding + 24.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            networkSourceEditorItems(
+                protocol = protocol,
+                name = name,
+                onNameChange = { name = it },
+                server = server,
+                onServerChange = { server = it },
+                path = path,
+                onPathChange = { path = it },
+                username = username,
+                onUsernameChange = { username = it },
+                domain = domain,
+                onDomainChange = { domain = it },
+                password = password,
+                onPasswordChange = { password = it },
+                probeResult = probeResult,
+                onProtocolSelected = { protocolName = it.name },
+            )
+        }
+        PinnedBackTopBar(
+            title = "Network source",
+            onBack = onDismiss,
+            modifier = Modifier.align(Alignment.TopCenter),
+            actions = listOf(
+                TopBarActionSpec(
+                    iconResId = R.drawable.ic_lucide_check,
+                    contentDescription = "Save network source",
+                    onClick = {
+                        if (canSave && !isChecking) {
+                            onSave(
+                                NetworkLibrarySource(
+                                    id = sourceId,
+                                    name = name.trim().ifBlank { server.trim() },
+                                    protocol = protocol,
+                                    server = server.trim(),
+                                    shareOrPath = path.trim(),
+                                    username = username.trim(),
+                                    credentialKey = credentialKey,
+                                ),
+                                NetworkCredentials(username.trim(), password, domain.trim().ifBlank { null }),
+                            )
+                        }
+                    },
+                ),
+            ),
+        )
+        FastScrollbar(
+            state = listState,
+            topInset = topBarOccupiedHeight() + 8.dp,
+            bottomInset = bottomPadding,
+        )
+    }
+}
+
+private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorItems(
+    protocol: NetworkLibraryProtocol,
+    name: String,
+    onNameChange: (String) -> Unit,
+    server: String,
+    onServerChange: (String) -> Unit,
+    path: String,
+    onPathChange: (String) -> Unit,
+    username: String,
+    onUsernameChange: (String) -> Unit,
+    domain: String,
+    onDomainChange: (String) -> Unit,
+    password: String,
+    onPasswordChange: (String) -> Unit,
+    probeResult: NetworkProbeResult?,
+    onProtocolSelected: (NetworkLibraryProtocol) -> Unit,
+) {
+    item {
+        NetworkProtocolSelector(
+            selected = protocol,
+            onSelected = onProtocolSelected,
+        )
+    }
+    item {
+        OutlinedTextField(
+            value = name,
+            onValueChange = onNameChange,
+            label = { Text("Name") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+    }
+    item {
+        OutlinedTextField(
+            value = server,
+            onValueChange = onServerChange,
+            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Server" else "HTTPS server") },
+            placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "192.168.1.20" else "https://nas.example.com/music") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+    }
+    item {
+        OutlinedTextField(
+            value = path,
+            onValueChange = onPathChange,
+            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Share / path" else "Path") },
+            placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Music" else "") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+    }
+    item {
+        OutlinedTextField(
+            value = username,
+            onValueChange = onUsernameChange,
+            label = { Text("Username") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+        )
+    }
+    if (protocol == NetworkLibraryProtocol.Smb) {
+        item {
+            OutlinedTextField(
+                value = domain,
+                onValueChange = onDomainChange,
+                label = { Text("Domain / workgroup (optional)") },
                 modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = { protocolName = NetworkLibraryProtocol.Smb.name }) { Text("SMB2/3") }
-                    TextButton(onClick = { protocolName = NetworkLibraryProtocol.WebDav.name }) { Text("WebDAV HTTPS") }
-                }
-                OutlinedTextField(name, { name = it }, label = { Text("Name") }, singleLine = true)
-                OutlinedTextField(
-                    value = server,
-                    onValueChange = { server = it },
-                    label = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Server" else "HTTPS server") },
-                    placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "192.168.1.20" else "https://nas.example.com/music") },
-                    singleLine = true,
-                )
-                OutlinedTextField(
-                    value = path,
-                    onValueChange = { path = it },
-                    label = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Share / path" else "Path") },
-                    placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Music" else "") },
-                    singleLine = true,
-                )
-                OutlinedTextField(username, { username = it }, label = { Text("Username") }, singleLine = true)
-                if (protocol == NetworkLibraryProtocol.Smb) {
-                    OutlinedTextField(domain, { domain = it }, label = { Text("Domain / workgroup (optional)") }, singleLine = true)
-                }
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("Password") },
-                    singleLine = true,
-                    visualTransformation = PasswordVisualTransformation(),
-                )
-                probeResult?.let { result ->
-                    if (result.availability != NetworkAvailability.Checking) {
-                        Text(
-                            text = when (result.availability) {
-                                NetworkAvailability.Available -> "Connection available"
-                                NetworkAvailability.AuthenticationRequired -> "Authentication required"
-                                NetworkAvailability.Offline -> "Host is unreachable"
-                                NetworkAvailability.Misconfigured -> "Check the server and path"
-                                NetworkAvailability.Unavailable -> "Network source is unavailable"
-                                NetworkAvailability.Checking -> "Testing connection..."
-                            },
-                            color = if (result.availability == NetworkAvailability.Available) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.error
-                            },
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                }
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-        confirmButton = {
-            Button(
-                onClick = {
-                    onSave(
-                        NetworkLibrarySource(
-                            id = sourceId,
-                            name = name.trim().ifBlank { server.trim() },
-                            protocol = protocol,
-                            server = server.trim(),
-                            shareOrPath = path.trim(),
-                            username = username.trim(),
-                            credentialKey = credentialKey,
-                        ),
-                        NetworkCredentials(username.trim(), password, domain.trim().ifBlank { null }),
-                    )
+                singleLine = true,
+            )
+        }
+    }
+    item {
+        OutlinedTextField(
+            value = password,
+            onValueChange = onPasswordChange,
+            label = { Text("Password") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = PasswordVisualTransformation(),
+        )
+    }
+    probeResult?.let { result ->
+        item {
+            Text(
+                text = networkProbeMessage(result.availability),
+                color = if (result.availability == NetworkAvailability.Available) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.error
                 },
-                enabled = canSave && !isChecking,
-            ) { Text(if (isChecking) "Testing..." else "Test and save") }
-        },
-    )
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
+}
+
+private fun networkProbeMessage(availability: NetworkAvailability): String = when (availability) {
+    NetworkAvailability.Available -> "Connection available"
+    NetworkAvailability.AuthenticationRequired -> "Authentication required"
+    NetworkAvailability.Offline -> "Host is unreachable"
+    NetworkAvailability.Misconfigured -> "Check the server and path"
+    NetworkAvailability.Unavailable -> "Network source is unavailable"
+    NetworkAvailability.Checking -> "Testing connection..."
+}
+
+@Composable
+private fun NetworkProtocolSelector(
+    selected: NetworkLibraryProtocol,
+    onSelected: (NetworkLibraryProtocol) -> Unit,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        NetworkProtocolChoice(
+            protocol = NetworkLibraryProtocol.Smb,
+            label = "SMB2/3",
+            selected = selected == NetworkLibraryProtocol.Smb,
+            onClick = { onSelected(NetworkLibraryProtocol.Smb) },
+        )
+        Spacer(modifier = Modifier.size(10.dp))
+        NetworkProtocolChoice(
+            protocol = NetworkLibraryProtocol.WebDav,
+            label = "WebDAV HTTPS",
+            selected = selected == NetworkLibraryProtocol.WebDav,
+            onClick = { onSelected(NetworkLibraryProtocol.WebDav) },
+        )
+    }
+}
+
+@Composable
+private fun NetworkProtocolChoice(
+    protocol: NetworkLibraryProtocol,
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val interactionSource = rememberElovaireInteractionSource()
+    Box(
+        modifier = Modifier
+            .clip(RoundedCornerShape(ElovaireRadii.pill))
+            .background(
+                if (selected) {
+                    MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)
+                } else {
+                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.07f)
+                },
+            )
+            .elovaireActionBump(
+                interactionSource = interactionSource,
+                label = "network_protocol_${protocol.name}_bump",
+            )
+            .clickable(
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+            color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+        )
+    }
 }
 
 private fun NetworkLibraryProtocol.displayName(): String = when (this) {
