@@ -5,12 +5,18 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRecoveryResult
 import androidx.room.Dao
+import androidx.room.RawQuery
 import androidx.room.Query
+import androidx.sqlite.db.SimpleSQLiteQuery
+import androidx.sqlite.db.SupportSQLiteQuery
 
 @Dao
 internal interface PersistenceMaintenanceDao {
     @Query("SELECT COUNT(*) FROM pragma_foreign_key_check")
     suspend fun foreignKeyViolationCount(): Int
+
+    @RawQuery
+    suspend fun quickCheck(query: SupportSQLiteQuery): List<String>
 
     @Query("DELETE FROM media_mutations WHERE status IN ('Completed', 'Cancelled', 'Failed') AND updatedAtMs < :cutoffMs")
     suspend fun deleteTerminalMutationsBefore(cutoffMs: Long): Int
@@ -77,6 +83,7 @@ internal data class DatabaseHealth(
     val recoveryRequired: Boolean,
     val userDataConsistent: Boolean = true,
     val status: PersistenceHealthStatus = PersistenceHealthStatus.Healthy,
+    val physicalIntegrityValid: Boolean = true,
 )
 
 internal class PersistenceMaintenance(
@@ -92,6 +99,17 @@ internal class PersistenceMaintenance(
                 orphanCount = -1,
                 recoveryRequired = true,
                 status = PersistenceHealthStatus.FatalStorageFailure,
+                physicalIntegrityValid = false,
+            )
+        }
+        val physicalIntegrityValid = dao.quickCheck(SimpleSQLiteQuery("PRAGMA quick_check")) == listOf("ok")
+        if (!physicalIntegrityValid) {
+            return DatabaseHealth(
+                foreignKeysValid = false,
+                orphanCount = -1,
+                recoveryRequired = true,
+                status = PersistenceHealthStatus.FatalStorageFailure,
+                physicalIntegrityValid = false,
             )
         }
         val foreignKeyViolationCount = dao.foreignKeyViolationCount()
@@ -126,6 +144,7 @@ internal class PersistenceMaintenance(
             orphanCount = orphanCount,
             recoveryRequired = repairRequired || !userDataConsistent,
             userDataConsistent = userDataConsistent,
+            physicalIntegrityValid = physicalIntegrityValid,
             status = when {
                 foreignKeyViolationCount > 0 -> PersistenceHealthStatus.FatalStorageFailure
                 repairRequired -> PersistenceHealthStatus.AmbiguousUserState

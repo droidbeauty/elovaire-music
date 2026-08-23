@@ -12,12 +12,12 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentialStor
 import elovaire.music.droidbeauty.app.data.library.network.NetworkFileSystemRegistry
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySourceStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryProtocol
-import elovaire.music.droidbeauty.app.data.library.network.NetworkAvailability
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
 import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordinator
+import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationRuntime
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.playback.NetworkDataSourceFactory
@@ -42,18 +42,13 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import java.security.GeneralSecurityException
 import java.util.concurrent.atomic.AtomicBoolean
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 
 @OptIn(UnstableApi::class)
 internal class AppServices(
@@ -76,8 +71,6 @@ internal class AppServices(
     val preferenceStore = createPreferenceStore()
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
     private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
-    private val networkMutationGenerations = ConcurrentHashMap<String, AtomicLong>()
-    private val networkMutationJobs = ConcurrentHashMap<String, Job>()
     private val networkInventoryStore = NetworkInventoryStore(applicationContext, database.libraryDao())
     private val networkCredentialStoreDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         NetworkCredentialStore(applicationContext)
@@ -171,6 +164,23 @@ internal class AppServices(
     ).also {
         it.setLibraryFolders(preferenceStore.libraryFolders.value)
     }
+    private val networkMutationRuntime = NetworkSourceMutationRuntime(
+        scope = appScope,
+        coordinator = networkSourceCoordinator,
+        onProbeResult = { sourceId, result ->
+            _networkProbeResults.update { it + (sourceId to result) }
+        },
+        onSourceRemoved = { sourceId ->
+            _networkProbeResults.update { it - sourceId }
+        },
+        onSourcesChanged = {
+            libraryRepository.setNetworkSources(
+                networkSourceStore.sources.value,
+                enrichMetadata = false,
+                showLoadingIndicator = true,
+            )
+        },
+    )
     private val lyricsServiceDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         LyricsService(
             context = applicationContext,
@@ -192,64 +202,11 @@ internal class AppServices(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
     ) {
-        val generation = nextNetworkMutationGeneration(source.id)
-        networkMutationJobs[source.id]?.cancel()
-        _networkProbeResults.update { it + (source.id to NetworkProbeResult(NetworkAvailability.Checking)) }
-        val job = appScope.launch(Dispatchers.IO) {
-            try {
-                val result = networkSourceCoordinator.save(source, credentials)
-                if (!isCurrentNetworkMutation(source.id, generation)) return@launch
-                _networkProbeResults.update { it + (source.id to result) }
-                libraryRepository.setNetworkSources(
-                    networkSourceStore.sources.value,
-                    enrichMetadata = false,
-                    showLoadingIndicator = true,
-                )
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (failure: GeneralSecurityException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } catch (failure: SecurityException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } catch (failure: IllegalArgumentException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } catch (failure: IllegalStateException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } finally {
-                networkMutationJobs.remove(source.id, coroutineContext[Job])
-            }
-        }
-        networkMutationJobs[source.id] = job
+        networkMutationRuntime.save(source, credentials)
     }
 
     fun removeNetworkSource(source: NetworkLibrarySource) {
-        val generation = nextNetworkMutationGeneration(source.id)
-        networkMutationJobs[source.id]?.cancel()
-        val job = appScope.launch(Dispatchers.IO) {
-            try {
-                networkSourceCoordinator.remove(source)
-                if (!isCurrentNetworkMutation(source.id, generation)) return@launch
-                _networkProbeResults.update { it - source.id }
-                libraryRepository.setNetworkSources(
-                    networkSourceStore.sources.value,
-                    enrichMetadata = false,
-                    showLoadingIndicator = true,
-                )
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (failure: GeneralSecurityException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } catch (failure: SecurityException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } catch (failure: IllegalArgumentException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } catch (failure: IllegalStateException) {
-                recordNetworkMutationFailure(source.id, generation, failure)
-            } finally {
-                networkMutationJobs.remove(source.id, coroutineContext[Job])
-            }
-        }
-        networkMutationJobs[source.id] = job
+        networkMutationRuntime.remove(source)
     }
 
     private val mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore)
@@ -292,34 +249,14 @@ internal class AppServices(
         if (!released.compareAndSet(false, true)) return
         started.set(false)
         playbackStarted.set(false)
-        networkMutationJobs.values.forEach(Job::cancel)
-        networkMutationJobs.clear()
+        networkMutationRuntime.release()
         playbackManager.release()
         if (updateControllerDelegate.isInitialized()) updateController.release()
         libraryRepository.release()
+        if (networkFileSystemRegistryDelegate.isInitialized()) {
+            networkFileSystemRegistryDelegate.value.release()
+        }
         preferenceStore.release(database::close)
         portableSettingsBackup.release()
-    }
-
-    private fun nextNetworkMutationGeneration(sourceId: String): Long =
-        networkMutationGenerations
-            .computeIfAbsent(sourceId) { AtomicLong() }
-            .incrementAndGet()
-
-    private fun isCurrentNetworkMutation(sourceId: String, generation: Long): Boolean =
-        !released.get() && networkMutationGenerations[sourceId]?.get() == generation
-
-    private fun recordNetworkMutationFailure(
-        sourceId: String,
-        generation: Long,
-        failure: Throwable,
-    ) {
-        if (!isCurrentNetworkMutation(sourceId, generation)) return
-        _networkProbeResults.update {
-            it + (sourceId to NetworkProbeResult(
-                availability = NetworkAvailability.Unavailable,
-                message = failure::class.simpleName,
-            ))
-        }
     }
 }

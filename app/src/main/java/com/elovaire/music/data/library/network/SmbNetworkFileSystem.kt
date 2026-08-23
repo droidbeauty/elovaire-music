@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import android.os.SystemClock
 import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.msfscc.FileAttributes
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation
@@ -12,10 +13,14 @@ import com.hierynomus.smbj.auth.AuthenticationContext
 import com.hierynomus.smbj.share.DiskShare
 import java.io.IOException
 import java.io.InputStream
+import java.security.MessageDigest
 import java.util.EnumSet
 import java.util.concurrent.TimeUnit
 
 internal class SmbNetworkFileSystem : NetworkFileSystem {
+    private val sessionMapLock = Any()
+    private val sessions = mutableMapOf<String, SourceSession>()
+
     override fun probeBlocking(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
@@ -76,27 +81,11 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
         position: Long,
         length: Long,
     ): NetworkReadHandle {
-        val host = NetworkPathPolicy.smbServer(source.server) ?: throw IOException("SMB server is invalid")
-        val shareName = NetworkPathPolicy.smbShareAndPath(source.shareOrPath)?.first
-            ?: throw IOException("SMB share is missing")
-        val client = SMBClient(SMB_CONFIG)
-        val resources = mutableListOf<AutoCloseable>(client)
-        var handleCreated = false
+        val session = sessionFor(source, credentials)
+        val lease = session.acquire()
+        var file: com.hierynomus.smbj.share.File? = null
         return try {
-            val connection = client.connect(host, NetworkPathPolicy.smbPort(source.server))
-            resources += connection
-            val session = connection.authenticate(
-                AuthenticationContext(
-                    credentials.username,
-                    credentials.password.toCharArray(),
-                    credentials.domain,
-                ),
-            )
-            resources += session
-            val share = session.connectShare(shareName) as? DiskShare
-                ?: throw IOException("SMB share is not a disk share")
-            resources += share
-            val file = share.openFile(
+            val openedFile = lease.share.openFile(
                 NetworkPathPolicy.join(smbPath(source), path),
                 EnumSet.of(AccessMask.FILE_READ_DATA),
                 EnumSet.of(FileAttributes.FILE_ATTRIBUTE_NORMAL),
@@ -104,25 +93,38 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
                 SMB2CreateDisposition.FILE_OPEN,
                 EnumSet.of(SMB2CreateOptions.FILE_NON_DIRECTORY_FILE),
             )
-            resources += file
-            val totalLength = file.getFileInformation(
+            file = openedFile
+            val totalLength = openedFile.getFileInformation(
                 com.hierynomus.msfscc.fileinformation.FileStandardInformation::class.java,
             ).endOfFile
             val start = position.coerceIn(0L, totalLength)
             val available = (totalLength - start).coerceAtLeast(0L)
             val requested = length.takeIf { it > 0L }?.coerceAtMost(available) ?: available
             NetworkReadHandle(
-                input = SmbRangeInputStream(file, start, requested, totalLength),
+                input = SmbRangeInputStream(openedFile, start, requested, totalLength),
                 length = requested,
                 closeHandle = {
-                    resources.asReversed().forEach { resource -> runCatching { resource.close() } }
+                    runCatching { openedFile.close() }
+                    lease.close()
                 },
-            ).also { handleCreated = true }
+            )
         } finally {
-            if (!handleCreated) {
-                resources.asReversed().forEach { resource -> runCatching { resource.close() } }
+            if (file == null) {
+                lease.close()
             }
         }
+    }
+
+    override fun invalidate(sourceId: String) {
+        val session = synchronized(sessionMapLock) { sessions.remove(sourceId) }
+        session?.invalidate()
+    }
+
+    override fun release() {
+        val activeSessions = synchronized(sessionMapLock) {
+            sessions.values.toList().also { sessions.clear() }
+        }
+        activeSessions.forEach(SourceSession::release)
     }
 
     private fun smbPath(source: NetworkLibrarySource): String {
@@ -138,37 +140,172 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
         block: (DiskShare) -> T,
-    ): T = withShareHandle(source, credentials) { share, _ -> block(share) }
+    ): T {
+        val session = sessionFor(source, credentials)
+        val lease = session.acquire()
+        return try {
+            block(lease.share)
+        } finally {
+            lease.close()
+        }
+    }
 
-    private fun <T> withShareHandle(
+    private fun sessionFor(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
-        block: (DiskShare, MutableList<AutoCloseable>) -> T,
-    ): T {
+    ): SourceSession {
+        val key = SessionKey(
+            sourceKey = source.id,
+            server = source.server,
+            shareOrPath = source.shareOrPath,
+            username = credentials.username,
+            domain = credentials.domain,
+            passwordFingerprint = credentials.password.fingerprint(),
+        )
+        synchronized(sessionMapLock) {
+            evictIdleSessions(SystemClock.elapsedRealtime())
+            val current = sessions[source.id]
+            if (current != null && current.key == key && current.isUsable()) return current
+            current?.invalidate()
+            return SourceSession(key, source, credentials).also { sessions[source.id] = it }
+        }
+    }
+
+    private fun evictIdleSessions(nowElapsedMs: Long) {
+        val idle = sessions.values.filter { it.isIdle(nowElapsedMs) }
+        idle.forEach { session ->
+            sessions.remove(session.key.sourceKey, session)
+            session.invalidate()
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun createSessionResources(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+    ): SessionResources {
         val host = NetworkPathPolicy.smbServer(source.server) ?: throw IOException("SMB server is invalid")
         val shareName = NetworkPathPolicy.smbShareAndPath(source.shareOrPath)?.first
             ?: throw IOException("SMB share is missing")
         val client = SMBClient(SMB_CONFIG)
-        val resources = mutableListOf<AutoCloseable>(client)
+        var connection: com.hierynomus.smbj.connection.Connection? = null
+        var session: com.hierynomus.smbj.session.Session? = null
+        var share: DiskShare? = null
         return try {
-            val connection = client.connect(host, NetworkPathPolicy.smbPort(source.server))
-            resources += connection
-            val session = connection.authenticate(
+            connection = client.connect(host, NetworkPathPolicy.smbPort(source.server))
+            session = connection.authenticate(
                 AuthenticationContext(
                     credentials.username,
                     credentials.password.toCharArray(),
                     credentials.domain,
                 ),
             )
-            resources += session
-            val share = session.connectShare(shareName) as? DiskShare
+            share = session.connectShare(shareName) as? DiskShare
                 ?: throw IOException("SMB share is not a disk share")
-            resources += share
-            block(share, resources)
-        } finally {
-            resources.asReversed().forEach { resource -> runCatching { resource.close() } }
+            SessionResources(client, connection, session, share)
+        } catch (failure: Exception) {
+            listOf(share, session, connection, client)
+                .forEach { resource -> resource?.let { runCatching { it.close() } } }
+            throw failure
         }
     }
+
+    private inner class SourceSession(
+        val key: SessionKey,
+        private val source: NetworkLibrarySource,
+        private val credentials: NetworkCredentials,
+    ) {
+        private val lock = Any()
+        private var resources: SessionResources? = null
+        private var activeLeases = 0
+        private var lastUsedElapsedMs = SystemClock.elapsedRealtime()
+        private var invalidated = false
+
+        fun isUsable(): Boolean = synchronized(lock) {
+            !invalidated && resources?.share?.isConnected == true
+        }
+
+        fun isIdle(nowElapsedMs: Long): Boolean = synchronized(lock) {
+            activeLeases == 0 && nowElapsedMs - lastUsedElapsedMs >= SESSION_IDLE_TIMEOUT_MS
+        }
+
+        fun acquire(): SessionLease {
+            synchronized(lock) {
+                check(!invalidated) { "SMB session is invalidated" }
+                if (resources == null || resources?.share?.isConnected != true) {
+                    resources = createSessionResources(source, credentials)
+                }
+                activeLeases += 1
+                lastUsedElapsedMs = SystemClock.elapsedRealtime()
+                return SessionLease(resources!!.share, ::releaseLease)
+            }
+        }
+
+        fun invalidate() {
+            synchronized(lock) {
+                invalidated = true
+                if (activeLeases == 0) closeResourcesLocked()
+            }
+        }
+
+        fun release() {
+            synchronized(lock) {
+                invalidated = true
+                closeResourcesLocked()
+            }
+        }
+
+        private fun releaseLease() {
+            synchronized(lock) {
+                activeLeases = (activeLeases - 1).coerceAtLeast(0)
+                lastUsedElapsedMs = SystemClock.elapsedRealtime()
+                if (invalidated && activeLeases == 0) closeResourcesLocked()
+            }
+        }
+
+        private fun closeResourcesLocked() {
+            resources?.close()
+            resources = null
+        }
+    }
+
+    private class SessionLease(
+        val share: DiskShare,
+        private val onClose: () -> Unit,
+    ) : AutoCloseable {
+        private var closed = false
+
+        override fun close() {
+            if (closed) return
+            closed = true
+            onClose()
+        }
+    }
+
+    private data class SessionResources(
+        val client: SMBClient,
+        val connection: com.hierynomus.smbj.connection.Connection,
+        val session: com.hierynomus.smbj.session.Session,
+        val share: DiskShare,
+    ) : AutoCloseable {
+        override fun close() {
+            listOf(share, session, connection, client)
+                .forEach { resource -> runCatching { resource.close() } }
+        }
+    }
+
+    private data class SessionKey(
+        val sourceKey: String,
+        val server: String,
+        val shareOrPath: String,
+        val username: String,
+        val domain: String?,
+        val passwordFingerprint: String,
+    )
+
+    private fun String.fingerprint(): String = MessageDigest.getInstance("SHA-256")
+        .digest(toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
 
     private fun FileIdBothDirectoryInformation.isDirectory(): Boolean {
         return fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
@@ -212,5 +349,6 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
             .withTimeout(12, TimeUnit.SECONDS)
             .withSoTimeout(12, TimeUnit.SECONDS)
             .build()
+        const val SESSION_IDLE_TIMEOUT_MS = 60_000L
     }
 }

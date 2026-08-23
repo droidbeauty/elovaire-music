@@ -22,6 +22,10 @@ internal interface NetworkFileSystem {
         position: Long,
         length: Long,
     ): NetworkReadHandle
+
+    fun invalidate(sourceId: String) = Unit
+
+    fun release() = Unit
 }
 
 internal class NetworkFileSystemRegistry(
@@ -53,5 +57,13 @@ internal class NetworkFileSystemRegistry(
         val credentials = credentials(source) ?: throw IOException("Network library credentials are unavailable")
         return fileSystems[source.protocol]?.openBlocking(source, credentials, path, position, length)
             ?: throw IOException("Network protocol is unavailable")
+    }
+
+    fun invalidate(sourceId: String) {
+        fileSystems.values.forEach { it.invalidate(sourceId) }
+    }
+
+    fun release() {
+        fileSystems.values.forEach(NetworkFileSystem::release)
     }
 }

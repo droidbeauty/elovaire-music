@@ -14,15 +14,17 @@ internal class NetworkLibrarySourceStore(context: Context) {
     private val _sources = MutableStateFlow(load())
     val sources: StateFlow<List<NetworkLibrarySource>> = _sources.asStateFlow()
 
+    internal fun normalized(source: NetworkLibrarySource): NetworkLibrarySource = source.copy(
+        name = source.name.trim().ifBlank { source.server.trim() },
+        server = source.server.trim(),
+        shareOrPath = NetworkPathPolicy.normalizeRelativePath(source.shareOrPath),
+        username = source.username.trim(),
+        credentialKey = source.credentialKey.trim().ifBlank { "network-credential-${source.id}" },
+    )
+
     fun upsert(source: NetworkLibrarySource): NetworkLibrarySource {
         return synchronized(mutationLock) {
-            val normalized = source.copy(
-                name = source.name.trim().ifBlank { source.server.trim() },
-                server = source.server.trim(),
-                shareOrPath = NetworkPathPolicy.normalizeRelativePath(source.shareOrPath),
-                username = source.username.trim(),
-                credentialKey = source.credentialKey.trim().ifBlank { "network-credential-${source.id}" },
-            )
+            val normalized = normalized(source)
             val next = (_sources.value.filterNot { it.id == normalized.id } + normalized)
                 .sortedBy { it.name.lowercase() }
             save(next)
@@ -102,7 +104,7 @@ internal class NetworkLibrarySourceStore(context: Context) {
                     .put("enabled", source.enabled),
             )
         }
-        preferences.edit()
+        check(preferences.edit()
             .putString(
                 KEY_SOURCES,
                 JSONObject()
@@ -110,7 +112,7 @@ internal class NetworkLibrarySourceStore(context: Context) {
                     .put("sources", array)
                     .toString(),
             )
-            .apply()
+            .commit()) { "Unable to persist network library sources" }
     }
 
     private companion object {

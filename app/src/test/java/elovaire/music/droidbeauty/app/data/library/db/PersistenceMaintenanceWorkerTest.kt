@@ -21,5 +21,6 @@ class PersistenceMaintenanceWorkerTest {
         assertFalse(DatabaseHealth(false, 0, false).isMaintenanceSuccessful())
         assertFalse(DatabaseHealth(true, 1, false).isMaintenanceSuccessful())
         assertFalse(DatabaseHealth(true, 0, true).isMaintenanceSuccessful())
+        assertFalse(DatabaseHealth(true, 0, false, physicalIntegrityValid = false).isMaintenanceSuccessful())
     }
 }

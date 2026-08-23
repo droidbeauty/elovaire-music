@@ -29,7 +29,11 @@ internal class NetworkCredentialStore(context: Context) {
         val value = ByteBuffer.allocate(4 + cipher.iv.size + ciphertext.size)
         value.putInt(cipher.iv.size).put(cipher.iv).put(ciphertext)
         synchronized(lock) {
-            preferences.edit().putString(key, Base64.encodeToString(value.array(), Base64.NO_WRAP)).apply()
+            check(
+                preferences.edit()
+                    .putString(key, Base64.encodeToString(value.array(), Base64.NO_WRAP))
+                    .commit(),
+            ) { "Unable to persist network credentials" }
         }
     }
 
@@ -54,7 +58,9 @@ internal class NetworkCredentialStore(context: Context) {
     }
 
     fun remove(key: String) {
-        synchronized(lock) { preferences.edit().remove(key).apply() }
+        synchronized(lock) {
+            check(preferences.edit().remove(key).commit()) { "Unable to remove network credentials" }
+        }
     }
 
     private fun secretKey(): SecretKey {
