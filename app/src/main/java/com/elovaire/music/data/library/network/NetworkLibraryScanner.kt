@@ -15,36 +15,36 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
 
 internal class NetworkLibraryScanner(
     context: Context,
     private val registry: NetworkFileSystemRegistry,
+    private val inventory: NetworkInventoryStore,
     private val onAvailabilityChanged: (String, NetworkProbeResult) -> Unit = { _, _ -> },
 ) {
-    private val cache = NetworkLibraryCacheStore(context)
     private val artworkCache = NetworkArtworkCache(context)
+    private val metadataReader = NetworkMetadataReader(registry)
 
     suspend fun scan(
         sources: List<NetworkLibrarySource>,
         forceRefresh: Boolean = false,
     ): List<Song> = withContext(Dispatchers.IO) {
-        buildList {
-            sources.filter(NetworkLibrarySource::enabled).forEach { source ->
-                currentCoroutineContext().ensureActive()
-                addAll(scanSource(source, forceRefresh))
-            }
+        val result = mutableListOf<Song>()
+        sources.filter(NetworkLibrarySource::enabled).forEach { source ->
+            currentCoroutineContext().ensureActive()
+            result += scanSource(source, forceRefresh)
         }
+        result
     }
 
-    fun needsRefresh(sources: List<NetworkLibrarySource>, nowMs: Long): Boolean {
-        return sources.any { it.enabled && !cache.hasFreshListing(it.id, nowMs) }
+    suspend fun needsRefresh(sources: List<NetworkLibrarySource>, nowMs: Long): Boolean {
+        return sources.any { it.enabled && !inventory.hasFreshListing(it.id, nowMs) }
     }
 
-    private fun scanSource(source: NetworkLibrarySource, forceRefresh: Boolean): List<Song> {
-        if (!forceRefresh && cache.hasFreshListing(source.id, System.currentTimeMillis())) {
-            return cache.load(source.id)
+    private suspend fun scanSource(source: NetworkLibrarySource, forceRefresh: Boolean): List<Song> {
+        val cached = inventory.load(source)
+        if (!forceRefresh && inventory.hasFreshListing(source.id, System.currentTimeMillis())) {
+            return cached.map(NetworkInventoryEntry::song)
         }
         val credentials = registry.credentials(source)
         if (credentials == null) {
@@ -52,7 +52,7 @@ internal class NetworkLibraryScanner(
                 source.id,
                 NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
-            return cache.load(source.id)
+            return cached.map(NetworkInventoryEntry::song)
         }
         val entries = try {
             registry.listBlocking(source, credentials)
@@ -60,19 +60,24 @@ internal class NetworkLibraryScanner(
             throw cancelled
         } catch (failure: IOException) {
             onAvailabilityChanged(source.id, failure.toProbeResult())
-            return cache.load(source.id)
+            return cached.map(NetworkInventoryEntry::song)
         } catch (failure: SMBRuntimeException) {
             onAvailabilityChanged(source.id, failure.toProbeResult())
-            return cache.load(source.id)
+            return cached.map(NetworkInventoryEntry::song)
         } catch (failure: IllegalArgumentException) {
             onAvailabilityChanged(source.id, failure.toProbeResult())
-            return cache.load(source.id)
+            return cached.map(NetworkInventoryEntry::song)
         }
+        // A source edit/removal may have completed while the blocking listing was in flight.
+        // Never commit or republish the result for an obsolete configuration.
+        if (registry.source(source.id) != source || registry.credentials(source) != credentials) return emptyList()
         onAvailabilityChanged(source.id, NetworkProbeResult(NetworkAvailability.Available))
         val audioEntries = entries
             .asSequence()
             .filterNot(NetworkFileEntry::isDirectory)
             .filter { entry -> isSupportedAudioExtension(entry.path.substringAfterLast('.', "")) }
+            .map { entry -> entry.copy(path = NetworkPathPolicy.normalizeRelativePath(entry.path)) }
+            .distinctBy(NetworkFileEntry::path)
             .toList()
         val artworkByDirectory = entries
             .asSequence()
@@ -86,57 +91,119 @@ internal class NetworkLibraryScanner(
                 directory to artworkCache.uriFor(source, entry, registry)
             }
         artworkCache.trim()
-        val songs = audioEntries.map { entry ->
-            entry.toSong(
-                source = source,
-                artUri = artworkByDirectory[entry.path.substringBeforeLast('/', "")],
-            )
+        val cachedByPath = cached.associateBy { it.entry.path }
+        val cachedByEntryId = cached
+            .mapNotNull { item -> item.entry.sourceEntryId?.let { it to item } }
+            .groupBy({ it.first }, { it.second })
+        val inventoryEntries = audioEntries.map { entry ->
+            val previous = cachedByPath[entry.path]
+                ?: entry.sourceEntryId
+                    ?.let { cachedByEntryId[it].orEmpty().singleOrNull() }
+                ?: entry.revisionCandidate(cached)
+            if (previous != null && previous.hasSameRevision(entry)) {
+                val relocatedSong = previous.song.copy(
+                    fileName = entry.path.substringAfterLast('/').ifBlank { "Unknown" },
+                    dateModifiedSeconds = entry.modifiedAtMs?.div(1_000L),
+                    libraryPath = "network/${source.id}/${entry.path}",
+                    uri = NetworkResourceUri.create(source.id, entry.path),
+                )
+                previous.copy(
+                    entry = entry,
+                    song = relocatedSong.copy(
+                        artUri = artworkByDirectory[entry.path.substringBeforeLast('/', "")] ?: previous.song.artUri,
+                    ),
+                )
+            } else {
+                val metadata = metadataReader.read(source, entry)
+                NetworkInventoryEntry(
+                    entry = entry,
+                    song = entry.toSong(
+                        source = source,
+                        artUri = artworkByDirectory[entry.path.substringBeforeLast('/', "")],
+                        metadata = metadata,
+                        preservedSongId = previous?.song?.id,
+                    ),
+                )
+            }
         }
-        cache.save(source.id, songs)
-        return songs
+        val inventoryChanged = inventoryEntries.size != cached.size || inventoryEntries.any { current ->
+            val previous = cachedByPath[current.entry.path]
+            previous == null ||
+                !previous.hasSameRevision(current.entry) ||
+                previous.song.artUri != current.song.artUri
+        }
+        val nowMs = System.currentTimeMillis()
+        if (inventoryChanged) {
+            inventory.replace(
+                source = source,
+                entries = inventoryEntries,
+                availability = NetworkAvailability.Available,
+                nowMs = nowMs,
+            )
+        } else {
+            inventory.refresh(source.id, NetworkAvailability.Available, nowMs)
+        }
+        return inventoryEntries.map(NetworkInventoryEntry::song)
     }
 
-    private fun NetworkFileEntry.toSong(source: NetworkLibrarySource, artUri: Uri?): Song {
+    private fun NetworkFileEntry.toSong(
+        source: NetworkLibrarySource,
+        artUri: Uri?,
+        metadata: NetworkMetadataReadResult?,
+        preservedSongId: Long?,
+    ): Song {
         val normalizedPath = NetworkPathPolicy.normalizeRelativePath(path)
         val fileName = normalizedPath.substringAfterLast('/').ifBlank { "Unknown" }
-        val title = fileName.substringBeforeLast('.').ifBlank { fileName }
+        val filenameTitle = fileName.substringBeforeLast('.').ifBlank { fileName }
         val parent = normalizedPath.substringBeforeLast('/', "")
         val album = parent.substringAfterLast('/').ifBlank { source.name }
-        val artistAndTitle = title.split(" - ", limit = 2)
+        val artistAndTitle = filenameTitle.split(" - ", limit = 2)
         val artist = artistAndTitle.firstOrNull()
             ?.takeIf { artistAndTitle.size == 2 && it.isNotBlank() }
             ?: "Unknown Artist"
-        val displayTitle = if (artistAndTitle.size == 2) artistAndTitle[1].trim().ifBlank { title } else title
+        val displayTitle = if (artistAndTitle.size == 2) artistAndTitle[1].trim().ifBlank { filenameTitle } else filenameTitle
         val extension = fileName.substringAfterLast('.', "").uppercase(Locale.ROOT)
-        val songId = NetworkSourceIdentity.songId(source.id, normalizedPath)
+        val songId = preservedSongId ?: NetworkSourceIdentity.songId(source.id, normalizedPath, sourceEntryId)
+        val resolvedArtist = metadata?.artist?.trim().takeIf { !it.isNullOrBlank() } ?: artist
+        val resolvedTitle = metadata?.title?.trim().takeIf { !it.isNullOrBlank() } ?: displayTitle
+        val resolvedAlbum = metadata?.album?.trim().takeIf { !it.isNullOrBlank() } ?: album
         return Song(
             id = songId,
-            title = displayTitle,
+            title = resolvedTitle,
             isExplicit = false,
-            artist = artist,
-            album = album,
-            releaseYear = null,
-            genre = "Unknown Genre",
+            artist = resolvedArtist,
+            album = resolvedAlbum,
+            releaseYear = metadata?.releaseYear,
+            genre = metadata?.genre?.trim().takeIf { !it.isNullOrBlank() } ?: "Unknown Genre",
             audioFormat = extension,
             audioQuality = null,
             fileName = fileName,
-            albumId = NetworkSourceIdentity.songId(source.id, "album:$album"),
-            durationMs = 0L,
-            trackNumber = parseTrackNumber(fileName),
-            discNumber = 1,
+            albumId = NetworkSourceIdentity.songId(source.id, "album:$parent"),
+            durationMs = metadata?.durationMs ?: 0L,
+            trackNumber = metadata?.trackNumber ?: parseTrackNumber(fileName),
+            discNumber = metadata?.discNumber ?: 1,
             dateAddedSeconds = modifiedAtMs?.div(1_000L) ?: 0L,
             dateModifiedSeconds = modifiedAtMs?.div(1_000L),
             libraryPath = "network/${source.id}/$normalizedPath",
             uri = NetworkResourceUri.create(source.id, normalizedPath),
             artUri = artUri,
-            metadataResolved = true,
-            albumArtist = artist,
+            metadataResolved = metadata?.succeeded == true,
+            albumArtist = metadata?.albumArtist?.trim().takeIf { !it.isNullOrBlank() } ?: resolvedArtist,
             volumeNormalization = null,
         )
     }
 
     private fun parseTrackNumber(fileName: String): Int {
         return TRACK_PREFIX.find(fileName)?.groupValues?.getOrNull(1)?.toIntOrNull()?.takeIf { it > 0 } ?: 0
+    }
+
+    private fun NetworkFileEntry.revisionCandidate(
+        cached: List<NetworkInventoryEntry>,
+    ): NetworkInventoryEntry? {
+        if (sizeBytes == null || etag.isNullOrBlank()) return null
+        return cached.filter { previous ->
+            previous.entry.sizeBytes == sizeBytes && previous.entry.etag == etag
+        }.singleOrNull()
     }
 
     private companion object {
@@ -271,105 +338,5 @@ private class NetworkArtworkCache(context: Context) {
         const val MAX_ARTWORK_BYTES = 4L * 1024L * 1024L
         const val MAX_ARTWORK_FILES = 256
         const val MAX_ARTWORK_CACHE_BYTES = 128L * 1024L * 1024L
-    }
-}
-
-private class NetworkLibraryCacheStore(context: Context) {
-    private val file = context.applicationContext.filesDir.resolve("network_library_cache_v1.json")
-
-    @Synchronized
-    fun load(sourceId: String): List<Song> {
-        val root = runCatching { JSONObject(file.takeIf(File::isFile)?.readText() ?: return emptyList()) }.getOrNull()
-            ?: return emptyList()
-        if (root.optInt("version", 0) != CACHE_VERSION) return emptyList()
-        val songs = root.optJSONObject("sources")?.optJSONArray(sourceId) ?: return emptyList()
-        return buildList {
-            repeat(songs.length()) { index ->
-                val item = songs.optJSONObject(index) ?: return@repeat
-                val uri = runCatching { Uri.parse(item.optString("uri")) }.getOrNull() ?: return@repeat
-                if (!NetworkResourceUri.isNetworkUri(uri)) return@repeat
-                add(
-                    Song(
-                        id = item.optLong("id"),
-                        title = item.optString("title"),
-                        isExplicit = false,
-                        artist = item.optString("artist"),
-                        album = item.optString("album"),
-                        releaseYear = null,
-                        genre = item.optString("genre", "Unknown Genre"),
-                        audioFormat = item.optString("audioFormat"),
-                        audioQuality = null,
-                        fileName = item.optString("fileName"),
-                        albumId = item.optLong("albumId"),
-                        durationMs = item.optLong("durationMs"),
-                        trackNumber = item.optInt("trackNumber"),
-                        discNumber = item.optInt("discNumber", 1),
-                        dateAddedSeconds = item.optLong("dateAddedSeconds"),
-                        dateModifiedSeconds = item.optLong("dateModifiedSeconds").takeIf { it > 0L },
-                        libraryPath = item.optString("libraryPath").takeIf(String::isNotBlank),
-                        uri = uri,
-                        artUri = item.optString("artUri").takeIf(String::isNotBlank)?.let(Uri::parse),
-                        metadataResolved = true,
-                        albumArtist = item.optString("albumArtist").takeIf(String::isNotBlank),
-                        volumeNormalization = null,
-                    ),
-                )
-            }
-        }.filter { it.id != 0L && it.fileName.isNotBlank() }
-    }
-
-    @Synchronized
-    fun hasFreshListing(sourceId: String, nowMs: Long): Boolean {
-        val root = runCatching {
-            JSONObject(file.takeIf(File::isFile)?.readText() ?: return false)
-        }.getOrNull() ?: return false
-        if (root.optInt("version", 0) != CACHE_VERSION) return false
-        val lastSuccessfulScan = root.optJSONObject("lastSuccessfulScan")?.optLong(sourceId, 0L) ?: 0L
-        return lastSuccessfulScan > 0L && nowMs - lastSuccessfulScan in 0..NETWORK_SCAN_CACHE_TTL_MS
-    }
-
-    @Synchronized
-    fun save(sourceId: String, songs: List<Song>) {
-        val root = runCatching { JSONObject(file.takeIf(File::isFile)?.readText() ?: "{}") }.getOrElse { JSONObject() }
-        root.put("version", CACHE_VERSION)
-        val sources = root.optJSONObject("sources") ?: JSONObject().also { root.put("sources", it) }
-        val lastSuccessfulScan = root.optJSONObject("lastSuccessfulScan")
-            ?: JSONObject().also { root.put("lastSuccessfulScan", it) }
-        lastSuccessfulScan.put(sourceId, System.currentTimeMillis())
-        val array = JSONArray()
-        songs.forEach { song ->
-            array.put(
-                JSONObject()
-                    .put("id", song.id)
-                    .put("title", song.title)
-                    .put("artist", song.artist)
-                    .put("album", song.album)
-                    .put("genre", song.genre)
-                    .put("audioFormat", song.audioFormat)
-                    .put("fileName", song.fileName)
-                    .put("albumId", song.albumId)
-                    .put("durationMs", song.durationMs)
-                    .put("trackNumber", song.trackNumber)
-                    .put("discNumber", song.discNumber)
-                    .put("dateAddedSeconds", song.dateAddedSeconds)
-                    .put("dateModifiedSeconds", song.dateModifiedSeconds ?: 0L)
-                    .put("libraryPath", song.libraryPath.orEmpty())
-                    .put("uri", song.uri.toString())
-                    .put("artUri", song.artUri?.toString().orEmpty())
-                    .put("albumArtist", song.albumArtist.orEmpty()),
-            )
-        }
-        sources.put(sourceId, array)
-        val temporary = file.resolveSibling("${file.name}.tmp")
-        temporary.writeText(root.toString())
-        if (!temporary.renameTo(file)) {
-            temporary.delete()
-            throw IllegalStateException("Unable to persist network library cache")
-        }
-    }
-
-    private companion object {
-        const val CACHE_VERSION = 1
-        const val NETWORK_SCAN_CACHE_TTL_MS = 15 * 60 * 1_000L
     }
 }

@@ -269,6 +269,7 @@ import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.searchAlbumsForPicker
 import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
+import elovaire.music.droidbeauty.app.domain.search.searchPlaylists
 import elovaire.music.droidbeauty.app.domain.search.searchSongsForPicker
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
@@ -2789,6 +2790,7 @@ private fun SearchScreen(
                 onBack = collapseAllSongResults,
                 centeredTitle = false,
             ),
+            priority = 10,
         )
     }
     BackHandler(enabled = isSearchUiActive) {
@@ -2816,12 +2818,10 @@ private fun SearchScreen(
         if (trimmedQuery.isBlank()) {
             emptyList()
         } else {
-            playlists
-                .asSequence()
-                .filterNot(Playlist::isSystem)
-                .filter { it.name.contains(trimmedQuery, ignoreCase = true) }
-                .take(6)
-                .toList()
+            searchPlaylists(
+                playlists = playlists.filterNot(Playlist::isSystem),
+                rawQuery = trimmedQuery,
+            ).take(6)
         }
     }
     val matchingArtists = remember(state.matchingArtists, language) {
@@ -2912,7 +2912,53 @@ private fun SearchScreen(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (state.contentMode == SearchContentMode.AllSongs) {
+        ElovaireAnimatedContent(
+            targetState = state.contentMode,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                when {
+                    initialState == SearchContentMode.Results && targetState == SearchContentMode.AllSongs -> {
+                        ElovaireMotion.fullScreenForwardEnter(
+                            initialOffsetX = { it / 10 },
+                        ) togetherWith ElovaireMotion.fullScreenForwardExit()
+                    }
+
+                    initialState == SearchContentMode.AllSongs && targetState == SearchContentMode.Results -> {
+                        ElovaireMotion.fullScreenBackEnter() togetherWith ElovaireMotion.fullScreenBackExit(
+                            targetOffsetX = { it / 10 },
+                        )
+                    }
+
+                    targetState == SearchContentMode.Discover -> {
+                        (fadeIn(
+                            animationSpec = ElovaireMotion.contentFadeInSpec(delayMillis = 60),
+                        ) + slideInVertically(
+                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Medium),
+                            initialOffsetY = { it / 14 },
+                        )) togetherWith (fadeOut(
+                            animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                        ) + slideOutVertically(
+                            animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
+                            targetOffsetY = { -it / 18 },
+                        ))
+                    }
+
+                    initialState == SearchContentMode.Discover -> {
+                        (fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                            slideInVertically(
+                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                                initialOffsetY = { it / 16 },
+                            )) togetherWith fadeOut(
+                            animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                        )
+                    }
+
+                    else -> ElovaireMotion.softContentTransform()
+                }
+            },
+            label = "SearchScreenContent",
+        ) { mode ->
+            if (mode == SearchContentMode.AllSongs) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -3006,57 +3052,11 @@ private fun SearchScreen(
                     searchBar()
                 }
                 item {
-                    ElovaireAnimatedContent(
-                        targetState = state.contentMode,
+                    Column(
                         modifier = Modifier.fillMaxWidth(),
-                        transitionSpec = {
-                        when {
-                            targetState == SearchContentMode.Discover -> {
-                                (fadeIn(
-                                    animationSpec = ElovaireMotion.contentFadeInSpec(delayMillis = 60),
-                                ) + slideInVertically(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Medium),
-                                    initialOffsetY = { it / 14 },
-                                )) togetherWith (fadeOut(
-                                    animationSpec = ElovaireMotion.contentFadeOutSpec(),
-                                ) + slideOutVertically(
-                                    animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Fast),
-                                    targetOffsetY = { -it / 18 },
-                                ))
-                            }
-
-                            initialState == SearchContentMode.Results && targetState == SearchContentMode.AllSongs -> {
-                                ElovaireMotion.fullScreenForwardEnter(
-                                    initialOffsetX = { it / 10 },
-                                ) togetherWith ElovaireMotion.fullScreenForwardExit()
-                            }
-
-                            initialState == SearchContentMode.AllSongs && targetState == SearchContentMode.Results -> {
-                                ElovaireMotion.fullScreenBackEnter() togetherWith ElovaireMotion.fullScreenBackExit(
-                                    targetOffsetX = { it / 10 },
-                                )
-                            }
-
-                            initialState == SearchContentMode.Discover -> {
-                                (fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
-                                    slideInVertically(
-                                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                        initialOffsetY = { it / 16 },
-                                    )) togetherWith fadeOut(
-                                    animationSpec = ElovaireMotion.contentFadeOutSpec(),
-                                )
-                            }
-
-                            else -> ElovaireMotion.softContentTransform()
-                        }
-                        },
-                        label = "SearchScreenContent",
-                    ) { mode ->
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(18.dp),
-                        ) {
-                            when (mode) {
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
+                        when (mode) {
                                 SearchContentMode.AllSongs -> {
                                     Spacer(modifier = Modifier)
                                 }
@@ -3235,7 +3235,7 @@ private fun SearchScreen(
                     }
                 }
             }
-            if (state.contentMode == SearchContentMode.Results) {
+            if (mode != SearchContentMode.AllSongs) {
                 FastScrollbar(
                     state = listState,
                     topInset = topPadding + 16.dp,

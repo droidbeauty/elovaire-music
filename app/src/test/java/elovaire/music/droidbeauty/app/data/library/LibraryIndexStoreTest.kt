@@ -8,6 +8,8 @@ import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
 import elovaire.music.droidbeauty.app.data.library.db.LibraryScanGenerationEntity
 import elovaire.music.droidbeauty.app.data.library.db.MediaFileEntity
+import elovaire.music.droidbeauty.app.data.library.db.NetworkInventoryEntity
+import elovaire.music.droidbeauty.app.data.library.db.NetworkInventorySourceEntity
 import elovaire.music.droidbeauty.app.data.library.db.SongEntity
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -105,6 +107,14 @@ private class RecordingLibraryDao : LibraryDao {
     }
     override suspend fun upsertMediaFiles(files: List<MediaFileEntity>) = Unit
     override suspend fun upsertMutation(mutation: LibraryMutationEntity) = Unit
+    override suspend fun networkInventory(sourceId: String): List<NetworkInventoryEntity> = emptyList()
+    override suspend fun networkInventorySource(sourceId: String): NetworkInventorySourceEntity? = null
+    override suspend fun upsertNetworkInventory(entries: List<NetworkInventoryEntity>) = Unit
+    override suspend fun upsertNetworkInventorySource(source: NetworkInventorySourceEntity) = Unit
+    override suspend fun refreshNetworkInventorySource(sourceId: String, committedAtMs: Long, availability: String) = Unit
+    override suspend fun deleteUnseenNetworkInventory(sourceId: String, generation: Long) = Unit
+    override suspend fun deleteNetworkInventory(sourceId: String) = Unit
+    override suspend fun deleteNetworkInventorySource(sourceId: String) = Unit
     override suspend fun markSongsMissingFromGeneration(generationId: Long, removedAtMs: Long) = Unit
     override suspend fun markAlbumsMissingFromGeneration(generationId: Long, removedAtMs: Long) = Unit
     override suspend fun markSongsRemoved(songIds: Set<Long>, removedAtMs: Long) {

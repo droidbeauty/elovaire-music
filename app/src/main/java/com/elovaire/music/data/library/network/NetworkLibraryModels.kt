@@ -31,6 +31,7 @@ internal data class NetworkFileEntry(
     val modifiedAtMs: Long? = null,
     val contentType: String? = null,
     val etag: String? = null,
+    val sourceEntryId: String? = null,
 )
 
 internal data class NetworkReadHandle(
@@ -63,9 +64,13 @@ internal object NetworkSourceIdentity {
         return "network:${source.id.trim()}"
     }
 
-    fun songId(sourceId: String, path: String): Long {
+    fun songId(sourceId: String, path: String, sourceEntryId: String? = null): Long {
         val digest = MessageDigest.getInstance("SHA-256")
-            .digest("$sourceId|${NetworkPathPolicy.normalizeRelativePath(path)}".toByteArray())
+            .digest(
+                (sourceEntryId?.takeIf(String::isNotBlank)?.let { "$sourceId|entry:$it" }
+                    ?: "$sourceId|${NetworkPathPolicy.normalizeRelativePath(path)}")
+                    .toByteArray(),
+            )
         var value = 0L
         repeat(8) { index ->
             value = (value shl 8) or (digest[index].toLong() and 0xffL)

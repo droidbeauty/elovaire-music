@@ -8,6 +8,7 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 
 @Dao
+@Suppress("TooManyFunctions")
 internal interface LibraryDao {
     @Query("SELECT MAX(generationId) FROM scan_generations")
     suspend fun latestGenerationId(): Long?
@@ -36,6 +37,40 @@ internal interface LibraryDao {
 
     @Upsert
     suspend fun upsertMutation(mutation: LibraryMutationEntity)
+
+    @Query("SELECT * FROM network_inventory WHERE sourceId = :sourceId ORDER BY relativePath ASC")
+    suspend fun networkInventory(sourceId: String): List<NetworkInventoryEntity>
+
+    @Query("SELECT * FROM network_inventory_sources WHERE sourceId = :sourceId")
+    suspend fun networkInventorySource(sourceId: String): NetworkInventorySourceEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertNetworkInventory(entries: List<NetworkInventoryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertNetworkInventorySource(source: NetworkInventorySourceEntity)
+
+    @Query("UPDATE network_inventory_sources SET committedAtMs = :committedAtMs, availability = :availability WHERE sourceId = :sourceId")
+    suspend fun refreshNetworkInventorySource(sourceId: String, committedAtMs: Long, availability: String)
+
+    @Query("DELETE FROM network_inventory WHERE sourceId = :sourceId AND lastSeenGeneration != :generation")
+    suspend fun deleteUnseenNetworkInventory(sourceId: String, generation: Long)
+
+    @Query("DELETE FROM network_inventory WHERE sourceId = :sourceId")
+    suspend fun deleteNetworkInventory(sourceId: String)
+
+    @Query("DELETE FROM network_inventory_sources WHERE sourceId = :sourceId")
+    suspend fun deleteNetworkInventorySource(sourceId: String)
+
+    @Transaction
+    suspend fun replaceNetworkInventory(
+        source: NetworkInventorySourceEntity,
+        entries: List<NetworkInventoryEntity>,
+    ) {
+        if (entries.isNotEmpty()) upsertNetworkInventory(entries)
+        deleteUnseenNetworkInventory(source.sourceId, source.generation)
+        upsertNetworkInventorySource(source)
+    }
 
     @Query("UPDATE songs SET removedAtMs = :removedAtMs WHERE lastSeenGenerationId != :generationId AND removedAtMs IS NULL")
     suspend fun markSongsMissingFromGeneration(generationId: Long, removedAtMs: Long)

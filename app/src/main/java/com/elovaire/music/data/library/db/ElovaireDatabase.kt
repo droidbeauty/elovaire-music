@@ -25,8 +25,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SearchHistoryEntity::class,
         PlaybackCollectionStateEntity::class,
         UserDataMigrationEntity::class,
+        NetworkInventoryEntity::class,
+        NetworkInventorySourceEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
@@ -40,7 +42,7 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 context.applicationContext,
                 ElovaireDatabase::class.java,
                 "elovaire-library.db",
-            ).addMigrations(MIGRATION_1_2).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
         }
 
         internal val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -98,6 +100,31 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                     "CREATE TABLE IF NOT EXISTS `user_data_migrations` " +
                         "(`migrationId` TEXT NOT NULL, `completedAtMs` INTEGER NOT NULL, " +
                         "PRIMARY KEY(`migrationId`))",
+                )
+            }
+        }
+
+        internal val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `network_inventory` (" +
+                        "`sourceId` TEXT NOT NULL, `relativePath` TEXT NOT NULL, " +
+                        "`sizeBytes` INTEGER, `modifiedAtMs` INTEGER, `etag` TEXT, `contentType` TEXT, `sourceEntryId` TEXT, " +
+                        "`songId` INTEGER NOT NULL, `albumId` INTEGER NOT NULL, `title` TEXT NOT NULL, " +
+                        "`artist` TEXT NOT NULL, `album` TEXT NOT NULL, `albumArtist` TEXT, `releaseYear` INTEGER, " +
+                        "`genre` TEXT NOT NULL, `audioFormat` TEXT NOT NULL, `audioQuality` TEXT, " +
+                        "`durationMs` INTEGER NOT NULL, `trackNumber` INTEGER NOT NULL, `discNumber` INTEGER NOT NULL, " +
+                        "`dateAddedSeconds` INTEGER NOT NULL, `dateModifiedSeconds` INTEGER, " +
+                        "`metadataResolved` INTEGER NOT NULL, `artUri` TEXT, `lastSeenGeneration` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`sourceId`, `relativePath`))",
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_network_inventory_sourceId_lastSeenGeneration` ON `network_inventory` (`sourceId`, `lastSeenGeneration`)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS `index_network_inventory_sourceId_songId` ON `network_inventory` (`sourceId`, `songId`)")
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `network_inventory_sources` (" +
+                        "`sourceId` TEXT NOT NULL, `generation` INTEGER NOT NULL, " +
+                        "`committedAtMs` INTEGER NOT NULL, `availability` TEXT NOT NULL, " +
+                        "PRIMARY KEY(`sourceId`))",
                 )
             }
         }

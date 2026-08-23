@@ -13,8 +13,6 @@ import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
-import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
-import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.currentCoroutineContext
@@ -23,7 +21,6 @@ import kotlinx.coroutines.ensureActive
 @Suppress("TooManyFunctions")
 internal class MediaStoreScanner(
     private val context: Context,
-    private val networkLibraryScanner: NetworkLibraryScanner? = null,
 ) {
     private val metadataCache = ScannerMetadataCache()
     private val audioFormatDetector = AudioFormatDetector(context)
@@ -33,27 +30,14 @@ internal class MediaStoreScanner(
         context = context,
         scanRoots = scanRoots::accessibleFileRoots,
     )
-    private val safTreeScanner = SafTreeLibraryScanner(context)
     internal val targetExistenceProbe = MediaTargetExistenceProbe(context)
-    private var networkSources: List<NetworkLibrarySource> = emptyList()
-
-    fun setNetworkSources(sources: List<NetworkLibrarySource>): Boolean {
-        val normalized = sources.distinctBy { it.id }
-        if (networkSources == normalized) return false
-        networkSources = normalized
-        return true
-    }
-
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean {
         return scanRoots.setSelections(selections)
     }
 
     fun currentFilterFingerprint(): String {
         val local = scanRoots.filterFingerprint(FILTER_FINGERPRINT_VERSION)
-        val remote = networkSources.joinToString("|") { source ->
-            listOf(source.id, source.protocol.name, source.server, source.shareOrPath, source.username).joinToString("@").lowercase(Locale.ROOT)
-        }
-        return "$local::network:$remote"
+        return local
     }
 
     internal fun currentSyncState(): LibraryMediaStoreSyncState? {
@@ -94,9 +78,7 @@ internal class MediaStoreScanner(
 
     internal fun hasSafSelections(): Boolean = scanRoots.hasSafSelections()
 
-    internal fun networkSourceNeedsRefresh(): Boolean {
-        return networkLibraryScanner?.needsRefresh(networkSources, System.currentTimeMillis()) == true
-    }
+    internal fun safTreeSelections(): List<LibraryFolderSelection> = scanRoots.safTreeSelections()
 
     fun invalidateMetadataCacheForPaths(paths: Collection<String>) {
         metadataCache.invalidatePaths(paths)
@@ -306,27 +288,7 @@ internal class MediaStoreScanner(
         }
 
         currentCoroutineContext().ensureActive()
-        val safSongs = ElovaireTrace.suspendSection("library_saf_scan") {
-            safTreeScanner.scan(scanRoots.safTreeSelections())
-        }
-        decisionMap.recordSafIncluded(safSongs.size)
-        val networkSongs = ElovaireTrace.suspendSection("library_network_scan") {
-            networkLibraryScanner?.scan(
-                sources = networkSources,
-                forceRefresh = refreshMediaIndex,
-            ).orEmpty()
-        }
-        val mergedSongs = ElovaireTrace.section("library_scan_merge") {
-            mergeMediaStoreAndSafSongs(
-                mediaStoreSongs = songs,
-                safSongs = safSongs,
-            ) + networkSongs
-        }
-        decisionMap.recordMerge(
-            mediaStoreSongCount = songs.size,
-            safSongCount = safSongs.size,
-            mergedSongCount = mergedSongs.size,
-        )
+        val mergedSongs = songs
         decisionMap.logSummary()
 
         metadataCache.retainOnly(scannedMetadataUris)
@@ -381,13 +343,6 @@ internal class MediaStoreScanner(
             explicitCustomRootPaths = scanRoots.explicitCustomFileRootPaths(),
             explicitCustomRelativeRoots = scanRoots.explicitCustomRelativeRoots(),
         )
-    }
-
-    private fun mergeMediaStoreAndSafSongs(
-        mediaStoreSongs: List<Song>,
-        safSongs: List<Song>,
-    ): List<Song> {
-        return LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(mediaStoreSongs, safSongs)
     }
 
     private fun String?.orUnknown(fallback: String): String {

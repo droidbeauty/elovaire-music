@@ -4,7 +4,9 @@ import android.content.Context
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryScanCoordinator
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
+import elovaire.music.droidbeauty.app.data.library.SafTreeLibraryScanner
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentialStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkFileSystemRegistry
@@ -14,6 +16,8 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkAvailability
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
+import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
+import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordinator
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.playback.NetworkDataSourceFactory
@@ -65,20 +69,41 @@ internal class AppServices(
     )
     val preferenceStore = PreferenceStore(applicationContext, userDataStore)
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
-    private val networkCredentialStore = NetworkCredentialStore(applicationContext)
-    private val networkFileSystemRegistry = NetworkFileSystemRegistry(
-        sourceStore = networkSourceStore,
-        credentialStore = networkCredentialStore,
-        fileSystems = mapOf(
-            NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(),
-            NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
-        ),
-    )
+    private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
+    private val networkInventoryStore = NetworkInventoryStore(applicationContext, database.libraryDao())
+    private val networkCredentialStoreDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        NetworkCredentialStore(applicationContext)
+    }
+    private val networkFileSystemRegistryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        NetworkFileSystemRegistry(
+            sourceStore = networkSourceStore,
+            credentialStore = networkCredentialStoreDelegate.value,
+            fileSystems = mapOf(
+                NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(),
+                NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
+            ),
+        )
+    }
+    private val networkScannerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        NetworkLibraryScanner(
+            context = applicationContext,
+            registry = networkFileSystemRegistryDelegate.value,
+            inventory = networkInventoryStore,
+            onAvailabilityChanged = { sourceId, result ->
+                _networkProbeResults.update { it + (sourceId to result) }
+            },
+        )
+    }
     private val networkDataSourceFactory = NetworkDataSourceFactory(
         defaultFactory = DefaultDataSource.Factory(applicationContext),
-        registry = networkFileSystemRegistry,
+        registryProvider = { networkFileSystemRegistryDelegate.value },
     )
-    private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
+    private val networkSourceCoordinator = NetworkSourceCoordinator(
+        sourceStore = networkSourceStore,
+        credentialStoreProvider = { networkCredentialStoreDelegate.value },
+        registryProvider = { networkFileSystemRegistryDelegate.value },
+        inventoryStore = networkInventoryStore,
+    )
     private val updateControllerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         val updatePreferences = allowStrictModeDiskReads {
             UpdatePreferencesStoreImpl(PreferenceStorage(applicationContext).preferences)
@@ -117,16 +142,15 @@ internal class AppServices(
     val playbackSessionStore = PlaybackSessionStore(applicationContext)
     val libraryRepository = LibraryRepository(
         appContext = applicationContext,
-        scanner = MediaStoreScanner(
-            context = applicationContext,
-            networkLibraryScanner = NetworkLibraryScanner(
+        scanner = LibraryScanCoordinator(
+            localScanner = MediaStoreScanner(
                 context = applicationContext,
-                registry = networkFileSystemRegistry,
-                onAvailabilityChanged = { sourceId, result ->
-                    _networkProbeResults.update { it + (sourceId to result) }
-                },
             ),
-        ),
+            safScanner = SafTreeLibraryScanner(applicationContext),
+            networkScannerProvider = { networkScannerDelegate.value },
+        ).also { scanner ->
+            scanner.setNetworkSources(networkSourceStore.sources.value)
+        },
         scope = appScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
         libraryIndexStore = LibraryIndexStore(database.libraryDao()),
@@ -138,7 +162,6 @@ internal class AppServices(
         },
     ).also {
         it.setLibraryFolders(preferenceStore.libraryFolders.value)
-        it.setNetworkSources(networkSourceStore.sources.value)
     }
     private val lyricsServiceDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         LyricsService(
@@ -158,19 +181,8 @@ internal class AppServices(
     ) {
         _networkProbeResults.update { it + (source.id to NetworkProbeResult(NetworkAvailability.Checking)) }
         appScope.launch(Dispatchers.IO) {
-            val previousCredentials = networkCredentialStore.get(source.credentialKey)
-            val effectiveCredentials = if (credentials.password.isBlank() && previousCredentials != null) {
-                previousCredentials.copy(
-                    username = credentials.username.ifBlank { previousCredentials.username },
-                    domain = credentials.domain ?: previousCredentials.domain,
-                )
-            } else {
-                credentials
-            }
-            networkCredentialStore.put(source.credentialKey, effectiveCredentials)
-            val result = networkFileSystemRegistry.probeBlocking(source, effectiveCredentials)
+            val result = networkSourceCoordinator.save(source, credentials)
             _networkProbeResults.update { it + (source.id to result) }
-            networkSourceStore.upsert(source)
             libraryRepository.setNetworkSources(
                 networkSourceStore.sources.value,
                 enrichMetadata = false,
@@ -181,8 +193,7 @@ internal class AppServices(
 
     fun removeNetworkSource(source: elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource) {
         appScope.launch(Dispatchers.IO) {
-            networkCredentialStore.remove(source.credentialKey)
-            networkSourceStore.remove(source.id)
+            networkSourceCoordinator.remove(source)
             _networkProbeResults.update { it - source.id }
             libraryRepository.setNetworkSources(networkSourceStore.sources.value, enrichMetadata = false, showLoadingIndicator = true)
         }

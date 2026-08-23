@@ -49,9 +49,10 @@ class ElovaireDatabaseMigrationTest {
 
         helper.runMigrationsAndValidate(
             DATABASE_NAME,
-            2,
+            3,
             true,
             ElovaireDatabase.MIGRATION_1_2,
+            ElovaireDatabase.MIGRATION_2_3,
         ).use { database ->
             database.query("SELECT COUNT(*) FROM user_playlists").use { cursor ->
                 assertTrue(cursor.moveToFirst())
@@ -64,13 +65,17 @@ class ElovaireDatabaseMigrationTest {
             database.query("PRAGMA foreign_key_check").use { cursor ->
                 assertEquals(0, cursor.count)
             }
+            database.query("SELECT COUNT(*) FROM network_inventory").use { cursor ->
+                assertTrue(cursor.moveToFirst())
+                assertEquals(0, cursor.getInt(0))
+            }
         }
 
         val roomDatabase = Room.databaseBuilder(
             InstrumentationRegistry.getInstrumentation().targetContext,
             ElovaireDatabase::class.java,
             DATABASE_NAME,
-        ).addMigrations(ElovaireDatabase.MIGRATION_1_2).build()
+        ).addMigrations(ElovaireDatabase.MIGRATION_1_2, ElovaireDatabase.MIGRATION_2_3).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(
                 "SELECT COUNT(*) FROM songs WHERE songId = 11 AND albumId = 7",

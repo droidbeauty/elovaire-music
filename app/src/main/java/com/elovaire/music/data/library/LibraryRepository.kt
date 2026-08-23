@@ -85,7 +85,7 @@ data class LibraryDeleteFailure(
 
 class LibraryRepository internal constructor(
     appContext: Context,
-    private val scanner: MediaStoreScanner,
+    private val scanner: LibraryScanCoordinator,
     private val scope: CoroutineScope,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
@@ -134,7 +134,7 @@ class LibraryRepository internal constructor(
     )
     private val observerController = LibraryObserverController(
         appContext = appContext,
-        scanner = scanner,
+        scanner = scanner.localScanner,
         scope = scope,
         onObservedRefresh = ::scheduleMediaRefresh,
         clock = clock,

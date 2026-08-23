@@ -59,6 +59,8 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
                     path = fullPath.removeRootPath(rootPath),
                     isDirectory = directoryEntry,
                     sizeBytes = item.endOfFile.takeIf { it >= 0L },
+                    modifiedAtMs = item.lastWriteTime?.toEpochMillis(),
+                    sourceEntryId = item.fileId.takeIf { it != 0L }?.toString(),
                 )
                 entries += entry
                 if (directoryEntry && depth < maxDepth) pending.addLast(fullPath to depth + 1)

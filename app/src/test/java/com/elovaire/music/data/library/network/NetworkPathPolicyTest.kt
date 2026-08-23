@@ -49,4 +49,12 @@ class NetworkPathPolicyTest {
         assertNotEquals(first, second)
         assertEquals(first, NetworkSourceIdentity.songId("source", "./Music/track.mp3"))
     }
+
+    @Test
+    fun stableServerEntryIdentitySurvivesRename() {
+        val before = NetworkSourceIdentity.songId("source", "Music/old.mp3", "42")
+        val after = NetworkSourceIdentity.songId("source", "Music/new.mp3", "42")
+
+        assertEquals(before, after)
+    }
 }
