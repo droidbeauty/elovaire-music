@@ -274,6 +274,7 @@ import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkGradient
+import elovaire.music.droidbeauty.app.ui.components.rememberArtworkPaletteAccent
 import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
@@ -2429,12 +2430,13 @@ private fun ArtistHeroHeader(
     onShuffle: () -> Unit,
 ) {
     val sourceUri = when (backdropState) {
-        is ArtistBackdropState.Fallback -> backdropState.localArtworkUri
+        is ArtistBackdropState.Fallback -> backdropState.artworkUri
         ArtistBackdropState.Loading -> localArtworkUri
     } ?: localArtworkUri
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
-    val localArtwork = rememberArtworkBitmap(localArtworkUri, size = 512).value
-    val gradient = rememberArtworkGradient(localArtworkUri).value
+    val localArtwork = rememberArtworkBitmap(sourceUri, size = 512).value
+    val gradient = rememberArtworkGradient(sourceUri).value
+    val paletteAccent = rememberAnimatedArtistPaletteAccent(sourceUri)
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2493,37 +2495,30 @@ private fun ArtistHeroHeader(
                             Color.Transparent,
                             Color.Black.copy(alpha = 0.84f),
                         ),
-                    ),
                 ),
+            ),
         )
+        ArtistHeroAccentGradient(accent = paletteAccent)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
                 .statusBarsPadding()
-                .padding(start = 20.dp, end = 20.dp, bottom = 24.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    text = artistName,
-                    style = MaterialTheme.typography.displayLarge.copy(
-                        fontSize = elovaireScaledSp(34f),
-                        lineHeight = MaterialTheme.typography.displayLarge.lineHeight * 0.88f,
-                    ),
-                    color = Color.White,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = subtitle,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-                    color = Color.White.copy(alpha = 0.78f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            Text(
+                text = artistName,
+                style = MaterialTheme.typography.displayLarge.copy(
+                    fontSize = elovaireScaledSp(34f),
+                    lineHeight = MaterialTheme.typography.displayLarge.lineHeight * 0.88f,
+                ),
+                color = Color.White,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -2536,9 +2531,46 @@ private fun ArtistHeroHeader(
                     enabled = enabled,
                     onClick = onShuffle,
                 )
+                Spacer(modifier = Modifier.weight(1f))
+                Text(
+                    text = subtitle,
+                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                    color = Color.White.copy(alpha = 0.78f),
+                    textAlign = TextAlign.End,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
         }
     }
+}
+
+@Composable
+private fun rememberAnimatedArtistPaletteAccent(uri: Uri?): Color {
+    val paletteAccent = rememberArtworkPaletteAccent(uri).value ?: MaterialTheme.colorScheme.primary
+    return animateColorAsState(
+        targetValue = paletteAccent,
+        animationSpec = ElovaireMotion.colorFadeSpec(),
+        label = "artist_splash_palette_accent",
+    ).value
+}
+
+@Composable
+private fun BoxScope.ArtistHeroAccentGradient(accent: Color) {
+    Box(
+        modifier = Modifier
+            .align(Alignment.BottomCenter)
+            .fillMaxWidth()
+            .height(60.dp)
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        accent.copy(alpha = 0.8f),
+                        accent.copy(alpha = 0.3f),
+                    ),
+                ),
+            ),
+    )
 }
 
 @OptIn(ExperimentalHazeApi::class)
@@ -4253,7 +4285,7 @@ private fun rememberArtistArtworkUri(
             artistKey = artist.name,
         ),
     )
-    return (state as? ArtistBackdropState.Fallback)?.localArtworkUri ?: artist.artUri
+    return (state as? ArtistBackdropState.Fallback)?.artworkUri ?: artist.artUri
 }
 
 @Composable

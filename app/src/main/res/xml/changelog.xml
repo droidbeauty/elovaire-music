@@ -6,11 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.7.1">
-        <item>Minor UI tweaks in settings and search results screens</item>
-        <item>Redesigned language switcher UI in settings</item>
-        <item>General performance improvements</item>
-        <item>Various tweaks to improve stability and reduce battery usage</item>
+    <release version="2.7.2">
+        <item>UI tweaks in Artist screen</item>
+        <item>Fixed interaction bugs in songs search results</item>
         <item>Bug fixes</item>
     </release>
 </changelog>

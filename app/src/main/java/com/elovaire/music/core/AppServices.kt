@@ -147,7 +147,7 @@ internal class AppServices(
         playbackManager.release()
         if (updateControllerDelegate.isInitialized()) updateController.release()
         libraryRepository.release()
-        portableSettingsBackup.release()
         preferenceStore.release(database::close)
+        portableSettingsBackup.release()
     }
 }

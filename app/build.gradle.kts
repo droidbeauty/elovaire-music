@@ -232,6 +232,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.profileinstaller)
+    implementation(libs.androidx.palette)
     implementation(libs.androidx.tracing.ktx)
 
     implementation(libs.androidx.media3.exoplayer)

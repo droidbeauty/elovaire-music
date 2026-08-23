@@ -79,6 +79,46 @@ internal class BoundedHttpTransport(
         error("Unable to resolve HTTPS request")
     }
 
+    suspend fun post(
+        rawUrl: String,
+        body: ByteArray,
+        headers: Map<String, String> = emptyMap(),
+        maxBytes: Int,
+        urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
+    ): BoundedHttpResponse = withContext(Dispatchers.IO) {
+        require(maxBytes > 0) { "maxBytes must be positive" }
+        val url = URL(rawUrl)
+        require(urlPolicy(url)) { "HTTP request URL is not allowed" }
+        val connection = (url.openConnection() as? HttpURLConnection)
+            ?: error("Unsupported HTTP connection")
+        try {
+            connection.requestMethod = "POST"
+            connection.connectTimeout = connectTimeoutMs
+            connection.readTimeout = readTimeoutMs
+            connection.instanceFollowRedirects = false
+            connection.doOutput = true
+            headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+            connection.connect()
+            connection.outputStream.use { output -> output.write(body) }
+            val status = connection.responseCode
+            val contentLength = connection.contentLengthLong
+            if (contentLength > maxBytes) error("HTTP response is too large")
+            val responseBody = if (status in 200..299) {
+                connection.inputStream.use { it.readBounded(maxBytes, currentCoroutineContext()) }
+            } else {
+                ByteArray(0)
+            }
+            BoundedHttpResponse(
+                statusCode = status,
+                body = responseBody,
+                retryAfterMs = connection.getHeaderField("Retry-After")?.toRetryAfterMs(),
+                finalUrl = url,
+            )
+        } finally {
+            connection.disconnect()
+        }
+    }
+
     private fun java.io.InputStream.readBounded(
         maxBytes: Int,
         cancellationContext: kotlin.coroutines.CoroutineContext?,

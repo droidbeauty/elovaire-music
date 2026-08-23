@@ -38,7 +38,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -73,7 +72,6 @@ import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
-import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.equalizerStatusLabel
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
@@ -83,7 +81,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicySettingsSubtitle
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingBarStyleCopy
-import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
@@ -616,13 +613,6 @@ private fun LanguageSelectionDialog(
                                 horizontalArrangement = Arrangement.End,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                TextButton(onClick = onDismiss) {
-                                    Text(
-                                        text = uiPhrase(selectedLanguage, UiPhrase.Cancel),
-                                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f),
-                                    )
-                                }
-                                Spacer(modifier = Modifier.width(10.dp))
                                 val confirmInteractionSource = rememberElovaireInteractionSource()
                                 Surface(
                                     modifier = Modifier.elovaireActionBump(
@@ -637,7 +627,7 @@ private fun LanguageSelectionDialog(
                                 ) {
                                     Text(
                                         text = copy.ok,
-                                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 9.dp),
                                         style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                                     )
                                 }

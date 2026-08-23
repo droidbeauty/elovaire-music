@@ -38,6 +38,13 @@ local.properties
 keystore.properties
 signing.properties
 secrets.properties
+ytmusic-api-key.properties
+youtube-music-api-key.properties
+ytmusic-api-key.*
+youtube-music-api-key.*
+ytmusic_api_key.properties
+youtube_music_api_key.properties
+youtube-api-key.properties
 
 # Kotlin / IntelliJ caches
 .kotlin/

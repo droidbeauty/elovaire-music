@@ -34,6 +34,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
 import android.net.Uri
+import androidx.palette.graphics.Palette
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkBitmapCache
@@ -202,6 +203,31 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
             val bitmap = loadArtworkBitmap(context, uri, 512)
             (bitmap?.let { paletteFromBitmap(it, foundation) } ?: defaultArtworkGradient(fallbackColor, foundation)).also { gradient ->
                 ArtworkGradientCache.putGradient(cacheKey, gradient)
+            }
+        }
+    }
+}
+
+@Composable
+fun rememberArtworkPaletteAccent(
+    uri: Uri?,
+    size: Int = 512,
+): State<Color?> {
+    val context = LocalContext.current
+    val normalizedSize = normalizeArtworkRequestSize(size)
+    return produceState<Color?>(initialValue = null, key1 = uri, key2 = normalizedSize) {
+        val bitmap = withContext(Dispatchers.IO) {
+            loadArtworkBitmap(context, uri, normalizedSize)
+        }
+        value = bitmap?.let {
+            withContext(Dispatchers.Default) {
+                val palette = Palette.from(it).generate()
+                val swatch = palette.darkVibrantSwatch
+                    ?: palette.vibrantSwatch
+                    ?: palette.darkMutedSwatch
+                    ?: palette.dominantSwatch
+                    ?: palette.mutedSwatch
+                swatch?.rgb?.let(::Color)
             }
         }
     }

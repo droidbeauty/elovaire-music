@@ -54,9 +54,9 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
         source.unregisterOnSharedPreferenceChangeListener(this)
     }
 
+    @Suppress("UNUSED_PARAMETER")
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         if (key == null || !isPortableSettingKey(key)) return
-        copyValues(sharedPreferences, backup, setOf(key))
         syncAll()
     }
 
