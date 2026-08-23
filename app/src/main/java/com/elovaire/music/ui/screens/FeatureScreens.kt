@@ -13,6 +13,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterExitState
 import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.AnimationSpec
@@ -2943,17 +2944,39 @@ private fun SearchScreen(
             },
             label = "SearchScreenContent",
         ) { showAllSongs ->
-            if (showAllSongs) {
-            Column(
+            val isActiveContent = transition.targetState == EnterExitState.Visible
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(
-                        start = 20.dp,
-                        top = topPadding + 8.dp,
-                        end = 20.dp,
+                    .zIndex(if (isActiveContent) 1f else 0f)
+                    .then(
+                        if (isActiveContent) {
+                            Modifier
+                        } else {
+                            Modifier.pointerInput(Unit) {
+                                awaitEachGesture {
+                                    val down = awaitFirstDown(requireUnconsumed = false)
+                                    down.consume()
+                                    do {
+                                        val event = awaitPointerEvent()
+                                        event.changes.forEach { change -> change.consume() }
+                                    } while (event.changes.any { it.pressed })
+                                }
+                            }
+                        },
                     ),
-                verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
+                if (showAllSongs) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(
+                                start = 20.dp,
+                                top = topPadding + 8.dp,
+                                end = 20.dp,
+                            ),
+                        verticalArrangement = Arrangement.spacedBy(18.dp),
+                    ) {
                 SearchSongsResultsHeader(
                     resultCount = state.totalSongMatchCount,
                     selected = state.searchSongSortMode,
@@ -3014,11 +3037,12 @@ private fun SearchScreen(
                         state = allSongsListState,
                         topInset = 8.dp,
                         bottomInset = bottomPadding + 20.dp,
+                        trackGesturesEnabled = false,
                     )
                 }
-            }
-        } else {
-            LazyColumn(
+                    }
+                } else {
+                    LazyColumn(
                 state = listState,
                 overscrollEffect = null,
                 modifier = Modifier
@@ -3032,198 +3056,240 @@ private fun SearchScreen(
                 ),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                item {
+                item(
+                    key = "search_input",
+                    contentType = "search_input",
+                ) {
                     searchBar()
                 }
-                item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(18.dp),
-                    ) {
-                        when (browsingContentMode) {
-                                SearchContentMode.AllSongs -> {
-                                    Spacer(modifier = Modifier)
+                when (browsingContentMode) {
+                    SearchContentMode.AllSongs -> Unit
+
+                    SearchContentMode.Discover -> {
+                        if (state.recentSearches.isNotEmpty()) {
+                            item(
+                                key = "search_recent",
+                                contentType = "search_history",
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                                    SearchHistorySectionHeader(
+                                        showClearAction = true,
+                                        onClearHistory = onClearSearchHistory,
+                                    )
+                                    SearchHistoryListCard(
+                                        entries = state.recentSearches.take(6),
+                                        onAlbumSelected = { albumId ->
+                                            libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
+                                                selectAlbum(album, ExpandOrigin(), false)
+                                            }
+                                        },
+                                        onArtistSelected = selectArtist,
+                                    )
                                 }
-
-                                SearchContentMode.Discover -> {
-                                    if (state.recentSearches.isNotEmpty()) {
-                                        SearchHistorySectionHeader(
-                                            showClearAction = true,
-                                            onClearHistory = onClearSearchHistory,
-                                        )
-                                        SearchHistoryListCard(
-                                            entries = state.recentSearches.take(6),
-                                            onAlbumSelected = { albumId ->
-                                                libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                                    selectAlbum(album, ExpandOrigin(), false)
-                                                }
-                                            },
-                                            onArtistSelected = selectArtist,
-                                        )
-                                    } else {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 14.dp, bottom = 10.dp),
-                                            contentAlignment = Alignment.Center,
-                                        ) {
-                                            Column(
-                                                horizontalAlignment = Alignment.CenterHorizontally,
-                                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                            ) {
-                                                Text(
-                                                    text = searchCopy(language).nothingSearchedTitle,
-                                                    style = MaterialTheme.typography.titleLarge,
-                                                    color = MaterialTheme.colorScheme.onSurface,
-                                                )
-                                                Text(
-                                                    text = searchCopy(language).nothingSearchedMessage,
-                                                    style = secondaryBodyTextStyle(),
-                                                    color = readableSecondaryTextColor(),
-                                                    textAlign = TextAlign.Center,
-                                                    modifier = Modifier.fillMaxWidth(0.74f),
-                                                )
-                                            }
-                                        }
-                                    }
-                                    if (state.suggestedAlbums.isNotEmpty()) {
-                                        FavoriteAlbumsModule(
-                                            albums = state.suggestedAlbums,
-                                            title = searchCopy(language).suggestedAlbumsTitle,
-                                            subtitle = searchCopy(language).suggestedAlbumsSubtitle,
-                                            iconResId = R.drawable.ic_lucide_eye,
-                                            onAlbumSelected = { album, origin ->
-                                                selectAlbum(album, origin, false)
-                                            },
-                                        )
-                                    }
-                                }
-
-                                SearchContentMode.Results -> {
-                                    if (matchingArtists.isNotEmpty()) {
-                                        SearchResultsCategoryHeader(
-                                            title = commonUiCopy(language).artists,
-                                            subtitle = searchCopy(language).matchingArtists(matchingArtists.size),
-                                            iconResId = R.drawable.ic_lucide_mic_vocal,
-                                        )
-                                        SearchHistoryListCard(
-                                            entries = matchingArtists,
-                                            onAlbumSelected = { albumId ->
-                                                libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
-                                                    selectAlbum(album, ExpandOrigin(), false)
-                                                }
-                                            },
-                                            onArtistSelected = selectArtist,
-                                        )
-                                    }
-
-                                    if (state.matchingAlbums.isNotEmpty()) {
-                                        ModuleCard(
-                                            contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
-                                        ) {
-                                            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                                                SearchResultsCategoryHeader(
-                                                    title = commonUiCopy(language).albums,
-                                                    subtitle = copy.matchingAlbums(state.matchingAlbums.size),
-                                                    iconResId = R.drawable.ic_lucide_disc_album,
-                                                )
-                                                ArtistAlbumGallery(
-                                                    albums = state.matchingAlbums,
-                                                    onAlbumSelected = { album, origin ->
-                                                        selectAlbum(album, origin, true)
-                                                    },
-                                                )
-                                            }
-                                        }
-                                    }
-
-                                    if (state.matchingSongs.isNotEmpty()) {
-                                        val previewSongs = state.matchingSongs.take(10)
-                                        SearchSongsPreviewHeader(
-                                            resultCount = state.totalSongMatchCount,
-                                            showSeeAll = state.totalSongMatchCount > 10,
-                                            onShowAll = {
-                                                dismissSearchInput()
-                                                onShowAllSongResultsChange(true)
-                                            },
-                                        )
-                                        Column {
-                                            previewSongs.forEachIndexed { index, song ->
-                                                Box(
-                                                    modifier = Modifier.elovaireListReveal(
-                                                        itemKey = song.id,
-                                                        index = index,
-                                                        registry = revealRegistry,
-                                                    ),
-                                                ) {
-                                                    HomeRecentSongRow(
-                                                        song = song,
-                                                        isFavorite = song.id in favoriteSongIds,
-                                                        onClick = {
-                                                            selectSong(song, state.matchingSongs)
-                                                        },
-                                                        onToggleFavorite = { onToggleFavorite(song.id) },
-                                                        showDivider = index != previewSongs.lastIndex,
-                                                    )
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if (matchingPlaylists.isNotEmpty()) {
-                                        SearchResultsCategoryHeader(
-                                            title = commonUiCopy(language).playlists,
-                                            subtitle = localizedCountLabel(
-                                                matchingPlaylists.size,
-                                                "playlist",
-                                                language,
-                                            ),
-                                            iconResId = R.drawable.ic_lucide_list_music,
-                                        )
-                                        SearchPlaylistListCard(
-                                            playlists = matchingPlaylists,
-                                            songs = libraryState.songs,
-                                            onPlaylistSelected = selectPlaylist,
-                                        )
-                                    }
-
-                                    if (!state.isSearchPending && state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() &&
-                                        matchingArtists.isEmpty() && matchingPlaylists.isEmpty()
+                            }
+                        } else {
+                            item(
+                                key = "search_nothing_searched",
+                                contentType = "search_empty_state",
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 14.dp, bottom = 10.dp),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
                                     ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(top = 48.dp, bottom = 32.dp),
-                                            horizontalAlignment = Alignment.CenterHorizontally,
-                                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                                        Text(
+                                            text = searchCopy(language).nothingSearchedTitle,
+                                            style = MaterialTheme.typography.titleLarge,
+                                            color = MaterialTheme.colorScheme.onSurface,
+                                        )
+                                        Text(
+                                            text = searchCopy(language).nothingSearchedMessage,
+                                            style = secondaryBodyTextStyle(),
+                                            color = readableSecondaryTextColor(),
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth(0.74f),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        if (state.suggestedAlbums.isNotEmpty()) {
+                            item(
+                                key = "search_suggested_albums",
+                                contentType = "search_album_module",
+                            ) {
+                                FavoriteAlbumsModule(
+                                    albums = state.suggestedAlbums,
+                                    title = searchCopy(language).suggestedAlbumsTitle,
+                                    subtitle = searchCopy(language).suggestedAlbumsSubtitle,
+                                    iconResId = R.drawable.ic_lucide_eye,
+                                    onAlbumSelected = { album, origin ->
+                                        selectAlbum(album, origin, false)
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    SearchContentMode.Results -> {
+                        if (matchingArtists.isNotEmpty()) {
+                            item(
+                                key = "search_artists",
+                                contentType = "search_history",
+                            ) {
+                                Column(verticalArrangement = Arrangement.spacedBy(18.dp)) {
+                                    SearchResultsCategoryHeader(
+                                        title = commonUiCopy(language).artists,
+                                        subtitle = searchCopy(language).matchingArtists(matchingArtists.size),
+                                        iconResId = R.drawable.ic_lucide_mic_vocal,
+                                    )
+                                    SearchHistoryListCard(
+                                        entries = matchingArtists,
+                                        onAlbumSelected = { albumId ->
+                                            libraryState.albums.firstOrNull { it.id == albumId }?.let { album ->
+                                                selectAlbum(album, ExpandOrigin(), false)
+                                            }
+                                        },
+                                        onArtistSelected = selectArtist,
+                                    )
+                                }
+                            }
+                        }
+
+                        if (state.matchingAlbums.isNotEmpty()) {
+                            item(
+                                key = "search_albums",
+                                contentType = "search_album_module",
+                            ) {
+                                ModuleCard(
+                                    contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
+                                ) {
+                                    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                                        SearchResultsCategoryHeader(
+                                            title = commonUiCopy(language).albums,
+                                            subtitle = copy.matchingAlbums(state.matchingAlbums.size),
+                                            iconResId = R.drawable.ic_lucide_disc_album,
+                                        )
+                                        ArtistAlbumGallery(
+                                            albums = state.matchingAlbums,
+                                            onAlbumSelected = { album, origin ->
+                                                selectAlbum(album, origin, true)
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        if (state.matchingSongs.isNotEmpty()) {
+                            item(
+                                key = "search_songs",
+                                contentType = "search_song_results",
+                            ) {
+                                val previewSongs = state.matchingSongs.take(10)
+                                Column {
+                                    SearchSongsPreviewHeader(
+                                        resultCount = state.totalSongMatchCount,
+                                        showSeeAll = state.totalSongMatchCount > 10,
+                                        onShowAll = {
+                                            dismissSearchInput()
+                                            onShowAllSongResultsChange(true)
+                                        },
+                                    )
+                                    previewSongs.forEachIndexed { index, song ->
+                                        Box(
+                                            modifier = Modifier.elovaireListReveal(
+                                                itemKey = song.id,
+                                                index = index,
+                                                registry = revealRegistry,
+                                            ),
                                         ) {
-                                            Text(
-                                                text = searchCopy(language).noResultsTitle,
-                                                style = MaterialTheme.typography.titleLarge,
-                                                textAlign = TextAlign.Center,
-                                            )
-                                            Text(
-                                                text = searchCopy(language).noResultsMessage(trimmedQuery),
-                                                style = secondaryBodyTextStyle(),
-                                                color = readableSecondaryTextColor(),
-                                                textAlign = TextAlign.Center,
-                                                modifier = Modifier.fillMaxWidth(0.74f),
+                                            HomeRecentSongRow(
+                                                song = song,
+                                                isFavorite = song.id in favoriteSongIds,
+                                                onClick = {
+                                                    selectSong(song, state.matchingSongs)
+                                                },
+                                                onToggleFavorite = { onToggleFavorite(song.id) },
+                                                showDivider = index != previewSongs.lastIndex,
                                             )
                                         }
                                     }
                                 }
+                            }
+                        }
+
+                        if (matchingPlaylists.isNotEmpty()) {
+                            item(
+                                key = "search_playlists",
+                                contentType = "search_playlist_results",
+                            ) {
+                                Column {
+                                    SearchResultsCategoryHeader(
+                                        title = commonUiCopy(language).playlists,
+                                        subtitle = localizedCountLabel(
+                                            matchingPlaylists.size,
+                                            "playlist",
+                                            language,
+                                        ),
+                                        iconResId = R.drawable.ic_lucide_list_music,
+                                    )
+                                    SearchPlaylistListCard(
+                                        playlists = matchingPlaylists,
+                                        songs = libraryState.songs,
+                                        onPlaylistSelected = selectPlaylist,
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!state.isSearchPending && state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() &&
+                            matchingArtists.isEmpty() && matchingPlaylists.isEmpty()
+                        ) {
+                            item(
+                                key = "search_no_results",
+                                contentType = "search_empty_state",
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 48.dp, bottom = 32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally,
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Text(
+                                        text = searchCopy(language).noResultsTitle,
+                                        style = MaterialTheme.typography.titleLarge,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                    Text(
+                                        text = searchCopy(language).noResultsMessage(trimmedQuery),
+                                        style = secondaryBodyTextStyle(),
+                                        color = readableSecondaryTextColor(),
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth(0.74f),
+                                    )
+                                }
+                            }
                         }
                     }
                 }
+                    }
+                    FastScrollbar(
+                        state = listState,
+                        topInset = topPadding + 88.dp,
+                        bottomInset = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
+                        trackGesturesEnabled = false,
+                    )
+                }
             }
-            FastScrollbar(
-                state = listState,
-                topInset = topPadding + 88.dp,
-                bottomInset = bottomPadding + if (isSearchUiActive) 20.dp else 12.dp,
-            )
         }
     }
-}
 }
 
 @Composable

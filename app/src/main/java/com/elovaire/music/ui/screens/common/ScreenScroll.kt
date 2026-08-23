@@ -86,6 +86,7 @@ internal fun BoxScope.FastScrollbar(
     state: LazyListState,
     topInset: Dp,
     bottomInset: Dp,
+    trackGesturesEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val estimator = remember(state) { LazyItemSizeEstimator() }
@@ -134,6 +135,7 @@ internal fun BoxScope.FastScrollbar(
         topInset = topInset,
         bottomInset = bottomInset,
         modifier = modifier,
+        trackGesturesEnabled = trackGesturesEnabled,
         isScrollInProgress = state.isScrollInProgress,
         onJumpToFraction = { fraction ->
             val position = resolvedMetrics.estimator.positionForOffset(
@@ -269,6 +271,7 @@ private fun BoxScope.FastScrollbarTrack(
     bottomInset: Dp,
     isScrollInProgress: Boolean,
     onJumpToFraction: suspend (Float) -> Unit,
+    trackGesturesEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     val motionSpecs = rememberMotionSpecs()
@@ -332,7 +335,7 @@ private fun BoxScope.FastScrollbarTrack(
             dragFraction = fraction
             targetFractions.trySend(fraction)
         }
-        val scrollbarGestureModifier = if (visible || isDragging) {
+        val scrollbarGestureModifier = if (trackGesturesEnabled && (visible || isDragging)) {
             Modifier
                 .pointerInput(totalItems, layout.thumbLengthPx, layout.thumbTravelPx) {
                     detectTapGestures { offset ->
