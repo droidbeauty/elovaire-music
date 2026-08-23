@@ -245,6 +245,7 @@ dependencies {
     implementation(libs.androidx.work.runtime)
     implementation(libs.haze)
     implementation(libs.jaudiotagger)
+    implementation(libs.smbj)
     ksp(libs.androidx.room.compiler)
 
     debugImplementation(libs.androidx.compose.ui.tooling)

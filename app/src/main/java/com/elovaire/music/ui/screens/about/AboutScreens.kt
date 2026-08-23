@@ -1163,6 +1163,7 @@ private fun aboutIconForUrl(url: String): Int {
     return when {
         "instagram.com" in normalizedUrl -> R.drawable.ic_about_instagram
         "twitter.com" in normalizedUrl || "x.com" in normalizedUrl -> R.drawable.ic_about_twitter
+        "gumroad.com" in normalizedUrl -> R.drawable.ic_lucide_candy
         "ko-fi.com" in normalizedUrl || "kofi.com" in normalizedUrl -> R.drawable.ic_about_coffee
         "play.google.com" in normalizedUrl -> R.drawable.ic_lucide_store
         else -> R.drawable.ic_about_globe

@@ -10,6 +10,8 @@ import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
 import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
+import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
@@ -38,6 +40,8 @@ internal class RootRouteActions(
     private val openAlbumRoute: (Album, ExpandOrigin, AlbumOpenSource) -> Unit,
 ) {
     val libraryFolders = librarySettings.libraryFolders
+    val networkSources = libraryDependencies.networkSources
+    val networkProbeResults = libraryDependencies.networkProbeResults
 
     fun navigateUp() {
         navController.navigateUp()
@@ -175,6 +179,14 @@ internal class RootRouteActions(
 
     fun removeLibraryFolder(selection: LibraryFolderSelection) {
         librarySettings.removeLibraryFolder(selection)
+    }
+
+    fun addNetworkSource(source: NetworkLibrarySource, credentials: NetworkCredentials) {
+        libraryDependencies.saveNetworkSource(source, credentials)
+    }
+
+    fun removeNetworkSource(source: NetworkLibrarySource) {
+        libraryDependencies.removeNetworkSource(source)
     }
 
     fun enqueueAlbum(album: Album) {

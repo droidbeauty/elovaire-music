@@ -202,6 +202,7 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "${AppBuildConfig.Application.packageName}.MainActivity" to null,
             "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaLibraryService" to null,
             "androidx.media3.session.MediaButtonReceiver" to null,
+            "androidx.media3.session.BluetoothValidationActivity" to "android.permission.BLUETOOTH_PRIVILEGED",
             "androidx.work.impl.background.systemjob.SystemJobService" to "android.permission.BIND_JOB_SERVICE",
         )
     }

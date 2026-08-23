@@ -13,14 +13,17 @@ import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
 @Suppress("TooManyFunctions")
-class MediaStoreScanner(
+internal class MediaStoreScanner(
     private val context: Context,
+    private val networkLibraryScanner: NetworkLibraryScanner? = null,
 ) {
     private val metadataCache = ScannerMetadataCache()
     private val audioFormatDetector = AudioFormatDetector(context)
@@ -32,13 +35,25 @@ class MediaStoreScanner(
     )
     private val safTreeScanner = SafTreeLibraryScanner(context)
     internal val targetExistenceProbe = MediaTargetExistenceProbe(context)
+    private var networkSources: List<NetworkLibrarySource> = emptyList()
+
+    fun setNetworkSources(sources: List<NetworkLibrarySource>): Boolean {
+        val normalized = sources.distinctBy { it.id }
+        if (networkSources == normalized) return false
+        networkSources = normalized
+        return true
+    }
 
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean {
         return scanRoots.setSelections(selections)
     }
 
     fun currentFilterFingerprint(): String {
-        return scanRoots.filterFingerprint(FILTER_FINGERPRINT_VERSION)
+        val local = scanRoots.filterFingerprint(FILTER_FINGERPRINT_VERSION)
+        val remote = networkSources.joinToString("|") { source ->
+            listOf(source.id, source.protocol.name, source.server, source.shareOrPath, source.username).joinToString("@").lowercase(Locale.ROOT)
+        }
+        return "$local::network:$remote"
     }
 
     internal fun currentSyncState(): LibraryMediaStoreSyncState? {
@@ -78,6 +93,10 @@ class MediaStoreScanner(
     fun scanRoots(): List<File> = scanRoots.accessibleFileRoots()
 
     internal fun hasSafSelections(): Boolean = scanRoots.hasSafSelections()
+
+    internal fun networkSourceNeedsRefresh(): Boolean {
+        return networkLibraryScanner?.needsRefresh(networkSources, System.currentTimeMillis()) == true
+    }
 
     fun invalidateMetadataCacheForPaths(paths: Collection<String>) {
         metadataCache.invalidatePaths(paths)
@@ -291,11 +310,17 @@ class MediaStoreScanner(
             safTreeScanner.scan(scanRoots.safTreeSelections())
         }
         decisionMap.recordSafIncluded(safSongs.size)
+        val networkSongs = ElovaireTrace.suspendSection("library_network_scan") {
+            networkLibraryScanner?.scan(
+                sources = networkSources,
+                forceRefresh = refreshMediaIndex,
+            ).orEmpty()
+        }
         val mergedSongs = ElovaireTrace.section("library_scan_merge") {
             mergeMediaStoreAndSafSongs(
                 mediaStoreSongs = songs,
                 safSongs = safSongs,
-            )
+            ) + networkSongs
         }
         decisionMap.recordMerge(
             mediaStoreSongCount = songs.size,

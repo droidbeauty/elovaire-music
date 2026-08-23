@@ -22,6 +22,7 @@ import androidx.media3.common.PlaybackException
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.extractor.DefaultExtractorsFactory
@@ -169,6 +170,7 @@ class PlaybackManager(
     initialRecentAlbumIds: List<Long> = emptyList(),
     initialLastPlayedCollectionKind: PlaybackCollectionKind? = null,
     initialLastPlayedCollectionId: Long? = null,
+    playbackDataSourceFactory: DataSource.Factory? = null,
     onRecentPlaybackChanged: (
         songIds: List<Long>,
         albumIds: List<Long>,
@@ -205,7 +207,7 @@ class PlaybackManager(
     )
     private val extractorsFactory = DefaultExtractorsFactory()
         .setConstantBitrateSeekingEnabled(true)
-    private val dataSourceFactory = DefaultDataSource.Factory(appContext)
+    private val dataSourceFactory: DataSource.Factory = playbackDataSourceFactory ?: DefaultDataSource.Factory(appContext)
     private val crossfadeCueAnalyzer = CrossfadeCueAnalyzer(
         context = appContext,
         scope = scope,

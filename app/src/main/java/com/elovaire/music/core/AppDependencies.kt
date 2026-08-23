@@ -1,5 +1,8 @@
 package elovaire.music.droidbeauty.app.core
 
+import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
+
 internal class AppDependencies(
     services: AppServices,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
@@ -14,6 +17,14 @@ internal class AppDependencies(
     }
     val libraryActionDependencies: LibraryActionDependencies = object : LibraryActionDependencies {
         override val libraryRepository get() = services.libraryRepository
+        override val networkSources get() = services.networkSources
+        override val networkProbeResults get() = services.networkProbeResults
+        override fun saveNetworkSource(source: NetworkLibrarySource, credentials: NetworkCredentials) {
+            services.saveNetworkSource(source, credentials)
+        }
+        override fun removeNetworkSource(source: NetworkLibrarySource) {
+            services.removeNetworkSource(source)
+        }
     }
     val settingsActionDependencies: SettingsActionDependencies = object : SettingsActionDependencies {
         override val appearanceSettings get() = services.preferenceStore

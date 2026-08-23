@@ -2,6 +2,9 @@ package elovaire.music.droidbeauty.app.core
 
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
+import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
+import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackController
@@ -15,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
+import kotlinx.coroutines.flow.StateFlow
 
 internal interface RootReadDependencies {
     val libraryReader: LibraryReader
@@ -37,6 +41,10 @@ internal interface PlaybackActionDependencies {
 
 internal interface LibraryActionDependencies {
     val libraryRepository: LibraryRepository
+    val networkSources: StateFlow<List<NetworkLibrarySource>>
+    val networkProbeResults: StateFlow<Map<String, NetworkProbeResult>>
+    fun saveNetworkSource(source: NetworkLibrarySource, credentials: NetworkCredentials)
+    fun removeNetworkSource(source: NetworkLibrarySource)
 }
 
 internal interface SettingsActionDependencies {

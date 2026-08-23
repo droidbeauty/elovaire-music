@@ -356,14 +356,20 @@ internal fun LibraryFoldersRouteHost(
     padding: RootRoutePadding,
 ) {
     val libraryFolders by routeActions.libraryFolders.collectAsStateWithLifecycle()
+    val networkSources by routeActions.networkSources.collectAsStateWithLifecycle()
+    val networkProbeResults by routeActions.networkProbeResults.collectAsStateWithLifecycle()
     LibraryFoldersScreen(
         appLanguage = routeState.appState.appLanguage,
         folders = libraryFolders,
+        networkSources = networkSources,
+        networkProbeResults = networkProbeResults,
         songs = routeState.libraryState.songs,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onAddFolder = routeActions::addLibraryFolder,
+        onAddNetworkSource = routeActions::addNetworkSource,
         onRemoveFolder = routeActions::removeLibraryFolder,
+        onRemoveNetworkSource = routeActions::removeNetworkSource,
         onRefresh = routeActions::refreshLibrary,
     )
 }

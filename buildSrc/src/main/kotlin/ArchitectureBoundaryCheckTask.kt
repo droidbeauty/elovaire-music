@@ -111,6 +111,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/lyrics/LrclibClient.kt",
             "/data/network/BoundedHttpTransport.kt",
             "/data/update/GitHubUpdateController.kt",
+            "/data/library/network/WebDavNetworkFileSystem.kt",
         )
         val NATIVE_ALLOWED = emptySet<String>()
         val SHARED_PREFERENCES_ALLOWED = setOf(
@@ -122,6 +123,8 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/settings/PreferenceStore.kt",
             "/data/settings/UpdatePreferencesStoreImpl.kt",
             "/data/settings/RoomUserDataStore.kt",
+            "/data/library/network/NetworkCredentialStore.kt",
+            "/data/library/network/NetworkLibrarySourceStore.kt",
         )
         val SUPERVISOR_SCOPE_ALLOWED = setOf(
             "/data/settings/PreferenceStore.kt",

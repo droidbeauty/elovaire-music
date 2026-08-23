@@ -409,8 +409,8 @@ internal fun isLibrarySignatureValid(
 internal fun isValidSnapshotSong(song: Song): Boolean {
     val uriScheme = song.uri.scheme
     return song.id != 0L &&
-        song.durationMs > 0L &&
-        (uriScheme == "content" || uriScheme == "file") &&
+        (song.durationMs > 0L || uriScheme.equals("elovaire-network", ignoreCase = true)) &&
+        (uriScheme == "content" || uriScheme == "file" || uriScheme.equals("elovaire-network", ignoreCase = true)) &&
         isSupportedLibrarySong(song)
 }
 

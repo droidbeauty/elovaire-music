@@ -17,6 +17,7 @@ import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -263,6 +264,9 @@ class LibraryRepository internal constructor(
                         _scanState.value = cachedScanState
                     }
                     val currentSyncState = withContext(Dispatchers.IO) { scanner.currentSyncState() }
+                    val networkSourceNeedsRefresh = withContext(Dispatchers.IO) {
+                        scanner.networkSourceNeedsRefresh()
+                    }
                     if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
                     val syncDecision = decideLibrarySyncAtStartup(
                         cached = cachedSnapshot.syncState,
@@ -270,7 +274,7 @@ class LibraryRepository internal constructor(
                         cachedSongCount = cachedSnapshot.snapshot.songs.size,
                         hasSafSelections = scanner.hasSafSelections(),
                     )
-                    if (syncDecision != LibrarySyncDecision.ReuseCached) {
+                    if (syncDecision != LibrarySyncDecision.ReuseCached || networkSourceNeedsRefresh) {
                         refresh(
                             forceMediaIndex = cachedSnapshot.snapshot.songs.isEmpty(),
                             enrichMetadata = false,
@@ -758,6 +762,19 @@ class LibraryRepository internal constructor(
                 showLoadingIndicator = showLoadingIndicator,
             )
         }
+    }
+
+    internal fun setNetworkSources(
+        sources: List<NetworkLibrarySource>,
+        enrichMetadata: Boolean = false,
+        showLoadingIndicator: Boolean = true,
+    ) {
+        if (!scanner.setNetworkSources(sources)) return
+        refresh(
+            forceMediaIndex = false,
+            enrichMetadata = enrichMetadata,
+            showLoadingIndicator = showLoadingIndicator,
+        )
     }
 
     private fun scheduleMediaRefresh(

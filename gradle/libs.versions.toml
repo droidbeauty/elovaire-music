@@ -1,12 +1,12 @@
 [versions]
 agp = "9.2.1"
-kotlin = "2.4.0"
+kotlin = "2.4.10"
 activityCompose = "1.13.0"
 androidxCore = "1.19.0"
-composeFoundation = "1.11.3"
+composeFoundation = "1.12.0"
 composeMaterial3 = "1.4.0"
 lifecycle = "2.11.0"
-media3 = "1.10.1"
+media3 = "1.11.0"
 metricsPerformance = "1.0.0"
 navigation = "2.9.8"
 profileInstaller = "1.4.1"
@@ -16,18 +16,19 @@ jaudiotagger = "3.0.1"
 junit = "4.13.2"
 androidxTestJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
-androidxTestOrchestrator = "1.5.1"
+androidxTestOrchestrator = "1.6.1"
 androidxBenchmark = "1.4.1"
-androidxTestUiautomator = "2.3.0"
+androidxTestUiautomator = "2.4.0"
 detekt = "2.0.0-alpha.5"
-dependencyAnalysis = "3.16.0"
+dependencyAnalysis = "3.18.0"
 leakcanary = "2.14"
 room = "2.8.4"
 work = "2.11.2"
-ksp = "2.3.9"
-tracing = "1.3.0"
-coroutines = "1.9.0"
-serializationCore = "1.8.1"
+ksp = "2.3.10"
+tracing = "2.0.0"
+coroutines = "1.11.0"
+serializationCore = "1.11.0"
+smbj = "0.14.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }
@@ -69,6 +70,7 @@ kotlinx-serialization-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 kotlinx-serialization-core-jvm = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-core-jvm", version.ref = "serializationCore" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 leakcanary-android = { group = "com.squareup.leakcanary", name = "leakcanary-android", version.ref = "leakcanary" }
+smbj = { group = "com.hierynomus", name = "smbj", version.ref = "smbj" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

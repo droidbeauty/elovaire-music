@@ -2923,7 +2923,6 @@ private fun SearchScreen(
                     ),
                 verticalArrangement = Arrangement.spacedBy(18.dp),
             ) {
-                searchBar()
                 SearchSongsResultsHeader(
                     resultCount = state.totalSongMatchCount,
                     selected = state.searchSongSortMode,
@@ -2966,7 +2965,7 @@ private fun SearchScreen(
                                             registry = revealRegistry,
                                         ),
                                 ) {
-                                    PlaylistSongRow(
+                                    HomeRecentSongRow(
                                         song = song,
                                         isFavorite = song.id in favoriteSongIds,
                                         isCurrentSong = song.id == state.currentSongId,
@@ -3155,9 +3154,10 @@ private fun SearchScreen(
                                     }
 
                                     if (state.matchingSongs.isNotEmpty()) {
+                                        val previewSongs = state.matchingSongs.take(10)
                                         SearchSongsPreviewHeader(
                                             resultCount = state.totalSongMatchCount,
-                                            showSeeAll = state.totalSongMatchCount > state.matchingSongs.size,
+                                            showSeeAll = state.totalSongMatchCount > previewSongs.size,
                                             onShowAll = {
                                                 focusManager.clearFocus(force = true)
                                                 keyboardController?.hide()
@@ -3166,7 +3166,7 @@ private fun SearchScreen(
                                             },
                                         )
                                         Column {
-                                            state.matchingSongs.forEachIndexed { index, song ->
+                                            previewSongs.forEachIndexed { index, song ->
                                                 Box(
                                                     modifier = Modifier.elovaireListReveal(
                                                         itemKey = song.id,
@@ -3181,7 +3181,7 @@ private fun SearchScreen(
                                                             onSongSelected(song, state.matchingSongs)
                                                         },
                                                         onToggleFavorite = { onToggleFavorite(song.id) },
-                                                        showDivider = index != state.matchingSongs.lastIndex,
+                                                        showDivider = index != previewSongs.lastIndex,
                                                     )
                                                 }
                                             }

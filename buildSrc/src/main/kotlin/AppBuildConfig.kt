@@ -2,7 +2,7 @@ object AppBuildConfig {
     object Android {
         const val compileSdk = 37
         const val minSdk = 30
-        const val targetSdk = 36
+        const val targetSdk = 37
     }
 
     object Java {

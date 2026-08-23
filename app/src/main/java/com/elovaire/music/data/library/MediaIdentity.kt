@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.data.library
 import android.net.Uri
 import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.library.network.NetworkPathPolicy
+import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
 import java.util.Locale
 
 internal sealed interface MediaSourceIdentity {
@@ -27,6 +29,13 @@ internal sealed interface MediaSourceIdentity {
         val canonicalPath: String,
     ) : MediaSourceIdentity {
         override val stableKey: String = "file:$canonicalPath"
+    }
+
+    data class NetworkFile(
+        val sourceId: String,
+        val relativePath: String,
+    ) : MediaSourceIdentity {
+        override val stableKey: String = "network:$sourceId:${NetworkPathPolicy.normalizeRelativePath(relativePath)}"
     }
 }
 
@@ -95,6 +104,11 @@ internal object MediaIdentityResolver {
     }
 
     fun resolve(song: Song): MediaSourceIdentity? {
+        if (NetworkResourceUri.isNetworkUri(song.uri)) {
+            val sourceId = NetworkResourceUri.sourceId(song.uri)
+            val path = NetworkResourceUri.path(song.uri)
+            if (sourceId != null && path != null) return MediaSourceIdentity.NetworkFile(sourceId, path)
+        }
         resolveContentUri(song.uri)?.let { return it }
         if (song.uri.scheme.equals("content", ignoreCase = true)) return null
         return directFile(song.libraryPath ?: song.uri.path)

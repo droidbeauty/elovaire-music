@@ -7,6 +7,7 @@ import androidx.media3.common.AudioAttributes
 import androidx.media3.common.TrackSelectionParameters
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.datasource.DefaultDataSource
+import androidx.media3.datasource.DataSource
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
@@ -17,7 +18,7 @@ import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 @UnstableApi
 internal class PlaybackPlayerFactory(
     private val context: Context,
-    private val dataSourceFactory: DefaultDataSource.Factory,
+    private val dataSourceFactory: DataSource.Factory,
     private val extractorsFactory: DefaultExtractorsFactory,
     private val playbackAudioAttributes: AudioAttributes,
     private val audioProcessorsProvider: () -> Array<AudioProcessor>,

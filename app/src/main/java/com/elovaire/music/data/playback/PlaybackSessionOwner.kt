@@ -14,9 +14,10 @@ import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryCallback
 internal class PlaybackSessionOwner(
     context: Context,
     initialPlayer: Player,
-) {
+    ) {
     private val callbackRouter = MediaLibraryCallbackRouter()
     private val session = MediaLibrarySession.Builder(context, initialPlayer, callbackRouter)
+        .setId("elovaire_playback")
         .setSessionActivity(
             PendingIntent.getActivity(
                 context,

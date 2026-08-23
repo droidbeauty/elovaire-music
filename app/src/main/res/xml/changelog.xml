@@ -7,6 +7,7 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.7.2">
+        <item>New feature - NAS support in settings under library folders category</item>
         <item>UI tweaks in Artist screen</item>
         <item>Fixed interaction bugs in songs search results</item>
         <item>Bug fixes</item>

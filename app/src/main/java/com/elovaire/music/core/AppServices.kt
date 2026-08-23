@@ -5,6 +5,19 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
+import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentialStore
+import elovaire.music.droidbeauty.app.data.library.network.NetworkFileSystemRegistry
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySourceStore
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryProtocol
+import elovaire.music.droidbeauty.app.data.library.network.NetworkAvailability
+import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
+import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
+import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
+import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
+import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
+import elovaire.music.droidbeauty.app.data.playback.NetworkDataSourceFactory
+import androidx.media3.datasource.DefaultDataSource
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
@@ -26,6 +39,10 @@ import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
@@ -47,6 +64,21 @@ internal class AppServices(
         dao = database.userDataDao(),
     )
     val preferenceStore = PreferenceStore(applicationContext, userDataStore)
+    private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
+    private val networkCredentialStore = NetworkCredentialStore(applicationContext)
+    private val networkFileSystemRegistry = NetworkFileSystemRegistry(
+        sourceStore = networkSourceStore,
+        credentialStore = networkCredentialStore,
+        fileSystems = mapOf(
+            NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(),
+            NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
+        ),
+    )
+    private val networkDataSourceFactory = NetworkDataSourceFactory(
+        defaultFactory = DefaultDataSource.Factory(applicationContext),
+        registry = networkFileSystemRegistry,
+    )
+    private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
     private val updateControllerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         val updatePreferences = allowStrictModeDiskReads {
             UpdatePreferencesStoreImpl(PreferenceStorage(applicationContext).preferences)
@@ -80,11 +112,21 @@ internal class AppServices(
         initialLastPlayedCollectionKind = preferenceStore.lastPlayedCollectionKind.value,
         initialLastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
         onRecentPlaybackChanged = preferenceStore::setRecentPlaybackIds,
+        playbackDataSourceFactory = networkDataSourceFactory,
     )
     val playbackSessionStore = PlaybackSessionStore(applicationContext)
     val libraryRepository = LibraryRepository(
         appContext = applicationContext,
-        scanner = MediaStoreScanner(applicationContext),
+        scanner = MediaStoreScanner(
+            context = applicationContext,
+            networkLibraryScanner = NetworkLibraryScanner(
+                context = applicationContext,
+                registry = networkFileSystemRegistry,
+                onAvailabilityChanged = { sourceId, result ->
+                    _networkProbeResults.update { it + (sourceId to result) }
+                },
+            ),
+        ),
         scope = appScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
         libraryIndexStore = LibraryIndexStore(database.libraryDao()),
@@ -94,7 +136,10 @@ internal class AppServices(
                 else -> false
             }
         },
-    ).also { it.setLibraryFolders(preferenceStore.libraryFolders.value) }
+    ).also {
+        it.setLibraryFolders(preferenceStore.libraryFolders.value)
+        it.setNetworkSources(networkSourceStore.sources.value)
+    }
     private val lyricsServiceDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         LyricsService(
             context = applicationContext,
@@ -103,6 +148,45 @@ internal class AppServices(
         )
     }
     val lyricsService get() = lyricsServiceDelegate.value
+    val networkSources get() = networkSourceStore.sources
+    val networkProbeResults: StateFlow<Map<String, NetworkProbeResult>> =
+        _networkProbeResults.asStateFlow()
+
+    fun saveNetworkSource(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+    ) {
+        _networkProbeResults.update { it + (source.id to NetworkProbeResult(NetworkAvailability.Checking)) }
+        appScope.launch(Dispatchers.IO) {
+            val previousCredentials = networkCredentialStore.get(source.credentialKey)
+            val effectiveCredentials = if (credentials.password.isBlank() && previousCredentials != null) {
+                previousCredentials.copy(
+                    username = credentials.username.ifBlank { previousCredentials.username },
+                    domain = credentials.domain ?: previousCredentials.domain,
+                )
+            } else {
+                credentials
+            }
+            networkCredentialStore.put(source.credentialKey, effectiveCredentials)
+            val result = networkFileSystemRegistry.probeBlocking(source, effectiveCredentials)
+            _networkProbeResults.update { it + (source.id to result) }
+            networkSourceStore.upsert(source)
+            libraryRepository.setNetworkSources(
+                networkSourceStore.sources.value,
+                enrichMetadata = false,
+                showLoadingIndicator = true,
+            )
+        }
+    }
+
+    fun removeNetworkSource(source: elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource) {
+        appScope.launch(Dispatchers.IO) {
+            networkCredentialStore.remove(source.credentialKey)
+            networkSourceStore.remove(source.id)
+            _networkProbeResults.update { it - source.id }
+            libraryRepository.setNetworkSources(networkSourceStore.sources.value, enrichMetadata = false, showLoadingIndicator = true)
+        }
+    }
 
     private val mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore)
 
