@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.artist
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
@@ -108,6 +109,27 @@ class ArtistImageRepositoryTest {
         assertEquals(1, calls.get())
     }
 
+    @Test
+    fun wallClockRollbackExpiresNegativeCache() = runBlocking {
+        val calls = AtomicInteger()
+        val clock = MutableClock(wallTimeMs = 2L * DAY_MS)
+        val repository = ArtistImageRepository(
+            client = ArtistImageClient {
+                calls.incrementAndGet()
+                ArtistImageLookup.NotFound
+            },
+            clock = clock,
+        )
+
+        repository.imageState("Artist", null).last()
+        repository.imageState("Artist", null).last()
+        assertEquals(1, calls.get())
+
+        clock.wallTimeMs -= DAY_MS
+        repository.imageState("Artist", null).last()
+        assertEquals(2, calls.get())
+    }
+
     private fun album(artUri: android.net.Uri?, songCount: Int) = Album(
         id = 1L,
         title = "Album",
@@ -137,4 +159,15 @@ class ArtistImageRepositoryTest {
         uri = TestUri("content://media/1"),
         artUri = artUri,
     )
+
+    private class MutableClock(
+        var wallTimeMs: Long,
+    ) : AppClock {
+        override fun wallTimeMs(): Long = wallTimeMs
+        override fun elapsedTimeMs(): Long = 0L
+    }
+
+    private companion object {
+        const val DAY_MS = 24L * 60L * 60L * 1_000L
+    }
 }

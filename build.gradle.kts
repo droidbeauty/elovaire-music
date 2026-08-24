@@ -94,6 +94,9 @@ val benchmarkRegressionCheck = tasks.register<BenchmarkRegressionEvaluatorTask>(
         baselineResultsDir.set(rootProject.file(baselinePath))
     }
 }
+benchmarkRegressionCheck.configure {
+    mustRunAfter(":macrobenchmark:connectedCheck")
+}
 
 val performanceQuality = tasks.register("performanceQuality") {
     group = "verification"

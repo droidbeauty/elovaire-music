@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.lyrics
 
+import elovaire.music.droidbeauty.app.core.isWallTimeDeadlineFresh
+
 enum class SyncedLyricsTimingProfile {
     ExactIntervals,
 }
@@ -101,8 +103,16 @@ internal data class LyricsCacheEntry(
     val expiresAtMillis: Long,
     val online: Boolean = false,
 ) {
-    fun isExpired(nowMillis: Long): Boolean = nowMillis >= expiresAtMillis
+    fun isExpired(nowMillis: Long): Boolean =
+        !isWallTimeDeadlineFresh(
+            nowMillis,
+            expiresAtMillis,
+            if (online && result == LyricsResult.NotFound) MAX_NEGATIVE_LYRICS_CACHE_TTL_MS else MAX_LYRICS_CACHE_TTL_MS,
+        )
 }
+
+private const val MAX_LYRICS_CACHE_TTL_MS = 30L * 24L * 60L * 60L * 1_000L
+private const val MAX_NEGATIVE_LYRICS_CACHE_TTL_MS = 24L * 60L * 60L * 1_000L
 
 internal data class LocalLyricsMatch(
     val payload: LyricsPayload,

@@ -18,7 +18,7 @@ fun releaseSecret(name: String): String? = providers.gradleProperty(name).orNull
     ?: localProperties.getProperty(name)
 
 val queryPlanOnly = gradle.startParameter.taskNames.any { taskName ->
-    taskName.substringAfterLast(':') in setOf("queryPlanCheck", "deviceQuality", "technicalQualification", "backendQualification")
+    taskName.substringAfterLast(':') == "queryPlanCheck"
 }
 
 val releaseStoreFile = releaseSecret("RELEASE_STORE_FILE")

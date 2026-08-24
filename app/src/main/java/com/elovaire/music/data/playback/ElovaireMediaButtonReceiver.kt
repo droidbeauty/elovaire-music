@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.data.library.LibrarySnapshotStore
 import elovaire.music.droidbeauty.app.data.playback.library.ResolvedPlayableQueue
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ internal data class MediaButtonPlaybackResumption(
 )
 
 private val pendingMediaButtonResumption = AtomicReference<MediaButtonPlaybackResumption?>()
+private val mediaButtonResumptionInFlight = AtomicBoolean()
 
 internal fun pendingMediaButtonResumption(consume: Boolean): MediaButtonPlaybackResumption? {
     return if (consume) pendingMediaButtonResumption.getAndSet(null) else pendingMediaButtonResumption.get()
@@ -65,6 +67,7 @@ class ElovaireMediaButtonReceiver : MediaButtonReceiver() {
             super.onReceive(context, intent)
             return
         }
+        if (!mediaButtonResumptionInFlight.compareAndSet(false, true)) return
         val pendingResult = goAsync()
         val applicationContext = context.applicationContext
         val serviceIntent = Intent(intent)
@@ -85,6 +88,7 @@ class ElovaireMediaButtonReceiver : MediaButtonReceiver() {
                     }
                 }
             } finally {
+                mediaButtonResumptionInFlight.set(false)
                 pendingResult.finish()
             }
         }

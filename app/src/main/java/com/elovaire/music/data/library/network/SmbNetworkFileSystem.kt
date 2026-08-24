@@ -184,21 +184,20 @@ internal class SmbNetworkFileSystem(
             domain = credentials.domain,
             passwordFingerprint = credentials.password.fingerprint(),
         )
-        synchronized(sessionMapLock) {
-            evictIdleSessions(SystemClock.elapsedRealtime())
+        val staleSessions = mutableListOf<SourceSession>()
+        val selected = synchronized(sessionMapLock) {
+            sessions.values.filterTo(staleSessions) { it.isIdle(SystemClock.elapsedRealtime()) }
+            staleSessions.forEach { session -> sessions.remove(session.key.sourceKey, session) }
             val current = sessions[source.id]
-            if (current != null && current.key == key && current.isUsable()) return current
-            current?.invalidate()
-            return SourceSession(key, source, credentials).also { sessions[source.id] = it }
+            if (current != null && current.key == key && current.isUsable()) {
+                current
+            } else {
+                current?.let(staleSessions::add)
+                SourceSession(key, source, credentials).also { sessions[source.id] = it }
+            }
         }
-    }
-
-    private fun evictIdleSessions(nowElapsedMs: Long) {
-        val idle = sessions.values.filter { it.isIdle(nowElapsedMs) }
-        idle.forEach { session ->
-            sessions.remove(session.key.sourceKey, session)
-            session.invalidate()
-        }
+        staleSessions.distinct().forEach(SourceSession::invalidate)
+        return selected
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -281,16 +280,18 @@ internal class SmbNetworkFileSystem(
             if (ownsConnect) {
                 try {
                     val created = createSessionResources(source, credentials)
-                    synchronized(lock) {
+                    val rejected = synchronized(lock) {
                         if (connecting === connectFuture) connecting = null
                         if (invalidated) {
-                            created.close()
                             connectFuture.completeExceptionally(IOException("SMB session was invalidated"))
+                            true
                         } else {
                             resources = created
                             connectFuture.complete(created)
+                            false
                         }
                     }
+                    if (rejected) created.close()
                 } catch (failure: Throwable) {
                     synchronized(lock) {
                         if (connecting === connectFuture) connecting = null
@@ -320,60 +321,66 @@ internal class SmbNetworkFileSystem(
         }
 
         fun invalidate() {
-            synchronized(lock) {
+            val closing = synchronized(lock) {
                 invalidated = true
                 connecting?.completeExceptionally(IOException("SMB session was invalidated"))
                 connecting = null
-                if (activeLeases == 0) closeResourcesLocked()
+                if (activeLeases == 0) detachResourcesLocked() else null
             }
+            closing?.close()
         }
 
         fun release() {
-            synchronized(lock) {
+            val closing = synchronized(lock) {
                 invalidated = true
                 connecting?.completeExceptionally(IOException("SMB session was released"))
                 connecting = null
-                closeResourcesLocked()
+                detachResourcesLocked()
             }
+            closing?.close()
         }
 
         private fun releaseLease() {
-            synchronized(lock) {
+            val closing = synchronized(lock) {
                 activeLeases = (activeLeases - 1).coerceAtLeast(0)
                 lastUsedElapsedMs = SystemClock.elapsedRealtime()
                 if (activeLeases == 0) {
                     if (invalidated) {
-                        closeResourcesLocked()
+                        detachResourcesLocked()
                     } else {
                         scheduleIdleCloseLocked()
+                        null
                     }
-                }
+                } else null
             }
+            closing?.close()
         }
 
         private fun scheduleIdleCloseLocked() {
             idleCloseJob?.cancel()
             idleCloseJob = scope.launch(Dispatchers.IO) {
                 delay(SESSION_IDLE_TIMEOUT_MS)
-                synchronized(lock) {
+                val closing = synchronized(lock) {
                     if (
                         activeLeases == 0 &&
                         !invalidated &&
                         SystemClock.elapsedRealtime() - lastUsedElapsedMs >= SESSION_IDLE_TIMEOUT_MS
                     ) {
                         invalidated = true
-                        closeResourcesLocked()
+                        detachResourcesLocked()
+                    } else {
+                        idleCloseJob = null
+                        null
                     }
-                    idleCloseJob = null
                 }
+                closing?.close()
             }
         }
 
-        private fun closeResourcesLocked() {
+        private fun detachResourcesLocked(): SessionResources? {
             idleCloseJob?.cancel()
             idleCloseJob = null
-            resources?.close()
-            resources = null
+            return resources.also { resources = null }
         }
     }
 

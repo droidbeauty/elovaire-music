@@ -14,6 +14,15 @@ internal object AndroidAppClock : AppClock {
     override fun elapsedTimeMs(): Long = SystemClock.elapsedRealtime()
 }
 
+internal fun isWallTimeDeadlineFresh(
+    nowWallTimeMs: Long,
+    deadlineWallTimeMs: Long,
+    maxRemainingMs: Long,
+): Boolean {
+    if (maxRemainingMs <= 0L || deadlineWallTimeMs <= nowWallTimeMs) return false
+    return deadlineWallTimeMs - nowWallTimeMs in 1L..maxRemainingMs
+}
+
 internal fun interface OperationIdGenerator {
     fun nextId(): String
 }

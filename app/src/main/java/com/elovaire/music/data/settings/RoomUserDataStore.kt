@@ -77,6 +77,7 @@ internal class RoomUserDataStore(
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
     private val recoveryWriteFailureReported = AtomicBoolean(false)
+    private var lastRecoverySnapshot: UserDataSnapshot? = null
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
     // Durable mutations are accepted only when they fit in the bounded channel. Coalescible
     // state uses one replaceable slot per semantic operation instead of suspended senders.
@@ -581,8 +582,10 @@ internal class RoomUserDataStore(
 
     private fun persistRecoverySnapshot(snapshot: UserDataSnapshot) {
         val recovery = recoverySnapshot ?: return
+        if (!shouldPersistRecoverySnapshot(lastRecoverySnapshot, snapshot)) return
         try {
             recovery.write(snapshot)
+            lastRecoverySnapshot = snapshot
             recoveryWriteFailureReported.set(false)
         } catch (failure: Exception) {
             if (recoveryWriteFailureReported.compareAndSet(false, true)) {
@@ -788,6 +791,11 @@ internal data class UserDataSnapshot(
     val lastPlayedCollectionId: Long? = null,
     val searchHistory: List<SearchHistoryEntry> = emptyList(),
 )
+
+internal fun shouldPersistRecoverySnapshot(
+    previous: UserDataSnapshot?,
+    current: UserDataSnapshot,
+): Boolean = previous != current
 
 private fun readLegacyUserData(preferences: SharedPreferences): UserDataSnapshot {
     return UserDataSnapshot(

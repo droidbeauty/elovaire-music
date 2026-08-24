@@ -142,7 +142,7 @@ internal class GitHubUpdateController(
             }
         }.also { job ->
             job.invokeOnCompletion { cause ->
-                checkJob = null
+                if (checkJob === job) checkJob = null
                 if (!released.get() && cause is CancellationException) {
                     _uiState.update { it.copy(isChecking = false) }
                 }
@@ -179,9 +179,8 @@ internal class GitHubUpdateController(
             launchInstallerOrReport(apk)
         }.also { job ->
             job.invokeOnCompletion { cause ->
-                downloadJob = null
+                if (downloadJob === job) downloadJob = null
                 if (!released.get() && cause is CancellationException) {
-                    deletePartialDownload(release.assetFileName)
                     _uiState.update { it.copy(isDownloading = false, isInstalling = false, installPermissionRequired = false, downloadProgress = null) }
                 }
             }
@@ -231,40 +230,51 @@ internal class GitHubUpdateController(
 
     private suspend fun downloadReleaseApk(release: AppReleaseInfo): File {
         val directory = updatesDirectory().apply { mkdirs() }
+        require(AppUpdateIntegrity.isSafeApkFileName(release.assetFileName)) { "Update asset name is invalid" }
         val target = File(directory, release.assetFileName)
         val part = File(directory, "${release.assetFileName}.part")
         part.delete()
         target.delete()
-        withTrustedConnection(release.downloadUrl, "application/vnd.android.package-archive") { connection ->
-            if (connection.responseCode !in 200..299) error("Update download failed")
-            val expectedLength = connection.contentLengthLong.takeIf { it > 0L }
-            var copied = 0L
-            val throttler = UpdateDownloadProgressThrottler()
-            connection.inputStream.use { input ->
-                part.outputStream().use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-                    while (true) {
-                        currentCoroutineContext().ensureActive()
-                        val count = input.read(buffer)
-                        if (count <= 0) break
-                        output.write(buffer, 0, count)
-                        copied += count
-                        val progress = expectedLength?.let { (copied.toFloat() / it).coerceIn(0f, 1f) }
-                        if (progress != null && throttler.shouldEmit(progress, clock.elapsedTimeMs())) {
-                            _uiState.update { it.copy(downloadProgress = progress) }
+        var completed = false
+        try {
+            withTrustedConnection(release.downloadUrl, "application/vnd.android.package-archive") { connection ->
+                if (connection.responseCode !in 200..299) error("Update download failed")
+                val expectedLength = connection.contentLengthLong.takeIf { it > 0L }
+                val downloadLimit = AppUpdateIntegrity.downloadLimit(expectedLength, release.assetSizeBytes)
+                var copied = 0L
+                val throttler = UpdateDownloadProgressThrottler()
+                connection.inputStream.use { input ->
+                    part.outputStream().use { output ->
+                        val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                        while (true) {
+                            currentCoroutineContext().ensureActive()
+                            val count = input.read(buffer)
+                            if (count <= 0) break
+                            copied = AppUpdateIntegrity.checkedDownloadedByteCount(copied, count, downloadLimit)
+                            output.write(buffer, 0, count)
+                            val progress = expectedLength?.let { (copied.toFloat() / it).coerceIn(0f, 1f) }
+                            if (progress != null && throttler.shouldEmit(progress, clock.elapsedTimeMs())) {
+                                _uiState.update { it.copy(downloadProgress = progress) }
+                            }
                         }
                     }
                 }
+                if (copied <= 0L || (expectedLength != null && copied != expectedLength)) error("Downloaded update is incomplete")
             }
-            if (copied <= 0L || (expectedLength != null && copied != expectedLength)) error("Downloaded update is incomplete")
+            if (!part.renameTo(target)) {
+                part.copyTo(target, overwrite = true)
+                part.delete()
+            }
+            release.assetSizeBytes?.let { require(target.length() == it) { "Downloaded update is incomplete" } }
+            verifyDownloadedApk(target, release)
+            completed = true
+            return target
+        } finally {
+            if (!completed) {
+                part.delete()
+                target.delete()
+            }
         }
-        if (!part.renameTo(target)) {
-            part.copyTo(target, overwrite = true)
-            part.delete()
-        }
-        release.assetSizeBytes?.let { require(target.length() == it) { "Downloaded update is incomplete" } }
-        verifyDownloadedApk(target, release)
-        return target
     }
 
     private suspend fun verifyDownloadedApkOrReport(file: File, release: AppReleaseInfo): Boolean {
@@ -384,10 +394,6 @@ internal class GitHubUpdateController(
         }
     }
 
-    private fun deletePartialDownload(fileName: String) {
-        File(updatesDirectory(), "$fileName.part").delete()
-    }
-
     private fun updatesDirectory(): File = File(appContext.filesDir, "updates")
 
     private fun userMessage(failure: Throwable): String = failure.message ?: "Unable to check for updates"
@@ -449,7 +455,9 @@ private object GitHubReleaseClient {
                 .filter { it.optString("name").lowercase(Locale.ROOT).contains("github") }
                 .singleOrNull()
         } ?: return null
-        val assetName = asset.optString("name").takeIf { it.isNotBlank() } ?: return null
+        val assetName = asset.optString("name").takeIf(AppUpdateIntegrity::isSafeApkFileName) ?: return null
+        val assetSize = asset.optLong("size", -1L).takeIf { it > 0L }
+        if (assetSize != null && assetSize > AppUpdateIntegrity.MAX_APK_BYTES) return null
         val version = AppVersionPolicy.resolve(tag, name, assetName).takeIf { it.isNotBlank() } ?: return null
         val downloadUrl = asset.optString("browser_download_url").takeIf(::isTrustedDownloadUrl) ?: return null
         val checksumAsset = (0 until assets.length()).mapNotNull { assets.optJSONObject(it) }
@@ -465,7 +473,7 @@ private object GitHubReleaseClient {
             downloadUrl = downloadUrl,
             checksumUrl = checksumAsset?.optString("browser_download_url")?.takeIf(::isTrustedDownloadUrl),
             checksumSha256 = digest,
-            assetSizeBytes = asset.optLong("size", -1L).takeIf { it > 0L },
+            assetSizeBytes = assetSize,
             notes = json.optString("body").take(MAX_RELEASE_METADATA_BYTES),
             publishedAt = json.optString("published_at"),
             assetFileName = assetName,

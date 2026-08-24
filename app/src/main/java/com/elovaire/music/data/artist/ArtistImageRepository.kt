@@ -8,6 +8,7 @@ import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.isWallTimeDeadlineFresh
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -109,7 +110,8 @@ internal class ArtistImageRepository(
         val claim = synchronized(cacheLock) {
             val now = clock.wallTimeMs()
             remoteArtworkCache[artistKey]?.let { cached ->
-                if (cached.expiresAtMs > now) {
+                val maxRemainingMs = if (cached.uri == null) NEGATIVE_CACHE_TTL_MS else POSITIVE_CACHE_TTL_MS
+                if (isWallTimeDeadlineFresh(now, cached.expiresAtMs, maxRemainingMs)) {
                     return@synchronized ResolutionClaim.Cached(cached.uri)
                 }
                 remoteArtworkCache.remove(artistKey)

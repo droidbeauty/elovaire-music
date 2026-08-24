@@ -16,6 +16,8 @@ android {
                             taskName.endsWith("generateBaselineProfile") ||
                                 taskName.endsWith("performanceQuality") ||
                                 taskName.endsWith("performanceQualityCheck") ||
+                                taskName.endsWith("technicalQualification") ||
+                                taskName.endsWith("backendQualification") ||
                                 taskName.endsWith(":macrobenchmark:connectedCheck") ||
                                 taskName.endsWith(":macrobenchmark:connectedBenchmarkAndroidTest") ||
                                 taskName.endsWith(":macrobenchmark:connectedDebugAndroidTest")
