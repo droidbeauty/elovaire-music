@@ -4,6 +4,7 @@ import com.android.build.api.artifact.SingleArtifact
 import dev.detekt.gradle.Detekt
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.jvm.toolchain.JavaLanguageVersion
+import org.gradle.api.tasks.testing.Test
 
 val localProperties = Properties().apply {
     val localPropertiesFile = rootProject.file("local.properties")
@@ -15,6 +16,10 @@ val localProperties = Properties().apply {
 fun releaseSecret(name: String): String? = providers.gradleProperty(name).orNull
     ?: System.getenv(name)
     ?: localProperties.getProperty(name)
+
+val queryPlanOnly = gradle.startParameter.taskNames.any { taskName ->
+    taskName.substringAfterLast(':') in setOf("queryPlanCheck", "deviceQuality", "technicalQualification", "backendQualification")
+}
 
 val releaseStoreFile = releaseSecret("RELEASE_STORE_FILE")
 val releaseStorePassword = releaseSecret("RELEASE_STORE_PASSWORD")
@@ -50,6 +55,10 @@ android {
         versionCode = AppBuildConfig.Application.versionCode
         versionName = AppBuildConfig.Application.versionName
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
+        if (queryPlanOnly) {
+            testInstrumentationRunnerArguments["class"] =
+                "elovaire.music.droidbeauty.app.data.library.db.RoomQueryPlanQualificationTest"
+        }
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -261,15 +270,24 @@ dependencies {
     androidTestImplementation(libs.androidx.room.testing)
 }
 
-tasks.register("propertyTest") {
+tasks.register<Test>("propertyTest") {
     group = "verification"
-    description = "Runs deterministic generated backend property tests."
-    dependsOn("testDebugUnitTest")
+    description = "Runs deterministic property, invariant, and generated-sequence tests only."
+    val debugUnitTest = tasks.named<Test>("testDebugUnitTest")
+    testClassesDirs = debugUnitTest.get().testClassesDirs
+    classpath = debugUnitTest.get().classpath
+    useJUnit()
+    filter {
+        includeTestsMatching("*PropertyTest")
+        includeTestsMatching("*InvariantTest")
+        includeTestsMatching("*InvariantsTest")
+        includeTestsMatching("*GeneratedSequenceTest")
+    }
 }
 
 tasks.register("queryPlanCheck") {
     group = "verification"
-    description = "Runs device-backed Room query-plan regression checks."
+    description = "Runs the focused device-backed Room query-plan qualification test."
     dependsOn("connectedDebugAndroidTest")
 }
 

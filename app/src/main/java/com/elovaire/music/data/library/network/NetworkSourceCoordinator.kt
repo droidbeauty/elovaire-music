@@ -3,6 +3,11 @@ package elovaire.music.droidbeauty.app.data.library.network
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+internal data class NetworkSourceMutationOutcome(
+    val probeResult: NetworkProbeResult,
+    val refreshRequired: Boolean,
+)
+
 /** Serializes each source independently so late probes cannot publish obsolete state. */
 internal class NetworkSourceCoordinator(
     private val sourceStore: NetworkLibrarySourceStore,
@@ -33,7 +38,7 @@ internal class NetworkSourceCoordinator(
     suspend fun save(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
-    ): NetworkProbeResult = withSourceLock(source.id) {
+    ): NetworkSourceMutationOutcome = withSourceLock(source.id) {
         val credentialStore = credentialStoreProvider()
         val previousSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
         val previous = credentialStore.get(previousSource?.credentialKey ?: source.credentialKey)
@@ -68,7 +73,10 @@ internal class NetworkSourceCoordinator(
         if (previousSource != normalized || previous != effectiveCredentials) {
             registryProvider().invalidate(source.id)
         }
-        registryProvider().probeBlocking(normalized, effectiveCredentials)
+        NetworkSourceMutationOutcome(
+            probeResult = registryProvider().probeBlocking(normalized, effectiveCredentials),
+            refreshRequired = previousSource != normalized || previous != effectiveCredentials,
+        )
     }
 
     suspend fun remove(source: NetworkLibrarySource) = withSourceLock(source.id) {

@@ -16,8 +16,15 @@ import java.io.InputStream
 import java.security.MessageDigest
 import java.util.EnumSet
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
-internal class SmbNetworkFileSystem : NetworkFileSystem {
+internal class SmbNetworkFileSystem(
+    private val scope: CoroutineScope,
+) : NetworkFileSystem {
     private val sessionMapLock = Any()
     private val sessions = mutableMapOf<String, SourceSession>()
 
@@ -47,15 +54,20 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
         credentials: NetworkCredentials,
         maxEntries: Int,
         maxDepth: Int,
-    ): List<NetworkFileEntry> = withShare(source, credentials) { share ->
+    ): NetworkListingResult = withShare(source, credentials) { share ->
+        require(maxEntries > 0)
         val entries = ArrayList<NetworkFileEntry>()
         val pending = ArrayDeque<Pair<String, Int>>()
         val rootPath = smbPath(source)
         pending.addLast(rootPath to 0)
+        var incompleteReason: String? = null
         while (pending.isNotEmpty() && entries.size < maxEntries) {
             val (directory, depth) = pending.removeFirst()
             share.list(directory).forEach { item ->
-                if (entries.size >= maxEntries) return@forEach
+                if (entries.size >= maxEntries) {
+                    incompleteReason = "entry-budget"
+                    return@forEach
+                }
                 val name = item.fileName ?: return@forEach
                 if (name == "." || name == "..") return@forEach
                 val fullPath = NetworkPathPolicy.join(directory, name)
@@ -68,10 +80,18 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
                     sourceEntryId = item.fileId.takeIf { it != 0L }?.toString(),
                 )
                 entries += entry
-                if (directoryEntry && depth < maxDepth) pending.addLast(fullPath to depth + 1)
+                if (directoryEntry) {
+                    if (depth < maxDepth) {
+                        pending.addLast(fullPath to depth + 1)
+                    } else {
+                        incompleteReason = incompleteReason ?: "depth-budget"
+                    }
+                }
             }
         }
-        entries
+        if (entries.size >= maxEntries) incompleteReason = incompleteReason ?: "entry-budget"
+        incompleteReason?.let { NetworkListingResult.Incomplete(entries, it) }
+            ?: NetworkListingResult.Complete(entries)
     }
 
     override fun openBlocking(
@@ -220,6 +240,7 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
         private var activeLeases = 0
         private var lastUsedElapsedMs = SystemClock.elapsedRealtime()
         private var invalidated = false
+        private var idleCloseJob: Job? = null
 
         fun isUsable(): Boolean = synchronized(lock) {
             !invalidated && resources?.share?.isConnected == true
@@ -235,6 +256,8 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
                 if (resources == null || resources?.share?.isConnected != true) {
                     resources = createSessionResources(source, credentials)
                 }
+                idleCloseJob?.cancel()
+                idleCloseJob = null
                 activeLeases += 1
                 lastUsedElapsedMs = SystemClock.elapsedRealtime()
                 return SessionLease(resources!!.share, ::releaseLease)
@@ -259,11 +282,37 @@ internal class SmbNetworkFileSystem : NetworkFileSystem {
             synchronized(lock) {
                 activeLeases = (activeLeases - 1).coerceAtLeast(0)
                 lastUsedElapsedMs = SystemClock.elapsedRealtime()
-                if (invalidated && activeLeases == 0) closeResourcesLocked()
+                if (activeLeases == 0) {
+                    if (invalidated) {
+                        closeResourcesLocked()
+                    } else {
+                        scheduleIdleCloseLocked()
+                    }
+                }
+            }
+        }
+
+        private fun scheduleIdleCloseLocked() {
+            idleCloseJob?.cancel()
+            idleCloseJob = scope.launch(Dispatchers.IO) {
+                delay(SESSION_IDLE_TIMEOUT_MS)
+                synchronized(lock) {
+                    if (
+                        activeLeases == 0 &&
+                        !invalidated &&
+                        SystemClock.elapsedRealtime() - lastUsedElapsedMs >= SESSION_IDLE_TIMEOUT_MS
+                    ) {
+                        invalidated = true
+                        closeResourcesLocked()
+                    }
+                    idleCloseJob = null
+                }
             }
         }
 
         private fun closeResourcesLocked() {
+            idleCloseJob?.cancel()
+            idleCloseJob = null
             resources?.close()
             resources = null
         }

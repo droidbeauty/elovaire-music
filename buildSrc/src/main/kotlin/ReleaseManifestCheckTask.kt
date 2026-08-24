@@ -46,7 +46,7 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
             "android.permission.READ_MEDIA_AUDIO",
             "android:foregroundServiceType=\"mediaPlayback\"",
-            "androidx.media3.session.MediaButtonReceiver",
+            "ElovaireMediaButtonReceiver",
             "ElovaireMediaLibraryService",
             "androidx.media3.session.MediaLibraryService",
             "android.media.browse.MediaBrowserService",
@@ -201,7 +201,7 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
         val ALLOWED_EXPORTED_COMPONENTS = mapOf(
             "${AppBuildConfig.Application.packageName}.MainActivity" to null,
             "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaLibraryService" to null,
-            "androidx.media3.session.MediaButtonReceiver" to null,
+            "${AppBuildConfig.Application.packageName}.data.playback.ElovaireMediaButtonReceiver" to null,
             "androidx.media3.session.BluetoothValidationActivity" to "android.permission.BLUETOOTH_PRIVILEGED",
             "androidx.work.impl.background.systemjob.SystemJobService" to "android.permission.BIND_JOB_SERVICE",
         )

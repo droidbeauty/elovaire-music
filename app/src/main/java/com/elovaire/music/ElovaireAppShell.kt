@@ -26,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.activity.compose.ReportDrawnWhen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
@@ -56,6 +57,14 @@ internal fun ElovaireAppShell(
         }
         val themeOverlayAlpha = remember { Animatable(0f) }
         var showSplash by remember { mutableStateOf(shouldShowColdStartSplash) }
+        val libraryState by container.libraryRepository.state.collectAsStateWithLifecycle()
+        ReportDrawnWhen {
+            !libraryState.permissionGranted ||
+                !libraryState.isLoading ||
+                libraryState.songs.isNotEmpty() ||
+                libraryState.albums.isNotEmpty() ||
+                libraryState.errorMessage != null
+        }
         LaunchedEffect(themeMode.value, systemDark) {
             if (previousThemeMode != themeMode.value) {
                 overlayColor = themeBackgroundForMode(previousThemeMode, systemDark)

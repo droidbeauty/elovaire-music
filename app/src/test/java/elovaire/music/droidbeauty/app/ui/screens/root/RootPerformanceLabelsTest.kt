@@ -26,7 +26,15 @@ class RootPerformanceLabelsTest {
 
     @Test
     fun rootPerformanceInteractionLabel_tracksPlayback() {
-        assertEquals("playback_progress_active", rootPerformanceInteractionLabel(true))
-        assertEquals("idle", rootPerformanceInteractionLabel(false))
+        assertEquals("idle", rootPerformanceInteractionLabel())
+        assertEquals("playing", rootPerformancePlaybackLabel(true))
+        assertEquals("idle", rootPerformancePlaybackLabel(false))
+    }
+
+    @Test
+    fun rootPerformanceLibraryWorkLabel_isLowCardinality() {
+        assertEquals("scan", rootPerformanceLibraryWorkLabel(LibraryUiState(isLoading = true)))
+        assertEquals("reconcile", rootPerformanceLibraryWorkLabel(LibraryUiState(scanProgress = 0.5f)))
+        assertEquals("idle", rootPerformanceLibraryWorkLabel(LibraryUiState(scanProgress = 1f)))
     }
 }

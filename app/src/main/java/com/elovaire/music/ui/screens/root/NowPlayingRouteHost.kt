@@ -44,7 +44,7 @@ internal fun NowPlayingRouteHost(
     PerformanceScreenState("now_playing")
     PerformanceState(
         key = "interaction",
-        value = if (lyricsUiState is LyricsUiState.Ready) "lyrics" else "playback_progress_active",
+        value = if (lyricsUiState is LyricsUiState.Ready) "lyrics" else "idle",
     )
     var pendingLyricsOperationId by rememberSaveable { mutableStateOf<String?>(null) }
     var pendingLyricsMediaUri by rememberSaveable { mutableStateOf<String?>(null) }

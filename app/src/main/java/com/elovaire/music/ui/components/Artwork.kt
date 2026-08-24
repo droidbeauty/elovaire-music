@@ -222,15 +222,23 @@ fun rememberArtworkPaletteAccent(
         value = bitmap?.let {
             withContext(Dispatchers.Default) {
                 val palette = Palette.from(it).generate()
-                val swatch = palette.darkVibrantSwatch
-                    ?: palette.vibrantSwatch
-                    ?: palette.darkMutedSwatch
-                    ?: palette.dominantSwatch
+                val swatch = palette.darkMutedSwatch
                     ?: palette.mutedSwatch
-                swatch?.rgb?.let(::Color)
+                    ?: palette.dominantSwatch
+                    ?: palette.darkVibrantSwatch
+                    ?: palette.vibrantSwatch
+                swatch?.rgb?.let(::mutedPaletteColor)
             }
         }
     }
+}
+
+private fun mutedPaletteColor(rgb: Int): Color {
+    val hsv = FloatArray(3)
+    android.graphics.Color.colorToHSV(rgb, hsv)
+    hsv[1] = (hsv[1] * 0.58f).coerceAtMost(0.62f)
+    hsv[2] = hsv[2].coerceAtMost(0.78f)
+    return Color(android.graphics.Color.HSVToColor(hsv))
 }
 
 internal fun invalidateArtworkCaches(uris: Collection<Uri?>) {

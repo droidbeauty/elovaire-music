@@ -71,7 +71,7 @@
             </intent-filter>
         </service>
         <receiver
-            android:name="androidx.media3.session.MediaButtonReceiver"
+            android:name=".data.playback.ElovaireMediaButtonReceiver"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MEDIA_BUTTON" />

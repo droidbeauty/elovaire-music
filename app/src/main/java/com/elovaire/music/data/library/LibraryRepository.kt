@@ -336,6 +336,7 @@ class LibraryRepository internal constructor(
         startRefresh(request, showLoadingIndicator)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun startRefresh(
         request: LibraryRefreshRequest,
         showLoadingIndicator: Boolean,
@@ -370,77 +371,39 @@ class LibraryRepository internal constructor(
             }
             val progressThrottler = LibraryScanProgressThrottler(clock)
             try {
-                runCatching {
-                    scanLibrary(refreshRequest, showLoadingIndicator, scanPermissionVersion, progressThrottler)
-                }.onSuccess { snapshot ->
-                    if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
-                    val prepared = prepareVisibleSnapshot(snapshot.songs)
-                    val nextScanState = LibraryScanState(
-                        permissionGranted = true,
-                        isLoading = false,
-                        scanProgress = 1f,
+                val snapshot = scanLibrary(
+                    refreshRequest,
+                    showLoadingIndicator,
+                    scanPermissionVersion,
+                    progressThrottler,
+                )
+                publishSuccessfulScan(
+                    snapshot = snapshot,
+                    refreshRequest = refreshRequest,
+                    scanPermissionVersion = scanPermissionVersion,
+                    operation = operation,
+                )
+            } catch (throwable: CancellationException) {
+                throw throwable
+            } catch (throwable: Exception) {
+                backendEventSink.emitLazy {
+                    BackendEvent.LibraryScanFailed(
+                        operation.fields(
+                            phase = "scan_failed",
+                            elapsedTimeMs = clock.elapsedTimeMs(),
+                            extra = mapOf("error_type" to (throwable::class.simpleName ?: "Unknown")),
+                        ),
                     )
-                    if (_scanState.value != nextScanState) {
-                        _scanState.value = nextScanState
-                    }
-                    withContext(Dispatchers.IO) {
-                        snapshotStore.save(
-                            snapshot = prepared.snapshot,
-                            filterFingerprint = scanner.currentFilterFingerprint(),
-                            syncState = scanner.currentSyncState(),
+                }
+                if (hasCurrentPermission(scanPermissionVersion)) {
+                    val failure = throwable.toLibraryScanFailure("refresh")
+                    _runtimeState.value = LibraryRuntimeState.Failed(failure, recoverable = true)
+                    _scanState.update {
+                        it.copy(
+                            isLoading = false,
+                            scanProgress = 0f,
+                            errorMessage = failure.toUserMessage(),
                         )
-                        libraryIndexStore?.applyChangeSet(
-                            changeSet = prepared.changeSet,
-                            snapshot = prepared.snapshot,
-                            fullRebuild = refreshRequest.forceMediaIndex &&
-                                prepared.changeSet.added.size == prepared.snapshot.songs.size,
-                        )
-                    }
-                    invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
-                    if (!hasCurrentPermission(scanPermissionVersion)) return@onSuccess
-                    val snapshotNeedsMetadata = prepared.snapshot.songs.any { song ->
-                        !song.metadataResolved ||
-                            song.releaseYear == null ||
-                            song.qualityNeedsEnrichment() ||
-                            song.genre.isBlank() ||
-                            song.genre == "Unknown Genre"
-                    }
-                    if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
-                        refreshRequests.enqueue(enrichMetadata = true)
-                    }
-                    backendEventSink.emitLazy {
-                        BackendEvent.LibraryScanCompleted(
-                            operation.fields(
-                                phase = "scan_completed",
-                                elapsedTimeMs = clock.elapsedTimeMs(),
-                                extra = mapOf(
-                                    "songs" to prepared.snapshot.songs.size.toString(),
-                                    "albums" to prepared.snapshot.albums.size.toString(),
-                                ),
-                            ),
-                        )
-                    }
-                }.onFailure { throwable ->
-                    if (throwable is CancellationException) throw throwable
-                    backendEventSink.emitLazy {
-                        BackendEvent.LibraryScanFailed(
-                            operation.fields(
-                                phase = "scan_failed",
-                                elapsedTimeMs = clock.elapsedTimeMs(),
-                                extra = mapOf("error_type" to (throwable::class.simpleName ?: "Unknown")),
-                            ),
-                        )
-                    }
-                    if (hasCurrentPermission(scanPermissionVersion)) {
-                        val failure = throwable.toLibraryScanFailure("refresh")
-                        _runtimeState.value = LibraryRuntimeState.Failed(failure, recoverable = true)
-                        _scanState.update {
-                            it.copy(
-                                isLoading = false,
-                                scanProgress = 0f,
-                                errorMessage = failure.toUserMessage(),
-                            )
-                        }
                     }
                 }
             } finally {
@@ -458,6 +421,61 @@ class LibraryRepository internal constructor(
             } else if (_runtimeState.value is LibraryRuntimeState.Scanning) {
                 _runtimeState.value = LibraryRuntimeState.Idle
             }
+        }
+    }
+
+    private suspend fun publishSuccessfulScan(
+        snapshot: LibrarySnapshot,
+        refreshRequest: LibraryRefreshRequest,
+        scanPermissionVersion: Long,
+        operation: BackendOperationContext,
+    ) {
+        if (!hasCurrentPermission(scanPermissionVersion)) return
+        val prepared = prepareVisibleSnapshot(snapshot.songs)
+        val nextScanState = LibraryScanState(
+            permissionGranted = true,
+            isLoading = false,
+            scanProgress = 1f,
+        )
+        if (_scanState.value != nextScanState) {
+            _scanState.value = nextScanState
+        }
+        withContext(Dispatchers.IO) {
+            snapshotStore.save(
+                snapshot = prepared.snapshot,
+                filterFingerprint = scanner.currentFilterFingerprint(),
+                syncState = scanner.currentSyncState(),
+            )
+            libraryIndexStore?.applyChangeSet(
+                changeSet = prepared.changeSet,
+                snapshot = prepared.snapshot,
+                fullRebuild = refreshRequest.forceMediaIndex &&
+                    prepared.changeSet.added.size == prepared.snapshot.songs.size,
+            )
+        }
+        invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
+        if (!hasCurrentPermission(scanPermissionVersion)) return
+        val snapshotNeedsMetadata = prepared.snapshot.songs.any { song ->
+            !song.metadataResolved ||
+                song.releaseYear == null ||
+                song.qualityNeedsEnrichment() ||
+                song.genre.isBlank() ||
+                song.genre == "Unknown Genre"
+        }
+        if (!refreshRequest.enrichMetadata && snapshotNeedsMetadata) {
+            refreshRequests.enqueue(enrichMetadata = true)
+        }
+        backendEventSink.emitLazy {
+            BackendEvent.LibraryScanCompleted(
+                operation.fields(
+                    phase = "scan_completed",
+                    elapsedTimeMs = clock.elapsedTimeMs(),
+                    extra = mapOf(
+                        "songs" to prepared.snapshot.songs.size.toString(),
+                        "albums" to prepared.snapshot.albums.size.toString(),
+                    ),
+                ),
+            )
         }
     }
 
@@ -782,14 +800,16 @@ class LibraryRepository internal constructor(
         sources: List<NetworkLibrarySource>,
         enrichMetadata: Boolean = false,
         showLoadingIndicator: Boolean = true,
+        forceRefreshSourceIds: Set<String> = emptySet(),
     ) {
         val changedNetworkSourceIds = scanner.networkSourceIdsChanged(sources)
-        if (!scanner.setNetworkSources(sources)) return
+        val changed = scanner.setNetworkSources(sources)
+        if (!changed && forceRefreshSourceIds.isEmpty()) return
         refresh(
             forceMediaIndex = false,
             enrichMetadata = enrichMetadata,
             showLoadingIndicator = showLoadingIndicator,
-            targetedNetworkSourceIds = changedNetworkSourceIds,
+            targetedNetworkSourceIds = changedNetworkSourceIds + forceRefreshSourceIds,
         )
     }
 

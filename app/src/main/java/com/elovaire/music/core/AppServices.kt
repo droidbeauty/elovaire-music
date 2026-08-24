@@ -80,7 +80,7 @@ internal class AppServices(
             sourceStore = networkSourceStore,
             credentialStore = networkCredentialStoreDelegate.value,
             fileSystems = mapOf(
-                NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(),
+                NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(appScope),
                 NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
             ),
         )
@@ -173,11 +173,12 @@ internal class AppServices(
         onSourceRemoved = { sourceId ->
             _networkProbeResults.update { it - sourceId }
         },
-        onSourcesChanged = {
+        onSourcesChanged = { sourceId, refreshRequired ->
             libraryRepository.setNetworkSources(
                 networkSourceStore.sources.value,
                 enrichMetadata = false,
                 showLoadingIndicator = true,
+                forceRefreshSourceIds = if (refreshRequired) setOf(sourceId) else emptySet(),
             )
         },
     )

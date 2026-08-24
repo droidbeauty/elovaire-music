@@ -15,7 +15,7 @@ internal class NetworkSourceMutationRuntime(
     private val coordinator: NetworkSourceCoordinator,
     private val onProbeResult: (sourceId: String, result: NetworkProbeResult) -> Unit,
     private val onSourceRemoved: (sourceId: String) -> Unit,
-    private val onSourcesChanged: () -> Unit,
+    private val onSourcesChanged: (sourceId: String, refreshRequired: Boolean) -> Unit,
 ) {
     private val released = AtomicBoolean(false)
     private val stateLock = Any()
@@ -26,11 +26,13 @@ internal class NetworkSourceMutationRuntime(
         onProbeResult(source.id, NetworkProbeResult(NetworkAvailability.Checking))
         val accepted = launch(source.id) { token ->
             try {
-                val result = coordinator.save(source, credentials)
+                val outcome = coordinator.save(source, credentials)
                 if (!runIfCurrent(source.id, token) {
-                        onProbeResult(source.id, result)
+                        onProbeResult(source.id, outcome.probeResult)
                     }) return@launch
-                if (!runIfCurrent(source.id, token, onSourcesChanged)) return@launch
+                if (!runIfCurrent(source.id, token) {
+                        onSourcesChanged(source.id, outcome.refreshRequired)
+                    }) return@launch
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (failure: GeneralSecurityException) {
@@ -55,7 +57,9 @@ internal class NetworkSourceMutationRuntime(
                 if (!runIfCurrent(source.id, token) {
                         onSourceRemoved(source.id)
                     }) return@launch
-                if (!runIfCurrent(source.id, token, onSourcesChanged)) return@launch
+                if (!runIfCurrent(source.id, token) {
+                        onSourcesChanged(source.id, true)
+                    }) return@launch
             } catch (cancellation: CancellationException) {
                 throw cancellation
             } catch (failure: GeneralSecurityException) {

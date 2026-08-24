@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.network
 
+import android.net.TrafficStats
 import java.io.ByteArrayOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
@@ -33,6 +34,18 @@ internal class BoundedHttpTransport(
     }
 
     private fun getBlocking(
+        rawUrl: String,
+        headers: Map<String, String>,
+        maxBytes: Int,
+        urlPolicy: (URL) -> Boolean,
+        cancellationContext: kotlin.coroutines.CoroutineContext?,
+    ): BoundedHttpResponse {
+        return withTrafficStatsTag {
+            getBlockingTagged(rawUrl, headers, maxBytes, urlPolicy, cancellationContext)
+        }
+    }
+
+    private fun getBlockingTagged(
         rawUrl: String,
         headers: Map<String, String>,
         maxBytes: Int,
@@ -85,7 +98,7 @@ internal class BoundedHttpTransport(
         headers: Map<String, String> = emptyMap(),
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
-    ): BoundedHttpResponse = withContext(Dispatchers.IO) {
+    ): BoundedHttpResponse = withContext(Dispatchers.IO) { withTrafficStatsTag {
         require(maxBytes > 0) { "maxBytes must be positive" }
         val url = URL(rawUrl)
         require(urlPolicy(url)) { "HTTP request URL is not allowed" }
@@ -117,6 +130,16 @@ internal class BoundedHttpTransport(
         } finally {
             connection.disconnect()
         }
+    } }
+
+    private inline fun <T> withTrafficStatsTag(block: () -> T): T {
+        val previousTag = TrafficStats.getThreadStatsTag()
+        TrafficStats.setThreadStatsTag(TRAFFIC_STATS_TAG)
+        return try {
+            block()
+        } finally {
+            TrafficStats.setThreadStatsTag(previousTag)
+        }
     }
 
     private fun java.io.InputStream.readBounded(
@@ -144,6 +167,7 @@ internal class BoundedHttpTransport(
         const val DEFAULT_READ_TIMEOUT_MS = 10_000
         const val DEFAULT_MAX_REDIRECTS = 3
         const val MAX_RETRY_AFTER_SECONDS = 24L * 60L * 60L
+        const val TRAFFIC_STATS_TAG = 0x454C4F56
     }
 }
 

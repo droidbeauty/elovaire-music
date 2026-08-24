@@ -293,6 +293,7 @@ class PreferenceStore internal constructor(
         if (_albumCollectionLayoutMode.value == normalizedMode) return
         preferences.edit {
             putString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, normalizedMode)
+            putBoolean(KEY_ALBUM_COLLECTION_LAYOUT_MODE_USER_SELECTED, true)
         }
         _albumCollectionLayoutMode.value = normalizedMode
     }
@@ -575,10 +576,21 @@ class PreferenceStore internal constructor(
     }
 
     private fun loadAlbumCollectionLayoutMode(): String {
-        preferences.getString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, null)
+        val savedMode = preferences.getString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, null)
             ?.trim()
             ?.takeIf { it.isNotBlank() }
-            ?.let { return it }
+        if (savedMode != null) {
+            if (
+                savedMode.equals("DenseGrid", ignoreCase = true) &&
+                !preferences.getBoolean(KEY_ALBUM_COLLECTION_LAYOUT_MODE_USER_SELECTED, false)
+            ) {
+                preferences.edit {
+                    putString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE)
+                }
+                return DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE
+            }
+            return savedMode
+        }
         return if (preferences.getBoolean(KEY_ALBUM_COLLECTION_GRID_ENABLED, true)) {
             "Grid"
         } else {
@@ -659,6 +671,7 @@ class PreferenceStore internal constructor(
         const val KEY_NOW_PLAYING_BAR_STYLE = "now_playing_bar_style"
         const val KEY_ALBUM_COLLECTION_GRID_ENABLED = "album_collection_grid_enabled"
         const val KEY_ALBUM_COLLECTION_LAYOUT_MODE = "album_collection_layout_mode"
+        const val KEY_ALBUM_COLLECTION_LAYOUT_MODE_USER_SELECTED = "album_collection_layout_mode_user_selected"
         const val KEY_SONG_COLLECTION_GRID_ENABLED = "song_collection_grid_enabled"
         const val KEY_ALBUM_COLLECTION_SORT_MODE = "album_collection_sort_mode"
         const val KEY_SONG_COLLECTION_SORT_MODE = "song_collection_sort_mode"

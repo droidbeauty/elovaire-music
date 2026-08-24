@@ -74,4 +74,5 @@ class PlaybackSessionStoreTest {
         wasPlaying = true,
         savedAtWallTimeMs = 1L,
     )
+
 }

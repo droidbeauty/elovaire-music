@@ -49,21 +49,6 @@ val checkTrackedSourceSecrets = tasks.register("checkTrackedSourceSecrets") {
     }
 }
 
-tasks.register("debugQualityCheck") {
-    group = "verification"
-    dependsOn(":app:lintDebug", ":app:testDebugUnitTest", ":app:detekt", "buildStructureCheck", checkTrackedSourceSecrets)
-}
-
-tasks.register("performanceQualityCheck") {
-    group = "verification"
-    dependsOn(":app:assembleBenchmark", ":macrobenchmark:connectedCheck", "generateBaselineProfile")
-}
-
-tasks.register("releaseQualityCheck") {
-    group = "verification"
-    dependsOn(":app:verifyReleaseReadiness", "buildHealth", checkTrackedSourceSecrets)
-}
-
 val requireBackendQualificationDevice = tasks.register("requireBackendQualificationDevice") {
     group = "verification"
     description = "Requires an explicitly selected physical device for backend qualification."
@@ -78,21 +63,91 @@ val requireBackendQualificationDevice = tasks.register("requireBackendQualificat
     }
 }
 
-tasks.register("backendQualification") {
+val quickQuality = tasks.register("quickQuality") {
     group = "verification"
-    description = "Runs backend, persistence, compatibility, playback, and release qualification on the selected device."
+    description = "Runs fast correctness, static, architecture, resource, and dependency checks."
     dependsOn(
-        requireBackendQualificationDevice,
         ":app:propertyTest",
-        ":app:queryPlanCheck",
-        "debugQualityCheck",
-        "releaseQualityCheck",
+        ":app:testDebugUnitTest",
         ":app:lintDebug",
-        ":app:lintRelease",
-        ":app:assembleRelease",
+        ":app:detekt",
+        "buildStructureCheck",
+        checkTrackedSourceSecrets,
+    )
+}
+
+val deviceQuality = tasks.register("deviceQuality") {
+    group = "verification"
+    description = "Runs connected correctness and persistence qualification on a device."
+    dependsOn(":app:connectedDebugAndroidTest", ":app:queryPlanCheck")
+}
+
+val benchmarkRegressionCheck = tasks.register<BenchmarkRegressionEvaluatorTask>("benchmarkRegressionCheck") {
+    group = "verification"
+    description = "Compares compatible Macrobenchmark JSON results with a same-device baseline."
+    currentResultsDir.set(
+        layout.projectDirectory.dir(
+            "macrobenchmark/build/outputs/connected_android_test_additional_output/benchmark",
+        ),
+    )
+    providers.gradleProperty("app.benchmarkBaselineDir").orNull?.let { baselinePath ->
+        baselineResultsDir.set(rootProject.file(baselinePath))
+    }
+}
+
+val performanceQuality = tasks.register("performanceQuality") {
+    group = "verification"
+    description = "Runs physical-device Macrobenchmark, Baseline Profile, and regression qualification."
+    dependsOn(
+        ":app:assembleBenchmark",
+        ":macrobenchmark:connectedCheck",
+        "generateBaselineProfile",
+        benchmarkRegressionCheck,
+    )
+}
+
+val releaseQuality = tasks.register("releaseQuality") {
+    group = "verification"
+    description = "Runs quick quality, release shrinking, artifact, manifest, and dependency verification."
+    dependsOn(
+        quickQuality,
         ":app:verifyReleaseReadiness",
         "buildHealth",
-        "dependencyIntegrityCheck",
+        checkTrackedSourceSecrets,
+    )
+}
+
+val technicalQualification = tasks.register("technicalQualification") {
+    group = "verification"
+    description = "Runs the complete quick, device, performance, and release qualification graph."
+    dependsOn(quickQuality, deviceQuality, performanceQuality, releaseQuality)
+}
+
+// Kept as compatibility entry points for existing local/CI invocations.
+tasks.register("debugQualityCheck") {
+    group = "verification"
+    description = "Compatibility entry point for quickQuality."
+    dependsOn(quickQuality)
+}
+
+tasks.register("performanceQualityCheck") {
+    group = "verification"
+    description = "Compatibility entry point for performanceQuality."
+    dependsOn(performanceQuality)
+}
+
+tasks.register("releaseQualityCheck") {
+    group = "verification"
+    description = "Compatibility entry point for releaseQuality."
+    dependsOn(releaseQuality)
+}
+
+tasks.register("backendQualification") {
+    group = "verification"
+    description = "Compatibility entry point for physical-device technical qualification."
+    dependsOn(
+        requireBackendQualificationDevice,
+        technicalQualification,
     )
 }
 

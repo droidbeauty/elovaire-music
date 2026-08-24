@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenanceWorker
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -66,7 +67,9 @@ internal class AppBridgeCoordinator(
     fun scheduleDeferredStartupWork() {
         if (!appStarted || released || deferredStartupScheduled) return
         deferredStartupScheduled = true
-        PersistenceMaintenanceWorker.enqueue(applicationContext)
+        bridgeScope.launch(Dispatchers.IO) {
+            PersistenceMaintenanceWorker.enqueue(applicationContext)
+        }
     }
 
     fun release() {

@@ -7,6 +7,9 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
+import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
+import elovaire.music.droidbeauty.app.data.playback.resolveMediaButtonResumption
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CoroutineScope
@@ -16,6 +19,7 @@ import kotlinx.coroutines.cancel
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -68,6 +72,33 @@ class MediaLibrarySessionCommandTest {
         assertFalse(playbackManager.state.value.transportShowsPause)
         assertFalse(playWhenReady)
         assertEquals(0L, playbackManager.manualPlaybackStartVersion.value)
+    }
+
+    @Test
+    fun mediaButtonResumptionRequiresTheEntirePersistedQueue() {
+        val persisted = PersistedPlaybackSession(
+            queueSongIds = listOf(2L, 1L),
+            currentSongId = 1L,
+            currentIndex = 1,
+            positionMs = 500L,
+            repeatMode = PlaybackRepeatMode.All,
+            shuffleEnabled = true,
+            sourcePlaylistId = null,
+            wasPlaying = true,
+            savedAtWallTimeMs = 1L,
+        )
+
+        assertNull(resolveMediaButtonResumption(persisted, listOf(testSong())))
+
+        val resolved = resolveMediaButtonResumption(
+            persisted,
+            listOf(testSong(), testSong().copy(id = 2L, uri = Uri.parse("content://elovaire.test/media/2"))),
+        )
+        assertEquals(listOf(2L, 1L), resolved?.queue?.queue?.map(Song::id))
+        assertEquals(1L, resolved?.queue?.startSong?.id)
+        assertEquals(500L, resolved?.persisted?.positionMs)
+        assertEquals(PlaybackRepeatMode.All, resolved?.persisted?.repeatMode)
+        assertEquals(true, resolved?.persisted?.shuffleEnabled)
     }
 
     private fun testSong() = Song(

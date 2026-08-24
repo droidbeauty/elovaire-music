@@ -1,10 +1,17 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.StrictMode
+import java.util.concurrent.Executor
 
 internal object DebugStrictModeInstaller {
     private const val CRASH_ON_STRICT_MODE_VIOLATION = false
+    private val violationHandler = Handler(Looper.getMainLooper())
+    private val violationExecutor = Executor { runnable ->
+        violationHandler.post(runnable)
+    }
 
     fun install() {
         StrictMode.setThreadPolicy(buildThreadPolicy())
@@ -19,6 +26,9 @@ internal object DebugStrictModeInstaller {
             .detectCustomSlowCalls()
             .detectResourceMismatches()
             .detectUnbufferedIo()
+            .penaltyListener(violationExecutor) { violation ->
+                StrictModeViolationRecorder.record(violation)
+            }
             .penaltyLog()
 
         if (CRASH_ON_STRICT_MODE_VIOLATION) {
@@ -40,6 +50,9 @@ internal object DebugStrictModeInstaller {
             .detectUntaggedSockets()
             .detectCredentialProtectedWhileLocked()
             .detectImplicitDirectBoot()
+            .penaltyListener(violationExecutor) { violation ->
+                StrictModeViolationRecorder.record(violation)
+            }
             .penaltyLog()
 
         builder.detectNonSdkApiUsage()

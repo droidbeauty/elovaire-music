@@ -68,27 +68,87 @@ internal class YouTubeMusicArtistImageClient(
                 ?: return null
             val normalizedQuery = normalize(query)
             var firstArtistImage: String? = null
+            var exactArtistImage: String? = null
+
+            fun considerArtist(
+                node: JSONObject,
+                title: String,
+                subtitle: String,
+            ) {
+                if (
+                    !subtitle.contains("artist", ignoreCase = true) &&
+                    !hasArtistPageType(node)
+                ) {
+                    return
+                }
+                val image = thumbnailUrl(node) ?: return
+                if (firstArtistImage == null) firstArtistImage = image
+                if (normalize(title) == normalizedQuery) exactArtistImage = image
+            }
+
             for (sectionIndex in 0 until sections.length()) {
                 val section = sections.optJSONObject(sectionIndex) ?: continue
+
+                section.optJSONObject("musicCardShelfRenderer")?.let { card ->
+                    considerArtist(
+                        node = card,
+                        title = textOf(card.optJSONObject("title")),
+                        subtitle = textOf(card.optJSONObject("subtitle")),
+                    )
+                }
+
                 val contents = section
                     .optJSONObject("itemSectionRenderer")
                     ?.optJSONArray("contents")
+                    ?: section
+                        .optJSONObject("musicShelfRenderer")
+                        ?.optJSONArray("contents")
                     ?: continue
                 for (itemIndex in 0 until contents.length()) {
-                    val card = contents
-                        .optJSONObject(itemIndex)
-                        ?.optJSONObject("musicCardShelfRenderer")
-                        ?: continue
-                    val subtitle = textOf(card.optJSONObject("subtitle"))
-                    if (!subtitle.contains("artist", ignoreCase = true)) continue
-                    val image = thumbnailUrl(card) ?: continue
-                    if (firstArtistImage == null) firstArtistImage = image
-                    if (normalize(textOf(card.optJSONObject("title"))) == normalizedQuery) {
-                        return image
+                    val item = contents.optJSONObject(itemIndex) ?: continue
+                    item.optJSONObject("musicCardShelfRenderer")?.let { card ->
+                        considerArtist(
+                            node = card,
+                            title = textOf(card.optJSONObject("title")),
+                            subtitle = textOf(card.optJSONObject("subtitle")),
+                        )
+                    }
+                    item.optJSONObject("musicResponsiveListItemRenderer")?.let { renderer ->
+                        considerArtist(
+                            node = renderer,
+                            title = responsiveItemText(renderer, 0),
+                            subtitle = responsiveItemText(renderer, 1),
+                        )
                     }
                 }
             }
-            return firstArtistImage
+            return exactArtistImage ?: firstArtistImage
+        }
+
+        private fun responsiveItemText(
+            renderer: JSONObject,
+            index: Int,
+        ): String {
+            return renderer
+                .optJSONArray("flexColumns")
+                ?.optJSONObject(index)
+                ?.optJSONObject("musicResponsiveListItemFlexColumnRenderer")
+                ?.optJSONObject("text")
+                ?.let(::textOf)
+                .orEmpty()
+        }
+
+        private fun hasArtistPageType(node: JSONObject): Boolean {
+            val endpoint = node.optJSONObject("navigationEndpoint")
+                ?: node.optJSONObject("onTap")
+                ?: return false
+            val pageType = endpoint
+                .optJSONObject("browseEndpoint")
+                ?.optJSONObject("browseEndpointContextSupportedConfigs")
+                ?.optJSONObject("browseEndpointContextMusicConfig")
+                ?.optString("pageType")
+                .orEmpty()
+            return pageType.contains("ARTIST", ignoreCase = true)
         }
 
         fun firstSearchSections(tabs: JSONArray): JSONArray? {

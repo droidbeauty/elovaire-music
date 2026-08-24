@@ -7,6 +7,7 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.library.db.AlbumPlayCountEntity
 import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
 import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEntity
@@ -68,7 +69,9 @@ internal class RoomUserDataStore(
     private val clock: AppClock = AndroidAppClock,
     ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
-    private val preferences = PreferenceStorage(context.applicationContext).preferences
+    private val preferences = allowStrictModeDiskReads {
+        PreferenceStorage(context.applicationContext).preferences
+    }
     private val released = AtomicBoolean(false)
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
@@ -109,7 +112,9 @@ internal class RoomUserDataStore(
         try {
             initialize()
             if (!lifecycle.compareAndSet(StoreLifecycle.Initializing, StoreLifecycle.Ready)) {
-                rejectQueuedOperations()
+                synchronized(submissionLock) {
+                    rejectPendingOperationsLocked()
+                }
                 return@launch
             }
             for (operation in operations) {
@@ -652,12 +657,16 @@ internal class RoomUserDataStore(
         Log.e(TAG, "User-data actor stopped; rejecting future operations.", failure)
         synchronized(submissionLock) {
             operations.close()
-            rejectQueuedOperations()
-            coalescedOperations.values.forEach { operation ->
-                operation.completion?.complete(submissionFailure())
-            }
-            coalescedOperations.clear()
+            rejectPendingOperationsLocked()
         }
+    }
+
+    private fun rejectPendingOperationsLocked() {
+        rejectQueuedOperations()
+        coalescedOperations.values.forEach { operation ->
+            operation.completion?.complete(submissionFailure())
+        }
+        coalescedOperations.clear()
     }
 
     private fun rejectQueuedOperations() {

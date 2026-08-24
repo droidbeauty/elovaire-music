@@ -145,8 +145,12 @@ internal class PlaybackIntegrationCoordinator(
         val persisted = sessionStore.load() ?: return
         val songsById = songs.associateBy { it.id }
         val restoredQueue = persisted.queueSongIds.mapNotNull(songsById::get)
-        if (restoredQueue.isEmpty()) {
-            sessionStore.clear()
+        if (!isPlaybackSessionFullyResolved(persisted.queueSongIds, songsById.keys)) {
+            // A non-empty library snapshot may still represent only local media while
+            // SAF/NAS sources are bootstrapping or temporarily unavailable. Never turn a
+            // partial resolution into a destructive queue rewrite; a later authoritative
+            // source publication can resolve the remaining IDs.
+            restorationAttempted = false
             return
         }
         val currentIndex = persisted.currentIndex
@@ -193,6 +197,15 @@ internal class PlaybackIntegrationCoordinator(
         const val PLAYBACK_POSITION_PERSIST_INTERVAL_MS = 5_000L
         const val PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS = 10_000L
     }
+}
+
+internal fun isPlaybackSessionFullyResolved(
+    persistedSongIds: List<Long>,
+    resolvedSongIds: Collection<Long>,
+): Boolean {
+    if (persistedSongIds.isEmpty()) return false
+    val resolved = resolvedSongIds.toSet()
+    return persistedSongIds.all(resolved::contains)
 }
 
 private data class PersistedRecentPlayback(

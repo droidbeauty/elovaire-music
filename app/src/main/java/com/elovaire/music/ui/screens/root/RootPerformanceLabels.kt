@@ -40,8 +40,18 @@ internal fun rootPerformanceLibraryLabel(libraryState: LibraryUiState): String {
     }
 }
 
-internal fun rootPerformanceInteractionLabel(isPlaybackActuallyPlaying: Boolean): String {
-    return if (isPlaybackActuallyPlaying) "playback_progress_active" else "idle"
+internal fun rootPerformanceInteractionLabel(): String = "idle"
+
+internal fun rootPerformancePlaybackLabel(isPlaybackActuallyPlaying: Boolean): String {
+    return if (isPlaybackActuallyPlaying) "playing" else "idle"
+}
+
+internal fun rootPerformanceLibraryWorkLabel(libraryState: LibraryUiState): String {
+    return when {
+        libraryState.isLoading -> "scan"
+        libraryState.scanProgress in 0f..0.999f -> "reconcile"
+        else -> "idle"
+    }
 }
 
 @Composable
@@ -54,5 +64,7 @@ internal fun RootPerformanceStates(
     PerformanceState("route", routeLabel)
     PerformanceState("screen", routeLabel)
     PerformanceState("library", rootPerformanceLibraryLabel(libraryState))
-    PerformanceState("interaction", rootPerformanceInteractionLabel(isPlaybackActuallyPlaying))
+    PerformanceState("interaction", rootPerformanceInteractionLabel())
+    PerformanceState("playback_state", rootPerformancePlaybackLabel(isPlaybackActuallyPlaying))
+    PerformanceState("library_work", rootPerformanceLibraryWorkLabel(libraryState))
 }

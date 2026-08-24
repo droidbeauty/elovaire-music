@@ -30,25 +30,36 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         credentials: NetworkCredentials,
         maxEntries: Int,
         maxDepth: Int,
-    ): List<NetworkFileEntry> {
+    ): NetworkListingResult {
         require(maxEntries > 0)
         val results = ArrayList<NetworkFileEntry>()
         val pending = ArrayDeque<Pair<String, Int>>()
         pending.addLast(source.shareOrPath to 0)
         val visited = hashSetOf<String>()
+        var incompleteReason: String? = null
         while (pending.isNotEmpty() && results.size < maxEntries) {
             val (directory, depth) = pending.removeFirst()
             val normalized = NetworkPathPolicy.normalizeRelativePath(directory)
             if (!visited.add(normalized)) continue
             propFind(source, credentials, normalized, depth = 1).forEach { entry ->
-                if (entry.path == normalized || results.size >= maxEntries) return@forEach
+                if (entry.path == normalized) return@forEach
+                if (results.size >= maxEntries) {
+                    incompleteReason = "entry-budget"
+                    return@forEach
+                }
                 results += entry
-                if (entry.isDirectory && depth < maxDepth) {
-                    pending.addLast(entry.path to depth + 1)
+                if (entry.isDirectory) {
+                    if (depth < maxDepth) {
+                        pending.addLast(entry.path to depth + 1)
+                    } else {
+                        incompleteReason = incompleteReason ?: "depth-budget"
+                    }
                 }
             }
         }
-        return results
+        if (results.size >= maxEntries) incompleteReason = incompleteReason ?: "entry-budget"
+        return incompleteReason?.let { NetworkListingResult.Incomplete(results, it) }
+            ?: NetworkListingResult.Complete(results)
     }
 
     override fun openBlocking(

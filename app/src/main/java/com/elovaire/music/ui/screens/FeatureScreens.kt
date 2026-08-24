@@ -160,6 +160,7 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.compositeOver
@@ -1163,7 +1164,7 @@ private fun AlbumCollectionContent(
                             )
                         }
                         if (showSortOptions) {
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(14.dp))
                         }
                     }
 
@@ -2436,9 +2437,16 @@ private fun ArtistHeroHeader(
         ArtistBackdropState.Loading -> localArtworkUri
     } ?: localArtworkUri
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
-    val localArtwork = rememberArtworkBitmap(sourceUri, size = 512).value
+    val localArtwork = rememberArtworkBitmap(localArtworkUri, size = 512).value
     val gradient = rememberArtworkGradient(sourceUri).value
     val paletteAccent = rememberAnimatedArtistPaletteAccent(sourceUri)
+    var displayedBackdropImage by remember { mutableStateOf<ImageBitmap?>(null) }
+    LaunchedEffect(artistName, backdropImage, sourceUri) {
+        when {
+            backdropImage != null -> displayedBackdropImage = backdropImage
+            sourceUri == null -> displayedBackdropImage = null
+        }
+    }
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -2451,29 +2459,10 @@ private fun ArtistHeroHeader(
             )
             .background(MaterialTheme.colorScheme.background),
     ) {
-        if (backdropImage != null) {
-            Image(
-                bitmap = backdropImage,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop,
-                alpha = 0.92f,
-            )
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                gradient.first().copy(alpha = 0.96f),
-                                MaterialTheme.colorScheme.background,
-                                gradient.last().copy(alpha = 0.84f),
-                            ),
-                        ),
-                    ),
-            )
-        }
+        ArtistHeroBackdrop(
+            image = displayedBackdropImage,
+            gradient = gradient,
+        )
         if (localArtwork != null) {
             Image(
                 bitmap = localArtwork,
@@ -2548,6 +2537,45 @@ private fun ArtistHeroHeader(
 }
 
 @Composable
+private fun ArtistHeroBackdrop(
+    image: ImageBitmap?,
+    gradient: List<Color>,
+) {
+    AnimatedContent(
+        targetState = image,
+        transitionSpec = {
+            fadeIn(animationSpec = ElovaireMotion.fadeMedium()) togetherWith
+                fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
+        },
+        label = "artist_splash_artwork",
+    ) { backdrop ->
+        if (backdrop != null) {
+            Image(
+                bitmap = backdrop,
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+                alpha = 0.92f,
+            )
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                gradient.first().copy(alpha = 0.96f),
+                                MaterialTheme.colorScheme.background,
+                                gradient.last().copy(alpha = 0.84f),
+                            ),
+                        ),
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
 private fun rememberAnimatedArtistPaletteAccent(uri: Uri?): Color {
     val paletteAccent = rememberArtworkPaletteAccent(uri).value ?: MaterialTheme.colorScheme.primary
     return animateColorAsState(
@@ -2563,12 +2591,13 @@ private fun BoxScope.ArtistHeroAccentGradient(accent: Color) {
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
-            .height(60.dp)
+            .height(70.dp)
             .background(
                 Brush.verticalGradient(
-                    colors = listOf(
-                        accent.copy(alpha = 0.8f),
-                        accent.copy(alpha = 0.3f),
+                    colorStops = arrayOf(
+                        0f to Color.Transparent,
+                        0.56f to accent.copy(alpha = 0.18f),
+                        1f to accent.copy(alpha = 0.8f),
                     ),
                 ),
             ),
@@ -4262,7 +4291,9 @@ private fun ArtistRow(
     onClick: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
-    val artworkUri = rememberArtistArtworkUri(artist, artistImageRepository)
+    val resolvedArtworkUri = rememberArtistArtworkUri(artist, artistImageRepository)
+    val resolvedArtworkLoaded = rememberArtworkBitmap(resolvedArtworkUri, size = 256).value != null
+    val artworkUri = if (resolvedArtworkLoaded) resolvedArtworkUri else artist.artUri
     Row(
         modifier = Modifier
             .fillMaxWidth()

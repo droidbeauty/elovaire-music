@@ -6,9 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.7.4">
-        <item>Fixed interaction bugs in search UI</item>
+    <release version="2.7.5">
+        <item>Minor UI tweaks</item>
         <item>General performance and stability improvements</item>
-        <item>Improved visual quality of animations</item>
     </release>
 </changelog>

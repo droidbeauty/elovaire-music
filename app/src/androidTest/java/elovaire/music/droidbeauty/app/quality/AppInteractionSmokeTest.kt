@@ -39,7 +39,9 @@ class AppInteractionSmokeTest {
 
     @After
     fun assertNoRuntimeFailures() {
-        val logcat = shell("logcat -d -t 2000")
+        val pid = shell("pidof $PACKAGE_NAME").trim()
+        check(pid.isNotBlank()) { "App process is not running" }
+        val logcat = shell("logcat -d --pid $pid")
         val runtimeFailure = runtimeFailurePattern.find(logcat)
         assertFalse(runtimeFailure?.value, runtimeFailure != null)
         assertFalse(hasAppOwnedStrictModeViolation(logcat))
@@ -156,7 +158,7 @@ class AppInteractionSmokeTest {
             .any { violation ->
                 violation
                     .lineSequence()
-                    .take(40)
+                    .takeWhile { line -> !line.contains("StrictMode policy violation") }
                     .any { line ->
                         line.contains("\tat elovaire.music.droidbeauty.app.") &&
                             !line.contains(".quality.")

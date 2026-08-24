@@ -14,7 +14,10 @@ internal class NetworkInventoryStore(
     context: Context,
     private val dao: LibraryDao,
 ) {
-    private val legacyCacheFile = context.applicationContext.filesDir.resolve("network_library_cache_v1.json")
+    private val appContext = context.applicationContext
+    private val legacyCacheFile by lazy(LazyThreadSafetyMode.NONE) {
+        appContext.filesDir.resolve("network_library_cache_v1.json")
+    }
     private var legacyRootLoaded = false
     private var legacyRoot: JSONObject? = null
 

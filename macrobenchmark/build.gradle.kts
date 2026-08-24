@@ -14,6 +14,7 @@ android {
                     requestedTasks
                         .any { taskName ->
                             taskName.endsWith("generateBaselineProfile") ||
+                                taskName.endsWith("performanceQuality") ||
                                 taskName.endsWith("performanceQualityCheck") ||
                                 taskName.endsWith(":macrobenchmark:connectedCheck") ||
                                 taskName.endsWith(":macrobenchmark:connectedBenchmarkAndroidTest") ||
@@ -30,7 +31,7 @@ android {
         targetSdk = AppBuildConfig.Android.targetSdk
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
         testInstrumentationRunnerArguments["androidx.benchmark.suppressErrors"] =
-            "EMULATOR,NOT-SELF-INSTRUMENTING"
+            "NOT-SELF-INSTRUMENTING"
         testInstrumentationRunnerArguments["elovaire.runBenchmarks"] = runBenchmarks.get()
         benchmarkIterations?.let { value ->
             testInstrumentationRunnerArguments["elovaire.benchmarkIterations"] = value

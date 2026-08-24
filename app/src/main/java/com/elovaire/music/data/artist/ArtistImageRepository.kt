@@ -27,7 +27,6 @@ internal class ArtistImageRepository(
 ) {
     private sealed interface CachedImage {
         data class Found(val uri: Uri) : CachedImage
-        data object Missing : CachedImage
     }
 
     private val remoteArtworkCache = ConcurrentHashMap<String, CachedImage>()
@@ -79,11 +78,10 @@ internal class ArtistImageRepository(
         if (artistKey.isBlank() || artistKey == UNKNOWN_ARTIST_KEY) return null
         when (val cached = remoteArtworkCache[artistKey]) {
             is CachedImage.Found -> return cached.uri
-            CachedImage.Missing -> return null
             null -> Unit
         }
         val uri = client.findArtistImage(artistName)?.let(Uri::parse)
-        remoteArtworkCache[artistKey] = uri?.let(CachedImage::Found) ?: CachedImage.Missing
+        if (uri != null) remoteArtworkCache[artistKey] = CachedImage.Found(uri)
         return uri
     }
 

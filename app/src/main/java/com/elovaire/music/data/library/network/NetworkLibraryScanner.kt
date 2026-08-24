@@ -15,6 +15,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
+import org.xmlpull.v1.XmlPullParserException
 
 internal class NetworkLibraryScanner(
     context: Context,
@@ -43,6 +44,8 @@ internal class NetworkLibraryScanner(
 
     private suspend fun scanSource(source: NetworkLibrarySource, forceRefresh: Boolean): List<Song> {
         val cached = inventory.load(source)
+        val sourceGeneration = registry.sourceGeneration(source.id)
+        if (!isCurrentSource(source, sourceGeneration)) return emptyList()
         if (!forceRefresh && inventory.hasFreshListing(source.id, System.currentTimeMillis())) {
             return cached.map(NetworkInventoryEntry::song)
         }
@@ -50,29 +53,28 @@ internal class NetworkLibraryScanner(
         if (credentials == null) {
             publishAvailability(
                 source = source,
+                sourceGeneration = sourceGeneration,
                 credentials = null,
                 result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
             return cached.map(NetworkInventoryEntry::song)
         }
-        val entries = try {
-            registry.listBlocking(source, credentials)
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: IOException) {
-            publishAvailability(source, credentials, failure.toProbeResult())
-            return cached.map(NetworkInventoryEntry::song)
-        } catch (failure: SMBRuntimeException) {
-            publishAvailability(source, credentials, failure.toProbeResult())
-            return cached.map(NetworkInventoryEntry::song)
-        } catch (failure: IllegalArgumentException) {
-            publishAvailability(source, credentials, failure.toProbeResult())
-            return cached.map(NetworkInventoryEntry::song)
-        }
+        val listing = listSourceOrNull(source, sourceGeneration, credentials)
+            ?: return cached.map(NetworkInventoryEntry::song)
+        val entries = listing.entries
+        val incompleteReason = (listing as? NetworkListingResult.Incomplete)?.reason
         // A source edit/removal may have completed while the blocking listing was in flight.
         // Never commit or republish the result for an obsolete configuration.
-        if (!isCurrent(source, credentials)) return emptyList()
-        publishAvailability(source, credentials, NetworkProbeResult(NetworkAvailability.Available))
+        if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
+        publishAvailability(
+            source,
+            sourceGeneration,
+            credentials,
+            NetworkProbeResult(
+                availability = NetworkAvailability.Available,
+                message = incompleteReason?.let { "scan-incomplete:$it" },
+            ),
+        )
         val audioEntries = entries
             .asSequence()
             .filterNot(NetworkFileEntry::isDirectory)
@@ -134,7 +136,13 @@ internal class NetworkLibraryScanner(
                 previous.song.artUri != current.song.artUri
         }
         val nowMs = System.currentTimeMillis()
-        if (!isCurrent(source, credentials)) return emptyList()
+        if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
+        if (incompleteReason != null) {
+            // A bounded traversal proves only the entries it saw. Preserve the previous
+            // inventory for unseen paths and leave its freshness unchanged so a later scan
+            // retries the source instead of treating truncation as authoritative deletion.
+            return mergePartialNetworkInventory(cached, inventoryEntries)
+        }
         if (inventoryChanged) {
             inventory.replace(
                 source = source,
@@ -150,17 +158,54 @@ internal class NetworkLibraryScanner(
 
     private fun publishAvailability(
         source: NetworkLibrarySource,
+        sourceGeneration: Long,
         credentials: NetworkCredentials?,
         result: NetworkProbeResult,
     ) {
-        if (!isCurrent(source, credentials)) return
+        if (!isCurrent(source, sourceGeneration, credentials)) return
         onAvailabilityChanged(source.id, result)
     }
 
+    private fun listSourceOrNull(
+        source: NetworkLibrarySource,
+        sourceGeneration: Long,
+        credentials: NetworkCredentials,
+    ): NetworkListingResult? {
+        return try {
+            registry.listBlocking(source, credentials)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: IOException) {
+            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            null
+        } catch (failure: SMBRuntimeException) {
+            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            null
+        } catch (failure: IllegalArgumentException) {
+            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            null
+        } catch (failure: SecurityException) {
+            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            null
+        } catch (failure: IllegalStateException) {
+            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            null
+        } catch (failure: XmlPullParserException) {
+            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
+            null
+        }
+    }
+
+    private fun isCurrentSource(
+        source: NetworkLibrarySource,
+        sourceGeneration: Long,
+    ): Boolean = registry.isCurrent(source, sourceGeneration)
+
     private fun isCurrent(
         source: NetworkLibrarySource,
+        sourceGeneration: Long,
         credentials: NetworkCredentials?,
-    ): Boolean = registry.source(source.id) == source && registry.credentials(source) == credentials
+    ): Boolean = isCurrentSource(source, sourceGeneration) && registry.credentials(source) == credentials
 
     private fun NetworkFileEntry.toSong(
         source: NetworkLibrarySource,
@@ -242,19 +287,32 @@ internal class NetworkLibraryScanner(
     }
 }
 
-private fun NetworkFileEntry.isSupportedArtwork(): Boolean {
-    return path.substringAfterLast('/').lowercase(Locale.ROOT) in setOf(
-        "cover.jpg",
-        "cover.jpeg",
-        "cover.png",
-        "folder.jpg",
-        "folder.jpeg",
-        "folder.png",
-        "front.jpg",
-        "front.jpeg",
-        "front.png",
-    )
+internal fun mergePartialNetworkInventory(
+    cached: List<NetworkInventoryEntry>,
+    discovered: List<NetworkInventoryEntry>,
+): List<Song> {
+    val merged = LinkedHashMap<String, NetworkInventoryEntry>(cached.size + discovered.size)
+    cached.forEach { merged[it.entry.path] = it }
+    discovered.forEach { merged[it.entry.path] = it }
+    return merged.values.map(NetworkInventoryEntry::song)
 }
+
+private fun NetworkFileEntry.isSupportedArtwork(): Boolean {
+    return path.substringAfterLast('/').lowercase(Locale.ROOT) in
+        SUPPORTED_ARTWORK_NAMES
+}
+
+private val SUPPORTED_ARTWORK_NAMES = setOf(
+    "cover.jpg",
+    "cover.jpeg",
+    "cover.png",
+    "folder.jpg",
+    "folder.jpeg",
+    "folder.png",
+    "front.jpg",
+    "front.jpeg",
+    "front.png",
+)
 
 private fun NetworkFileEntry.artworkPriority(): Int {
     return when (path.substringAfterLast('/').lowercase(Locale.ROOT)) {

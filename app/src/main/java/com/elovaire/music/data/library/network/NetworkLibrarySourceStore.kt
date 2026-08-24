@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
 import android.content.Context
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import java.util.UUID
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,10 +10,21 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 internal class NetworkLibrarySourceStore(context: Context) {
-    private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    private val preferences = allowStrictModeDiskReads {
+        context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+    }
     private val mutationLock = Any()
-    private val _sources = MutableStateFlow(load())
+    private val generations = mutableMapOf<String, Long>()
+    private val _sources = MutableStateFlow(allowStrictModeDiskReads(::load))
     val sources: StateFlow<List<NetworkLibrarySource>> = _sources.asStateFlow()
+
+    fun generation(sourceId: String): Long = synchronized(mutationLock) {
+        generations[sourceId] ?: 0L
+    }
+
+    fun isCurrent(source: NetworkLibrarySource, generation: Long): Boolean = synchronized(mutationLock) {
+        generations[source.id] == generation && _sources.value.firstOrNull { it.id == source.id } == source
+    }
 
     internal fun normalized(source: NetworkLibrarySource): NetworkLibrarySource = source.copy(
         name = source.name.trim().ifBlank { source.server.trim() },
@@ -25,10 +37,14 @@ internal class NetworkLibrarySourceStore(context: Context) {
     fun upsert(source: NetworkLibrarySource): NetworkLibrarySource {
         return synchronized(mutationLock) {
             val normalized = normalized(source)
+            val previous = _sources.value.firstOrNull { it.id == normalized.id }
             val next = (_sources.value.filterNot { it.id == normalized.id } + normalized)
                 .sortedBy { it.name.lowercase() }
             save(next)
             _sources.value = next
+            if (previous != normalized) {
+                generations[normalized.id] = (generations[normalized.id] ?: 0L) + 1L
+            }
             normalized
         }
     }
@@ -56,6 +72,7 @@ internal class NetworkLibrarySourceStore(context: Context) {
             val next = _sources.value.filterNot { it.id == sourceId }
             save(next)
             _sources.value = next
+            generations[sourceId] = (generations[sourceId] ?: 0L) + 1L
         }
     }
 

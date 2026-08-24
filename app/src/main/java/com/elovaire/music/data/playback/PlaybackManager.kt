@@ -2337,7 +2337,7 @@ internal fun Int.toPlaybackRepeatMode(): PlaybackRepeatMode {
     }
 }
 
-private fun PlaybackRepeatMode.toPlayerRepeatMode(): Int {
+internal fun PlaybackRepeatMode.toPlayerRepeatMode(): Int {
     return when (this) {
         PlaybackRepeatMode.Off -> Player.REPEAT_MODE_OFF
         PlaybackRepeatMode.One -> Player.REPEAT_MODE_ONE

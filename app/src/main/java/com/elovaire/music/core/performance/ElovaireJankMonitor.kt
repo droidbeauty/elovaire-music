@@ -15,6 +15,7 @@ internal class ElovaireJankMonitor private constructor(
     private var jankyFrames = 0
     private var worstFrameDurationMs = 0L
     private var lastJankState = ""
+    private var currentStates: Map<String, String> = emptyMap()
 
     fun setTrackingEnabled(enabled: Boolean) {
         jankStats.isTrackingEnabled = enabled
@@ -41,6 +42,7 @@ internal class ElovaireJankMonitor private constructor(
 
     private fun onFrame(frameData: FrameData) {
         totalFrames += 1
+        currentStates = frameData.states.associate { state -> state.key to state.value }
         if (frameData.isJank) {
             jankyFrames += 1
             lastJankState = frameData.states
@@ -54,6 +56,20 @@ internal class ElovaireJankMonitor private constructor(
     }
 
     private fun logAndReset(reason: String) {
+        if (totalFrames > 0) {
+            ElovairePerformance.recordJankWindow(
+                JankWindowSnapshot(
+                    reason = reason,
+                    screen = currentStates["screen"],
+                    interaction = currentStates["interaction"],
+                    playbackState = currentStates["playback_state"],
+                    libraryWork = currentStates["library_work"],
+                    frameCount = totalFrames,
+                    jankCount = jankyFrames,
+                    worstFrameMs = worstFrameDurationMs,
+                ),
+            )
+        }
         if (BuildConfig.DEBUG && totalFrames > 0 && jankyFrames > 0) {
             Log.d(
                 TAG,
@@ -64,6 +80,7 @@ internal class ElovaireJankMonitor private constructor(
         jankyFrames = 0
         worstFrameDurationMs = 0L
         lastJankState = ""
+        currentStates = emptyMap()
     }
 
     companion object {

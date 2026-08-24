@@ -2,6 +2,17 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import java.io.IOException
 
+internal sealed interface NetworkListingResult {
+    val entries: List<NetworkFileEntry>
+
+    data class Complete(override val entries: List<NetworkFileEntry>) : NetworkListingResult
+
+    data class Incomplete(
+        override val entries: List<NetworkFileEntry>,
+        val reason: String,
+    ) : NetworkListingResult
+}
+
 internal interface NetworkFileSystem {
     fun probeBlocking(
         source: NetworkLibrarySource,
@@ -13,7 +24,7 @@ internal interface NetworkFileSystem {
         credentials: NetworkCredentials,
         maxEntries: Int = 10_000,
         maxDepth: Int = 12,
-    ): List<NetworkFileEntry>
+    ): NetworkListingResult
 
     fun openBlocking(
         source: NetworkLibrarySource,
@@ -35,6 +46,11 @@ internal class NetworkFileSystemRegistry(
 ) {
     fun source(sourceId: String): NetworkLibrarySource? = sourceStore.sources.value.firstOrNull { it.id == sourceId }
 
+    fun sourceGeneration(sourceId: String): Long = sourceStore.generation(sourceId)
+
+    fun isCurrent(source: NetworkLibrarySource, generation: Long): Boolean =
+        sourceStore.isCurrent(source, generation)
+
     fun credentials(source: NetworkLibrarySource): NetworkCredentials? = credentialStore.get(source.credentialKey)
 
     fun probeBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkProbeResult {
@@ -42,7 +58,7 @@ internal class NetworkFileSystemRegistry(
             ?: NetworkProbeResult(NetworkAvailability.Misconfigured, "Protocol is unavailable")
     }
 
-    fun listBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): List<NetworkFileEntry> {
+    fun listBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkListingResult {
         return fileSystems[source.protocol]?.listBlocking(source, credentials)
             ?: throw IOException("Network protocol is unavailable")
     }
