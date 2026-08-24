@@ -32,6 +32,7 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
                 ?.get(2)
                 ?.trim()
                 ?.toLongOrNull()
+                ?.takeIf { it in -MAX_LRC_OFFSET_MS..MAX_LRC_OFFSET_MS }
         }
         .lastOrNull()
         ?: 0L
@@ -57,10 +58,9 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
         if (text.isBlank()) return@forEach
 
         matches.forEach { match ->
-            timed += LyricsLine(
-                text = text,
-                startTimeMs = match.toTimeMs().plus(offsetMs).coerceAtLeast(0L),
-            )
+            match.toTimeMs(offsetMs)?.let { startTimeMs ->
+                timed += LyricsLine(text = text, startTimeMs = startTimeMs)
+            }
         }
     }
 
@@ -77,10 +77,23 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
     }
 
     val sorted = timed.sortedBy { it.startTimeMs ?: Long.MAX_VALUE }
+    val nextDistinctStarts = arrayOfNulls<Long>(sorted.size)
+    var nextDistinctStart: Long? = null
+    var currentGroupStart: Long? = null
+    var currentGroupNext: Long? = null
+    for (index in sorted.indices.reversed()) {
+        val start = sorted[index].startTimeMs
+        if (start != currentGroupStart) {
+            currentGroupNext = nextDistinctStart
+            nextDistinctStart = start
+            currentGroupStart = start
+        }
+        nextDistinctStarts[index] = currentGroupNext
+    }
     val indexed = sorted.mapIndexed { index, line ->
         line.copy(
             index = index,
-            endTimeMs = sorted.nextDistinctStartTimeAfter(index)?.minus(1L),
+            endTimeMs = nextDistinctStarts[index]?.let { it - 1L },
         )
     }
 
@@ -180,9 +193,10 @@ internal fun decodeBestEffortText(bytes: ByteArray): String {
     }
 }
 
-private fun MatchResult.toTimeMs(): Long {
+private fun MatchResult.toTimeMs(offsetMs: Long): Long? {
     val min = groupValues[1].toLong()
     val sec = groupValues[2].toLong()
+    if (sec !in 0L..59L) return null
     val frac = groupValues.getOrNull(3).orEmpty()
     val ms = when (frac.length) {
         0 -> 0L
@@ -190,15 +204,15 @@ private fun MatchResult.toTimeMs(): Long {
         2 -> frac.toLong() * 10L
         else -> frac.take(3).toLong()
     }
-    return min * 60_000L + sec * 1_000L + ms
-}
-
-private fun List<LyricsLine>.nextDistinctStartTimeAfter(index: Int): Long? {
-    val currentStart = getOrNull(index)?.startTimeMs ?: return null
-    return asSequence()
-        .drop(index + 1)
-        .mapNotNull(LyricsLine::startTimeMs)
-        .firstOrNull { it > currentStart }
+    val baseMs = min * 60_000L + sec * 1_000L + ms
+    val adjusted = if (offsetMs >= 0L && baseMs > Long.MAX_VALUE - offsetMs) {
+        Long.MAX_VALUE
+    } else if (offsetMs < 0L && baseMs < Long.MIN_VALUE - offsetMs) {
+        Long.MIN_VALUE
+    } else {
+        baseMs + offsetMs
+    }
+    return adjusted.coerceAtLeast(0L)
 }
 
 private fun ByteArray.startsWith(other: ByteArray): Boolean {
@@ -225,3 +239,4 @@ internal const val MAX_LYRICS_CHARACTERS = 512 * 1024
 internal const val MAX_LYRICS_LINES = 20_000
 private const val MAX_LYRIC_LINE_CHARACTERS = 16 * 1024
 private const val MAX_TIMESTAMPS_PER_LINE = 64
+private const val MAX_LRC_OFFSET_MS = 24L * 60L * 60L * 1_000L

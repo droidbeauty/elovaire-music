@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
+import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import java.text.Normalizer
 import java.util.Locale
 
@@ -28,7 +29,7 @@ internal fun Song.toLyricsIdentity(): LyricsIdentity {
         artist = artist,
         album = album,
         durationMs = durationMs,
-        mediaId = id.takeIf { it > 0L }?.toString(),
+        mediaId = id.takeIf(::isValidMediaId)?.toString(),
         contentUri = uri.toString().takeIf { it.isNotBlank() },
         normalizedTitle = normalizedTitle,
         normalizedArtist = normalizedArtist,

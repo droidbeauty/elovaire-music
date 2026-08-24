@@ -6,8 +6,9 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.7.6">
-        <item>Minor UI tweaks</item>
-        <item>General performance and stability improvements</item>
+    <release version="2.7.7">
+        <item>Technical upgrades to the NAS support framework</item>
+        <item>Performance and stability improvements</item>
+        <item>General bug fixes</item>
     </release>
 </changelog>

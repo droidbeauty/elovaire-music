@@ -71,6 +71,20 @@ class LrcParserTest {
     }
 
     @Test
+    fun duplicateTimestampRunsRemainBoundedAtLargeInput() {
+        val raw = buildString {
+            repeat(19_999) { append("[00:10.00]Echo\n") }
+            append("[00:12.00]Final")
+        }
+
+        val payload = requireNotNull(parseLrcOrPlain(raw))
+
+        assertEquals(20_000, payload.lines.size)
+        assertEquals(11_999L, payload.lines.first().endTimeMs)
+        assertNull(payload.lines.last().endTimeMs)
+    }
+
+    @Test
     fun embeddedTextKeepsSyncedSourceInsteadOfFlatteningTiming() {
         val raw = "[00:01.00]First line\r\n[00:02.00]Second line\n\n\n"
         val payload = requireNotNull(
@@ -113,5 +127,28 @@ class LrcParserTest {
     fun rejectsTimestampFanOutBeyondPerLineLimit() {
         val timestamps = (0..64).joinToString("") { "[00:01.00]" }
         assertNull(parseLrcOrPlain("${timestamps}line"))
+    }
+
+    @Test
+    fun validatesPayloadTimingWithoutOverflowingGraceWindow() {
+        val payload = LyricsPayload(
+            lines = listOf(
+                LyricsLine(
+                    text = "Line",
+                    startTimeMs = Long.MAX_VALUE - 10L,
+                    endTimeMs = Long.MAX_VALUE - 1L,
+                ),
+            ),
+            isSynced = true,
+        )
+
+        assertEquals(payload, payload.validatedForPlayback())
+        assertEquals(
+            0,
+            payload.currentLineIndexAtFast(Long.MAX_VALUE, switchGraceMs = 0L),
+        )
+        assertNull(
+            payload.copy(displayTimingOffsetMs = Long.MAX_VALUE).validatedForPlayback(),
+        )
     }
 }

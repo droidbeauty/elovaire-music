@@ -32,4 +32,40 @@ class PlaybackSleepTimerTest {
         assertTrue(!pauseAtEndOfSong)
         testScheduler.advanceUntilIdle()
     }
+
+    @Test
+    fun endOfSongOnlyFiresForTheTargetSong() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var fired = 0
+        val controller = PlaybackSleepTimerController(
+            scope = CoroutineScope(dispatcher),
+            elapsedRealtimeMs = { 0L },
+            onTimerFired = { fired += 1 },
+            setPauseAtEndOfMediaItems = {},
+        )
+
+        controller.setTimer(SleepTimerOption.EndOfSong, currentSongId = 7L)
+        controller.onEndOfSongReached(currentSongId = 8L)
+        assertEquals(0, fired)
+        controller.onEndOfSongReached(currentSongId = 7L)
+        assertEquals(1, fired)
+    }
+
+    @Test
+    fun replacingTimerInvalidatesLateCompletion() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var fired = 0
+        val controller = PlaybackSleepTimerController(
+            scope = CoroutineScope(dispatcher),
+            elapsedRealtimeMs = { 0L },
+            onTimerFired = { fired += 1 },
+            setPauseAtEndOfMediaItems = {},
+        )
+
+        controller.setTimer(SleepTimerOption.TenMinutes, currentSongId = 1L)
+        controller.setTimer(SleepTimerOption.TwentyMinutes, currentSongId = 1L)
+        testScheduler.advanceTimeBy(SleepTimerOption.TenMinutes.durationMs ?: 0L)
+        testScheduler.runCurrent()
+        assertEquals(0, fired)
+    }
 }

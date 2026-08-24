@@ -308,11 +308,24 @@ internal class LocalLyricsResolver(
             .filter { !it.text.isBlank() && it.startTimeMs != null }
             .sortedBy { it.startTimeMs }
         if (validLines.isEmpty()) return null
+        val nextDistinctStarts = arrayOfNulls<Long>(validLines.size)
+        var nextDistinctStart: Long? = null
+        var currentStart: Long? = null
+        var currentGroupNext: Long? = null
+        for (index in validLines.indices.reversed()) {
+            val start = validLines[index].startTimeMs
+            if (start != currentStart) {
+                currentGroupNext = nextDistinctStart
+                nextDistinctStart = start
+                currentStart = start
+            }
+            nextDistinctStarts[index] = currentGroupNext
+        }
         return LyricsPayload(
             lines = validLines.mapIndexed { index, line ->
                 line.copy(
                     index = index,
-                    endTimeMs = validLines.getOrNull(index + 1)?.startTimeMs,
+                    endTimeMs = nextDistinctStarts[index],
                 )
             },
             isSynced = true,

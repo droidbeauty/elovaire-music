@@ -307,10 +307,11 @@ class PlaybackManager(
     private val playbackProgressTicker = PlaybackProgressTicker(
         scope = scope,
         intervalMs = progressDemandController::pollingIntervalMs,
-    ) {
-        publishProgressSnapshot()
-        shouldPollProgress()
-    }
+        onTick = {
+            publishProgressSnapshot()
+            shouldPollProgress()
+        },
+    )
     private val queueMetadataRefresher = PlaybackQueueMetadataRefresher()
     private val stateReducer = PlaybackStateReducer(
         playerProvider = { player },
@@ -369,7 +370,7 @@ class PlaybackManager(
         ) {
             if (released.get()) return
             if (!playWhenReady && sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
-                sleepTimerController.onEndOfSongReached()
+                sleepTimerController.onEndOfSongReached(currentSong()?.id)
             } else {
                 scheduleStatePublish()
             }
@@ -388,7 +389,7 @@ class PlaybackManager(
         override fun onPlaybackStateChanged(playbackState: Int) {
             if (released.get()) return
             if (sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
-                sleepTimerController.onEndOfSongReached()
+                sleepTimerController.onEndOfSongReached(currentSong()?.id)
             } else if (
                 playbackState == Player.STATE_ENDED &&
                 player.repeatMode == Player.REPEAT_MODE_OFF &&

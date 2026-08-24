@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Transaction
 import androidx.room.Upsert
+import elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations
 
 @Dao
 @Suppress("TooManyFunctions")
@@ -379,9 +380,7 @@ internal interface UserDataDao {
      */
     @Transaction
     suspend fun relocateSongReferences(replacements: Map<Long, Long>) {
-        val normalized = replacements.filter { (before, after) ->
-            before > 0L && after > 0L && before != after
-        }
+        val normalized = canonicalizeMediaIdRelocations(replacements).orEmpty()
         if (normalized.isEmpty()) return
 
         fun resolve(id: Long): Long {

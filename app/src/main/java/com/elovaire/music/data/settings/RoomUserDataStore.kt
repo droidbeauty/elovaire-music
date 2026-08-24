@@ -19,6 +19,7 @@ import elovaire.music.droidbeauty.app.data.library.db.UserDataMigrationEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntryEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserSmartPlaylistEntity
+import elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playlists.addSongsToPlaylistEntries
 import elovaire.music.droidbeauty.app.data.playlists.createPlaylistEntries
@@ -334,40 +335,46 @@ internal class RoomUserDataStore(
         PlaylistMutationResult.Success(changed = true)
     }
 
-    override fun toggleFavoriteSong(songId: Long) {
-        if (songId == 0L) return
-        enqueue("favorite.toggle") {
+    override fun toggleFavoriteSong(songId: Long): Deferred<PlaylistMutationResult> {
+        if (songId == 0L) return CompletableDeferred(PlaylistMutationResult.InvalidInput)
+        return enqueueMutation("favorite.toggle") {
             if (songId in _favoriteSongIds.value) {
                 dao.removeFavorites(setOf(songId))
                 publishFavorites(_favoriteSongIds.value.filterNot { it == songId })
+                PlaylistMutationResult.Success(changed = true)
             } else {
                 val position = dao.lastFavoritePosition() + 1
                 if (dao.insertFavorite(FavoriteSongEntity(songId, position)) != -1L) {
                     publishFavorites(_favoriteSongIds.value + songId)
+                    PlaylistMutationResult.Success(changed = true)
+                } else {
+                    PlaylistMutationResult.Success(changed = false)
                 }
             }
         }
     }
 
-    override fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean) {
+    override fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean): Deferred<PlaylistMutationResult> {
         val normalized = normalizeFavoriteSongIds(songIds)
-        if (normalized.isEmpty()) return
-        enqueue("favorite.set") {
+        if (normalized.isEmpty()) return CompletableDeferred(PlaylistMutationResult.InvalidInput)
+        return enqueueMutation("favorite.set") {
             if (favorite) {
                 val current = _favoriteSongIds.value.toMutableList()
                 val currentIds = current.toHashSet()
                 val additions = normalized.filterNot(currentIds::contains)
-                if (additions.isEmpty()) return@enqueue
+                if (additions.isEmpty()) return@enqueueMutation PlaylistMutationResult.Success(changed = false)
                 val firstPosition = dao.lastFavoritePosition() + 1
                 dao.insertFavorites(additions.mapIndexed { index, songId ->
                     FavoriteSongEntity(songId, firstPosition + index)
                 })
                 current += additions
                 publishFavorites(current)
+                PlaylistMutationResult.Success(changed = true)
             } else {
                 val ids = normalized.toSet()
                 dao.removeFavorites(ids)
                 publishFavorites(_favoriteSongIds.value.filterNot(ids::contains))
+                PlaylistMutationResult.Success(changed = true)
             }
         }
     }
@@ -387,9 +394,8 @@ internal class RoomUserDataStore(
     /** Re-keys persisted media references after library reconciliation proves a relocation. */
     fun relocateSongReferences(replacements: Map<Long, Long>): Deferred<PlaylistMutationResult> =
         enqueueMutation("library.relocate_song_references") {
-            val normalized = replacements.filter { (before, after) ->
-                before > 0L && after > 0L && before != after
-            }
+            val normalized = canonicalizeMediaIdRelocations(replacements)
+                ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
             if (normalized.isEmpty()) return@enqueueMutation PlaylistMutationResult.InvalidInput
 
             dao.relocateSongReferences(normalized)

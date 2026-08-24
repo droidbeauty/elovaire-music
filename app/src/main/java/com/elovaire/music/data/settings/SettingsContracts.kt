@@ -116,8 +116,8 @@ internal sealed interface PlaylistMutationResult {
 }
 
 internal interface FavoritesStore {
-    fun toggleFavoriteSong(songId: Long)
-    fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean)
+    fun toggleFavoriteSong(songId: Long): Deferred<PlaylistMutationResult>
+    fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean): Deferred<PlaylistMutationResult>
 }
 
 internal interface PlaybackHistoryStore {

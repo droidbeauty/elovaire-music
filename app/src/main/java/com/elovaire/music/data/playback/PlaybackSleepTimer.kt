@@ -49,6 +49,7 @@ internal class PlaybackSleepTimerController(
     private val _state = MutableStateFlow(PlaybackSleepTimerState())
     val state: StateFlow<PlaybackSleepTimerState> = _state.asStateFlow()
     private var timerJob: Job? = null
+    private var timerGeneration = 0L
 
     fun setTimer(
         option: SleepTimerOption,
@@ -56,6 +57,7 @@ internal class PlaybackSleepTimerController(
     ) {
         timerJob?.cancel()
         timerJob = null
+        val generation = ++timerGeneration
         when (option) {
             SleepTimerOption.Off -> clear()
             SleepTimerOption.EndOfSong -> {
@@ -75,7 +77,7 @@ internal class PlaybackSleepTimerController(
                 )
                 timerJob = scope.launch {
                     delay(durationMs)
-                    fire()
+                    fire(generation)
                 }
             }
         }
@@ -84,6 +86,7 @@ internal class PlaybackSleepTimerController(
     fun clear() {
         timerJob?.cancel()
         timerJob = null
+        timerGeneration++
         setPauseAtEndOfMediaItems(false)
         _state.value = PlaybackSleepTimerState()
     }
@@ -98,18 +101,22 @@ internal class PlaybackSleepTimerController(
         clear()
     }
 
-    fun onEndOfSongReached() {
-        if (_state.value.option != SleepTimerOption.EndOfSong) return
-        fire()
+    fun onEndOfSongReached(currentSongId: Long?) {
+        val current = _state.value
+        if (current.option != SleepTimerOption.EndOfSong) return
+        if (current.targetSongId != null && current.targetSongId != currentSongId) return
+        fire(timerGeneration)
     }
 
     fun release() {
         timerJob?.cancel()
         timerJob = null
+        timerGeneration++
         setPauseAtEndOfMediaItems(false)
     }
 
-    private fun fire() {
+    private fun fire(expectedGeneration: Long) {
+        if (expectedGeneration != timerGeneration) return
         timerJob?.cancel()
         timerJob = null
         setPauseAtEndOfMediaItems(false)

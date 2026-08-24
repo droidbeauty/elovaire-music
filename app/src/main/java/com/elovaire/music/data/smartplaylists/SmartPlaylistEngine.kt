@@ -2,7 +2,6 @@ package elovaire.music.droidbeauty.app.data.smartplaylists
 
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.Locale
-import kotlin.math.absoluteValue
 
 internal data class SmartPlaylistResult(
     val playlist: SmartPlaylist,
@@ -43,8 +42,7 @@ internal object SmartPlaylistEngine {
         context: ResolutionContext,
     ): Boolean {
         if (definition.source.builtInType == BuiltInSmartPlaylistType.RecentlyAdded) {
-            val addedMs = song.dateAddedSeconds * 1000L
-            if (addedMs > 0L && context.nowMs - addedMs > RecentlyAddedWindowMs) return false
+            if (!isWithinRecentlyAddedWindow(song.dateAddedSeconds, context.nowMs)) return false
         }
         if (definition.rules.isEmpty()) return true
         return when (definition.source.matchMode) {
@@ -186,5 +184,26 @@ private fun stableRandomKey(
     value = value xor (value ushr 33)
     value *= -4417276706812531889L
     value = value xor (value ushr 29)
-    return value.absoluteValue
+    return if (value == Long.MIN_VALUE) Long.MAX_VALUE else kotlin.math.abs(value)
+}
+
+private fun isWithinRecentlyAddedWindow(
+    dateAddedSeconds: Long,
+    nowMs: Long,
+): Boolean {
+    if (dateAddedSeconds <= 0L) return true
+    val addedMs = if (dateAddedSeconds > Long.MAX_VALUE / 1_000L) {
+        Long.MAX_VALUE
+    } else {
+        dateAddedSeconds * 1_000L
+    }
+    if (addedMs >= nowMs) {
+        return boundedTimeDistance(addedMs, nowMs) <= RecentlyAddedWindowMs
+    }
+    return boundedTimeDistance(nowMs, addedMs) <= RecentlyAddedWindowMs
+}
+
+private fun boundedTimeDistance(later: Long, earlier: Long): Long {
+    if (earlier < 0L && later > Long.MAX_VALUE + earlier) return Long.MAX_VALUE
+    return later - earlier
 }

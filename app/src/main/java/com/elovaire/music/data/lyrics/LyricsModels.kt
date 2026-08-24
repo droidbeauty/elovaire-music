@@ -71,7 +71,7 @@ data class LyricsPayload(
 
         if (result < 0) return null
         val endTimeMs = lines[result].endTimeMs
-        if (endTimeMs != null && correctedPositionMs > endTimeMs + 500L) return null
+        if (endTimeMs != null && correctedPositionMs > saturatingAdd(endTimeMs, 500L)) return null
         return result
     }
 
@@ -86,10 +86,51 @@ data class LyricsPayload(
         timingOffsetMs: Long,
         switchGraceMs: Long,
     ): Long {
-        val delayedPositionMs = positionMs - displayTimingOffsetMs - timingOffsetMs - switchGraceMs
+        val delayedPositionMs = saturatingSubtract(
+            saturatingSubtract(
+                saturatingSubtract(positionMs, displayTimingOffsetMs),
+                timingOffsetMs,
+            ),
+            switchGraceMs,
+        )
         if (timingScale == 1f) return delayedPositionMs
         return (delayedPositionMs / timingScale).toLong()
     }
+}
+
+internal fun LyricsPayload.validatedForPlayback(): LyricsPayload? {
+    if (!timingScale.isFinite() || timingScale <= 0f) return null
+    if (displayTimingOffsetMs !in -MAX_LYRICS_TIMING_OFFSET_MS..MAX_LYRICS_TIMING_OFFSET_MS) return null
+    if (sourceTextForEmbedding != null && sourceTextForEmbedding.length > MAX_LYRICS_CHARACTERS) return null
+    if (lines.size > MAX_LYRICS_LINES) return null
+    var previousStart: Long? = null
+    lines.forEach { line ->
+        if (line.text.length > MAX_LYRIC_LINE_CHARACTERS) return null
+        val start = line.startTimeMs
+        val end = line.endTimeMs
+        if (isSynced && start == null) return null
+        if (start != null) {
+            val previous = previousStart
+            if (start < 0L || (previous != null && start < previous)) return null
+            previousStart = start
+            if (end != null && end < start) return null
+        } else if (end != null) {
+            return null
+        }
+    }
+    return this
+}
+
+private fun saturatingAdd(value: Long, amount: Long): Long = when {
+    amount > 0L && value > Long.MAX_VALUE - amount -> Long.MAX_VALUE
+    amount < 0L && value < Long.MIN_VALUE - amount -> Long.MIN_VALUE
+    else -> value + amount
+}
+
+private fun saturatingSubtract(value: Long, amount: Long): Long = when {
+    amount > 0L && value < Long.MIN_VALUE + amount -> Long.MIN_VALUE
+    amount < 0L && value > Long.MAX_VALUE + amount -> Long.MAX_VALUE
+    else -> value - amount
 }
 
 sealed interface LyricsResult {
@@ -113,6 +154,8 @@ internal data class LyricsCacheEntry(
 
 private const val MAX_LYRICS_CACHE_TTL_MS = 30L * 24L * 60L * 60L * 1_000L
 private const val MAX_NEGATIVE_LYRICS_CACHE_TTL_MS = 24L * 60L * 60L * 1_000L
+internal const val MAX_LYRICS_TIMING_OFFSET_MS = 24L * 60L * 60L * 1_000L
+private const val MAX_LYRIC_LINE_CHARACTERS = 16 * 1024
 
 internal data class LocalLyricsMatch(
     val payload: LyricsPayload,

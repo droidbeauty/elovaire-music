@@ -193,6 +193,7 @@ abstract class ReleaseManifestCheckTask : DefaultTask() {
             "android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK",
             "android.permission.REQUEST_INSTALL_PACKAGES",
             "android.permission.READ_MEDIA_AUDIO",
+            "android.permission.ACCESS_LOCAL_NETWORK",
             "android.permission.READ_EXTERNAL_STORAGE",
             "android.permission.WAKE_LOCK",
             "android.permission.RECEIVE_BOOT_COMPLETED",

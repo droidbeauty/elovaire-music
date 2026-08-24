@@ -7,10 +7,10 @@ import org.junit.Test
 class PlaybackSessionStoreTest {
     @Test
     fun normalizationUsesCurrentSongIdentityAndDropsInvalidIds() {
-        val normalized = normalizePersistedPlaybackSession(session(queueSongIds = listOf(-1L, 2L, 3L, 2L), currentSongId = 3L))
+        val normalized = normalizePersistedPlaybackSession(session(queueSongIds = listOf(0L, -1L, 2L, 3L, 2L), currentSongId = 3L))
 
-        assertEquals(listOf(2L, 3L, 2L), normalized.queueSongIds)
-        assertEquals(1, normalized.currentIndex)
+        assertEquals(listOf(-1L, 2L, 3L, 2L), normalized.queueSongIds)
+        assertEquals(2, normalized.currentIndex)
         assertEquals(3L, normalized.currentSongId)
     }
 

@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.artist
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.decodeArtworkBytes
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
@@ -17,10 +18,12 @@ import java.security.MessageDigest
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.launch
 
 sealed interface ArtistBackdropState {
     data object Loading : ArtistBackdropState
@@ -36,6 +39,7 @@ sealed interface ArtistBackdropState {
 
 internal class ArtistImageRepository(
     private val client: ArtistImageClient = YouTubeMusicArtistImageClient(),
+    private val scope: CoroutineScope,
     private val appContext: Context? = null,
     private val clock: AppClock = AndroidAppClock,
 ) {
@@ -54,6 +58,10 @@ internal class ArtistImageRepository(
     private val cacheLock = Any()
     private val remoteArtworkCache = LinkedHashMap<String, CachedImage>(CACHE_CAPACITY, 0.75f, true)
     private val inFlight = LinkedHashMap<String, CompletableDeferred<Uri?>>()
+    private val artworkTransport = BoundedHttpTransport(
+        connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
+        readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
+    )
 
     fun imageState(
         artistName: String,
@@ -105,6 +113,13 @@ internal class ArtistImageRepository(
         }
     }
 
+    fun release() {
+        synchronized(cacheLock) {
+            inFlight.values.forEach { it.cancel() }
+            inFlight.clear()
+        }
+    }
+
     private suspend fun resolveRemoteArtwork(artistName: String, artistKey: String): Uri? {
         if (artistKey.isBlank() || artistKey == UNKNOWN_ARTIST_KEY) return null
         val claim = synchronized(cacheLock) {
@@ -131,18 +146,31 @@ internal class ArtistImageRepository(
             is ResolutionClaim.Cached -> return claim.uri
             is ResolutionClaim.Await -> return claim.deferred.await()
             ResolutionClaim.Saturated -> return null
-            is ResolutionClaim.Owner -> claim.deferred
+            is ResolutionClaim.Owner -> claim.deferred.also { ownerDeferred ->
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        resolveOwnedRemoteArtwork(artistName, artistKey, ownerDeferred)
+                    } catch (failure: IllegalArgumentException) {
+                        Log.w(TAG, "Artist artwork request rejected", failure)
+                    } catch (failure: IllegalStateException) {
+                        Log.w(TAG, "Artist artwork request failed", failure)
+                    }
+                }
+            }
         }
+        return deferred.await()
+    }
+
+    private suspend fun resolveOwnedRemoteArtwork(
+        artistName: String,
+        artistKey: String,
+        deferred: CompletableDeferred<Uri?>,
+    ) {
         cachedArtworkFile(artistKey)?.let { file ->
-            val cachedUri = Uri.fromFile(file)
-            return completeRemoteArtwork(
-                artistKey,
-                deferred,
-                cachedUri,
-                cacheResult = true,
-            )
+            completeRemoteArtwork(artistKey, deferred, Uri.fromFile(file), cacheResult = true)
+            return
         }
-        return try {
+        try {
             when (val lookup = client.findArtistImage(artistName)) {
                 is ArtistImageLookup.Found -> {
                     val uri = lookup.uri
@@ -242,10 +270,7 @@ internal class ArtistImageRepository(
         if (uri.scheme != "https") return null
         val context = appContext ?: return null
         val response = runCatching {
-            BoundedHttpTransport(
-                connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
-                readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
-            ).getBlocking(
+            artworkTransport.getBlocking(
                 rawUrl = uri.toString(),
                 headers = mapOf("Accept" to "image/*"),
                 maxBytes = MAX_REMOTE_ARTWORK_BYTES,
@@ -309,6 +334,7 @@ internal class ArtistImageRepository(
     }
 
     private companion object {
+        const val TAG = "ArtistImageRepository"
         const val UNKNOWN_ARTIST_KEY = "unknown artist"
         const val ARTIST_IMAGE_CACHE_DIRECTORY = "artist-images"
         const val MAX_REMOTE_ARTWORK_BYTES = 2 * 1024 * 1024

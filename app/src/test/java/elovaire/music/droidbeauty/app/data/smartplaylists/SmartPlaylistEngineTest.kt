@@ -84,6 +84,39 @@ class SmartPlaylistEngineTest {
         assertEquals(listOf(playlist), deserializeSmartPlaylists(serialized))
     }
 
+    @Test
+    fun malformedMatchModeIsRejectedInsteadOfBecomingMatchAll() {
+        val playlist = SmartPlaylist(
+            id = 12L,
+            name = "Corrupt",
+            matchMode = SmartPlaylistMatchMode.Any,
+            createdAtMs = 10L,
+            updatedAtMs = 20L,
+        )
+        val serialized = serializeSmartPlaylists(listOf(playlist)).replace("Any", "UnknownMode")
+
+        assertEquals(emptyList<SmartPlaylist>(), deserializeSmartPlaylists(serialized))
+    }
+
+    @Test
+    fun recentlyAddedRejectsOverflowingOrWildlyFutureTimestamps() {
+        val playlist = SmartPlaylistDefaults.builtIns()
+            .first { it.builtInType == BuiltInSmartPlaylistType.RecentlyAdded }
+        val nowMs = 1_000_000L
+        val result = engine.resolve(
+            definition = playlist,
+            songs = listOf(
+                song(1L, "Valid").copy(dateAddedSeconds = (nowMs / 1_000L) - 1L),
+                song(2L, "Future").copy(dateAddedSeconds = Long.MAX_VALUE),
+            ),
+            favoriteSongIds = emptySet(),
+            playCounts = emptyMap(),
+            nowMs = nowMs,
+        )
+
+        assertEquals(listOf(1L), result.songs.map(Song::id))
+    }
+
     private fun song(
         id: Long,
         title: String,

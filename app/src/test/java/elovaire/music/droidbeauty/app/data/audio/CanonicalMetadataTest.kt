@@ -41,7 +41,7 @@ class CanonicalMetadataTest {
     }
 
     @Test
-    fun replayGainFieldsResolveIndependentlyAcrossSources() {
+    fun replayGainFieldsRemainFromOneSource() {
         val result = CanonicalMetadataResolver.resolve(
             embedded = MetadataSourceValues(
                 volumeNormalization = VolumeNormalizationMetadata(trackPeak = 0.98f),
@@ -55,15 +55,7 @@ class CanonicalMetadataTest {
             ),
         )
 
-        assertEquals(
-            VolumeNormalizationMetadata(
-                trackGainDb = -7.5f,
-                albumGainDb = -6.0f,
-                trackPeak = 0.98f,
-                albumPeak = 0.91f,
-            ),
-            result.volumeNormalization,
-        )
+        assertEquals(VolumeNormalizationMetadata(trackPeak = 0.98f), result.volumeNormalization)
     }
 
     @Test
@@ -74,5 +66,15 @@ class CanonicalMetadataTest {
         )
 
         assertEquals("東京 🎵", result.title)
+    }
+
+    @Test
+    fun oversizedTextFallsThroughToTheNextMetadataSource() {
+        val result = CanonicalMetadataResolver.resolve(
+            embedded = MetadataSourceValues(title = "x".repeat(4_097)),
+            platform = MetadataSourceValues(title = "Platform title"),
+        )
+
+        assertEquals("Platform title", result.title)
     }
 }

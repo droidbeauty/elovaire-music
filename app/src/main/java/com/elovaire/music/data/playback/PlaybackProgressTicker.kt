@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.playback
 
+import android.os.SystemClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -11,6 +12,7 @@ internal class PlaybackProgressTicker(
     private val scope: CoroutineScope,
     private val intervalMs: () -> Long,
     private val onTick: () -> Boolean,
+    private val elapsedTimeMs: () -> Long = { SystemClock.elapsedRealtime() },
 ) {
     private var job: Job? = null
 
@@ -19,10 +21,18 @@ internal class PlaybackProgressTicker(
         job = scope.launch {
             val runningJob = currentCoroutineContext()[Job]
             try {
+                var nextDeadlineMs = elapsedTimeMs()
                 while (isActive) {
                     val shouldContinue = onTick()
                     if (!shouldContinue) break
-                    delay(intervalMs().coerceAtLeast(MIN_INTERVAL_MS))
+                    val interval = intervalMs().coerceAtLeast(MIN_INTERVAL_MS)
+                    nextDeadlineMs += interval
+                    val nowMs = elapsedTimeMs()
+                    if (nextDeadlineMs <= nowMs) {
+                        nextDeadlineMs = nowMs + interval
+                    } else {
+                        delay(nextDeadlineMs - nowMs)
+                    }
                 }
             } finally {
                 if (job === runningJob) {

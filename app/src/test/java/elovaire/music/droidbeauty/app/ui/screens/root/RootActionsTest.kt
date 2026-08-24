@@ -96,11 +96,11 @@ private class FakeFavoritesStore : FavoritesStore {
     var toggledSongId: Long? = null
     var favoriteBatch: Pair<List<Long>, Boolean>? = null
 
-    override fun toggleFavoriteSong(songId: Long) {
+    override fun toggleFavoriteSong(songId: Long) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success()) .also {
         toggledSongId = songId
     }
 
-    override fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean) {
+    override fun setFavoriteSongs(songIds: List<Long>, favorite: Boolean) = CompletableDeferred<PlaylistMutationResult>(PlaylistMutationResult.Success()).also {
         favoriteBatch = songIds to favorite
     }
 }

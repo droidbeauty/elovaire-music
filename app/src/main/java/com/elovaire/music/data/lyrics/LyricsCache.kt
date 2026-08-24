@@ -106,7 +106,8 @@ internal class LyricsCache(
                 val result = when (entryJson.optString("result")) {
                     RESULT_FOUND -> {
                         val payloadJson = entryJson.optJSONObject("payload") ?: return@repeat
-                        LyricsResult.Found(payloadJson.toLyricsPayload())
+                        val payload = payloadJson.toLyricsPayload()?.validatedForPlayback() ?: return@repeat
+                        LyricsResult.Found(payload)
                     }
                     RESULT_NOT_FOUND -> LyricsResult.NotFound
                     RESULT_TIMEOUT -> LyricsResult.Timeout
@@ -200,7 +201,7 @@ internal class LyricsCache(
         }
     }
 
-    private fun JSONObject.toLyricsPayload(): LyricsPayload {
+    private fun JSONObject.toLyricsPayload(): LyricsPayload? {
         val linesArray = optJSONArray("lines") ?: JSONArray()
         val lines = buildList {
             repeat(linesArray.length()) { index ->

@@ -68,4 +68,34 @@ class PlaybackHistoryWriteBufferTest {
         assertTrue(buffer.setRecent(pending))
         assertEquals(pending, buffer.takeRecent())
     }
+
+    @Test
+    fun relocationMergesConvergingPendingCountsWithoutDoubleCounting() {
+        val buffer = PlaybackHistoryWriteBuffer()
+        buffer.addTransition(songId = 1L, albumId = null)
+        buffer.addTransition(songId = 1L, albumId = null)
+        buffer.addTransition(songId = 2L, albumId = null)
+        buffer.addTransition(songId = 2L, albumId = null)
+        buffer.addTransition(songId = 2L, albumId = null)
+
+        buffer.relocateSongIds(mapOf(1L to 3L, 2L to 3L))
+
+        assertEquals(
+            PlaybackCountBatch(songCounts = mapOf(3L to 3), albumCounts = emptyMap()),
+            buffer.takeTransitions(),
+        )
+    }
+
+    @Test
+    fun malformedRelocationCyclesAreRejectedBeforeMutation() {
+        assertEquals(null, elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations(
+            mapOf(-1L to -2L, -2L to -1L),
+        ))
+        assertEquals(
+            mapOf(-1L to -3L, -2L to -3L),
+            elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocations(
+                mapOf(-1L to -2L, -2L to -3L),
+            ),
+        )
+    }
 }

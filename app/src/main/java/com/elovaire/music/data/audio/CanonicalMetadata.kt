@@ -54,6 +54,7 @@ internal object CanonicalMetadataResolver {
 
     private fun String?.canonicalText(): String? {
         val normalized = this
+            ?.takeIf { it.length <= MAX_CANONICAL_METADATA_TEXT_CHARS }
             ?.let { Normalizer.normalize(it, Normalizer.Form.NFC) }
             ?.filterNot(::isIgnorableTextCharacter)
             ?.trim()
@@ -73,15 +74,9 @@ internal object CanonicalMetadataResolver {
         ?.takeIf { it > 0 }
 
     private fun List<MetadataSourceValues>.resolveVolumeNormalization(): VolumeNormalizationMetadata? {
-        val resolved = VolumeNormalizationMetadata(
-            trackGainDb = mapNotNull { it.volumeNormalization?.trackGainDb }.firstOrNull(),
-            albumGainDb = mapNotNull { it.volumeNormalization?.albumGainDb }.firstOrNull(),
-            trackPeak = mapNotNull { it.volumeNormalization?.trackPeak }.firstOrNull(),
-            albumPeak = mapNotNull { it.volumeNormalization?.albumPeak }.firstOrNull(),
-        )
-        return resolved.takeIf {
-            it.hasUsableGain || it.trackPeak != null || it.albumPeak != null
-        }
+        // Gain and peak values describe one mastering record. Do not combine fields
+        // from different sources: a stale peak could otherwise constrain a newer gain.
+        return firstNotNullOfOrNull { values -> values.volumeNormalization }
     }
 
     private fun isValidYear(year: Int): Boolean = year in 1..9_999
@@ -100,6 +95,8 @@ internal object CanonicalMetadataResolver {
     private fun isIgnorableTextCharacter(character: Char): Boolean = character in ignorableTextCharacters
 
     private fun isCombiningMark(character: Char): Boolean = Character.getType(character) in combiningMarkTypes
+
+    private const val MAX_CANONICAL_METADATA_TEXT_CHARS = 4_096
 }
 
 internal fun EmbeddedTagMetadata.toMetadataSourceValues(): MetadataSourceValues {

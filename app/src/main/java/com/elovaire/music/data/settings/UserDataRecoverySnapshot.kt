@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
+import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
 import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
 import elovaire.music.droidbeauty.app.data.smartplaylists.deserializeSmartPlaylists
@@ -176,7 +177,7 @@ private fun parseIds(value: String): List<Long> {
     return value.split(',')
         .asSequence()
         .mapNotNull(String::toLongOrNull)
-        .filter { it > 0L }
+        .filter(::isValidMediaId)
         .take(MAX_RECOVERY_ID_COUNT)
         .toList()
 }

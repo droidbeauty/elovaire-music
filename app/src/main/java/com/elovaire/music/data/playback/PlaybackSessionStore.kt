@@ -4,6 +4,7 @@ import android.content.Context
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 
 internal data class PersistedPlaybackSession(
     val queueSongIds: List<Long>,
@@ -64,7 +65,7 @@ internal class PlaybackSessionStore(
             ?.split(',')
             ?.asSequence()
             ?.mapNotNull(String::toLongOrNull)
-            ?.filter { it > 0L }
+            ?.filter(::isValidMediaId)
             ?.take(MAX_QUEUE_SIZE)
             ?.toList()
             .orEmpty()
@@ -75,7 +76,7 @@ internal class PlaybackSessionStore(
         return normalizePersistedPlaybackSession(
             PersistedPlaybackSession(
                 queueSongIds = ids,
-                currentSongId = recovery.getLong(KEY_CURRENT_SONG_ID, -1L).takeIf { it > 0L },
+                currentSongId = recovery.getLong(KEY_CURRENT_SONG_ID, 0L).takeIf(::isValidMediaId),
                 currentIndex = recovery.getInt(KEY_CURRENT_INDEX, -1),
                 positionMs = recovery.getLong(KEY_POSITION_MS, 0L),
                 repeatMode = structure.getString(KEY_REPEAT_MODE, null)
@@ -213,7 +214,7 @@ private fun PersistedPlaybackSession.structure() = PlaybackSessionStructure(
 )
 
 internal fun normalizePersistedPlaybackSession(session: PersistedPlaybackSession): PersistedPlaybackSession {
-    val ids = session.queueSongIds.asSequence().filter { it > 0L }.take(10_000).toList()
+    val ids = session.queueSongIds.asSequence().filter(::isValidMediaId).take(10_000).toList()
     if (ids.isEmpty()) return session.copy(queueSongIds = emptyList(), currentSongId = null, currentIndex = -1, positionMs = 0L)
     val resolvedIndex = session.currentIndex
         .takeIf { it in ids.indices && ids[it] == session.currentSongId }

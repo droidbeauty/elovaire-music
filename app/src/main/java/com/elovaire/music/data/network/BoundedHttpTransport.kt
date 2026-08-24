@@ -15,6 +15,12 @@ internal class BoundedHttpTransport(
     private val readTimeoutMs: Int = DEFAULT_READ_TIMEOUT_MS,
     private val maxRedirects: Int = DEFAULT_MAX_REDIRECTS,
 ) {
+    init {
+        require(connectTimeoutMs > 0) { "connectTimeoutMs must be positive" }
+        require(readTimeoutMs > 0) { "readTimeoutMs must be positive" }
+        require(maxRedirects in 0..MAX_REDIRECTS) { "maxRedirects is out of bounds" }
+    }
+
     suspend fun get(
         rawUrl: String,
         headers: Map<String, String> = emptyMap(),
@@ -166,6 +172,7 @@ internal class BoundedHttpTransport(
         const val DEFAULT_CONNECT_TIMEOUT_MS = 8_000
         const val DEFAULT_READ_TIMEOUT_MS = 10_000
         const val DEFAULT_MAX_REDIRECTS = 3
+        const val MAX_REDIRECTS = 8
         const val MAX_RETRY_AFTER_SECONDS = 24L * 60L * 60L
         const val TRAFFIC_STATS_TAG = 0x454C4F56
     }

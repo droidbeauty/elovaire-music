@@ -225,22 +225,22 @@ class RoomUserDataStoreTest {
         file.delete()
         val recovery = UserDataRecoverySnapshot(context, FixedClock, fileName)
         val expected = UserDataSnapshot(
-            playlists = listOf(Playlist(41L, "Saved", listOf(11L, 22L))),
-            favoriteSongIds = listOf(11L, 22L),
-            songPlayCounts = mapOf(11L to 3),
-            albumPlayCounts = mapOf(7L to 4),
-            recentSongIds = listOf(22L, 11L),
-            recentAlbumIds = listOf(7L),
+            playlists = listOf(Playlist(41L, "Saved", listOf(11L, -22L))),
+            favoriteSongIds = listOf(11L, -22L),
+            songPlayCounts = mapOf(11L to 3, -22L to 2),
+            albumPlayCounts = mapOf(7L to 4, -70L to 1),
+            recentSongIds = listOf(-22L, 11L),
+            recentAlbumIds = listOf(-70L, 7L),
             lastPlayedCollectionKind = PlaybackCollectionKind.Album,
-            lastPlayedCollectionId = 7L,
+            lastPlayedCollectionId = -70L,
             searchHistory = listOf(
                 SearchHistoryEntry(
-                    key = "album:7",
+                    key = "album:-70",
                     kind = SearchHistoryKind.Album,
                     title = "Saved",
                     subtitle = "Artist",
-                    artUri = Uri.parse("content://art/7"),
-                    albumId = 7L,
+                    artUri = Uri.parse("content://art/-70"),
+                    albumId = -70L,
                     query = "saved",
                 ),
             ),

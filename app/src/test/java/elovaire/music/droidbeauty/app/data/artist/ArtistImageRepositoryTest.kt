@@ -5,7 +5,12 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.runBlocking
@@ -13,10 +18,19 @@ import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.After
 import org.junit.Test
 
 class ArtistImageRepositoryTest {
-    private val repository = ArtistImageRepository()
+    private val requestScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val repositories = mutableListOf<ArtistImageRepository>()
+    private val repository = newRepository()
+
+    @After
+    fun tearDown() {
+        repositories.forEach(ArtistImageRepository::release)
+        requestScope.cancel()
+    }
 
     @Test
     fun backdropUsesBestLocalAlbumArtwork() = runBlocking {
@@ -52,7 +66,7 @@ class ArtistImageRepositoryTest {
     fun successfulRemoteLookupIsCachedForNormalizedArtistKey() = runBlocking {
         val calls = AtomicInteger()
         val remoteUri = TestUri("https://example.test/artist.jpg")
-        val repository = ArtistImageRepository(
+        val repository = newRepository(
             ArtistImageClient {
                 calls.incrementAndGet()
                 ArtistImageLookup.Found(remoteUri)
@@ -71,7 +85,7 @@ class ArtistImageRepositoryTest {
     @Test
     fun transientRemoteFailureIsNotNegativeCached() = runBlocking {
         val calls = AtomicInteger()
-        val repository = ArtistImageRepository(
+        val repository = newRepository(
             ArtistImageClient {
                 calls.incrementAndGet()
                 ArtistImageLookup.Failed
@@ -90,7 +104,7 @@ class ArtistImageRepositoryTest {
         val requestStarted = CompletableDeferred<Unit>()
         val releaseRequest = CompletableDeferred<Unit>()
         val remoteUri = TestUri("https://example.test/artist.jpg")
-        val repository = ArtistImageRepository(
+        val repository = newRepository(
             ArtistImageClient {
                 calls.incrementAndGet()
                 requestStarted.complete(Unit)
@@ -110,10 +124,35 @@ class ArtistImageRepositoryTest {
     }
 
     @Test
+    fun cancelledOwnerDoesNotCancelSharedLookupForAnotherCaller() = runBlocking {
+        val calls = AtomicInteger()
+        val requestStarted = CompletableDeferred<Unit>()
+        val releaseRequest = CompletableDeferred<Unit>()
+        val remoteUri = TestUri("https://example.test/artist.jpg")
+        val repository = newRepository(
+            ArtistImageClient {
+                calls.incrementAndGet()
+                requestStarted.complete(Unit)
+                releaseRequest.await()
+                ArtistImageLookup.Found(remoteUri)
+            },
+        )
+
+        val first = async { repository.imageState("Artist", null).last() }
+        requestStarted.await()
+        first.cancelAndJoin()
+        val second = async { repository.imageState("artist", null).last() }
+        releaseRequest.complete(Unit)
+
+        assertSame(remoteUri, (second.await() as ArtistBackdropState.Fallback).remoteArtworkUri)
+        assertEquals(1, calls.get())
+    }
+
+    @Test
     fun wallClockRollbackExpiresNegativeCache() = runBlocking {
         val calls = AtomicInteger()
         val clock = MutableClock(wallTimeMs = 2L * DAY_MS)
-        val repository = ArtistImageRepository(
+        val repository = newRepository(
             client = ArtistImageClient {
                 calls.incrementAndGet()
                 ArtistImageLookup.NotFound
@@ -129,6 +168,15 @@ class ArtistImageRepositoryTest {
         repository.imageState("Artist", null).last()
         assertEquals(2, calls.get())
     }
+
+    private fun newRepository(
+        client: ArtistImageClient = ArtistImageClient { ArtistImageLookup.NotFound },
+        clock: AppClock = MutableClock(0L),
+    ): ArtistImageRepository = ArtistImageRepository(
+        client = client,
+        scope = requestScope,
+        clock = clock,
+    ).also(repositories::add)
 
     private fun album(artUri: android.net.Uri?, songCount: Int) = Album(
         id = 1L,

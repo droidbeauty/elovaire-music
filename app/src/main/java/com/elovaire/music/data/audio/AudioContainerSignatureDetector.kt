@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.audio
 
+import java.util.Locale
+
 internal enum class AudioContainerSignature {
     Mp3,
     Mp4,
@@ -32,7 +34,7 @@ internal object AudioContainerSignatureDetector {
             }
         }
         if (size >= 12 && bytes.ascii(4, 4) == "ftyp") {
-            val brand = bytes.ascii(8, 4).lowercase()
+            val brand = bytes.ascii(8, 4).lowercase(Locale.ROOT)
             return if (brand.startsWith("3g")) AudioContainerSignature.ThreeGp else AudioContainerSignature.Mp4
         }
         if (size >= 4 && bytes[0] == 0x1a.toByte() && bytes[1] == 0x45.toByte() && bytes[2] == 0xdf.toByte() && bytes[3] == 0xa3.toByte()) {

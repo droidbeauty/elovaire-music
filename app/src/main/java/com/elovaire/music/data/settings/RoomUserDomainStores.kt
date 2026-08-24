@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEnt
 import elovaire.music.droidbeauty.app.data.library.db.RecentPlaybackEntity
 import elovaire.music.droidbeauty.app.data.library.db.SearchHistoryEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserDataDao
+import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
@@ -232,7 +233,7 @@ internal class PlaybackHistoryWriteBuffer {
         if (replacements.isEmpty()) return
         val relocatedCounts = songCounts.entries
             .groupBy { resolveRelocatedSongId(it.key, replacements) }
-            .mapValues { (_, entries) -> entries.sumOf { it.value }.coerceAtMost(Int.MAX_VALUE) }
+            .mapValues { (_, entries) -> entries.maxOf { it.value } }
         songCounts.clear()
         songCounts.putAll(relocatedCounts)
         val pendingRecent = recent
@@ -271,37 +272,63 @@ internal class RoomSearchHistoryStore(
 ) : SearchHistoryStore {
     private val _searchHistory = MutableStateFlow<List<SearchHistoryEntry>>(emptyList())
     override val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
+    private val pendingLock = Any()
+    private var pendingHistory: List<SearchHistoryEntry>? = null
 
     override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
         val normalized = entry.normalized() ?: return
-        enqueue("search_history") { persistSearchHistoryEntry(normalized) }
+        synchronized(pendingLock) {
+            val base = pendingHistory ?: _searchHistory.value
+            pendingHistory = historyAfterAdding(base, normalized)
+        }
+        enqueue("search_history", ::persistPendingSearchHistory)
     }
 
     override fun clearSearchHistoryEntries() {
-        enqueue("search_history") { clearPersistedSearchHistory() }
-    }
-
-    private suspend fun persistSearchHistoryEntry(entry: SearchHistoryEntry) {
-        val updated = buildList {
-            add(entry)
-            _searchHistory.value.asSequence()
-                .filter { it.key != entry.key }
-                .take(MAX_SEARCH_HISTORY - 1)
-                .forEach(::add)
+        synchronized(pendingLock) {
+            pendingHistory = emptyList()
         }
-        if (updated == _searchHistory.value) return
-        dao.replaceSearchHistory(updated.mapIndexed { index, item -> item.toEntity(index) })
-        _searchHistory.value = updated
+        enqueue("search_history", ::persistPendingSearchHistory)
     }
 
-    private suspend fun clearPersistedSearchHistory() {
-        if (_searchHistory.value.isEmpty()) return
-        dao.clearSearchHistory()
-        _searchHistory.value = emptyList()
+    private suspend fun persistPendingSearchHistory() {
+        while (true) {
+            val desired = synchronized(pendingLock) {
+                pendingHistory ?: return
+            }
+            if (desired != _searchHistory.value) {
+                if (desired.isEmpty()) {
+                    dao.clearSearchHistory()
+                } else {
+                    dao.replaceSearchHistory(desired.mapIndexed { index, item -> item.toEntity(index) })
+                }
+                _searchHistory.value = desired
+            }
+            synchronized(pendingLock) {
+                if (pendingHistory == desired) {
+                    pendingHistory = null
+                    return
+                }
+            }
+        }
     }
 
     fun publish(entries: List<SearchHistoryEntry>) {
+        synchronized(pendingLock) {
+            pendingHistory = null
+        }
         _searchHistory.value = entries
+    }
+
+    private fun historyAfterAdding(
+        current: List<SearchHistoryEntry>,
+        entry: SearchHistoryEntry,
+    ): List<SearchHistoryEntry> = buildList {
+        add(entry)
+        current.asSequence()
+            .filter { it.key != entry.key }
+            .take(MAX_SEARCH_HISTORY - 1)
+            .forEach(::add)
     }
 
     private companion object {
@@ -338,7 +365,7 @@ internal fun SearchHistoryEntity.toDomain(): SearchHistoryEntry? {
         title = title,
         subtitle = subtitle,
         artUri = artUri?.let(Uri::parse),
-        albumId = albumId,
+        albumId = albumId?.takeIf(::isValidMediaId),
         query = query,
     ).normalized()
 }

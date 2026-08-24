@@ -72,8 +72,13 @@ internal object LibrarySongDuplicateResolver {
     }
 
     fun dedupeLoadedSnapshotSongs(songs: List<Song>): List<Song> {
-        val mediaStoreSongs = songs.filter { it.id > 0L }
-        val safSongs = songs.filterNot { it.id > 0L }
+        fun isMediaStoreSong(song: Song): Boolean {
+            val source = MediaIdentityResolver.resolve(song)
+            return source is MediaSourceIdentity.MediaStoreItem ||
+                (source == null && song.id > 0L)
+        }
+        val mediaStoreSongs = songs.filter(::isMediaStoreSong)
+        val safSongs = songs.filterNot(::isMediaStoreSong)
         return mergeMediaStoreAndSafSongs(mediaStoreSongs, safSongs)
     }
 

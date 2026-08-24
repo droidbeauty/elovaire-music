@@ -121,7 +121,10 @@ internal class AppServices(
     }
     val updateController: UpdateController get() = updateControllerDelegate.value
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        ArtistImageRepository(appContext = applicationContext)
+        ArtistImageRepository(
+            appContext = applicationContext,
+            scope = appScope,
+        )
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
     val albumTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -252,6 +255,7 @@ internal class AppServices(
         networkMutationRuntime.release()
         playbackManager.release()
         if (updateControllerDelegate.isInitialized()) updateController.release()
+        if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.release()
         libraryRepository.release()
         if (networkFileSystemRegistryDelegate.isInitialized()) {
             networkFileSystemRegistryDelegate.value.release()
