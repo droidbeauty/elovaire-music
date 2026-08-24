@@ -3,8 +3,12 @@ package elovaire.music.droidbeauty.app.data.artist
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.runBlocking
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -41,6 +45,67 @@ class ArtistImageRepositoryTest {
 
         assertEquals("artist", (state as ArtistBackdropState.Fallback).artistKey)
         assertNull(state.localArtworkUri)
+    }
+
+    @Test
+    fun successfulRemoteLookupIsCachedForNormalizedArtistKey() = runBlocking {
+        val calls = AtomicInteger()
+        val remoteUri = TestUri("https://example.test/artist.jpg")
+        val repository = ArtistImageRepository(
+            ArtistImageClient {
+                calls.incrementAndGet()
+                ArtistImageLookup.Found(remoteUri)
+            },
+        )
+
+        val first = repository.imageState("Artist", null).last()
+        assertEquals(1, calls.get())
+        val second = repository.imageState(" Artist ", null).last()
+
+        assertEquals(1, calls.get())
+        assertSame(remoteUri, (first as ArtistBackdropState.Fallback).remoteArtworkUri)
+        assertSame(remoteUri, (second as ArtistBackdropState.Fallback).remoteArtworkUri)
+    }
+
+    @Test
+    fun transientRemoteFailureIsNotNegativeCached() = runBlocking {
+        val calls = AtomicInteger()
+        val repository = ArtistImageRepository(
+            ArtistImageClient {
+                calls.incrementAndGet()
+                ArtistImageLookup.Failed
+            },
+        )
+
+        repository.imageState("Artist", null).last()
+        repository.imageState("Artist", null).last()
+
+        assertEquals(2, calls.get())
+    }
+
+    @Test
+    fun concurrentRemoteLookupsShareOneRequest() = runBlocking {
+        val calls = AtomicInteger()
+        val requestStarted = CompletableDeferred<Unit>()
+        val releaseRequest = CompletableDeferred<Unit>()
+        val remoteUri = TestUri("https://example.test/artist.jpg")
+        val repository = ArtistImageRepository(
+            ArtistImageClient {
+                calls.incrementAndGet()
+                requestStarted.complete(Unit)
+                releaseRequest.await()
+                ArtistImageLookup.Found(remoteUri)
+            },
+        )
+
+        val first = async { repository.imageState("Artist", null).last() }
+        requestStarted.await()
+        val second = async { repository.imageState(" artist ", null).last() }
+        releaseRequest.complete(Unit)
+
+        assertSame(remoteUri, (first.await() as ArtistBackdropState.Fallback).remoteArtworkUri)
+        assertSame(remoteUri, (second.await() as ArtistBackdropState.Fallback).remoteArtworkUri)
+        assertEquals(1, calls.get())
     }
 
     private fun album(artUri: android.net.Uri?, songCount: Int) = Album(

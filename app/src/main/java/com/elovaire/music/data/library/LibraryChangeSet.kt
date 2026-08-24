@@ -10,7 +10,6 @@ internal data class LibraryChangeSet(
     val removed: List<Song>,
     val affectedAlbumIds: Set<Long>,
     val artworkInvalidatedUris: Set<String>,
-    val revision: String,
 ) {
     val isEmpty: Boolean
         get() = added.isEmpty() && updated.isEmpty() && relocated.isEmpty() && removed.isEmpty()
@@ -23,7 +22,6 @@ internal data class LibraryChangeSet(
             removed = emptyList(),
             affectedAlbumIds = emptySet(),
             artworkInvalidatedUris = emptySet(),
-            revision = libraryContentRevision(emptyList(), "", null),
         )
     }
 }
@@ -126,7 +124,6 @@ internal object LibraryChangeSetCalculator {
             removed = removed,
             affectedAlbumIds = affectedAlbumIds,
             artworkInvalidatedUris = artworkInvalidatedUris,
-            revision = libraryContentRevision(next, "", null),
         )
     }
 

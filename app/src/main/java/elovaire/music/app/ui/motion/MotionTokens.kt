@@ -48,7 +48,12 @@ object MotionEasing {
 
 object MotionScale {
     const val ChromePressed = 0.965f
+    const val CompactPressed = 0.975f
     const val MediaPressed = 0.94f
+    const val PrimaryPressed = 0.965f
+    const val SelectionPressed = 0.975f
+    const val TogglePressed = 0.965f
+    const val DestructivePressed = 0.975f
     const val PlayerOverlayEnter = 0.995f
     const val PlayerOverlayExit = 0.992f
 }

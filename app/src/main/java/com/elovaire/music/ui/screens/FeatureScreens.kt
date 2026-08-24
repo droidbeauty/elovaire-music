@@ -292,6 +292,7 @@ import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
+import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
@@ -2437,7 +2438,6 @@ private fun ArtistHeroHeader(
         ArtistBackdropState.Loading -> localArtworkUri
     } ?: localArtworkUri
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
-    val localArtwork = rememberArtworkBitmap(localArtworkUri, size = 512).value
     val gradient = rememberArtworkGradient(sourceUri).value
     val paletteAccent = rememberAnimatedArtistPaletteAccent(sourceUri)
     var displayedBackdropImage by remember { mutableStateOf<ImageBitmap?>(null) }
@@ -2463,19 +2463,6 @@ private fun ArtistHeroHeader(
             image = displayedBackdropImage,
             gradient = gradient,
         )
-        if (localArtwork != null) {
-            Image(
-                bitmap = localArtwork,
-                contentDescription = null,
-                modifier = Modifier
-                    .align(Alignment.Center)
-                    .fillMaxWidth(0.54f)
-                    .aspectRatio(1f)
-                    .clip(RoundedCornerShape(ElovaireRadii.module)),
-                contentScale = ContentScale.Crop,
-                alpha = 0.78f,
-            )
-        }
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -7327,7 +7314,7 @@ internal fun NowPlayingScreen(
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = 980.dp
+                val queueSheetTopExtension = (980.dp - buttonNavigationScrollBoost()).coerceAtLeast(0.dp)
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -7785,6 +7772,7 @@ private fun SongFileInfoPill(
 }
 
 @Composable
+@OptIn(ExperimentalHazeApi::class)
 private fun QueueSheet(
     queue: List<Song>,
     currentIndex: Int,
@@ -7812,6 +7800,7 @@ private fun QueueSheet(
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
     val listState = rememberElovaireLazyListState("now_playing_queue")
+    val queueEdgeHazeState = rememberHazeState()
     var playlistTargetSong by remember(currentSong?.id, queue) { mutableStateOf<Song?>(null) }
     val footerExpanded = statusText != null
     val footerHeight by animateDpAsState(
@@ -7832,205 +7821,48 @@ private fun QueueSheet(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(56.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(40.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.ic_lucide_list_music),
-                            contentDescription = null,
-                            tint = tint.copy(alpha = 0.92f),
-                            modifier = Modifier.size(18.dp),
-                        )
-                        Text(
-                            text = queueTitle(language),
-                            style = MaterialTheme.typography.titleLarge.copy(
-                                fontSize = elovaireScaledSp(18f),
-                                fontWeight = FontWeight.Medium,
-                            ),
-                            color = tint,
-                        )
-                    }
-                    Row(
-                        modifier = Modifier.offset(x = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = localizedCountLabel(queue.size, "track", language),
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
-                            color = secondaryTint.copy(alpha = 0.7f),
-                        )
-                        val closeQueueInteractionSource = rememberElovaireInteractionSource()
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .clip(CircleShape)
-                                .background(tint.copy(alpha = 0.1f))
-                                .elovaireActionBump(
-                                    interactionSource = closeQueueInteractionSource,
-                                    label = "close_queue_bump",
-                                )
-                                .clickable(
-                                    interactionSource = closeQueueInteractionSource,
-                                    indication = null,
-                                    onClick = onDismiss,
-                                ),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.ic_lucide_x),
-                                contentDescription = "Close queue",
-                                tint = tint.copy(alpha = 0.92f),
-                                modifier = Modifier.size(16.dp),
-                            )
-                        }
-                    }
-                }
-            }
+            QueueSheetHeader(
+                queueSize = queue.size,
+                language = language,
+                tint = tint,
+                secondaryTint = secondaryTint,
+                onDismiss = onDismiss,
+            )
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
             ) {
-                LazyColumn(
-                    state = listState,
-                    overscrollEffect = null,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .ensureSingleItemRubberBand(listState),
-                    contentPadding = PaddingValues(vertical = 4.dp),
-                    verticalArrangement = Arrangement.spacedBy(3.dp),
-                ) {
-                    itemsIndexed(
-                        items = queue,
-                        key = { index, song -> "${song.id}_$index" },
-                        contentType = { _, _ -> "queue-song" },
-                    ) { index, song ->
-                        Box(
-                            modifier = Modifier
-                                .animateItem(
-                                    placementSpec = ElovaireMotion.listPlacementSpec(),
-                                )
-                                .elovaireListReveal(
-                                    itemKey = "${song.id}_$index",
-                                    index = index,
-                                    registry = revealRegistry,
-                                ),
-                        ) {
-                            QueueSongRow(
-                                song = song,
-                                active = index == currentIndex,
-                                tint = tint,
-                                secondaryTint = secondaryTint,
-                                showDivider = false,
-                                onClick = { onSongSelected(index) },
-                                isPlaying = isPlaying,
-                                onAddToPlaylist = { playlistTargetSong = song },
-                                onRemoveFromQueue = { onQueueItemRemoved(index) },
-                            )
-                        }
-                    }
-                }
+                QueueSongList(
+                    queue = queue,
+                    currentIndex = currentIndex,
+                    tint = tint,
+                    secondaryTint = secondaryTint,
+                    listState = listState,
+                    revealRegistry = revealRegistry,
+                    queueEdgeHazeState = queueEdgeHazeState,
+                    isPlaying = isPlaying,
+                    onSongSelected = onSongSelected,
+                    onQueueItemRemoved = onQueueItemRemoved,
+                    onAddToPlaylist = { playlistTargetSong = it },
+                )
             }
-            Box(
+            QueueSheetFooter(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(footerHeight),
-            ) {
-                AnimatedContent(
-                    targetState = statusText,
-                    transitionSpec = {
-                        fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
-                            slideInVertically(
-                                animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
-                                initialOffsetY = { it / 5 },
-                            ) togetherWith
-                            fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
-                    },
-                    label = "queue_status_text",
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(top = 10.dp),
-                ) { queueStatus ->
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(20.dp),
-                        contentAlignment = Alignment.Center,
-                    ) {
-                        if (queueStatus != null) {
-                            Text(
-                                text = queueStatus,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = tint.copy(alpha = 0.92f),
-                                textAlign = TextAlign.Center,
-                            )
-                        }
-                    }
-                }
-                Row(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_separator_vertical,
-                        label = "",
-                        contentDescription = if (crossfadeEnabled) "Disable crossfade" else "Enable crossfade",
-                        iconSize = 20.dp,
-                        tint = tint,
-                        showBackground = crossfadeEnabled,
-                        onClick = onToggleCrossfade,
-                    )
-                    Spacer(modifier = Modifier.width(20.dp))
-                    PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_sliders_vertical,
-                        label = "",
-                        iconSize = 20.dp,
-                        tint = tint,
-                        showBackground = false,
-                        onClick = {
-                            onDismiss()
-                            onOpenEqualizer()
-                        },
-                    )
-                    Spacer(modifier = Modifier.width(20.dp))
-                    PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_timer,
-                        label = "",
-                        contentDescription = sleepTimerCopy(language).title,
-                        iconSize = 20.dp,
-                        tint = tint,
-                        showBackground = sleepTimerActive,
-                        onClick = onOpenSleepTimer,
-                    )
-                    Spacer(modifier = Modifier.width(20.dp))
-                    PlayerSecondaryActionButton(
-                        iconResId = R.drawable.ic_lucide_shuffle,
-                        label = "",
-                        iconSize = 20.dp,
-                        tint = tint,
-                        showBackground = shuffleEnabled,
-                        onClick = onToggleShuffle,
-                    )
-                }
-            }
+                statusText = statusText,
+                tint = tint,
+                language = language,
+                crossfadeEnabled = crossfadeEnabled,
+                onToggleCrossfade = onToggleCrossfade,
+                onDismiss = onDismiss,
+                onOpenEqualizer = onOpenEqualizer,
+                sleepTimerActive = sleepTimerActive,
+                onOpenSleepTimer = onOpenSleepTimer,
+                shuffleEnabled = shuffleEnabled,
+                onToggleShuffle = onToggleShuffle,
+            )
         }
     }
     playlistTargetSong?.let { song ->
@@ -8044,6 +7876,295 @@ private fun QueueSheet(
             onCreatePlaylist = onCreatePlaylist,
         )
     }
+}
+
+@Composable
+private fun QueueSheetHeader(
+    queueSize: Int,
+    language: AppLanguage,
+    tint: Color,
+    secondaryTint: Color,
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(40.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_list_music),
+                    contentDescription = null,
+                    tint = tint.copy(alpha = 0.92f),
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = queueTitle(language),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontSize = elovaireScaledSp(18f),
+                        fontWeight = FontWeight.Medium,
+                    ),
+                    color = tint,
+                )
+            }
+            Row(
+                modifier = Modifier.offset(x = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = localizedCountLabel(queueSize, "track", language),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
+                    color = secondaryTint.copy(alpha = 0.7f),
+                )
+                val closeQueueInteractionSource = rememberElovaireInteractionSource()
+                Box(
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .background(tint.copy(alpha = 0.1f))
+                        .elovaireActionBump(
+                            interactionSource = closeQueueInteractionSource,
+                            label = "close_queue_bump",
+                        )
+                        .clickable(
+                            interactionSource = closeQueueInteractionSource,
+                            indication = null,
+                            onClick = onDismiss,
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.ic_lucide_x),
+                        contentDescription = "Close queue",
+                        tint = tint.copy(alpha = 0.92f),
+                        modifier = Modifier.size(16.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun QueueSheetFooter(
+    modifier: Modifier,
+    statusText: String?,
+    tint: Color,
+    language: AppLanguage,
+    crossfadeEnabled: Boolean,
+    onToggleCrossfade: () -> Unit,
+    onDismiss: () -> Unit,
+    onOpenEqualizer: () -> Unit,
+    sleepTimerActive: Boolean,
+    onOpenSleepTimer: () -> Unit,
+    shuffleEnabled: Boolean,
+    onToggleShuffle: () -> Unit,
+) {
+    Box(modifier = modifier) {
+        AnimatedContent(
+            targetState = statusText,
+            transitionSpec = {
+                fadeIn(animationSpec = ElovaireMotion.contentFadeInSpec()) +
+                    slideInVertically(
+                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = ElovaireMotion.Standard),
+                        initialOffsetY = { it / 5 },
+                    ) togetherWith
+                    fadeOut(animationSpec = ElovaireMotion.contentFadeOutSpec())
+            },
+            label = "queue_status_text",
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .padding(top = 10.dp),
+        ) { queueStatus ->
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(20.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (queueStatus != null) {
+                    Text(
+                        text = queueStatus,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = tint.copy(alpha = 0.92f),
+                        textAlign = TextAlign.Center,
+                    )
+                }
+            }
+        }
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            PlayerSecondaryActionButton(
+                iconResId = R.drawable.ic_lucide_separator_vertical,
+                label = "",
+                contentDescription = if (crossfadeEnabled) "Disable crossfade" else "Enable crossfade",
+                iconSize = 20.dp,
+                tint = tint,
+                showBackground = crossfadeEnabled,
+                onClick = onToggleCrossfade,
+            )
+            Spacer(modifier = Modifier.width(20.dp))
+            PlayerSecondaryActionButton(
+                iconResId = R.drawable.ic_lucide_sliders_vertical,
+                label = "",
+                iconSize = 20.dp,
+                tint = tint,
+                showBackground = false,
+                onClick = {
+                    onDismiss()
+                    onOpenEqualizer()
+                },
+            )
+            Spacer(modifier = Modifier.width(20.dp))
+            PlayerSecondaryActionButton(
+                iconResId = R.drawable.ic_lucide_timer,
+                label = "",
+                contentDescription = sleepTimerCopy(language).title,
+                iconSize = 20.dp,
+                tint = tint,
+                showBackground = sleepTimerActive,
+                onClick = onOpenSleepTimer,
+            )
+            Spacer(modifier = Modifier.width(20.dp))
+            PlayerSecondaryActionButton(
+                iconResId = R.drawable.ic_lucide_shuffle,
+                label = "",
+                iconSize = 20.dp,
+                tint = tint,
+                showBackground = shuffleEnabled,
+                onClick = onToggleShuffle,
+            )
+        }
+    }
+}
+
+@Composable
+@OptIn(ExperimentalHazeApi::class)
+private fun QueueSongList(
+    queue: List<Song>,
+    currentIndex: Int,
+    tint: Color,
+    secondaryTint: Color,
+    listState: LazyListState,
+    revealRegistry: MotionRevealRegistry,
+    queueEdgeHazeState: HazeState,
+    isPlaying: Boolean,
+    onSongSelected: (Int) -> Unit,
+    onQueueItemRemoved: (Int) -> Unit,
+    onAddToPlaylist: (Song) -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clipToBounds(),
+    ) {
+        LazyColumn(
+            state = listState,
+            overscrollEffect = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(queueEdgeHazeState)
+                .ensureSingleItemRubberBand(listState),
+            contentPadding = PaddingValues(vertical = 0.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            itemsIndexed(
+                items = queue,
+                key = { index, song -> "${song.id}_$index" },
+                contentType = { _, _ -> "queue-song" },
+            ) { index, song ->
+                Box(
+                    modifier = Modifier
+                        .animateItem(
+                            placementSpec = ElovaireMotion.listPlacementSpec(),
+                        )
+                        .elovaireListReveal(
+                            itemKey = "${song.id}_$index",
+                            index = index,
+                            registry = revealRegistry,
+                        ),
+                ) {
+                    QueueSongRow(
+                        song = song,
+                        active = index == currentIndex,
+                        tint = tint,
+                        secondaryTint = secondaryTint,
+                        showDivider = false,
+                        onClick = { onSongSelected(index) },
+                        isPlaying = isPlaying,
+                        onAddToPlaylist = { onAddToPlaylist(song) },
+                        onRemoveFromQueue = { onQueueItemRemoved(index) },
+                    )
+                }
+            }
+        }
+        QueueEdgeHaze(
+            visible = listState.canScrollBackward,
+            alignment = Alignment.TopCenter,
+            tint = tint,
+            hazeState = queueEdgeHazeState,
+            startIntensity = 1f,
+            endIntensity = 0f,
+        )
+        QueueEdgeHaze(
+            visible = listState.canScrollForward,
+            alignment = Alignment.BottomCenter,
+            tint = tint,
+            hazeState = queueEdgeHazeState,
+            startIntensity = 0f,
+            endIntensity = 1f,
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalHazeApi::class)
+private fun BoxScope.QueueEdgeHaze(
+    visible: Boolean,
+    alignment: Alignment,
+    tint: Color,
+    hazeState: HazeState,
+    startIntensity: Float,
+    endIntensity: Float,
+) {
+    if (!visible) return
+    Box(
+        modifier = Modifier
+            .align(alignment)
+            .fillMaxWidth()
+            .height(20.dp)
+            .hazeEffect(hazeState) {
+                progressive = HazeProgressive.LinearGradient(
+                    startIntensity = startIntensity,
+                    endIntensity = endIntensity,
+                    preferPerformance = true,
+                )
+                blurRadius = 20.dp
+                backgroundColor = Color.Transparent
+                tints = listOf(
+                    HazeTint(Color.Black.copy(alpha = 0.06f)),
+                    HazeTint(tint.copy(alpha = 0.04f)),
+                )
+                noiseFactor = 0.015f
+            },
+    )
 }
 
 @Composable

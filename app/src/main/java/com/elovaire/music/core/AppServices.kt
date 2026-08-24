@@ -33,9 +33,9 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
-import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
+import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
@@ -55,6 +55,7 @@ internal class AppServices(
     val applicationContext: Context,
     private val appScope: CoroutineScope,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
+    private val portableSettingsBackup: PortableSettingsBackup,
 ) {
     private val playbackStarted = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
@@ -62,13 +63,11 @@ internal class AppServices(
     val exitDiagnostics = AppExitDiagnostics(applicationContext)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
-    private val portableSettingsBackup = PortableSettingsBackup(applicationContext)
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
         dao = database.userDataDao(),
     )
-    // Restore portable settings before PreferenceStore snapshots its initial StateFlows.
-    val preferenceStore = createPreferenceStore()
+    val preferenceStore = PreferenceStore(applicationContext, userDataStore)
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
     private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
     private val networkInventoryStore = NetworkInventoryStore(applicationContext, database.libraryDao())
@@ -118,7 +117,7 @@ internal class AppServices(
     }
     val updateController: UpdateController get() = updateControllerDelegate.value
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        ArtistImageRepository()
+        ArtistImageRepository(appContext = applicationContext)
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
     val albumTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -194,11 +193,6 @@ internal class AppServices(
     val networkProbeResults: StateFlow<Map<String, NetworkProbeResult>> =
         _networkProbeResults.asStateFlow()
 
-    private fun createPreferenceStore(): PreferenceStore {
-        portableSettingsBackup.restore()
-        return PreferenceStore(applicationContext, userDataStore)
-    }
-
     fun saveNetworkSource(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
@@ -242,6 +236,7 @@ internal class AppServices(
 
     fun onMemoryPressure(pressure: MemoryPressure) {
         if (lyricsServiceDelegate.isInitialized()) lyricsService.onMemoryPressure(pressure)
+        if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.onMemoryPressure(pressure)
         libraryRepository.onMemoryPressure(pressure)
         mediaTree.onMemoryPressure(pressure)
     }

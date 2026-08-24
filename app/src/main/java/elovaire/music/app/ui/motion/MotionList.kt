@@ -6,7 +6,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -16,17 +15,22 @@ import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import java.util.HashSet
 
 private const val MaxAnimatedRevealIndex = 8
 
 @Stable
 class MotionRevealRegistry {
-    private val revealedKeys = mutableStateMapOf<Any, Boolean>()
+    private val revealedKeys = HashSet<Any>()
+    private var revealBudgetExhausted = false
 
-    fun isRevealed(key: Any): Boolean = revealedKeys[key] == true
+    @Synchronized
+    fun isRevealed(key: Any): Boolean = revealBudgetExhausted || key in revealedKeys
 
+    @Synchronized
     fun markRevealed(key: Any) {
-        revealedKeys[key] = true
+        if (revealBudgetExhausted || !revealedKeys.add(key)) return
+        if (revealedKeys.size >= MAX_REVEALED_KEYS) revealBudgetExhausted = true
     }
 
 }
@@ -77,3 +81,5 @@ fun Modifier.elovaireListReveal(
         translationY = offsetY
     }
 }
+
+private const val MAX_REVEALED_KEYS = 128

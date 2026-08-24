@@ -100,8 +100,9 @@ internal class SearchViewModel(
                 albums = content.albums,
             )
         }
-        .distinctUntilChangedBy(SearchLibrarySnapshot::signature)
-        .map(SearchLibrarySnapshot::toSearchIndex)
+        .map { snapshot -> snapshot to snapshot.signature() }
+        .distinctUntilChangedBy { (_, revision) -> revision }
+        .map { (snapshot, revision) -> snapshot.toSearchIndex(revision) }
         .flowOn(Dispatchers.Default)
         .shareIn(
             scope = viewModelScope,

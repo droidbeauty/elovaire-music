@@ -180,14 +180,19 @@ internal fun EqualizerScreen(
                     scrollState = graphScrollState,
                     contentWidth = graphContentWidth,
                 )
-                Spacer(modifier = Modifier.height(8.dp))
-                EqMiniResponseGraph(
-                    settings = settings,
+                Spacer(modifier = Modifier.height(10.dp))
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(60.dp),
-                )
-                Spacer(modifier = Modifier.height(16.dp))
+                        .height(60.dp)
+                        .padding(vertical = 10.dp),
+                ) {
+                    EqMiniResponseGraph(
+                        settings = settings,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+                Spacer(modifier = Modifier.height(10.dp))
                 EqPresetMenu(
                     currentSettings = settings,
                     selectedPresetName = selectedPresetName,
@@ -599,7 +604,7 @@ private fun DigitalSoundKnob(
                 }
 
                 val tickOuterRadius = (radius - 8.dp.toPx()).coerceAtLeast(1f)
-                val tickInnerRadius = (tickOuterRadius - 6.dp.toPx()).coerceAtLeast(1f)
+                val tickInnerRadius = (tickOuterRadius - 4.dp.toPx()).coerceAtLeast(1f)
                 val tickCount = 30
                 repeat(tickCount) { tickIndex ->
                     val fraction = tickIndex / (tickCount - 1).toFloat()
@@ -614,7 +619,7 @@ private fun DigitalSoundKnob(
                         y = center.y + (sin(angleRadians) * tickOuterRadius).toFloat(),
                     )
                     drawLine(
-                        color = tickColor,
+                        color = if (fraction > animatedValue) tickColor else Color.Transparent,
                         start = start,
                         end = end,
                         strokeWidth = 1.2.dp.toPx(),
@@ -832,7 +837,7 @@ internal fun EqToneKnob(
                 val activeSweep = sweepAngle * animatedFraction
                 val tickCount = 34
                 val tickOuterRadius = radius + 5.dp.toPx()
-                val tickInnerRadius = tickOuterRadius - 6.dp.toPx()
+                val tickInnerRadius = tickOuterRadius - 4.dp.toPx()
                 val activeTickCount = (animatedFraction * (tickCount - 1)).roundToInt()
 
                 repeat(tickCount) { tickIndex ->
@@ -848,7 +853,7 @@ internal fun EqToneKnob(
                         y = center.y + (sin(angleRadians) * tickOuterRadius).toFloat(),
                     )
                     drawLine(
-                        color = if (tickIndex <= activeTickCount) accentColor else tickIdleColor,
+                        color = if (tickIndex > activeTickCount) tickIdleColor else Color.Transparent,
                         start = start,
                         end = end,
                         strokeWidth = 1.2.dp.toPx(),
@@ -960,7 +965,7 @@ private fun EqBandSlider(
                     .fillMaxHeight()
                     .width(28.dp),
             ) {
-                val trackWidth = 6.dp.toPx()
+                val trackWidth = 4.dp.toPx()
                 val centerX = size.width / 2f
                 val centerY = size.height / 2f
                 val knobRadius = 8.dp.toPx()
@@ -1323,8 +1328,8 @@ private fun EqResponseGraph(
             bandValues.forEachIndexed { index, band ->
                 val x = horizontalPadding + graphWidth * bandFractions.getOrElse(index) { 0f }
                 val y = topPadding + (graphHeight * (1f - EqualizerDspModel.bandGraphFraction(band, eqGraphConfig)))
-                val trackWidth = 5.dp.toPx()
-                val activeWidth = 3.dp.toPx()
+                val trackWidth = 4.dp.toPx()
+                val activeWidth = 4.dp.toPx()
                 val thumbWidth = 9.dp.toPx()
                 val thumbHeight = 24.dp.toPx()
                 val activeTop = min(y, midY)
@@ -1408,8 +1413,7 @@ private fun EqMiniResponseGraph(
     val accentColor = Color(0xFF39E38E)
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(ElovaireRadii.module))
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.03f)),
+            .clip(RoundedCornerShape(ElovaireRadii.module)),
     ) {
         Canvas(modifier = Modifier.matchParentSize()) {
             val horizontalPadding = 14.dp.toPx()
@@ -1965,8 +1969,10 @@ private fun SelectablePill(
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(ElovaireRadii.pill),
         modifier = Modifier
-            .elovaireActionBump(
+            .elovairePressScale(
                 interactionSource = interactionSource,
+                pressedScale = 0.96f,
+                animationSpec = ElovaireMotion.bounceSpringSpec(),
                 label = "equalizer_selectable_pill_bump",
             )
             .clip(RoundedCornerShape(ElovaireRadii.pill))

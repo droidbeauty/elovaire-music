@@ -16,11 +16,36 @@ import elovaire.music.droidbeauty.app.ui.motion.MotionScale
 import elovaire.music.droidbeauty.app.ui.motion.elovairePressScaleMotion
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 
+enum class ElovaireInteractionRole {
+    ChromeAction,
+    CompactAction,
+    MediaAction,
+    PrimaryAction,
+    SelectionAction,
+    ToggleAction,
+    DestructiveAction,
+}
+
 @Immutable
 data class ElovaireInteractionSpecs(
     val chromePressScale: Float = MotionScale.ChromePressed,
+    val compactPressScale: Float = MotionScale.CompactPressed,
     val mediaPressScale: Float = MotionScale.MediaPressed,
-)
+    val primaryPressScale: Float = MotionScale.PrimaryPressed,
+    val selectionPressScale: Float = MotionScale.SelectionPressed,
+    val togglePressScale: Float = MotionScale.TogglePressed,
+    val destructivePressScale: Float = MotionScale.DestructivePressed,
+) {
+    fun pressedScale(role: ElovaireInteractionRole): Float = when (role) {
+        ElovaireInteractionRole.ChromeAction -> chromePressScale
+        ElovaireInteractionRole.CompactAction -> compactPressScale
+        ElovaireInteractionRole.MediaAction -> mediaPressScale
+        ElovaireInteractionRole.PrimaryAction -> primaryPressScale
+        ElovaireInteractionRole.SelectionAction -> selectionPressScale
+        ElovaireInteractionRole.ToggleAction -> togglePressScale
+        ElovaireInteractionRole.DestructiveAction -> destructivePressScale
+    }
+}
 
 object ElovaireInteraction {
     val specs = ElovaireInteractionSpecs()
@@ -29,7 +54,9 @@ object ElovaireInteraction {
 /** Shared press/release response for discrete pill and circular actions. */
 fun Modifier.elovaireActionBump(
     enabled: Boolean = true,
-    pressedScale: Float = 0.9f,
+    pressedScale: Float = ElovaireInteraction.specs.pressedScale(
+        ElovaireInteractionRole.CompactAction,
+    ),
     interactionSource: MutableInteractionSource? = null,
     label: String = "elovaireActionBump",
 ): Modifier = composed {

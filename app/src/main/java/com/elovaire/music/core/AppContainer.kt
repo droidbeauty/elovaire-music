@@ -6,6 +6,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
+import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -29,12 +30,16 @@ class AppContainer(
     private val backgroundWorkPolicy = AppBackgroundWorkPolicy(appForegroundTracker.isForeground)
     private val appRuntimeScope = AppRuntimeScope()
     private val appScope = appRuntimeScope.scope
+    private val portableSettingsBackup = ElovaireTrace.section("portable_settings_restore") {
+        PortableSettingsBackup(applicationContext).also { it.restore() }
+    }
 
     private val services = ElovaireTrace.section("app_services_init") {
         AppServices(
             applicationContext = applicationContext,
             appScope = appScope,
             backgroundWorkPolicy = backgroundWorkPolicy,
+            portableSettingsBackup = portableSettingsBackup,
         )
     }
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)

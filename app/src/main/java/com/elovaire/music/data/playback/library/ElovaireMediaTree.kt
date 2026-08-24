@@ -9,11 +9,15 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
+import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
+import elovaire.music.droidbeauty.app.domain.search.SearchablePlaylist
 import elovaire.music.droidbeauty.app.domain.search.SearchableSong
-import elovaire.music.droidbeauty.app.domain.search.searchAlbumsForPicker
+import elovaire.music.droidbeauty.app.domain.search.normalizeSearchText
 import elovaire.music.droidbeauty.app.domain.search.searchArtistsForPicker
-import elovaire.music.droidbeauty.app.domain.search.searchPlaylists
+import elovaire.music.droidbeauty.app.domain.search.searchIndexedAlbumsForPicker
+import elovaire.music.droidbeauty.app.domain.search.searchIndexedPlaylists
 import elovaire.music.droidbeauty.app.domain.search.searchIndexedSongsForPicker
+import elovaire.music.droidbeauty.app.domain.search.toSearchableAlbum
 import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
 import java.util.Locale
 
@@ -263,12 +267,8 @@ internal class ElovaireMediaTree(
         if (normalizedQuery.value.isBlank()) {
             return defaultQueue(snapshot)?.queue.orEmpty().take(limit).map(ElovaireMediaItems::song)
         }
-        val artistRows = snapshot.artistNames().map { name ->
-            NamedSongs(name = name, songs = snapshot.songsForArtist(name))
-        }
-        val genreRows = snapshot.genreNames().map { name ->
-            NamedSongs(name = name, songs = snapshot.songsForGenre(name))
-        }
+        val artistRows = snapshot.artistSearchRows()
+        val genreRows = snapshot.genreSearchRows()
         val exactAndStrongTitleSongs = snapshot.searchableSongs()
             .filter {
                 it.normalizedTitle == normalizedQuery.value || it.normalizedTitle.startsWith(normalizedQuery.value)
@@ -278,7 +278,11 @@ internal class ElovaireMediaTree(
         val broaderSongs = searchIndexedSongsForPicker(snapshot.searchableSongs(), normalizedQuery)
         return mutableListOf<MediaItem>().apply {
             addDistinctItems(exactAndStrongTitleSongs, limit, ElovaireMediaItems::song)
-            addDistinctItems(searchAlbumsForPicker(snapshot.albums, normalizedQuery), limit, ElovaireMediaItems::album)
+            addDistinctItems(
+                searchIndexedAlbumsForPicker(snapshot.searchableAlbums(), normalizedQuery),
+                limit,
+                ElovaireMediaItems::album,
+            )
             addDistinctItems(
                 searchArtistsForPicker(
                     artists = artistRows,
@@ -290,7 +294,7 @@ internal class ElovaireMediaTree(
                 limit,
             ) { ElovaireMediaItems.artist(it.name) }
             addDistinctItems(
-                searchPlaylists(snapshot.playlists.filter { it.songIds.isNotEmpty() }, normalizedQuery),
+                searchIndexedPlaylists(snapshot.searchablePlaylists(), normalizedQuery),
                 limit,
                 ElovaireMediaItems::playlist,
             )
@@ -554,11 +558,30 @@ internal class ElovaireMediaTree(
         private val albumsById by lazy(LazyThreadSafetyMode.NONE) { albums.associateBy(Album::id) }
         private val playlistsById by lazy(LazyThreadSafetyMode.NONE) { playlists.associateBy(Playlist::id) }
         private val searchableSongs by lazy(LazyThreadSafetyMode.NONE) { songs.map(Song::toSearchableSong) }
+        private val searchableAlbums by lazy(LazyThreadSafetyMode.NONE) { albums.map(Album::toSearchableAlbum) }
+        private val searchablePlaylists by lazy(LazyThreadSafetyMode.NONE) {
+            playlists
+                .filter { it.songIds.isNotEmpty() }
+                .map { playlist ->
+                    val normalizedName = normalizeSearchText(playlist.name)
+                    SearchablePlaylist(
+                        playlist = playlist,
+                        normalizedName = normalizedName,
+                        normalizedComposite = normalizedName,
+                    )
+                }
+        }
         private val songsByArtist by lazy(LazyThreadSafetyMode.NONE) {
             songs.groupBy { it.libraryArtistName().lowercase(Locale.ROOT) }
         }
         private val songsByGenre by lazy(LazyThreadSafetyMode.NONE) {
             songs.groupBy { it.genre.ifBlank { UNKNOWN_GENRE }.lowercase(Locale.ROOT) }
+        }
+        private val artistSearchRows by lazy(LazyThreadSafetyMode.NONE) {
+            artistNames.map { name -> NamedSongs(name = name, songs = songsForArtist(name)) }
+        }
+        private val genreSearchRows by lazy(LazyThreadSafetyMode.NONE) {
+            genreNames.map { name -> NamedSongs(name = name, songs = songsForGenre(name)) }
         }
 
         private companion object {
@@ -578,6 +601,10 @@ internal class ElovaireMediaTree(
         fun artistNames(): List<String> = artistNames
         fun genreNames(): List<String> = genreNames
         fun searchableSongs(): List<SearchableSong> = searchableSongs
+        fun searchableAlbums(): List<SearchableAlbum> = searchableAlbums
+        fun searchablePlaylists(): List<SearchablePlaylist> = searchablePlaylists
+        fun artistSearchRows(): List<NamedSongs> = artistSearchRows
+        fun genreSearchRows(): List<NamedSongs> = genreSearchRows
         fun song(id: Long): Song? = songsById[id]
         fun album(id: Long): Album? = albumsById[id]
         fun playlist(id: Long): Playlist? = playlistsById[id]
@@ -590,19 +617,17 @@ internal class ElovaireMediaTree(
         }
     }
 
-    private data class NamedSongs(
+    internal data class NamedSongs(
         val name: String,
         val songs: List<Song>,
     )
 
     private companion object {
-        const val SEARCH_RESULT_LIMIT = 50
         const val DIRECT_BROWSE_LIMIT = 100
         const val BUCKET_PARENT_SONGS = "songs"
         const val BUCKET_PARENT_ALBUMS = "albums"
         const val BUCKET_PARENT_ARTISTS = "artists"
         const val SYMBOL_BUCKET = "#"
-        const val UNKNOWN_ARTIST = "Unknown Artist"
         const val UNKNOWN_GENRE = "Unknown Genre"
     }
 }

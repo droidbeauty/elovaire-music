@@ -22,7 +22,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
-import java.util.concurrent.ConcurrentHashMap
+import java.util.LinkedHashMap
 
 object ElovaireMotion {
     private const val QuickBase = MotionDuration.Quick
@@ -47,8 +47,8 @@ object ElovaireMotion {
     private const val QueueMenuEnterBase = MotionDuration.QueueMenuEnter
     private const val ListPlacementBase = MotionDuration.ListPlacement
 
-    private val tweenSpecs = ConcurrentHashMap<LegacyTweenKey, FiniteAnimationSpec<*>>()
-    private val springSpecs = ConcurrentHashMap<LegacySpringKey, FiniteAnimationSpec<*>>()
+    private val tweenSpecs = BoundedSpecCache<LegacyTweenKey, FiniteAnimationSpec<*>>(MAX_CACHED_SPECS)
+    private val springSpecs = BoundedSpecCache<LegacySpringKey, FiniteAnimationSpec<*>>(MAX_CACHED_SPECS)
 
     val Quick: Int get() = scaledDurationMillis(QuickBase)
     val Fast: Int get() = scaledDurationMillis(FastBase)
@@ -88,7 +88,7 @@ object ElovaireMotion {
             delayMillis = scaledDelayMillis(delayMillis),
             easing = easing,
         )
-        return tweenSpecs.getOrPut(key) {
+        return tweenSpecs.getOrCreate(key) {
             tween<Any?>(
                 durationMillis = key.durationMillis,
                 delayMillis = key.delayMillis,
@@ -103,7 +103,7 @@ object ElovaireMotion {
         stiffness: Float,
     ): FiniteAnimationSpec<T> {
         val key = LegacySpringKey(dampingRatio, stiffness)
-        return springSpecs.getOrPut(key) {
+        return springSpecs.getOrCreate(key) {
             spring<Any?>(
                 dampingRatio = key.dampingRatio,
                 stiffness = key.stiffness,
@@ -442,6 +442,30 @@ object ElovaireMotion {
         durationScale: Float,
     ): Long = scaleDurationMillis(durationMillis.toLong(), durationScale)
 }
+
+private class BoundedSpecCache<K, V>(
+    private val maxEntries: Int,
+) {
+    private val values = LinkedHashMap<K, V>(maxEntries, 0.75f, true)
+
+    @Synchronized
+    fun getOrCreate(key: K, create: () -> V): V {
+        values[key]?.let { return it }
+        return create().also {
+            values[key] = it
+            while (values.size > maxEntries) {
+                values.entries.iterator().apply {
+                    if (hasNext()) {
+                        next()
+                        remove()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private const val MAX_CACHED_SPECS = 32
 
 private data class LegacyTweenKey(
     val durationMillis: Int,

@@ -1,19 +1,31 @@
 package elovaire.music.droidbeauty.app.data.artist
 
+import android.net.Uri
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import org.json.JSONArray
 import org.json.JSONObject
 
+internal sealed interface ArtistImageLookup {
+    data class Found(val uri: Uri) : ArtistImageLookup
+    data object NotFound : ArtistImageLookup
+    data object Failed : ArtistImageLookup
+}
+
+internal fun interface ArtistImageClient {
+    suspend fun findArtistImage(artistName: String): ArtistImageLookup
+}
+
 internal class YouTubeMusicArtistImageClient(
     private val transport: BoundedHttpTransport = BoundedHttpTransport(
         connectTimeoutMs = 6_000,
         readTimeoutMs = 8_000,
     ),
-) {
-    suspend fun findArtistImage(artistName: String): String? {
-        val query = artistName.trim().takeIf { it.isNotEmpty() } ?: return null
+) : ArtistImageClient {
+    override suspend fun findArtistImage(artistName: String): ArtistImageLookup {
+        val query = artistName.trim().takeIf { it.isNotEmpty() }
+            ?: return ArtistImageLookup.NotFound
         val requestBody = runCatching {
             JSONObject()
                 .put(
@@ -30,7 +42,7 @@ internal class YouTubeMusicArtistImageClient(
                 .put("query", query)
                 .toString()
                 .toByteArray(Charsets.UTF_8)
-        }.getOrNull() ?: return null
+        }.getOrNull() ?: return ArtistImageLookup.Failed
         val response = try {
             transport.post(
                 rawUrl = SEARCH_URL,
@@ -45,12 +57,17 @@ internal class YouTubeMusicArtistImageClient(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            return null
+            return ArtistImageLookup.Failed
         }
-        if (response.statusCode !in 200..299 || response.body.isEmpty()) return null
+        if (response.statusCode !in 200..299 || response.body.isEmpty()) return ArtistImageLookup.Failed
         return runCatching {
             findArtistThumbnail(JSONObject(response.body.toString(Charsets.UTF_8)), query)
-        }.getOrNull()
+        }.fold(
+            onSuccess = { image ->
+                image?.let { ArtistImageLookup.Found(Uri.parse(it)) } ?: ArtistImageLookup.NotFound
+            },
+            onFailure = { ArtistImageLookup.Failed },
+        )
     }
 
     private companion object {

@@ -75,9 +75,20 @@ internal fun searchAlbumsForPicker(
     query: NormalizedSearchQuery,
 ): List<Album> {
     if (query.value.isBlank()) return albums
+    return searchIndexedAlbumsForPicker(
+        albums = albums.map(Album::toSearchableAlbum),
+        query = query,
+    )
+}
+
+internal fun searchIndexedAlbumsForPicker(
+    albums: List<SearchableAlbum>,
+    query: NormalizedSearchQuery,
+): List<Album> {
+    if (query.value.isBlank()) return albums.map(SearchableAlbum::album)
 
     return sortRankedAlbums(
-        albums.map(Album::toSearchableAlbum).rankMatching(
+        albums.rankMatching(
             query = query,
             normalizedTitle = SearchableAlbum::normalizedTitle,
             normalizedArtist = SearchableAlbum::normalizedArtist,
@@ -101,16 +112,26 @@ internal fun searchPlaylists(
     query: NormalizedSearchQuery,
 ): List<Playlist> {
     if (query.value.isBlank()) return playlists
-
-    return playlists
-        .map { playlist ->
+    return searchIndexedPlaylists(
+        playlists = playlists.map { playlist ->
             val normalizedName = normalizeSearchText(playlist.name)
             SearchablePlaylist(
                 playlist = playlist,
                 normalizedName = normalizedName,
                 normalizedComposite = normalizedName,
             )
-        }
+        },
+        query = query,
+    )
+}
+
+internal fun searchIndexedPlaylists(
+    playlists: List<SearchablePlaylist>,
+    query: NormalizedSearchQuery,
+): List<Playlist> {
+    if (query.value.isBlank()) return playlists.map(SearchablePlaylist::playlist)
+
+    return playlists
         .rankMatching(
             query = query,
             normalizedTitle = SearchablePlaylist::normalizedName,

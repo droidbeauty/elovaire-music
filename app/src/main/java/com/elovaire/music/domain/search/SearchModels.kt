@@ -114,11 +114,11 @@ private fun ByteArray.toSearchRevisionHex(): String {
     }
 }
 
-internal fun SearchLibrarySnapshot.toSearchIndex(): SearchIndex {
+internal fun SearchLibrarySnapshot.toSearchIndex(revision: String = signature()): SearchIndex {
     return buildSearchIndex(
         songs = songs,
         albums = albums,
-    ).copy(revision = signature())
+    ).copy(revision = revision)
 }
 
 internal fun buildSearchIndex(
