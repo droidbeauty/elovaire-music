@@ -40,6 +40,7 @@ data class Album(
 data class LibrarySnapshot(
     val songs: List<Song>,
     val albums: List<Album>,
+    val contentRevision: String = "",
 )
 
 data class Playlist(

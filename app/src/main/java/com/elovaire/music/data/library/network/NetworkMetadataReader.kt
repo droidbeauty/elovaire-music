@@ -69,7 +69,10 @@ private class RangeMediaDataSource(
     private val entry: NetworkFileEntry,
     private val size: Long,
 ) : MediaDataSource() {
-    private var bytesRead = 0L
+    private var bytesFetched = 0L
+    private var windowStart = -1L
+    private var window = ByteArray(0)
+    private var windowLength = 0
 
     override fun readAt(position: Long, buffer: ByteArray, offset: Int, size: Int): Int {
         if (position < 0L || offset < 0 || size < 0 || offset > buffer.size - size) {
@@ -77,28 +80,55 @@ private class RangeMediaDataSource(
         }
         if (size == 0) return 0
         if (position >= this.size) return -1
-        val remainingBudget = MAX_METADATA_READ_BYTES - bytesRead
-        if (remainingBudget <= 0L) throw IOException("Network metadata read budget exceeded")
-        val requestSize = minOf(size.toLong(), this.size - position, remainingBudget).toInt()
-        val readHandle = registry.openBlocking(source.id, entry.path, position, requestSize.toLong())
-        readHandle.use { handle ->
-            var total = 0
-            while (total < requestSize) {
-                val read = handle.input.read(buffer, offset + total, requestSize - total)
-                if (read < 0) break
-                if (read == 0) continue
-                total += read
-                bytesRead += read
-            }
-            return total.takeIf { it > 0 } ?: -1
+        if (position < windowStart || position >= windowStart + windowLength) {
+            loadWindow(position)
         }
+        val windowOffset = (position - windowStart).toInt()
+        val available = (windowLength - windowOffset).coerceAtLeast(0)
+        if (available == 0) return -1
+        val count = minOf(size, available)
+        window.copyInto(buffer, destinationOffset = offset, startIndex = windowOffset, endIndex = windowOffset + count)
+        return count
     }
 
     override fun getSize(): Long = size
 
     override fun close() = Unit
 
+    private fun loadWindow(position: Long) {
+        val remainingBudget = MAX_METADATA_READ_BYTES - bytesFetched
+        if (remainingBudget <= 0L) throw IOException("Network metadata read budget exceeded")
+        val start = position
+        val requestSize = minOf(WINDOW_BYTES.toLong(), this.size - start, remainingBudget).toInt()
+        if (requestSize <= 0) throw IOException("Network metadata read budget exceeded")
+        val loaded = ByteArray(requestSize)
+        val readHandle = registry.openBlocking(source.id, entry.path, start, requestSize.toLong())
+        var total = 0
+        try {
+            readHandle.use { handle ->
+                while (total < requestSize) {
+                    val read = handle.input.read(loaded, total, requestSize - total)
+                    if (read < 0) break
+                    if (read == 0) continue
+                    total += read
+                }
+            }
+        } finally {
+            bytesFetched += total
+        }
+        if (total == 0) {
+            windowStart = start
+            windowLength = 0
+            window = ByteArray(0)
+            return
+        }
+        windowStart = start
+        windowLength = total
+        window = if (total == loaded.size) loaded else loaded.copyOf(total)
+    }
+
     private companion object {
         const val MAX_METADATA_READ_BYTES = 2L * 1024L * 1024L
+        const val WINDOW_BYTES = 64 * 1024
     }
 }

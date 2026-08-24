@@ -218,11 +218,19 @@ internal class ArtistImageRepository(
     }
 
     private fun cachedArtworkFile(artistKey: String): File? {
-        val file = appContext
+        val directory = appContext
             ?.cacheDir
             ?.resolve(ARTIST_IMAGE_CACHE_DIRECTORY)
-            ?.resolve("${cacheKey(artistKey)}.img")
-        return file?.takeIf { it.isFile && it.length() > 0L }
+            ?: return null
+        directory.resolve("${cacheKey(artistKey)}.tmp").delete()
+        val file = directory.resolve("${cacheKey(artistKey)}.img")
+        if (!file.isFile || file.length() <= 0L) return null
+        val ageMs = System.currentTimeMillis() - file.lastModified()
+        if (ageMs < 0L || ageMs > POSITIVE_CACHE_TTL_MS) {
+            file.delete()
+            return null
+        }
+        return file
     }
 
     private fun persistArtwork(uri: Uri, artistKey: String): Uri? {

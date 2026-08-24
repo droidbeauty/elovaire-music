@@ -376,7 +376,10 @@ internal object ArtworkBitmapCache {
                     inFlight[key] = ownerFuture
                     waitFor = null
                 } else {
-                    waitFor = inFlight.values.firstOrNull()
+                    // A synchronous artwork caller must not park an IO/worker thread
+                    // behind an unrelated decode. The next composition/request can
+                    // retry after an existing decode frees admission.
+                    return null
                 }
             }
             if (ownerFuture == null) {

@@ -12,23 +12,24 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @UnstableApi
-@OptIn(FlowPreview::class)
+@OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 internal class PlaybackIntegrationCoordinator(
     private val scope: CoroutineScope,
     private val preferences: PlaybackIntegrationSettings,
@@ -103,28 +104,40 @@ internal class PlaybackIntegrationCoordinator(
                 }
         }
         scope.launch {
-            merge(
+            val stateChanges = merge(
                 combine(playback.queueState, playback.transportState) { _, _ -> Unit },
                 combine(playback.progressState, playback.transportState) { _, transport -> transport.isPlaying }
                     .filter { isPlaying -> !isPlaying }
                     .sample(PLAYBACK_POSITION_PERSIST_INTERVAL_MS)
                     .map { Unit },
             )
-                .collect { persistSession() }
-        }
-        scope.launch {
-            combine(playback.queueState, playback.transportState) { queue, transport ->
+                .map { PlaybackCheckpoint.StateChange }
+            val playingCheckpoints = combine(playback.queueState, playback.transportState) { queue, transport ->
                 queue.queue.isNotEmpty() && transport.isPlaying
             }
                 .distinctUntilChanged()
-                .collectLatest { isPlaying ->
-                    if (!isPlaying) return@collectLatest
-                    while (currentCoroutineContext().isActive) {
-                        val positionMs = withContext(Dispatchers.Main.immediate) {
-                            playback.currentPositionForPersistence()
+                .flatMapLatest { isPlaying ->
+                    if (!isPlaying) {
+                        emptyFlow()
+                    } else {
+                        flow {
+                            while (true) {
+                                emit(PlaybackCheckpoint.RecoveryPosition)
+                                delay(PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS)
+                            }
                         }
-                        persistSession(positionMs)
-                        delay(PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS)
+                    }
+                }
+            merge(stateChanges, playingCheckpoints)
+                .collect { checkpoint ->
+                    when (checkpoint) {
+                        PlaybackCheckpoint.StateChange -> persistSession()
+                        PlaybackCheckpoint.RecoveryPosition -> {
+                            val positionMs = withContext(Dispatchers.Main.immediate) {
+                                playback.currentPositionForPersistence()
+                            }
+                            persistSession(positionMs)
+                        }
                     }
                 }
         }
@@ -197,6 +210,11 @@ internal class PlaybackIntegrationCoordinator(
         const val PLAYBACK_POSITION_PERSIST_INTERVAL_MS = 5_000L
         const val PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS = 10_000L
     }
+}
+
+private enum class PlaybackCheckpoint {
+    StateChange,
+    RecoveryPosition,
 }
 
 internal fun isPlaybackSessionFullyResolved(

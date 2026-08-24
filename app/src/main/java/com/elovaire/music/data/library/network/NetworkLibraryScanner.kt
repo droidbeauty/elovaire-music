@@ -29,11 +29,12 @@ internal class NetworkLibraryScanner(
     suspend fun scan(
         sources: List<NetworkLibrarySource>,
         forceRefresh: Boolean = false,
+        enrichMetadata: Boolean = true,
     ): List<Song> = withContext(Dispatchers.IO) {
         val result = mutableListOf<Song>()
         sources.filter(NetworkLibrarySource::enabled).forEach { source ->
             currentCoroutineContext().ensureActive()
-            result += scanSource(source, forceRefresh)
+            result += scanSource(source, forceRefresh, enrichMetadata)
         }
         result
     }
@@ -42,11 +43,20 @@ internal class NetworkLibraryScanner(
         return sources.any { it.enabled && !inventory.hasFreshListing(it.id, nowMs) }
     }
 
-    private suspend fun scanSource(source: NetworkLibrarySource, forceRefresh: Boolean): List<Song> {
+    private suspend fun scanSource(
+        source: NetworkLibrarySource,
+        forceRefresh: Boolean,
+        enrichMetadata: Boolean,
+    ): List<Song> {
         val cached = inventory.load(source)
         val sourceGeneration = registry.sourceGeneration(source.id)
         if (!isCurrentSource(source, sourceGeneration)) return emptyList()
-        if (!forceRefresh && inventory.hasFreshListing(source.id, System.currentTimeMillis())) {
+        val hasUnresolvedCachedMetadata = cached.any { !it.song.metadataResolved }
+        if (
+            !forceRefresh &&
+                inventory.hasFreshListing(source.id, System.currentTimeMillis()) &&
+                (!enrichMetadata || !hasUnresolvedCachedMetadata)
+        ) {
             return cached.map(NetworkInventoryEntry::song)
         }
         val credentials = registry.credentials(source)
@@ -82,58 +92,40 @@ internal class NetworkLibraryScanner(
             .map { entry -> entry.copy(path = NetworkPathPolicy.normalizeRelativePath(entry.path)) }
             .distinctBy(NetworkFileEntry::path)
             .toList()
-        val artworkByDirectory = entries
-            .asSequence()
-            .filterNot(NetworkFileEntry::isDirectory)
-            .filter(NetworkFileEntry::isSupportedArtwork)
-            .groupBy { it.path.substringBeforeLast('/', "") }
-            .mapValues { (_, candidates) -> candidates.minBy(NetworkFileEntry::artworkPriority) }
-            .entries
-            .take(MAX_ARTWORKS_PER_SCAN)
-            .associate { (directory, entry) ->
-                directory to artworkCache.uriFor(source, entry, registry)
-            }
-        artworkCache.trim()
         val cachedByPath = cached.associateBy { it.entry.path }
         val cachedByEntryId = cached
             .mapNotNull { item -> item.entry.sourceEntryId?.let { it to item } }
             .groupBy({ it.first }, { it.second })
-        val inventoryEntries = audioEntries.map { entry ->
-            val previous = cachedByPath[entry.path]
-                ?: entry.sourceEntryId
-                    ?.let { cachedByEntryId[it].orEmpty().singleOrNull() }
-                ?: entry.revisionCandidate(cached)
-            if (previous != null && previous.hasSameRevision(entry)) {
-                val relocatedSong = previous.song.copy(
-                    fileName = entry.path.substringAfterLast('/').ifBlank { "Unknown" },
-                    dateModifiedSeconds = entry.modifiedAtMs?.div(1_000L),
-                    libraryPath = "network/${source.id}/${entry.path}",
-                    uri = NetworkResourceUri.create(source.id, entry.path),
-                )
-                previous.copy(
-                    entry = entry,
-                    song = relocatedSong.copy(
-                        artUri = artworkByDirectory[entry.path.substringBeforeLast('/', "")] ?: previous.song.artUri,
-                    ),
-                )
-            } else {
-                val metadata = metadataReader.read(source, entry)
-                NetworkInventoryEntry(
-                    entry = entry,
-                    song = entry.toSong(
-                        source = source,
-                        artUri = artworkByDirectory[entry.path.substringBeforeLast('/', "")],
-                        metadata = metadata,
-                        preservedSongId = previous?.song?.id,
-                    ),
-                )
-            }
+        val revisionIndex = buildNetworkRevisionIndex(cached)
+        val artworkByDirectory = if (enrichMetadata) {
+            entries
+                .asSequence()
+                .filterNot(NetworkFileEntry::isDirectory)
+                .filter(NetworkFileEntry::isSupportedArtwork)
+                .groupBy { it.path.substringBeforeLast('/', "") }
+                .mapValues { (_, candidates) -> candidates.minBy(NetworkFileEntry::artworkPriority) }
+                .entries
+                .take(MAX_ARTWORKS_PER_SCAN)
+                .associate { (directory, entry) ->
+                    directory to artworkCache.uriFor(source, entry, registry)
+                }
+                .also { artworkCache.trim() }
+        } else {
+            emptyMap()
         }
+        val inventoryEntries = buildInventoryEntries(
+            source = source,
+            audioEntries = audioEntries,
+            cachedByPath = cachedByPath,
+            cachedByEntryId = cachedByEntryId,
+            revisionIndex = revisionIndex,
+            artworkByDirectory = artworkByDirectory,
+            enrichMetadata = enrichMetadata,
+        )
         val inventoryChanged = inventoryEntries.size != cached.size || inventoryEntries.any { current ->
             val previous = cachedByPath[current.entry.path]
             previous == null ||
-                !previous.hasSameRevision(current.entry) ||
-                previous.song.artUri != current.song.artUri
+                previous != current
         }
         val nowMs = System.currentTimeMillis()
         if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
@@ -154,6 +146,52 @@ internal class NetworkLibraryScanner(
             inventory.refresh(source.id, NetworkAvailability.Available, nowMs)
         }
         return inventoryEntries.map(NetworkInventoryEntry::song)
+    }
+
+    private fun buildInventoryEntries(
+        source: NetworkLibrarySource,
+        audioEntries: List<NetworkFileEntry>,
+        cachedByPath: Map<String, NetworkInventoryEntry>,
+        cachedByEntryId: Map<String, List<NetworkInventoryEntry>>,
+        revisionIndex: Map<NetworkRevisionKey, NetworkInventoryEntry?>,
+        artworkByDirectory: Map<String, Uri?>,
+        enrichMetadata: Boolean,
+    ): List<NetworkInventoryEntry> {
+        return audioEntries.map { entry ->
+            val previous = cachedByPath[entry.path]
+                ?: entry.sourceEntryId
+                    ?.let { cachedByEntryId[it].orEmpty().singleOrNull() }
+                ?: entry.revisionCandidate(revisionIndex)
+            if (
+                previous != null &&
+                    previous.hasSameRevision(entry) &&
+                    (!enrichMetadata || previous.song.metadataResolved)
+            ) {
+                val relocatedSong = previous.song.copy(
+                    fileName = entry.path.substringAfterLast('/').ifBlank { "Unknown" },
+                    dateModifiedSeconds = entry.modifiedAtMs?.div(1_000L),
+                    libraryPath = "network/${source.id}/${entry.path}",
+                    uri = NetworkResourceUri.create(source.id, entry.path),
+                )
+                previous.copy(
+                    entry = entry,
+                    song = relocatedSong.copy(
+                        artUri = artworkByDirectory[entry.path.substringBeforeLast('/', "")] ?: previous.song.artUri,
+                    ),
+                )
+            } else {
+                val metadata = if (enrichMetadata) metadataReader.read(source, entry) else null
+                NetworkInventoryEntry(
+                    entry = entry,
+                    song = entry.toSong(
+                        source = source,
+                        artUri = artworkByDirectory[entry.path.substringBeforeLast('/', "")],
+                        metadata = metadata,
+                        preservedSongId = previous?.song?.id,
+                    ),
+                )
+            }
+        }
     }
 
     private fun publishAvailability(
@@ -259,12 +297,10 @@ internal class NetworkLibraryScanner(
     }
 
     private fun NetworkFileEntry.revisionCandidate(
-        cached: List<NetworkInventoryEntry>,
+        index: Map<NetworkRevisionKey, NetworkInventoryEntry?>,
     ): NetworkInventoryEntry? {
-        if (sizeBytes == null || etag.isNullOrBlank()) return null
-        return cached.filter { previous ->
-            previous.entry.sizeBytes == sizeBytes && previous.entry.etag == etag
-        }.singleOrNull()
+        val key = networkRevisionKey() ?: return null
+        return index[key]
     }
 
     private companion object {

@@ -32,13 +32,13 @@ internal object LibrarySongDuplicateResolver {
         val accepted = ArrayList<Song>(acceptedMediaStoreSongs.size + acceptedSafSongs.size)
         accepted += acceptedMediaStoreSongs
 
+        val mediaStoreByStrongKey = acceptedMediaStoreSongs
+            .asSequence()
+            .flatMap { song -> strongKeys(song).asSequence().map { key -> key to song } }
+            .toMap()
+
         acceptedSafSongs.forEach { safSong ->
-            val duplicate = acceptedMediaStoreSongs.any { mediaSong ->
-                duplicateEvidence(mediaSong, safSong).confidence in setOf(
-                    DuplicateConfidence.SameSource,
-                    DuplicateConfidence.ProvenSameContent,
-                )
-            }
+            val duplicate = strongKeys(safSong).any { key -> key in mediaStoreByStrongKey }
             if (!duplicate) {
                 accepted += safSong
             }

@@ -16,6 +16,8 @@ import java.io.InputStream
 import java.security.MessageDigest
 import java.util.EnumSet
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.ExecutionException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -237,6 +239,7 @@ internal class SmbNetworkFileSystem(
     ) {
         private val lock = Any()
         private var resources: SessionResources? = null
+        private var connecting: CompletableFuture<SessionResources>? = null
         private var activeLeases = 0
         private var lastUsedElapsedMs = SystemClock.elapsedRealtime()
         private var invalidated = false
@@ -250,23 +253,77 @@ internal class SmbNetworkFileSystem(
             activeLeases == 0 && nowElapsedMs - lastUsedElapsedMs >= SESSION_IDLE_TIMEOUT_MS
         }
 
+        @Suppress("TooGenericExceptionCaught")
         fun acquire(): SessionLease {
+            val connectFuture: CompletableFuture<SessionResources>
+            val ownsConnect: Boolean
             synchronized(lock) {
                 check(!invalidated) { "SMB session is invalidated" }
-                if (resources == null || resources?.share?.isConnected != true) {
-                    resources = createSessionResources(source, credentials)
+                val currentResources = resources
+                if (currentResources?.share?.isConnected == true) {
+                    idleCloseJob?.cancel()
+                    idleCloseJob = null
+                    activeLeases += 1
+                    lastUsedElapsedMs = SystemClock.elapsedRealtime()
+                    return SessionLease(currentResources.share, ::releaseLease)
                 }
+                val existingConnect = connecting
+                if (existingConnect != null) {
+                    connectFuture = existingConnect
+                    ownsConnect = false
+                } else {
+                    connectFuture = CompletableFuture()
+                    connecting = connectFuture
+                    ownsConnect = true
+                }
+            }
+
+            if (ownsConnect) {
+                try {
+                    val created = createSessionResources(source, credentials)
+                    synchronized(lock) {
+                        if (connecting === connectFuture) connecting = null
+                        if (invalidated) {
+                            created.close()
+                            connectFuture.completeExceptionally(IOException("SMB session was invalidated"))
+                        } else {
+                            resources = created
+                            connectFuture.complete(created)
+                        }
+                    }
+                } catch (failure: Throwable) {
+                    synchronized(lock) {
+                        if (connecting === connectFuture) connecting = null
+                        connectFuture.completeExceptionally(failure)
+                    }
+                    throw failure
+                }
+            }
+
+            val resolved = try {
+                connectFuture.get()
+            } catch (interrupted: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw IOException("SMB session acquisition interrupted", interrupted)
+            } catch (failure: ExecutionException) {
+                throw (failure.cause ?: failure)
+            }
+            synchronized(lock) {
+                check(!invalidated) { "SMB session is invalidated" }
+                check(resources === resolved && resolved.share.isConnected) { "SMB session is unavailable" }
                 idleCloseJob?.cancel()
                 idleCloseJob = null
                 activeLeases += 1
                 lastUsedElapsedMs = SystemClock.elapsedRealtime()
-                return SessionLease(resources!!.share, ::releaseLease)
+                return SessionLease(resolved.share, ::releaseLease)
             }
         }
 
         fun invalidate() {
             synchronized(lock) {
                 invalidated = true
+                connecting?.completeExceptionally(IOException("SMB session was invalidated"))
+                connecting = null
                 if (activeLeases == 0) closeResourcesLocked()
             }
         }
@@ -274,6 +331,8 @@ internal class SmbNetworkFileSystem(
         fun release() {
             synchronized(lock) {
                 invalidated = true
+                connecting?.completeExceptionally(IOException("SMB session was released"))
+                connecting = null
                 closeResourcesLocked()
             }
         }

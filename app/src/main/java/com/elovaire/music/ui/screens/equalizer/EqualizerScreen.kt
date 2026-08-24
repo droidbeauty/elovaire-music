@@ -175,12 +175,12 @@ internal fun EqualizerScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(0.dp))
                 EqHorizontalScrollbar(
                     scrollState = graphScrollState,
                     contentWidth = graphContentWidth,
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(0.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -1566,7 +1566,7 @@ internal fun EqHorizontalScrollbar(
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(36.dp)
+            .height(16.dp)
             .horizontalGestureSafe(),
     ) {
         val density = LocalDensity.current

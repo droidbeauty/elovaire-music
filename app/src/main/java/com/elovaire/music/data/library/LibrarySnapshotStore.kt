@@ -114,8 +114,8 @@ internal class LibrarySnapshotStore(
                     syncState = cachedSnapshot.syncState,
                 )
             }
-            lastSavedContentRevision = libraryContentRevision(
-                songs = cachedSnapshot.snapshot.songs,
+            lastSavedContentRevision = librarySnapshotContentRevision(
+                snapshot = cachedSnapshot.snapshot,
                 filterFingerprint = cachedSnapshot.signature.filterFingerprint,
                 syncState = cachedSnapshot.syncState,
             )
@@ -135,8 +135,12 @@ internal class LibrarySnapshotStore(
         syncState: LibraryMediaStoreSyncState? = null,
     ) = synchronized(snapshotLock) {
         val songs = snapshot.songs.filter(::isSupportedLibrarySong)
-        val contentRevision = libraryContentRevision(
-            songs = songs,
+        val contentRevision = librarySnapshotContentRevision(
+            snapshot = if (songs.size == snapshot.songs.size) {
+                snapshot.copy(songs = songs)
+            } else {
+                LibrarySnapshotAssembler.assemble(songs)
+            },
             filterFingerprint = filterFingerprint,
             syncState = syncState,
         )
@@ -245,6 +249,32 @@ internal fun libraryContentRevision(
     return digest.digest().toHexString()
 }
 
+internal fun librarySnapshotContentRevision(
+    snapshot: LibrarySnapshot,
+    filterFingerprint: String,
+    syncState: LibraryMediaStoreSyncState?,
+): String {
+    if (snapshot.contentRevision.isBlank()) {
+        return libraryContentRevision(snapshot.songs, filterFingerprint, syncState)
+    }
+    val digest = MessageDigest.getInstance("SHA-256")
+    digest.appendRevisionValue(filterFingerprint)
+    digest.appendRevisionValue(syncState?.filterFingerprint)
+    syncState?.volumes?.forEach { volume ->
+        digest.appendRevisionValue(volume.volumeName)
+        digest.appendRevisionValue(volume.version)
+        digest.appendRevisionValue(volume.generation)
+    }
+    digest.appendRevisionValue(snapshot.contentRevision)
+    return digest.digest().toHexString()
+}
+
+internal fun librarySongsContentRevision(songs: List<Song>): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    songs.forEach { song -> digest.appendSongRevision(song) }
+    return digest.digest().toHexString()
+}
+
 internal fun libraryIndexContentRevision(
     snapshot: LibrarySnapshot,
     filterFingerprint: String,
@@ -253,6 +283,10 @@ internal fun libraryIndexContentRevision(
     val digest = MessageDigest.getInstance("SHA-256")
     digest.appendRevisionValue(filterFingerprint)
     digest.appendRevisionValue(source)
+    if (snapshot.contentRevision.isNotBlank()) {
+        digest.appendRevisionValue(snapshot.contentRevision)
+        return digest.digest().toHexString()
+    }
     snapshot.songs.forEach { song -> digest.appendSongRevision(song) }
     snapshot.albums.forEach { album ->
         digest.appendRevisionValue(album.id)

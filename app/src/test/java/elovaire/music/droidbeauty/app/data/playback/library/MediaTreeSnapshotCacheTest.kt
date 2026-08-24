@@ -40,6 +40,24 @@ class MediaTreeSnapshotCacheTest {
     }
 
     @Test
+    fun semanticLibraryRevisionReusesSnapshotAcrossEquivalentListInstances() {
+        val songs = listOf(testSong(id = 1L))
+        val albums = emptyList<Album>()
+        val playlists = emptyList<Playlist>()
+        val favorites = emptyList<Long>()
+        val recent = emptyList<Long>()
+        val cache = MediaTreeSnapshotCache()
+        val first = cache.snapshot(
+            true, songs, albums, playlists, favorites, recent, null, null, "library-1",
+        )
+        val second = cache.snapshot(
+            true, songs.toList(), albums.toList(), playlists, favorites, recent, null, null, "library-1",
+        )
+
+        assertSame(first, second)
+    }
+
+    @Test
     fun clearDropsDerivedSnapshot() {
         val cache = MediaTreeSnapshotCache()
         val first = cache.snapshot(true, emptyList(), emptyList(), emptyList(), emptyList(), emptyList(), null, null)

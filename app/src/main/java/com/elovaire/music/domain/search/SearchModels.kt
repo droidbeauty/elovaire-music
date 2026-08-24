@@ -68,8 +68,10 @@ internal data class NormalizedSearchQuery(
 internal data class SearchLibrarySnapshot(
     val songs: List<Song>,
     val albums: List<Album>,
+    val revision: String = "",
 ) {
     fun signature(): String {
+        if (revision.isNotBlank()) return revision
         val digest = MessageDigest.getInstance("SHA-256")
         digest.appendSearchRevisionValue(songs.size)
         digest.appendSearchRevisionValue(albums.size)

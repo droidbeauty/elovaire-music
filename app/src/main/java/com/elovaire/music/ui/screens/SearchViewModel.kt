@@ -98,6 +98,7 @@ internal class SearchViewModel(
             SearchLibrarySnapshot(
                 songs = content.songs,
                 albums = content.albums,
+                revision = content.contentRevision,
             )
         }
         .map { snapshot -> snapshot to snapshot.signature() }

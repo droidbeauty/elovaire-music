@@ -37,6 +37,9 @@ internal class LibrarySnapshotPublisher(
             albums = snapshot.albums,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
+            contentRevision = snapshot.contentRevision.ifBlank {
+                librarySongsContentRevision(snapshot.songs)
+            },
         )
     }
 
@@ -116,6 +119,7 @@ internal class LibrarySnapshotPublisher(
             albums = updatedAlbums,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
+            contentRevision = librarySongsContentRevision(updatedSongs),
         )
         if (current != nextState) publish(nextState)
         return nextState
@@ -125,6 +129,9 @@ internal class LibrarySnapshotPublisher(
         return LibrarySnapshot(
             songs = state.songs,
             albums = state.albums,
+            contentRevision = state.contentRevision.ifBlank {
+                librarySongsContentRevision(state.songs)
+            },
         )
     }
 

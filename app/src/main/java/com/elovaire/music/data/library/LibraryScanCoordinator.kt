@@ -132,6 +132,7 @@ internal class LibraryScanCoordinator(
         val scannedNetworkSongs = networkScannerProvider().scan(
             sources = sourcesToScan,
             forceRefresh = refreshMediaIndex,
+            enrichMetadata = enrichMetadata,
         )
         val networkSongsBySource = existingNetworkSongs.toMutableMap()
         if (targetedNetworkSourceIds == null) networkSongsBySource.clear()

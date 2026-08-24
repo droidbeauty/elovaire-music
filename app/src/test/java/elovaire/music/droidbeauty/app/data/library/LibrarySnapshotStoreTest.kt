@@ -83,6 +83,20 @@ class LibrarySnapshotStoreTest {
     }
 
     @Test
+    fun librarySongsContentRevisionIsStableAndChangesWithSearchableContent() {
+        val song = snapshotSong(id = 1L, modifiedSeconds = 10L)
+
+        assertEquals(
+            librarySongsContentRevision(listOf(song)),
+            librarySongsContentRevision(listOf(song)),
+        )
+        assertNotEquals(
+            librarySongsContentRevision(listOf(song)),
+            librarySongsContentRevision(listOf(song.copy(title = "Changed"))),
+        )
+    }
+
+    @Test
     fun snapshotSongValidation_rejectsUnplayableCachedRows() {
         assertEquals(true, isValidSnapshotSong(snapshotSong(id = 1L, modifiedSeconds = 10L)))
         assertEquals(false, isValidSnapshotSong(snapshotSong(id = 0L, modifiedSeconds = 10L)))

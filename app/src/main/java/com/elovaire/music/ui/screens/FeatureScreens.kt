@@ -2578,7 +2578,7 @@ private fun BoxScope.ArtistHeroAccentGradient(accent: Color) {
         modifier = Modifier
             .align(Alignment.BottomCenter)
             .fillMaxWidth()
-            .height(70.dp)
+            .height(100.dp)
             .background(
                 Brush.verticalGradient(
                     colorStops = arrayOf(

@@ -43,6 +43,7 @@ data class LibraryContentState(
     val albums: List<Album> = emptyList(),
     val removingSongIds: Set<Long> = emptySet(),
     val removingAlbumIds: Set<Long> = emptySet(),
+    val contentRevision: String = "",
 )
 
 data class LibraryScanState(

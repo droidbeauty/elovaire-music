@@ -26,6 +26,34 @@ class NetworkLibraryScannerTest {
         assertEquals(listOf(9L), songs.map(Song::id))
     }
 
+    @Test
+    fun revisionIndexPreservesUniqueRelocationAndRejectsAmbiguity() {
+        val unique = inventory("old.mp3", 1L).copy(
+            entry = NetworkFileEntry("old.mp3", false, sizeBytes = 42L, etag = "etag-a"),
+        )
+        val ambiguous = inventory("other.mp3", 2L).copy(
+            entry = NetworkFileEntry("other.mp3", false, sizeBytes = 42L, etag = "etag-a"),
+        )
+
+        val uniqueIndex = buildNetworkRevisionIndex(listOf(unique))
+        val ambiguousIndex = buildNetworkRevisionIndex(listOf(unique, ambiguous))
+
+        assertEquals(unique, uniqueIndex[NetworkRevisionKey(42L, "etag-a")])
+        assertEquals(null, ambiguousIndex[NetworkRevisionKey(42L, "etag-a")])
+    }
+
+    @Test
+    fun webDavContentRangeParserRejectsMalformedAndPreservesUnknownTotal() {
+        assertEquals(
+            WebDavContentRange(10L, 19L, 100L),
+            parseWebDavContentRange("bytes 10-19/100"),
+        )
+        assertEquals(null, parseWebDavContentRange("bytes 10-19"))
+        assertEquals(null, parseWebDavContentRange("bytes 19-10/100"))
+        assertEquals(null, parseWebDavContentRange("bytes 10-19/not-a-size"))
+        assertEquals(null, parseWebDavContentRange("bytes 10-19/*")?.totalLength)
+    }
+
     private fun inventory(path: String, id: Long): NetworkInventoryEntry =
         NetworkInventoryEntry(
             entry = NetworkFileEntry(path = path, isDirectory = false),

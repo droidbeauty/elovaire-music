@@ -183,6 +183,33 @@ internal data class NetworkInventoryEntry(
     }
 }
 
+internal data class NetworkRevisionKey(
+    val sizeBytes: Long,
+    val etag: String,
+)
+
+/** A null value represents an ambiguous revision and intentionally cannot relocate identity. */
+internal fun buildNetworkRevisionIndex(
+    entries: List<NetworkInventoryEntry>,
+): Map<NetworkRevisionKey, NetworkInventoryEntry?> {
+    val index = LinkedHashMap<NetworkRevisionKey, NetworkInventoryEntry?>()
+    entries.forEach { entry ->
+        val key = entry.entry.networkRevisionKey() ?: return@forEach
+        if (index.containsKey(key)) {
+            index[key] = null
+        } else {
+            index[key] = entry
+        }
+    }
+    return index
+}
+
+internal fun NetworkFileEntry.networkRevisionKey(): NetworkRevisionKey? {
+    val size = sizeBytes?.takeIf { it >= 0L } ?: return null
+    val etagValue = etag?.trim()?.takeIf(String::isNotBlank) ?: return null
+    return NetworkRevisionKey(size, etagValue)
+}
+
 private fun NetworkInventoryEntity.toInventoryEntry(source: NetworkLibrarySource): NetworkInventoryEntry {
     val normalizedPath = NetworkPathPolicy.normalizeRelativePath(relativePath)
     return NetworkInventoryEntry(

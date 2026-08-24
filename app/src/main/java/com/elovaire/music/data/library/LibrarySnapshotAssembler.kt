@@ -9,6 +9,7 @@ internal object LibrarySnapshotAssembler {
         return LibrarySnapshot(
             songs = canonicalSongs,
             albums = buildAlbumsFromSongs(canonicalSongs),
+            contentRevision = librarySongsContentRevision(canonicalSongs),
         )
     }
 }

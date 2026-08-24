@@ -358,6 +358,7 @@ internal class ElovaireMediaTree(
             permissionGranted = scan.permissionGranted,
             songs = content.songs,
             albums = content.albums,
+            libraryRevision = content.contentRevision,
             playlists = preferenceStore.playlists.value,
             favoriteSongIds = preferenceStore.favoriteSongIds.value,
             recentSongIds = preferenceStore.recentSongIds.value,
@@ -521,6 +522,7 @@ internal class ElovaireMediaTree(
         val recentSongIds: List<Long>,
         val lastPlayedCollectionKind: PlaybackCollectionKind?,
         val lastPlayedCollectionId: Long?,
+        val libraryRevision: String = "",
     ) {
         private val favoriteSongs by lazy(LazyThreadSafetyMode.NONE) { songs.filter { it.id in favoriteSongIds } }
         private val favoriteSongsByTitle by lazy(LazyThreadSafetyMode.NONE) {
@@ -648,11 +650,12 @@ internal class MediaTreeSnapshotCache {
         recentSongIds: List<Long>,
         lastPlayedCollectionKind: PlaybackCollectionKind?,
         lastPlayedCollectionId: Long?,
+        libraryRevision: String = "",
     ): ElovaireMediaTree.MediaTreeSnapshot {
         snapshot?.takeIf {
             it.permissionGranted == permissionGranted &&
-                it.songs === songs &&
-                it.albums === albums &&
+                (libraryRevision.isNotBlank() && it.libraryRevision == libraryRevision ||
+                    libraryRevision.isBlank() && it.songs === songs && it.albums === albums) &&
                 it.playlists === playlists &&
                 it.favoriteSongIdSource === favoriteSongIds &&
                 it.recentSongIds === recentSongIds &&
@@ -663,6 +666,7 @@ internal class MediaTreeSnapshotCache {
             permissionGranted = permissionGranted,
             songs = songs,
             albums = albums,
+            libraryRevision = libraryRevision,
             playlists = playlists,
             favoriteSongIdSource = favoriteSongIds,
             favoriteSongIds = favoriteSongIds.toSet(),
