@@ -22,8 +22,8 @@ internal interface NetworkFileSystem {
     fun listBlocking(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
-        maxEntries: Int = 10_000,
-        maxDepth: Int = 12,
+        maxEntries: Int = 100_000,
+        maxDepth: Int = 32,
     ): NetworkListingResult
 
     fun openBlocking(
@@ -43,6 +43,7 @@ internal class NetworkFileSystemRegistry(
     private val sourceStore: NetworkLibrarySourceStore,
     private val credentialStore: NetworkCredentialStore,
     private val fileSystems: Map<NetworkLibraryProtocol, NetworkFileSystem>,
+    private val localNetworkAccessAllowed: () -> Boolean = { true },
 ) {
     fun source(sourceId: String): NetworkLibrarySource? = sourceStore.sources.value.firstOrNull { it.id == sourceId }
 
@@ -54,11 +55,15 @@ internal class NetworkFileSystemRegistry(
     fun credentials(source: NetworkLibrarySource): NetworkCredentials? = credentialStore.get(source.credentialKey)
 
     fun probeBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkProbeResult {
+        if (!localNetworkAccessAllowed()) {
+            return NetworkProbeResult(NetworkAvailability.LocalNetworkPermissionRequired)
+        }
         return fileSystems[source.protocol]?.probeBlocking(source, credentials)
             ?: NetworkProbeResult(NetworkAvailability.Misconfigured, "Protocol is unavailable")
     }
 
     fun listBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkListingResult {
+        checkLocalNetworkAccess()
         return fileSystems[source.protocol]?.listBlocking(source, credentials)
             ?: throw IOException("Network protocol is unavailable")
     }
@@ -69,6 +74,7 @@ internal class NetworkFileSystemRegistry(
         position: Long,
         length: Long,
     ): NetworkReadHandle {
+        checkLocalNetworkAccess()
         val source = source(sourceId) ?: throw IOException("Network library source is unavailable")
         val credentials = credentials(source) ?: throw IOException("Network library credentials are unavailable")
         return fileSystems[source.protocol]?.openBlocking(source, credentials, path, position, length)
@@ -81,5 +87,9 @@ internal class NetworkFileSystemRegistry(
 
     fun release() {
         fileSystems.values.forEach(NetworkFileSystem::release)
+    }
+
+    private fun checkLocalNetworkAccess() {
+        if (!localNetworkAccessAllowed()) throw NetworkLocalNetworkPermissionException()
     }
 }

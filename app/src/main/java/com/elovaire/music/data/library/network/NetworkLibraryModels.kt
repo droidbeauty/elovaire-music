@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
 import java.security.MessageDigest
+import java.net.URI
+import java.util.Locale
 
 internal enum class NetworkLibraryProtocol {
     Smb,
@@ -48,11 +50,22 @@ internal data class NetworkReadHandle(
 internal enum class NetworkAvailability {
     Checking,
     Available,
+    LocalNetworkPermissionRequired,
     Offline,
     AuthenticationRequired,
     Misconfigured,
     Unavailable,
 }
+
+internal class NetworkLocalNetworkPermissionException : java.io.IOException(
+    "Local network permission is required for network library access",
+)
+
+internal class NetworkRangeException(message: String) : java.io.IOException(message)
+
+internal class WebDavHttpException(val statusCode: Int) : java.io.IOException(
+    "WebDAV request failed with HTTP $statusCode",
+)
 
 internal data class NetworkProbeResult(
     val availability: NetworkAvailability,
@@ -77,6 +90,24 @@ internal object NetworkSourceIdentity {
         }
         return -(value and Long.MAX_VALUE).coerceAtLeast(1L)
     }
+
+    fun locationFingerprint(source: NetworkLibrarySource): String {
+        val server = when (source.protocol) {
+            NetworkLibraryProtocol.Smb ->
+                "${NetworkPathPolicy.smbServer(source.server)?.lowercase(Locale.ROOT)}:${NetworkPathPolicy.smbPort(source.server)}"
+            NetworkLibraryProtocol.WebDav -> runCatching { URI(source.server.trim()) }
+                .getOrNull()
+                ?.let { uri ->
+                    val port = uri.port.takeIf { it >= 0 } ?: 443
+                    "${uri.host.orEmpty().lowercase(Locale.ROOT)}:$port${uri.rawPath.orEmpty()}"
+                }
+                .orEmpty()
+        }
+        val canonical = "${source.protocol.name}|$server|${NetworkPathPolicy.normalizeRelativePath(source.shareOrPath)}"
+        return MessageDigest.getInstance("SHA-256")
+            .digest(canonical.toByteArray(Charsets.UTF_8))
+            .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
+    }
 }
 
 internal object NetworkResourceUri {
@@ -93,6 +124,6 @@ internal object NetworkResourceUri {
     fun sourceId(uri: android.net.Uri): String? = uri.host?.takeIf(String::isNotBlank)
 
     fun path(uri: android.net.Uri): String? = uri.getQueryParameter("path")
-        ?.let(NetworkPathPolicy::normalizeRelativePath)
+        ?.let(NetworkPathPolicy::validateRelativePath)
         ?.takeIf(String::isNotBlank)
 }

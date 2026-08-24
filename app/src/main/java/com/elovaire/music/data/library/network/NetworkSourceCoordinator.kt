@@ -50,7 +50,8 @@ internal class NetworkSourceCoordinator(
         } else {
             credentials
         }
-        val normalized = sourceStore.normalized(source)
+        val normalizedInput = sourceStore.normalized(source)
+        val normalized = normalizedInput.copy(username = effectiveCredentials.username.trim())
         credentialStore.put(normalized.credentialKey, effectiveCredentials)
         try {
             sourceStore.upsert(normalized)

@@ -1,7 +1,9 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.PlaybackException
 import androidx.media3.datasource.DataSource
+import androidx.media3.datasource.DataSourceException
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.BaseDataSource
@@ -44,12 +46,19 @@ private class RoutingDataSource(
             ?: throw IOException("Network media source is missing its source identity")
         val path = NetworkResourceUri.path(dataSpec.uri)
             ?: throw IOException("Network media source is missing its path")
-        val handle = registryProvider().openBlocking(
-            sourceId = sourceId,
-            path = path,
-            position = dataSpec.position,
-            length = dataSpec.length,
-        )
+        val handle = try {
+            registryProvider().openBlocking(
+                sourceId = sourceId,
+                path = path,
+                position = dataSpec.position,
+                length = dataSpec.length,
+            )
+        } catch (failure: elovaire.music.droidbeauty.app.data.library.network.NetworkRangeException) {
+            throw DataSourceException(
+                failure,
+                PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE,
+            )
+        }
         networkHandle = handle
         transferStarted(dataSpec)
         networkTransferStarted = true

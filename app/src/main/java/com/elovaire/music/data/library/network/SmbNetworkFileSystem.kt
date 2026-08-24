@@ -4,6 +4,8 @@ import android.os.SystemClock
 import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.msfscc.FileAttributes
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation
+import com.hierynomus.mssmb2.SMBApiException
+import com.hierynomus.mserref.NtStatus
 import com.hierynomus.mssmb2.SMB2CreateDisposition
 import com.hierynomus.mssmb2.SMB2CreateOptions
 import com.hierynomus.mssmb2.SMB2ShareAccess
@@ -35,13 +37,11 @@ internal class SmbNetworkFileSystem(
         credentials: NetworkCredentials,
     ): NetworkProbeResult {
         return runCatching {
-            withShare(source, credentials) { share ->
-                share.list(smbPath(source)).size
-            }
+            withShare(source, credentials) { share -> share.folderExists(smbPath(source)) }
             NetworkProbeResult(NetworkAvailability.Available)
         }.getOrElse { failure ->
             NetworkProbeResult(
-                availability = if (failure.message?.contains("STATUS_LOGON_FAILURE") == true) {
+                availability = if (failure.isAuthenticationFailure()) {
                     NetworkAvailability.AuthenticationRequired
                 } else {
                     NetworkAvailability.Unavailable
@@ -60,11 +60,18 @@ internal class SmbNetworkFileSystem(
         require(maxEntries > 0)
         val entries = ArrayList<NetworkFileEntry>()
         val pending = ArrayDeque<Pair<String, Int>>()
+        val visitedDirectories = HashSet<String>()
         val rootPath = smbPath(source)
         pending.addLast(rootPath to 0)
+        var directoryCount = 0
         var incompleteReason: String? = null
         while (pending.isNotEmpty() && entries.size < maxEntries) {
             val (directory, depth) = pending.removeFirst()
+            if (!visitedDirectories.add(directory)) continue
+            if (++directoryCount > MAX_DIRECTORY_COUNT) {
+                incompleteReason = "directory-budget"
+                break
+            }
             share.list(directory).forEach { item ->
                 if (entries.size >= maxEntries) {
                     incompleteReason = "entry-budget"
@@ -82,7 +89,8 @@ internal class SmbNetworkFileSystem(
                     sourceEntryId = item.fileId.takeIf { it != 0L }?.toString(),
                 )
                 entries += entry
-                if (directoryEntry) {
+                val isReparsePoint = item.fileAttributes and FileAttributes.FILE_ATTRIBUTE_REPARSE_POINT.value != 0L
+                if (directoryEntry && !isReparsePoint) {
                     if (depth < maxDepth) {
                         pending.addLast(fullPath to depth + 1)
                     } else {
@@ -96,6 +104,7 @@ internal class SmbNetworkFileSystem(
             ?: NetworkListingResult.Complete(entries)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     override fun openBlocking(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
@@ -119,17 +128,20 @@ internal class SmbNetworkFileSystem(
             val totalLength = openedFile.getFileInformation(
                 com.hierynomus.msfscc.fileinformation.FileStandardInformation::class.java,
             ).endOfFile
-            val start = position.coerceIn(0L, totalLength)
-            val available = (totalLength - start).coerceAtLeast(0L)
-            val requested = length.takeIf { it > 0L }?.coerceAtMost(available) ?: available
+            val range = resolveNetworkRange(totalLength, position, length)
+            val start = position
             NetworkReadHandle(
-                input = SmbRangeInputStream(openedFile, start, requested, totalLength),
-                length = requested,
+                input = SmbRangeInputStream(openedFile, start, range.exposedLength, totalLength),
+                length = range.exposedLength,
                 closeHandle = {
                     runCatching { openedFile.close() }
                     lease.close()
                 },
             )
+        } catch (failure: Throwable) {
+            runCatching { file?.close() }
+            lease.close()
+            throw failure
         } finally {
             if (file == null) {
                 lease.close()
@@ -422,6 +434,14 @@ internal class SmbNetworkFileSystem(
         .digest(toByteArray(Charsets.UTF_8))
         .joinToString("") { byte -> "%02x".format(byte) }
 
+    private fun Throwable.isAuthenticationFailure(): Boolean {
+        return when (this) {
+            is SMBApiException -> getStatus() == NtStatus.STATUS_LOGON_FAILURE ||
+                getStatus() == NtStatus.STATUS_ACCESS_DENIED
+            else -> false
+        }
+    }
+
     private fun FileIdBothDirectoryInformation.isDirectory(): Boolean {
         return fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
     }
@@ -465,5 +485,6 @@ internal class SmbNetworkFileSystem(
             .withSoTimeout(12, TimeUnit.SECONDS)
             .build()
         const val SESSION_IDLE_TIMEOUT_MS = 60_000L
+        const val MAX_DIRECTORY_COUNT = 25_000
     }
 }

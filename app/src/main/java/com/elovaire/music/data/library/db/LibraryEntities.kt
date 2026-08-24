@@ -164,4 +164,5 @@ internal data class NetworkInventorySourceEntity(
     val generation: Long,
     val committedAtMs: Long,
     val availability: String,
+    val locationFingerprint: String?,
 )

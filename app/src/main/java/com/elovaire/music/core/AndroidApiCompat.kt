@@ -15,6 +15,8 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.IntentCompat
 
 internal object AndroidCapabilities {
+    const val LOCAL_NETWORK_PERMISSION = "android.permission.ACCESS_LOCAL_NETWORK"
+
     fun supportsGroupedMediaWrite(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.R
 
     fun usesRecoverableMediaWrite(sdkInt: Int): Boolean = sdkInt == Build.VERSION_CODES.Q
@@ -25,6 +27,8 @@ internal object AndroidCapabilities {
     fun supportsDirectPlaybackQuery(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.TIRAMISU
 
     fun requiresMediaPlaybackForegroundServiceType(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.Q
+
+    fun requiresLocalNetworkPermission(sdkInt: Int): Boolean = sdkInt >= 37
 }
 
 internal fun requiredAudioPermission(): String {
@@ -41,6 +45,14 @@ internal fun requiredAudioPermission(sdkInt: Int): String {
 
 internal fun Context.hasAudioReadPermission(): Boolean {
     return ContextCompat.checkSelfPermission(this, requiredAudioPermission()) == PackageManager.PERMISSION_GRANTED
+}
+
+internal fun Context.hasLocalNetworkPermission(): Boolean {
+    if (!AndroidCapabilities.requiresLocalNetworkPermission(Build.VERSION.SDK_INT)) return true
+    return ContextCompat.checkSelfPermission(
+        this,
+        AndroidCapabilities.LOCAL_NETWORK_PERMISSION,
+    ) == PackageManager.PERMISSION_GRANTED
 }
 
 internal fun AudioManager.safeOutputDevices(): List<AudioDeviceInfo> {

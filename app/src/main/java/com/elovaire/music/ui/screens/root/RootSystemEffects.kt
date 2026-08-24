@@ -17,8 +17,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
+import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
 import elovaire.music.droidbeauty.app.data.library.DeviceDeletePlan
@@ -31,6 +34,7 @@ import kotlinx.coroutines.launch
 
 internal data class RootPermissionState(
     val hasAudioPermission: Boolean,
+    val hasLocalNetworkPermission: Boolean,
     val firstLaunchPermissionExperienceActive: Boolean,
     val playFirstLaunchHomeReveal: Boolean,
     val showFirstLaunchPermissionOverlay: Boolean,
@@ -39,10 +43,13 @@ internal data class RootPermissionState(
 internal class RootPermissionController internal constructor(
     val state: RootPermissionState,
     private val requestAudioPermissionAction: () -> Unit,
+    private val requestLocalNetworkPermissionAction: () -> Unit,
     private val setPlayFirstLaunchHomeRevealAction: (Boolean) -> Unit,
     private val setFirstLaunchPermissionExperienceActiveAction: (Boolean) -> Unit,
 ) {
     fun requestAudioPermission() = requestAudioPermissionAction()
+
+    fun requestLocalNetworkPermission() = requestLocalNetworkPermissionAction()
 
     fun onInitialRevealFinished() {
         setPlayFirstLaunchHomeRevealAction(false)
@@ -57,7 +64,10 @@ internal fun rememberRootPermissionController(
 ): RootPermissionController {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val networkSources by container.libraryActionDependencies.networkSources.collectAsStateWithLifecycle()
     var hasPermission by remember { mutableStateOf(context.hasAudioReadPermission()) }
+    var hasLocalPermission by remember { mutableStateOf(context.hasLocalNetworkPermission()) }
+    var localPermissionRequested by rememberSaveable { mutableStateOf(false) }
     var firstLaunchPermissionExperienceActive by rememberSaveable {
         mutableStateOf(!hasPermission)
     }
@@ -74,10 +84,20 @@ internal fun rememberRootPermissionController(
         }
     }
 
+    fun syncLocalNetworkPermission(granted: Boolean) {
+        hasLocalPermission = granted
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         syncAudioPermission(granted)
+    }
+    val localNetworkPermissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        localPermissionRequested = true
+        syncLocalNetworkPermission(granted)
     }
 
     LaunchedEffect(hasPermission) {
@@ -88,14 +108,31 @@ internal fun rememberRootPermissionController(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 val refreshedAudioPermission = context.hasAudioReadPermission()
+                val refreshedLocalPermission = context.hasLocalNetworkPermission()
                 if (hasPermission != refreshedAudioPermission || syncedAudioPermission != refreshedAudioPermission) {
                     syncAudioPermission(refreshedAudioPermission)
+                }
+                if (hasLocalPermission != refreshedLocalPermission) {
+                    syncLocalNetworkPermission(refreshedLocalPermission)
                 }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
+    LaunchedEffect(networkSources, hasPermission, hasLocalPermission, localPermissionRequested) {
+        if (
+            hasPermission &&
+            !hasLocalPermission &&
+            !localPermissionRequested &&
+            networkSources.any { it.enabled } &&
+            AndroidCapabilities.requiresLocalNetworkPermission(android.os.Build.VERSION.SDK_INT)
+        ) {
+            localPermissionRequested = true
+            localNetworkPermissionLauncher.launch(AndroidCapabilities.LOCAL_NETWORK_PERMISSION)
         }
     }
 
@@ -115,6 +152,7 @@ internal fun rememberRootPermissionController(
     LaunchedEffect(
         firstLaunchPermissionExperienceActive,
         hasPermission,
+        hasLocalPermission,
         libraryState.isLoading,
         libraryState.songs.size,
         libraryState.albums.size,
@@ -138,6 +176,7 @@ internal fun rememberRootPermissionController(
     ) {
         RootPermissionState(
             hasAudioPermission = hasPermission,
+            hasLocalNetworkPermission = hasLocalPermission,
             firstLaunchPermissionExperienceActive = firstLaunchPermissionExperienceActive,
             playFirstLaunchHomeReveal = playFirstLaunchHomeReveal,
             showFirstLaunchPermissionOverlay = showFirstLaunchPermissionOverlay,
@@ -148,6 +187,10 @@ internal fun rememberRootPermissionController(
             state = state,
             requestAudioPermissionAction = {
                 permissionLauncher.launch(requiredAudioPermission())
+            },
+            requestLocalNetworkPermissionAction = {
+                localPermissionRequested = false
+                localNetworkPermissionLauncher.launch(AndroidCapabilities.LOCAL_NETWORK_PERMISSION)
             },
             setPlayFirstLaunchHomeRevealAction = { playFirstLaunchHomeReveal = it },
             setFirstLaunchPermissionExperienceActiveAction = { firstLaunchPermissionExperienceActive = it },

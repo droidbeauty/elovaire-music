@@ -38,4 +38,11 @@ class AndroidApiCompatTest {
         assertFalse(AndroidCapabilities.requiresMediaPlaybackForegroundServiceType(Build.VERSION_CODES.P))
         assertTrue(AndroidCapabilities.requiresMediaPlaybackForegroundServiceType(Build.VERSION_CODES.Q))
     }
+
+    @Test
+    fun localNetworkPermission_isRequiredOnlyForAndroid17TargetBoundary() {
+        assertFalse(AndroidCapabilities.requiresLocalNetworkPermission(36))
+        assertTrue(AndroidCapabilities.requiresLocalNetworkPermission(37))
+        assertEquals("android.permission.ACCESS_LOCAL_NETWORK", AndroidCapabilities.LOCAL_NETWORK_PERMISSION)
+    }
 }

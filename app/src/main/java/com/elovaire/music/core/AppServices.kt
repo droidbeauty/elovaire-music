@@ -20,6 +20,7 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordina
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationRuntime
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
+import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
 import elovaire.music.droidbeauty.app.data.playback.NetworkDataSourceFactory
 import androidx.media3.datasource.DefaultDataSource
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
@@ -84,6 +85,7 @@ internal class AppServices(
                 NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(appScope),
                 NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
             ),
+            localNetworkAccessAllowed = { applicationContext.hasLocalNetworkPermission() },
         )
     }
     private val networkScannerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {

@@ -2,15 +2,28 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import android.media.MediaDataSource
 import android.media.MediaMetadataRetriever
+import elovaire.music.droidbeauty.app.data.library.MediaFailureCategory
+import elovaire.music.droidbeauty.app.data.library.MediaFailureDomain
+import elovaire.music.droidbeauty.app.data.library.MediaFailureKey
+import elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry
+import elovaire.music.droidbeauty.app.data.library.mediaFailureCategory
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 
+@Suppress("TooGenericExceptionCaught")
 internal class NetworkMetadataReader(
     private val registry: NetworkFileSystemRegistry,
+    private val failureRegistry: MediaFailureRegistry = MediaFailureRegistry(),
 ) {
-    fun read(source: NetworkLibrarySource, entry: NetworkFileEntry): NetworkMetadataReadResult? {
+    fun read(source: NetworkLibrarySource, entry: NetworkFileEntry, force: Boolean = false): NetworkMetadataReadResult? {
         val size = entry.sizeBytes ?: return null
         if (size <= 0L) return null
+        val failureKey = MediaFailureKey(
+            identity = "${source.id}:${entry.path}",
+            revision = "${entry.sizeBytes}:${entry.modifiedAtMs}:${entry.etag}",
+            domain = MediaFailureDomain.Metadata,
+        )
+        if (failureRegistry.shouldSuppress(failureKey, force)) return null
         return try {
             val retriever = MediaMetadataRetriever()
             try {
@@ -36,15 +49,20 @@ internal class NetworkMetadataReader(
                         ?.substringBefore('/')
                         ?.toIntOrNull()
                         ?.takeIf { it > 0 },
-                )
+                ).also { failureRegistry.recordSuccess(failureKey) }
             } finally {
                 retriever.release()
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: IOException) {
+            failureRegistry.recordFailure(failureKey, MediaFailureCategory.TransientIo)
             null
-        } catch (_: RuntimeException) {
+        } catch (failure: IllegalArgumentException) {
+            failureRegistry.recordFailure(failureKey, mediaFailureCategory(failure))
+            null
+        } catch (failure: IllegalStateException) {
+            failureRegistry.recordFailure(failureKey, mediaFailureCategory(failure))
             null
         }
     }

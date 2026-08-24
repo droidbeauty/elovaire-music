@@ -38,11 +38,16 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         val pending = ArrayDeque<Pair<String, Int>>()
         pending.addLast(source.shareOrPath to 0)
         val visited = hashSetOf<String>()
+        var directoryCount = 0
         var incompleteReason: String? = null
         while (pending.isNotEmpty() && results.size < maxEntries) {
             val (directory, depth) = pending.removeFirst()
             val normalized = NetworkPathPolicy.normalizeRelativePath(directory)
             if (!visited.add(normalized)) continue
+            if (++directoryCount > MAX_DIRECTORY_COUNT) {
+                incompleteReason = "directory-budget"
+                break
+            }
             propFind(source, credentials, normalized, depth = 1).forEach { entry ->
                 if (entry.path == normalized) return@forEach
                 if (results.size >= maxEntries) {
@@ -72,7 +77,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         length: Long,
     ): NetworkReadHandle {
         require(position >= 0L)
-        require(length == -1L || length > 0L)
+        require(length == -1L || length >= 0L)
         val requestedEnd = if (length > 0L) {
             position.checkedRangeEnd(length)
         } else {
@@ -88,18 +93,21 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         if (status == HTTP_RANGE_NOT_SATISFIABLE) {
             val totalLength = parseUnsatisfiedContentRange(connection.getHeaderField("Content-Range"))
             connection.disconnect()
-            if (totalLength != null && position >= totalLength) {
+            if (totalLength != null && position == totalLength) {
                 return NetworkReadHandle(
                     input = ByteArrayInputStream(ByteArray(0)),
-                    length = 0L,
+                    length = length.takeIf { it >= 0L } ?: 0L,
                     closeHandle = {},
                 )
+            }
+            if (totalLength != null && position > totalLength) {
+                throw NetworkRangeException("WebDAV read position is outside the file")
             }
             throw IOException("WebDAV media range is not satisfiable")
         }
         if (status !in 200..299) {
             connection.disconnect()
-            throw IOException("WebDAV media request failed with HTTP $status")
+            throw WebDavHttpException(status)
         }
         val responseLength = connection.contentLengthLong.takeIf { it >= 0L }
         val input: InputStream
@@ -119,14 +127,14 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                     throw IOException("WebDAV server returned an invalid Content-Range")
                 }
                 input = connection.inputStream
-                handleLength = rangeLength
+                handleLength = if (length >= 0L) length else rangeLength
             }
             HttpURLConnection.HTTP_OK -> {
                 if (position > 0L) {
                     connection.disconnect()
                     throw IOException("WebDAV server did not honor the requested byte range")
                 }
-                val boundedLength = if (length > 0L) {
+                val boundedLength = if (length >= 0L) {
                     minOf(length, responseLength ?: length)
                 } else {
                     responseLength
@@ -138,7 +146,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                         stream
                     }
                 }
-                handleLength = boundedLength
+                handleLength = if (length >= 0L) length else boundedLength
             }
             else -> {
                 connection.disconnect()
@@ -170,7 +178,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         val status = connection.responseCode
         if (status !in 200..299) {
             connection.disconnect()
-            throw IOException("WebDAV directory request failed with HTTP $status")
+            throw WebDavHttpException(status)
         }
         return try {
             connection.inputStream.use { input -> parseMultiStatus(input.readBounded(MAX_PROPFIND_BYTES), source, path) }
@@ -184,9 +192,8 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         credentials: NetworkCredentials,
         path: String,
     ): HttpURLConnection {
-        val baseUrl = NetworkPathPolicy.webDavBaseUrl(source.server)
+        val url = NetworkPathPolicy.webDavResourceUrl(source.server, path)
             ?: throw IOException("WebDAV requires an HTTPS server URL")
-        val url = URL("${baseUrl.trimEnd('/')}/${NetworkPathPolicy.normalizeRelativePath(path)}")
         if (!url.protocol.equals("https", ignoreCase = true)) throw IOException("WebDAV requires HTTPS")
         return (url.openConnection() as? HttpURLConnection)?.apply {
             connectTimeout = TIMEOUT_MS
@@ -247,16 +254,30 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
     }
 
     private fun hrefToPath(href: String, source: NetworkLibrarySource, requestedPath: String): String? {
-        val baseUrl = NetworkPathPolicy.webDavBaseUrl(source.server) ?: return null
-        if (href.contains("%2e", ignoreCase = true) ||
-            href.contains("%2f", ignoreCase = true) ||
-            href.contains("%5c", ignoreCase = true)
+        val requestUrl = NetworkPathPolicy.webDavResourceUrl(source.server, requestedPath) ?: return null
+        val base = URL("${requestUrl.toString().trimEnd('/')}/")
+        val resolved = runCatching { URL(base, href) }.getOrNull() ?: return null
+        val baseOrigin = URL(source.server)
+        if (
+            !resolved.protocol.equals("https", true) ||
+            !resolved.host.equals(baseOrigin.host, true) ||
+            effectivePort(resolved) != effectivePort(baseOrigin)
         ) return null
-        val base = URL("${baseUrl.trimEnd('/')}/")
-        val resolved = URL(base, href)
-        if (!resolved.protocol.equals("https", true) || resolved.host != base.host || resolved.port != base.port) return null
-        val basePath = base.path.trimEnd('/')
-        val resolvedPath = resolved.path
+        val basePath = java.net.URI(source.server).rawPath.orEmpty()
+            .let(NetworkPathPolicy::decodeUriPath)
+            ?.trimEnd('/')
+            .orEmpty()
+        val resolvedPath = runCatching { java.net.URI(resolved.toString()).rawPath }
+            .getOrNull()
+            ?.let(NetworkPathPolicy::decodeUriPath)
+            ?.trimEnd('/')
+            ?: return null
+        val configuredRoot = NetworkPathPolicy.webDavConfiguredRoot(source).orEmpty().trimEnd('/')
+        if (
+            configuredRoot.isNotBlank() &&
+            resolvedPath != configuredRoot &&
+            !resolvedPath.startsWith("$configuredRoot/")
+        ) return null
         val relative = when {
             resolvedPath == basePath -> ""
             resolvedPath.startsWith("$basePath/") -> resolvedPath.removePrefix(basePath).trim('/')
@@ -267,16 +288,25 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         return path
     }
 
+    private fun effectivePort(url: URL): Int = url.port.takeIf { it >= 0 } ?: 443
+
     private fun basicAuth(credentials: NetworkCredentials): String {
         return "Basic " + Base64.getEncoder().encodeToString(
             "${credentials.username}:${credentials.password}".toByteArray(Charsets.UTF_8),
         )
     }
 
-    private fun classifyFailure(failure: Throwable): NetworkAvailability = when {
-        failure.message?.contains("401") == true || failure.message?.contains("403") == true ->
-            NetworkAvailability.AuthenticationRequired
-        failure is java.net.UnknownHostException || failure is java.net.ConnectException -> NetworkAvailability.Offline
+    private fun classifyFailure(failure: Throwable): NetworkAvailability = when (failure) {
+        is WebDavHttpException -> when {
+            failure.statusCode == 401 || failure.statusCode == 403 -> NetworkAvailability.AuthenticationRequired
+            failure.statusCode == 404 -> NetworkAvailability.Unavailable
+            failure.statusCode == 408 || failure.statusCode == 429 || failure.statusCode in 500..599 -> NetworkAvailability.Offline
+            else -> NetworkAvailability.Unavailable
+        }
+        is java.net.UnknownHostException,
+        is java.net.ConnectException,
+        is java.net.SocketTimeoutException,
+        -> NetworkAvailability.Offline
         else -> NetworkAvailability.Unavailable
     }
 
@@ -297,6 +327,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
 
     private companion object {
         const val MAX_PROPFIND_BYTES = 512 * 1024
+        const val MAX_DIRECTORY_COUNT = 25_000
         const val TIMEOUT_MS = 12_000
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
         const val PROPFIND_BODY = """

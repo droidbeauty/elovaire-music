@@ -28,7 +28,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NetworkInventoryEntity::class,
         NetworkInventorySourceEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
@@ -42,7 +42,7 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 context.applicationContext,
                 ElovaireDatabase::class.java,
                 "elovaire-library.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3).build()
+            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
         }
 
         internal val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -125,6 +125,15 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                         "`sourceId` TEXT NOT NULL, `generation` INTEGER NOT NULL, " +
                         "`committedAtMs` INTEGER NOT NULL, `availability` TEXT NOT NULL, " +
                         "PRIMARY KEY(`sourceId`))",
+                )
+            }
+        }
+
+        internal val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `network_inventory_sources` " +
+                        "ADD COLUMN `locationFingerprint` TEXT",
                 )
             }
         }

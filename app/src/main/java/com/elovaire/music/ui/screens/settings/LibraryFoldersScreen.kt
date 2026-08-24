@@ -156,6 +156,7 @@ internal fun LibraryFoldersScreen(
                         NetworkAvailability.Available -> "Available"
                         NetworkAvailability.Checking -> "Testing..."
                         NetworkAvailability.AuthenticationRequired -> "Sign in"
+                        NetworkAvailability.LocalNetworkPermissionRequired -> "Allow local network access"
                         NetworkAvailability.Offline -> copy.unavailable
                         NetworkAvailability.Misconfigured,
                         NetworkAvailability.Unavailable,
@@ -736,6 +737,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
 
 private fun networkProbeMessage(availability: NetworkAvailability): String = when (availability) {
     NetworkAvailability.Available -> "Connection available"
+    NetworkAvailability.LocalNetworkPermissionRequired -> "Allow local network access in Android settings"
     NetworkAvailability.AuthenticationRequired -> "Authentication required"
     NetworkAvailability.Offline -> "Host is unreachable"
     NetworkAvailability.Misconfigured -> "Check the server and path"

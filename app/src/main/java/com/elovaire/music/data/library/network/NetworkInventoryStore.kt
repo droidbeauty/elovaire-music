@@ -23,11 +23,14 @@ internal class NetworkInventoryStore(
 
     suspend fun load(source: NetworkLibrarySource): List<NetworkInventoryEntry> {
         migrateLegacyCache(source)
+        val state = dao.networkInventorySource(source.id) ?: return emptyList()
+        if (state.locationFingerprint != NetworkSourceIdentity.locationFingerprint(source)) return emptyList()
         return dao.networkInventory(source.id).map { it.toInventoryEntry(source) }
     }
 
-    suspend fun hasFreshListing(sourceId: String, nowMs: Long): Boolean {
-        val state = dao.networkInventorySource(sourceId) ?: return false
+    suspend fun hasFreshListing(source: NetworkLibrarySource, nowMs: Long): Boolean {
+        val state = dao.networkInventorySource(source.id) ?: return false
+        if (state.locationFingerprint != NetworkSourceIdentity.locationFingerprint(source)) return false
         return state.committedAtMs > 0L && nowMs >= state.committedAtMs &&
             nowMs - state.committedAtMs <= FRESHNESS_WINDOW_MS
     }
@@ -46,13 +49,19 @@ internal class NetworkInventoryStore(
                 generation = generation,
                 committedAtMs = nowMs,
                 availability = availability.name,
+                locationFingerprint = NetworkSourceIdentity.locationFingerprint(source),
             ),
             entries = entries.map { it.toEntity(source.id, generation) },
         )
     }
 
-    suspend fun refresh(sourceId: String, availability: NetworkAvailability, nowMs: Long) {
-        dao.refreshNetworkInventorySource(sourceId, nowMs, availability.name)
+    suspend fun refresh(source: NetworkLibrarySource, availability: NetworkAvailability, nowMs: Long) {
+        dao.refreshNetworkInventorySource(
+            sourceId = source.id,
+            committedAtMs = nowMs,
+            availability = availability.name,
+            locationFingerprint = NetworkSourceIdentity.locationFingerprint(source),
+        )
     }
 
     suspend fun remove(sourceId: String) {
@@ -75,6 +84,7 @@ internal class NetworkInventoryStore(
                 generation = 1L,
                 committedAtMs = committedAtMs,
                 availability = NetworkAvailability.Available.name,
+                locationFingerprint = NetworkSourceIdentity.locationFingerprint(source),
             ),
             entries = entries.map { it.toEntity(source.id, 1L) },
         )

@@ -111,7 +111,12 @@ private class RecordingLibraryDao : LibraryDao {
     override suspend fun networkInventorySource(sourceId: String): NetworkInventorySourceEntity? = null
     override suspend fun upsertNetworkInventory(entries: List<NetworkInventoryEntity>) = Unit
     override suspend fun upsertNetworkInventorySource(source: NetworkInventorySourceEntity) = Unit
-    override suspend fun refreshNetworkInventorySource(sourceId: String, committedAtMs: Long, availability: String) = Unit
+    override suspend fun refreshNetworkInventorySource(
+        sourceId: String,
+        committedAtMs: Long,
+        availability: String,
+        locationFingerprint: String,
+    ) = Unit
     override suspend fun deleteUnseenNetworkInventory(sourceId: String, generation: Long) = Unit
     override suspend fun deleteNetworkInventory(sourceId: String) = Unit
     override suspend fun deleteNetworkInventorySource(sourceId: String) = Unit

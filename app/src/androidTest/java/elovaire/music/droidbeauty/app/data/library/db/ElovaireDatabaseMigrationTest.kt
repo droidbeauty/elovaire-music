@@ -49,10 +49,11 @@ class ElovaireDatabaseMigrationTest {
 
         helper.runMigrationsAndValidate(
             DATABASE_NAME,
-            3,
+            4,
             true,
             ElovaireDatabase.MIGRATION_1_2,
             ElovaireDatabase.MIGRATION_2_3,
+            ElovaireDatabase.MIGRATION_3_4,
         ).use { database ->
             database.query("SELECT COUNT(*) FROM user_playlists").use { cursor ->
                 assertTrue(cursor.moveToFirst())
@@ -69,13 +70,20 @@ class ElovaireDatabaseMigrationTest {
                 assertTrue(cursor.moveToFirst())
                 assertEquals(0, cursor.getInt(0))
             }
+            database.query("SELECT locationFingerprint FROM network_inventory_sources WHERE sourceId = 'missing'").use { cursor ->
+                assertEquals(0, cursor.count)
+            }
         }
 
         val roomDatabase = Room.databaseBuilder(
             InstrumentationRegistry.getInstrumentation().targetContext,
             ElovaireDatabase::class.java,
             DATABASE_NAME,
-        ).addMigrations(ElovaireDatabase.MIGRATION_1_2, ElovaireDatabase.MIGRATION_2_3).build()
+        ).addMigrations(
+            ElovaireDatabase.MIGRATION_1_2,
+            ElovaireDatabase.MIGRATION_2_3,
+            ElovaireDatabase.MIGRATION_3_4,
+        ).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(
                 "SELECT COUNT(*) FROM songs WHERE songId = 11 AND albumId = 7",
