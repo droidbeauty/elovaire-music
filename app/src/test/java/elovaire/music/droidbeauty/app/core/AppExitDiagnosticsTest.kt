@@ -35,6 +35,18 @@ class AppExitDiagnosticsTest {
         assertFalse(shouldSuppressOptionalStartup(recentCrashes + record(AppExitCategory.Expected, now), now + 700_000L))
     }
 
+    @Test
+    fun futureDatedCrashRecordsDoNotCreatePermanentStartupSuppression() {
+        val now = 1_000_000L
+        val futureCrashes = listOf(
+            record(AppExitCategory.Crash, now + 365L * 24L * 60L * 60L * 1_000L),
+            record(AppExitCategory.Crash, now + 365L * 24L * 60L * 60L * 1_000L + 1L),
+            record(AppExitCategory.Anr, now + 365L * 24L * 60L * 60L * 1_000L + 2L),
+        )
+
+        assertFalse(shouldSuppressOptionalStartup(futureCrashes, now))
+    }
+
     private fun record(category: AppExitCategory, timestampMs: Long) = AppExitRecord(
         reason = 0,
         status = 0,

@@ -14,6 +14,9 @@ import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntryEntity
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playlists.serializePlaylists
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
+import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
+import android.net.Uri
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -213,6 +216,42 @@ class RoomUserDataStoreTest {
         assertEquals(listOf(7L), database.userDataDao().recentPlayback().filter { it.kind == "song" }.map { it.itemId })
         assertEquals("Album", database.userDataDao().playbackCollectionState()?.kind)
         store.release()
+    }
+
+    @Test
+    fun userDataRecoverySnapshotRoundTripsAndRejectsCorruption() {
+        val fileName = "user_data_recovery_test.json"
+        val file = context.filesDir.resolve(fileName)
+        file.delete()
+        val recovery = UserDataRecoverySnapshot(context, FixedClock, fileName)
+        val expected = UserDataSnapshot(
+            playlists = listOf(Playlist(41L, "Saved", listOf(11L, 22L))),
+            favoriteSongIds = listOf(11L, 22L),
+            songPlayCounts = mapOf(11L to 3),
+            albumPlayCounts = mapOf(7L to 4),
+            recentSongIds = listOf(22L, 11L),
+            recentAlbumIds = listOf(7L),
+            lastPlayedCollectionKind = PlaybackCollectionKind.Album,
+            lastPlayedCollectionId = 7L,
+            searchHistory = listOf(
+                SearchHistoryEntry(
+                    key = "album:7",
+                    kind = SearchHistoryKind.Album,
+                    title = "Saved",
+                    subtitle = "Artist",
+                    artUri = Uri.parse("content://art/7"),
+                    albumId = 7L,
+                    query = "saved",
+                ),
+            ),
+        )
+
+        recovery.write(expected)
+        assertEquals(expected, recovery.read())
+
+        file.writeText(file.readText().replace("\"checksum\":\"", "\"checksum\":\"broken"))
+        assertEquals(null, recovery.read())
+        file.delete()
     }
 
     private object FixedClock : AppClock {

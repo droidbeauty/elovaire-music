@@ -5,6 +5,8 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.decodeArtworkBytes
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -34,6 +36,7 @@ sealed interface ArtistBackdropState {
 internal class ArtistImageRepository(
     private val client: ArtistImageClient = YouTubeMusicArtistImageClient(),
     private val appContext: Context? = null,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private data class CachedImage(
         val uri: Uri?,
@@ -104,7 +107,7 @@ internal class ArtistImageRepository(
     private suspend fun resolveRemoteArtwork(artistName: String, artistKey: String): Uri? {
         if (artistKey.isBlank() || artistKey == UNKNOWN_ARTIST_KEY) return null
         val claim = synchronized(cacheLock) {
-            val now = System.currentTimeMillis()
+            val now = clock.wallTimeMs()
             remoteArtworkCache[artistKey]?.let { cached ->
                 if (cached.expiresAtMs > now) {
                     return@synchronized ResolutionClaim.Cached(cached.uri)
@@ -206,7 +209,7 @@ internal class ArtistImageRepository(
             if (cacheResult) {
                 remoteArtworkCache[artistKey] = CachedImage(
                     uri = uri,
-                    expiresAtMs = System.currentTimeMillis() +
+                    expiresAtMs = clock.wallTimeMs() +
                         if (uri == null) NEGATIVE_CACHE_TTL_MS else POSITIVE_CACHE_TTL_MS,
                 )
                 trimMemoryCacheLocked()
@@ -225,7 +228,7 @@ internal class ArtistImageRepository(
         directory.resolve("${cacheKey(artistKey)}.tmp").delete()
         val file = directory.resolve("${cacheKey(artistKey)}.img")
         if (!file.isFile || file.length() <= 0L) return null
-        val ageMs = System.currentTimeMillis() - file.lastModified()
+        val ageMs = clock.wallTimeMs() - file.lastModified()
         if (ageMs < 0L || ageMs > POSITIVE_CACHE_TTL_MS) {
             file.delete()
             return null
@@ -276,7 +279,7 @@ internal class ArtistImageRepository(
     }
 
     private fun trimMemoryCacheLocked() {
-        val now = System.currentTimeMillis()
+        val now = clock.wallTimeMs()
         remoteArtworkCache.entries.removeIf { (_, value) -> value.expiresAtMs <= now }
         while (remoteArtworkCache.size > CACHE_CAPACITY) {
             remoteArtworkCache.entries.iterator().apply {

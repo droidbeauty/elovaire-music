@@ -3,10 +3,15 @@ package elovaire.music.droidbeauty.app.data.settings
 import android.content.Context
 import android.content.SharedPreferences
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 
-internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSharedPreferenceChangeListener {
+internal class PortableSettingsBackup(
+    context: Context,
+    private val clock: AppClock = AndroidAppClock,
+) : SharedPreferences.OnSharedPreferenceChangeListener {
     private val appContext = context.applicationContext
     private val source by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         allowStrictModeDiskReads {
@@ -80,7 +85,7 @@ internal class PortableSettingsBackup(context: Context) : SharedPreferences.OnSh
         desired.forEach { (key, value) -> editor.putPreferenceValue(key, value) }
         editor.putInt(BACKUP_FORMAT_VERSION_KEY, BACKUP_FORMAT_VERSION)
         editor.putString(BACKUP_CHECKSUM_KEY, checksum)
-        editor.putLong(BACKUP_CREATED_AT_KEY, System.currentTimeMillis())
+        editor.putLong(BACKUP_CREATED_AT_KEY, clock.wallTimeMs())
         editor.apply()
     }
 

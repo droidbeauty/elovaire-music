@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import elovaire.music.droidbeauty.app.core.MemoryPressure
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
@@ -14,6 +16,7 @@ internal class LibraryScanCoordinator(
     internal val localScanner: MediaStoreScanner,
     private val safScanner: SafTreeLibraryScanner,
     private val networkScannerProvider: () -> NetworkLibraryScanner,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private var networkSources: List<NetworkLibrarySource> = emptyList()
 
@@ -69,7 +72,7 @@ internal class LibraryScanCoordinator(
 
     internal suspend fun networkSourceNeedsRefresh(): Boolean {
         if (networkSources.none(NetworkLibrarySource::enabled)) return false
-        return networkScannerProvider().needsRefresh(networkSources, System.currentTimeMillis())
+        return networkScannerProvider().needsRefresh(networkSources, clock.wallTimeMs())
     }
 
     suspend fun scan(

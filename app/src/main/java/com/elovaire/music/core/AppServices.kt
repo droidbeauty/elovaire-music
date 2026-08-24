@@ -37,6 +37,7 @@ import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
+import elovaire.music.droidbeauty.app.data.settings.UserDataRecoverySnapshot
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
@@ -66,6 +67,7 @@ internal class AppServices(
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
         dao = database.userDataDao(),
+        recoverySnapshot = UserDataRecoverySnapshot(applicationContext),
     )
     val preferenceStore = PreferenceStore(applicationContext, userDataStore)
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)

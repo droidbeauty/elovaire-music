@@ -25,4 +25,13 @@ class MediaLibraryRequestPolicyTest {
             ),
         )
     }
+
+    @Test
+    fun startPositionBoundsRejectExtremeExternalRequests() {
+        assertTrue(MediaLibraryRequestPolicy.acceptsStartPositionMs(0L))
+        assertTrue(MediaLibraryRequestPolicy.acceptsStartPositionMs(90_000L))
+        assertTrue(MediaLibraryRequestPolicy.acceptsStartPositionMs(androidx.media3.common.C.TIME_UNSET))
+        assertFalse(MediaLibraryRequestPolicy.acceptsStartPositionMs(-1L))
+        assertFalse(MediaLibraryRequestPolicy.acceptsStartPositionMs(Long.MAX_VALUE))
+    }
 }

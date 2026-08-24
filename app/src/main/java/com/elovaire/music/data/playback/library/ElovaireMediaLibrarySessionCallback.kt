@@ -102,6 +102,9 @@ internal class ElovaireMediaLibrarySessionCallback(
         startIndex: Int,
         startPositionMs: Long,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
+        if (!MediaLibraryRequestPolicy.acceptsStartPositionMs(startPositionMs)) {
+            return Futures.immediateFuture(emptyMediaItemsWithStartPosition())
+        }
         val requested = mediaItems.getOrNull(startIndex.coerceAtLeast(0)) ?: mediaItems.firstOrNull()
         val resolved = requested?.let {
             commandResolver.resolvePlayableQueue(it.mediaId)

@@ -197,8 +197,53 @@ internal interface UserDataDao {
     @Query("DELETE FROM search_history")
     suspend fun clearSearchHistory()
 
+    @Query("DELETE FROM user_playlist_entries")
+    suspend fun clearPlaylistEntries()
+
+    @Query("DELETE FROM user_playlists")
+    suspend fun clearPlaylists()
+
+    @Query("DELETE FROM user_smart_playlists")
+    suspend fun clearSmartPlaylists()
+
+    @Query("DELETE FROM playback_collection_state")
+    suspend fun clearPlaybackCollectionState()
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertSearchHistory(entries: List<SearchHistoryEntity>)
+
+    /** Restores only user-owned rows after a failed Room read; library/index rows are untouched. */
+    @Transaction
+    suspend fun restoreUserData(
+        playlists: List<UserPlaylistEntity>,
+        playlistEntries: List<UserPlaylistEntryEntity>,
+        smartPlaylists: List<UserSmartPlaylistEntity>,
+        favorites: List<FavoriteSongEntity>,
+        songCounts: List<SongPlayCountEntity>,
+        albumCounts: List<AlbumPlayCountEntity>,
+        recentPlayback: List<RecentPlaybackEntity>,
+        searchHistory: List<SearchHistoryEntity>,
+        collectionState: PlaybackCollectionStateEntity,
+    ) {
+        clearPlaylistEntries()
+        clearPlaylists()
+        clearSmartPlaylists()
+        clearFavorites()
+        clearSongPlayCounts()
+        clearAlbumPlayCounts()
+        clearRecentPlayback()
+        clearSearchHistory()
+        clearPlaybackCollectionState()
+        if (playlists.isNotEmpty()) insertPlaylists(playlists)
+        if (playlistEntries.isNotEmpty()) insertPlaylistEntries(playlistEntries)
+        if (smartPlaylists.isNotEmpty()) insertSmartPlaylists(smartPlaylists)
+        if (favorites.isNotEmpty()) insertFavorites(favorites)
+        if (songCounts.isNotEmpty()) insertSongPlayCounts(songCounts)
+        if (albumCounts.isNotEmpty()) insertAlbumPlayCounts(albumCounts)
+        if (recentPlayback.isNotEmpty()) insertRecentPlayback(recentPlayback)
+        if (searchHistory.isNotEmpty()) insertSearchHistory(searchHistory)
+        upsertPlaybackCollectionState(collectionState)
+    }
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPlaylists(playlists: List<UserPlaylistEntity>)

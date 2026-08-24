@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.data.library.network
 import android.content.Context
 import android.net.Uri
 import com.hierynomus.smbj.common.SMBRuntimeException
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.library.isSupportedAudioExtension
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
@@ -22,6 +24,7 @@ internal class NetworkLibraryScanner(
     private val registry: NetworkFileSystemRegistry,
     private val inventory: NetworkInventoryStore,
     private val onAvailabilityChanged: (String, NetworkProbeResult) -> Unit = { _, _ -> },
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private val artworkCache = NetworkArtworkCache(context)
     private val metadataReader = NetworkMetadataReader(registry)
@@ -54,7 +57,7 @@ internal class NetworkLibraryScanner(
         val hasUnresolvedCachedMetadata = cached.any { !it.song.metadataResolved }
         if (
             !forceRefresh &&
-                inventory.hasFreshListing(source.id, System.currentTimeMillis()) &&
+                inventory.hasFreshListing(source.id, clock.wallTimeMs()) &&
                 (!enrichMetadata || !hasUnresolvedCachedMetadata)
         ) {
             return cached.map(NetworkInventoryEntry::song)
@@ -127,7 +130,7 @@ internal class NetworkLibraryScanner(
             previous == null ||
                 previous != current
         }
-        val nowMs = System.currentTimeMillis()
+        val nowMs = clock.wallTimeMs()
         if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
         if (incompleteReason != null) {
             // A bounded traversal proves only the entries it saw. Preserve the previous

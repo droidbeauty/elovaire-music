@@ -68,6 +68,7 @@ internal class RoomUserDataStore(
     private val dao: UserDataDao,
     private val clock: AppClock = AndroidAppClock,
     ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val recoverySnapshot: UserDataRecoverySnapshot? = null,
 ) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
     private val preferences = allowStrictModeDiskReads {
         PreferenceStorage(context.applicationContext).preferences
@@ -75,6 +76,7 @@ internal class RoomUserDataStore(
     private val released = AtomicBoolean(false)
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
+    private val recoveryWriteFailureReported = AtomicBoolean(false)
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
     // Durable mutations are accepted only when they fit in the bounded channel. Coalescible
     // state uses one replaceable slot per semantic operation instead of suspended senders.
@@ -451,8 +453,10 @@ internal class RoomUserDataStore(
 
     private suspend fun initialize() {
         val legacy = readLegacyUserData(preferences)
+        var migrationRequired = false
         try {
-            if (!dao.migrationComplete(MIGRATION_ID)) {
+            migrationRequired = !dao.migrationComplete(MIGRATION_ID)
+            if (migrationRequired) {
                 dao.migrateLegacy(
                     playlists = legacy.playlists.map(Playlist::toEntity),
                     entries = legacy.playlists.flatMap(Playlist::toEntryEntities),
@@ -472,13 +476,50 @@ internal class RoomUserDataStore(
             }
             check(dao.migrationComplete(MIGRATION_ID))
             clearLegacyUserData(preferences)
-            publishSnapshot(loadSnapshot())
+            val snapshot = loadSnapshot()
+            publishSnapshot(snapshot)
+            persistRecoverySnapshot(snapshot)
         } catch (failure: CancellationException) {
             throw failure
         } catch (failure: SQLException) {
+            if (!migrationRequired && restoreFromRecoverySnapshot()) return
             onMigrationFailure(legacy, failure)
         } catch (failure: IllegalStateException) {
+            if (!migrationRequired && restoreFromRecoverySnapshot()) return
             onMigrationFailure(legacy, failure)
+        }
+    }
+
+    private suspend fun restoreFromRecoverySnapshot(): Boolean {
+        val recovery = recoverySnapshot?.read() ?: return false
+        return try {
+            dao.restoreUserData(
+                playlists = recovery.playlists.map(Playlist::toEntity),
+                playlistEntries = recovery.playlists.flatMap(Playlist::toEntryEntities),
+                smartPlaylists = recovery.smartPlaylists.map(SmartPlaylist::toEntity),
+                favorites = recovery.favoriteSongIds.mapIndexed { index, id -> FavoriteSongEntity(id, index) },
+                songCounts = recovery.songPlayCounts.map { (id, count) -> SongPlayCountEntity(id, count) },
+                albumCounts = recovery.albumPlayCounts.map { (id, count) -> AlbumPlayCountEntity(id, count) },
+                recentPlayback = recovery.recentSongIds.toRecentEntities(RECENT_KIND_SONG) +
+                    recovery.recentAlbumIds.toRecentEntities(RECENT_KIND_ALBUM),
+                searchHistory = recovery.searchHistory.mapIndexed { index, entry -> entry.toEntity(index) },
+                collectionState = PlaybackCollectionStateEntity(
+                    kind = recovery.lastPlayedCollectionKind?.name,
+                    collectionId = recovery.lastPlayedCollectionId,
+                ),
+            )
+            val restored = loadSnapshot()
+            publishSnapshot(restored)
+            persistRecoverySnapshot(restored)
+            true
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (failure: SQLException) {
+            Log.e(TAG, "User-data recovery snapshot could not be restored.", failure)
+            false
+        } catch (failure: IllegalStateException) {
+            Log.e(TAG, "User-data recovery snapshot could not be restored.", failure)
+            false
         }
     }
 
@@ -536,6 +577,18 @@ internal class RoomUserDataStore(
             ?: 0L
         val nextAfterPersisted = if (maxId == Long.MAX_VALUE) Long.MAX_VALUE else maxId + 1L
         nextId.updateAndGet { current -> maxOf(current, nextAfterPersisted) }
+    }
+
+    private fun persistRecoverySnapshot(snapshot: UserDataSnapshot) {
+        val recovery = recoverySnapshot ?: return
+        try {
+            recovery.write(snapshot)
+            recoveryWriteFailureReported.set(false)
+        } catch (failure: Exception) {
+            if (recoveryWriteFailureReported.compareAndSet(false, true)) {
+                Log.w(TAG, "User-data recovery snapshot write failed.", failure)
+            }
+        }
     }
 
     private fun publishPlaylists(playlists: List<Playlist>) {
@@ -631,6 +684,7 @@ internal class RoomUserDataStore(
     private suspend fun runOperation(operation: RoomOperation) {
         try {
             operation.block()
+            persistRecoverySnapshot(currentSnapshot())
         } catch (failure: CancellationException) {
             if (currentCoroutineContext().isActive) {
                 operation.completion?.cancel(failure)
@@ -649,6 +703,19 @@ internal class RoomUserDataStore(
             throw failure
         }
     }
+
+    private fun currentSnapshot(): UserDataSnapshot = UserDataSnapshot(
+        playlists = _userPlaylists.value,
+        smartPlaylists = _userSmartPlaylists.value,
+        favoriteSongIds = _favoriteSongIds.value,
+        songPlayCounts = playbackHistoryStore.songPlayCounts.value,
+        albumPlayCounts = playbackHistoryStore.albumPlayCounts.value,
+        recentSongIds = playbackHistoryStore.recentSongIds.value,
+        recentAlbumIds = playbackHistoryStore.recentAlbumIds.value,
+        lastPlayedCollectionKind = playbackHistoryStore.lastPlayedCollectionKind.value,
+        lastPlayedCollectionId = playbackHistoryStore.lastPlayedCollectionId.value,
+        searchHistory = searchHistoryStore.searchHistory.value,
+    )
 
     private fun failActor(failure: Throwable) {
         if (released.get()) return
@@ -709,7 +776,7 @@ internal fun nextPersistentUserDataId(current: Long): Long {
     return current + 1L
 }
 
-private data class UserDataSnapshot(
+internal data class UserDataSnapshot(
     val playlists: List<Playlist> = emptyList(),
     val smartPlaylists: List<SmartPlaylist> = emptyList(),
     val favoriteSongIds: List<Long> = emptyList(),
