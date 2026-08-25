@@ -32,9 +32,11 @@ internal class PlaybackSessionStore(
         context.applicationContext.getSharedPreferences(LEGACY_FILE_NAME, Context.MODE_PRIVATE)
     }
     private var lastSavedSession: PersistedPlaybackSession? = null
+    private var nextGeneration = 0L
     private var legacyPreferencesCleared = false
     private var clearStateKnown = false
 
+    @Synchronized
     fun load(): PersistedPlaybackSession? {
         return if (structurePreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
             load(
@@ -56,7 +58,13 @@ internal class PlaybackSessionStore(
         structure: android.content.SharedPreferences,
         recovery: android.content.SharedPreferences,
     ): PersistedPlaybackSession? {
-        val savedAtMs = recovery.getLong(KEY_SAVED_AT, 0L)
+        val structureGeneration = structure.getLong(KEY_GENERATION, 0L)
+        val recoveryGeneration = recovery.getLong(KEY_GENERATION, 0L)
+        nextGeneration = maxOf(nextGeneration, structureGeneration, recoveryGeneration)
+        val generationsCoherent = structureGeneration == 0L ||
+            recoveryGeneration == 0L ||
+            structureGeneration == recoveryGeneration
+        val savedAtMs = if (generationsCoherent) recovery.getLong(KEY_SAVED_AT, 0L) else clock.wallTimeMs()
         if (!isPlaybackSessionFresh(clock.wallTimeMs(), savedAtMs)) {
             clear()
             return null
@@ -76,20 +84,22 @@ internal class PlaybackSessionStore(
         return normalizePersistedPlaybackSession(
             PersistedPlaybackSession(
                 queueSongIds = ids,
-                currentSongId = recovery.getLong(KEY_CURRENT_SONG_ID, 0L).takeIf(::isValidMediaId),
-                currentIndex = recovery.getInt(KEY_CURRENT_INDEX, -1),
-                positionMs = recovery.getLong(KEY_POSITION_MS, 0L),
+                currentSongId = recovery.getLong(KEY_CURRENT_SONG_ID, 0L)
+                    .takeIf { generationsCoherent && isValidMediaId(it) },
+                currentIndex = recovery.getInt(KEY_CURRENT_INDEX, -1).takeIf { generationsCoherent } ?: 0,
+                positionMs = recovery.getLong(KEY_POSITION_MS, 0L).takeIf { generationsCoherent } ?: 0L,
                 repeatMode = structure.getString(KEY_REPEAT_MODE, null)
                     ?.let { stored -> PlaybackRepeatMode.entries.firstOrNull { it.name == stored } }
                     ?: PlaybackRepeatMode.Off,
                 shuffleEnabled = structure.getBoolean(KEY_SHUFFLE, false),
                 sourcePlaylistId = structure.getLong(KEY_SOURCE_PLAYLIST_ID, -1L).takeIf { it > 0L },
-                wasPlaying = recovery.getBoolean(KEY_WAS_PLAYING, false),
+                wasPlaying = recovery.getBoolean(KEY_WAS_PLAYING, false) && generationsCoherent,
                 savedAtWallTimeMs = savedAtMs,
             ),
         ).also { lastSavedSession = it.withoutSavedAt() }
     }
 
+    @Synchronized
     fun save(session: PersistedPlaybackSession) {
         val normalized = normalizePersistedPlaybackSession(session)
         if (normalized.queueSongIds.isEmpty()) {
@@ -101,13 +111,17 @@ internal class PlaybackSessionStore(
         if (plan == PlaybackSessionSavePlan.None) return
         lastSavedSession = comparable
         clearStateKnown = false
-        if (plan.saveStructure) {
+        val structureNeedsGeneration = structurePreferences.getLong(KEY_GENERATION, 0L) <= 0L
+        val saveStructure = plan.saveStructure || structureNeedsGeneration
+        if (saveStructure) {
+            nextGeneration = maxOf(nextGeneration + 1L, 1L)
             structurePreferences.edit()
                 .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
                 .putString(KEY_QUEUE_IDS, normalized.queueSongIds.joinToString(","))
                 .putString(KEY_REPEAT_MODE, normalized.repeatMode.name)
                 .putBoolean(KEY_SHUFFLE, normalized.shuffleEnabled)
                 .putLong(KEY_SOURCE_PLAYLIST_ID, normalized.sourcePlaylistId ?: -1L)
+                .putLong(KEY_GENERATION, nextGeneration)
                 .apply()
         }
         if (plan.saveRecovery) {
@@ -117,11 +131,13 @@ internal class PlaybackSessionStore(
                 .putLong(KEY_POSITION_MS, normalized.positionMs)
                 .putBoolean(KEY_WAS_PLAYING, normalized.wasPlaying)
                 .putLong(KEY_SAVED_AT, clock.wallTimeMs())
+                .putLong(KEY_GENERATION, nextGeneration.coerceAtLeast(1L))
                 .apply()
         }
         clearLegacyPreferencesIfNeeded()
     }
 
+    @Synchronized
     fun clear() {
         lastSavedSession = null
         if (clearStateKnown) return
@@ -153,6 +169,7 @@ internal class PlaybackSessionStore(
         const val KEY_SOURCE_PLAYLIST_ID = "source_playlist_id"
         const val KEY_WAS_PLAYING = "was_playing"
         const val KEY_SAVED_AT = "saved_at_wall_time_ms"
+        const val KEY_GENERATION = "generation"
     }
 }
 

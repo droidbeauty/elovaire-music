@@ -18,6 +18,26 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
+internal sealed interface SafTreeScanResult {
+    val selection: LibraryFolderSelection
+
+    data class Complete(
+        override val selection: LibraryFolderSelection,
+        val songs: List<Song>,
+    ) : SafTreeScanResult
+
+    data class Incomplete(
+        override val selection: LibraryFolderSelection,
+        val failure: SafScanIncompleteException,
+    ) : SafTreeScanResult
+
+    data class Unavailable(
+        override val selection: LibraryFolderSelection,
+        val failure: SafProviderUnavailableException,
+    ) : SafTreeScanResult
+}
+
+@Suppress("TooGenericExceptionCaught")
 internal class SafTreeLibraryScanner(
     private val context: Context,
 ) {
@@ -26,25 +46,54 @@ internal class SafTreeLibraryScanner(
     private var fileMetadataCache = emptyMap<SafDocumentKey, CachedSafFile>()
 
     suspend fun scan(selections: List<LibraryFolderSelection>): List<Song> {
+        return scanByTree(selections).flatMap { result ->
+            when (result) {
+                is SafTreeScanResult.Complete -> result.songs
+                is SafTreeScanResult.Incomplete -> throw result.failure
+                is SafTreeScanResult.Unavailable -> throw result.failure
+            }
+        }
+    }
+
+    suspend fun scanByTree(selections: List<LibraryFolderSelection>): List<SafTreeScanResult> {
         if (selections.isEmpty()) return emptyList()
-        val songs = mutableListOf<Song>()
         val refreshedCache = HashMap<SafDocumentKey, CachedSafFile>(fileMetadataCache.size)
         val visitedDirectories = hashSetOf<SafDocumentKey>()
         val albumIds = hashMapOf<String, Long>()
-        selections.forEach { selection ->
+        val results = selections.mapNotNull { selection ->
             currentCoroutineContext().ensureActive()
-            val treeUri = selection.uri ?: return@forEach
-            if (!selection.hasPersistedReadPermission(context)) {
-                throw SafProviderUnavailableException(
-                    authority = treeUri.authority,
-                    operation = "validate-persisted-permission",
-                    cause = SecurityException("Persisted SAF read permission is unavailable."),
+            val treeUri = selection.uri ?: return@mapNotNull null
+            try {
+                if (!selection.hasPersistedReadPermission(context)) {
+                    throw SafProviderUnavailableException(
+                        authority = treeUri.authority,
+                        operation = "validate-persisted-permission",
+                        cause = SecurityException("Persisted SAF read permission is unavailable."),
+                    )
+                }
+                SafTreeScanResult.Complete(
+                    selection = selection,
+                    songs = scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds),
+                )
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (failure: SafScanIncompleteException) {
+                SafTreeScanResult.Incomplete(selection, failure)
+            } catch (failure: SafProviderUnavailableException) {
+                SafTreeScanResult.Unavailable(selection, failure)
+            } catch (failure: RuntimeException) {
+                SafTreeScanResult.Unavailable(
+                    selection,
+                    SafProviderUnavailableException(
+                        authority = treeUri.authority,
+                        operation = "scan-tree",
+                        cause = failure,
+                    ),
                 )
             }
-            songs += scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds)
         }
         fileMetadataCache = refreshedCache
-        return songs
+        return results
     }
 
     @Suppress("LongMethod")

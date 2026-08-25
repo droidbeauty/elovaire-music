@@ -7314,7 +7314,7 @@ internal fun NowPlayingScreen(
                     .then(playerSwipePushModifier)
                     .weight(1f),
             ) {
-                val queueSheetTopExtension = (980.dp - buttonNavigationScrollBoost()).coerceAtLeast(0.dp)
+                val queueSheetTopExtension = (1000.dp - buttonNavigationScrollBoost()).coerceAtLeast(0.dp)
                 Column(
                     modifier = Modifier.fillMaxSize(),
                     verticalArrangement = Arrangement.spacedBy(0.dp),
@@ -8151,7 +8151,7 @@ private fun BoxScope.QueueEdgeHaze(
             .fillMaxWidth()
             .height(20.dp)
             .hazeEffect(hazeState) {
-                progressive = HazeProgressive.LinearGradient(
+                progressive = HazeProgressive.verticalGradient(
                     startIntensity = startIntensity,
                     endIntensity = endIntensity,
                     preferPerformance = true,
@@ -9853,7 +9853,18 @@ private fun LyricsOverlay(
                                 errorMessage = lyricsEditorUiState.errorMessage,
                             )
                         } else when (val state = lyricsUiState) {
-                            LyricsUiState.Hidden -> Unit
+                            LyricsUiState.Hidden,
+                            LyricsUiState.Empty -> {
+                                LyricsUnavailableContent(
+                                    noLyricsText = copy.noLyrics,
+                                    contentColor = contentColor,
+                                    onAddLyrics = {
+                                        lyricsDraft = ""
+                                        onClearLyricsEditorError()
+                                        isEditingLyrics = true
+                                    },
+                                )
+                            }
                             LyricsUiState.Loading -> {
                                 Box(
                                     modifier = Modifier.fillMaxSize(),
@@ -9867,65 +9878,36 @@ private fun LyricsOverlay(
                                 }
                             }
 
-                            LyricsUiState.Empty -> {
-                                Box(
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.spacedBy(24.dp),
-                                    ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                                        ) {
-                                            Icon(
-                                                painter = painterResource(id = R.drawable.ic_lucide_info),
-                                                contentDescription = null,
-                                                tint = contentColor.copy(alpha = 0.7f),
-                                                modifier = Modifier.size(18.dp),
-                                            )
-                                            Text(
-                                                text = copy.noLyrics,
-                                                style = MaterialTheme.typography.titleLarge,
-                                                color = contentColor,
-                                                textAlign = TextAlign.Center,
-                                            )
-                                        }
-                                        LyricsEditorActionButton(
-                                            iconResId = R.drawable.ic_lucide_plus,
-                                            contentDescription = "Add lyrics",
-                                            tint = contentColor,
-                                            backgroundAlpha = 0.2f,
-                                            onClick = {
-                                                lyricsDraft = ""
-                                                onClearLyricsEditorError()
-                                                isEditingLyrics = true
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-
                             is LyricsUiState.Ready -> {
-                                LyricsReadyContent(
-                                    song = song,
-                                    payload = state.payload,
-                                    activeLyricLineIndex = activeLyricsLineIndex,
-                                    listState = listState,
-                                    autoScrollHeld = autoScrollHeld,
-                                    setAutoScrollHeld = { autoScrollHeld = it },
-                                    autoScrollResumeJob = autoScrollResumeJob,
-                                    setAutoScrollResumeJob = { autoScrollResumeJob = it },
-                                    setUserLyricsScrollActive = { userLyricsScrollActive = it },
-                                    lyricsScrollObserver = lyricsScrollObserver,
-                                    hideButtonArea = hideButtonArea,
-                                    lyricsBottomBlurArea = lyricsBottomBlurArea,
-                                    contentColor = contentColor,
-                                    onSeekTo = onSeekTo,
-                                    scope = scope,
-                                )
+                                if (state.payload.lines.isEmpty()) {
+                                    LyricsUnavailableContent(
+                                        noLyricsText = copy.noLyrics,
+                                        contentColor = contentColor,
+                                        onAddLyrics = {
+                                            lyricsDraft = ""
+                                            onClearLyricsEditorError()
+                                            isEditingLyrics = true
+                                        },
+                                    )
+                                } else {
+                                    LyricsReadyContent(
+                                        song = song,
+                                        payload = state.payload,
+                                        activeLyricLineIndex = activeLyricsLineIndex,
+                                        listState = listState,
+                                        autoScrollHeld = autoScrollHeld,
+                                        setAutoScrollHeld = { autoScrollHeld = it },
+                                        autoScrollResumeJob = autoScrollResumeJob,
+                                        setAutoScrollResumeJob = { autoScrollResumeJob = it },
+                                        setUserLyricsScrollActive = { userLyricsScrollActive = it },
+                                        lyricsScrollObserver = lyricsScrollObserver,
+                                        hideButtonArea = hideButtonArea,
+                                        lyricsBottomBlurArea = lyricsBottomBlurArea,
+                                        contentColor = contentColor,
+                                        onSeekTo = onSeekTo,
+                                        scope = scope,
+                                    )
+                                }
                             }
                         }
                     }
@@ -10063,6 +10045,48 @@ private fun LyricsOverlay(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun LyricsUnavailableContent(
+    noLyricsText: String,
+    contentColor: Color,
+    onAddLyrics: () -> Unit,
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(24.dp),
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_info),
+                    contentDescription = null,
+                    tint = contentColor.copy(alpha = 0.7f),
+                    modifier = Modifier.size(18.dp),
+                )
+                Text(
+                    text = noLyricsText,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = contentColor,
+                    textAlign = TextAlign.Center,
+                )
+            }
+            LyricsEditorActionButton(
+                iconResId = R.drawable.ic_lucide_plus,
+                contentDescription = "Add lyrics",
+                tint = contentColor,
+                backgroundAlpha = 0.2f,
+                onClick = onAddLyrics,
+            )
         }
     }
 }

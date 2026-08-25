@@ -8,6 +8,16 @@ import org.junit.Test
 
 class LibraryObserverControllerTest {
     @Test
+    fun selfMutationLedgerMatchesOnlyTheExpectedTarget() {
+        val uri = "content://media/external/audio/media/7"
+
+        assertTrue(expectedMutationTargetMatches(null, uri, null, uri))
+        assertFalse(expectedMutationTargetMatches(null, uri, null, "content://media/external/audio/media/8"))
+        assertTrue(expectedMutationTargetMatches("/music/track.mp3", null, "/music/track.mp3", null))
+        assertFalse(expectedMutationTargetMatches("/music/track.mp3", null, "/music/other.mp3", null))
+    }
+
+    @Test
     fun deletedAudioIsReportedEvenWhenThePathNoLongerExists() {
         assertTrue(
             shouldNotifyForObservedDirectoryEvent(

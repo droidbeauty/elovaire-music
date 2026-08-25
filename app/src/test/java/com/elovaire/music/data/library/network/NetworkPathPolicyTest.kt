@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
+import elovaire.music.droidbeauty.app.data.library.networkFilterFingerprint
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
@@ -7,6 +8,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class NetworkPathPolicyTest {
+    @Test
+    fun filterFingerprintUsesLocationNotCredentialsOrCaseFoldedPaths() {
+        val source = NetworkLibrarySource(
+            id = "nas",
+            name = "NAS",
+            protocol = NetworkLibraryProtocol.WebDav,
+            server = "https://nas.example:443/base",
+            shareOrPath = "Music/Live",
+            username = "first",
+            credentialKey = "credential-a",
+        )
+
+        val changedCredentials = source.copy(username = "second", credentialKey = "credential-b")
+        val changedPathCase = source.copy(shareOrPath = "Music/live")
+
+        assertEquals(
+            networkFilterFingerprint(listOf(source)),
+            networkFilterFingerprint(listOf(changedCredentials)),
+        )
+        org.junit.Assert.assertNotEquals(
+            networkFilterFingerprint(listOf(source)),
+            networkFilterFingerprint(listOf(changedPathCase)),
+        )
+    }
+
     @Test
     fun relativePathsCannotEscapeTheConfiguredRoot() {
         assertEquals("Music/Albums/track.mp3", NetworkPathPolicy.normalizeRelativePath("/Music/./Albums/../Albums/track.mp3"))

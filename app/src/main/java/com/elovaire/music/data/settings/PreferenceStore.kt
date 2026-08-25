@@ -104,6 +104,8 @@ class PreferenceStore internal constructor(
     override val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
 
     val searchHistory get() = userDataStore.searchHistory
+    override val userDataReadiness get() = userDataStore.userDataReadiness
+    override val userDataSnapshot get() = userDataStore.userDataSnapshot
     override val albumPlayCounts get() = userDataStore.albumPlayCounts
     override val songPlayCounts get() = userDataStore.songPlayCounts
     override val recentSongIds get() = userDataStore.recentSongIds

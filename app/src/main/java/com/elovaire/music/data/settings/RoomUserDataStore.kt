@@ -60,8 +60,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @Suppress("TooManyFunctions", "TooGenericExceptionCaught")
 internal class RoomUserDataStore(
@@ -78,7 +81,12 @@ internal class RoomUserDataStore(
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
     private val recoveryWriteFailureReported = AtomicBoolean(false)
-    private var lastRecoverySnapshot: UserDataSnapshot? = null
+    private val lastRecoverySnapshot = AtomicReference<UserDataSnapshot?>(null)
+    private val recoveryWriteMutex = Mutex()
+    private val recoveryStateLock = Any()
+    private var pendingRecoverySnapshot: UserDataSnapshot? = null
+    private var recoveryCheckpointJob: Job? = null
+    private var recoveryGeneration = 0L
     private val nextId = AtomicLong(clock.wallTimeMs().coerceAtLeast(1L))
     // Durable mutations are accepted only when they fit in the bounded channel. Coalescible
     // state uses one replaceable slot per semantic operation instead of suspended senders.
@@ -101,6 +109,12 @@ internal class RoomUserDataStore(
     private val _favoriteSongIds = MutableStateFlow<List<Long>>(emptyList())
     override val favoriteSongIds: StateFlow<List<Long>> = _favoriteSongIds.asStateFlow()
 
+    private val _userDataReadiness = MutableStateFlow(UserDataReadiness.Initializing)
+    override val userDataReadiness: StateFlow<UserDataReadiness> = _userDataReadiness.asStateFlow()
+
+    private val _userDataSnapshot = MutableStateFlow(UserDataSnapshot())
+    override val userDataSnapshot: StateFlow<UserDataSnapshot> = _userDataSnapshot.asStateFlow()
+
     override val albumPlayCounts get() = playbackHistoryStore.albumPlayCounts
     override val songPlayCounts get() = playbackHistoryStore.songPlayCounts
     override val recentSongIds get() = playbackHistoryStore.recentSongIds
@@ -121,11 +135,13 @@ internal class RoomUserDataStore(
                 }
                 return@launch
             }
+            _userDataReadiness.value = UserDataReadiness.Ready
             for (operation in operations) {
                 queueDepth.decrementAndGet()
                 runOperation(operation)
                 promoteCoalescedOperation()
             }
+            if (released.get()) flushPendingRecoverySnapshot()
         } catch (cancelled: CancellationException) {
             if (!released.get()) failActor(cancelled)
             throw cancelled
@@ -134,7 +150,10 @@ internal class RoomUserDataStore(
         } catch (failure: Error) {
             failActor(failure)
         } finally {
-            if (released.get()) lifecycle.set(StoreLifecycle.Released)
+            if (released.get()) {
+                lifecycle.set(StoreLifecycle.Released)
+                _userDataReadiness.value = UserDataReadiness.Released
+            }
         }
     }
 
@@ -449,11 +468,16 @@ internal class RoomUserDataStore(
             promoteCoalescedOperationLocked()
             closeOperationsIfDrainedLocked()
         }
+        synchronized(recoveryStateLock) {
+            recoveryCheckpointJob?.cancel()
+            recoveryCheckpointJob = null
+        }
         ownerJob.invokeOnCompletion {
             if (BuildConfig.DEBUG) {
                 Log.d(TAG, "User-data queue drained maxDepth=${maxQueueDepth.get()}")
             }
             operationScope.cancel()
+            _userDataReadiness.value = UserDataReadiness.Released
             onDrained()
         }
     }
@@ -566,6 +590,7 @@ internal class RoomUserDataStore(
     }
 
     private fun publishSnapshot(snapshot: UserDataSnapshot) {
+        _userDataSnapshot.value = snapshot
         publishPlaylists(snapshot.playlists)
         publishSmartPlaylists(snapshot.smartPlaylists)
         publishFavorites(snapshot.favoriteSongIds)
@@ -586,16 +611,83 @@ internal class RoomUserDataStore(
         nextId.updateAndGet { current -> maxOf(current, nextAfterPersisted) }
     }
 
-    private fun persistRecoverySnapshot(snapshot: UserDataSnapshot) {
+    private suspend fun persistRecoverySnapshot(snapshot: UserDataSnapshot) {
         val recovery = recoverySnapshot ?: return
-        if (!shouldPersistRecoverySnapshot(lastRecoverySnapshot, snapshot)) return
-        try {
-            recovery.write(snapshot)
-            lastRecoverySnapshot = snapshot
-            recoveryWriteFailureReported.set(false)
-        } catch (failure: Exception) {
-            if (recoveryWriteFailureReported.compareAndSet(false, true)) {
-                Log.w(TAG, "User-data recovery snapshot write failed.", failure)
+        when (recoverySnapshotChange(lastRecoverySnapshot.get(), snapshot)) {
+            RecoverySnapshotChange.None -> return
+            RecoverySnapshotChange.Structural -> {
+                synchronized(recoveryStateLock) {
+                    recoveryGeneration += 1L
+                    pendingRecoverySnapshot = null
+                    recoveryCheckpointJob?.cancel()
+                    recoveryCheckpointJob = null
+                }
+                writeRecoverySnapshot(recovery, snapshot)
+            }
+            RecoverySnapshotChange.HighChurn -> {
+                val shouldSchedule = synchronized(recoveryStateLock) {
+                    pendingRecoverySnapshot = snapshot
+                    recoveryGeneration += 1L
+                    recoveryCheckpointJob?.isActive != true
+                }
+                if (shouldSchedule) {
+                    val generation = synchronized(recoveryStateLock) { recoveryGeneration }
+                    val job = operationScope.launch {
+                        delay(RECOVERY_CHECKPOINT_COALESCE_DELAY_MS)
+                        flushRecoveryCheckpoint(recovery, generation)
+                    }
+                    synchronized(recoveryStateLock) {
+                        if (recoveryCheckpointJob?.isActive != true) {
+                            recoveryCheckpointJob = job
+                        } else {
+                            job.cancel()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun flushRecoveryCheckpoint(
+        recovery: UserDataRecoverySnapshot,
+        generation: Long,
+    ) {
+        val snapshot = synchronized(recoveryStateLock) {
+            if (generation != recoveryGeneration) return
+            val next = pendingRecoverySnapshot
+            pendingRecoverySnapshot = null
+            recoveryCheckpointJob = null
+            next
+        } ?: return
+        writeRecoverySnapshot(recovery, snapshot, generation)
+    }
+
+    private suspend fun flushPendingRecoverySnapshot() {
+        val recovery = recoverySnapshot ?: return
+        val snapshot = synchronized(recoveryStateLock) {
+            val next = pendingRecoverySnapshot
+            pendingRecoverySnapshot = null
+            recoveryCheckpointJob = null
+            next
+        } ?: return
+        writeRecoverySnapshot(recovery, snapshot)
+    }
+
+    private suspend fun writeRecoverySnapshot(
+        recovery: UserDataRecoverySnapshot,
+        snapshot: UserDataSnapshot,
+        generation: Long? = null,
+    ) {
+        recoveryWriteMutex.withLock {
+            if (generation != null && synchronized(recoveryStateLock) { generation != recoveryGeneration }) return
+            try {
+                recovery.write(snapshot)
+                lastRecoverySnapshot.set(snapshot)
+                recoveryWriteFailureReported.set(false)
+            } catch (failure: Exception) {
+                if (recoveryWriteFailureReported.compareAndSet(false, true)) {
+                    Log.w(TAG, "User-data recovery snapshot write failed.", failure)
+                }
             }
         }
     }
@@ -693,7 +785,9 @@ internal class RoomUserDataStore(
     private suspend fun runOperation(operation: RoomOperation) {
         try {
             operation.block()
-            persistRecoverySnapshot(currentSnapshot())
+            val snapshot = currentSnapshot()
+            publishSnapshot(snapshot)
+            persistRecoverySnapshot(snapshot)
         } catch (failure: CancellationException) {
             if (currentCoroutineContext().isActive) {
                 operation.completion?.cancel(failure)
@@ -730,6 +824,7 @@ internal class RoomUserDataStore(
         if (released.get()) return
         actorFailure.compareAndSet(null, failure)
         lifecycle.set(StoreLifecycle.Failed)
+        _userDataReadiness.value = UserDataReadiness.Degraded
         Log.e(TAG, "User-data actor stopped; rejecting future operations.", failure)
         synchronized(submissionLock) {
             operations.close()
@@ -763,6 +858,7 @@ internal class RoomUserDataStore(
         const val RECENT_KIND_SONG = "song"
         const val RECENT_KIND_ALBUM = "album"
         const val MAX_OPERATION_QUEUE_DEPTH = 128
+        const val RECOVERY_CHECKPOINT_COALESCE_DELAY_MS = 750L
     }
 }
 
@@ -771,6 +867,13 @@ private enum class StoreLifecycle {
     Ready,
     Failed,
     Releasing,
+    Released,
+}
+
+enum class UserDataReadiness {
+    Initializing,
+    Ready,
+    Degraded,
     Released,
 }
 
@@ -785,7 +888,7 @@ internal fun nextPersistentUserDataId(current: Long): Long {
     return current + 1L
 }
 
-internal data class UserDataSnapshot(
+data class UserDataSnapshot(
     val playlists: List<Playlist> = emptyList(),
     val smartPlaylists: List<SmartPlaylist> = emptyList(),
     val favoriteSongIds: List<Long> = emptyList(),
@@ -801,7 +904,30 @@ internal data class UserDataSnapshot(
 internal fun shouldPersistRecoverySnapshot(
     previous: UserDataSnapshot?,
     current: UserDataSnapshot,
-): Boolean = previous != current
+): Boolean = recoverySnapshotChange(previous, current) != RecoverySnapshotChange.None
+
+internal enum class RecoverySnapshotChange {
+    None,
+    Structural,
+    HighChurn,
+}
+
+internal fun recoverySnapshotChange(
+    previous: UserDataSnapshot?,
+    current: UserDataSnapshot,
+): RecoverySnapshotChange {
+    if (previous == current) return RecoverySnapshotChange.None
+    if (previous == null) return RecoverySnapshotChange.Structural
+    return if (
+        previous.playlists != current.playlists ||
+            previous.smartPlaylists != current.smartPlaylists ||
+            previous.favoriteSongIds != current.favoriteSongIds
+    ) {
+        RecoverySnapshotChange.Structural
+    } else {
+        RecoverySnapshotChange.HighChurn
+    }
+}
 
 private fun readLegacyUserData(preferences: SharedPreferences): UserDataSnapshot {
     return UserDataSnapshot(

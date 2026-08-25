@@ -7,6 +7,13 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 internal class PortableSettingsBackup(
     context: Context,
@@ -26,6 +33,10 @@ internal class PortableSettingsBackup(
     private val restored = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
+    private val mirrorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val mirrorLock = Any()
+    private var mirrorJob: Job? = null
+    private var mirrorRequested = false
 
     fun restore() {
         if (released.get()) return
@@ -59,14 +70,44 @@ internal class PortableSettingsBackup(
 
     fun release() {
         released.set(true)
-        if (!started.compareAndSet(true, false)) return
-        source.unregisterOnSharedPreferenceChangeListener(this)
+        if (started.compareAndSet(true, false)) {
+            source.unregisterOnSharedPreferenceChangeListener(this)
+        }
+        mirrorJob?.invokeOnCompletion { mirrorScope.cancel() }
+        if (mirrorJob == null) mirrorScope.cancel()
     }
 
     @Suppress("UNUSED_PARAMETER")
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         if (key == null || !isPortableSettingKey(key)) return
-        syncAll()
+        synchronized(mirrorLock) {
+            mirrorRequested = true
+            if (mirrorJob?.isActive != true && !released.get()) {
+                mirrorJob = mirrorScope.launch { drainMirrorRequests() }
+            }
+        }
+    }
+
+    private suspend fun drainMirrorRequests() {
+        // Preference callbacks are commonly delivered on the UI thread. Keep the listener
+        // constant-time and coalesce a burst of slider writes into one backup write.
+        delay(MIRROR_COALESCE_DELAY_MS)
+        while (true) {
+            synchronized(mirrorLock) {
+                if (!mirrorRequested) {
+                    mirrorJob = null
+                    return
+                }
+                mirrorRequested = false
+            }
+            syncAll()
+            val again = synchronized(mirrorLock) { mirrorRequested }
+            if (!again) {
+                synchronized(mirrorLock) { mirrorJob = null }
+                return
+            }
+            delay(MIRROR_COALESCE_DELAY_MS)
+        }
     }
 
     private fun syncAll() {
@@ -124,6 +165,7 @@ internal class PortableSettingsBackup(
         const val BACKUP_CHECKSUM_KEY = "_checksum"
         const val BACKUP_CREATED_AT_KEY = "_created_at_ms"
         const val BACKUP_FORMAT_VERSION = 1
+        const val MIRROR_COALESCE_DELAY_MS = 100L
         val PORTABLE_KEYS = portableSettingKeys
     }
 }

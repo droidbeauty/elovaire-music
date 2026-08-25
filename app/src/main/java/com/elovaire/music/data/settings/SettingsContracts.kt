@@ -30,6 +30,8 @@ internal interface AppearanceSettingsStore {
 }
 
 internal interface CollectionSettingsStore {
+    val userDataReadiness: StateFlow<UserDataReadiness>
+    val userDataSnapshot: StateFlow<UserDataSnapshot>
     val playlists: StateFlow<List<Playlist>>
     val smartPlaylists: StateFlow<List<SmartPlaylist>>
     val favoriteSongIds: StateFlow<List<Long>>

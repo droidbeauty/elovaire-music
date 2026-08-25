@@ -127,6 +127,8 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/library/network/NetworkLibrarySourceStore.kt",
         )
         val SUPERVISOR_SCOPE_ALLOWED = setOf(
+            "/core/PlaybackIntegrationCoordinator.kt",
+            "/data/settings/PortableSettingsBackup.kt",
             "/data/settings/PreferenceStore.kt",
             "/data/settings/RoomUserDataStore.kt",
         )

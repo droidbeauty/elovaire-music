@@ -246,16 +246,13 @@ class LibraryRepository internal constructor(
                             song.genre.isBlank() ||
                             song.genre == "Unknown Genre"
                     }
-                    val cachedContent = LibraryContentState(
-                        songs = cachedSnapshot.snapshot.songs,
-                        albums = cachedSnapshot.snapshot.albums,
+                    val cachedContent = snapshotPublisher.stateForSnapshot(
+                        snapshot = cachedSnapshot.snapshot,
                         removingSongIds = deletionMarkers.pendingSongIds.value,
                         removingAlbumIds = deletionMarkers.pendingAlbumIds.value,
                     )
                     if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
-                    if (_contentState.value != cachedContent) {
-                        _contentState.value = cachedContent
-                    }
+                    snapshotPublisher.publishState(cachedContent)
                     val cachedScanState = LibraryScanState(
                         permissionGranted = true,
                         isLoading = false,
@@ -662,7 +659,11 @@ class LibraryRepository internal constructor(
         }
         markDeletingSongs(request.songIds)
         markDeletingAlbums(fullyDeletedAlbumIds)
-        observerController.suppressRefreshFor(DELETE_OBSERVER_SUPPRESSION_MS)
+        observerController.expectSelfMutation(
+            paths = request.filePaths,
+            uris = request.uris,
+            durationMs = DELETE_OBSERVER_SUPPRESSION_MS,
+        )
         refreshDebounceJob?.cancel()
         refreshDebounceJob = null
         refreshRequests.clearIndexRefresh()

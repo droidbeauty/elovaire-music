@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.database.ContentObserver
+import android.net.Uri
 import android.os.FileObserver
 import android.os.Handler
 import android.os.Looper
@@ -37,19 +38,19 @@ internal class LibraryObserverController(
     private var directoryObserversEnabled = false
     private val recentObservedPaths = linkedMapOf<String, Long>()
     private val recentObservedPathsLock = Any()
-    @Volatile
-    private var suppressObserverRefreshUntilMs = 0L
+    private val expectedMutations = ArrayDeque<ExpectedMutation>()
+    private val expectedMutationsLock = Any()
 
     private val mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
         override fun onChange(selfChange: Boolean) {
-            onObservedMediaChange()
+            onObservedMediaChange(null)
         }
 
         override fun onChange(
             selfChange: Boolean,
-            uri: android.net.Uri?,
+            uri: Uri?,
         ) {
-            onObservedMediaChange()
+            onObservedMediaChange(uri)
         }
     }
 
@@ -71,18 +72,54 @@ internal class LibraryObserverController(
         synchronized(recentObservedPathsLock) {
             recentObservedPaths.clear()
         }
-        suppressObserverRefreshUntilMs = 0L
+        synchronized(expectedMutationsLock) { expectedMutations.clear() }
         releaseLibraryFolderObservers()
         unregisterMediaObserver()
     }
 
-    fun suppressRefreshFor(durationMs: Long) {
-        suppressObserverRefreshUntilMs = clock.elapsedTimeMs() + durationMs.coerceAtLeast(0L)
+    fun expectSelfMutation(
+        paths: Collection<String>,
+        uris: Collection<Uri>,
+        durationMs: Long,
+    ) {
+        val normalizedPaths = paths.mapNotNull { it.normalizedObservedPath() }.toSet()
+        val normalizedUris = uris.map(Uri::toString).toSet()
+        if (normalizedPaths.isEmpty() && normalizedUris.isEmpty()) return
+        synchronized(expectedMutationsLock) {
+            removeExpiredExpectedMutations()
+            val expiresAtMs = clock.elapsedTimeMs() + durationMs.coerceAtLeast(0L)
+            normalizedPaths.forEach { path ->
+                expectedMutations += ExpectedMutation(path = path, uri = null, expiresAtMs = expiresAtMs)
+            }
+            normalizedUris.forEach { uri ->
+                expectedMutations += ExpectedMutation(path = null, uri = uri, expiresAtMs = expiresAtMs)
+            }
+        }
     }
 
-    private fun onObservedMediaChange() {
-        if (clock.elapsedTimeMs() < suppressObserverRefreshUntilMs) return
+    private fun onObservedMediaChange(uri: Uri?) {
+        if (consumeExpectedMutation(changedUri = uri, changedPath = null)) return
         onObservedRefresh(false, null)
+    }
+
+    private fun consumeExpectedMutation(changedUri: Uri?, changedPath: String?): Boolean {
+        synchronized(expectedMutationsLock) {
+            removeExpiredExpectedMutations()
+            val iterator = expectedMutations.iterator()
+            while (iterator.hasNext()) {
+                val expected = iterator.next()
+                if (expectedMutationTargetMatches(expected.path, expected.uri, changedPath, changedUri?.toString())) {
+                    iterator.remove()
+                    return true
+                }
+            }
+            return false
+        }
+    }
+
+    private fun removeExpiredExpectedMutations() {
+        val nowMs = clock.elapsedTimeMs()
+        expectedMutations.removeIf { it.expiresAtMs <= nowMs }
     }
 
     private fun ensureMediaObserverRegistered() {
@@ -205,12 +242,13 @@ internal class LibraryObserverController(
         event: Int,
         changedFile: File?,
     ) {
-        if (!directoryObserversEnabled || clock.elapsedTimeMs() < suppressObserverRefreshUntilMs) return
+        if (!directoryObserversEnabled) return
         if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
             requestMusicDirectoryObserverRebuild()
         }
         val requiresFullMediaIndexRefresh = event and FULL_INDEX_REFRESH_EVENT_MASK != 0
         val normalizedChangedPath = changedFile?.absolutePath?.normalizedObservedPath()
+        if (consumeExpectedMutation(changedUri = null, changedPath = normalizedChangedPath)) return
         if (requiresFullMediaIndexRefresh) {
             onObservedRefresh(true, null)
             return
@@ -373,6 +411,22 @@ internal class LibraryObserverController(
                 FileObserver.DELETE_SELF or
                 FileObserver.MOVE_SELF
     }
+}
+
+private data class ExpectedMutation(
+    val path: String?,
+    val uri: String?,
+    val expiresAtMs: Long,
+)
+
+internal fun expectedMutationTargetMatches(
+    expectedPath: String?,
+    expectedUri: String?,
+    changedPath: String?,
+    changedUri: String?,
+): Boolean {
+    return expectedPath != null && expectedPath == changedPath ||
+        expectedUri != null && expectedUri == changedUri
 }
 
 internal fun trimRecentObservedPaths(

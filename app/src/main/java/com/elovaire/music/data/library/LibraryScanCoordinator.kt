@@ -1,15 +1,17 @@
 package elovaire.music.droidbeauty.app.data.library
 
+import android.net.Uri
+import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
+import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceIdentity
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
-import java.util.Locale
 
 /** Composes independent source scanners without making any one source the merge authority. */
 internal class LibraryScanCoordinator(
@@ -43,18 +45,7 @@ internal class LibraryScanCoordinator(
         localScanner.setLibraryFolders(selections)
 
     fun currentFilterFingerprint(): String {
-        val remote = networkSources.joinToString("|") { source ->
-            listOf(
-                source.id,
-                source.protocol.name,
-                source.server,
-                source.shareOrPath,
-                source.username,
-                source.enabled,
-            )
-                .joinToString("@")
-                .lowercase(Locale.ROOT)
-        }
+        val remote = networkFilterFingerprint(networkSources)
         return "${localScanner.currentFilterFingerprint()}::network:$remote"
     }
 
@@ -97,10 +88,20 @@ internal class LibraryScanCoordinator(
                 enrichMetadata = enrichMetadata,
                 onProgress = onProgress,
             )
-            val safSongs = safScanner.scan(localScanner.safTreeSelections())
+            val safResults = safScanner.scanByTree(localScanner.safTreeSelections())
+            val safSongs = safResults
+                .filterIsInstance<SafTreeScanResult.Complete>()
+                .flatMap(SafTreeScanResult.Complete::songs)
+            val failedSafTreeIds = safResults
+                .filter { it !is SafTreeScanResult.Complete }
+                .mapNotNull { safTreeIdentity(it.selection.uri) }
+                .toSet()
+            val preservedSafSongs = baseSnapshot?.songs.orEmpty().filter { song ->
+                safTreeIdentity(song.uri) in failedSafTreeIds
+            }
             LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
                 mediaStoreSongs = local.songs,
-                safSongs = safSongs,
+                safSongs = safSongs + preservedSafSongs,
             )
         }
         if (networkSources.none(NetworkLibrarySource::enabled)) {
@@ -167,4 +168,20 @@ internal class LibraryScanCoordinator(
 
     val targetExistenceProbe: MediaTargetExistenceProbe
         get() = localScanner.targetExistenceProbe
+}
+
+internal fun safTreeIdentity(uri: Uri?): String? {
+    if (uri == null || uri.scheme != "content") return null
+    return runCatching {
+        "${uri.authority.orEmpty()}|${DocumentsContract.getTreeDocumentId(uri)}"
+    }.getOrNull()
+}
+
+internal fun networkFilterFingerprint(sources: List<NetworkLibrarySource>): String {
+    return sources
+        .distinctBy(NetworkLibrarySource::id)
+        .sortedBy(NetworkLibrarySource::id)
+        .joinToString("|") { source ->
+            "${source.id}:${NetworkSourceIdentity.locationFingerprint(source)}:${source.enabled}"
+        }
 }

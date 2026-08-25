@@ -354,16 +354,17 @@ internal class ElovaireMediaTree(
     private fun snapshot(): MediaTreeSnapshot {
         val content = libraryRepository.contentState.value
         val scan = libraryRepository.scanState.value
+        val userData = preferenceStore.userDataSnapshot.value
         return snapshotCache.snapshot(
             permissionGranted = scan.permissionGranted,
             songs = content.songs,
             albums = content.albums,
             libraryRevision = content.contentRevision,
-            playlists = preferenceStore.playlists.value,
-            favoriteSongIds = preferenceStore.favoriteSongIds.value,
-            recentSongIds = preferenceStore.recentSongIds.value,
-            lastPlayedCollectionKind = preferenceStore.lastPlayedCollectionKind.value,
-            lastPlayedCollectionId = preferenceStore.lastPlayedCollectionId.value,
+            playlists = userData.playlists,
+            favoriteSongIds = userData.favoriteSongIds,
+            recentSongIds = userData.recentSongIds,
+            lastPlayedCollectionKind = userData.lastPlayedCollectionKind,
+            lastPlayedCollectionId = userData.lastPlayedCollectionId,
         )
     }
 

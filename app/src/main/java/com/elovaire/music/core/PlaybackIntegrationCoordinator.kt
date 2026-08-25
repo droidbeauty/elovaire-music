@@ -12,8 +12,13 @@ import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flatMapLatest
@@ -27,9 +32,12 @@ import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.sample
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
+import android.util.Log
 
 @UnstableApi
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+@Suppress("TooGenericExceptionCaught")
 internal class PlaybackIntegrationCoordinator(
     private val scope: CoroutineScope,
     private val preferences: PlaybackIntegrationSettings,
@@ -42,8 +50,24 @@ internal class PlaybackIntegrationCoordinator(
     private var restorationAttempted = false
     private var cachedQueue: List<elovaire.music.droidbeauty.app.domain.model.Song>? = null
     private var cachedQueueIds: List<Long> = emptyList()
+    private val released = AtomicBoolean(false)
+    private val sessionWriterScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val sessionWrites = Channel<PersistedPlaybackSession?>(Channel.CONFLATED)
+    private val sessionWriterJob: Job = sessionWriterScope.launch(start = CoroutineStart.LAZY) {
+        for (session in sessionWrites) {
+            try {
+                if (session == null) sessionStore.clear() else sessionStore.save(session)
+            } catch (failure: kotlinx.coroutines.CancellationException) {
+                throw failure
+            } catch (failure: RuntimeException) {
+                Log.w(TAG, "Playback session checkpoint failed.", failure)
+            }
+        }
+    }
 
     fun start() {
+        if (released.get()) return
+        sessionWriterJob.start()
         scope.launch {
             preferences.eqSettings
                 .debounce(40L)
@@ -144,10 +168,13 @@ internal class PlaybackIntegrationCoordinator(
     }
 
     fun release() {
+        if (!released.compareAndSet(false, true)) return
         persistSession()
+        sessionWrites.close()
+        sessionWriterJob.invokeOnCompletion { sessionWriterScope.cancel() }
     }
 
-    private fun restoreSessionIfNeeded(songs: List<elovaire.music.droidbeauty.app.domain.model.Song>) {
+    private suspend fun restoreSessionIfNeeded(songs: List<elovaire.music.droidbeauty.app.domain.model.Song>) {
         if (restorationAttempted || songs.isEmpty()) return
         if (playback.hasActiveQueue()) {
             restorationAttempted = true
@@ -155,7 +182,7 @@ internal class PlaybackIntegrationCoordinator(
             return
         }
         restorationAttempted = true
-        val persisted = sessionStore.load() ?: return
+        val persisted = withContext(Dispatchers.IO) { sessionStore.load() } ?: return
         val songsById = songs.associateBy { it.id }
         val restoredQueue = persisted.queueSongIds.mapNotNull(songsById::get)
         if (!isPlaybackSessionFullyResolved(persisted.queueSongIds, songsById.keys)) {
@@ -176,14 +203,14 @@ internal class PlaybackIntegrationCoordinator(
     }
 
     private fun persistSession(positionOverrideMs: Long? = null) {
-        if (!restorationAttempted) return
+        if (!restorationAttempted || released.get() && !sessionWriterJob.isActive) return
         val queue = playback.queueState.value
         if (queue.queue.isEmpty()) {
-            sessionStore.clear()
+            sessionWrites.trySend(null)
             return
         }
         val transport = playback.transportState.value
-        sessionStore.save(
+        sessionWrites.trySend(
             PersistedPlaybackSession(
                 queueSongIds = queueSongIds(queue.queue),
                 currentSongId = queue.queue.getOrNull(queue.currentIndex)?.id,
@@ -207,6 +234,7 @@ internal class PlaybackIntegrationCoordinator(
     }
 
     private companion object {
+        const val TAG = "PlaybackSession"
         const val PLAYBACK_POSITION_PERSIST_INTERVAL_MS = 5_000L
         const val PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS = 10_000L
     }

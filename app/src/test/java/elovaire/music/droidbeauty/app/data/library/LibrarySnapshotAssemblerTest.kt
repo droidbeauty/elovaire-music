@@ -62,6 +62,17 @@ class LibrarySnapshotAssemblerTest {
         assertEquals(null, next.albums.firstOrNull { it.id == moved.albumId })
     }
 
+    @Test
+    fun stateForSnapshotRestoresSemanticRevisionForCachedSnapshots() {
+        val song = song(1L, "content://media/external/audio/media/1")
+        val snapshot = LibrarySnapshotAssembler.assemble(listOf(song)).copy(contentRevision = "")
+        val publisher = LibrarySnapshotPublisher({}, { LibraryContentState() })
+
+        val state = publisher.stateForSnapshot(snapshot, emptySet(), emptySet())
+
+        assertEquals(librarySongsContentRevision(listOf(song)), state.contentRevision)
+    }
+
     private fun song(id: Long, uri: String) = Song(
         id = id,
         title = "Track",
