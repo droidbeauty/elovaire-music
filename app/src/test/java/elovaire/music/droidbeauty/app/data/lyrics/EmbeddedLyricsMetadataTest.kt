@@ -39,6 +39,13 @@ class EmbeddedLyricsMetadataTest {
     }
 
     @Test
+    fun malformedOrEmptyTimestampLinesDoNotUseSyncedLyricsTarget() {
+        listOf("[00:99]Not LRC", "[00:12]", "[00:12]   ").forEach { lyrics ->
+            assertEquals(EmbeddedLyricsTagKind.UnsyncedLyrics, classifyLyricsTagKind(lyrics))
+        }
+    }
+
+    @Test
     fun mp3AndFlacWritesCommitReadableLyrics() {
         listOf("lyrics-id3v23.mp3", "lyrics-id3v24.mp3", "lyrics-no-id3.mp3", "lyrics.flac").forEach { fixture ->
             val file = copyFixture(fixture)

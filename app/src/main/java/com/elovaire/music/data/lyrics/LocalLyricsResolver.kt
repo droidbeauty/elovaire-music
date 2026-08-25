@@ -171,7 +171,30 @@ internal class LocalLyricsResolver(
         val timestampFormat = frameData[4].toInt() and 0xFF
         if (timestampFormat != ID3_TIMESTAMP_MILLISECONDS) return emptyList()
 
-        var position = findEncodedTerminator(frameData, 6, encoding) + terminatorLengthForEncoding(encoding)
+        val encodedDescriptorEnd = findEncodedTerminator(frameData, 6, encoding)
+        val payloadStarts = buildList {
+            add(encodedDescriptorEnd + terminatorLengthForEncoding(encoding))
+            if (encoding == ID3_UTF16 || encoding == ID3_UTF16_BE) {
+                findSingleByteTerminator(frameData, 6)
+                    .takeIf { it >= 0 }
+                    ?.plus(1)
+                    ?.let(::add)
+            }
+        }.distinct()
+        var bestLines = emptyList<LyricsLine>()
+        payloadStarts.forEach { start ->
+            val lines = parseSyltPayload(frameData, start, encoding)
+            if (lines.size > bestLines.size) bestLines = lines
+        }
+        return bestLines
+    }
+
+    private fun parseSyltPayload(
+        frameData: ByteArray,
+        start: Int,
+        encoding: Int,
+    ): List<LyricsLine> {
+        var position = start
         val lines = mutableListOf<LyricsLine>()
         while (position < frameData.size) {
             val textEnd = findEncodedTerminator(frameData, position, encoding).coerceAtMost(frameData.size)
@@ -188,6 +211,16 @@ internal class LocalLyricsResolver(
             position = timestampStart + 4
         }
         return lines
+    }
+
+    private fun findSingleByteTerminator(
+        bytes: ByteArray,
+        startIndex: Int,
+    ): Int {
+        for (index in startIndex until bytes.size) {
+            if (bytes[index] == 0.toByte()) return index
+        }
+        return -1
     }
 
     private fun readFlacLyrics(song: Song): LocalLyricsMatch? {
@@ -453,6 +486,8 @@ internal class LocalLyricsResolver(
         const val COPY_BUFFER_BYTES = 64 * 1024
         const val FLAC_BLOCK_VORBIS_COMMENT = 4
         const val ID3_UNSYNCHRONIZATION_FLAG = 0x80
+        const val ID3_UTF16 = 1
+        const val ID3_UTF16_BE = 2
         const val ID3_TIMESTAMP_MILLISECONDS = 0x02
         val FLAC_SYNCED_KEYS = setOf("SYNCEDLYRICS", "LRC", "LYRICSTIMED")
         val FLAC_PLAIN_KEYS = setOf("LYRICS", "UNSYNCEDLYRICS", "UNSYNCEDTEXT", "TEXT")

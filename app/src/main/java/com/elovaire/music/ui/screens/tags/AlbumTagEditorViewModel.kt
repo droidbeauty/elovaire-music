@@ -191,12 +191,12 @@ internal class AlbumTagEditorViewModel(
         val currentState = _uiState.value
         if (currentState.isSaving) return
         val request = currentState.toAlbumTagEditRequest() ?: return
+        val pending = writePermissionState.begin(request) ?: return
         _uiState.value = currentState.copy(
             isSaving = true,
             statusMessage = null,
             saveFailures = emptyList(),
         ).recalculateFlags()
-        val pending = writePermissionState.begin(request) ?: return
         viewModelScope.launch {
             _events.emit(
                 AlbumTagEditorEvent.RequestWritePermission(

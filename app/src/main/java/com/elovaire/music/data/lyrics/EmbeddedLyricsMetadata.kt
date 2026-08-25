@@ -32,14 +32,11 @@ internal data class EmbeddedLyricsWriteRequest(
     val tagKind: EmbeddedLyricsTagKind,
 )
 
-internal val LRC_TIMESTAMP_REGEX = Regex("""(?m)\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?]""")
-
 internal fun classifyLyricsTagKind(text: String): EmbeddedLyricsTagKind =
-    if (LRC_TIMESTAMP_REGEX.containsMatchIn(text)) {
-        EmbeddedLyricsTagKind.SyncedLyrics
-    } else {
-        EmbeddedLyricsTagKind.UnsyncedLyrics
-    }
+    parseLrcOrPlain(text)
+        ?.takeIf(LyricsPayload::isSynced)
+        ?.let { EmbeddedLyricsTagKind.SyncedLyrics }
+        ?: EmbeddedLyricsTagKind.UnsyncedLyrics
 
 internal object EmbeddedLyricsMetadata {
     fun write(file: File, request: EmbeddedLyricsWriteRequest) {

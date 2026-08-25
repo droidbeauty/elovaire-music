@@ -11,8 +11,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
+import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
+import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -41,6 +45,7 @@ internal fun NowPlayingRouteHost(
     val lyricsUiState by viewModel.lyricsUiState.collectAsStateWithLifecycle()
     val lyricsEditorUiState by viewModel.lyricsEditorUiState.collectAsStateWithLifecycle()
     val activeLyricsLineIndex by viewModel.activeLyricsLineIndex.collectAsStateWithLifecycle()
+    val context = LocalContext.current
     PerformanceScreenState("now_playing")
     PerformanceState(
         key = "interaction",
@@ -69,9 +74,15 @@ internal fun NowPlayingRouteHost(
                 is LyricsEditorEvent.RequestWritePermission -> {
                     pendingLyricsOperationId = event.operationId
                     pendingLyricsMediaUri = event.mediaUri.toString()
-                    lyricsWriteLauncher.launch(
-                        IntentSenderRequest.Builder(event.request.intentSender).build(),
-                    )
+                    val request = if (
+                        MediaWriteTargetClassifier.classify(context, event.mediaUri) is
+                            MediaWriteTarget.MediaStoreItem
+                    ) {
+                        mediaStoreWriteRequest(context, listOf(event.mediaUri))
+                    } else {
+                        null
+                    } ?: IntentSenderRequest.Builder(event.request.intentSender).build()
+                    lyricsWriteLauncher.launch(request)
                 }
             }
         }

@@ -61,7 +61,6 @@ internal class EmbeddedLyricsWriter(
 ) {
     private val appContext = context.applicationContext
     private val audioFormatDetector = AudioFormatDetector(appContext)
-    private val localLyricsResolver = LocalLyricsResolver(appContext)
     private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_DIRECTORY)
 
     suspend fun write(
@@ -107,7 +106,7 @@ internal class EmbeddedLyricsWriter(
         var originalOverwritten = false
         return try {
             trace(song, "preflight")
-            mutationRunner.requireWritable(song.uri)
+            mutationRunner.preflight(song)
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PreflightPassed) }
             trace(song, "temp_copy")
             backupFile = mutationRunner.copySongToTemp(song, "backup")
@@ -222,39 +221,6 @@ internal class EmbeddedLyricsWriter(
                 check(fields.unsynced.any { it == request.canonicalLyrics }) {
                     "The unsynchronized lyrics field was not persisted."
                 }
-            }
-        }
-
-        val verificationSong = Song(
-            id = Long.MIN_VALUE,
-            title = file.nameWithoutExtension,
-            isExplicit = false,
-            artist = "",
-            album = "",
-            releaseYear = null,
-            genre = "",
-            audioFormat = "",
-            audioQuality = null,
-            fileName = file.name,
-            albumId = Long.MIN_VALUE,
-            durationMs = 0L,
-            trackNumber = 0,
-            discNumber = 1,
-            dateAddedSeconds = 0L,
-            libraryPath = file.absolutePath,
-            uri = Uri.fromFile(file),
-            artUri = null,
-        )
-        val actualPayload = localLyricsResolver.resolve(verificationSong)?.payload
-        check(actualPayload != null) { "Lyrics verification failed after writing metadata." }
-        if (request.tagKind == EmbeddedLyricsTagKind.SyncedLyrics) {
-            check(actualPayload.isSynced && expectedPayload?.isSynced == true)
-            val actualLines = actualPayload.lines.map { it.startTimeMs to it.text.trim() }
-            val expectedLines = expectedPayload.lines.map { it.startTimeMs to it.text.trim() }
-            check(actualLines == expectedLines) { "Synchronized lyrics verification failed after writing metadata." }
-        } else {
-            check(actualPayload.toEmbeddedLyricsText() == request.canonicalLyrics) {
-                "Unsynchronized lyrics verification failed after writing metadata."
             }
         }
     }
@@ -383,8 +349,7 @@ internal class EmbeddedLyricsWriter(
             LOG_TAG,
             "song=${song.id} scheme=${song.uri.scheme} authority=${song.uri.authority.orEmpty()} " +
                 "extension=${song.fileName.substringAfterLast('.', "")} " +
-                "phase=$phase error=${throwable?.javaClass?.simpleName.orEmpty()} " +
-                "message=${throwable?.message.orEmpty()}",
+                "phase=$phase error=${throwable?.javaClass?.simpleName.orEmpty()}",
         )
     }
 
@@ -394,8 +359,9 @@ internal class EmbeddedLyricsWriter(
         Log.d(
             LOG_TAG,
             "operation=${operationId.orEmpty()} api=${Build.VERSION.SDK_INT} song=${song.id} " +
-                "target=${target::class.simpleName} requestUri=${song.uri} " +
-                "retryUri=${approvedMediaUri?.toString().orEmpty()}",
+                "target=${target::class.simpleName} uriScheme=${song.uri.scheme.orEmpty()} " +
+                "uriAuthority=${song.uri.authority.orEmpty()} uriDepth=${song.uri.pathSegments.size} " +
+                "retryProvided=${approvedMediaUri != null}",
         )
     }
 

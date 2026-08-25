@@ -316,7 +316,9 @@ internal class NowPlayingViewModel(
 
     fun onLyricsWritePermissionResult(operationId: String, mediaUri: Uri, resultCode: Int) {
         val pending = pendingLyricsSave ?: return
-        logLyrics("permission_result operation=$operationId uri=$mediaUri result=$resultCode")
+        logLyrics(
+            "permission_result operation=$operationId result=$resultCode ${mediaUri.debugIdentity()}",
+        )
         when (resolveLyricsPermissionResult(pending.permissionState, operationId, mediaUri, resultCode)) {
             LyricsPermissionResultDecision.Stale -> return
             LyricsPermissionResultDecision.Denied -> {
@@ -384,7 +386,9 @@ internal class NowPlayingViewModel(
                             errorMessage = LYRICS_POST_GRANT_FAILURE_MESSAGE,
                         )
                     } else if (pending.permissionState is LyricsSavePermissionState.NotRequested) {
-                        logLyrics("permission_request operation=${pending.operationId} uri=${result.mediaUri}")
+                        logLyrics(
+                            "permission_request operation=${pending.operationId} ${result.mediaUri.debugIdentity()}",
+                        )
                         pendingLyricsSave = pending.copy(
                             permissionState = LyricsSavePermissionState.AwaitingResult(
                                 operationId = pending.operationId,
@@ -488,4 +492,7 @@ internal class NowPlayingViewModel(
     private fun logLyrics(message: String) {
         if (BuildConfig.DEBUG) Log.d(TAG, message)
     }
+
+    private fun Uri.debugIdentity(): String =
+        "uriScheme=${scheme.orEmpty()} uriAuthority=${authority.orEmpty()} uriDepth=${pathSegments.size}"
 }
