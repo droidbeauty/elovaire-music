@@ -86,16 +86,120 @@ class LibraryAudioFileFilterTest {
     }
 
     @Test
-    fun evaluate_excludesShortFiles() {
+    fun evaluate_includesShortFilesWhenAudioEvidenceIsValid() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertTrue(
+            filter.evaluate(candidate(absolutePath = null, durationMs = 10_000L)) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun evaluate_requiresContainerEvidenceForExtensionlessRows() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = setOf("music"),
             libraryRootPaths = emptySet(),
         )
 
         assertExcludedReason(
-            expectedReason = "Too short",
-            decision = filter.evaluate(candidate(absolutePath = null, durationMs = 10_000L)),
+            expectedReason = "Container could not be validated",
+            decision = filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    extension = "",
+                    mimeType = "audio/mpeg",
+                    detectedFormat = detected(
+                        AudioContainerFormat.Mp3,
+                        "",
+                        "audio/mpeg",
+                        "audio/mpeg",
+                        detectionSucceeded = false,
+                    ),
+                ),
+            ),
         )
+    }
+
+    @Test
+    fun evaluate_includesExtensionlessRowWhenContainerIsDetected() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertTrue(
+            filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    extension = "",
+                    mimeType = "audio/mpeg",
+                    detectedFormat = detected(
+                        AudioContainerFormat.Mp3,
+                        "",
+                        "audio/mpeg",
+                        "audio/mpeg",
+                    ),
+                ),
+        ) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun evaluate_usesAudioMimeWhenUnknownExtensionHasNoContainerResult() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertTrue(
+            filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    extension = "bin",
+                    mimeType = "audio/mpeg",
+                    detectedFormat = null,
+                ),
+            ) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun evaluate_implicitDefaultDiscoveryAcceptsSupportedSharedStorageAudio() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = emptySet(),
+            libraryRootPaths = emptySet(),
+            implicitDefaultDiscovery = true,
+        )
+
+        assertTrue(
+            filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    relativePath = "Download/Elovaire/track.mp3",
+                    isMusic = true,
+                ),
+            ) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun evaluate_doesNotLetIsMusicFalseHideExplicitAudio() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = emptySet(),
+            libraryRootPaths = setOf("/storage/emulated/0/Downloads/music"),
+            explicitCustomRootPaths = setOf("/storage/emulated/0/Downloads/music"),
+        )
+
+        val decision = filter.evaluate(
+            candidate(
+                absolutePath = "/storage/emulated/0/Downloads/Music/track.mp3",
+                isMusic = false,
+            ),
+        )
+        assertTrue("decision=$decision", decision is AudioFileFilterDecision.Include)
     }
 
     @Test
@@ -287,7 +391,7 @@ class LibraryAudioFileFilterTest {
         extension: String = "mp3",
         mimeType: String = "audio/mpeg",
         isMusic: Boolean? = true,
-        detectedFormat: DetectedAudioFormat = detected(AudioContainerFormat.Mp3, extension, mimeType, mimeType),
+        detectedFormat: DetectedAudioFormat? = detected(AudioContainerFormat.Mp3, extension, mimeType, mimeType),
         durationMs: Long = 180_000L,
     ): AudioScanCandidate {
         return AudioScanCandidate(

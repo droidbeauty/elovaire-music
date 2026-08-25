@@ -8,7 +8,11 @@ internal object MediaStoreScanPreflight {
         candidate: AudioScanCandidate,
         filter: LibraryAudioFileFilter,
     ): AudioFileFilterDecision.Exclude? {
-        if (AudioFormatPolicy.requiresContainerValidation(candidate.extension)) return null
+        if (
+            candidate.extension.isNullOrBlank() ||
+            candidate.extension !in AudioFormatPolicy.scannerExtensions ||
+            AudioFormatPolicy.requiresContainerValidation(candidate.extension)
+        ) return null
         val fastCandidate = candidate.copy(
             detectedFormat = AudioScanCandidateMapper.fastDetectedFormat(
                 extension = candidate.extension.orEmpty(),

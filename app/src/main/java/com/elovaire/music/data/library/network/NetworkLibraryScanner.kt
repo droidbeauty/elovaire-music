@@ -35,20 +35,30 @@ internal class NetworkLibraryScanner(
         sources: List<NetworkLibrarySource>,
         forceRefresh: Boolean = false,
         enrichMetadata: Boolean = true,
-    ): List<Song> = withContext(Dispatchers.IO) {
+    ): List<Song> = scanWithStatus(sources, forceRefresh, enrichMetadata).songs
+
+    suspend fun scanWithStatus(
+        sources: List<NetworkLibrarySource>,
+        forceRefresh: Boolean = false,
+        enrichMetadata: Boolean = true,
+    ): NetworkLibraryScanResult = withContext(Dispatchers.IO) {
         val result = mutableListOf<Song>()
+        var isComplete = true
         sources.filter(NetworkLibrarySource::enabled).forEach { source ->
             currentCoroutineContext().ensureActive()
-            result += scanSourceSafely(source, forceRefresh, enrichMetadata)
+            val sourceResult = scanSourceSafely(source, forceRefresh, enrichMetadata)
+            result += sourceResult.songs
+            isComplete = isComplete && sourceResult.isComplete
         }
-        result
+        NetworkLibraryScanResult(result, isComplete)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun scanSourceSafely(
         source: NetworkLibrarySource,
         forceRefresh: Boolean,
         enrichMetadata: Boolean,
-    ): List<Song> {
+    ): NetworkLibrarySourceScanResult {
         return try {
             scanSource(source, forceRefresh, enrichMetadata)
         } catch (cancelled: CancellationException) {
@@ -65,19 +75,22 @@ internal class NetworkLibraryScanner(
             publishSourceFailure(source, failure)
         } catch (failure: XmlPullParserException) {
             publishSourceFailure(source, failure)
+        } catch (failure: Exception) {
+            publishSourceFailure(source, failure)
         }
     }
 
     private suspend fun publishSourceFailure(
         source: NetworkLibrarySource,
         failure: Throwable,
-    ): List<Song> {
+    ): NetworkLibrarySourceScanResult {
         val generation = registry.sourceGeneration(source.id)
         val credentials = registry.credentials(source)
         publishAvailability(source, generation, credentials, failure.toProbeResult())
-        return runCatching { inventory.load(source) }
+        val songs = runCatching { inventory.load(source) }
             .getOrDefault(emptyList())
             .map(NetworkInventoryEntry::song)
+        return NetworkLibrarySourceScanResult(songs, isComplete = false)
     }
 
     suspend fun needsRefresh(sources: List<NetworkLibrarySource>, nowMs: Long): Boolean {
@@ -88,14 +101,16 @@ internal class NetworkLibraryScanner(
         source: NetworkLibrarySource,
         forceRefresh: Boolean,
         enrichMetadata: Boolean,
-    ): List<Song> {
+    ): NetworkLibrarySourceScanResult {
         val cached = inventory.load(source)
         val sourceGeneration = registry.sourceGeneration(source.id)
-        if (!isCurrentSource(source, sourceGeneration)) return emptyList()
+        if (!isCurrentSource(source, sourceGeneration)) {
+            return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
+        }
         val hasUnresolvedCachedMetadata = cached.any { !it.song.metadataResolved }
         if (!forceRefresh && inventory.hasFreshListing(source, clock.wallTimeMs())) {
             if (!enrichMetadata || !hasUnresolvedCachedMetadata) {
-                return cached.map(NetworkInventoryEntry::song)
+                return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = true)
             }
             return enrichCommittedInventory(source, sourceGeneration, cached)
         }
@@ -107,15 +122,20 @@ internal class NetworkLibraryScanner(
                 credentials = null,
                 result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
-            return cached.map(NetworkInventoryEntry::song)
+            return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = false)
         }
         val listing = listSourceOrNull(source, sourceGeneration, credentials)
-            ?: return cached.map(NetworkInventoryEntry::song)
+            ?: return NetworkLibrarySourceScanResult(
+                cached.map(NetworkInventoryEntry::song),
+                isComplete = false,
+            )
         val entries = listing.entries
         val incompleteReason = (listing as? NetworkListingResult.Incomplete)?.reason
         // A source edit/removal may have completed while the blocking listing was in flight.
         // Never commit or republish the result for an obsolete configuration.
-        if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
+        if (!isCurrent(source, sourceGeneration, credentials)) {
+            return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
+        }
         publishAvailability(
             source,
             sourceGeneration,
@@ -169,12 +189,17 @@ internal class NetworkLibraryScanner(
                 previous != current
         }
         val nowMs = clock.wallTimeMs()
-        if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
+        if (!isCurrent(source, sourceGeneration, credentials)) {
+            return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
+        }
         if (incompleteReason != null) {
             // A bounded traversal proves only the entries it saw. Preserve the previous
             // inventory for unseen paths and leave its freshness unchanged so a later scan
             // retries the source instead of treating truncation as authoritative deletion.
-            return mergePartialNetworkInventory(cached, inventoryEntries)
+            return NetworkLibrarySourceScanResult(
+                mergePartialNetworkInventory(cached, inventoryEntries),
+                isComplete = false,
+            )
         }
         if (inventoryChanged) {
             inventory.replace(
@@ -186,14 +211,17 @@ internal class NetworkLibraryScanner(
         } else {
             inventory.refresh(source, NetworkAvailability.Available, nowMs)
         }
-        return inventoryEntries.map(NetworkInventoryEntry::song)
+        return NetworkLibrarySourceScanResult(
+            inventoryEntries.map(NetworkInventoryEntry::song),
+            isComplete = true,
+        )
     }
 
     private suspend fun enrichCommittedInventory(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
         cached: List<NetworkInventoryEntry>,
-    ): List<Song> {
+    ): NetworkLibrarySourceScanResult {
         val credentials = registry.credentials(source)
         if (credentials == null) {
             publishAvailability(
@@ -202,9 +230,11 @@ internal class NetworkLibraryScanner(
                 credentials = null,
                 result = NetworkProbeResult(NetworkAvailability.AuthenticationRequired),
             )
-            return cached.map(NetworkInventoryEntry::song)
+            return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = false)
         }
-        if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
+        if (!isCurrent(source, sourceGeneration, credentials)) {
+            return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
+        }
         val cachedByPath = cached.associateBy { it.entry.path }
         val cachedByEntryId = cached
             .mapNotNull { item -> item.entry.sourceEntryId?.let { it to item } }
@@ -219,7 +249,9 @@ internal class NetworkLibraryScanner(
             enrichMetadata = true,
             forceRefresh = false,
         )
-        if (!isCurrent(source, sourceGeneration, credentials)) return emptyList()
+        if (!isCurrent(source, sourceGeneration, credentials)) {
+            return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
+        }
         if (enriched != cached) {
             inventory.replace(
                 source = source,
@@ -228,7 +260,7 @@ internal class NetworkLibraryScanner(
                 nowMs = clock.wallTimeMs(),
             )
         }
-        return enriched.map(NetworkInventoryEntry::song)
+        return NetworkLibrarySourceScanResult(enriched.map(NetworkInventoryEntry::song), isComplete = true)
     }
 
     private fun buildInventoryEntries(
@@ -575,3 +607,13 @@ private class NetworkArtworkCache(context: Context) {
         const val MAX_ARTWORK_CACHE_BYTES = 128L * 1024L * 1024L
     }
 }
+
+internal data class NetworkLibraryScanResult(
+    val songs: List<Song>,
+    val isComplete: Boolean,
+)
+
+private data class NetworkLibrarySourceScanResult(
+    val songs: List<Song>,
+    val isComplete: Boolean,
+)

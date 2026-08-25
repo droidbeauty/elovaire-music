@@ -126,9 +126,11 @@ internal class NetworkFileSystemRegistry(
 /** Reserves one slot for range reads so a directory crawl cannot consume all network capacity. */
 private class NetworkOperationAdmission(
     backgroundCapacity: Int = 3,
+    playbackCapacity: Int = 2,
 ) {
     private val background = Semaphore(backgroundCapacity, true)
-    private val playback = Semaphore(1, true)
+    // Crossfade/prebuffer can keep the outgoing and incoming player reading at once.
+    private val playback = Semaphore(playbackCapacity, true)
 
     fun <T> withBackground(block: () -> T): T {
         acquire(background).use {

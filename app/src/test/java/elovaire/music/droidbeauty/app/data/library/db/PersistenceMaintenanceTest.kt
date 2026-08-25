@@ -15,4 +15,16 @@ class PersistenceMaintenanceTest {
         val oneDay = 24L * 60L * 60L * 1_000L
         assertEquals(oneDay, terminalMutationCutoff(thirtyOneDays))
     }
+
+    @Test
+    fun healthCheckCadenceRunsOnFirstUseClockRollbackAndAfterSixHours() {
+        assertEquals(true, persistenceHealthCheckDue(1_000L, 0L))
+        assertEquals(true, persistenceHealthCheckDue(1_000L, 2_000L))
+        assertEquals(false, persistenceHealthCheckDue(1_000L, 1_000L))
+        assertEquals(true, persistenceHealthCheckDue(6L * 60L * 60L * 1_000L, 0L))
+        assertEquals(
+            true,
+            persistenceHealthCheckDue(6L * 60L * 60L * 1_000L + 1L, 1L),
+        )
+    }
 }

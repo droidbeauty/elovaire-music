@@ -92,16 +92,11 @@ internal class PersistenceMaintenance(
     private val clock: AppClock = AndroidAppClock,
     private val userDataDao: UserDataDao? = null,
 ) {
-    suspend fun recoverAndPrune(): DatabaseHealth {
-        if (mutationJournal.recoverIncomplete() !is MediaMutationRecoveryResult.Success) {
-            return DatabaseHealth(
-                foreignKeysValid = false,
-                orphanCount = -1,
-                recoveryRequired = true,
-                status = PersistenceHealthStatus.FatalStorageFailure,
-                physicalIntegrityValid = false,
-            )
-        }
+    suspend fun recoverCritical(): Boolean {
+        return mutationJournal.recoverIncomplete() is MediaMutationRecoveryResult.Success
+    }
+
+    suspend fun checkAndPrune(): DatabaseHealth {
         val physicalIntegrityValid = dao.quickCheck(SimpleSQLiteQuery("PRAGMA quick_check")) == listOf("ok")
         if (!physicalIntegrityValid) {
             return DatabaseHealth(
@@ -154,6 +149,19 @@ internal class PersistenceMaintenance(
                 else -> PersistenceHealthStatus.Healthy
             },
         )
+    }
+
+    suspend fun recoverAndPrune(): DatabaseHealth {
+        if (!recoverCritical()) {
+            return DatabaseHealth(
+                foreignKeysValid = false,
+                orphanCount = -1,
+                recoveryRequired = true,
+                status = PersistenceHealthStatus.FatalStorageFailure,
+                physicalIntegrityValid = false,
+            )
+        }
+        return checkAndPrune()
     }
 }
 

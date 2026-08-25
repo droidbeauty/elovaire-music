@@ -32,6 +32,8 @@ internal fun LibraryFailure.toUserMessage(): String = when (this) {
 }
 
 internal fun Throwable.toLibraryScanFailure(phase: String): LibraryFailure = when (this) {
+    is MediaStoreQueryUnavailableException -> LibraryFailure.MediaStoreUnavailable
+    is MediaStoreIndexRefreshException -> LibraryFailure.MediaStoreUnavailable
     is SafProviderUnavailableException -> LibraryFailure.SafProviderFailure(authority, operation, cause)
     is SafScanIncompleteException -> LibraryFailure.SafProviderFailure(authority, "scan-incomplete:$reason", this)
     is SecurityException -> LibraryFailure.PermissionMissing

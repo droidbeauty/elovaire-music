@@ -1,5 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
+import android.content.ContentResolver
+import android.database.Cursor
 import android.net.Uri
 import android.provider.MediaStore
 
@@ -23,10 +25,50 @@ internal object MediaStoreAudioQuery {
         MediaStore.MediaColumns.VOLUME_NAME,
     )
 
+    /** The small projection is used when an OEM provider rejects an optional column. */
+    val compatibilityProjection: Array<String> = arrayOf(
+        MediaStore.Audio.Media._ID,
+        MediaStore.Audio.Media.DISPLAY_NAME,
+        MediaStore.Audio.Media.MIME_TYPE,
+    )
+
     val collectionUri: Uri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
 
-    val selection: String = "${MediaStore.Audio.Media.DURATION} > 0"
+    /** Duration and provider-side collation are not authoritative on all Android 11 providers. */
+    val selection: String? = null
 
-    val orderBy: String = "${MediaStore.Audio.Media.ARTIST} COLLATE NOCASE ASC, " +
-        "${MediaStore.Audio.Media.ALBUM} COLLATE NOCASE ASC"
+    val orderBy: String? = null
+
+    internal enum class ProjectionKind { Full, Compatibility }
+
+    internal data class QueryResult(
+        val cursor: Cursor,
+        val projectionKind: ProjectionKind,
+    )
+
+    @Suppress("TooGenericExceptionCaught")
+    fun query(resolver: ContentResolver): QueryResult {
+        var firstFailure: Throwable? = null
+        try {
+            resolver.query(collectionUri, projection, selection, null, orderBy)?.let {
+                return QueryResult(it, ProjectionKind.Full)
+            }
+        } catch (failure: SecurityException) {
+            throw failure
+        } catch (failure: RuntimeException) {
+            firstFailure = failure
+        }
+
+        try {
+            resolver.query(collectionUri, compatibilityProjection, null, null, null)?.let {
+                return QueryResult(it, ProjectionKind.Compatibility)
+            }
+        } catch (failure: SecurityException) {
+            throw failure
+        } catch (failure: RuntimeException) {
+            throw MediaStoreQueryUnavailableException(failure)
+        }
+
+        throw MediaStoreQueryUnavailableException(firstFailure)
+    }
 }

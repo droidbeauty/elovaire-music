@@ -28,6 +28,14 @@ class MediaIdentityTest {
     }
 
     @Test
+    fun safDocumentIdentityPreservesOpaqueDocumentIdCase() {
+        val upper = MediaIdentityResolver.safDocument("provider.one", "Folder/Song.MP3")
+        val lower = MediaIdentityResolver.safDocument("provider.one", "folder/song.mp3")
+
+        assertNotEquals(upper?.stableKey, lower?.stableKey)
+    }
+
+    @Test
     fun invalidIdentityPartsAreRejected() {
         assertNull(MediaIdentityResolver.mediaStore("", 1L))
         assertNull(MediaIdentityResolver.mediaStore("external", -1L))

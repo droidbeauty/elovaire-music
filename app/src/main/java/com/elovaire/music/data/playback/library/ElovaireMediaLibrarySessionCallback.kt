@@ -38,8 +38,10 @@ internal class ElovaireMediaLibrarySessionCallback(
     private val commandResolver: MediaLibraryCommandResolver,
     private val playbackManager: PlaybackManager,
     private val readExecutor: MediaLibraryReadExecutor = MediaLibraryReadExecutor(),
+    private val startupReady: ListenableFuture<Unit> = Futures.immediateFuture(Unit),
 ) : MediaLibrarySession.Callback {
     private val queueResolutionGeneration = AtomicLong(0L)
+    private val searchResults = MediaLibrarySearchCache()
     override fun onGetLibraryRoot(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -84,10 +86,17 @@ internal class ElovaireMediaLibrarySessionCallback(
         query: String,
         params: LibraryParams?,
     ): ListenableFuture<LibraryResult<Void>> {
-        return if (MediaLibraryRequestPolicy.acceptsSearchQuery(query)) {
-            Futures.immediateFuture(LibraryResult.ofVoid(params))
-        } else {
-            Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
+        if (!MediaLibraryRequestPolicy.acceptsSearchQuery(query)) {
+            return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
+        }
+        val count = submitRead {
+            searchResults.get(browser, query, this.browser.searchRevision()) {
+                this.browser.search(query, MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS)
+            }.size
+        }
+        return transformOnPlayerLooper(session, count) { itemCount ->
+            session.notifySearchResultChanged(browser, query, itemCount, params)
+            LibraryResult.ofVoid(params)
         }
     }
 
@@ -106,7 +115,17 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         return submitRead {
-            LibraryResult.ofItemList(pageItems(browser.search(query), page, pageSize), params)
+            val offset = page.toLong() * pageSize.toLong()
+            if (offset >= MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS) {
+                return@submitRead LibraryResult.ofItemList(ImmutableList.of(), params)
+            }
+            val items = searchResults.get(controller, query, this.browser.searchRevision()) {
+                this.browser.search(query, MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS)
+            }
+            LibraryResult.ofItemList(
+                pageItems(items, page, pageSize),
+                params,
+            )
         }
     }
 
@@ -192,6 +211,7 @@ internal class ElovaireMediaLibrarySessionCallback(
         ) {
             return false
         }
+        if (!startupReady.isDone) return false
         val pending = pendingMediaButtonResumption(consume = true) ?: return false
         val startIndex = pending.queue.queue.indexOfFirst { it.id == pending.queue.startSong.id }
             .coerceAtLeast(0)
@@ -215,19 +235,31 @@ internal class ElovaireMediaLibrarySessionCallback(
         )
     }
 
-    private fun pageItems(items: List<MediaItem>, page: Int, pageSize: Int): List<MediaItem> {
-        val from = page.toLong() * pageSize.toLong()
-        if (from >= items.size) return emptyList()
-        val to = (from + pageSize.toLong()).coerceAtMost(items.size.toLong())
-        return items.subList(from.toInt(), to.toInt())
+    private fun <T> submitRead(task: () -> T): ListenableFuture<T> {
+        return Futures.transformAsync(
+            startupReady,
+            { submitReadDirect(task) },
+            MoreExecutors.directExecutor(),
+        )
     }
 
-    private fun <T> submitRead(task: () -> T): ListenableFuture<T> {
+    private fun <T> submitReadDirect(task: () -> T): ListenableFuture<T> {
         return try {
             readExecutor.submit(Callable(task))
         } catch (_: RejectedExecutionException) {
             Futures.immediateFailedFuture(IllegalStateException("Media library query executor is closed"))
         }
+    }
+
+    private fun pageItems(
+        items: List<MediaItem>,
+        page: Int,
+        pageSize: Int,
+    ): ImmutableList<MediaItem> {
+        val from = page.toLong() * pageSize.toLong()
+        if (from >= items.size) return ImmutableList.of()
+        val to = (from + pageSize.toLong()).coerceAtMost(items.size.toLong())
+        return ImmutableList.copyOf(items.subList(from.toInt(), to.toInt()))
     }
 
     private fun <T, R> transformOnPlayerLooper(
@@ -254,6 +286,35 @@ internal class ElovaireMediaLibrarySessionCallback(
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
             KeyEvent.KEYCODE_HEADSETHOOK,
         )
+    }
+}
+
+private class MediaLibrarySearchCache {
+    private val entries = object : LinkedHashMap<SearchKey, List<MediaItem>>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<SearchKey, List<MediaItem>>): Boolean {
+            return size > MAX_ENTRIES
+        }
+    }
+
+    @Synchronized
+    fun get(
+        controller: MediaSession.ControllerInfo,
+        query: String,
+        revision: String,
+        loader: () -> List<MediaItem>,
+    ): List<MediaItem> {
+        val key = SearchKey(controller, query, revision)
+        return entries[key] ?: loader().also { entries[key] = it }
+    }
+
+    private data class SearchKey(
+        val controller: MediaSession.ControllerInfo,
+        val query: String,
+        val revision: String,
+    )
+
+    private companion object {
+        const val MAX_ENTRIES = 8
     }
 }
 

@@ -21,6 +21,7 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordinator
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationRuntime
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationJournal
+import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationMarker
 import elovaire.music.droidbeauty.app.data.library.network.recover
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
@@ -32,6 +33,7 @@ import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRecoveryResult
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
@@ -48,6 +50,7 @@ import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
+import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -59,7 +62,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
+import java.security.GeneralSecurityException
 
 @OptIn(UnstableApi::class)
 internal class AppServices(
@@ -81,6 +87,8 @@ internal class AppServices(
         appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
     )
     private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
+    private val durableStartupStarted = AtomicBoolean(false)
+    private val durableStartupReady = SettableFuture.create<Unit>()
     val exitDiagnostics = AppExitDiagnostics(applicationContext)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
@@ -201,6 +209,7 @@ internal class AppServices(
             _networkProbeResults.update { it - sourceId }
         },
         onSourcesChanged = { sourceId, refreshRequired ->
+            libraryRepository.unblockNetworkSource(sourceId)
             libraryRepository.setNetworkSources(
                 networkSourceStore.sources.value,
                 enrichMetadata = false,
@@ -241,6 +250,7 @@ internal class AppServices(
                 commandResolver = mediaTree,
                 playbackManager = playbackManager,
                 readExecutor = mediaLibraryReadExecutor,
+                startupReady = durableStartupReady,
             ),
         )
     }
@@ -249,33 +259,81 @@ internal class AppServices(
         if (released.get() || !started.compareAndSet(false, true)) return
         startPlayback()
         updateController.start()
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    fun startPlayback() {
+        if (released.get() || !playbackStarted.compareAndSet(false, true)) return
+        if (!durableStartupStarted.compareAndSet(false, true)) return
         optionalScope.launch(Dispatchers.IO) {
-            try {
-                networkSourceMutationJournal.recover(
-                    sourceStore = networkSourceStore,
-                    credentialStore = networkCredentialStoreDelegate.value,
-                    inventoryStore = networkInventoryStore,
-                )
+            val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
+            val pendingSourceIds = networkSourceMutationJournal.pending()
+                .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
+            val blockedSourceIds = try {
+                withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
+                    networkSourceMutationJournal.recover(
+                        sourceStore = networkSourceStore,
+                        credentialStore = networkCredentialStoreDelegate.value,
+                        inventoryStore = networkInventoryStore,
+                    )
+                }
+                emptySet()
+            } catch (_: TimeoutCancellationException) {
+                pendingSourceIds
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (failure: SQLiteException) {
                 Log.w(TAG, "Network source mutation recovery deferred", failure)
+                pendingSourceIds
             } catch (failure: IllegalStateException) {
                 Log.w(TAG, "Network source mutation recovery deferred", failure)
+                pendingSourceIds
             } catch (failure: SecurityException) {
                 Log.w(TAG, "Network source mutation recovery deferred", failure)
+                pendingSourceIds
+            } catch (failure: GeneralSecurityException) {
+                Log.w(TAG, "Network source credential recovery deferred", failure)
+                pendingSourceIds
+            } catch (failure: RuntimeException) {
+                Log.e(TAG, "Network source mutation recovery failed", failure)
+                pendingSourceIds
             }
+            if (blockedSourceIds.isNotEmpty()) {
+                libraryRepository.blockNetworkSources(blockedSourceIds)
+            }
+            libraryRepository.start()
+            libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
+            durableStartupReady.set(Unit)
             val exitSnapshot = exitDiagnostics.inspect()
-            backgroundWorkPolicy.setOptionalStartupSuppressed(exitSnapshot.suppressOptionalStartup)
+            backgroundWorkPolicy.setOptionalStartupSuppressed(
+                exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
+            )
             portableSettingsBackup.start()
             updateController.scheduleStartupMaintenance()
         }
     }
 
-    fun startPlayback() {
-        if (released.get() || !playbackStarted.compareAndSet(false, true)) return
-        libraryRepository.start()
-        libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun recoverCriticalMediaMutations(): Boolean {
+        return try {
+            withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
+                mediaMutationJournal.recoverIncomplete() is MediaMutationRecoveryResult.Success
+            }
+        } catch (failure: TimeoutCancellationException) {
+            Log.w(TAG, "Media mutation recovery timed out", failure)
+            false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: SQLiteException) {
+            Log.w(TAG, "Media mutation recovery deferred", failure)
+            false
+        } catch (failure: IllegalStateException) {
+            Log.w(TAG, "Media mutation recovery deferred", failure)
+            false
+        } catch (failure: RuntimeException) {
+            Log.e(TAG, "Media mutation recovery failed", failure)
+            false
+        }
     }
 
     fun onMemoryPressure(pressure: MemoryPressure) {
@@ -303,7 +361,9 @@ internal class AppServices(
         preferenceStore.release(database::close)
         portableSettingsBackup.release()
         mediaLibraryReadExecutor.close()
+        durableStartupReady.cancel(false)
     }
 }
 
+private const val DURABLE_RECOVERY_TIMEOUT_MS = 15_000L
 private const val TAG = "ElovaireAppServices"

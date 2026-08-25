@@ -83,8 +83,8 @@ class LibrarySongDuplicateResolverTest {
             "PRIMARY:MUSIC/ALBUM/TRACK.FLAC",
         )
 
-        assertEquals(first, second)
-        assertTrue(first?.contains("primary:music/album/track.flac") == true)
+        assertTrue(first?.contains("primary:Music/Album/Track.flac") == true)
+        assertTrue(second?.contains("PRIMARY:MUSIC/ALBUM/TRACK.FLAC") == true)
     }
 
     @Test

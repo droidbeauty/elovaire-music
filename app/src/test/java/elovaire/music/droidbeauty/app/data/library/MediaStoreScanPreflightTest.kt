@@ -37,6 +37,19 @@ class MediaStoreScanPreflightTest {
         assertNull(rejection)
     }
 
+    @Test
+    fun extensionlessRowsReachContainerDetection() {
+        val rejection = MediaStoreScanPreflight.rejectionBeforeContainerDetection(
+            candidate = candidate(
+                relativePath = "Music",
+                extension = "",
+            ),
+            filter = filter,
+        )
+
+        assertNull(rejection)
+    }
+
     private fun candidate(
         relativePath: String,
         extension: String,

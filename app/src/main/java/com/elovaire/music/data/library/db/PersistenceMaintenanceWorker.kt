@@ -23,14 +23,26 @@ class PersistenceMaintenanceWorker(
     override suspend fun doWork(): Result {
         val database = ElovaireDatabase.create(applicationContext)
         return try {
-            val health = PersistenceMaintenance(
+            val maintenance = PersistenceMaintenance(
                 database.persistenceMaintenanceDao(),
                 MediaMutationJournal(database.libraryDao()),
                 userDataDao = database.userDataDao(),
-            ).recoverAndPrune()
+            )
+            if (!maintenance.recoverCritical()) {
+                return Result.failure()
+            }
+            if (!healthCheckDue()) {
+                return Result.success()
+            }
+            val health = maintenance.checkAndPrune()
             if (!health.isMaintenanceSuccessful()) {
                 Result.failure()
             } else {
+                applicationContext
+                    .getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+                    .edit()
+                    .putLong(KEY_LAST_HEALTH_CHECK_MS, System.currentTimeMillis())
+                    .apply()
                 Result.success()
             }
         } catch (cancelled: CancellationException) {
@@ -48,6 +60,8 @@ class PersistenceMaintenanceWorker(
 
     companion object {
         internal const val UNIQUE_WORK_NAME = "persistence-maintenance"
+        private const val PREFERENCES = "persistence-maintenance"
+        private const val KEY_LAST_HEALTH_CHECK_MS = "last-successful-health-check-ms"
         private const val MAX_RETRY_COUNT = 3
 
         fun enqueue(context: Context) {
@@ -70,6 +84,18 @@ class PersistenceMaintenanceWorker(
                 .build()
         }
     }
+
+    private fun healthCheckDue(): Boolean {
+        val lastHealthCheck = applicationContext
+            .getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
+            .getLong(KEY_LAST_HEALTH_CHECK_MS, 0L)
+        return persistenceHealthCheckDue(System.currentTimeMillis(), lastHealthCheck)
+    }
+}
+
+internal fun persistenceHealthCheckDue(nowMs: Long, lastSuccessfulHealthCheckMs: Long): Boolean {
+    return lastSuccessfulHealthCheckMs <= 0L || nowMs < lastSuccessfulHealthCheckMs ||
+        nowMs - lastSuccessfulHealthCheckMs >= 6L * 60L * 60L * 1_000L
 }
 
 internal fun DatabaseHealth.isMaintenanceSuccessful(): Boolean {

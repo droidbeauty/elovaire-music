@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
@@ -28,7 +29,7 @@ internal class MediaStoreScanner(
     private val scanRoots = LibraryScanRoots()
     private val mediaStoreIndexer = MediaStoreIndexer(
         context = context,
-        scanRoots = scanRoots::accessibleFileRoots,
+        scanRoots = scanRoots::directFileRoots,
     )
     internal val targetExistenceProbe = MediaTargetExistenceProbe(context)
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean {
@@ -74,7 +75,7 @@ internal class MediaStoreScanner(
         metadataCache.onMemoryPressure(pressure)
     }
 
-    fun scanRoots(): List<File> = scanRoots.accessibleFileRoots()
+    fun scanRoots(): List<File> = scanRoots.directFileRoots()
 
     internal fun hasSafSelections(): Boolean = scanRoots.hasSafSelections()
 
@@ -88,6 +89,7 @@ internal class MediaStoreScanner(
         metadataCache.invalidateSongIds(songIds)
     }
 
+    @Suppress("CyclomaticComplexMethod", "LongMethod")
     suspend fun scan(
         refreshMediaIndex: Boolean = false,
         refreshMediaPaths: List<String> = emptyList(),
@@ -95,13 +97,21 @@ internal class MediaStoreScanner(
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): LibrarySnapshot {
         if (refreshMediaIndex) {
-            ElovaireTrace.section("library_media_index_refresh") {
-                refreshMediaIndex()
+            val scanContext = currentCoroutineContext()
+            val result = ElovaireTrace.section("library_media_index_refresh") {
+                refreshMediaIndex {
+                    scanContext.ensureActive()
+                }
             }
+            result.requireComplete()
         } else if (refreshMediaPaths.isNotEmpty()) {
-            ElovaireTrace.section("library_media_index_refresh_paths") {
-                refreshMediaIndex(refreshMediaPaths)
+            val scanContext = currentCoroutineContext()
+            val result = ElovaireTrace.section("library_media_index_refresh_paths") {
+                refreshMediaIndex(refreshMediaPaths) {
+                    scanContext.ensureActive()
+                }
             }
+            result.requireComplete()
         }
 
         var totalRows = 0
@@ -113,15 +123,21 @@ internal class MediaStoreScanner(
         val decisionMap = ScannerDebugLogger.newDecisionMap()
 
         ElovaireTrace.section("library_mediastore_scan") {
-            val cursor = ElovaireTrace.section("library_mediastore_query") {
-                context.contentResolver.query(
-                    MediaStoreAudioQuery.collectionUri,
-                    MediaStoreAudioQuery.projection,
-                    MediaStoreAudioQuery.selection,
-                    null,
-                    MediaStoreAudioQuery.orderBy,
+            val queryResult = ElovaireTrace.section("library_mediastore_query") {
+                MediaStoreAudioQuery.query(context.contentResolver)
+            }
+            if (
+                queryResult.projectionKind == MediaStoreAudioQuery.ProjectionKind.Compatibility &&
+                scanRoots.relativeRoots().isNotEmpty() &&
+                !scanRoots.usesImplicitDefaultDiscovery()
+            ) {
+                queryResult.cursor.close()
+                throw MediaStoreQueryUnavailableException(
+                    IllegalStateException("MediaStore folder metadata is unavailable for explicit filtering."),
                 )
-            } ?: throw MediaStoreQueryUnavailableException()
+            }
+            decisionMap.recordProjection(queryResult.projectionKind.name)
+            val cursor = queryResult.cursor
             cursor.use {
                 totalRows = cursor.count.coerceAtLeast(0)
                 progressEmitter.emit(0, totalRows)
@@ -132,17 +148,31 @@ internal class MediaStoreScanner(
                     currentCoroutineContext().ensureActive()
                     processedRows += 1
                     val row = rowMapper.row(cursor)
-                    val preflightCandidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat = null)
+                    val effectiveDurationMs = if (row.durationMs > 0L) {
+                        row.durationMs
+                    } else if (
+                        row.extension.isBlank() ||
+                        row.extension in AudioFormatPolicy.scannerExtensions ||
+                        AudioFormatPolicy.capabilityForMimeType(row.mimeType) != null
+                    ) {
+                        localMetadataReader.readDuration(row.uri)
+                    } else {
+                        0L
+                    }
+                    val preflightCandidate = AudioScanCandidateMapper
+                        .toCandidate(row, detectedFormat = null)
+                        .copy(durationMs = effectiveDurationMs)
+                    decisionMap.recordMediaStoreRow(preflightCandidate, row.durationMs)
                     val preflightRejection = MediaStoreScanPreflight
                         .rejectionBeforeContainerDetection(preflightCandidate, audioFileFilter)
                     if (preflightRejection != null) {
-                        decisionMap.recordMediaStoreRow(preflightCandidate)
                         decisionMap.recordMediaStoreExclude(preflightRejection.reason)
                         if (processedRows == totalRows || processedRows % 24 == 0) {
                             progressEmitter.emit(processedRows, totalRows)
                         }
                         continue
                     }
+                    decisionMap.recordPreflightPassed()
                     val uriKey = MediaIdentityResolver.mediaStore(row.volumeName, row.id)
                         ?.stableKey
                         ?: row.uri.toString()
@@ -154,11 +184,15 @@ internal class MediaStoreScanner(
                                 dateAddedSeconds = row.dateAddedSeconds,
                                 dateModifiedSeconds = row.dateModifiedSeconds,
                                 fileSizeBytes = row.fileSizeBytes,
-                                durationMs = row.durationMs,
+                                durationMs = effectiveDurationMs,
                                 requireEnriched = enrichMetadata,
                             )
                         }
-                    val detectedFormat = if (AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)) {
+                    val detectedFormat = if (
+                        row.extension.isBlank() ||
+                        row.extension !in AudioFormatPolicy.scannerExtensions ||
+                        AudioFormatPolicy.shouldDetectContainer(row.extension, enrichMetadata)
+                    ) {
                         audioFormatDetector.detect(
                             uri = row.uri,
                             fileName = row.fileName,
@@ -177,8 +211,9 @@ internal class MediaStoreScanner(
                             mimeType = row.mimeType,
                         )
                     }
-                    val candidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat)
-                    decisionMap.recordMediaStoreRow(candidate)
+                    val candidate = AudioScanCandidateMapper
+                        .toCandidate(row, detectedFormat)
+                        .copy(durationMs = effectiveDurationMs)
                     when (val decision = audioFileFilter.evaluate(candidate)) {
                         AudioFileFilterDecision.Include -> {
                             decisionMap.recordMediaStoreInclude()
@@ -207,7 +242,7 @@ internal class MediaStoreScanner(
                                 volumeName = row.volumeName,
                                 mediaStoreYear = row.mediaStoreYear,
                                 fileSizeBytes = row.fileSizeBytes,
-                                durationMs = row.durationMs,
+                                durationMs = effectiveDurationMs,
                                 detectedFormat = detectedFormat,
                                 genreCache = genreCache,
                                 identityKey = uriKey,
@@ -247,7 +282,7 @@ internal class MediaStoreScanner(
                         isEnriched = enrichMetadata || cachedMetadata?.isEnriched == true,
                         metadata = songMetadata,
                         fileSizeBytes = row.fileSizeBytes,
-                        durationMs = row.durationMs,
+                        durationMs = effectiveDurationMs,
                     ))
                     val rawTrack = row.track
                     songs += Song(
@@ -262,7 +297,7 @@ internal class MediaStoreScanner(
                         audioQuality = songMetadata.quality,
                         fileName = row.fileName,
                         albumId = row.albumId,
-                        durationMs = row.durationMs,
+                        durationMs = effectiveDurationMs,
                         trackNumber = songMetadata.trackNumber ?: normalizeTrackNumber(rawTrack),
                         discNumber = songMetadata.discNumber ?: normalizeDiscNumber(rawTrack),
                         dateAddedSeconds = row.dateAddedSeconds,
@@ -289,7 +324,7 @@ internal class MediaStoreScanner(
 
         currentCoroutineContext().ensureActive()
         val mergedSongs = songs
-        decisionMap.logSummary()
+        decisionMap.logSummary(songs.size)
 
         metadataCache.retainOnly(scannedMetadataUris)
 
@@ -303,6 +338,29 @@ internal class MediaStoreScanner(
             songs = sortedSongs,
             albums = albums,
         )
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    internal suspend fun scanSafely(
+        refreshMediaIndex: Boolean = false,
+        refreshMediaPaths: List<String> = emptyList(),
+        enrichMetadata: Boolean = true,
+        onProgress: ((current: Int, total: Int) -> Unit)? = null,
+    ): LocalLibraryScanResult {
+        return try {
+            LocalLibraryScanResult.Complete(
+                scan(
+                    refreshMediaIndex = refreshMediaIndex,
+                    refreshMediaPaths = refreshMediaPaths,
+                    enrichMetadata = enrichMetadata,
+                    onProgress = onProgress,
+                ),
+            )
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (failure: Exception) {
+            LocalLibraryScanResult.Unavailable(failure)
+        }
     }
 
     fun findExistingSongIds(songIds: Set<Long>): Set<Long> {
@@ -328,12 +386,25 @@ internal class MediaStoreScanner(
         return MediaFilePathResolver.defaultMusicDirectory()
     }
 
-    fun refreshMediaIndex() {
-        mediaStoreIndexer.refreshAll()
+    fun refreshMediaIndex(
+        shouldContinue: () -> Unit = {},
+    ): MediaStoreIndexRefreshResult = mediaStoreIndexer.refreshAll {
+        shouldContinue()
+        true
     }
 
-    fun refreshMediaIndex(paths: List<String>) {
-        mediaStoreIndexer.refreshPaths(paths)
+    fun refreshMediaIndex(
+        paths: List<String>,
+        shouldContinue: () -> Unit = {},
+    ): MediaStoreIndexRefreshResult = mediaStoreIndexer.refreshPaths(paths) {
+        shouldContinue()
+        true
+    }
+
+    private fun MediaStoreIndexRefreshResult.requireComplete() {
+        if (this !is MediaStoreIndexRefreshResult.Complete) {
+            throw MediaStoreIndexRefreshException(this)
+        }
     }
 
     private fun buildAudioFileFilter(): LibraryAudioFileFilter {
@@ -342,6 +413,7 @@ internal class MediaStoreScanner(
             libraryRootPaths = scanRoots.normalizedFileRootPaths(),
             explicitCustomRootPaths = scanRoots.explicitCustomFileRootPaths(),
             explicitCustomRelativeRoots = scanRoots.explicitCustomRelativeRoots(),
+            implicitDefaultDiscovery = scanRoots.usesImplicitDefaultDiscovery(),
         )
     }
 
@@ -505,9 +577,22 @@ internal class MediaStoreScanner(
 
 }
 
-internal class MediaStoreQueryUnavailableException : IllegalStateException(
+internal class MediaStoreQueryUnavailableException(cause: Throwable? = null) : IllegalStateException(
     "MediaStore audio query returned no cursor.",
+    cause,
 )
+
+internal class MediaStoreIndexRefreshException(
+    result: MediaStoreIndexRefreshResult,
+) : IllegalStateException(
+    "MediaStore index refresh was not complete: ${result::class.simpleName}.",
+    (result as? MediaStoreIndexRefreshResult.Unavailable)?.failure,
+)
+
+internal sealed interface LocalLibraryScanResult {
+    data class Complete(val snapshot: LibrarySnapshot) : LocalLibraryScanResult
+    data class Unavailable(val failure: Throwable) : LocalLibraryScanResult
+}
 
 internal data class MediaStoreGenreKey(
     val songId: Long,
@@ -569,10 +654,30 @@ internal fun isSupportedAudioFileName(fileName: String): Boolean {
 }
 
 internal fun isSupportedLibrarySong(song: Song): Boolean {
-    return isSupportedAudioFileName(song.fileName)
+    if (isSupportedAudioFileName(song.fileName)) return true
+    val normalizedFormat = song.audioFormat.trim().uppercase(Locale.ROOT)
+    return normalizedFormat in SUPPORTED_DETECTED_FORMAT_NAMES
 }
 
-private const val FILTER_FINGERPRINT_VERSION = 2
+private val SUPPORTED_DETECTED_FORMAT_NAMES = setOf(
+    "MP3",
+    "M4A",
+    "M4B",
+    "MP4 AUDIO",
+    "AAC",
+    "FLAC",
+    "WAV",
+    "OGG",
+    "OGG/VORBIS",
+    "OGG/OPUS",
+    "OGG/FLAC",
+    "OPUS",
+    "AMR",
+    "3GP AUDIO",
+    "MKA",
+)
+
+private const val FILTER_FINGERPRINT_VERSION = 3
 private val LOSSY_AUDIO_FORMATS = setOf(
     "MP3",
     "AAC",

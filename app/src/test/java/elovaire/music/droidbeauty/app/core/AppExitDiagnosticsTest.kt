@@ -23,6 +23,14 @@ class AppExitDiagnosticsTest {
     }
 
     @Test
+    fun classifiesAndroid17MemoryLimiterDescriptionAsResourcePressure() {
+        assertEquals(
+            AppExitCategory.ResourcePressure,
+            classifyAppExitReason(ApplicationExitInfo.REASON_OTHER, "MemoryLimiter:AnonSwap"),
+        )
+    }
+
+    @Test
     fun suppressesOptionalStartupOnlyForRecentCrashLoop() {
         val now = 1_000_000L
         val recentCrashes = listOf(

@@ -60,7 +60,9 @@ object LibraryFolderSelectionResolver {
         val distinctSelections = selections.mapNotNull { selection ->
             val path = selection.path.trim().replace('\\', '/').trimEnd('/')
             val uri = selection.uri?.toString()?.trim().orEmpty()
-            val uriKey = uri.takeIf(String::isNotBlank)?.lowercase(Locale.ROOT)
+            // Authorities are case-insensitive, but document IDs and provider-specific
+            // URI payloads are opaque and must retain their exact identity.
+            val uriKey = uri.takeIf(String::isNotBlank)?.let(::normalizedUriIdentity)
             val pathKey = path
                 .takeIf { it.isNotBlank() && !isUriBackedPath(it) }
                 ?.lowercase(Locale.ROOT)
@@ -119,6 +121,31 @@ object LibraryFolderSelectionResolver {
 
     fun isUriBackedPath(path: String): Boolean {
         return path.startsWith("content://", ignoreCase = true)
+    }
+
+    private fun normalizedUriIdentity(value: String): String {
+        return runCatching {
+            val parsed = Uri.parse(value)
+            buildString {
+                parsed.scheme?.lowercase(Locale.ROOT)?.let {
+                    append(it)
+                    append(':')
+                }
+                parsed.authority?.lowercase(Locale.ROOT)?.let {
+                    append("//")
+                    append(it)
+                }
+                parsed.encodedPath?.let(::append)
+                parsed.encodedQuery?.let {
+                    append('?')
+                    append(it)
+                }
+                parsed.encodedFragment?.let {
+                    append('#')
+                    append(it)
+                }
+            }.ifBlank { value }
+        }.getOrDefault(value)
     }
 
     private fun resolveTreePath(

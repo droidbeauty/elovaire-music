@@ -90,11 +90,11 @@ internal object MediaIdentityResolver {
         treeId: String? = null,
     ): MediaSourceIdentity.SafDocument? {
         val normalizedAuthority = authority.normalizedIdentityPart() ?: return null
-        val normalizedDocumentId = documentId.normalizedIdentityPart() ?: return null
+        val normalizedDocumentId = documentId.opaqueIdentityPart() ?: return null
         return MediaSourceIdentity.SafDocument(
             authority = normalizedAuthority,
             documentId = normalizedDocumentId,
-            treeId = treeId.normalizedIdentityPart(),
+            treeId = treeId.opaqueIdentityPart(),
         )
     }
 
@@ -137,19 +137,18 @@ internal object MediaIdentityResolver {
     fun stableKey(song: Song): String {
         val source = resolve(song)
         return source?.stableKey
-            ?: song.uri.toString()
-                .takeIf { song.uri.scheme.equals("content", ignoreCase = true) }
-                ?.trim()
-                ?.lowercase(Locale.ROOT)
+            ?: song.uri
+                .takeIf { it.scheme.equals("content", ignoreCase = true) }
+                ?.canonicalOpaqueIdentity()
                 ?.let { "uri:$it" }
             ?: LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { "file:$it" }
-            ?: song.uri.toString().trim().lowercase(Locale.ROOT).let { "uri:$it" }
+            ?: song.uri.canonicalOpaqueIdentity().let { "uri:$it" }
     }
 
     /** Source-local key used by scanner caches; unlike [stableKey], it never follows a path. */
     fun sourceKey(song: Song): String {
         return resolve(song)?.stableKey
-            ?: song.uri.toString().trim().lowercase(Locale.ROOT).let { "uri:$it" }
+            ?: song.uri.canonicalOpaqueIdentity().let { "uri:$it" }
     }
 
     fun revision(song: Song, sizeBytes: Long? = null, providerGeneration: Long? = null): MediaRevision {
@@ -200,4 +199,27 @@ private fun Long?.orEmptyRevisionPart(): String = this?.toString() ?: "-"
 
 private fun String?.normalizedIdentityPart(): String? {
     return this?.trim()?.lowercase(Locale.ROOT)?.takeIf { it.isNotBlank() }
+}
+
+private fun String?.opaqueIdentityPart(): String? {
+    return this?.trim()?.takeIf { it.isNotBlank() }
+}
+
+internal fun Uri.canonicalOpaqueIdentity(): String {
+    val raw = toString().trim()
+    val schemeEnd = raw.indexOf(':')
+    if (schemeEnd <= 0) return raw
+    val scheme = raw.substring(0, schemeEnd).lowercase(Locale.ROOT)
+    val remainder = raw.substring(schemeEnd + 1)
+    if (!remainder.startsWith("//")) return "$scheme:$remainder"
+    val authorityStart = 2
+    val authorityEnd = remainder.indexOfAny(charArrayOf('/', '?', '#'), authorityStart)
+        .takeIf { it >= 0 }
+        ?: remainder.length
+    return buildString {
+        append(scheme)
+        append("://")
+        append(remainder.substring(authorityStart, authorityEnd).lowercase(Locale.ROOT))
+        append(remainder.substring(authorityEnd))
+    }
 }

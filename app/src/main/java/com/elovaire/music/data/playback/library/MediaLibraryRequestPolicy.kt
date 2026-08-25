@@ -15,6 +15,7 @@ internal object MediaLibraryRequestPolicy {
     }
 
     const val MAX_PAGE_SIZE = 500
+    const val MAX_SEARCH_RESULT_ITEMS = 50_000
     const val MAX_SEARCH_QUERY_LENGTH = 256
     const val MAX_START_POSITION_MS = 7L * 24L * 60L * 60L * 1_000L
 }

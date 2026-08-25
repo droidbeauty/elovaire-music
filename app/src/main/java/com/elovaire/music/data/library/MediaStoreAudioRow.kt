@@ -51,14 +51,14 @@ internal class MediaStoreAudioRowMapper(
     cursor: Cursor,
 ) {
     private val idIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media._ID)
-    private val albumIdIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM_ID)
-    private val titleIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TITLE)
-    private val artistIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ARTIST)
-    private val albumIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.ALBUM)
     private val fileNameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-    private val durationIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DURATION)
-    private val trackIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.TRACK)
-    private val dateAddedIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DATE_ADDED)
+    private val albumIdIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM_ID)
+    private val titleIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TITLE)
+    private val artistIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
+    private val albumIndex = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
+    private val durationIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DURATION)
+    private val trackIndex = cursor.getColumnIndex(MediaStore.Audio.Media.TRACK)
+    private val dateAddedIndex = cursor.getColumnIndex(MediaStore.Audio.Media.DATE_ADDED)
     private val sizeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.SIZE)
     private val yearIndex = cursor.getColumnIndex(MediaStore.Audio.Media.YEAR)
     private val dateModifiedIndex = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
@@ -71,18 +71,19 @@ internal class MediaStoreAudioRowMapper(
         val id = cursor.getLong(idIndex)
         val relativePath = relativePathIndex.takeIf { it >= 0 }?.let(cursor::getString)
         val fileName = cursor.getString(fileNameIndex).orUnknown("unknown-file")
+        val fallbackTitle = fileName.substringBeforeLast('.').ifBlank { "Untitled Track" }
         val volumeName = volumeNameIndex.takeIf { it >= 0 }?.let(cursor::getString)
         val mimeType = mimeTypeIndex.takeIf { it >= 0 }?.let(cursor::getString)?.trim()?.ifBlank { null }
         return MediaStoreAudioRow(
             id = id,
-            albumId = cursor.getLong(albumIdIndex),
-            title = cursor.getString(titleIndex).orUnknown("Untitled Track"),
-            artist = cursor.getString(artistIndex).orUnknown("Unknown Artist"),
-            album = cursor.getString(albumIndex).orUnknown("Unknown Album"),
+            albumId = albumIdIndex.readLong(cursor, -1L),
+            title = titleIndex.readString(cursor).orUnknown(fallbackTitle),
+            artist = artistIndex.readString(cursor).orUnknown("Unknown Artist"),
+            album = albumIndex.readString(cursor).orUnknown("Unknown Album"),
             fileName = fileName,
-            durationMs = cursor.getLong(durationIndex).coerceAtLeast(0L),
-            track = cursor.getInt(trackIndex),
-            dateAddedSeconds = cursor.getLong(dateAddedIndex),
+            durationMs = durationIndex.readLong(cursor, 0L).coerceAtLeast(0L),
+            track = trackIndex.readInt(cursor),
+            dateAddedSeconds = dateAddedIndex.readLong(cursor, 0L),
             dateModifiedSeconds = dateModifiedIndex
                 .takeIf { it >= 0 && !cursor.isNull(it) }
                 ?.let(cursor::getLong)
@@ -117,4 +118,12 @@ internal class MediaStoreAudioRowMapper(
         val value = this?.trim().orEmpty()
         return if (value.isBlank() || value == "<unknown>") fallback else value
     }
+
+    private fun Int.readString(cursor: Cursor): String? = takeIf { it >= 0 }?.let(cursor::getString)
+
+    private fun Int.readLong(cursor: Cursor, fallback: Long): Long =
+        takeIf { it >= 0 && !cursor.isNull(it) }?.let(cursor::getLong) ?: fallback
+
+    private fun Int.readInt(cursor: Cursor): Int =
+        takeIf { it >= 0 && !cursor.isNull(it) }?.let(cursor::getInt) ?: 0
 }

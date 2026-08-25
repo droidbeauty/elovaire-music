@@ -119,11 +119,12 @@ internal class PlaybackIntegrationCoordinator(
                 .collect { (songId, albumId) -> preferences.recordPlaybackTransition(songId, albumId) }
         }
         scope.launch {
-            library.contentState
-                .map { it.songs }
+            combine(library.contentState, library.scanState) { content, scan ->
+                content.songs to scan.isAuthoritative
+            }
                 .distinctUntilChanged()
-                .collect { songs ->
-                    restoreSessionIfNeeded(songs)
+                .collect { (songs, isAuthoritative) ->
+                    restoreSessionIfNeeded(songs, isAuthoritative)
                     playback.refreshQueuedLibraryMetadataIfNeeded(songs)
                 }
         }
@@ -174,8 +175,11 @@ internal class PlaybackIntegrationCoordinator(
         sessionWriterJob.invokeOnCompletion { sessionWriterScope.cancel() }
     }
 
-    private suspend fun restoreSessionIfNeeded(songs: List<elovaire.music.droidbeauty.app.domain.model.Song>) {
-        if (restorationAttempted || songs.isEmpty()) return
+    private suspend fun restoreSessionIfNeeded(
+        songs: List<elovaire.music.droidbeauty.app.domain.model.Song>,
+        isAuthoritative: Boolean,
+    ) {
+        if (restorationAttempted || !isAuthoritative) return
         if (playback.hasActiveQueue()) {
             restorationAttempted = true
             persistSession()
@@ -183,15 +187,20 @@ internal class PlaybackIntegrationCoordinator(
         }
         restorationAttempted = true
         val persisted = withContext(Dispatchers.IO) { sessionStore.load() } ?: return
+        if (persisted.queueSongIds.isEmpty()) {
+            withContext(Dispatchers.IO) { sessionStore.clear() }
+            return
+        }
         val songsById = songs.associateBy { it.id }
         val restoredQueue = persisted.queueSongIds.mapNotNull(songsById::get)
         if (!isPlaybackSessionFullyResolved(persisted.queueSongIds, songsById.keys)) {
-            // A non-empty library snapshot may still represent only local media while
-            // SAF/NAS sources are bootstrapping or temporarily unavailable. Never turn a
-            // partial resolution into a destructive queue rewrite; a later authoritative
-            // source publication can resolve the remaining IDs.
-            restorationAttempted = false
-            return
+            // The scan is authoritative here: missing entries are no longer merely
+            // unresolved remote media. Preserve the valid order, or clear an empty queue,
+            // and checkpoint only after the decision has been made.
+            if (restoredQueue.isEmpty()) {
+                withContext(Dispatchers.IO) { sessionStore.clear() }
+                return
+            }
         }
         val currentIndex = persisted.currentIndex
             .takeIf { it in restoredQueue.indices && restoredQueue[it].id == persisted.currentSongId }

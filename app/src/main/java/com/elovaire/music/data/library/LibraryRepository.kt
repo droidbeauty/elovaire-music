@@ -51,6 +51,7 @@ data class LibraryScanState(
     val isLoading: Boolean = false,
     val scanProgress: Float = 0f,
     val errorMessage: String? = null,
+    val isAuthoritative: Boolean = false,
 )
 
 data class LibraryUiState(
@@ -257,6 +258,7 @@ class LibraryRepository internal constructor(
                         permissionGranted = true,
                         isLoading = false,
                         scanProgress = 1f,
+                        isAuthoritative = false,
                     )
                     if (_scanState.value != cachedScanState) {
                         _scanState.value = cachedScanState
@@ -274,7 +276,7 @@ class LibraryRepository internal constructor(
                     )
                     if (syncDecision != LibrarySyncDecision.ReuseCached || networkSourceNeedsRefresh) {
                         refresh(
-                            forceMediaIndex = cachedSnapshot.snapshot.songs.isEmpty(),
+                            forceMediaIndex = false,
                             enrichMetadata = false,
                             showLoadingIndicator = false,
                         )
@@ -284,6 +286,8 @@ class LibraryRepository internal constructor(
                             enrichMetadata = true,
                             showLoadingIndicator = false,
                         )
+                    } else {
+                        _scanState.update { it.copy(isAuthoritative = true) }
                     }
                 } else {
                     refresh(
@@ -369,14 +373,14 @@ class LibraryRepository internal constructor(
             }
             val progressThrottler = LibraryScanProgressThrottler(clock)
             try {
-                val snapshot = scanLibrary(
+                val scanResult = scanLibrary(
                     refreshRequest,
                     showLoadingIndicator,
                     scanPermissionVersion,
                     progressThrottler,
                 )
                 publishSuccessfulScan(
-                    snapshot = snapshot,
+                    scanResult = scanResult,
                     refreshRequest = refreshRequest,
                     scanPermissionVersion = scanPermissionVersion,
                     operation = operation,
@@ -423,33 +427,38 @@ class LibraryRepository internal constructor(
     }
 
     private suspend fun publishSuccessfulScan(
-        snapshot: LibrarySnapshot,
+        scanResult: CoordinatedLibraryScan,
         refreshRequest: LibraryRefreshRequest,
         scanPermissionVersion: Long,
         operation: BackendOperationContext,
     ) {
         if (!hasCurrentPermission(scanPermissionVersion)) return
+        val snapshot = scanResult.snapshot
         val prepared = prepareVisibleSnapshot(snapshot.songs)
         val nextScanState = LibraryScanState(
             permissionGranted = true,
             isLoading = false,
             scanProgress = 1f,
+            errorMessage = if (prepared.snapshot.songs.isEmpty()) scanResult.incompleteMessage else null,
+            isAuthoritative = scanResult.isComplete,
         )
         if (_scanState.value != nextScanState) {
             _scanState.value = nextScanState
         }
-        withContext(Dispatchers.IO) {
-            snapshotStore.save(
-                snapshot = prepared.snapshot,
-                filterFingerprint = scanner.currentFilterFingerprint(),
-                syncState = scanner.currentSyncState(),
-            )
-            libraryIndexStore?.applyChangeSet(
-                changeSet = prepared.changeSet,
-                snapshot = prepared.snapshot,
-                fullRebuild = refreshRequest.forceMediaIndex &&
-                    prepared.changeSet.added.size == prepared.snapshot.songs.size,
-            )
+        if (scanResult.isComplete) {
+            withContext(Dispatchers.IO) {
+                snapshotStore.save(
+                    snapshot = prepared.snapshot,
+                    filterFingerprint = scanner.currentFilterFingerprint(),
+                    syncState = scanner.currentSyncState(),
+                )
+                libraryIndexStore?.applyChangeSet(
+                    changeSet = prepared.changeSet,
+                    snapshot = prepared.snapshot,
+                    fullRebuild = refreshRequest.forceMediaIndex &&
+                        prepared.changeSet.added.size == prepared.snapshot.songs.size,
+                )
+            }
         }
         invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
         if (!hasCurrentPermission(scanPermissionVersion)) return
@@ -532,17 +541,10 @@ class LibraryRepository internal constructor(
         showLoadingIndicator: Boolean,
         permissionVersion: Long,
         progressThrottler: LibraryScanProgressThrottler,
-    ) = withContext(Dispatchers.IO) {
-        val existingSnapshot = if (
-            request.targetedNetworkSourceIds != null &&
-            _scanState.value.scanProgress >= 1f
-        ) {
-            snapshotPublisher.snapshotOf(_contentState.value)
-        } else {
-            null
-        }
+    ): CoordinatedLibraryScan = withContext(Dispatchers.IO) {
+        val existingSnapshot = snapshotPublisher.snapshotOf(_contentState.value)
         ElovaireTrace.suspendSection("library_refresh_scan") {
-            scanner.scan(
+            scanner.scanWithStatus(
                 refreshMediaIndex = request.forceMediaIndex,
                 refreshMediaPaths = request.targetedPaths,
                 enrichMetadata = request.enrichMetadata,
@@ -620,6 +622,14 @@ class LibraryRepository internal constructor(
 
     internal fun onMemoryPressure(pressure: MemoryPressure) {
         scanner.onMemoryPressure(pressure)
+    }
+
+    internal fun blockNetworkSources(sourceIds: Set<String>) {
+        scanner.blockNetworkSources(sourceIds)
+    }
+
+    internal fun unblockNetworkSource(sourceId: String) {
+        scanner.unblockNetworkSource(sourceId)
     }
 
     fun markDeletingSongs(songIds: Collection<Long>) {

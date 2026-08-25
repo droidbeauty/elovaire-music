@@ -50,8 +50,8 @@ internal object LibrarySongDuplicateResolver {
         val leftSource = MediaIdentityResolver.resolve(left)
         val rightSource = MediaIdentityResolver.resolve(right)
         val sameSource = leftSource?.stableKey != null && leftSource.stableKey == rightSource?.stableKey
-        val sameUri = left.uri.toString().trim().lowercase(Locale.ROOT).let { leftUri ->
-            leftUri.isNotBlank() && leftUri == right.uri.toString().trim().lowercase(Locale.ROOT)
+        val sameUri = left.uri.canonicalOpaqueIdentity().let { leftUri ->
+            leftUri.isNotBlank() && leftUri == right.uri.canonicalOpaqueIdentity()
         }
         if (sameSource || sameUri) {
             return DuplicateEvidence(DuplicateConfidence.SameSource, MediaIdentityResolver.logicalTrackId(left))
@@ -85,9 +85,7 @@ internal object LibrarySongDuplicateResolver {
     internal fun strongKeys(song: Song): Set<String> = buildSet {
         add(MediaIdentityResolver.stableKey(song))
         normalizedRealPath(song.libraryPath)?.let { add("path:$it") }
-        song.uri.toString()
-            .trim()
-            .lowercase(Locale.ROOT)
+        song.uri.canonicalOpaqueIdentity()
             .takeIf { it.isNotBlank() }
             ?.let { add("uri:$it") }
     }

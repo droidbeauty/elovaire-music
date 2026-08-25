@@ -29,6 +29,12 @@ internal class LibraryScanRoots(
         return LibraryFolderSelectionResolver.accessibleFileRoots(selectedFolders)
     }
 
+    fun directFileRoots(): List<File> {
+        return LibraryFolderSelectionResolver.accessibleFileRoots(
+            selectedFolders.filter { it.uri == null },
+        )
+    }
+
     fun relativeRoots(): Set<String> {
         return LibraryFolderSelectionResolver.relativeRoots(selectedFolders)
     }
@@ -54,6 +60,17 @@ internal class LibraryScanRoots(
         return LibraryFolderSelectionResolver.relativeRoots(
             selectedFolders.filterNot(LibraryFolderSelection::isDefaultMusicFolder),
         )
+    }
+
+    fun usesImplicitDefaultDiscovery(): Boolean {
+        return selectedFolders.size == 1 && selectedFolders.single().let { selection ->
+            selection.uri == null && (
+                selection.isDefaultMusicFolder ||
+                    normalizeAbsolutePath(selection.path) == normalizeAbsolutePath(
+                    MediaFilePathResolver.defaultMusicDirectory().absolutePath,
+                )
+                )
+        }
     }
 
     fun safTreeSelections(): List<LibraryFolderSelection> {

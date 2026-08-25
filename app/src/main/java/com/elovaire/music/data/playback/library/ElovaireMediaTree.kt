@@ -32,6 +32,19 @@ internal interface MediaLibraryBrowser {
     }
     fun item(mediaId: String): MediaItem?
     fun search(query: String, limit: Int = 50): List<MediaItem>
+
+    fun searchRevision(): String = ""
+
+    fun searchPage(query: String, offset: Int, limit: Int): List<MediaItem> {
+        if (offset < 0 || limit <= 0) return emptyList()
+        val endExclusive = offset.toLong() + limit.toLong()
+        if (endExclusive > MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS) return emptyList()
+        return search(query, endExclusive.toInt())
+            .drop(offset)
+            .take(limit)
+    }
+
+    fun searchCount(query: String): Int = search(query, MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS).size
 }
 
 internal interface MediaLibraryCommandResolver {
@@ -310,6 +323,32 @@ internal class ElovaireMediaTree(
             ) { ElovaireMediaItems.genre(it.name) }
             addDistinctItems(broaderSongs, limit, ElovaireMediaItems::song)
         }
+    }
+
+    override fun searchRevision(): String {
+        val snapshot = snapshot()
+        return buildString {
+            append(snapshot.libraryRevision)
+            append(':')
+            append(System.identityHashCode(snapshot.playlists))
+            append(':')
+            append(snapshot.permissionGranted)
+        }
+    }
+
+    override fun searchPage(query: String, offset: Int, limit: Int): List<MediaItem> {
+        if (offset < 0 || limit <= 0) return emptyList()
+        val endExclusive = offset.toLong() + limit.toLong()
+        if (endExclusive > MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS) return emptyList()
+        return search(query, endExclusive.toInt()).drop(offset).take(limit)
+    }
+
+    override fun searchCount(query: String): Int {
+        val normalizedQuery = NormalizedSearchQuery.from(query)
+        val snapshot = snapshot()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return 0
+        if (normalizedQuery.value.isBlank()) return defaultQueue(snapshot)?.queue?.size ?: 0
+        return search(query, MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS).size
     }
 
     override fun resolveSearchQueue(query: String): ResolvedPlayableQueue? {

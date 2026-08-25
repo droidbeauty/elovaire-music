@@ -31,21 +31,32 @@ internal sealed interface AudioFileFilterDecision {
 }
 
 internal class LibraryAudioFileFilter(
-    private val selectedRelativeRoots: Set<String>,
-    private val libraryRootPaths: Set<String>,
-    private val explicitCustomRootPaths: Set<String> = emptySet(),
-    private val explicitCustomRelativeRoots: Set<String> = emptySet(),
+    selectedRelativeRoots: Set<String>,
+    libraryRootPaths: Set<String>,
+    explicitCustomRootPaths: Set<String> = emptySet(),
+    explicitCustomRelativeRoots: Set<String> = emptySet(),
+    private val implicitDefaultDiscovery: Boolean = false,
 ) {
+    private val selectedRelativeRoots = selectedRelativeRoots.mapNotNullTo(linkedSetOf()) { it.normalizeFilterRelativePath() }
+    private val libraryRootPaths = libraryRootPaths.mapNotNullTo(linkedSetOf()) { it.normalizeFilterAbsolutePath() }
+    private val explicitCustomRootPaths = explicitCustomRootPaths.mapNotNullTo(linkedSetOf()) { it.normalizeFilterAbsolutePath() }
+    private val explicitCustomRelativeRoots = explicitCustomRelativeRoots.mapNotNullTo(linkedSetOf()) { it.normalizeFilterRelativePath() }
+
     fun evaluate(candidate: AudioScanCandidate): AudioFileFilterDecision {
         val normalizedExtension = candidate.extension
             ?.trim()
             ?.lowercase(Locale.ROOT)
             ?.takeIf { it.isNotBlank() }
-            ?: return AudioFileFilterDecision.Exclude("Missing extension")
-        if (normalizedExtension !in AudioFormatPolicy.scannerExtensions) {
-            return AudioFileFilterDecision.Exclude("Unsupported extension")
+        val extensionCapability = normalizedExtension?.let(AudioFormatPolicy::capabilityForExtension)
+        val mimeCapability = AudioFormatPolicy.capabilityForMimeType(candidate.mimeType)
+        val detectedCapability = candidate.detectedFormat
+            ?.takeIf { it.detectionSucceeded }
+            ?.let { AudioFormatPolicy.capabilityFor(it.container) }
+        if (extensionCapability == null && mimeCapability == null && detectedCapability == null) {
+            return AudioFileFilterDecision.Exclude(
+                if (normalizedExtension == null) "Missing audio format evidence" else "Unsupported extension",
+            )
         }
-
         val normalizedAbsolutePath = candidate.absolutePath.normalizeAbsolutePath()
         val normalizedRelativePath = candidate.relativePath.normalizeRelativePath()
         val folderMatch = folderMatch(
@@ -56,7 +67,7 @@ internal class LibraryAudioFileFilter(
             return AudioFileFilterDecision.Exclude("Outside selected library folders")
         }
         val isExplicitCustomFolder = folderMatch.isExplicitCustom
-        val capability = AudioFormatPolicy.capabilityForExtension(normalizedExtension)
+        val capability = detectedCapability ?: mimeCapability ?: extensionCapability
             ?: return AudioFileFilterDecision.Exclude("Unsupported format")
         if (normalizedExtension in AudioFormatPolicy.voiceOrSpokenWordExtensions && !isExplicitCustomFolder) {
             return AudioFileFilterDecision.Exclude("Voice-oriented format outside preferred music folder")
@@ -72,16 +83,15 @@ internal class LibraryAudioFileFilter(
             if (AudioFormatPolicy.playbackSupport(detectedFormat) == PlaybackSupport.Unsupported) {
                 return AudioFileFilterDecision.Exclude("No compatible audio decoder")
             }
-        } else if (AudioFormatPolicy.requiresContainerValidation(normalizedExtension)) {
+        } else if (
+            normalizedExtension == null ||
+            AudioFormatPolicy.requiresContainerValidation(normalizedExtension)
+        ) {
             return AudioFileFilterDecision.Exclude("Container could not be validated")
         }
 
         if (candidate.durationMs <= 0L) {
             return AudioFileFilterDecision.Exclude("Invalid duration")
-        }
-
-        if (candidate.durationMs < MIN_MUSIC_DURATION_MS) {
-            return AudioFileFilterDecision.Exclude("Too short")
         }
 
         val combinedPath = buildCombinedPath(
@@ -133,6 +143,7 @@ internal class LibraryAudioFileFilter(
                 return FolderMatch.DefaultRoot
             }
         }
+        if (implicitDefaultDiscovery) return FolderMatch.DefaultRoot
         return FolderMatch.None
     }
 
@@ -195,7 +206,6 @@ internal class LibraryAudioFileFilter(
     }
 
     private companion object {
-        private const val MIN_MUSIC_DURATION_MS = 45_000L
         private val ExcludedPathFragments = listOf(
             "/ringtones/",
             "/notifications/",
@@ -231,6 +241,22 @@ internal class LibraryAudioFileFilter(
             Regex("""^voice[\s_-]?record(?:ing)?"""),
         )
     }
+}
+
+private fun String.normalizeFilterAbsolutePath(): String? {
+    return trim()
+        .replace('\\', '/')
+        .trimEnd('/')
+        .lowercase(Locale.ROOT)
+        .takeIf { it.isNotBlank() }
+}
+
+private fun String.normalizeFilterRelativePath(): String? {
+    return trim()
+        .replace('\\', '/')
+        .trim('/')
+        .lowercase(Locale.ROOT)
+        .takeIf { it.isNotBlank() }
 }
 
 private enum class FolderMatch(val isExplicitCustom: Boolean) {

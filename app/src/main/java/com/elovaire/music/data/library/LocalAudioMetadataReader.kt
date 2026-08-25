@@ -56,6 +56,26 @@ internal class LocalAudioMetadataReader(context: Context) {
         )
     }
 
+    /** Resolve only duration for provider rows whose indexed duration is missing or stale. */
+    fun readDuration(uri: Uri): Long {
+        return try {
+            val retriever = MediaMetadataRetriever()
+            try {
+                retriever.setDataSource(appContext, uri)
+                retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+                    ?.toLongOrNull()
+                    ?.takeIf { it > 0L }
+                    ?: 0L
+            } finally {
+                runCatching { retriever.release() }
+            }
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Exception) {
+            0L
+        }
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private fun readPlatformMetadata(uri: Uri, failureKey: MediaFailureKey?): PlatformAudioMetadata {
         if (failureKey != null && failureRegistry.shouldSuppress(failureKey)) return PlatformAudioMetadata()

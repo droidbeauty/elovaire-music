@@ -1,7 +1,9 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.net.TestUri
+import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,6 +48,42 @@ class LibraryScanRootsTest {
         )
 
         assertEquals(setOf("music"), roots.relativeRoots())
+    }
+
+    @Test
+    fun implicitDefaultDiscoveryStopsWhenAnExplicitFolderIsAdded() {
+        val default = LibraryFolderSelection(
+            uri = null,
+            path = "/storage/emulated/0/Music",
+            displayName = "Music",
+            isDefaultMusicFolder = true,
+        )
+        val roots = LibraryScanRoots(listOf(default))
+        assertTrue(roots.usesImplicitDefaultDiscovery())
+
+        roots.setSelections(
+            listOf(
+                default,
+                LibraryFolderSelection(null, "/storage/emulated/0/Download", "Download"),
+            ),
+        )
+
+        assertFalse(roots.usesImplicitDefaultDiscovery())
+    }
+
+    @Test
+    fun directFileRoots_excludesResolvedSafPaths() {
+        val roots = LibraryScanRoots(
+            listOf(
+                LibraryFolderSelection(
+                    uri = TestUri("content://tree/music"),
+                    path = File(".").absolutePath,
+                    displayName = "Music",
+                ),
+            ),
+        )
+
+        assertTrue(roots.directFileRoots().isEmpty())
     }
 
     @Test
