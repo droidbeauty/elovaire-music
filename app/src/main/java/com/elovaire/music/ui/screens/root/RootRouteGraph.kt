@@ -9,6 +9,7 @@ import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Composable
+@Suppress("LongMethod")
 internal fun RootRouteGraph(
     navState: RootNavigationState,
     motionTransitions: MotionTransitions,
@@ -26,23 +27,31 @@ internal fun RootRouteGraph(
         modifier = modifier,
     ) {
         composable(HOME_ROUTE) {
-            HomeRouteHost(navState, routeState.home, routeActions, padding)
+            AlbumTransitionContent(this) {
+                HomeRouteHost(navState, routeState.home, routeActions, padding)
+            }
         }
         composable(ALBUMS_ROUTE) {
-            LibraryHubRouteHost(navState, routeState, routeActions, padding)
+            AlbumTransitionContent(this) {
+                LibraryHubRouteHost(navState, routeState, routeActions, padding)
+            }
         }
         composable(RECENTLY_ADDED_ROUTE) {
-            RecentlyAddedRouteHost(
-                routeState = routeState,
-                routeActions = routeActions,
-                padding = padding,
-            )
+            AlbumTransitionContent(this) {
+                RecentlyAddedRouteHost(
+                    routeState = routeState,
+                    routeActions = routeActions,
+                    padding = padding,
+                )
+            }
         }
         composable(PLAYLISTS_ROUTE) {
             PlaylistsRouteHost(navState, routeState.playlists, routeActions, padding)
         }
         composable(SEARCH_ROUTE) {
-            SearchRouteHost(navState, routeState, routeActions, padding, searchViewModel)
+            AlbumTransitionContent(this) {
+                SearchRouteHost(navState, routeState, routeActions, padding, searchViewModel)
+            }
         }
         composable(
             route = "$PLAYLIST_ROUTE/{playlistId}",
@@ -69,7 +78,9 @@ internal fun RootRouteGraph(
             route = "$ALBUM_ROUTE/{albumId}",
             arguments = listOf(navArgument("albumId") { type = NavType.LongType }),
         ) { backStackEntry ->
-            AlbumRouteHost(backStackEntry.albumRouteId(), navState, routeState, routeActions, padding)
+            AlbumTransitionContent(this) {
+                AlbumRouteHost(backStackEntry.albumRouteId(), navState, routeState, routeActions, padding)
+            }
         }
         composable(
             route = "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
@@ -87,25 +98,31 @@ internal fun RootRouteGraph(
             route = "$LIBRARY_COLLECTION_ROUTE/{kind}",
             arguments = listOf(navArgument("kind") { type = NavType.StringType }),
         ) { backStackEntry ->
-            LibraryCollectionRouteHost(
-                kind = backStackEntry.libraryCollectionKindArg(),
-                routeState = routeState,
-                routeActions = routeActions,
-                padding = padding,
-                artistImageRepository = artistImageRepository,
-            )
+            AlbumTransitionContent(this) {
+                LibraryCollectionRouteHost(
+                    kind = backStackEntry.libraryCollectionKindArg(),
+                    routeState = routeState,
+                    routeActions = routeActions,
+                    padding = padding,
+                    artistImageRepository = artistImageRepository,
+                )
+            }
         }
         composable(
             route = "$GENRE_ROUTE/{genre}",
             arguments = listOf(navArgument("genre") { type = NavType.StringType }),
         ) { backStackEntry ->
-            GenreRouteHost(backStackEntry.genreRouteArg(), routeState, routeActions, padding)
+            AlbumTransitionContent(this) {
+                GenreRouteHost(backStackEntry.genreRouteArg(), routeState, routeActions, padding)
+            }
         }
         composable(
             route = "$ARTIST_ROUTE/{artistName}",
             arguments = listOf(navArgument("artistName") { type = NavType.StringType }),
         ) { backStackEntry ->
-            ArtistRouteHost(backStackEntry.artistRouteArg(), routeState, routeActions, padding, artistImageRepository)
+            AlbumTransitionContent(this) {
+                ArtistRouteHost(backStackEntry.artistRouteArg(), routeState, routeActions, padding, artistImageRepository)
+            }
         }
         composable(EQUALIZER_ROUTE) {
             EqualizerRouteHost(viewModelFactory, routeActions)

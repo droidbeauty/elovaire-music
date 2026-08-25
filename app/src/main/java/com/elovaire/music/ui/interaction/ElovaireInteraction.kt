@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.interaction
 
 import androidx.compose.animation.core.FiniteAnimationSpec
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
@@ -9,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -51,6 +53,17 @@ object ElovaireInteraction {
     val specs = ElovaireInteractionSpecs()
 }
 
+internal fun pillActionTargetScale(
+    pressed: Boolean,
+    confirmation: Boolean,
+    pressedScale: Float,
+    confirmationScale: Float,
+): Float = when {
+    pressed -> pressedScale
+    confirmation -> confirmationScale
+    else -> 1f
+}
+
 /** Shared press/release response for discrete pill and circular actions. */
 fun Modifier.elovaireActionBump(
     enabled: Boolean = true,
@@ -61,13 +74,49 @@ fun Modifier.elovaireActionBump(
     label: String = "elovaireActionBump",
 ): Modifier = composed {
     if (!enabled) return@composed this
-    val motionSpecs = rememberMotionSpecs()
-    elovairePressScale(
+    elovairePillActionMotion(
         pressedScale = pressedScale,
-        animationSpec = motionSpecs.mediaRelease(),
         interactionSource = interactionSource,
         label = label,
     )
+}
+
+/**
+ * Canonical tactile response for interactive capsules and compact discrete actions.
+ * The transform is draw-only, so the visual response never changes the hit target or layout.
+ */
+fun Modifier.elovairePillActionMotion(
+    enabled: Boolean = true,
+    pressedScale: Float = ElovaireInteraction.specs.pressedScale(
+        ElovaireInteractionRole.CompactAction,
+    ),
+    confirmation: Boolean = false,
+    confirmationScale: Float = 1.035f,
+    interactionSource: MutableInteractionSource? = null,
+    label: String = "elovairePillActionMotion",
+): Modifier = composed {
+    if (!enabled) return@composed this
+    val motionSpecs = rememberMotionSpecs()
+    val resolvedInteractionSource = interactionSource ?: rememberElovaireInteractionSource()
+    val pressed by resolvedInteractionSource.collectIsPressedAsState()
+    val scale = animateFloatAsState(
+        targetValue = pillActionTargetScale(
+            pressed = pressed,
+            confirmation = confirmation,
+            pressedScale = pressedScale,
+            confirmationScale = confirmationScale,
+        ),
+        animationSpec = when {
+            pressed -> motionSpecs.pressDown()
+            confirmation -> motionSpecs.mediaRelease()
+            else -> motionSpecs.mediaRelease()
+        },
+        label = label,
+    )
+    graphicsLayer {
+        scaleX = scale.value
+        scaleY = scale.value
+    }
 }
 
 @Composable

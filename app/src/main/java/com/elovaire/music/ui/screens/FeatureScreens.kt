@@ -282,6 +282,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.CompactBarGestureActions
 import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
+import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
@@ -678,6 +679,8 @@ private fun LastPlayedAlbumModule(
         val screenWidthPx = screenSizePx.width.toFloat()
         val screenHeightPx = screenSizePx.height.toFloat()
         var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+        val sharedSourceToken = remember { AlbumSharedTransitionToken.next() }
+        val sharedTransitionController = LocalAlbumSharedTransitionController.current
         val artwork = rememberArtworkBitmap(album.artUri, size = 512)
         val year = remember(album.songs) { album.songs.firstNotNullOfOrNull { it.releaseYear } }
         val genre = remember(album.songs) {
@@ -711,7 +714,10 @@ private fun LastPlayedAlbumModule(
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+                    onClick = {
+                        sharedTransitionController?.select(album.id, sharedSourceToken)
+                        onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx))
+                    },
                 )
                 .clip(RoundedCornerShape(ElovaireRadii.module))
                 .background(baseTint)
@@ -747,7 +753,12 @@ private fun LastPlayedAlbumModule(
                 ArtworkImage(
                     uri = album.artUri,
                     title = album.title,
-                    modifier = Modifier.size(88.dp),
+                    modifier = Modifier
+                        .size(88.dp)
+                        .albumSharedArtwork(
+                            albumId = album.id,
+                            sourceToken = sharedSourceToken,
+                        ),
                     cornerRadius = ElovaireRadii.artwork,
                     showArtworkGlow = true,
                 )
@@ -926,11 +937,16 @@ private fun LastPlayedPlaylistModule(
                         modifier = Modifier.fillMaxSize(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
+                        val shuffleInteractionSource = rememberElovaireInteractionSource()
                         Box(
                             modifier = Modifier
                                 .size(46.dp)
+                                .elovaireActionBump(
+                                    interactionSource = shuffleInteractionSource,
+                                    label = "playlist_header_shuffle_bump",
+                                )
                                 .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
+                                    interactionSource = shuffleInteractionSource,
                                     indication = null,
                                     onClick = onShuffle,
                                 ),
@@ -942,11 +958,16 @@ private fun LastPlayedPlaylistModule(
                                 modifier = Modifier.size(20.dp),
                             )
                         }
+                        val playInteractionSource = rememberElovaireInteractionSource()
                         Box(
                             modifier = Modifier
                                 .size(46.dp)
+                                .elovaireActionBump(
+                                    interactionSource = playInteractionSource,
+                                    label = "playlist_header_play_bump",
+                                )
                                 .clickable(
-                                    interactionSource = remember { MutableInteractionSource() },
+                                    interactionSource = playInteractionSource,
                                     indication = null,
                                     onClick = onPlay,
                                 ),
@@ -1103,6 +1124,7 @@ private fun AlbumCollectionContent(
                                 .libraryRemovalAnimation(album.id in removingAlbumIds),
                             selectionMode = selectionModeActive,
                             selected = album.id in selectedAlbumIds,
+                            enableSharedTransition = !selectionModeActive,
                             onOpen = { origin ->
                                 if (selectionModeActive) {
                                     selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
@@ -1191,6 +1213,7 @@ private fun AlbumCollectionContent(
                             showText = false,
                             artworkCornerRadius = 0.dp,
                             showArtworkGlow = false,
+                            enableSharedTransition = !selectionModeActive,
                             onOpen = { origin ->
                                 if (selectionModeActive) {
                                     selectedAlbumIds = selectedAlbumIds.toggleSelection(album.id)
@@ -4089,13 +4112,18 @@ private fun FavoriteAlbumCompactCell(
     val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val cellColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.05f)
+    val sharedSourceToken = remember { AlbumSharedTransitionToken.next() }
+    val sharedTransitionController = LocalAlbumSharedTransitionController.current
 
     Surface(
         modifier = modifier
             .onGloballyPositioned { bounds = it.boundsInWindow() },
         shape = RoundedCornerShape(6.dp),
         color = cellColor,
-        onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+        onClick = {
+            sharedTransitionController?.select(album.id, sharedSourceToken)
+            onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx))
+        },
     ) {
         Row(
             modifier = Modifier
@@ -4107,7 +4135,12 @@ private fun FavoriteAlbumCompactCell(
             ArtworkImage(
                 uri = album.artUri,
                 title = album.title,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier
+                    .size(48.dp)
+                    .albumSharedArtwork(
+                        albumId = album.id,
+                        sourceToken = sharedSourceToken,
+                    ),
                 cornerRadius = ElovaireRadii.artworkSmall,
                 showArtworkGlow = true,
             )
@@ -4759,6 +4792,7 @@ private fun AlbumGridCard(
     showText: Boolean = true,
     artworkCornerRadius: Dp = ElovaireRadii.artwork,
     showArtworkGlow: Boolean = true,
+    enableSharedTransition: Boolean = true,
     onOpen: (ExpandOrigin) -> Unit,
     onLongPress: (() -> Unit)? = null,
 ) {
@@ -4767,6 +4801,8 @@ private fun AlbumGridCard(
     val screenHeightPx = screenSizePx.height.toFloat()
     val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val sharedSourceToken = remember { AlbumSharedTransitionToken.next() }
+    val sharedTransitionController = LocalAlbumSharedTransitionController.current
 
     Column(
         modifier = modifier
@@ -4774,7 +4810,12 @@ private fun AlbumGridCard(
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+                onClick = {
+                    if (enableSharedTransition) {
+                        sharedTransitionController?.select(album.id, sharedSourceToken)
+                    }
+                    onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx))
+                },
                 onLongClick = { onLongPress?.invoke() },
             ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -4787,7 +4828,13 @@ private fun AlbumGridCard(
             ArtworkImage(
                 uri = album.artUri,
                 title = album.title,
-                modifier = Modifier.matchParentSize(),
+                modifier = Modifier
+                    .matchParentSize()
+                    .albumSharedArtwork(
+                        albumId = album.id,
+                        sourceToken = sharedSourceToken,
+                        enabled = enableSharedTransition,
+                    ),
                 cornerRadius = artworkCornerRadius,
                 showArtworkGlow = showArtworkGlow,
             )
@@ -4841,10 +4888,9 @@ internal fun CompactAlbumRow(
     onLongPress: (() -> Unit)? = null,
 ) {
     val screenSizePx = screenContainerSizePx()
-    val screenWidthPx = screenSizePx.width.toFloat()
-    val screenHeightPx = screenSizePx.height.toFloat()
-    val language = LocalAppLanguage.current
     var bounds by remember { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
+    val sharedSourceToken = remember { AlbumSharedTransitionToken.next() }
+    val sharedTransitionController = LocalAlbumSharedTransitionController.current
 
     Box(
         modifier = Modifier
@@ -4853,7 +4899,10 @@ internal fun CompactAlbumRow(
             .combinedClickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                onClick = { onOpen(bounds.toExpandOrigin(screenWidthPx, screenHeightPx)) },
+                onClick = {
+                    sharedTransitionController?.takeIf { !selectionMode }?.select(album.id, sharedSourceToken)
+                    onOpen(bounds.toExpandOrigin(screenSizePx.width.toFloat(), screenSizePx.height.toFloat()))
+                },
                 onLongClick = { onLongPress?.invoke() },
             ),
     ) {
@@ -4865,16 +4914,17 @@ internal fun CompactAlbumRow(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier.size(62.dp),
-            ) {
-                ArtworkImage(
-                    uri = album.artUri,
-                    title = album.title,
-                    modifier = Modifier.matchParentSize(),
-                    cornerRadius = ElovaireRadii.artworkSmall,
-                )
-            }
+            ArtworkImage(
+                uri = album.artUri,
+                title = album.title,
+                modifier = Modifier
+                    .size(62.dp)
+                    .albumSharedArtwork(
+                        albumId = album.id,
+                        sourceToken = sharedSourceToken,
+                    ),
+                cornerRadius = ElovaireRadii.artworkSmall,
+            )
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -4901,7 +4951,7 @@ internal fun CompactAlbumRow(
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 1f),
                             ),
                         ) {
-                            append(localizedCountLabel(album.songCount, "track", language))
+                            append(localizedCountLabel(album.songCount, "track", LocalAppLanguage.current))
                         }
                         append("  •  ")
                         withStyle(
@@ -5255,7 +5305,12 @@ internal fun AlbumScreen(
                             ArtworkImage(
                                 uri = album.artUri,
                                 title = album.title,
-                                modifier = Modifier.fillMaxSize(),
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .albumSharedArtwork(
+                                        albumId = album.id,
+                                        destination = true,
+                                    ),
                                 cornerRadius = ElovaireRadii.artwork,
                             )
                         }
@@ -5965,10 +6020,18 @@ internal fun AddSongsToPlaylistOverlay(
                 ) {
                     PlaylistPickerTab.entries.forEach { tab ->
                         val selected = selectedTab == tab
+                        val tabInteractionSource = rememberElovaireInteractionSource()
                         Row(
                             modifier = Modifier
                                 .clip(RoundedCornerShape(ElovaireRadii.pill))
-                                .clickable {
+                                .elovaireActionBump(
+                                    interactionSource = tabInteractionSource,
+                                    label = "playlist_picker_${tab.name}_bump",
+                                )
+                                .clickable(
+                                    interactionSource = tabInteractionSource,
+                                    indication = null,
+                                ) {
                                     if (selected) {
                                         selectedAlbumId = null
                                         selectedArtistName = null
@@ -8846,26 +8909,14 @@ private fun FavoriteSongButton(
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
-        if (previousFavoriteState != isFavorite) {
-            shouldBounce = true
-            delay(motionRuntime.duration(180L))
-            shouldBounce = false
-            previousFavoriteState = isFavorite
-        }
+        val changed = previousFavoriteState != isFavorite
+        previousFavoriteState = isFavorite
+        if (!changed) return@LaunchedEffect
+        shouldBounce = true
+        delay(motionRuntime.duration(180L))
+        shouldBounce = false
     }
-    val buttonScale by animateFloatAsState(
-        targetValue = when {
-            shouldBounce -> 1.08f
-            else -> 1f
-        },
-        animationSpec = if (shouldBounce) {
-            ElovaireMotion.bounceSpringSpec()
-        } else {
-            ElovaireMotion.releaseSpringSpec()
-        },
-        label = "favorite_button_scale",
-    )
-    val iconScale by animateFloatAsState(
+    val iconScale = animateFloatAsState(
         targetValue = when {
             shouldBounce -> 1.12f
             isFavorite -> 1f
@@ -8885,8 +8936,8 @@ private fun FavoriteSongButton(
     Box(
         modifier = modifier
             .size(44.dp)
-            .scale(buttonScale)
-            .elovaireActionBump(
+            .elovairePillActionMotion(
+                confirmation = shouldBounce,
                 interactionSource = interactionSource,
                 label = "favorite_button_bump",
             )
@@ -8952,7 +9003,10 @@ private fun FavoriteSongButton(
                 tint = tint,
                 modifier = Modifier
                     .size(20.dp)
-                    .scale(iconScale),
+                    .graphicsLayer {
+                        scaleX = iconScale.value
+                        scaleY = iconScale.value
+                    },
             )
         }
     }
@@ -9047,29 +9101,14 @@ internal fun InlineFavoriteSongButton(
     var previousFavoriteState by remember { mutableStateOf(isFavorite) }
     var shouldBounce by remember { mutableStateOf(false) }
     LaunchedEffect(isFavorite) {
-        if (previousFavoriteState != isFavorite) {
-            shouldBounce = true
-            delay(motionRuntime.duration(180L))
-            shouldBounce = false
-            previousFavoriteState = isFavorite
-        }
+        val changed = previousFavoriteState != isFavorite
+        previousFavoriteState = isFavorite
+        if (!changed) return@LaunchedEffect
+        shouldBounce = true
+        delay(motionRuntime.duration(180L))
+        shouldBounce = false
     }
-    val buttonScale by animateFloatAsState(
-        targetValue = when {
-            shouldBounce -> 1.12f
-            else -> 1f
-        },
-        animationSpec = if (shouldBounce) {
-            ElovaireMotion.bounceSpringSpec()
-        } else {
-            ElovaireMotion.releaseSpringSpec(
-                dampingRatio = 0.8f,
-                stiffness = 520f,
-            )
-        },
-        label = "inline_favorite_scale",
-    )
-    val iconScale by animateFloatAsState(
+    val iconScale = animateFloatAsState(
         targetValue = when {
             shouldBounce -> 1.18f
             isFavorite -> 1f
@@ -9089,8 +9128,8 @@ internal fun InlineFavoriteSongButton(
     Box(
         modifier = Modifier
             .size(24.dp)
-            .scale(buttonScale)
-            .elovaireActionBump(
+            .elovairePillActionMotion(
+                confirmation = shouldBounce,
                 interactionSource = interactionSource,
                 label = "inline_favorite_bump",
             )
@@ -9129,7 +9168,10 @@ internal fun InlineFavoriteSongButton(
                 tint = tint.copy(alpha = if (favorite) 1f else 0.82f),
                 modifier = Modifier
                     .size(18.dp)
-                    .scale(iconScale),
+                    .graphicsLayer {
+                        scaleX = iconScale.value
+                        scaleY = iconScale.value
+                    },
             )
         }
     }

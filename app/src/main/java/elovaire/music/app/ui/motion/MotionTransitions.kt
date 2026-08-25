@@ -421,22 +421,15 @@ class MotionTransitions internal constructor(
     fun albumDetailForwardEnter(
         transformOrigin: TransformOrigin = TransformOrigin.Center,
     ): EnterTransition = fadeIn(
-        animationSpec = specs.tween(MotionDuration.AlbumDetail, easing = MotionEasing.FadeIn),
-        initialAlpha = 0.04f,
-    ) + scaleIn(
-        animationSpec = specs.spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        initialScale = 0.74f,
-        transformOrigin = transformOrigin,
+        animationSpec = specs.tween(MotionDuration.DetailEnter, easing = MotionEasing.FadeIn),
+        initialAlpha = 0f,
     ) + slideInHorizontally(
         animationSpec = specs.spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessLow,
         ),
         initialOffsetX = { fullWidth ->
-            ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+            ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.12f).roundToInt()
         },
     ) + slideInVertically(
         animationSpec = specs.spring(
@@ -444,7 +437,7 @@ class MotionTransitions internal constructor(
             stiffness = Spring.StiffnessLow,
         ),
         initialOffsetY = { fullHeight ->
-            ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+            ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.12f).roundToInt()
         },
     )
 
@@ -457,7 +450,7 @@ class MotionTransitions internal constructor(
 
     fun albumDetailBackEnter(): EnterTransition = cached(StaticMotionTransition.AlbumDetailBackEnter) { fadeIn(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeIn),
-        initialAlpha = 0.08f,
+        initialAlpha = 0f,
     ) + scaleIn(
         animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.RefinedDecelerate),
         initialScale = 0.994f,
@@ -466,21 +459,14 @@ class MotionTransitions internal constructor(
     fun albumDetailBackExit(
         transformOrigin: TransformOrigin = TransformOrigin.Center,
     ): ExitTransition = fadeOut(
-        animationSpec = specs.tween(MotionDuration.AlbumDetail, easing = MotionEasing.FadeOut),
-    ) + scaleOut(
-        animationSpec = specs.spring(
-            dampingRatio = Spring.DampingRatioNoBouncy,
-            stiffness = Spring.StiffnessMediumLow,
-        ),
-        targetScale = 0.74f,
-        transformOrigin = transformOrigin,
+        animationSpec = specs.tween(MotionDuration.DetailExit, easing = MotionEasing.FadeOut),
     ) + slideOutHorizontally(
         animationSpec = specs.spring(
             dampingRatio = Spring.DampingRatioNoBouncy,
             stiffness = Spring.StiffnessLow,
         ),
         targetOffsetX = { fullWidth ->
-            ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.24f).roundToInt()
+            ((transformOrigin.pivotFractionX - 0.5f) * fullWidth * 0.12f).roundToInt()
         },
     ) + slideOutVertically(
         animationSpec = specs.spring(
@@ -488,7 +474,7 @@ class MotionTransitions internal constructor(
             stiffness = Spring.StiffnessLow,
         ),
         targetOffsetY = { fullHeight ->
-            ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.24f).roundToInt()
+            ((transformOrigin.pivotFractionY - 0.5f) * fullHeight * 0.12f).roundToInt()
         },
     )
 

@@ -87,7 +87,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
-import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
@@ -1193,10 +1193,9 @@ private fun EqPresetPill(
     }
     val interactionSource = remember { MutableInteractionSource() }
     Surface(
-        modifier = Modifier.elovairePressScale(
+        modifier = Modifier.elovairePillActionMotion(
             interactionSource = interactionSource,
             pressedScale = 0.96f,
-            animationSpec = ElovaireMotion.bounceSpringSpec(),
             label = "${label}_eq_preset_scale",
         ),
         shape = RoundedCornerShape(ElovaireRadii.pill),
@@ -1969,10 +1968,9 @@ private fun SelectablePill(
         contentColor = MaterialTheme.colorScheme.onSurface,
         shape = RoundedCornerShape(ElovaireRadii.pill),
         modifier = Modifier
-            .elovairePressScale(
+            .elovairePillActionMotion(
                 interactionSource = interactionSource,
                 pressedScale = 0.96f,
-                animationSpec = ElovaireMotion.bounceSpringSpec(),
                 label = "equalizer_selectable_pill_bump",
             )
             .clip(RoundedCornerShape(ElovaireRadii.pill))

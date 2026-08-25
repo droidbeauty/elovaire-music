@@ -82,7 +82,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingBarStyleCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
-import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
+import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
@@ -339,7 +339,12 @@ internal fun SettingsScreen(
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
                             Text("Elovaire", style = MaterialTheme.typography.titleLarge)
+                            val changelogInteractionSource = rememberElovaireInteractionSource()
                             Surface(
+                                modifier = Modifier.elovairePillActionMotion(
+                                    interactionSource = changelogInteractionSource,
+                                    label = "settings_changelog_pill_motion",
+                                ),
                                 shape = RoundedCornerShape(ElovaireRadii.pill),
                                 color = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
                                     Color.White.copy(alpha = 0.1f)
@@ -348,6 +353,7 @@ internal fun SettingsScreen(
                                 },
                                 contentColor = MaterialTheme.colorScheme.onSurface,
                                 onClick = onOpenChangelog,
+                                interactionSource = changelogInteractionSource,
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
@@ -421,10 +427,9 @@ private fun LanguagePickerRow(
         Box {
             val interactionSource = remember { MutableInteractionSource() }
             Surface(
-                modifier = Modifier.elovairePressScale(
+                modifier = Modifier.elovairePillActionMotion(
                     interactionSource = interactionSource,
                     pressedScale = 0.9f,
-                    animationSpec = ElovaireMotion.chromeReleaseSpec(),
                     label = "settings_language_button_scale",
                 ),
                 shape = RoundedCornerShape(ElovaireRadii.pill),
@@ -872,10 +877,9 @@ internal fun SettingActionRow(
         }
         Spacer(modifier = Modifier.width(18.dp))
         Surface(
-            modifier = Modifier.elovairePressScale(
+            modifier = Modifier.elovairePillActionMotion(
                 interactionSource = interactionSource,
                 pressedScale = 0.9f,
-                animationSpec = ElovaireMotion.chromeReleaseSpec(),
                 label = "${actionLabel}_setting_action_scale",
             ),
             shape = RoundedCornerShape(ElovaireRadii.pill),

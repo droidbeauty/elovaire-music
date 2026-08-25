@@ -4,7 +4,6 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.graphicsLayer
@@ -16,14 +15,14 @@ fun Modifier.elovairePressScaleMotion(
     releaseSpec: FiniteAnimationSpec<Float>,
     label: String,
 ): Modifier = composed {
-    val scale by animateFloatAsState(
+    val scale = animateFloatAsState(
         targetValue = if (pressed) pressedScale else 1f,
         animationSpec = if (pressed) pressSpec else releaseSpec,
         label = label,
     )
     graphicsLayer {
-        scaleX = scale
-        scaleY = scale
+        scaleX = scale.value
+        scaleY = scale.value
     }
 }
 

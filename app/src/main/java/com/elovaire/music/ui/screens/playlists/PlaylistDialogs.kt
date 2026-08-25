@@ -597,11 +597,16 @@ internal fun PlaylistSelectionDialog(
                         }
                     }
                     if (onCreatePlaylist != null) {
+                        val newPlaylistInteractionSource = rememberElovaireInteractionSource()
                         Surface(
                             modifier = Modifier
                                 .fillMaxWidth(0.9f)
                                 .height(40.dp)
-                                .align(Alignment.CenterHorizontally),
+                                .align(Alignment.CenterHorizontally)
+                                .elovaireActionBump(
+                                    interactionSource = newPlaylistInteractionSource,
+                                    label = "playlist_new_playlist_bump",
+                                ),
                             onClick = {
                                 showInlineCreator = true
                                 selectedPlaylistId = null
@@ -609,6 +614,7 @@ internal fun PlaylistSelectionDialog(
                             shape = RoundedCornerShape(ElovaireRadii.pill),
                             color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
                             contentColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.92f),
+                            interactionSource = newPlaylistInteractionSource,
                         ) {
                             Row(
                                 modifier = Modifier.fillMaxSize(),
@@ -640,7 +646,13 @@ internal fun PlaylistSelectionDialog(
                             )
                         }
                         Spacer(modifier = Modifier.width(10.dp))
+                        val addToPlaylistInteractionSource = rememberElovaireInteractionSource()
                         Surface(
+                            modifier = Modifier.elovaireActionBump(
+                                enabled = selectedPlaylistId != null && !isAddingToPlaylist,
+                                interactionSource = addToPlaylistInteractionSource,
+                                label = "playlist_add_to_playlist_bump",
+                            ),
                             onClick = {
                                 val playlistId = selectedPlaylistId ?: return@Surface
                                 if (!isAddingToPlaylist) {
@@ -655,6 +667,7 @@ internal fun PlaylistSelectionDialog(
                                 }
                             },
                             enabled = selectedPlaylistId != null && !isAddingToPlaylist,
+                            interactionSource = addToPlaylistInteractionSource,
                             shape = RoundedCornerShape(ElovaireRadii.pill),
                             color = if (selectedPlaylistId != null) {
                                 MaterialTheme.colorScheme.primary.copy(alpha = 0.92f)
