@@ -105,10 +105,11 @@ internal class AppExitDiagnostics(
 
 internal fun shouldSuppressOptionalStartup(records: List<AppExitRecord>, nowMs: Long): Boolean {
     val cutoff = nowMs - 10L * 60L * 1_000L
-    return records.count { record ->
-        record.timestampMs in cutoff..nowMs &&
-            (record.category == AppExitCategory.Crash || record.category == AppExitCategory.Anr)
-    } >= 3
+    val recentRecords = records.filter { it.timestampMs in cutoff..nowMs }
+    return recentRecords.any { it.category == AppExitCategory.ResourcePressure } ||
+        recentRecords.count { record ->
+            record.category == AppExitCategory.Crash || record.category == AppExitCategory.Anr
+        } >= 3
 }
 
 internal fun classifyAppExitReason(reason: Int): AppExitCategory = when (reason) {

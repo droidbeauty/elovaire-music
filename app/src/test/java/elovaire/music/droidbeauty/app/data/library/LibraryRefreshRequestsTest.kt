@@ -4,6 +4,8 @@ import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LibraryRefreshRequestsTest {
@@ -130,6 +132,29 @@ class LibraryRefreshRequestsTest {
         )
 
         assertEquals(listOf("/music/track.mp3"), paths)
+    }
+
+    @Test
+    fun targetedMediaPathOnlyScansTheContainingSafTree() {
+        val tree = LibraryFolderSelection(
+            uri = TestUri("content://provider/tree/a"),
+            path = "/storage/emulated/0/Music/A",
+            displayName = "A",
+        )
+
+        assertTrue(shouldScanSafTreeForPaths(tree, listOf("/storage/emulated/0/Music/A/track.flac")))
+        assertFalse(shouldScanSafTreeForPaths(tree, listOf("/storage/emulated/0/Music/B/track.flac")))
+    }
+
+    @Test
+    fun uriOnlySafTreeIsNotScannedForAnUnattributedFilePath() {
+        val tree = LibraryFolderSelection(
+            uri = TestUri("content://provider/tree/a"),
+            path = "content://provider/tree/a",
+            displayName = "A",
+        )
+
+        assertFalse(shouldScanSafTreeForPaths(tree, listOf("/storage/emulated/0/Music/track.flac")))
     }
 
     private fun song(id: Long, path: String) = Song(

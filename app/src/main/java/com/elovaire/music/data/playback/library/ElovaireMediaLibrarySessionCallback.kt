@@ -14,6 +14,17 @@ import androidx.media3.session.SessionError
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import java.util.concurrent.ArrayBlockingQueue
+import java.util.concurrent.Callable
+import java.util.concurrent.Executor
+import java.util.concurrent.Executors
+import java.util.concurrent.Future
+import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
+import com.google.common.util.concurrent.ListeningExecutorService
+import com.google.common.util.concurrent.MoreExecutors
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCommand
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCommandOrigin
@@ -26,7 +37,9 @@ internal class ElovaireMediaLibrarySessionCallback(
     private val browser: MediaLibraryBrowser,
     private val commandResolver: MediaLibraryCommandResolver,
     private val playbackManager: PlaybackManager,
+    private val readExecutor: MediaLibraryReadExecutor = MediaLibraryReadExecutor(),
 ) : MediaLibrarySession.Callback {
+    private val queueResolutionGeneration = AtomicLong(0L)
     override fun onGetLibraryRoot(
         session: MediaLibrarySession,
         browser: MediaSession.ControllerInfo,
@@ -48,9 +61,9 @@ internal class ElovaireMediaLibrarySessionCallback(
         if (!MediaLibraryRequestPolicy.acceptsPage(page, pageSize)) {
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
-        return Futures.immediateFuture(
-            LibraryResult.ofItemList(browser.childrenOfPage(parsed, page, pageSize), params),
-        )
+        return submitRead {
+            LibraryResult.ofItemList(browser.childrenOfPage(parsed, page, pageSize), params)
+        }
     }
 
     override fun onGetItem(
@@ -58,9 +71,11 @@ internal class ElovaireMediaLibrarySessionCallback(
         controller: MediaSession.ControllerInfo,
         mediaId: String,
     ): ListenableFuture<LibraryResult<MediaItem>> {
-        val item = browser.item(mediaId)
-            ?: return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
-        return Futures.immediateFuture(LibraryResult.ofItem(item, null))
+        return submitRead {
+            val item = browser.item(mediaId)
+                ?: return@submitRead LibraryResult.ofError(invalidMediaIdError())
+            LibraryResult.ofItem(item, null)
+        }
     }
 
     override fun onSearch(
@@ -90,9 +105,9 @@ internal class ElovaireMediaLibrarySessionCallback(
         ) {
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
-        return Futures.immediateFuture(
-            LibraryResult.ofItemList(pageItems(browser.search(query), page, pageSize), params),
-        )
+        return submitRead {
+            LibraryResult.ofItemList(pageItems(browser.search(query), page, pageSize), params)
+        }
     }
 
     override fun onSetMediaItems(
@@ -106,27 +121,31 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(emptyMediaItemsWithStartPosition())
         }
         val requested = mediaItems.getOrNull(startIndex.coerceAtLeast(0)) ?: mediaItems.firstOrNull()
-        val resolved = requested?.let {
-            commandResolver.resolvePlayableQueue(it.mediaId)
-                ?: it.requestMetadata.searchQuery?.let(commandResolver::resolveSearchQueue)
-                ?: commandResolver.defaultPlayableQueue().takeIf { _ ->
-                    it.mediaId.isBlank() && it.requestMetadata.searchQuery.isNullOrBlank()
-                }
-        } ?: commandResolver.defaultPlayableQueue().takeIf { requested == null }
-        if (resolved != null) {
-            val result = resolved.toMediaItemsWithStartPosition(startPositionMs)
+        val requestGeneration = queueResolutionGeneration.incrementAndGet()
+        val resolved = submitRead {
+            requested?.let {
+                commandResolver.resolvePlayableQueue(it.mediaId)
+                    ?: it.requestMetadata.searchQuery?.let(commandResolver::resolveSearchQueue)
+                    ?: commandResolver.defaultPlayableQueue().takeIf { _ ->
+                        it.mediaId.isBlank() && it.requestMetadata.searchQuery.isNullOrBlank()
+                    }
+            } ?: commandResolver.defaultPlayableQueue().takeIf { requested == null }
+        }
+        return transformOnPlayerLooper(mediaSession, resolved) { queue ->
+            if (requestGeneration != queueResolutionGeneration.get()) {
+                return@transformOnPlayerLooper emptyMediaItemsWithStartPosition()
+            }
+            if (queue == null) return@transformOnPlayerLooper emptyMediaItemsWithStartPosition()
+            val result = queue.toMediaItemsWithStartPosition(startPositionMs)
             // MediaSession applies these items and dispatches prepare/play after this callback returns.
             playbackManager.stageExternalQueue(
-                songs = resolved.queue,
+                songs = queue.queue,
                 startIndex = result.startIndex,
-                sourceLabel = resolved.sourceLabel,
-                sourcePlaylistId = resolved.sourcePlaylistId,
+                sourceLabel = queue.sourceLabel,
+                sourcePlaylistId = queue.sourcePlaylistId,
             )
-            return Futures.immediateFuture(result)
+            result
         }
-        return Futures.immediateFuture(
-            MediaSession.MediaItemsWithStartPosition(emptyList(), 0, 0L),
-        )
     }
 
     override fun onPlaybackResumption(
@@ -135,22 +154,28 @@ internal class ElovaireMediaLibrarySessionCallback(
         isForPlayback: Boolean,
     ): ListenableFuture<MediaSession.MediaItemsWithStartPosition> {
         val pending = pendingMediaButtonResumption(consume = isForPlayback)
-        val resolved = pending?.queue ?: commandResolver.resumptionQueue()
-            ?: return Futures.immediateFuture(emptyMediaItemsWithStartPosition())
-        val result = resolved.toMediaItemsWithStartPosition(pending?.persisted?.positionMs ?: C.TIME_UNSET)
-        if (isForPlayback) {
-            if (pending != null) {
-                mediaSession.player.repeatMode = pending.persisted.repeatMode.toPlayerRepeatMode()
-                mediaSession.player.shuffleModeEnabled = pending.persisted.shuffleEnabled
+        val requestGeneration = queueResolutionGeneration.incrementAndGet()
+        val resolved = submitRead { pending?.queue ?: commandResolver.resumptionQueue() }
+        return transformOnPlayerLooper(mediaSession, resolved) { queue ->
+            if (requestGeneration != queueResolutionGeneration.get()) {
+                return@transformOnPlayerLooper emptyMediaItemsWithStartPosition()
             }
-            playbackManager.stageExternalQueue(
-                songs = resolved.queue,
-                startIndex = result.startIndex,
-                sourceLabel = resolved.sourceLabel,
-                sourcePlaylistId = resolved.sourcePlaylistId,
-            )
+            if (queue == null) return@transformOnPlayerLooper emptyMediaItemsWithStartPosition()
+            val result = queue.toMediaItemsWithStartPosition(pending?.persisted?.positionMs ?: C.TIME_UNSET)
+            if (isForPlayback) {
+                if (pending != null) {
+                    mediaSession.player.repeatMode = pending.persisted.repeatMode.toPlayerRepeatMode()
+                    mediaSession.player.shuffleModeEnabled = pending.persisted.shuffleEnabled
+                }
+                playbackManager.stageExternalQueue(
+                    songs = queue.queue,
+                    startIndex = result.startIndex,
+                    sourceLabel = queue.sourceLabel,
+                    sourcePlaylistId = queue.sourcePlaylistId,
+                )
+            }
+            result
         }
-        return Futures.immediateFuture(result)
     }
 
     override fun onMediaButtonEvent(
@@ -197,6 +222,28 @@ internal class ElovaireMediaLibrarySessionCallback(
         return items.subList(from.toInt(), to.toInt())
     }
 
+    private fun <T> submitRead(task: () -> T): ListenableFuture<T> {
+        return try {
+            readExecutor.submit(Callable(task))
+        } catch (_: RejectedExecutionException) {
+            Futures.immediateFailedFuture(IllegalStateException("Media library query executor is closed"))
+        }
+    }
+
+    private fun <T, R> transformOnPlayerLooper(
+        mediaSession: MediaSession,
+        source: ListenableFuture<T>,
+        transform: (T) -> R,
+    ): ListenableFuture<R> {
+        val playerHandler = android.os.Handler(mediaSession.player.applicationLooper)
+        val playerExecutor = Executor { command ->
+            if (!playerHandler.post(command)) {
+                source.cancel(false)
+            }
+        }
+        return Futures.transform(source, transform, playerExecutor)
+    }
+
     private fun invalidMediaIdError(): SessionError {
         return SessionError(SessionError.ERROR_BAD_VALUE, "This item is no longer available.")
     }
@@ -207,6 +254,36 @@ internal class ElovaireMediaLibrarySessionCallback(
             KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE,
             KeyEvent.KEYCODE_HEADSETHOOK,
         )
+    }
+}
+
+/** Bounded because Media3 can issue concurrent browser requests from multiple controllers. */
+internal class MediaLibraryReadExecutor private constructor(
+    private val delegate: ListeningExecutorService,
+) : AutoCloseable {
+    constructor() : this(MoreExecutors.newDirectExecutorService())
+
+    fun <T> submit(task: Callable<T>): ListenableFuture<T> = delegate.submit(task)
+
+    override fun close() {
+        delegate.shutdownNow().forEach { runnable ->
+            (runnable as? Future<*>)?.cancel(false)
+        }
+    }
+
+    companion object {
+        fun bounded(): MediaLibraryReadExecutor {
+            val executor = ThreadPoolExecutor(
+                1,
+                2,
+                30L,
+                TimeUnit.SECONDS,
+                ArrayBlockingQueue(32),
+                Executors.defaultThreadFactory(),
+                ThreadPoolExecutor.AbortPolicy(),
+            )
+            return MediaLibraryReadExecutor(MoreExecutors.listeningDecorator(executor))
+        }
     }
 }
 

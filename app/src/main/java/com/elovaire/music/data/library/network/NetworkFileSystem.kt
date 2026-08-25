@@ -1,6 +1,9 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
 import java.io.IOException
+import java.util.concurrent.Semaphore
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal sealed interface NetworkListingResult {
     val entries: List<NetworkFileEntry>
@@ -45,6 +48,8 @@ internal class NetworkFileSystemRegistry(
     private val fileSystems: Map<NetworkLibraryProtocol, NetworkFileSystem>,
     private val localNetworkAccessAllowed: () -> Boolean = { true },
 ) {
+    private val operationAdmission = NetworkOperationAdmission()
+
     fun source(sourceId: String): NetworkLibrarySource? = sourceStore.sources.value.firstOrNull { it.id == sourceId }
 
     fun sourceGeneration(sourceId: String): Long = sourceStore.generation(sourceId)
@@ -58,14 +63,18 @@ internal class NetworkFileSystemRegistry(
         if (!localNetworkAccessAllowed()) {
             return NetworkProbeResult(NetworkAvailability.LocalNetworkPermissionRequired)
         }
-        return fileSystems[source.protocol]?.probeBlocking(source, credentials)
-            ?: NetworkProbeResult(NetworkAvailability.Misconfigured, "Protocol is unavailable")
+        return operationAdmission.withBackground {
+            fileSystems[source.protocol]?.probeBlocking(source, credentials)
+                ?: NetworkProbeResult(NetworkAvailability.Misconfigured, "Protocol is unavailable")
+        }
     }
 
     fun listBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkListingResult {
         checkLocalNetworkAccess()
-        return fileSystems[source.protocol]?.listBlocking(source, credentials)
-            ?: throw IOException("Network protocol is unavailable")
+        return operationAdmission.withBackground {
+            fileSystems[source.protocol]?.listBlocking(source, credentials)
+                ?: throw IOException("Network protocol is unavailable")
+        }
     }
 
     fun openBlocking(
@@ -77,8 +86,28 @@ internal class NetworkFileSystemRegistry(
         checkLocalNetworkAccess()
         val source = source(sourceId) ?: throw IOException("Network library source is unavailable")
         val credentials = credentials(source) ?: throw IOException("Network library credentials are unavailable")
-        return fileSystems[source.protocol]?.openBlocking(source, credentials, path, position, length)
-            ?: throw IOException("Network protocol is unavailable")
+        val permit = operationAdmission.acquirePlayback()
+        var handedOff = false
+        return try {
+            val handle = fileSystems[source.protocol]?.openBlocking(source, credentials, path, position, length)
+                ?: throw IOException("Network protocol is unavailable")
+            val released = AtomicBoolean(false)
+            NetworkReadHandle(
+                input = handle.input,
+                length = handle.length,
+                closeHandle = {
+                    if (released.compareAndSet(false, true)) {
+                        try {
+                            handle.closeHandle()
+                        } finally {
+                            permit.release()
+                        }
+                    }
+                },
+            ).also { handedOff = true }
+        } finally {
+            if (!handedOff) permit.release()
+        }
     }
 
     fun invalidate(sourceId: String) {
@@ -91,5 +120,49 @@ internal class NetworkFileSystemRegistry(
 
     private fun checkLocalNetworkAccess() {
         if (!localNetworkAccessAllowed()) throw NetworkLocalNetworkPermissionException()
+    }
+}
+
+/** Reserves one slot for range reads so a directory crawl cannot consume all network capacity. */
+private class NetworkOperationAdmission(
+    backgroundCapacity: Int = 3,
+) {
+    private val background = Semaphore(backgroundCapacity, true)
+    private val playback = Semaphore(1, true)
+
+    fun <T> withBackground(block: () -> T): T {
+        acquire(background).use {
+            return block()
+        }
+    }
+
+    fun acquirePlayback(): Permit {
+        return acquire(playback)
+    }
+
+    private fun acquire(semaphore: Semaphore): Permit {
+        try {
+            if (!semaphore.tryAcquire(MAX_WAIT_MS, TimeUnit.MILLISECONDS)) {
+                throw IOException("Network operation capacity is temporarily exhausted")
+            }
+            return Permit(semaphore)
+        } catch (interrupted: InterruptedException) {
+            Thread.currentThread().interrupt()
+            throw IOException("Network operation admission interrupted", interrupted)
+        }
+    }
+
+    class Permit(private val semaphore: Semaphore) : AutoCloseable {
+        private val released = AtomicBoolean(false)
+
+        fun release() {
+            if (released.compareAndSet(false, true)) semaphore.release()
+        }
+
+        override fun close() = release()
+    }
+
+    private companion object {
+        const val MAX_WAIT_MS = 10_000L
     }
 }

@@ -88,16 +88,29 @@ internal class LibraryScanCoordinator(
                 enrichMetadata = enrichMetadata,
                 onProgress = onProgress,
             )
-            val safResults = safScanner.scanByTree(localScanner.safTreeSelections())
+            val configuredSafTrees = localScanner.safTreeSelections()
+            val configuredSafTreeIds = configuredSafTrees.mapNotNull { safTreeIdentity(it.uri) }.toSet()
+            val safSelections = if (refreshMediaPaths.isEmpty()) {
+                configuredSafTrees
+            } else {
+                configuredSafTrees.filter { selection ->
+                    shouldScanSafTreeForPaths(selection, refreshMediaPaths)
+                }
+            }
+            val safResults = safScanner.scanByTree(safSelections)
             val safSongs = safResults
                 .filterIsInstance<SafTreeScanResult.Complete>()
                 .flatMap(SafTreeScanResult.Complete::songs)
+            val scannedSafTreeIds = safResults
+                .mapNotNull { safTreeIdentity(it.selection.uri) }
             val failedSafTreeIds = safResults
                 .filter { it !is SafTreeScanResult.Complete }
                 .mapNotNull { safTreeIdentity(it.selection.uri) }
                 .toSet()
             val preservedSafSongs = baseSnapshot?.songs.orEmpty().filter { song ->
-                safTreeIdentity(song.uri) in failedSafTreeIds
+                val treeId = safTreeIdentity(song.uri)
+                treeId in failedSafTreeIds || treeId != null &&
+                    treeId in configuredSafTreeIds && treeId !in scannedSafTreeIds
             }
             LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
                 mediaStoreSongs = local.songs,
@@ -168,6 +181,20 @@ internal class LibraryScanCoordinator(
 
     val targetExistenceProbe: MediaTargetExistenceProbe
         get() = localScanner.targetExistenceProbe
+}
+
+internal fun shouldScanSafTreeForPaths(
+    selection: LibraryFolderSelection,
+    requestedPaths: Collection<String>,
+): Boolean {
+    val root = selection.path
+        .takeUnless(LibraryFolderSelectionResolver::isUriBackedPath)
+        ?.takeIf(String::isNotBlank)
+        ?: return false
+    return requestedPaths.any { requestedPath ->
+        val normalized = requestedPath.trim()
+        normalized.isNotBlank() && LibraryFolderSelectionResolver.isSameOrChildPath(normalized, root)
+    }
 }
 
 internal fun safTreeIdentity(uri: Uri?): String? {

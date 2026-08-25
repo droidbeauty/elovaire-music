@@ -525,22 +525,22 @@ internal class ElovaireMediaTree(
         val lastPlayedCollectionId: Long?,
         val libraryRevision: String = "",
     ) {
-        private val favoriteSongs by lazy(LazyThreadSafetyMode.NONE) { songs.filter { it.id in favoriteSongIds } }
-        private val favoriteSongsByTitle by lazy(LazyThreadSafetyMode.NONE) {
+        private val favoriteSongs by lazy(LazyThreadSafetyMode.PUBLICATION) { songs.filter { it.id in favoriteSongIds } }
+        private val favoriteSongsByTitle by lazy(LazyThreadSafetyMode.PUBLICATION) {
             favoriteSongs.sortedWith(songTitleComparator)
         }
-        private val songsByTitle by lazy(LazyThreadSafetyMode.NONE) { songs.sortedWith(songTitleComparator) }
-        private val albumsByTitle by lazy(LazyThreadSafetyMode.NONE) {
+        private val songsByTitle by lazy(LazyThreadSafetyMode.PUBLICATION) { songs.sortedWith(songTitleComparator) }
+        private val albumsByTitle by lazy(LazyThreadSafetyMode.PUBLICATION) {
             albums.sortedWith(
                 compareBy<Album>({ it.title.lowercase(Locale.ROOT) }, { it.title }, { it.id }),
             )
         }
-        private val nonEmptyPlaylistsByName by lazy(LazyThreadSafetyMode.NONE) {
+        private val nonEmptyPlaylistsByName by lazy(LazyThreadSafetyMode.PUBLICATION) {
             playlists.filter { it.songIds.isNotEmpty() }.sortedWith(
                 compareBy<Playlist>({ it.name.lowercase(Locale.ROOT) }, { it.name }, { it.id }),
             )
         }
-        private val recentlyAddedSongs by lazy(LazyThreadSafetyMode.NONE) {
+        private val recentlyAddedSongs by lazy(LazyThreadSafetyMode.PUBLICATION) {
             songs.sortedWith(
                 compareByDescending<Song> { it.dateAddedSeconds }
                     .thenBy { it.title.lowercase(Locale.ROOT) }
@@ -548,21 +548,21 @@ internal class ElovaireMediaTree(
                     .thenBy(Song::id),
             )
         }
-        private val artistNames by lazy(LazyThreadSafetyMode.NONE) {
+        private val artistNames by lazy(LazyThreadSafetyMode.PUBLICATION) {
             songs.map(Song::libraryArtistName).distinct().sortedBy { it.lowercase(Locale.ROOT) }
         }
-        private val genreNames by lazy(LazyThreadSafetyMode.NONE) {
+        private val genreNames by lazy(LazyThreadSafetyMode.PUBLICATION) {
             songs.map { it.genre.ifBlank { UNKNOWN_GENRE } }.distinct().sortedBy { it.lowercase(Locale.ROOT) }
         }
-        private val usefulGenres by lazy(LazyThreadSafetyMode.NONE) {
+        private val usefulGenres by lazy(LazyThreadSafetyMode.PUBLICATION) {
             songs.any { it.genre.isNotBlank() && it.genre != UNKNOWN_GENRE }
         }
-        private val songsById by lazy(LazyThreadSafetyMode.NONE) { songs.associateBy(Song::id) }
-        private val albumsById by lazy(LazyThreadSafetyMode.NONE) { albums.associateBy(Album::id) }
-        private val playlistsById by lazy(LazyThreadSafetyMode.NONE) { playlists.associateBy(Playlist::id) }
-        private val searchableSongs by lazy(LazyThreadSafetyMode.NONE) { songs.map(Song::toSearchableSong) }
-        private val searchableAlbums by lazy(LazyThreadSafetyMode.NONE) { albums.map(Album::toSearchableAlbum) }
-        private val searchablePlaylists by lazy(LazyThreadSafetyMode.NONE) {
+        private val songsById by lazy(LazyThreadSafetyMode.PUBLICATION) { songs.associateBy(Song::id) }
+        private val albumsById by lazy(LazyThreadSafetyMode.PUBLICATION) { albums.associateBy(Album::id) }
+        private val playlistsById by lazy(LazyThreadSafetyMode.PUBLICATION) { playlists.associateBy(Playlist::id) }
+        private val searchableSongs by lazy(LazyThreadSafetyMode.PUBLICATION) { songs.map(Song::toSearchableSong) }
+        private val searchableAlbums by lazy(LazyThreadSafetyMode.PUBLICATION) { albums.map(Album::toSearchableAlbum) }
+        private val searchablePlaylists by lazy(LazyThreadSafetyMode.PUBLICATION) {
             playlists
                 .filter { it.songIds.isNotEmpty() }
                 .map { playlist ->
@@ -574,16 +574,16 @@ internal class ElovaireMediaTree(
                     )
                 }
         }
-        private val songsByArtist by lazy(LazyThreadSafetyMode.NONE) {
+        private val songsByArtist by lazy(LazyThreadSafetyMode.PUBLICATION) {
             songs.groupBy { it.libraryArtistName().lowercase(Locale.ROOT) }
         }
-        private val songsByGenre by lazy(LazyThreadSafetyMode.NONE) {
+        private val songsByGenre by lazy(LazyThreadSafetyMode.PUBLICATION) {
             songs.groupBy { it.genre.ifBlank { UNKNOWN_GENRE }.lowercase(Locale.ROOT) }
         }
-        private val artistSearchRows by lazy(LazyThreadSafetyMode.NONE) {
+        private val artistSearchRows by lazy(LazyThreadSafetyMode.PUBLICATION) {
             artistNames.map { name -> NamedSongs(name = name, songs = songsForArtist(name)) }
         }
-        private val genreSearchRows by lazy(LazyThreadSafetyMode.NONE) {
+        private val genreSearchRows by lazy(LazyThreadSafetyMode.PUBLICATION) {
             genreNames.map { name -> NamedSongs(name = name, songs = songsForGenre(name)) }
         }
 
@@ -638,10 +638,12 @@ internal class ElovaireMediaTree(
 internal class MediaTreeSnapshotCache {
     private var snapshot: ElovaireMediaTree.MediaTreeSnapshot? = null
 
+    @Synchronized
     fun clear() {
         snapshot = null
     }
 
+    @Synchronized
     fun snapshot(
         permissionGranted: Boolean,
         songs: List<Song>,

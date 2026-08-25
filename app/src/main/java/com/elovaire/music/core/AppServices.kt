@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.content.Context
+import android.database.sqlite.SQLiteException
+import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
@@ -18,6 +20,8 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
 import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordinator
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationRuntime
+import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationJournal
+import elovaire.music.droidbeauty.app.data.library.network.recover
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
@@ -33,6 +37,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
+import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryReadExecutor
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
@@ -44,7 +49,11 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -62,6 +71,16 @@ internal class AppServices(
     private val playbackStarted = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
+    private val playbackScope = CoroutineScope(
+        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
+    )
+    private val libraryScope = CoroutineScope(
+        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
+    )
+    private val optionalScope = CoroutineScope(
+        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
+    )
+    private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
     val exitDiagnostics = AppExitDiagnostics(applicationContext)
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
@@ -72,6 +91,7 @@ internal class AppServices(
     )
     val preferenceStore = PreferenceStore(applicationContext, userDataStore)
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
+    private val networkSourceMutationJournal = NetworkSourceMutationJournal(applicationContext)
     private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
     private val networkInventoryStore = NetworkInventoryStore(applicationContext, database.libraryDao())
     private val networkCredentialStoreDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -82,7 +102,7 @@ internal class AppServices(
             sourceStore = networkSourceStore,
             credentialStore = networkCredentialStoreDelegate.value,
             fileSystems = mapOf(
-                NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(appScope),
+                NetworkLibraryProtocol.Smb to SmbNetworkFileSystem(optionalScope),
                 NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
             ),
             localNetworkAccessAllowed = { applicationContext.hasLocalNetworkPermission() },
@@ -107,6 +127,7 @@ internal class AppServices(
         credentialStoreProvider = { networkCredentialStoreDelegate.value },
         registryProvider = { networkFileSystemRegistryDelegate.value },
         inventoryStore = networkInventoryStore,
+        mutationJournal = networkSourceMutationJournal,
     )
     private val updateControllerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         val updatePreferences = allowStrictModeDiskReads {
@@ -114,7 +135,7 @@ internal class AppServices(
         }
         createUpdateController(
             context = applicationContext,
-            scope = appScope,
+            scope = optionalScope,
             preferences = updatePreferences,
             backgroundWorkPolicy = backgroundWorkPolicy,
         )
@@ -123,7 +144,7 @@ internal class AppServices(
     private val artistImageRepositoryDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         ArtistImageRepository(
             appContext = applicationContext,
-            scope = appScope,
+            scope = optionalScope,
         )
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
@@ -136,7 +157,7 @@ internal class AppServices(
     val playbackEffectsController = PlaybackEffectsController()
     val playbackManager = PlaybackManager(
         context = applicationContext,
-        scope = appScope,
+        scope = playbackScope,
         audioProcessorsProvider = playbackEffectsController::audioProcessors,
         hasSignalAlteringEffects = playbackEffectsController::hasSignalAlteringEffects,
         initialRecentSongIds = preferenceStore.recentSongIds.value,
@@ -158,7 +179,7 @@ internal class AppServices(
         ).also { scanner ->
             scanner.setNetworkSources(networkSourceStore.sources.value)
         },
-        scope = appScope,
+        scope = libraryScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
         libraryIndexStore = LibraryIndexStore(database.libraryDao()),
         onSongRelocations = { replacements ->
@@ -171,7 +192,7 @@ internal class AppServices(
         it.setLibraryFolders(preferenceStore.libraryFolders.value)
     }
     private val networkMutationRuntime = NetworkSourceMutationRuntime(
-        scope = appScope,
+        scope = optionalScope,
         coordinator = networkSourceCoordinator,
         onProbeResult = { sourceId, result ->
             _networkProbeResults.update { it + (sourceId to result) }
@@ -219,6 +240,7 @@ internal class AppServices(
                 browser = mediaTree,
                 commandResolver = mediaTree,
                 playbackManager = playbackManager,
+                readExecutor = mediaLibraryReadExecutor,
             ),
         )
     }
@@ -227,7 +249,22 @@ internal class AppServices(
         if (released.get() || !started.compareAndSet(false, true)) return
         startPlayback()
         updateController.start()
-        appScope.launch(Dispatchers.IO) {
+        optionalScope.launch(Dispatchers.IO) {
+            try {
+                networkSourceMutationJournal.recover(
+                    sourceStore = networkSourceStore,
+                    credentialStore = networkCredentialStoreDelegate.value,
+                    inventoryStore = networkInventoryStore,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: SQLiteException) {
+                Log.w(TAG, "Network source mutation recovery deferred", failure)
+            } catch (failure: IllegalStateException) {
+                Log.w(TAG, "Network source mutation recovery deferred", failure)
+            } catch (failure: SecurityException) {
+                Log.w(TAG, "Network source mutation recovery deferred", failure)
+            }
             val exitSnapshot = exitDiagnostics.inspect()
             backgroundWorkPolicy.setOptionalStartupSuppressed(exitSnapshot.suppressOptionalStartup)
             portableSettingsBackup.start()
@@ -253,14 +290,20 @@ internal class AppServices(
         started.set(false)
         playbackStarted.set(false)
         networkMutationRuntime.release()
+        optionalScope.cancel()
         playbackManager.release()
+        playbackScope.cancel()
         if (updateControllerDelegate.isInitialized()) updateController.release()
         if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.release()
         libraryRepository.release()
+        libraryScope.cancel()
         if (networkFileSystemRegistryDelegate.isInitialized()) {
             networkFileSystemRegistryDelegate.value.release()
         }
         preferenceStore.release(database::close)
         portableSettingsBackup.release()
+        mediaLibraryReadExecutor.close()
     }
 }
+
+private const val TAG = "ElovaireAppServices"

@@ -14,6 +14,7 @@ internal class NetworkSourceCoordinator(
     private val credentialStoreProvider: () -> NetworkCredentialStore,
     private val registryProvider: () -> NetworkFileSystemRegistry,
     private val inventoryStore: NetworkInventoryStore,
+    private val mutationJournal: NetworkSourceMutationJournal,
 ) {
     private val mutationLockRegistry = Any()
     private val mutationLocks = mutableMapOf<String, MutationLock>()
@@ -52,45 +53,66 @@ internal class NetworkSourceCoordinator(
         }
         val normalizedInput = sourceStore.normalized(source)
         val normalized = normalizedInput.copy(username = effectiveCredentials.username.trim())
+        mutationJournal.prepareSave(
+            sourceId = normalized.id,
+            previousCredentialKey = previousSource?.credentialKey,
+            newCredentialKey = normalized.credentialKey,
+            previousLocationFingerprint = previousSource?.let(NetworkSourceIdentity::locationFingerprint),
+            newLocationFingerprint = NetworkSourceIdentity.locationFingerprint(normalized),
+        )
         credentialStore.put(normalized.credentialKey, effectiveCredentials)
+        mutationJournal.markPhase(normalized.id, "credential_persisted")
         try {
             sourceStore.upsert(normalized)
         } catch (failure: RuntimeException) {
-            runCatching {
+            val rollbackComplete = runCatching {
                 if (previous != null && previousSource?.credentialKey == normalized.credentialKey) {
                     credentialStore.put(normalized.credentialKey, previous)
                 } else {
                     credentialStore.remove(normalized.credentialKey)
                 }
+            }.isSuccess
+            if (rollbackComplete) {
+                runCatching { mutationJournal.clear(normalized.id) }
             }
             throw failure
         }
+        mutationJournal.markPhase(normalized.id, "source_persisted")
         if (previousSource != null && previousSource.credentialKey != normalized.credentialKey) {
             credentialStore.remove(previousSource.credentialKey)
         }
+        mutationJournal.markPhase(normalized.id, "credentials_cleaned")
         if (previousSource != null && previousSource != normalized) {
             inventoryStore.remove(source.id)
         }
+        mutationJournal.markPhase(normalized.id, "inventory_invalidated")
         if (previousSource != normalized || previous != effectiveCredentials) {
             registryProvider().invalidate(source.id)
         }
-        NetworkSourceMutationOutcome(
+        val outcome = NetworkSourceMutationOutcome(
             probeResult = registryProvider().probeBlocking(normalized, effectiveCredentials),
             refreshRequired = previousSource != normalized || previous != effectiveCredentials,
         )
+        mutationJournal.clear(normalized.id)
+        outcome
     }
 
     suspend fun remove(source: NetworkLibrarySource) = withSourceLock(source.id) {
         val currentSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
+        mutationJournal.prepareRemove(currentSource ?: source)
         registryProvider().invalidate(source.id)
+        mutationJournal.markPhase(source.id, "runtime_invalidated")
         sourceStore.remove(source.id)
+        mutationJournal.markPhase(source.id, "source_removed")
         inventoryStore.remove(source.id)
+        mutationJournal.markPhase(source.id, "inventory_removed")
         credentialStoreProvider().apply {
             remove(source.credentialKey)
             if (currentSource != null && currentSource.credentialKey != source.credentialKey) {
                 remove(currentSource.credentialKey)
             }
         }
+        mutationJournal.clear(source.id)
     }
 
     private class MutationLock {

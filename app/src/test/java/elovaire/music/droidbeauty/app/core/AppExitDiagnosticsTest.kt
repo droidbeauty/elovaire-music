@@ -47,6 +47,24 @@ class AppExitDiagnosticsTest {
         assertFalse(shouldSuppressOptionalStartup(futureCrashes, now))
     }
 
+    @Test
+    fun recentResourcePressureEnablesTemporaryConservativeStartup() {
+        val now = 1_000_000L
+
+        assertTrue(
+            shouldSuppressOptionalStartup(
+                listOf(record(AppExitCategory.ResourcePressure, now - 1_000L)),
+                now,
+            ),
+        )
+        assertFalse(
+            shouldSuppressOptionalStartup(
+                listOf(record(AppExitCategory.ResourcePressure, now - 10L * 60L * 1_000L - 1L)),
+                now,
+            ),
+        )
+    }
+
     private fun record(category: AppExitCategory, timestampMs: Long) = AppExitRecord(
         reason = 0,
         status = 0,
