@@ -266,50 +266,66 @@ internal class AppServices(
         if (released.get() || !playbackStarted.compareAndSet(false, true)) return
         if (!durableStartupStarted.compareAndSet(false, true)) return
         optionalScope.launch(Dispatchers.IO) {
-            val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
-            val pendingSourceIds = networkSourceMutationJournal.pending()
-                .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
-            val blockedSourceIds = try {
-                withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
-                    networkSourceMutationJournal.recover(
-                        sourceStore = networkSourceStore,
-                        credentialStore = networkCredentialStoreDelegate.value,
-                        inventoryStore = networkInventoryStore,
-                    )
+            try {
+                val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
+                val pendingSourceIds = networkSourceMutationJournal.pending()
+                    .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
+                val blockedSourceIds = try {
+                    withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
+                        networkSourceMutationJournal.recover(
+                            sourceStore = networkSourceStore,
+                            credentialStore = networkCredentialStoreDelegate.value,
+                            inventoryStore = networkInventoryStore,
+                        )
+                    }
+                    emptySet()
+                } catch (_: TimeoutCancellationException) {
+                    pendingSourceIds
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: SQLiteException) {
+                    Log.w(TAG, "Network source mutation recovery deferred", failure)
+                    pendingSourceIds
+                } catch (failure: IllegalStateException) {
+                    Log.w(TAG, "Network source mutation recovery deferred", failure)
+                    pendingSourceIds
+                } catch (failure: SecurityException) {
+                    Log.w(TAG, "Network source mutation recovery deferred", failure)
+                    pendingSourceIds
+                } catch (failure: GeneralSecurityException) {
+                    Log.w(TAG, "Network source credential recovery deferred", failure)
+                    pendingSourceIds
+                } catch (failure: RuntimeException) {
+                    Log.e(TAG, "Network source mutation recovery failed", failure)
+                    pendingSourceIds
                 }
-                emptySet()
-            } catch (_: TimeoutCancellationException) {
-                pendingSourceIds
+                if (blockedSourceIds.isNotEmpty()) {
+                    libraryRepository.blockNetworkSources(blockedSourceIds)
+                }
+                libraryRepository.start()
+                libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
+                durableStartupReady.set(Unit)
+
+                try {
+                    val exitSnapshot = exitDiagnostics.inspect()
+                    backgroundWorkPolicy.setOptionalStartupSuppressed(
+                        exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
+                    )
+                    portableSettingsBackup.start()
+                    updateController.scheduleStartupMaintenance()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: Exception) {
+                    Log.w(TAG, "Optional startup work deferred after playback startup", failure)
+                    backgroundWorkPolicy.setOptionalStartupSuppressed(true)
+                }
             } catch (cancelled: CancellationException) {
+                durableStartupReady.cancel(false)
                 throw cancelled
-            } catch (failure: SQLiteException) {
-                Log.w(TAG, "Network source mutation recovery deferred", failure)
-                pendingSourceIds
-            } catch (failure: IllegalStateException) {
-                Log.w(TAG, "Network source mutation recovery deferred", failure)
-                pendingSourceIds
-            } catch (failure: SecurityException) {
-                Log.w(TAG, "Network source mutation recovery deferred", failure)
-                pendingSourceIds
-            } catch (failure: GeneralSecurityException) {
-                Log.w(TAG, "Network source credential recovery deferred", failure)
-                pendingSourceIds
-            } catch (failure: RuntimeException) {
-                Log.e(TAG, "Network source mutation recovery failed", failure)
-                pendingSourceIds
+            } catch (failure: Exception) {
+                Log.e(TAG, "Durable playback startup failed", failure)
+                durableStartupReady.setException(failure)
             }
-            if (blockedSourceIds.isNotEmpty()) {
-                libraryRepository.blockNetworkSources(blockedSourceIds)
-            }
-            libraryRepository.start()
-            libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
-            durableStartupReady.set(Unit)
-            val exitSnapshot = exitDiagnostics.inspect()
-            backgroundWorkPolicy.setOptionalStartupSuppressed(
-                exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
-            )
-            portableSettingsBackup.start()
-            updateController.scheduleStartupMaintenance()
         }
     }
 

@@ -14,6 +14,9 @@ import androidx.media3.session.SessionError
 import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
+import com.google.common.util.concurrent.ListeningExecutorService
+import com.google.common.util.concurrent.MoreExecutors
+import java.util.LinkedHashMap
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.Callable
 import java.util.concurrent.Executor
@@ -23,8 +26,6 @@ import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.ThreadPoolExecutor
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
-import com.google.common.util.concurrent.ListeningExecutorService
-import com.google.common.util.concurrent.MoreExecutors
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCommand
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCommandOrigin
@@ -90,9 +91,9 @@ internal class ElovaireMediaLibrarySessionCallback(
             return Futures.immediateFuture(LibraryResult.ofError(invalidMediaIdError()))
         }
         val count = submitRead {
-            searchResults.get(browser, query, this.browser.searchRevision()) {
-                this.browser.search(query, MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS)
-            }.size
+            searchResults.getCount(browser, query, this.browser.searchRevision()) {
+                this.browser.searchCount(query)
+            }
         }
         return transformOnPlayerLooper(session, count) { itemCount ->
             session.notifySearchResultChanged(browser, query, itemCount, params)
@@ -119,11 +120,17 @@ internal class ElovaireMediaLibrarySessionCallback(
             if (offset >= MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS) {
                 return@submitRead LibraryResult.ofItemList(ImmutableList.of(), params)
             }
-            val items = searchResults.get(controller, query, this.browser.searchRevision()) {
-                this.browser.search(query, MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS)
+            val items = searchResults.getPage(
+                controller = controller,
+                query = query,
+                revision = this.browser.searchRevision(),
+                offset = offset.toInt(),
+                limit = pageSize,
+            ) {
+                this.browser.searchPage(query, offset.toInt(), pageSize)
             }
             LibraryResult.ofItemList(
-                pageItems(items, page, pageSize),
+                ImmutableList.copyOf(items),
                 params,
             )
         }
@@ -251,17 +258,6 @@ internal class ElovaireMediaLibrarySessionCallback(
         }
     }
 
-    private fun pageItems(
-        items: List<MediaItem>,
-        page: Int,
-        pageSize: Int,
-    ): ImmutableList<MediaItem> {
-        val from = page.toLong() * pageSize.toLong()
-        if (from >= items.size) return ImmutableList.of()
-        val to = (from + pageSize.toLong()).coerceAtMost(items.size.toLong())
-        return ImmutableList.copyOf(items.subList(from.toInt(), to.toInt()))
-    }
-
     private fun <T, R> transformOnPlayerLooper(
         mediaSession: MediaSession,
         source: ListenableFuture<T>,
@@ -290,21 +286,43 @@ internal class ElovaireMediaLibrarySessionCallback(
 }
 
 private class MediaLibrarySearchCache {
-    private val entries = object : LinkedHashMap<SearchKey, List<MediaItem>>(8, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<SearchKey, List<MediaItem>>): Boolean {
-            return size > MAX_ENTRIES
-        }
+    private val counts = object : LinkedHashMap<SearchKey, Int>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<SearchKey, Int>): Boolean =
+            size > MAX_COUNT_ENTRIES
+    }
+    private val pages = object : LinkedHashMap<PageKey, List<MediaItem>>(16, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<PageKey, List<MediaItem>>): Boolean =
+            size > MAX_PAGE_ENTRIES
     }
 
-    @Synchronized
-    fun get(
+    fun getCount(
         controller: MediaSession.ControllerInfo,
         query: String,
         revision: String,
+        loader: () -> Int,
+    ): Int {
+        val key = SearchKey(controller, query, revision)
+        synchronized(this) { counts[key] }?.let { return it }
+        val loaded = loader()
+        synchronized(this) {
+            return counts[key] ?: loaded.also { counts[key] = it }
+        }
+    }
+
+    fun getPage(
+        controller: MediaSession.ControllerInfo,
+        query: String,
+        revision: String,
+        offset: Int,
+        limit: Int,
         loader: () -> List<MediaItem>,
     ): List<MediaItem> {
-        val key = SearchKey(controller, query, revision)
-        return entries[key] ?: loader().also { entries[key] = it }
+        val key = PageKey(controller, query, revision, offset, limit)
+        synchronized(this) { pages[key] }?.let { return it }
+        val loaded = loader().toList()
+        synchronized(this) {
+            return pages[key] ?: loaded.also { pages[key] = it }
+        }
     }
 
     private data class SearchKey(
@@ -313,8 +331,17 @@ private class MediaLibrarySearchCache {
         val revision: String,
     )
 
+    private data class PageKey(
+        val controller: MediaSession.ControllerInfo,
+        val query: String,
+        val revision: String,
+        val offset: Int,
+        val limit: Int,
+    )
+
     private companion object {
-        const val MAX_ENTRIES = 8
+        const val MAX_COUNT_ENTRIES = 8
+        const val MAX_PAGE_ENTRIES = 16
     }
 }
 

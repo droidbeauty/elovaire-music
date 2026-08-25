@@ -9,10 +9,30 @@ import org.junit.Test
 
 class AndroidApiCompatTest {
     @Test
+    fun supportedApiMatrix_isExplicitAndContiguous() {
+        val matrix = mapOf(
+            30 to "Android 11",
+            31 to "Android 12",
+            32 to "Android 12L",
+            33 to "Android 13",
+            34 to "Android 14",
+            35 to "Android 15",
+            36 to "Android 16",
+            37 to "Android 17",
+        )
+
+        assertEquals((30..37).toSet(), matrix.keys)
+        assertEquals("Android 11", matrix[30])
+        assertEquals("Android 17", matrix[37])
+    }
+
+    @Test
     fun requiredAudioPermission_matchesSupportedSdkRange() {
+        assertEquals(Manifest.permission.READ_EXTERNAL_STORAGE, requiredAudioPermission(30))
         assertEquals(Manifest.permission.READ_EXTERNAL_STORAGE, requiredAudioPermission(Build.VERSION_CODES.R))
         assertEquals(Manifest.permission.READ_EXTERNAL_STORAGE, requiredAudioPermission(Build.VERSION_CODES.S_V2))
         assertEquals(Manifest.permission.READ_MEDIA_AUDIO, requiredAudioPermission(Build.VERSION_CODES.TIRAMISU))
+        assertEquals(Manifest.permission.READ_MEDIA_AUDIO, requiredAudioPermission(Build.VERSION_CODES.TIRAMISU + 1))
         assertEquals(Manifest.permission.READ_MEDIA_AUDIO, requiredAudioPermission(37))
     }
 

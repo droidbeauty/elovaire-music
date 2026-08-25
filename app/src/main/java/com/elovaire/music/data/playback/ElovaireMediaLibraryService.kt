@@ -11,17 +11,26 @@ import elovaire.music.droidbeauty.app.ElovaireApp
 
 @OptIn(UnstableApi::class)
 class ElovaireMediaLibraryService : MediaLibraryService() {
+    private val mainHandler by lazy(LazyThreadSafetyMode.NONE) { Handler(mainLooper) }
+    private val mediaButtonStateCheck = Runnable {
+        val player = (application as ElovaireApp).container.playbackManager.playerInstance
+        if (!player.playWhenReady && !isPlaybackOngoing) {
+            pauseAllPlayersAndStopSelf()
+        }
+    }
+
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val result = super.onStartCommand(intent, flags, startId)
         if (intent?.action == Intent.ACTION_MEDIA_BUTTON) {
-            Handler(mainLooper).post {
-                val player = (application as ElovaireApp).container.playbackManager.playerInstance
-                if (!player.playWhenReady && !isPlaybackOngoing) {
-                    pauseAllPlayersAndStopSelf()
-                }
-            }
+            mainHandler.removeCallbacks(mediaButtonStateCheck)
+            mainHandler.post(mediaButtonStateCheck)
         }
         return result
+    }
+
+    override fun onDestroy() {
+        mainHandler.removeCallbacksAndMessages(null)
+        super.onDestroy()
     }
 
     override fun onGetSession(

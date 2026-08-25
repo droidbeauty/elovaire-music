@@ -21,8 +21,9 @@ class PersistenceMaintenanceWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
-        val database = ElovaireDatabase.create(applicationContext)
+        var database: ElovaireDatabase? = null
         return try {
+            database = ElovaireDatabase.create(applicationContext)
             val maintenance = PersistenceMaintenance(
                 database.persistenceMaintenanceDao(),
                 MediaMutationJournal(database.libraryDao()),
@@ -54,7 +55,7 @@ class PersistenceMaintenanceWorker(
                 Result.failure()
             }
         } finally {
-            database.close()
+            database?.close()
         }
     }
 

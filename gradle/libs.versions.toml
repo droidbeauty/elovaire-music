@@ -17,6 +17,7 @@ junit = "4.13.2"
 androidxTestJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
 androidxTestOrchestrator = "1.6.1"
+androidxTestEspresso = "3.7.0"
 androidxBenchmark = "1.4.1"
 androidxTestUiautomator = "2.4.0"
 detekt = "2.0.0-alpha.5"
@@ -63,6 +64,7 @@ junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "androidxTestJunit" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version.ref = "androidxTestRunner" }
 androidx-test-orchestrator = { group = "androidx.test", name = "orchestrator", version.ref = "androidxTestOrchestrator" }
+androidx-test-espresso = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "androidxTestEspresso" }
 androidx-benchmark-macro-junit4 = { group = "androidx.benchmark", name = "benchmark-macro-junit4", version.ref = "androidxBenchmark" }
 androidx-test-uiautomator = { group = "androidx.test.uiautomator", name = "uiautomator", version.ref = "androidxTestUiautomator" }
 androidx-tracing-ktx = { group = "androidx.tracing", name = "tracing-ktx", version.ref = "tracing" }

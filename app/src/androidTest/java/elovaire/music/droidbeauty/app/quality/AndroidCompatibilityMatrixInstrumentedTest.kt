@@ -12,6 +12,7 @@ import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -28,6 +29,32 @@ class AndroidCompatibilityMatrixInstrumentedTest {
     }
 
     @Test
+    fun compatibilitySnapshotContainsOnlyBoundedPlatformFacts() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val snapshot = context.platformCompatibilitySnapshot()
+
+        assertEquals(Build.VERSION.SDK_INT, snapshot.sdkInt)
+        assertEquals(37, snapshot.targetSdk)
+        assertTrue(snapshot.buildType == "debug" || snapshot.buildType == "release")
+        assertEquals(requiredAudioPermission(), snapshot.requiredAudioPermission)
+        assertTrue(
+            snapshot.audioPermissionState == PlatformPermissionState.Granted ||
+                snapshot.audioPermissionState == PlatformPermissionState.Denied,
+        )
+        assertEquals(
+            AndroidCapabilities.requiresLocalNetworkPermission(Build.VERSION.SDK_INT),
+            snapshot.localNetworkPermissionRequired,
+        )
+        assertEquals(PlatformNotificationState.MediaSessionExempt, snapshot.notificationState)
+        assertTrue(snapshot.safGrantCount >= 0)
+        assertTrue(snapshot.networkSourceCount == null || snapshot.networkSourceCount >= 0)
+        assertTrue(snapshot.externalVolumeCount == null || snapshot.externalVolumeCount >= 0)
+        assertTrue(snapshot.strictModeViolationCount >= 0)
+        assertTrue(snapshot.compatibilityChanges.size <= 16)
+        assertTrue(snapshot.resourceCounters.size <= 16)
+    }
+
+    @Test
     fun compatibilityMatrixIsExplicitAboutHardwareDependentCases() {
         val scenarios = listOf(
             CompatibilityScenario("media permissions", requiresHardware = false),
@@ -39,6 +66,14 @@ class AndroidCompatibilityMatrixInstrumentedTest {
 
         assertEquals(5, scenarios.size)
         assertEquals(2, scenarios.count(CompatibilityScenario::requiresHardware))
+    }
+
+    @Test
+    fun api37MessageQueueCompatibilityChangeIsReported() {
+        assumeTrue(Build.VERSION.SDK_INT >= 37)
+        val runner = PlatformCompatChangeRunner(InstrumentationRegistry.getInstrumentation())
+        val state = runner.dumpPlatformCompat()
+        assertTrue(state.contains("USE_NEW_MESSAGEQUEUE"))
     }
 
     @Test

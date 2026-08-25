@@ -354,9 +354,6 @@ internal class NetworkLibraryScanner(
         } catch (failure: SecurityException) {
             publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
             null
-        } catch (failure: NetworkLocalNetworkPermissionException) {
-            publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
-            null
         } catch (failure: IllegalStateException) {
             publishAvailability(source, sourceGeneration, credentials, failure.toProbeResult())
             null

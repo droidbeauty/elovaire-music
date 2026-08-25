@@ -1,12 +1,10 @@
 package elovaire.music.droidbeauty.app.data.playback
 
-import android.app.ForegroundServiceStartNotAllowedException
 import android.app.Notification
 import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
-import android.os.Build
 import android.util.Log
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -42,11 +40,7 @@ class PlaybackKeepAliveService : Service() {
                     }.onFailure { throwable ->
                         logStartFailure("Unable to promote playback service to foreground", throwable)
                         clearRunningState()
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && throwable is ForegroundServiceStartNotAllowedException) {
-                            stopSelf()
-                        } else {
-                            stopSelf()
-                        }
+                        stopSelf()
                     }
                 } else {
                     stopSelf()
