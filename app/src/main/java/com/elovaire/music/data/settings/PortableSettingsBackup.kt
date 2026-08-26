@@ -73,8 +73,12 @@ internal class PortableSettingsBackup(
         if (started.compareAndSet(true, false)) {
             source.unregisterOnSharedPreferenceChangeListener(this)
         }
-        mirrorJob?.invokeOnCompletion { mirrorScope.cancel() }
-        if (mirrorJob == null) mirrorScope.cancel()
+        synchronized(mirrorLock) {
+            mirrorRequested = false
+            mirrorJob?.cancel()
+            mirrorJob = null
+        }
+        mirrorScope.cancel()
     }
 
     @Suppress("UNUSED_PARAMETER")

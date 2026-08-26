@@ -10,6 +10,7 @@ import java.security.GeneralSecurityException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Owns the lifetime and stale-result handling for asynchronous source mutations. */
+@Suppress("TooGenericExceptionCaught")
 internal class NetworkSourceMutationRuntime(
     private val scope: CoroutineScope,
     private val coordinator: NetworkSourceCoordinator,
@@ -43,6 +44,8 @@ internal class NetworkSourceMutationRuntime(
                 recordFailure(source.id, token, failure)
             } catch (failure: IllegalStateException) {
                 recordFailure(source.id, token, failure)
+            } catch (failure: Exception) {
+                recordFailure(source.id, token, failure)
             } finally {
                 clearToken(source.id, token)
             }
@@ -69,6 +72,8 @@ internal class NetworkSourceMutationRuntime(
             } catch (failure: IllegalArgumentException) {
                 recordFailure(source.id, token, failure)
             } catch (failure: IllegalStateException) {
+                recordFailure(source.id, token, failure)
+            } catch (failure: Exception) {
                 recordFailure(source.id, token, failure)
             } finally {
                 clearToken(source.id, token)

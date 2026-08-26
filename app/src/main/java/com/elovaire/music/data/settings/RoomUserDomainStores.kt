@@ -55,6 +55,15 @@ internal class RoomPlaybackHistoryStore(
         }
     }
 
+    fun schedulePendingWrites() {
+        if (writeBuffer.scheduleCountsIfNeeded()) {
+            enqueue("playback.counts", ::flushPlaybackCounts)
+        }
+        if (writeBuffer.scheduleRecentIfNeeded()) {
+            enqueue("playback.recent", ::flushRecentPlayback)
+        }
+    }
+
     fun publish(
         songCounts: Map<Long, Int>,
         albumCounts: Map<Long, Int>,
@@ -209,6 +218,12 @@ internal class PlaybackHistoryWriteBuffer {
     }
 
     @Synchronized
+    fun scheduleCountsIfNeeded(): Boolean {
+        if (songCounts.isEmpty() && albumCounts.isEmpty()) return false
+        return if (countFlushScheduled) false else true.also { countFlushScheduled = it }
+    }
+
+    @Synchronized
     fun setRecent(value: RecentPlaybackWrite): Boolean {
         recent = value
         return if (recentFlushScheduled) false else true.also { recentFlushScheduled = it }
@@ -226,6 +241,12 @@ internal class PlaybackHistoryWriteBuffer {
     fun restoreRecent(value: RecentPlaybackWrite) {
         recent = value
         recentFlushScheduled = false
+    }
+
+    @Synchronized
+    fun scheduleRecentIfNeeded(): Boolean {
+        if (recent == null) return false
+        return if (recentFlushScheduled) false else true.also { recentFlushScheduled = it }
     }
 
     @Synchronized
@@ -274,48 +295,74 @@ internal class RoomSearchHistoryStore(
     override val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
     private val pendingLock = Any()
     private var pendingHistory: List<SearchHistoryEntry>? = null
+    private var pendingWriteScheduled = false
 
     override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
         val normalized = entry.normalized() ?: return
-        synchronized(pendingLock) {
+        val shouldSchedule = synchronized(pendingLock) {
             val base = pendingHistory ?: _searchHistory.value
             pendingHistory = historyAfterAdding(base, normalized)
+            if (pendingWriteScheduled) false else true.also { pendingWriteScheduled = it }
         }
-        enqueue("search_history", ::persistPendingSearchHistory)
+        if (shouldSchedule) enqueue("search_history", ::persistPendingSearchHistory)
     }
 
     override fun clearSearchHistoryEntries() {
-        synchronized(pendingLock) {
+        val shouldSchedule = synchronized(pendingLock) {
             pendingHistory = emptyList()
+            if (pendingWriteScheduled) false else true.also { pendingWriteScheduled = it }
         }
-        enqueue("search_history", ::persistPendingSearchHistory)
+        if (shouldSchedule) enqueue("search_history", ::persistPendingSearchHistory)
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun persistPendingSearchHistory() {
-        while (true) {
-            val desired = synchronized(pendingLock) {
-                pendingHistory ?: return
-            }
-            if (desired != _searchHistory.value) {
-                if (desired.isEmpty()) {
-                    dao.clearSearchHistory()
-                } else {
-                    dao.replaceSearchHistory(desired.mapIndexed { index, item -> item.toEntity(index) })
+        try {
+            while (true) {
+                val desired = synchronized(pendingLock) {
+                    pendingHistory ?: return
                 }
-                _searchHistory.value = desired
-            }
-            synchronized(pendingLock) {
-                if (pendingHistory == desired) {
-                    pendingHistory = null
-                    return
+                if (desired != _searchHistory.value) {
+                    if (desired.isEmpty()) {
+                        dao.clearSearchHistory()
+                    } else {
+                        dao.replaceSearchHistory(desired.mapIndexed { index, item -> item.toEntity(index) })
+                    }
+                    _searchHistory.value = desired
                 }
+                synchronized(pendingLock) {
+                    if (pendingHistory == desired) {
+                        pendingHistory = null
+                        pendingWriteScheduled = false
+                        return
+                    }
+                }
+            }
+        } catch (failure: CancellationException) {
+            synchronized(pendingLock) { pendingWriteScheduled = false }
+            throw failure
+        } catch (failure: RuntimeException) {
+            synchronized(pendingLock) { pendingWriteScheduled = false }
+            throw failure
+        }
+    }
+
+    fun schedulePendingWrite() {
+        val shouldSchedule = synchronized(pendingLock) {
+            if (pendingHistory == null || pendingWriteScheduled) {
+                false
+            } else {
+                pendingWriteScheduled = true
+                true
             }
         }
+        if (shouldSchedule) enqueue("search_history", ::persistPendingSearchHistory)
     }
 
     fun publish(entries: List<SearchHistoryEntry>) {
         synchronized(pendingLock) {
             pendingHistory = null
+            pendingWriteScheduled = false
         }
         _searchHistory.value = entries
     }

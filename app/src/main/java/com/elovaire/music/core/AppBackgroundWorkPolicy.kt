@@ -66,6 +66,7 @@ internal class AppBackgroundWorkPolicy(
 ) {
     private val optionalStartupSuppressed = AtomicBoolean(false)
     private val interactionOwners = AtomicInteger(0)
+    private val interactionLock = Any()
     private val _interactionCritical = MutableStateFlow(false)
     val interactionCritical: StateFlow<Boolean> = _interactionCritical.asStateFlow()
 
@@ -102,18 +103,16 @@ internal class AppBackgroundWorkPolicy(
         !isForeground.value || interactionCritical.value
 
     fun acquireInteractionCritical(): Closeable {
-        interactionOwners.incrementAndGet()
-        _interactionCritical.value = true
+        synchronized(interactionLock) {
+            interactionOwners.incrementAndGet()
+            _interactionCritical.value = true
+        }
         val released = AtomicBoolean(false)
         return Closeable {
             if (!released.compareAndSet(false, true)) return@Closeable
-            while (true) {
-                val current = interactionOwners.get()
-                if (current <= 0) return@Closeable
-                if (interactionOwners.compareAndSet(current, current - 1)) {
-                    if (current == 1) _interactionCritical.value = false
-                    return@Closeable
-                }
+            synchronized(interactionLock) {
+                if (interactionOwners.get() <= 0) return@Closeable
+                _interactionCritical.value = interactionOwners.decrementAndGet() > 0
             }
         }
     }

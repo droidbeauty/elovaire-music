@@ -255,10 +255,18 @@ internal class AppServices(
         )
     }
 
+    @Suppress("TooGenericExceptionCaught")
     fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
         startPlayback()
-        updateController.start()
+        try {
+            updateController.start()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: RuntimeException) {
+            backgroundWorkPolicy.setOptionalStartupSuppressed(true)
+            Log.w(TAG, "Optional update service could not start", failure)
+        }
     }
 
     @Suppress("TooGenericExceptionCaught")

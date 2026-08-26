@@ -7,6 +7,7 @@
       3. Add newer releases above older ones.
     -->
     <release version="2.8">
+        <item>Cross compatibility upgrades for supported Android versions</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

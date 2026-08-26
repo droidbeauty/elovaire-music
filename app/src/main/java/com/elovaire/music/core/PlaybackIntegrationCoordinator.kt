@@ -171,6 +171,10 @@ internal class PlaybackIntegrationCoordinator(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         persistSession()
+        if (!sessionWriterJob.isActive) {
+            sessionWriterScope.cancel()
+            return
+        }
         sessionWrites.close()
         sessionWriterJob.invokeOnCompletion { sessionWriterScope.cancel() }
     }

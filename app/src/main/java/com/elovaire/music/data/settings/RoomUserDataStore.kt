@@ -137,7 +137,10 @@ internal class RoomUserDataStore(
             }
             _userDataReadiness.value = UserDataReadiness.Ready
             for (operation in operations) {
-                queueDepth.decrementAndGet()
+                synchronized(submissionLock) {
+                    // Keep queue accounting atomic with the sender's trySend bookkeeping.
+                    queueDepth.decrementAndGet()
+                }
                 runOperation(operation)
                 promoteCoalescedOperation()
             }
@@ -436,7 +439,9 @@ internal class RoomUserDataStore(
         }
 
     override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
-        playbackHistoryStore.recordPlaybackTransition(songId, albumId)
+        synchronized(submissionLock) {
+            playbackHistoryStore.recordPlaybackTransition(songId, albumId)
+        }
     }
 
     override fun setRecentPlaybackIds(
@@ -445,26 +450,34 @@ internal class RoomUserDataStore(
         lastPlayedCollectionKind: PlaybackCollectionKind?,
         lastPlayedCollectionId: Long?,
     ) {
-        playbackHistoryStore.setRecentPlaybackIds(
-            songIds,
-            albumIds,
-            lastPlayedCollectionKind,
-            lastPlayedCollectionId,
-        )
+        synchronized(submissionLock) {
+            playbackHistoryStore.setRecentPlaybackIds(
+                songIds,
+                albumIds,
+                lastPlayedCollectionKind,
+                lastPlayedCollectionId,
+            )
+        }
     }
 
     override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
-        searchHistoryStore.addSearchHistoryEntry(entry)
+        synchronized(submissionLock) {
+            searchHistoryStore.addSearchHistoryEntry(entry)
+        }
     }
 
     override fun clearSearchHistoryEntries() {
-        searchHistoryStore.clearSearchHistoryEntries()
+        synchronized(submissionLock) {
+            searchHistoryStore.clearSearchHistoryEntries()
+        }
     }
 
     fun release(onDrained: () -> Unit = {}) {
-        if (!released.compareAndSet(false, true)) return
-        lifecycle.set(StoreLifecycle.Releasing)
         synchronized(submissionLock) {
+            if (released.get()) return
+            schedulePendingCoalescedWrites()
+            released.set(true)
+            lifecycle.set(StoreLifecycle.Releasing)
             promoteCoalescedOperationLocked()
             closeOperationsIfDrainedLocked()
         }
@@ -716,10 +729,18 @@ internal class RoomUserDataStore(
         tryEnqueue(RoomOperation(name, operation), coalescible = true)
     }
 
+    private fun schedulePendingCoalescedWrites() {
+        synchronized(submissionLock) {
+            playbackHistoryStore.schedulePendingWrites()
+            searchHistoryStore.schedulePendingWrite()
+        }
+    }
+
     private fun enqueueMutation(
         name: String,
         operation: suspend () -> PlaylistMutationResult,
     ): Deferred<PlaylistMutationResult> {
+        schedulePendingCoalescedWrites()
         val completion = CompletableDeferred<PlaylistMutationResult>()
         val accepted = tryEnqueue(
             RoomOperation(

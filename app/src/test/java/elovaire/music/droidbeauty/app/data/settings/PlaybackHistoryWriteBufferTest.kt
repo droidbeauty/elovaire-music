@@ -57,6 +57,17 @@ class PlaybackHistoryWriteBufferTest {
     }
 
     @Test
+    fun restoredCountsCanBeScheduledAgainWithoutAddingAnotherTransition() {
+        val buffer = PlaybackHistoryWriteBuffer()
+        assertTrue(buffer.addTransition(songId = 1L, albumId = null))
+        val batch = buffer.takeTransitions()
+        buffer.restoreTransitions(batch)
+
+        assertTrue(buffer.scheduleCountsIfNeeded())
+        assertFalse(buffer.scheduleCountsIfNeeded())
+    }
+
+    @Test
     fun failedRecentFlushCanRestoreTheLatestSnapshot() {
         val buffer = PlaybackHistoryWriteBuffer()
         val pending = RecentPlaybackWrite(listOf(1L), listOf(10L), PlaybackCollectionKind.Album, 10L)
@@ -67,6 +78,18 @@ class PlaybackHistoryWriteBufferTest {
 
         assertTrue(buffer.setRecent(pending))
         assertEquals(pending, buffer.takeRecent())
+    }
+
+    @Test
+    fun restoredRecentSnapshotCanBeScheduledAgainWithoutAnotherUpdate() {
+        val buffer = PlaybackHistoryWriteBuffer()
+        val pending = RecentPlaybackWrite(listOf(1L), emptyList(), null, null)
+        assertTrue(buffer.setRecent(pending))
+        assertEquals(pending, buffer.takeRecent())
+        buffer.restoreRecent(pending)
+
+        assertTrue(buffer.scheduleRecentIfNeeded())
+        assertFalse(buffer.scheduleRecentIfNeeded())
     }
 
     @Test
