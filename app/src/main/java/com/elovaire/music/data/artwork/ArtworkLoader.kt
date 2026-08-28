@@ -11,6 +11,9 @@ import android.util.LruCache
 import android.util.Size
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import java.io.ByteArrayOutputStream
 import java.io.FileInputStream
@@ -95,21 +98,23 @@ internal fun loadArtworkBitmap(
     val size = normalizeArtworkRequestSize(targetPx)
     val key = artworkRequestKey(requestUri, size, purpose)
     val decode = {
-        val targetSize = ImageTargetSize(size, size)
-        val bitmap = if (shouldUseContentResolverThumbnail(requestUri, purpose)) {
-            runCatching {
-                context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
-            }.getOrNull()
-        } else {
-            null
-        }
-        bitmap
-            ?: if (isLikelyAudioMediaUri(requestUri)) {
-                null
+        ElovaireTrace.section("artwork_decode") {
+            val targetSize = ImageTargetSize(size, size)
+            val bitmap = if (shouldUseContentResolverThumbnail(requestUri, purpose)) {
+                runCatching {
+                    context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
+                }.getOrNull()
             } else {
-                decodeBitmapStream(context, requestUri, targetSize, purpose)
+                null
             }
-            ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
+            bitmap
+                ?: if (isLikelyAudioMediaUri(requestUri)) {
+                    null
+                } else {
+                    decodeBitmapStream(context, requestUri, targetSize, purpose)
+                }
+                ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
+        }
     }
     return key?.let { ArtworkBitmapCache.getOrLoad(it.cacheKey, decode) } ?: decode()
 }
@@ -173,16 +178,18 @@ private fun decodeBitmapStream(
 }
 
 private fun downloadRemoteArtwork(uri: Uri): ByteArray? {
-    val response = runCatching {
-        BoundedHttpTransport(
-            connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
-            readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
-        ).getBlocking(
-            rawUrl = uri.toString(),
-            headers = mapOf("Accept" to "image/*"),
-            maxBytes = MAX_REMOTE_ARTWORK_BYTES,
-        )
-    }.getOrNull() ?: return null
+    val response = ElovaireTrace.section("artwork_remote_fetch") {
+        runCatching {
+            BoundedHttpTransport(
+                connectTimeoutMs = REMOTE_ARTWORK_CONNECT_TIMEOUT_MS,
+                readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
+            ).getBlocking(
+                rawUrl = uri.toString(),
+                headers = mapOf("Accept" to "image/*"),
+                maxBytes = MAX_REMOTE_ARTWORK_BYTES,
+            )
+        }.getOrNull()
+    } ?: return null
     return response.body.takeIf { response.statusCode in 200..299 && it.isNotEmpty() }
 }
 
@@ -202,6 +209,7 @@ private fun decodeEmbeddedArtwork(
 ): Bitmap? {
     return runCatching {
         val retriever = MediaMetadataRetriever()
+        val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
         try {
             retriever.setDataSource(context, uri)
             val bytes = retriever.embeddedPicture ?: return null
@@ -213,6 +221,7 @@ private fun decodeEmbeddedArtwork(
             BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
         } finally {
             runCatching { retriever.release() }
+            resource.close()
         }
     }.getOrNull()
 }

@@ -32,6 +32,8 @@ import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeActiveRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackFailureClassifier
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -49,6 +51,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.io.Closeable
 import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.ceil
@@ -232,6 +235,7 @@ class PlaybackManager(
     private var crossfadeSilenceThresholdDb = CrossfadeSilencePolicy.BASE_LEVEL_DB
     private var volumeNormalizationEnabled = false
     private var outputCapabilities = AudioOutputCapabilitySnapshot.Unknown
+    private val playerResourceLeases = IdentityHashMap<ExoPlayer, Closeable>()
     private var player = createPlayer(enableSignalProcessing = true)
     private val playerGenerationGate = PlaybackPlayerGenerationGate<ExoPlayer>()
     private val playerObserverBindings = IdentityHashMap<ExoPlayer, Player.Listener>()
@@ -241,6 +245,7 @@ class PlaybackManager(
         scope = scope,
         cueAnalyzer = crossfadeCueAnalyzer,
         createPlayer = { createPlayer(enableSignalProcessing = true) },
+        releasePlayer = ::releasePlayer,
         onPromote = { outgoing, incoming -> promoteCrossfadePlayer(outgoing, incoming) },
         onFailed = { scheduleStatePublish() },
     )
@@ -589,6 +594,7 @@ class PlaybackManager(
 
     private val playerSwitcher = PlaybackPlayerSwitcher(
         createPlayer = ::createPlayer,
+        releasePlayer = ::releasePlayer,
         attachPlayerObservers = ::attachPlayerObservers,
         detachPlayerObservers = ::detachPlayerObservers,
         onPlayerReplaced = { replacementPlayer ->
@@ -808,7 +814,14 @@ class PlaybackManager(
     }
 
     private fun createPlayer(enableSignalProcessing: Boolean): ExoPlayer {
-        return playerFactory.create(enableSignalProcessing)
+        return playerFactory.create(enableSignalProcessing).also { created ->
+            playerResourceLeases[created] = BackendResourceRegistry.acquire(BackendResourceKind.ActivePlayer)
+        }
+    }
+
+    private fun releasePlayer(target: ExoPlayer) {
+        playerResourceLeases.remove(target)?.close()
+        runCatching { target.release() }
     }
 
     private fun currentOffloadPolicy(): PlaybackOffloadPolicy {
@@ -1167,7 +1180,7 @@ class PlaybackManager(
         runtimeResources.release()
         detachPlayerObservers(player)
         sessionOwner.release()
-        player.release()
+        releasePlayer(player)
     }
 
     private fun scheduleAudioPathReevaluation(
@@ -1486,7 +1499,7 @@ class PlaybackManager(
         incoming: ExoPlayer,
     ) {
         if (released.get() || outgoing !== player) {
-            incoming.release()
+            releasePlayer(incoming)
             return
         }
         detachPlayerObservers(outgoing)
@@ -1501,7 +1514,7 @@ class PlaybackManager(
         )
         sessionOwner.setPlayer(commandGatewayPlayer)
         _playerInstanceVersion.value += 1L
-        outgoing.release()
+        releasePlayer(outgoing)
         sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
         updateState()
         incoming.volume = targetPlayerOutputGain()

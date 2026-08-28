@@ -5,7 +5,9 @@ import android.database.sqlite.SQLiteException
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryScanCoordinator
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.SafTreeLibraryScanner
@@ -26,6 +28,8 @@ import elovaire.music.droidbeauty.app.data.library.network.recover
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.playback.NetworkDataSourceFactory
 import androidx.media3.datasource.DefaultDataSource
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
@@ -44,12 +48,16 @@ import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
+import elovaire.music.droidbeauty.app.data.settings.PortableUserDataBackup
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
+import elovaire.music.droidbeauty.app.data.settings.UserDataSnapshot
+import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
 import elovaire.music.droidbeauty.app.data.settings.UserDataRecoverySnapshot
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
+import elovaire.music.droidbeauty.app.domain.model.Song
 import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CancellationException
@@ -63,6 +71,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicBoolean
 import java.security.GeneralSecurityException
@@ -89,10 +98,12 @@ internal class AppServices(
     private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
     private val durableStartupStarted = AtomicBoolean(false)
     private val durableStartupReady = SettableFuture.create<Unit>()
+    private var portableUserDataBackupJob: Job? = null
     private val exitDiagnosticsDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         AppExitDiagnostics(applicationContext)
     }
     private val database = ElovaireDatabase.create(applicationContext)
+    private val databaseResource = BackendResourceRegistry.acquire(BackendResourceKind.DatabaseInstance)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
@@ -100,6 +111,7 @@ internal class AppServices(
         recoverySnapshot = UserDataRecoverySnapshot(applicationContext),
         ownerScope = appScope,
     )
+    private val portableUserDataBackup = PortableUserDataBackup(applicationContext)
     val preferenceStore = PreferenceStore(applicationContext, userDataStore, ownerScope = appScope)
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
     private val networkSourceMutationJournal = NetworkSourceMutationJournal(applicationContext)
@@ -276,6 +288,7 @@ internal class AppServices(
     fun startPlayback() {
         if (released.get() || !playbackStarted.compareAndSet(false, true)) return
         if (!durableStartupStarted.compareAndSet(false, true)) return
+        startPortableUserDataBackup()
         optionalScope.launch(Dispatchers.IO) {
             try {
                 val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
@@ -340,6 +353,89 @@ internal class AppServices(
         }
     }
 
+    private fun startPortableUserDataBackup() {
+        if (portableUserDataBackupJob?.isActive == true) return
+        portableUserDataBackupJob = appScope.launch {
+            var restoreChecked = false
+            kotlinx.coroutines.flow.combine(
+                userDataStore.userDataSnapshot,
+                userDataStore.userDataReadiness,
+                libraryRepository.contentState,
+                libraryRepository.scanState,
+            ) { snapshot, readiness, content, scan ->
+                PortableUserDataBackupState(snapshot, readiness, content.songs, scan)
+            }.collect { state ->
+                if (
+                    state.readiness != UserDataReadiness.Ready ||
+                    !state.scan.isAuthoritative ||
+                    !state.scan.permissionGranted
+                ) return@collect
+                if (!restoreChecked) {
+                    val encoded = withContext(Dispatchers.IO) { portableUserDataBackup.readBytes() }
+                    val backupContainsSongReferences = encoded?.let {
+                        withContext(Dispatchers.IO) { it.containsPortableSongReferences() }
+                    } == true
+                    if (encoded != null && state.songs.isEmpty() && backupContainsSongReferences) {
+                        return@collect
+                    }
+                    if (encoded != null && !state.snapshot.hasPortableUserData()) {
+                        when (userDataStore.restorePortableUserData(encoded, state.songs).await()) {
+                            is PlaylistMutationResult.Success -> {
+                                restoreChecked = true
+                                return@collect
+                            }
+                            else -> return@collect
+                        }
+                    }
+                    restoreChecked = true
+                }
+                if (state.songs.isEmpty() && state.snapshot.hasPortableSongReferences()) return@collect
+                try {
+                    withContext(Dispatchers.IO) {
+                        portableUserDataBackup.write(state.snapshot, state.songs)
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: java.io.IOException) {
+                    Log.w(TAG, "Portable user-data backup deferred", failure)
+                } catch (failure: SecurityException) {
+                    Log.w(TAG, "Portable user-data backup deferred", failure)
+                } catch (failure: IllegalArgumentException) {
+                    Log.w(TAG, "Portable user-data backup deferred", failure)
+                } catch (failure: IllegalStateException) {
+                    Log.w(TAG, "Portable user-data backup deferred", failure)
+                }
+            }
+        }
+    }
+
+    internal fun exportPortableUserData(): ByteArray {
+        check(userDataStore.userDataReadiness.value == UserDataReadiness.Ready) {
+            "User data is not ready for export."
+        }
+        check(libraryRepository.scanState.value.isAuthoritative) {
+            "The library is not ready for portable user-data export."
+        }
+        return elovaire.music.droidbeauty.app.data.settings.encodePortableUserData(
+            snapshot = userDataStore.userDataSnapshot.value,
+            songs = libraryRepository.contentState.value.songs,
+            createdAtMs = AndroidAppClock.wallTimeMs(),
+            appVersion = BuildConfig.VERSION_NAME,
+        )
+    }
+
+    internal fun importPortableUserData(bytes: ByteArray): kotlinx.coroutines.Deferred<PlaylistMutationResult> {
+        if (
+            userDataStore.userDataReadiness.value != UserDataReadiness.Ready ||
+            !libraryRepository.scanState.value.isAuthoritative
+        ) {
+            return kotlinx.coroutines.CompletableDeferred(
+                PlaylistMutationResult.Failure("The library is not ready for portable user-data import."),
+            )
+        }
+        return userDataStore.restorePortableUserData(bytes, libraryRepository.contentState.value.songs)
+    }
+
     @Suppress("TooGenericExceptionCaught")
     private suspend fun recoverCriticalMediaMutations(): Boolean {
         return try {
@@ -376,6 +472,8 @@ internal class AppServices(
         playbackStarted.set(false)
         networkMutationRuntime.release()
         optionalScope.cancel()
+        portableUserDataBackupJob?.cancel()
+        portableUserDataBackupJob = null
         playbackManager.release()
         playbackScope.cancel()
         if (updateControllerDelegate.isInitialized()) updateController.release()
@@ -385,7 +483,10 @@ internal class AppServices(
         if (networkFileSystemRegistryDelegate.isInitialized()) {
             networkFileSystemRegistryDelegate.value.release()
         }
-        preferenceStore.release(database::close)
+        preferenceStore.release {
+            database.close()
+            databaseResource.close()
+        }
         portableSettingsBackup.release()
         mediaLibraryReadExecutor.close()
         durableStartupReady.cancel(false)
@@ -394,3 +495,33 @@ internal class AppServices(
 
 private const val DURABLE_RECOVERY_TIMEOUT_MS = 15_000L
 private const val TAG = "ElovaireAppServices"
+
+private data class PortableUserDataBackupState(
+    val snapshot: UserDataSnapshot,
+    val readiness: UserDataReadiness,
+    val songs: List<Song>,
+    val scan: LibraryScanState,
+)
+
+private fun UserDataSnapshot.hasPortableUserData(): Boolean {
+    return playlists.isNotEmpty() || smartPlaylists.isNotEmpty() || hasPortableSongReferences()
+}
+
+private fun UserDataSnapshot.hasPortableSongReferences(): Boolean {
+    return playlists.any { it.songIds.isNotEmpty() } ||
+        favoriteSongIds.isNotEmpty() ||
+        songPlayCounts.isNotEmpty() ||
+        recentSongIds.isNotEmpty()
+}
+
+private fun ByteArray.containsPortableSongReferences(): Boolean {
+    return runCatching {
+        val data = elovaire.music.droidbeauty.app.data.settings.decodePortableUserData(this)
+        data?.let { payload ->
+            payload.playlists.any { it.songs.isNotEmpty() } ||
+                payload.favoriteSongs.isNotEmpty() ||
+                payload.songPlayCounts.isNotEmpty() ||
+                payload.recentSongs.isNotEmpty()
+        } == true
+    }.getOrDefault(false)
+}

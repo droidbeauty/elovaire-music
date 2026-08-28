@@ -11,6 +11,8 @@ import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.core.backend.BackendEvent
 import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
@@ -351,6 +353,7 @@ class LibraryRepository internal constructor(
             _scanState.update { it.copy(errorMessage = null) }
         }
         scanJob = scope.launch {
+            val scanResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveScan)
             val operation = BackendOperationContext(operationIdGenerator.nextId(), BackendSubsystem.Library, clock.elapsedTimeMs())
             val currentScanJob = currentCoroutineContext()[Job]
             val scanPermissionVersion = permissionChangeVersion
@@ -386,6 +389,14 @@ class LibraryRepository internal constructor(
                     operation = operation,
                 )
             } catch (throwable: CancellationException) {
+                backendEventSink.emitLazy {
+                    BackendEvent.OperationCancelled(
+                        operation.fields(
+                            phase = "scan_cancelled",
+                            elapsedTimeMs = clock.elapsedTimeMs(),
+                        ),
+                    )
+                }
                 throw throwable
             } catch (throwable: Exception) {
                 backendEventSink.emitLazy {
@@ -409,6 +420,7 @@ class LibraryRepository internal constructor(
                     }
                 }
             } finally {
+                scanResource.close()
                 if (scanJob === currentScanJob) scanJob = null
             }
 
@@ -447,17 +459,21 @@ class LibraryRepository internal constructor(
         }
         if (scanResult.isComplete) {
             withContext(Dispatchers.IO) {
-                snapshotStore.save(
-                    snapshot = prepared.snapshot,
-                    filterFingerprint = scanner.currentFilterFingerprint(),
-                    syncState = scanner.currentSyncState(),
-                )
-                libraryIndexStore?.applyChangeSet(
-                    changeSet = prepared.changeSet,
-                    snapshot = prepared.snapshot,
-                    fullRebuild = refreshRequest.forceMediaIndex &&
-                        prepared.changeSet.added.size == prepared.snapshot.songs.size,
-                )
+                ElovaireTrace.section("library_snapshot_persist") {
+                    snapshotStore.save(
+                        snapshot = prepared.snapshot,
+                        filterFingerprint = scanner.currentFilterFingerprint(),
+                        syncState = scanner.currentSyncState(),
+                    )
+                }
+                ElovaireTrace.section("library_room_index_commit") {
+                    libraryIndexStore?.applyChangeSet(
+                        changeSet = prepared.changeSet,
+                        snapshot = prepared.snapshot,
+                        fullRebuild = refreshRequest.forceMediaIndex &&
+                            prepared.changeSet.added.size == prepared.snapshot.songs.size,
+                    )
+                }
             }
         }
         invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)
@@ -520,7 +536,9 @@ class LibraryRepository internal constructor(
             )
         }
         val nextSnapshot = snapshotPublisher.snapshotOf(nextContentState)
-        val changeSet = LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
+        val changeSet = ElovaireTrace.section("library_diff") {
+            LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
+        }
         if (changeSet.relocated.isNotEmpty()) {
             val relocated = onSongRelocations(
                 changeSet.relocated.associate { relocation ->

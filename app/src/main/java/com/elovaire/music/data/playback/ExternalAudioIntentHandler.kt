@@ -11,6 +11,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import java.io.File
 import java.nio.ByteBuffer
 import java.security.MessageDigest
@@ -134,6 +136,7 @@ internal object ExternalAudioIntentHandler {
     ): Long {
         return runCatching {
             val retriever = MediaMetadataRetriever()
+            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
             try {
                 retriever.setDataSource(context, uri)
                 ExternalAudioMetadataPolicy.boundedDurationMs(
@@ -141,6 +144,7 @@ internal object ExternalAudioIntentHandler {
                 )
             } finally {
                 retriever.release()
+                resource.close()
             }
         }.getOrDefault(0L)
     }

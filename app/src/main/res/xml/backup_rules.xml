@@ -3,4 +3,7 @@
     <include
         domain="sharedpref"
         path="portable_settings.xml" />
+    <include
+        domain="file"
+        path="portable_user_data_v1.json" />
 </full-backup-content>

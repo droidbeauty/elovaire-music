@@ -147,8 +147,12 @@ internal class MediaStoreScanner(
         val progressEmitter = ScannerProgressEmitter(onProgress)
 
         ElovaireTrace.section("library_mediastore_scan") {
-            val queryResult = ElovaireTrace.section("library_mediastore_query") {
-                MediaStoreAudioQuery.query(context.contentResolver)
+            val queryResult = ElovaireTrace.section("mediastore_discovery") {
+                ElovaireTrace.section(
+                    if (refreshMediaPaths.isEmpty()) "mediastore_query_full" else "mediastore_query_delta",
+                ) {
+                    MediaStoreAudioQuery.query(context.contentResolver)
+                }
             }
             decisionMap.recordProjection(queryResult.projectionKind.name)
             val cursor = queryResult.cursor
@@ -258,28 +262,30 @@ internal class MediaStoreScanner(
                     val songMetadata = cachedMetadata
                         ?.metadata
                         ?: if (enrichMetadata) {
-                            readSongMetadata(
-                                songId = row.id,
-                                songUri = row.uri,
-                                fileName = row.fileName,
-                                indexedTitle = row.title,
-                                indexedArtist = row.artist,
-                                indexedAlbum = row.album,
-                                filePath = row.filePath,
-                                volumeName = row.volumeName,
-                                mediaStoreYear = row.mediaStoreYear,
-                                fileSizeBytes = row.fileSizeBytes,
-                                durationMs = effectiveDurationMs,
-                                detectedFormat = detectedFormat,
-                                genreCache = genreCache,
-                                identityKey = uriKey,
-                                revisionKey = if (row.dateModifiedSeconds != null || row.fileSizeBytes != null) {
-                                    MediaIdentityResolver.sourceRevisionKey(
-                                        modifiedAtMs = row.dateModifiedSeconds?.times(1_000L),
-                                        sizeBytes = row.fileSizeBytes,
-                                    )
-                                } else null,
-                            )
+                            ElovaireTrace.section("mediastore_metadata_enrichment") {
+                                readSongMetadata(
+                                    songId = row.id,
+                                    songUri = row.uri,
+                                    fileName = row.fileName,
+                                    indexedTitle = row.title,
+                                    indexedArtist = row.artist,
+                                    indexedAlbum = row.album,
+                                    filePath = row.filePath,
+                                    volumeName = row.volumeName,
+                                    mediaStoreYear = row.mediaStoreYear,
+                                    fileSizeBytes = row.fileSizeBytes,
+                                    durationMs = effectiveDurationMs,
+                                    detectedFormat = detectedFormat,
+                                    genreCache = genreCache,
+                                    identityKey = uriKey,
+                                    revisionKey = if (row.dateModifiedSeconds != null || row.fileSizeBytes != null) {
+                                        MediaIdentityResolver.sourceRevisionKey(
+                                            modifiedAtMs = row.dateModifiedSeconds?.times(1_000L),
+                                            sizeBytes = row.fileSizeBytes,
+                                        )
+                                    } else null,
+                                )
+                            }
                         } else {
                             SongMetadata(
                                 title = row.title,

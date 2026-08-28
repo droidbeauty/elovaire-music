@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.mutation
 import android.content.ContentResolver
 import android.content.Context
 import android.net.Uri
+import android.os.StatFs
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
@@ -11,6 +12,9 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.InputStream
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 
 internal class MediaFileMutationRunner(
@@ -34,8 +38,9 @@ internal class MediaFileMutationRunner(
     }
 
     fun preflight(song: Song) {
+        val target = MediaWriteTargetClassifier.classify(appContext, song.uri)
         requireWritable(song.uri)
-        val sourceSize = when (val target = MediaWriteTargetClassifier.classify(appContext, song.uri)) {
+        val sourceSize = when (target) {
             is MediaWriteTarget.FileUri -> target.uri.path?.let(::File)?.length() ?: -1L
             else -> contentIo.openReadableDescriptor(song.uri).use { it.statSize }
         }
@@ -44,9 +49,16 @@ internal class MediaFileMutationRunner(
             check(input.read() >= 0) { "The song file is empty." }
         } ?: error("Unable to open the source file.")
         if (sourceSize > 0L) {
-            val requiredSpace = sourceSize.coerceAtMost(Long.MAX_VALUE / TEMP_COPY_COUNT) * TEMP_COPY_COUNT
-            check(appContext.filesDir.usableSpace >= requiredSpace) {
+            val availableBytes = StatFs(appContext.filesDir.path).availableBytes
+            check(hasSufficientMutationStorage(availableBytes, sourceSize)) {
                 "There is not enough temporary storage to edit this song safely."
+            }
+            if (target is MediaWriteTarget.FileUri) {
+                val destination = target.uri.path?.let(::File)
+                val destinationAvailable = destination?.parentFile?.let { StatFs(it.path).availableBytes }
+                check(destinationAvailable != null && destinationAvailable >= sourceSize) {
+                    "There is not enough storage to replace this song safely."
+                }
             }
         }
     }
@@ -77,6 +89,28 @@ internal class MediaFileMutationRunner(
         return File.createTempFile("${song.id}-$purpose-", ".$extension", directory)
     }
 
+    fun copyFileDurably(source: File, destination: File): Long {
+        check(source.isFile && source.length() > 0L) { "The source file is empty." }
+        var copied = 0L
+        var complete = false
+        try {
+            FileInputStream(source).use { input ->
+                FileOutputStream(destination, false).use { output ->
+                    copied = input.copyTo(output, COPY_BUFFER_SIZE)
+                    output.flush()
+                    output.fd.sync()
+                }
+            }
+            check(copied == source.length() && destination.length() == source.length()) {
+                "Unable to create a complete working copy."
+            }
+            complete = true
+            return copied
+        } finally {
+            if (!complete) destination.delete()
+        }
+    }
+
     fun overwriteOriginal(
         uri: Uri,
         source: File,
@@ -86,11 +120,28 @@ internal class MediaFileMutationRunner(
         if (target is MediaWriteTarget.Unsupported) error(target.reason)
         if (target is MediaWriteTarget.FileUri) {
             val destination = target.uri.path?.let(::File) ?: error("The file path is unavailable.")
-            FileInputStream(source).use { input ->
-                FileOutputStream(destination, false).use { output ->
-                    input.copyTo(output)
-                    output.fd.sync()
+            val parent = destination.parentFile ?: error("The song directory is unavailable.")
+            val replacement = File.createTempFile(
+                ".${destination.name}-",
+                ".elovaire-replacement",
+                parent,
+            )
+            var moved = false
+            try {
+                copyFileDurably(source, replacement)
+                try {
+                    Files.move(
+                        replacement.toPath(),
+                        destination.toPath(),
+                        StandardCopyOption.ATOMIC_MOVE,
+                        StandardCopyOption.REPLACE_EXISTING,
+                    )
+                } catch (unsupported: AtomicMoveNotSupportedException) {
+                    throw IllegalStateException("The file system cannot atomically replace this song.", unsupported)
                 }
+                moved = true
+            } finally {
+                if (!moved) replacement.delete()
             }
             check(destination.length() == source.length()) { "Unable to replace the complete song file." }
             return
@@ -121,6 +172,20 @@ internal class MediaFileMutationRunner(
 
     private companion object {
         const val COMPARE_BUFFER_SIZE = 64 * 1024
-        const val TEMP_COPY_COUNT = 3L
+        const val COPY_BUFFER_SIZE = 64 * 1024
     }
 }
+
+internal fun requiredMutationStagingBytes(sourceSizeBytes: Long): Long {
+    if (sourceSizeBytes <= 0L) return 0L
+    return sourceSizeBytes.coerceAtMost(Long.MAX_VALUE / TEMP_COPY_COUNT) * TEMP_COPY_COUNT
+}
+
+internal fun hasSufficientMutationStorage(
+    availableBytes: Long,
+    sourceSizeBytes: Long,
+): Boolean {
+    return availableBytes >= requiredMutationStagingBytes(sourceSizeBytes)
+}
+
+private const val TEMP_COPY_COUNT = 3L

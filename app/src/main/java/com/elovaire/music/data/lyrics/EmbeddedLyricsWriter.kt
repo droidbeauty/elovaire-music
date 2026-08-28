@@ -112,7 +112,9 @@ internal class EmbeddedLyricsWriter(
             backupFile = mutationRunner.copySongToTemp(song, "backup")
             phase = LyricsWritePhase.TempWrite
             trace(song, "temp_write")
-            workingFile = mutationRunner.createTempFile(song, "working").also { backupFile.copyTo(it, overwrite = true) }
+            workingFile = mutationRunner.createTempFile(song, "working").also {
+                mutationRunner.copyFileDurably(backupFile, it)
+            }
 
             phase = LyricsWritePhase.TagCommit
             trace(song, "tag_commit:${request.tagKind.name}")
@@ -190,7 +192,7 @@ internal class EmbeddedLyricsWriter(
             }
             EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
         } finally {
-            runCatching { backupFile?.delete() }
+            if (!needsRepair) runCatching { backupFile?.delete() }
             runCatching { workingFile?.delete() }
             runCatching { persistedFile?.delete() }
         }

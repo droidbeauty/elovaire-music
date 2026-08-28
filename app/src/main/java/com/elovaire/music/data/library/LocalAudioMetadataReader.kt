@@ -8,6 +8,8 @@ import elovaire.music.droidbeauty.app.data.audio.EmbeddedTagMetadataReader
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.data.audio.toMetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import kotlinx.coroutines.CancellationException
 
 /** Reads local-file metadata once, then applies the shared source precedence rules. */
@@ -60,6 +62,7 @@ internal class LocalAudioMetadataReader(context: Context) {
     fun readDuration(uri: Uri): Long {
         return try {
             val retriever = MediaMetadataRetriever()
+            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
             try {
                 retriever.setDataSource(appContext, uri)
                 retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
@@ -68,6 +71,7 @@ internal class LocalAudioMetadataReader(context: Context) {
                     ?: 0L
             } finally {
                 runCatching { retriever.release() }
+                resource.close()
             }
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -81,6 +85,7 @@ internal class LocalAudioMetadataReader(context: Context) {
         if (failureKey != null && failureRegistry.shouldSuppress(failureKey)) return PlatformAudioMetadata()
         return try {
             val retriever = MediaMetadataRetriever()
+            val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
             try {
                 retriever.setDataSource(appContext, uri)
                 PlatformAudioMetadata(
@@ -114,6 +119,7 @@ internal class LocalAudioMetadataReader(context: Context) {
                 ).also { failureKey?.let(failureRegistry::recordSuccess) }
             } finally {
                 runCatching { retriever.release() }
+                resource.close()
             }
         } catch (cancellation: CancellationException) {
             throw cancellation

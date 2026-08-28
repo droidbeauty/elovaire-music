@@ -7,7 +7,10 @@ import com.hierynomus.mssmb2.SMBApiException
 import com.hierynomus.mserref.NtStatus
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.library.isSupportedAudioExtension
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.io.FileOutputStream
@@ -42,15 +45,20 @@ internal class NetworkLibraryScanner(
         forceRefresh: Boolean = false,
         enrichMetadata: Boolean = true,
     ): NetworkLibraryScanResult = withContext(Dispatchers.IO) {
-        val result = mutableListOf<Song>()
-        var isComplete = true
-        sources.filter(NetworkLibrarySource::enabled).forEach { source ->
-            currentCoroutineContext().ensureActive()
-            val sourceResult = scanSourceSafely(source, forceRefresh, enrichMetadata)
-            result += sourceResult.songs
-            isComplete = isComplete && sourceResult.isComplete
+        val networkRead = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkRead)
+        try {
+            val result = mutableListOf<Song>()
+            var isComplete = true
+            sources.filter(NetworkLibrarySource::enabled).forEach { source ->
+                currentCoroutineContext().ensureActive()
+                val sourceResult = scanSourceSafely(source, forceRefresh, enrichMetadata)
+                result += sourceResult.songs
+                isComplete = isComplete && sourceResult.isComplete
+            }
+            NetworkLibraryScanResult(result, isComplete)
+        } finally {
+            networkRead.close()
         }
-        NetworkLibraryScanResult(result, isComplete)
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -296,7 +304,13 @@ internal class NetworkLibraryScanner(
                     ),
                 )
             } else {
-                val metadata = if (enrichMetadata) metadataReader.read(source, entry, forceRefresh) else null
+                val metadata = if (enrichMetadata) {
+                    ElovaireTrace.section("network_metadata_enrichment") {
+                        metadataReader.read(source, entry, forceRefresh)
+                    }
+                } else {
+                    null
+                }
                 val provisionalSong = if (metadata == null && previous != null) {
                     previous.song.copy(
                         fileName = entry.path.substringAfterLast('/').ifBlank { "Unknown" },
@@ -339,7 +353,9 @@ internal class NetworkLibraryScanner(
         credentials: NetworkCredentials,
     ): NetworkListingResult? {
         return try {
-            registry.listBlocking(source, credentials)
+            ElovaireTrace.section("network_source_list") {
+                registry.listBlocking(source, credentials)
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: IOException) {
@@ -524,9 +540,11 @@ private class NetworkArtworkCache(context: Context) {
             directory.mkdirs()
             val temporary = target.resolveSibling("${target.name}.tmp")
             if (!downloadArtwork(temporary, source, entry, registry)) return null
-            if (!temporary.renameTo(target)) {
-                temporary.delete()
-                return null
+            ElovaireTrace.section("artwork_disk_commit") {
+                if (!temporary.renameTo(target)) {
+                    temporary.delete()
+                    return null
+                }
             }
             Uri.fromFile(target)
         } catch (cancelled: CancellationException) {

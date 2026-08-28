@@ -56,6 +56,37 @@ internal data class MediaRevision(
 @JvmInline
 internal value class LogicalTrackId(val value: Long)
 
+/**
+ * Portable identity for user-owned references. It deliberately contains no MediaStore/SAF
+ * locator, because those identifiers are allowed to change when storage is rebuilt or moved.
+ */
+internal data class TrackMatchIdentity(
+    val version: Int = TRACK_MATCH_IDENTITY_VERSION,
+    val sizeBytes: Long?,
+    val durationMs: Long?,
+    val normalizedTitle: String,
+    val normalizedArtist: String,
+    val normalizedAlbum: String,
+    val normalizedAlbumArtist: String?,
+    val normalizedFileName: String?,
+    val trackNumber: Int?,
+    val discNumber: Int?,
+    val sourceStableKey: String? = null,
+)
+
+internal enum class TrackMatchConfidence {
+    Exact,
+    Strong,
+    Probable,
+    Ambiguous,
+    NoMatch,
+}
+
+internal data class TrackMatchResolution(
+    val confidence: TrackMatchConfidence,
+    val song: Song? = null,
+)
+
 internal enum class MediaSourceAvailability {
     Available,
     Unavailable,
@@ -116,6 +147,48 @@ internal object MediaIdentityResolver {
 
     fun logicalTrackId(song: Song): LogicalTrackId? {
         return song.id.takeIf { it != 0L }?.let(::LogicalTrackId)
+    }
+
+    fun trackMatchIdentity(song: Song, sizeBytes: Long? = null): TrackMatchIdentity {
+        return TrackMatchIdentity(
+            sizeBytes = sizeBytes?.takeIf { it >= 0L },
+            durationMs = song.durationMs.takeIf { it > 0L },
+            normalizedTitle = song.title.matchIdentityText(),
+            normalizedArtist = song.artist.matchIdentityText(),
+            normalizedAlbum = song.album.matchIdentityText(),
+            normalizedAlbumArtist = song.albumArtist?.matchIdentityText(),
+            normalizedFileName = song.fileName.matchIdentityText().takeIf(String::isNotBlank),
+            trackNumber = song.trackNumber.takeIf { it > 0 },
+            discNumber = song.discNumber.takeIf { it > 0 },
+            sourceStableKey = stableKey(song),
+        )
+    }
+
+    /** Resolves only a unique candidate; an equally good duplicate remains ambiguous. */
+    fun resolveTrackMatch(
+        identity: TrackMatchIdentity,
+        songs: List<Song>,
+    ): TrackMatchResolution {
+        if (identity.version != TRACK_MATCH_IDENTITY_VERSION) {
+            return TrackMatchResolution(TrackMatchConfidence.NoMatch)
+        }
+        identity.sourceStableKey?.let { sourceKey ->
+            val exact = songs.filter { stableKey(it) == sourceKey }
+            if (exact.size == 1) return TrackMatchResolution(TrackMatchConfidence.Exact, exact.single())
+            if (exact.size > 1) return TrackMatchResolution(TrackMatchConfidence.Ambiguous)
+        }
+        val candidates = songs.mapNotNull { song ->
+            trackMatchScore(identity, song)?.let { score -> song to score }
+        }
+        val bestScore = candidates.maxOfOrNull { it.second } ?: return TrackMatchResolution(TrackMatchConfidence.NoMatch)
+        val best = candidates.filter { it.second == bestScore }
+        if (best.size != 1) return TrackMatchResolution(TrackMatchConfidence.Ambiguous)
+        val confidence = when {
+            bestScore >= STRONG_TRACK_MATCH_SCORE -> TrackMatchConfidence.Strong
+            bestScore >= PROBABLE_TRACK_MATCH_SCORE -> TrackMatchConfidence.Probable
+            else -> TrackMatchConfidence.NoMatch
+        }
+        return TrackMatchResolution(confidence, best.single().first.takeIf { confidence != TrackMatchConfidence.NoMatch })
     }
 
     fun source(
@@ -193,6 +266,47 @@ internal object MediaIdentityResolver {
         val treeId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
         return safDocument(uri.authority, documentId, treeId)
     }
+}
+
+private const val TRACK_MATCH_IDENTITY_VERSION = 1
+private const val STRONG_TRACK_MATCH_SCORE = 12
+private const val PROBABLE_TRACK_MATCH_SCORE = 8
+private const val DURATION_TOLERANCE_MS = 2_000L
+private val MATCH_IDENTITY_WHITESPACE = Regex("\\s+")
+
+private fun String.matchIdentityText(): String {
+    return trim().lowercase(Locale.ROOT).replace(MATCH_IDENTITY_WHITESPACE, " ")
+}
+
+private fun trackMatchScore(identity: TrackMatchIdentity, song: Song): Int? {
+    val title = song.title.matchIdentityText()
+    if (identity.normalizedTitle.isBlank() || title != identity.normalizedTitle) return null
+
+    var score = 5
+    val artist = song.artist.matchIdentityText()
+    if (identity.normalizedArtist.isNotBlank() && artist == identity.normalizedArtist) score += 4
+    else if (identity.normalizedArtist.isNotBlank()) return null
+
+    val album = song.album.matchIdentityText()
+    if (identity.normalizedAlbum.isNotBlank() && album == identity.normalizedAlbum) score += 2
+    val albumArtist = song.albumArtist?.matchIdentityText()
+    if (!identity.normalizedAlbumArtist.isNullOrBlank() && albumArtist == identity.normalizedAlbumArtist) score += 1
+
+    val candidateDuration = song.durationMs
+    identity.durationMs?.let { duration ->
+        if (candidateDuration <= 0L || kotlin.math.abs(duration - candidateDuration) > DURATION_TOLERANCE_MS) return null
+        score += if (duration == candidateDuration) 4 else 2
+    }
+    identity.trackNumber?.let { track ->
+        if (song.trackNumber == track) score += 1 else if (song.trackNumber > 0) return null
+    }
+    identity.discNumber?.let { disc ->
+        if (song.discNumber == disc) score += 1 else if (song.discNumber > 0) return null
+    }
+    if (!identity.normalizedFileName.isNullOrBlank() && song.fileName.matchIdentityText() == identity.normalizedFileName) {
+        score += 2
+    }
+    return score
 }
 
 private fun Long?.orEmptyRevisionPart(): String = this?.toString() ?: "-"

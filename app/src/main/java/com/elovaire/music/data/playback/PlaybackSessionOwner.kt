@@ -8,6 +8,8 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import elovaire.music.droidbeauty.app.MainActivity
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryCallbackRouter
 
 @OptIn(UnstableApi::class)
@@ -30,6 +32,7 @@ internal class PlaybackSessionOwner(
             ),
         )
         .build()
+    private val sessionResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveMediaSession)
 
     val mediaLibrarySession: MediaLibrarySession
         get() = session
@@ -50,5 +53,6 @@ internal class PlaybackSessionOwner(
 
     fun release() {
         session.release()
+        sessionResource.close()
     }
 }

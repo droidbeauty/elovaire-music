@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 
 internal class PlaybackPlayerSwitcher(
     private val createPlayer: (Boolean) -> ExoPlayer,
+    private val releasePlayer: (ExoPlayer) -> Unit,
     private val attachPlayerObservers: (ExoPlayer) -> Unit,
     private val detachPlayerObservers: (ExoPlayer) -> Unit,
     private val onPlayerReplaced: (ExoPlayer) -> Unit,
@@ -45,13 +46,13 @@ internal class PlaybackPlayerSwitcher(
             onPlayerReplaced(replacement)
             applyPreferredAudioDevice(true)
             replacement.volume = targetPlayerOutputGain()
-            currentPlayer.release()
+            releasePlayer(currentPlayer)
             replacement
         } catch (_: RuntimeException) {
             if (replacementObserversAttached) {
                 replacementPlayer?.let { runCatching { detachPlayerObservers(it) } }
             }
-            replacementPlayer?.let { runCatching { it.release() } }
+            replacementPlayer?.let(releasePlayer)
             if (currentObserversDetached) {
                 runCatching { attachPlayerObservers(currentPlayer) }
             }

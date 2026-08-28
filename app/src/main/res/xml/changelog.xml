@@ -6,9 +6,10 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.8">
-        <item>Cross compatibility upgrades for supported Android versions</item>
-        <item>Technical changes to media scanning framework to address errors</item>
+    <release version="2.8.1">
+        <item>Redesigned changelog pop-up card</item>
+        <item>Reliability focused changes in many areas</item>
+        <item>Better UI responsiveness overall during quick navigation</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

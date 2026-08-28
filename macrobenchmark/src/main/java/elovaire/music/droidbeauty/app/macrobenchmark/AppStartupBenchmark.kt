@@ -161,5 +161,34 @@ class AppStartupBenchmark {
             mode = TraceSectionMetric.Mode.Count,
             label = "route_change_count",
         ),
-    )
+    ) + BACKEND_TRACE_SECTIONS.map { section ->
+        TraceSectionMetric(
+            sectionName = section,
+            mode = TraceSectionMetric.Mode.Count,
+            label = "trace_${section}_count",
+        )
+    }
+
+    private companion object {
+        val BACKEND_TRACE_SECTIONS = listOf(
+            "library_refresh_scan",
+            "library_prepare_content",
+            "library_diff",
+            "library_snapshot_persist",
+            "library_room_index_commit",
+            "mediastore_discovery",
+            "mediastore_query_full",
+            "mediastore_query_delta",
+            "mediastore_metadata_enrichment",
+            "network_source_list",
+            "network_metadata_enrichment",
+            "lyrics_cache_read",
+            "lyrics_cache_write",
+            "settings_backup_checkpoint",
+            "user_recovery_checkpoint",
+            "artwork_remote_fetch",
+            "artwork_decode",
+            "artwork_disk_commit",
+        )
+    }
 }

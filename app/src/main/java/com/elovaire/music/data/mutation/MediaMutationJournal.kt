@@ -10,6 +10,8 @@ import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.core.backend.BackendEvent
 import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
 import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.emitLazy
@@ -93,7 +95,10 @@ internal class MediaMutationJournal(
             check(existing.uri == operation.uri?.toString()) { "Mutation ID $mutationId cannot change URI target." }
             val status = existing.status.toMediaMutationStatusOrNull()
             check(status != null) { "Mutation $mutationId has an unknown persisted status." }
-            if (!status.isTerminal()) activeMutationIds += mutationId
+            if (!status.isTerminal()) {
+                activeMutationIds += mutationId
+                updateActiveMutationResource()
+            }
             return@withLock mutationId
         }
         dao.upsertMutation(
@@ -112,6 +117,7 @@ internal class MediaMutationJournal(
             ),
         )
         activeMutationIds += mutationId
+        updateActiveMutationResource()
         backendEventSink.emitLazy {
             BackendEvent.MediaMutationStarted(
                 BackendOperationContext(mutationId, BackendSubsystem.MediaMutation, clock.elapsedTimeMs()).fields(
@@ -150,7 +156,10 @@ internal class MediaMutationJournal(
                 error = error,
             ),
         )
-        if (status.isTerminal()) activeMutationIds -= mutationId
+        if (status.isTerminal()) {
+            activeMutationIds -= mutationId
+            updateActiveMutationResource()
+        }
     }
 
     suspend fun recoverIncomplete(): MediaMutationRecoveryResult {
@@ -211,6 +220,13 @@ internal class MediaMutationJournal(
 
     private companion object {
         val activeMutationIds: MutableSet<String> = ConcurrentHashMap.newKeySet()
+
+        fun updateActiveMutationResource() {
+            BackendResourceRegistry.set(
+                BackendResourceKind.ActiveMutation,
+                activeMutationIds.size,
+            )
+        }
     }
 }
 

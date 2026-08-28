@@ -58,6 +58,7 @@ internal class PlaybackCrossfadeController(
     private val scope: CoroutineScope,
     private val cueAnalyzer: CrossfadeCueAnalyzer,
     private val createPlayer: () -> ExoPlayer,
+    private val releasePlayer: (ExoPlayer) -> Unit,
     private val onPromote: (outgoing: ExoPlayer, incoming: ExoPlayer) -> Unit,
     private val onFailed: () -> Unit,
 ) {
@@ -278,7 +279,7 @@ internal class PlaybackCrossfadeController(
         startRunnable = null
         handler.removeCallbacks(frameRunnable)
         outgoing?.volume = outgoingGain
-        incoming?.let { it.release() }
+        incoming?.let(releasePlayer)
         outgoing = null
         incoming = null
         incomingReady = false

@@ -5,6 +5,7 @@ import android.util.AtomicFile
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -25,28 +26,30 @@ internal class LyricsCache(
         identity: LyricsIdentity,
         includeNotFound: Boolean,
         includeOnline: Boolean = true,
-    ): LyricsResult? = synchronized(cacheLock) {
-        ensureLoadedLocked()
-        val now = clock.wallTimeMs()
-        var entry: LyricsCacheEntry? = null
-        var removedExpired = false
-        identity.cacheKeys.forEach { key ->
-            val cached = cacheEntries[key] ?: return@forEach
-            if (cached.isExpired(now)) {
-                cacheEntries.remove(key)
-                removedExpired = true
-            } else if (entry == null) {
-                entry = cached
+    ): LyricsResult? = ElovaireTrace.section("lyrics_cache_read") {
+        synchronized(cacheLock) {
+            ensureLoadedLocked()
+            val now = clock.wallTimeMs()
+            var entry: LyricsCacheEntry? = null
+            var removedExpired = false
+            identity.cacheKeys.forEach { key ->
+                val cached = cacheEntries[key] ?: return@forEach
+                if (cached.isExpired(now)) {
+                    cacheEntries.remove(key)
+                    removedExpired = true
+                } else if (entry == null) {
+                    entry = cached
+                }
             }
-        }
-        if (removedExpired) {
-            persistLocked()
-        }
-        when {
-            entry == null -> null
-            entry.online && !includeOnline -> null
-            !includeNotFound && (entry.result == LyricsResult.NotFound || entry.result == LyricsResult.Timeout) -> null
-            else -> entry.result
+            if (removedExpired) {
+                persistLocked()
+            }
+            when {
+                entry == null -> null
+                entry.online && !includeOnline -> null
+                !includeNotFound && (entry.result == LyricsResult.NotFound || entry.result == LyricsResult.Timeout) -> null
+                else -> entry.result
+            }
         }
     }
 
@@ -123,8 +126,9 @@ internal class LyricsCache(
     }
 
     private fun persistLocked() {
-        runCatching {
-            val root = JSONObject().apply {
+        ElovaireTrace.section("lyrics_cache_write") {
+            runCatching {
+                val root = JSONObject().apply {
                 put("version", CACHE_VERSION)
                 put(
                     "entries",
@@ -152,16 +156,17 @@ internal class LyricsCache(
                         }
                     },
                 )
-            }
-            val output = atomicFile.startWrite()
-            var committed = false
-            try {
-                output.write(root.toString().toByteArray(Charsets.UTF_8))
-                output.flush()
-                atomicFile.finishWrite(output)
-                committed = true
-            } finally {
-                if (!committed) atomicFile.failWrite(output)
+                }
+                val output = atomicFile.startWrite()
+                var committed = false
+                try {
+                    output.write(root.toString().toByteArray(Charsets.UTF_8))
+                    output.flush()
+                    atomicFile.finishWrite(output)
+                    committed = true
+                } finally {
+                    if (!committed) atomicFile.failWrite(output)
+                }
             }
         }
     }

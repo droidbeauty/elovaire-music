@@ -9,9 +9,12 @@ import android.os.Looper
 import android.provider.MediaStore
 import android.util.Log
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import java.io.File
+import java.io.Closeable
 import java.util.ArrayDeque
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
@@ -32,7 +35,9 @@ internal class LibraryObserverController(
 ) {
     private val contentResolver = appContext.contentResolver
     private var mediaObserverRegistered = false
+    private var mediaObserverLease: Closeable? = null
     private var libraryFolderObservers: List<RecursiveMusicDirectoryObserver> = emptyList()
+    private var libraryFolderObserverLeases: List<Closeable> = emptyList()
     private var observerRebuildJob: Job? = null
     @Volatile
     private var directoryObserversEnabled = false
@@ -124,22 +129,32 @@ internal class LibraryObserverController(
 
     private fun ensureMediaObserverRegistered() {
         if (mediaObserverRegistered) return
-        mediaObserverRegistered = runCatching {
+        val registered = runCatching {
             contentResolver.registerContentObserver(
                 MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
                 true,
                 mediaObserver,
             )
         }.isSuccess
+        if (registered) {
+            mediaObserverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+            mediaObserverRegistered = true
+        }
         logDebug("media store observer active=$mediaObserverRegistered")
     }
 
     private fun unregisterMediaObserver() {
         if (!mediaObserverRegistered) return
-        runCatching {
+        val failure = runCatching {
             contentResolver.unregisterContentObserver(mediaObserver)
+        }.exceptionOrNull()
+        if (failure != null) {
+            logDebug("media store observer unregister failed=${failure::class.simpleName}")
+            return
         }
         mediaObserverRegistered = false
+        mediaObserverLease?.close()
+        mediaObserverLease = null
         logDebug("media store observer active=false")
     }
 
@@ -165,6 +180,9 @@ internal class LibraryObserverController(
                 observerRebuildJob = null
                 stopLibraryFolderObservers()
                 libraryFolderObservers = observers
+                libraryFolderObserverLeases = observers.map {
+                    BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+                }
                 installed = true
             } finally {
                 if (!installed) {
@@ -187,6 +205,8 @@ internal class LibraryObserverController(
 
     private fun stopLibraryFolderObservers() {
         libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
+        libraryFolderObserverLeases.forEach(Closeable::close)
+        libraryFolderObserverLeases = emptyList()
         libraryFolderObservers = emptyList()
     }
 

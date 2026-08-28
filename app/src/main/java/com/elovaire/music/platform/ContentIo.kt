@@ -9,6 +9,7 @@ import android.provider.MediaStore
 import android.util.Log
 import androidx.annotation.WorkerThread
 import elovaire.music.droidbeauty.app.BuildConfig
+import java.io.BufferedOutputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
@@ -25,7 +26,17 @@ internal class ContentIo(
         var complete = false
         try {
             val copied = resolver.openInputStream(uri)?.use { input ->
-                destination.outputStream().buffered().use { output -> input.copyTo(output) }
+                FileOutputStream(destination, false).use { output ->
+                    BufferedOutputStream(output, COPY_BUFFER_SIZE).use { buffered ->
+                        val result = input.copyTo(buffered, COPY_BUFFER_SIZE)
+                        buffered.flush()
+                        // The file is used as recovery material. Make the bytes durable before
+                        // reporting the copy as complete; closing a buffered stream alone does
+                        // not provide that contract on every filesystem.
+                        output.fd.sync()
+                        result
+                    }
+                }
             } ?: error("Unable to open the source file.")
             complete = true
             return copied
@@ -168,6 +179,7 @@ internal class ContentIo(
 
     private companion object {
         const val TAG = "ContentIo"
+        const val COPY_BUFFER_SIZE = 64 * 1024
         val writeModes = arrayOf("rwt", "rw", "wt", "w")
     }
 }

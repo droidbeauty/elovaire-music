@@ -7,8 +7,10 @@ import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
@@ -58,6 +60,9 @@ class AppContainer(
     internal val settingsActionDependencies get() = dependencies.settingsActionDependencies
     internal val playlistActionDependencies get() = dependencies.playlistActionDependencies
     internal val viewModelDependencies get() = dependencies.viewModelDependencies
+    internal fun exportPortableUserData(): ByteArray = services.exportPortableUserData()
+    internal fun importPortableUserData(bytes: ByteArray): Deferred<PlaylistMutationResult> =
+        services.importPortableUserData(bytes)
     private val notificationControllerHolder = NotificationControllerHolder {
         PlaybackNotificationController.ensureNotificationChannel(applicationContext)
         PlaybackNotificationController(

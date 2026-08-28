@@ -8,6 +8,8 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.library.db.AlbumPlayCountEntity
 import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
 import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEntity
@@ -40,6 +42,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.serializeSmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.updateSmartPlaylistEntry
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
+import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -146,6 +149,7 @@ internal class RoomUserDataStore(
                 synchronized(submissionLock) {
                     // Keep queue accounting atomic with the sender's trySend bookkeeping.
                     queueDepth.decrementAndGet()
+                    updatePendingOperationResourceLocked()
                 }
                 runOperation(operation)
                 promoteCoalescedOperation()
@@ -443,6 +447,35 @@ internal class RoomUserDataStore(
             playbackHistoryStore.relocateSongIds(normalized)
             PlaylistMutationResult.Success(changed = true)
         }
+
+    /** Imports only validated, portable user data; unresolved media remains in the backup. */
+    fun restorePortableUserData(
+        bytes: ByteArray,
+        songs: List<Song>,
+    ): Deferred<PlaylistMutationResult> = enqueueMutation("user_data.restore_portable") {
+        val portable = decodePortableUserData(bytes)
+            ?: return@enqueueMutation PlaylistMutationResult.InvalidInput
+        val current = currentSnapshot()
+        val imported = portable.mergeInto(current, songs).snapshot
+        if (imported == current) return@enqueueMutation PlaylistMutationResult.Success(changed = false)
+        dao.restoreUserData(
+            playlists = imported.playlists.map(Playlist::toEntity),
+            playlistEntries = imported.playlists.flatMap(Playlist::toEntryEntities),
+            smartPlaylists = imported.smartPlaylists.map(SmartPlaylist::toEntity),
+            favorites = imported.favoriteSongIds.mapIndexed { index, id -> FavoriteSongEntity(id, index) },
+            songCounts = imported.songPlayCounts.map { (id, count) -> SongPlayCountEntity(id, count) },
+            albumCounts = imported.albumPlayCounts.map { (id, count) -> AlbumPlayCountEntity(id, count) },
+            recentPlayback = imported.recentSongIds.toRecentEntities(RECENT_KIND_SONG) +
+                imported.recentAlbumIds.toRecentEntities(RECENT_KIND_ALBUM),
+            searchHistory = imported.searchHistory.mapIndexed { index, entry -> entry.toEntity(index) },
+            collectionState = PlaybackCollectionStateEntity(
+                kind = imported.lastPlayedCollectionKind?.name,
+                collectionId = imported.lastPlayedCollectionId,
+            ),
+        )
+        publishSnapshot(imported)
+        PlaylistMutationResult.Success(changed = true)
+    }
 
     override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
         synchronized(submissionLock) {
@@ -776,10 +809,12 @@ internal class RoomUserDataStore(
             if (operations.trySend(operation).isSuccess) {
                 val depth = queueDepth.incrementAndGet()
                 maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
+                updatePendingOperationResourceLocked()
                 return true
             }
             if (coalescible) {
                 coalescedOperations[operation.name] = operation
+                updatePendingOperationResourceLocked()
                 return true
             }
             return false
@@ -800,11 +835,13 @@ internal class RoomUserDataStore(
         coalescedOperations.remove(entry.key)
         val depth = queueDepth.incrementAndGet()
         maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
+        updatePendingOperationResourceLocked()
     }
 
     private fun closeOperationsIfDrainedLocked() {
         if (released.get() && queueDepth.get() == 0 && coalescedOperations.isEmpty()) {
             operations.close()
+            updatePendingOperationResourceLocked()
         }
     }
 
@@ -865,6 +902,7 @@ internal class RoomUserDataStore(
             operation.completion?.complete(submissionFailure())
         }
         coalescedOperations.clear()
+        updatePendingOperationResourceLocked()
     }
 
     private fun rejectQueuedOperations() {
@@ -873,6 +911,14 @@ internal class RoomUserDataStore(
             queueDepth.decrementAndGet()
             operation.completion?.complete(submissionFailure())
         }
+        updatePendingOperationResourceLocked()
+    }
+
+    private fun updatePendingOperationResourceLocked() {
+        BackendResourceRegistry.set(
+            BackendResourceKind.PendingRoomOperation,
+            queueDepth.get() + coalescedOperations.size,
+        )
     }
 
     private fun newId(): Long {

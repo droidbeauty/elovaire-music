@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MediaIdentityTest {
@@ -90,6 +91,37 @@ class MediaIdentityTest {
             "uri:content://example.provider/item/1",
             MediaIdentityResolver.stableKey(song),
         )
+    }
+
+    @Test
+    fun portableTrackIdentityRebindsAcrossProviderIds() {
+        val original = song(10L)
+        val moved = original.copy(
+            id = 500L,
+            uri = TestUri("content://media/external/audio/media/500"),
+            libraryPath = null,
+        )
+
+        val identity = MediaIdentityResolver.trackMatchIdentity(original, sizeBytes = 123L)
+        val result = MediaIdentityResolver.resolveTrackMatch(identity, listOf(moved))
+
+        assertEquals(TrackMatchConfidence.Strong, result.confidence)
+        assertEquals(moved, result.song)
+    }
+
+    @Test
+    fun portableTrackIdentityDoesNotPickAnAmbiguousDuplicate() {
+        val original = song(10L)
+        val first = original.copy(id = 500L, uri = TestUri("content://media/external/audio/media/500"))
+        val second = original.copy(id = 900L, uri = TestUri("content://media/external/audio/media/900"))
+
+        val result = MediaIdentityResolver.resolveTrackMatch(
+            MediaIdentityResolver.trackMatchIdentity(original),
+            listOf(first, second),
+        )
+
+        assertEquals(TrackMatchConfidence.Ambiguous, result.confidence)
+        assertTrue(result.song == null)
     }
 
     private fun song(modifiedSeconds: Long): Song = Song(

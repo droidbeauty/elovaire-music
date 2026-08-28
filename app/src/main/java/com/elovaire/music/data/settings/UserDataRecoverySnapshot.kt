@@ -6,6 +6,7 @@ import android.util.Log
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.library.isValidMediaId
 import elovaire.music.droidbeauty.app.data.playlists.deserializePlaylists
@@ -39,35 +40,39 @@ internal class UserDataRecoverySnapshot(
     }
     private val lock = Any()
 
-    fun read(): UserDataSnapshot? = synchronized(lock) {
-        val file = atomicFile.baseFile
-        if (!file.isFile || file.length() !in 1L..MAX_FILE_BYTES) return@synchronized null
-        return@synchronized try {
-            val root = atomicFile.openRead().use { input ->
-                JSONObject(input.readBytes().toString(StandardCharsets.UTF_8))
+    fun read(): UserDataSnapshot? = ElovaireTrace.section("user_recovery_checkpoint") {
+        synchronized(lock) {
+            val file = atomicFile.baseFile
+            if (!file.isFile || file.length() !in 1L..MAX_FILE_BYTES) return@synchronized null
+            return@synchronized try {
+                val root = atomicFile.openRead().use { input ->
+                    JSONObject(input.readBytes().toString(StandardCharsets.UTF_8))
+                }
+                if (root.optInt(KEY_VERSION, 0) != FORMAT_VERSION) return@synchronized null
+                if (root.optString(KEY_CHECKSUM) != checksum(root)) return@synchronized null
+                decode(root)
+            } catch (failure: Exception) {
+                Log.w(TAG, "Ignoring invalid user-data recovery snapshot.", failure)
+                null
             }
-            if (root.optInt(KEY_VERSION, 0) != FORMAT_VERSION) return@synchronized null
-            if (root.optString(KEY_CHECKSUM) != checksum(root)) return@synchronized null
-            decode(root)
-        } catch (failure: Exception) {
-            Log.w(TAG, "Ignoring invalid user-data recovery snapshot.", failure)
-            null
         }
     }
 
-    fun write(snapshot: UserDataSnapshot) = synchronized(lock) {
-        val root = encode(snapshot)
-        val serialized = root.toString()
-        val bytes = serialized.toByteArray(StandardCharsets.UTF_8)
-        require(bytes.size <= MAX_FILE_BYTES) { "User-data recovery snapshot is too large." }
-        val output = atomicFile.startWrite()
-        try {
-            output.write(bytes)
-            output.flush()
-            atomicFile.finishWrite(output)
-        } catch (failure: Throwable) {
-            atomicFile.failWrite(output)
-            throw failure
+    fun write(snapshot: UserDataSnapshot) = ElovaireTrace.section("user_recovery_checkpoint") {
+        synchronized(lock) {
+            val root = encode(snapshot)
+            val serialized = root.toString()
+            val bytes = serialized.toByteArray(StandardCharsets.UTF_8)
+            require(bytes.size <= MAX_FILE_BYTES) { "User-data recovery snapshot is too large." }
+            val output = atomicFile.startWrite()
+            try {
+                output.write(bytes)
+                output.flush()
+                atomicFile.finishWrite(output)
+            } catch (failure: Throwable) {
+                atomicFile.failWrite(output)
+                throw failure
+            }
         }
     }
 

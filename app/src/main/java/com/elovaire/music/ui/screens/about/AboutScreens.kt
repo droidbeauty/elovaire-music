@@ -272,19 +272,18 @@ internal fun ChangelogBottomSheetOverlay(
                             )
                         }
                     }
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = navigationBarInsetDp() + 18.dp),
-                    contentAlignment = Alignment.TopCenter,
-                ) {
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(ElovaireRadii.card))
-                            .background(MaterialTheme.colorScheme.background),
+                            .padding(horizontal = 20.dp)
+                            .height(1.dp)
+                            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)),
+                    )
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .weight(1f)
+                            .padding(top = 20.dp, bottom = navigationBarInsetDp() + 18.dp),
                     ) {
                         LazyColumn(
                             state = listState,
@@ -292,10 +291,7 @@ internal fun ChangelogBottomSheetOverlay(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .ensureSingleItemRubberBand(listState),
-                            contentPadding = PaddingValues(
-                                top = 18.dp,
-                                bottom = 18.dp,
-                            ),
+                            contentPadding = PaddingValues(bottom = 18.dp),
                         ) {
                             item {
                                 ChangelogReleaseContent(
@@ -307,7 +303,6 @@ internal fun ChangelogBottomSheetOverlay(
                         }
                     }
                 }
-            }
             }
         }
     }

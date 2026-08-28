@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
@@ -121,23 +122,25 @@ internal class PortableSettingsBackup(
     }
 
     private fun syncAll() {
-        val desired = source.all.filterKeys(::isPortableSettingKey)
-        val current = backup.all.filterKeys(::isPortableSettingKey)
-        val checksum = portableSettingsBackupChecksum(desired)
-        val currentVersion = runCatching { backup.getInt(BACKUP_FORMAT_VERSION_KEY, 0) }.getOrDefault(0)
-        val currentChecksum = runCatching { backup.getString(BACKUP_CHECKSUM_KEY, null) }.getOrNull()
-        if (
-            desired == current &&
-            currentVersion == BACKUP_FORMAT_VERSION &&
-            currentChecksum == checksum
-        ) return
-        val editor = backup.edit()
-        (current.keys - desired.keys).forEach(editor::remove)
-        desired.forEach { (key, value) -> editor.putPreferenceValue(key, value) }
-        editor.putInt(BACKUP_FORMAT_VERSION_KEY, BACKUP_FORMAT_VERSION)
-        editor.putString(BACKUP_CHECKSUM_KEY, checksum)
-        editor.putLong(BACKUP_CREATED_AT_KEY, clock.wallTimeMs())
-        editor.apply()
+        ElovaireTrace.section("settings_backup_checkpoint") {
+            val desired = source.all.filterKeys(::isPortableSettingKey)
+            val current = backup.all.filterKeys(::isPortableSettingKey)
+            val checksum = portableSettingsBackupChecksum(desired)
+            val currentVersion = runCatching { backup.getInt(BACKUP_FORMAT_VERSION_KEY, 0) }.getOrDefault(0)
+            val currentChecksum = runCatching { backup.getString(BACKUP_CHECKSUM_KEY, null) }.getOrNull()
+            if (
+                desired == current &&
+                currentVersion == BACKUP_FORMAT_VERSION &&
+                currentChecksum == checksum
+            ) return@section
+            val editor = backup.edit()
+            (current.keys - desired.keys).forEach(editor::remove)
+            desired.forEach { (key, value) -> editor.putPreferenceValue(key, value) }
+            editor.putInt(BACKUP_FORMAT_VERSION_KEY, BACKUP_FORMAT_VERSION)
+            editor.putString(BACKUP_CHECKSUM_KEY, checksum)
+            editor.putLong(BACKUP_CREATED_AT_KEY, clock.wallTimeMs())
+            editor.apply()
+        }
     }
 
     private fun copyValues(from: SharedPreferences, to: SharedPreferences, keys: Set<String>) {

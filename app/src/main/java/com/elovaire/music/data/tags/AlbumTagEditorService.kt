@@ -230,7 +230,7 @@ internal class AlbumTagEditorService(
                 val originalBackup = mutationRunner.copySongToTemp(song, "backup")
                 backupFile = originalBackup
                 val workingFile = mutationRunner.createTempFile(song, "working").also { file ->
-                    originalBackup.copyTo(file, overwrite = true)
+                    mutationRunner.copyFileDurably(originalBackup, file)
                 }
                 tempFile = workingFile
                 phase = TagEditWritePhase.TempWrite
@@ -387,7 +387,7 @@ internal class AlbumTagEditorService(
                 )
             } finally {
                 runCatching { tempFile?.delete() }
-                runCatching { backupFile?.delete() }
+                if (!rollbackFailed) runCatching { backupFile?.delete() }
                 runCatching { persistedVerificationFile?.delete() }
             }
         }
