@@ -85,6 +85,9 @@ internal fun ElovaireAppShell(
         }
         LaunchedEffect(container) {
             withFrameNanos { }
+            ElovaireTrace.section("deferred_app_start") {
+                container.start()
+            }
             ElovaireTrace.section("deferred_startup") {
                 container.scheduleDeferredStartupWork()
             }

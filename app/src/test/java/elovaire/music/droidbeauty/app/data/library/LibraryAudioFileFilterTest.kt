@@ -148,6 +148,18 @@ class LibraryAudioFileFilterTest {
     }
 
     @Test
+    fun evaluate_includesAudioWhenProviderDoesNotReportDuration() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+        )
+
+        assertTrue(
+            filter.evaluate(candidate(absolutePath = null, durationMs = 0L)) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
     fun evaluate_usesAudioMimeWhenUnknownExtensionHasNoContainerResult() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = setOf("music"),
@@ -258,7 +270,7 @@ class LibraryAudioFileFilterTest {
     }
 
     @Test
-    fun evaluate_rejectsValidationRequiredExtensionWhenDetectionFailed() {
+    fun evaluate_includesKnownAudioExtensionWhenContainerProbeFails() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
             libraryRootPaths = setOf("/storage/emulated/0/music/custom"),
@@ -280,7 +292,7 @@ class LibraryAudioFileFilterTest {
                         hasAudioTrack = false,
                     ),
                 ),
-            ) is AudioFileFilterDecision.Exclude,
+            ) is AudioFileFilterDecision.Include,
         )
     }
 

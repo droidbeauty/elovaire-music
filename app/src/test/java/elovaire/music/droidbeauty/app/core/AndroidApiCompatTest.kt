@@ -44,9 +44,7 @@ class AndroidApiCompatTest {
     }
 
     @Test
-    fun mediaMutationCapabilities_matchAndroid10And11Boundaries() {
-        assertTrue(AndroidCapabilities.usesRecoverableMediaWrite(Build.VERSION_CODES.Q))
-        assertFalse(AndroidCapabilities.usesRecoverableMediaWrite(Build.VERSION_CODES.R))
+    fun groupedMediaWrite_startsAtAndroid11() {
         assertFalse(AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION_CODES.Q))
         assertTrue(AndroidCapabilities.supportsGroupedMediaWrite(Build.VERSION_CODES.R))
     }

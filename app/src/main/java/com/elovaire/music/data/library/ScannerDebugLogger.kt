@@ -16,6 +16,29 @@ internal object ScannerDebugLogger {
 
     internal fun latestDiagnosticSnapshot(): ScannerDiagnosticSnapshot? = latestSnapshot
 
+    internal fun recordSafSummary(
+        treeCount: Int,
+        validGrantCount: Int,
+        discoveredSongCount: Int,
+        incompleteTreeCount: Int,
+        mergedSongCount: Int,
+    ) {
+        if (!BuildConfig.DEBUG) return
+        latestSnapshot = latestSnapshot?.copy(
+            safTreeCount = treeCount,
+            safValidGrantCount = validGrantCount,
+            safDiscoveredSongCount = discoveredSongCount,
+            safIncompleteTreeCount = incompleteTreeCount,
+            mergedSongCount = mergedSongCount,
+        )
+        Log.d(
+            TAG,
+            "SAF scan: trees=$treeCount, validGrants=$validGrantCount, " +
+                "discovered=$discoveredSongCount, incomplete=$incompleteTreeCount, " +
+                "merged=$mergedSongCount",
+        )
+    }
+
     fun logSourceFailure(failure: Throwable) {
         if (!BuildConfig.DEBUG) return
         Log.d(TAG, "Library source unavailable: type=${failure::class.simpleName ?: "Unknown"}")
@@ -32,11 +55,19 @@ internal object ScannerDebugLogger {
 
     internal data class ScannerDiagnosticSnapshot(
         val projection: String?,
+        val indexRefresh: String?,
+        val folderMetadataUnavailable: Boolean,
+        val safTreeCount: Int,
+        val safValidGrantCount: Int,
+        val safDiscoveredSongCount: Int,
+        val safIncompleteTreeCount: Int,
+        val mergedSongCount: Int,
         val rawRows: Int,
         val durationZeroRows: Int,
         val isMusicTrueRows: Int,
         val isMusicFalseRows: Int,
         val isMusicUnknownRows: Int,
+        val defaultMusicRelativeRows: Int,
         val missingRelativePathRows: Int,
         val missingAbsolutePathRows: Int,
         val missingExtensionRows: Int,
@@ -51,6 +82,8 @@ internal object ScannerDebugLogger {
     ) {
         private var mediaStoreRows = 0
         private var projection: String? = null
+        private var indexRefresh: String? = null
+        private var folderMetadataUnavailable = false
         private var durationZeroRows = 0
         private var isMusicTrueRows = 0
         private var isMusicFalseRows = 0
@@ -68,6 +101,24 @@ internal object ScannerDebugLogger {
 
         fun recordProjection(kind: String) {
             if (enabled) projection = kind
+        }
+
+        fun recordIndexRefresh(result: MediaStoreIndexRefreshResult) {
+            if (!enabled) return
+            indexRefresh = when (result) {
+                MediaStoreIndexRefreshResult.Complete -> "Complete"
+                is MediaStoreIndexRefreshResult.Partial -> "Partial:${result.timedOutChunks}"
+                is MediaStoreIndexRefreshResult.Unavailable ->
+                    "Unavailable:${result.failure::class.simpleName ?: "Unknown"}"
+            }
+        }
+
+        fun recordIndexRefreshFailure(failure: Throwable) {
+            if (enabled) indexRefresh = "Failure:${failure::class.simpleName ?: "Unknown"}"
+        }
+
+        fun recordFolderMetadataUnavailable() {
+            if (enabled) folderMetadataUnavailable = true
         }
 
         fun recordMediaStoreRow(candidate: AudioScanCandidate, rawDurationMs: Long) {
@@ -122,11 +173,19 @@ internal object ScannerDebugLogger {
             if (!enabled) return
             latestSnapshot = ScannerDiagnosticSnapshot(
                 projection = projection,
+                indexRefresh = indexRefresh,
+                folderMetadataUnavailable = folderMetadataUnavailable,
+                safTreeCount = 0,
+                safValidGrantCount = 0,
+                safDiscoveredSongCount = 0,
+                safIncompleteTreeCount = 0,
+                mergedSongCount = finalSongCount,
                 rawRows = mediaStoreRows,
                 durationZeroRows = durationZeroRows,
                 isMusicTrueRows = isMusicTrueRows,
                 isMusicFalseRows = isMusicFalseRows,
                 isMusicUnknownRows = isMusicUnknownRows,
+                defaultMusicRelativeRows = defaultMusicRelativeRows,
                 missingRelativePathRows = missingRelativePathRows,
                 missingAbsolutePathRows = missingAbsolutePathRows,
                 missingExtensionRows = missingExtensionRows,
@@ -141,7 +200,9 @@ internal object ScannerDebugLogger {
             ) { (reason, count) -> "$reason=$count" }
             Log.d(
                 TAG,
-                "Scan decision map: projection=$projection, mediaStoreRows=$mediaStoreRows, " +
+                "Scan decision map: projection=$projection, indexRefresh=$indexRefresh, " +
+                    "folderMetadataUnavailable=$folderMetadataUnavailable, " +
+                    "mediaStoreRows=$mediaStoreRows, " +
                     "durationZeroRows=$durationZeroRows, isMusic=true:$isMusicTrueRows/" +
                     "false:$isMusicFalseRows/unknown:$isMusicUnknownRows, " +
                     "defaultMusicRelativeRows=$defaultMusicRelativeRows, " +

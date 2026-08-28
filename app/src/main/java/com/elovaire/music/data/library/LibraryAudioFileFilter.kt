@@ -36,6 +36,7 @@ internal class LibraryAudioFileFilter(
     explicitCustomRootPaths: Set<String> = emptySet(),
     explicitCustomRelativeRoots: Set<String> = emptySet(),
     private val implicitDefaultDiscovery: Boolean = false,
+    private val allowUnscopedMediaStoreRows: Boolean = false,
 ) {
     private val selectedRelativeRoots = selectedRelativeRoots.mapNotNullTo(linkedSetOf()) { it.normalizeFilterRelativePath() }
     private val libraryRootPaths = libraryRootPaths.mapNotNullTo(linkedSetOf()) { it.normalizeFilterAbsolutePath() }
@@ -83,15 +84,8 @@ internal class LibraryAudioFileFilter(
             if (AudioFormatPolicy.playbackSupport(detectedFormat) == PlaybackSupport.Unsupported) {
                 return AudioFileFilterDecision.Exclude("No compatible audio decoder")
             }
-        } else if (
-            normalizedExtension == null ||
-            AudioFormatPolicy.requiresContainerValidation(normalizedExtension)
-        ) {
+        } else if (normalizedExtension == null) {
             return AudioFileFilterDecision.Exclude("Container could not be validated")
-        }
-
-        if (candidate.durationMs <= 0L) {
-            return AudioFileFilterDecision.Exclude("Invalid duration")
         }
 
         val combinedPath = buildCombinedPath(
@@ -143,7 +137,7 @@ internal class LibraryAudioFileFilter(
                 return FolderMatch.DefaultRoot
             }
         }
-        if (implicitDefaultDiscovery) return FolderMatch.DefaultRoot
+        if (implicitDefaultDiscovery || allowUnscopedMediaStoreRows) return FolderMatch.DefaultRoot
         return FolderMatch.None
     }
 

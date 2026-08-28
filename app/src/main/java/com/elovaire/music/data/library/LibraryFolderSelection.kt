@@ -23,7 +23,7 @@ data class LibraryFolderSelection(
     fun isAvailable(context: Context): Boolean {
         val pathDirectory = path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath)?.let(::File)
         return when {
-            uri != null -> hasPersistedReadPermission(context) || pathDirectory?.let { it.exists() && it.isDirectory } == true
+            uri != null -> hasPersistedReadPermission(context)
             pathDirectory != null -> pathDirectory.exists() && pathDirectory.isDirectory
             else -> false
         }
@@ -64,7 +64,7 @@ object LibraryFolderSelectionResolver {
             // URI payloads are opaque and must retain their exact identity.
             val uriKey = uri.takeIf(String::isNotBlank)?.let(::normalizedUriIdentity)
             val pathKey = path
-                .takeIf { it.isNotBlank() && !isUriBackedPath(it) }
+                .takeIf { uriKey == null && it.isNotBlank() && !isUriBackedPath(it) }
                 ?.lowercase(Locale.ROOT)
             if (uriKey == null && pathKey == null) return@mapNotNull null
             if (uriKey != null && uriKey in seenUris) return@mapNotNull null
@@ -77,9 +77,11 @@ object LibraryFolderSelectionResolver {
             )
         }
         return distinctSelections.filterNot { candidate ->
+            if (candidate.uri != null) return@filterNot false
             val candidatePath = candidate.path.takeUnless(::isUriBackedPath) ?: return@filterNot false
             distinctSelections.any { possibleParent ->
                 possibleParent !== candidate &&
+                    possibleParent.uri == null &&
                     (possibleParent.path.takeUnless(::isUriBackedPath)
                         ?.let { parentPath -> isSameOrChildPath(candidatePath, parentPath) } == true)
             }

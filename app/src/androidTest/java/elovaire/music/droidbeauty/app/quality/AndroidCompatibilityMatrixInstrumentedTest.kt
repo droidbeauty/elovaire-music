@@ -22,7 +22,6 @@ class AndroidCompatibilityMatrixInstrumentedTest {
     fun sdkGatedPoliciesMatchThePhysicalDevice() {
         val sdk = Build.VERSION.SDK_INT
         assertEquals(sdk >= Build.VERSION_CODES.R, AndroidCapabilities.supportsGroupedMediaWrite(sdk))
-        assertEquals(sdk == Build.VERSION_CODES.Q, AndroidCapabilities.usesRecoverableMediaWrite(sdk))
         assertEquals(sdk >= Build.VERSION_CODES.P, AndroidCapabilities.supportsImageDecoder(sdk))
         assertEquals(sdk >= Build.VERSION_CODES.TIRAMISU, AndroidCapabilities.supportsDirectPlaybackQuery(sdk))
         assertEquals(sdk >= Build.VERSION_CODES.Q, AndroidCapabilities.requiresMediaPlaybackForegroundServiceType(sdk))

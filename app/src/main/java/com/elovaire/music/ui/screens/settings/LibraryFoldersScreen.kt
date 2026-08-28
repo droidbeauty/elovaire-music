@@ -115,8 +115,9 @@ internal fun LibraryFoldersScreen(
     }
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri == null) return@rememberLauncherForActivityResult
-        takePersistableTreePermission(context, uri)
-        onAddFolder(uri)
+        if (takePersistableTreePermission(context, uri)) {
+            onAddFolder(uri)
+        }
     }
 
     Box(

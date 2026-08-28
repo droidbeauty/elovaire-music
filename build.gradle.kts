@@ -102,11 +102,15 @@ val performanceQuality = tasks.register("performanceQuality") {
     group = "verification"
     description = "Runs physical-device Macrobenchmark, Baseline Profile, and regression qualification."
     dependsOn(
+        ":app:installBenchmark",
         ":app:assembleBenchmark",
         ":macrobenchmark:connectedCheck",
         "generateBaselineProfile",
         benchmarkRegressionCheck,
     )
+}
+performanceQuality.configure {
+    mustRunAfter(deviceQuality)
 }
 
 val releaseQuality = tasks.register("releaseQuality") {

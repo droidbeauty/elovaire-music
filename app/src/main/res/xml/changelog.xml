@@ -8,6 +8,7 @@
     -->
     <release version="2.8">
         <item>Cross compatibility upgrades for supported Android versions</item>
+        <item>Technical changes to media scanning framework to address errors</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

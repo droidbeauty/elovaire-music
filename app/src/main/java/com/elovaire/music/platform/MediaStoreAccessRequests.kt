@@ -137,11 +137,14 @@ internal fun takePersistableTreePermission(
 ): Boolean {
     val resolver = context.contentResolver
     val read = Intent.FLAG_GRANT_READ_URI_PERMISSION
-    return runCatching {
+    val persisted = runCatching {
         resolver.takePersistableUriPermission(uri, read or Intent.FLAG_GRANT_WRITE_URI_PERMISSION)
     }.recoverCatching {
         resolver.takePersistableUriPermission(uri, read)
     }.isSuccess
+    return persisted && resolver.persistedUriPermissions.any { permission ->
+        permission.uri == uri && permission.isReadPermission
+    }
 }
 
 internal fun takePersistableTreeWritePermission(

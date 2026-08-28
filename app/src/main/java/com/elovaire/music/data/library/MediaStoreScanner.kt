@@ -16,18 +16,23 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
-@Suppress("TooManyFunctions")
+@Suppress("TooManyFunctions", "TooGenericExceptionCaught")
 internal class MediaStoreScanner(
     private val context: Context,
+    indexRefresher: MediaStoreIndexRefresher? = null,
 ) {
     private val metadataCache = ScannerMetadataCache()
     private val audioFormatDetector = AudioFormatDetector(context)
     private val localMetadataReader = LocalAudioMetadataReader(context)
     private val scanRoots = LibraryScanRoots()
-    private val mediaStoreIndexer = MediaStoreIndexer(
+    private val mediaStoreIndexer = indexRefresher ?: MediaStoreIndexer(
         context = context,
         scanRoots = scanRoots::directFileRoots,
     )
@@ -96,22 +101,43 @@ internal class MediaStoreScanner(
         enrichMetadata: Boolean = true,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): LibrarySnapshot {
-        if (refreshMediaIndex) {
-            val scanContext = currentCoroutineContext()
-            val result = ElovaireTrace.section("library_media_index_refresh") {
-                refreshMediaIndex {
-                    scanContext.ensureActive()
+        val decisionMap = ScannerDebugLogger.newDecisionMap()
+        val indexRefreshJob: Deferred<MediaStoreIndexRefreshResult?>? = when {
+            refreshMediaIndex -> {
+                val scanContext = currentCoroutineContext()
+                CoroutineScope(scanContext + Dispatchers.IO).async {
+                    try {
+                        ElovaireTrace.section("library_media_index_refresh") {
+                            refreshMediaIndex {
+                                scanContext.ensureActive()
+                            }
+                        }
+                    } catch (failure: CancellationException) {
+                        throw failure
+                    } catch (failure: Exception) {
+                        decisionMap.recordIndexRefreshFailure(failure)
+                        null
+                    }
                 }
             }
-            result.requireComplete()
-        } else if (refreshMediaPaths.isNotEmpty()) {
-            val scanContext = currentCoroutineContext()
-            val result = ElovaireTrace.section("library_media_index_refresh_paths") {
-                refreshMediaIndex(refreshMediaPaths) {
-                    scanContext.ensureActive()
+            refreshMediaPaths.isNotEmpty() -> {
+                val scanContext = currentCoroutineContext()
+                CoroutineScope(scanContext + Dispatchers.IO).async {
+                    try {
+                        ElovaireTrace.section("library_media_index_refresh_paths") {
+                            refreshMediaIndex(refreshMediaPaths) {
+                                scanContext.ensureActive()
+                            }
+                        }
+                    } catch (failure: CancellationException) {
+                        throw failure
+                    } catch (failure: Exception) {
+                        decisionMap.recordIndexRefreshFailure(failure)
+                        null
+                    }
                 }
             }
-            result.requireComplete()
+            else -> null
         }
 
         var totalRows = 0
@@ -119,22 +145,10 @@ internal class MediaStoreScanner(
         val scannedMetadataUris = mutableSetOf<String>()
         val genreCache = mutableMapOf<MediaStoreGenreKey, String?>()
         val progressEmitter = ScannerProgressEmitter(onProgress)
-        val audioFileFilter = buildAudioFileFilter()
-        val decisionMap = ScannerDebugLogger.newDecisionMap()
 
         ElovaireTrace.section("library_mediastore_scan") {
             val queryResult = ElovaireTrace.section("library_mediastore_query") {
                 MediaStoreAudioQuery.query(context.contentResolver)
-            }
-            if (
-                queryResult.projectionKind == MediaStoreAudioQuery.ProjectionKind.Compatibility &&
-                scanRoots.relativeRoots().isNotEmpty() &&
-                !scanRoots.usesImplicitDefaultDiscovery()
-            ) {
-                queryResult.cursor.close()
-                throw MediaStoreQueryUnavailableException(
-                    IllegalStateException("MediaStore folder metadata is unavailable for explicit filtering."),
-                )
             }
             decisionMap.recordProjection(queryResult.projectionKind.name)
             val cursor = queryResult.cursor
@@ -142,6 +156,14 @@ internal class MediaStoreScanner(
                 totalRows = cursor.count.coerceAtLeast(0)
                 progressEmitter.emit(0, totalRows)
                 val rowMapper = MediaStoreAudioRowMapper(context, cursor)
+                val audioFileFilter = buildAudioFileFilter(
+                    allowUnscopedMediaStoreRows = true,
+                )
+                if (queryResult.projectionKind == MediaStoreAudioQuery.ProjectionKind.Compatibility ||
+                    !rowMapper.hasRelativePathColumn
+                ) {
+                    decisionMap.recordFolderMetadataUnavailable()
+                }
 
                 var processedRows = 0
                 while (cursor.moveToNext()) {
@@ -162,6 +184,11 @@ internal class MediaStoreScanner(
                     val preflightCandidate = AudioScanCandidateMapper
                         .toCandidate(row, detectedFormat = null)
                         .copy(durationMs = effectiveDurationMs)
+                    if (preflightCandidate.relativePath.isNullOrBlank() &&
+                        preflightCandidate.absolutePath.isNullOrBlank()
+                    ) {
+                        decisionMap.recordFolderMetadataUnavailable()
+                    }
                     decisionMap.recordMediaStoreRow(preflightCandidate, row.durationMs)
                     val preflightRejection = MediaStoreScanPreflight
                         .rejectionBeforeContainerDetection(preflightCandidate, audioFileFilter)
@@ -322,6 +349,8 @@ internal class MediaStoreScanner(
             progressEmitter.emit(totalRows, totalRows)
         }
 
+        indexRefreshJob?.await()?.let(decisionMap::recordIndexRefresh)
+
         currentCoroutineContext().ensureActive()
         val mergedSongs = songs
         decisionMap.logSummary(songs.size)
@@ -401,19 +430,15 @@ internal class MediaStoreScanner(
         true
     }
 
-    private fun MediaStoreIndexRefreshResult.requireComplete() {
-        if (this !is MediaStoreIndexRefreshResult.Complete) {
-            throw MediaStoreIndexRefreshException(this)
-        }
-    }
-
-    private fun buildAudioFileFilter(): LibraryAudioFileFilter {
+    private fun buildAudioFileFilter(
+        allowUnscopedMediaStoreRows: Boolean = false,
+    ): LibraryAudioFileFilter {
         return LibraryAudioFileFilter(
             selectedRelativeRoots = scanRoots.relativeRoots(),
             libraryRootPaths = scanRoots.normalizedFileRootPaths(),
             explicitCustomRootPaths = scanRoots.explicitCustomFileRootPaths(),
             explicitCustomRelativeRoots = scanRoots.explicitCustomRelativeRoots(),
-            implicitDefaultDiscovery = scanRoots.usesImplicitDefaultDiscovery(),
+            allowUnscopedMediaStoreRows = allowUnscopedMediaStoreRows,
         )
     }
 
@@ -580,13 +605,6 @@ internal class MediaStoreScanner(
 internal class MediaStoreQueryUnavailableException(cause: Throwable? = null) : IllegalStateException(
     "MediaStore audio query returned no cursor.",
     cause,
-)
-
-internal class MediaStoreIndexRefreshException(
-    result: MediaStoreIndexRefreshResult,
-) : IllegalStateException(
-    "MediaStore index refresh was not complete: ${result::class.simpleName}.",
-    (result as? MediaStoreIndexRefreshResult.Unavailable)?.failure,
 )
 
 internal sealed interface LocalLibraryScanResult {

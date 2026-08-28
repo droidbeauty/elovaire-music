@@ -89,7 +89,9 @@ internal class AppServices(
     private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
     private val durableStartupStarted = AtomicBoolean(false)
     private val durableStartupReady = SettableFuture.create<Unit>()
-    val exitDiagnostics = AppExitDiagnostics(applicationContext)
+    private val exitDiagnosticsDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        AppExitDiagnostics(applicationContext)
+    }
     private val database = ElovaireDatabase.create(applicationContext)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
     private val userDataStore = RoomUserDataStore(
@@ -315,7 +317,7 @@ internal class AppServices(
                 durableStartupReady.set(Unit)
 
                 try {
-                    val exitSnapshot = exitDiagnostics.inspect()
+                    val exitSnapshot = exitDiagnosticsDelegate.value.inspect()
                     backgroundWorkPolicy.setOptionalStartupSuppressed(
                         exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
                     )

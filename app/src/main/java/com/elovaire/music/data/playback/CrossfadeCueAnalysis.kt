@@ -828,7 +828,11 @@ internal class PcmEnvelopeAccumulator(
             timestampUs = regionStartUs
         }
         if (windowStartUs == Long.MIN_VALUE) windowStartUs = timestampUs
-        while (sampleBuffer.remaining() >= bytesPerFrame && timestampUs < regionEndUs) {
+        var framesProcessed = 0L
+        while (sampleBuffer.remaining() >= bytesPerFrame &&
+            timestampUs + (framesProcessed * 1_000_000L / sampleRate) < regionEndUs
+        ) {
+            val frameEndUs = timestampUs + ((framesProcessed + 1L) * 1_000_000L / sampleRate)
             var channel = 0
             while (channel < channelCount) {
                 val sample = readSample(sampleBuffer)
@@ -837,10 +841,10 @@ internal class PcmEnvelopeAccumulator(
             }
             frameCount += 1
             totalFrameCount += 1L
-            timestampUs += 1_000_000L / sampleRate
-            if (frameCount >= windowFrames) flushWindow(timestampUs)
+            framesProcessed += 1L
+            if (frameCount >= windowFrames) flushWindow(frameEndUs)
         }
-        nextTimeUs = max(nextTimeUs, timestampUs)
+        nextTimeUs = max(nextTimeUs, timestampUs + (framesProcessed * 1_000_000L / sampleRate))
     }
 
     fun finish(): List<CrossfadeLevelWindow> {

@@ -10,11 +10,20 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 
+internal interface MediaStoreIndexRefresher {
+    fun refreshAll(shouldContinue: () -> Boolean = { true }): MediaStoreIndexRefreshResult
+
+    fun refreshPaths(
+        paths: List<String>,
+        shouldContinue: () -> Boolean = { true },
+    ): MediaStoreIndexRefreshResult
+}
+
 internal class MediaStoreIndexer(
     private val context: Context,
     private val scanRoots: () -> List<File>,
-) {
-    fun refreshAll(shouldContinue: () -> Boolean = { true }): MediaStoreIndexRefreshResult {
+) : MediaStoreIndexRefresher {
+    override fun refreshAll(shouldContinue: () -> Boolean): MediaStoreIndexRefreshResult {
         shouldContinue()
         val roots = scanRoots()
             .filter { it.exists() && it.isDirectory }
@@ -56,9 +65,9 @@ internal class MediaStoreIndexer(
         return result
     }
 
-    fun refreshPaths(
+    override fun refreshPaths(
         paths: List<String>,
-        shouldContinue: () -> Boolean = { true },
+        shouldContinue: () -> Boolean,
     ): MediaStoreIndexRefreshResult {
         shouldContinue()
         return scanAudioPaths(

@@ -32,8 +32,9 @@ internal class PlaybackRuntimeResources(
     ) {
         if (released) return
         val playbackRuntimeActive = hasQueue || isPlaying || playWhenReady
+        val outputRouteActive = isPlaying || playWhenReady
         setVolumeObserverRegistered(playbackRuntimeActive)
-        setAudioDeviceCallbackRegistered(playbackRuntimeActive)
+        setAudioDeviceCallbackRegistered(outputRouteActive)
         setNoisyReceiverRegistered(isPlaying || playWhenReady)
     }
 

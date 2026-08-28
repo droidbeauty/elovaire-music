@@ -28,6 +28,7 @@ internal sealed interface SafTreeScanResult {
 
     data class Incomplete(
         override val selection: LibraryFolderSelection,
+        val songs: List<Song>,
         val failure: SafScanIncompleteException,
     ) : SafTreeScanResult
 
@@ -71,14 +72,18 @@ internal class SafTreeLibraryScanner(
                         cause = SecurityException("Persisted SAF read permission is unavailable."),
                     )
                 }
-                SafTreeScanResult.Complete(
-                    selection = selection,
-                    songs = scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds),
-                )
+                val outcome = scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds)
+                outcome.incompleteReason?.let { reason ->
+                    SafTreeScanResult.Incomplete(
+                        selection = selection,
+                        songs = outcome.songs,
+                        failure = SafScanIncompleteException(treeUri.authority, reason),
+                    )
+                } ?: SafTreeScanResult.Complete(selection = selection, songs = outcome.songs)
             } catch (failure: CancellationException) {
                 throw failure
             } catch (failure: SafScanIncompleteException) {
-                SafTreeScanResult.Incomplete(selection, failure)
+                SafTreeScanResult.Incomplete(selection, emptyList(), failure)
             } catch (failure: SafProviderUnavailableException) {
                 SafTreeScanResult.Unavailable(selection, failure)
             } catch (failure: RuntimeException) {
@@ -103,7 +108,7 @@ internal class SafTreeLibraryScanner(
         refreshedCache: MutableMap<SafDocumentKey, CachedSafFile>,
         visitedDirectories: MutableSet<SafDocumentKey>,
         albumIds: MutableMap<String, Long>,
-    ): List<Song> {
+    ): SafTreeScanOutcome {
         val rootDocumentId = treeDocumentId(treeUri)
         val rootKey = LibraryFolderSelectionResolver.safSyntheticRoot(treeUri)
         val providerKey = treeUri.authority?.lowercase(Locale.ROOT).orEmpty()
@@ -189,7 +194,7 @@ internal class SafTreeLibraryScanner(
                 if (child.hasStableChangeSignal) {
                     refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
                 }
-                val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: return@forEach
+                val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: 0L
                 val libraryPath = resolveSafLibraryPath(canonicalRoot, rootKey, childRelativePath)
                 val stableSongId = stableNegativeId(
                     MediaIdentityResolver.safDocument(providerKey, child.documentId)?.stableKey
@@ -247,10 +252,7 @@ internal class SafTreeLibraryScanner(
         if (incompleteReason == null && pending.isNotEmpty()) {
             incompleteReason = "directory traversal budget exceeded"
         }
-        incompleteReason?.let { reason ->
-            throw SafScanIncompleteException(providerKey, reason)
-        }
-        return songs
+        return SafTreeScanOutcome(songs = songs, incompleteReason = incompleteReason)
     }
 
     private fun queryChildren(
@@ -353,6 +355,11 @@ internal class SafTreeLibraryScanner(
     private data class SafDirectory(
         val documentId: String,
         val relativePath: String,
+    )
+
+    private data class SafTreeScanOutcome(
+        val songs: List<Song>,
+        val incompleteReason: String?,
     )
 
     private data class SafDocument(

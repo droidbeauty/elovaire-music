@@ -136,7 +136,9 @@ internal class LibraryScanCoordinator(
             )
         }
 
-        val availableNetworkSources = networkSources.filter { it.id !in blockedNetworkSourceIds }
+        val availableNetworkSources = networkSources.filter {
+            it.enabled && it.id !in blockedNetworkSourceIds
+        }
         val sourcesToScan = if (targetedNetworkSourceIds == null) {
             availableNetworkSources
         } else if (!canReuseLocalState) {
@@ -225,9 +227,13 @@ internal class LibraryScanCoordinator(
                 currentMediaStoreVolumes != null &&
                 source.volumeName !in currentMediaStoreVolumes
         }
-        val safSongs = safResults
-            .filterIsInstance<SafTreeScanResult.Complete>()
-            .flatMap(SafTreeScanResult.Complete::songs)
+        val safSongs = safResults.flatMap { result ->
+            when (result) {
+                is SafTreeScanResult.Complete -> result.songs
+                is SafTreeScanResult.Incomplete -> result.songs
+                is SafTreeScanResult.Unavailable -> emptyList()
+            }
+        }
         val scannedSafTreeIds = safResults
             .mapNotNull { safTreeIdentity(it.selection.uri) }
         val failedSafTreeIds = safResults
@@ -240,11 +246,22 @@ internal class LibraryScanCoordinator(
                 treeId in configuredSafTreeIds && treeId !in scannedSafTreeIds
         }
         val localUnavailable = localResult is LocalLibraryScanResult.Unavailable
+        val mergedSongs = LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
+            mediaStoreSongs = local.songs + preservedDetachedMediaStoreSongs,
+            safSongs = safSongs + preservedSafSongs,
+        )
+        ScannerDebugLogger.recordSafSummary(
+            treeCount = configuredSafTrees.size,
+            validGrantCount = safResults.count { result ->
+                result !is SafTreeScanResult.Unavailable ||
+                    result.failure.operation != "validate-persisted-permission"
+            },
+            discoveredSongCount = safSongs.size,
+            incompleteTreeCount = safResults.count { it !is SafTreeScanResult.Complete },
+            mergedSongCount = mergedSongs.size,
+        )
         return LocalSourceScanResult(
-            songs = LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
-                mediaStoreSongs = local.songs + preservedDetachedMediaStoreSongs,
-                safSongs = safSongs + preservedSafSongs,
-            ),
+            songs = mergedSongs,
             isComplete = !localUnavailable && !safIncomplete && preservedDetachedMediaStoreSongs.isEmpty(),
             incompleteMessage = when {
                 localUnavailable -> LibraryFailure.MediaStoreUnavailable.toUserMessage()

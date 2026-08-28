@@ -19,8 +19,6 @@ internal object AndroidCapabilities {
 
     fun supportsGroupedMediaWrite(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.R
 
-    fun usesRecoverableMediaWrite(sdkInt: Int): Boolean = sdkInt == Build.VERSION_CODES.Q
-
     fun supportsImageDecoder(sdkInt: Int): Boolean = sdkInt >= Build.VERSION_CODES.P
 
     @ChecksSdkIntAtLeast(api = Build.VERSION_CODES.TIRAMISU, parameter = 0)

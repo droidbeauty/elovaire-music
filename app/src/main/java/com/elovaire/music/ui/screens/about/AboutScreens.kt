@@ -354,7 +354,10 @@ internal fun ChangelogReleaseContent(
                     Text(
                         text = change,
                         modifier = Modifier.weight(1f),
-                        style = MaterialTheme.typography.bodyLarge.copy(lineHeight = 24.sp),
+                        style = MaterialTheme.typography.bodyLarge.copy(
+                            fontWeight = FontWeight.Medium,
+                            lineHeight = 24.sp,
+                        ),
                         color = textColor,
                     )
                 }

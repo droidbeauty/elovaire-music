@@ -278,4 +278,24 @@ class PlaybackCrossfadeEnvelopeTest {
         )
         assertEquals(40L to 0L, CrossfadeCueAlgorithm.trailingCue(listOf(belowFloor, aboveFloor), 40L))
     }
+
+    @Test
+    fun pcmEnvelopeAccumulator_preservesTimingAt44100Hz() {
+        val frameCount = 44_100 * 20
+        val buffer = ByteBuffer.allocate(frameCount * 2).order(ByteOrder.nativeOrder())
+        repeat(frameCount) { buffer.putShort(0) }
+        buffer.flip()
+
+        val accumulator = PcmEnvelopeAccumulator(
+            sampleRate = 44_100,
+            channelCount = 1,
+            encoding = C.ENCODING_PCM_16BIT,
+            regionStartUs = 0L,
+            regionEndUs = 20_000_000L,
+        )
+        accumulator.append(buffer, 0L)
+
+        assertEquals(frameCount.toLong(), accumulator.decodedFrameCount)
+        assertEquals(20_000L, accumulator.finish().last().endMs)
+    }
 }

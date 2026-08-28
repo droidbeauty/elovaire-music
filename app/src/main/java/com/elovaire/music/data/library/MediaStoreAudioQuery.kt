@@ -25,11 +25,10 @@ internal object MediaStoreAudioQuery {
         MediaStore.MediaColumns.VOLUME_NAME,
     )
 
-    /** The small projection is used when an OEM provider rejects an optional column. */
+    /** Only identity and display name are required to discover a MediaStore audio row. */
     val compatibilityProjection: Array<String> = arrayOf(
         MediaStore.Audio.Media._ID,
         MediaStore.Audio.Media.DISPLAY_NAME,
-        MediaStore.Audio.Media.MIME_TYPE,
     )
 
     val collectionUri: Uri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)

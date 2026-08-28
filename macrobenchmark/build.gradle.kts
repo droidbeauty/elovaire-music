@@ -60,6 +60,13 @@ androidComponents {
     }
 }
 
+tasks.configureEach {
+    if (name == "connectedCheck" || name == "connectedBenchmarkAndroidTest") {
+        dependsOn(":app:installBenchmark")
+        mustRunAfter(":app:installBenchmark")
+    }
+}
+
 dependencies {
     implementation(libs.androidx.benchmark.macro.junit4)
     implementation(libs.androidx.test.ext.junit)

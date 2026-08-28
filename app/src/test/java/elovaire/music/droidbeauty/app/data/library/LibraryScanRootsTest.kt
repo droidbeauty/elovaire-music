@@ -111,7 +111,7 @@ class LibraryScanRootsTest {
     }
 
     @Test
-    fun setSelections_deduplicatesTreeUriWithEquivalentPathRoot() {
+    fun setSelections_keepsTreeUriWithEquivalentPathRoot() {
         val roots = LibraryScanRoots(emptyList())
         roots.setSelections(
             listOf(
@@ -129,9 +129,31 @@ class LibraryScanRootsTest {
         )
 
         assertEquals(
-            "10::@/storage/emulated/0/music",
+            "10::@/storage/emulated/0/music|content://tree/primary%3AMusic@/storage/emulated/0/music",
             roots.filterFingerprint(version = 10),
         )
+    }
+
+    @Test
+    fun setSelections_keepsSafChildWhenDefaultMusicPathIsSelected() {
+        val selections = LibraryFolderSelectionResolver.normalize(
+            listOf(
+                LibraryFolderSelection(
+                    uri = null,
+                    path = "/storage/emulated/0/Music",
+                    displayName = "Music",
+                ),
+                LibraryFolderSelection(
+                    uri = TestUri("content://tree/primary%3AMusic%2FSubfolder"),
+                    path = "/storage/emulated/0/Music/Subfolder",
+                    displayName = "Subfolder",
+                ),
+            ),
+        )
+
+        assertEquals(2, selections.size)
+        assertTrue(selections.any { it.uri == null })
+        assertTrue(selections.any { it.uri != null })
     }
 
     @Test
