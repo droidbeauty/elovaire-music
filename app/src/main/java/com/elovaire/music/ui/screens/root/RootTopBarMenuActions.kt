@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.annotation.DrawableRes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.navigation.NavHostController
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 
@@ -16,26 +15,26 @@ internal data class RootTopBarMenuActions(
 
 @Composable
 internal fun rememberRootTopBarMenuActions(
-    navController: NavHostController,
+    navigationState: RootNavigationState,
     overlayState: RootOverlayStateHolder,
 ): RootTopBarMenuActions {
-    return remember(navController, overlayState) {
+    return remember(navigationState, overlayState) {
         RootTopBarMenuActions(
             openSettings = {
                 overlayState.dismissTopBarMenu()
                 lazyListPositionCache["settings_screen"] = 0 to 0
-                navController.navigate(SETTINGS_ROUTE)
+                navigationState.navigateTo(SETTINGS_ROUTE)
             },
             openEqualizer = {
                 overlayState.dismissTopBarMenu()
-                navController.navigate(EQUALIZER_ROUTE)
+                navigationState.navigateTo(EQUALIZER_ROUTE)
             },
             openChangelogSheet = {
                 overlayState.openChangelogSheet()
             },
             openAbout = {
                 overlayState.dismissTopBarMenu()
-                navController.navigate(ABOUT_ROUTE)
+                navigationState.navigateTo(ABOUT_ROUTE)
             },
         )
     }

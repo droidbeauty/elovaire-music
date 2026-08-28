@@ -33,7 +33,7 @@ internal fun rememberRootActionRuntime(
         preferenceStore = container.preferenceStore,
         onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
         openAlbum = uiRuntime.openAlbum,
-        navigateToAlbumId = { albumId -> navController.navigate(Routes.album(albumId)) },
+        navigateToAlbumId = { albumId -> uiRuntime.navigationState.navigateTo(Routes.album(albumId)) },
     )
     val playbackActions = rememberRootPlaybackActions(
         dependencies = container.playbackActionDependencies,

@@ -2,12 +2,10 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
-import androidx.navigation.NavHostController
 import elovaire.music.droidbeauty.app.domain.model.Album
 
 @Composable
 internal fun rememberOpenCurrentPlayingAlbum(
-    navController: NavHostController,
     navigationState: RootNavigationState,
     currentRoute: String?,
     currentAlbumRouteId: Long?,
@@ -16,7 +14,6 @@ internal fun rememberOpenCurrentPlayingAlbum(
     openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit,
 ): (Long) -> Unit {
     return remember(
-        navController,
         navigationState,
         currentRoute,
         currentAlbumRouteId,
@@ -34,7 +31,7 @@ internal fun rememberOpenCurrentPlayingAlbum(
                 } ?: run {
                     navigationState.detailExpandOrigin = ExpandOrigin()
                     navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-                    navController.navigate(Routes.album(albumId))
+                    navigationState.navigateTo(Routes.album(albumId))
                 }
             }
         }

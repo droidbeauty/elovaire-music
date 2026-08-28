@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.core.backend.BackendEvent
 import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
 import elovaire.music.droidbeauty.app.core.backend.BackendOperationContext
+import elovaire.music.droidbeauty.app.core.backend.BackendOperationMetrics
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.backend.BackendSubsystem
@@ -277,10 +278,22 @@ class LibraryRepository internal constructor(
                         hasSafSelections = scanner.hasSafSelections(),
                     )
                     if (syncDecision != LibrarySyncDecision.ReuseCached || networkSourceNeedsRefresh) {
+                        val generationFloor = if (
+                            syncDecision == LibrarySyncDecision.IncrementalScan &&
+                            !scanner.hasSafSelections()
+                        ) {
+                            cachedSnapshot.syncState?.volumes
+                                ?.map(LibraryMediaStoreVolumeSyncState::generation)
+                                ?.distinct()
+                                ?.singleOrNull()
+                        } else {
+                            null
+                        }
                         refresh(
                             forceMediaIndex = false,
                             enrichMetadata = false,
                             showLoadingIndicator = false,
+                            mediaStoreGenerationFloor = generationFloor,
                         )
                     } else if (cachedSnapshotNeedsMetadata) {
                         refresh(
@@ -318,12 +331,14 @@ class LibraryRepository internal constructor(
         enrichMetadata: Boolean = false,
         showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
         targetedNetworkSourceIds: Set<String>? = null,
+        mediaStoreGenerationFloor: Long? = null,
     ) {
         if (released.get() || !_scanState.value.permissionGranted) return
         val request = LibraryRefreshRequest(
             forceMediaIndex = forceMediaIndex,
             enrichMetadata = enrichMetadata,
             targetedNetworkSourceIds = targetedNetworkSourceIds,
+            mediaStoreGenerationFloor = mediaStoreGenerationFloor,
         )
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
@@ -497,6 +512,14 @@ class LibraryRepository internal constructor(
                         "songs" to prepared.snapshot.songs.size.toString(),
                         "albums" to prepared.snapshot.albums.size.toString(),
                     ),
+                    metrics = BackendOperationMetrics(
+                        itemsOutput = prepared.snapshot.songs.size,
+                        rowsChanged = prepared.changeSet.added.size +
+                            prepared.changeSet.updated.size +
+                            prepared.changeSet.relocated.size +
+                            prepared.changeSet.removed.size,
+                        fallback = !scanResult.isComplete,
+                    ),
                 ),
             )
         }
@@ -566,6 +589,7 @@ class LibraryRepository internal constructor(
                 refreshMediaIndex = request.forceMediaIndex,
                 refreshMediaPaths = request.targetedPaths,
                 enrichMetadata = request.enrichMetadata,
+                mediaStoreGenerationFloor = request.mediaStoreGenerationFloor,
                 targetedNetworkSourceIds = request.targetedNetworkSourceIds,
                 baseSnapshot = existingSnapshot,
                 onProgress = if (showLoadingIndicator) progress@{ current, total ->
@@ -783,10 +807,7 @@ class LibraryRepository internal constructor(
             removingSongIds = current.removingSongIds,
             removingAlbumIds = current.removingAlbumIds,
         )
-        val changeSet = LibraryChangeSetCalculator.between(
-            previous = current.songs,
-            next = updatedState.songs,
-        )
+        val changeSet = snapshotPublisher.takeLastPatchChangeSet()
         if (changeSet.isEmpty) return
         withContext(Dispatchers.IO) {
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)

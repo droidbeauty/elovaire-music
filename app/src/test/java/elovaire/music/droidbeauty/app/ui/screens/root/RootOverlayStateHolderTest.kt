@@ -27,19 +27,21 @@ class RootOverlayStateHolderTest {
     @Test
     fun onRouteChanged_closesPlaylistDialogOutsidePlaylistsRoute() {
         var showTopBarMenu = true
+        var showChangelogSheet = true
         var showPlaylistCreateDialog = true
         val holder = RootOverlayStateHolder(
             showTopBarMenu = showTopBarMenu,
-            showChangelogSheet = false,
+            showChangelogSheet = showChangelogSheet,
             showPlaylistCreateDialog = showPlaylistCreateDialog,
             setTopBarMenu = { showTopBarMenu = it },
-            setChangelogSheet = {},
+            setChangelogSheet = { showChangelogSheet = it },
             setPlaylistCreateDialog = { showPlaylistCreateDialog = it },
         )
 
         holder.onRouteChanged(HOME_ROUTE)
 
         assertFalse(showTopBarMenu)
+        assertFalse(showChangelogSheet)
         assertFalse(showPlaylistCreateDialog)
     }
 

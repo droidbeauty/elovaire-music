@@ -6,6 +6,9 @@ import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import java.io.Closeable
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +47,7 @@ internal class PortableSettingsBackup(
     private val mirrorLock = Any()
     private var mirrorJob: Job? = null
     private var mirrorRequested = false
+    private var callbackResource: Closeable? = null
 
     fun restore() {
         if (released.get()) return
@@ -65,6 +69,7 @@ internal class PortableSettingsBackup(
         if (!started.compareAndSet(false, true)) return
         try {
             source.registerOnSharedPreferenceChangeListener(this)
+            callbackResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRegisteredCallback)
         } catch (failure: RuntimeException) {
             started.set(false)
             runCatching { source.unregisterOnSharedPreferenceChangeListener(this) }
@@ -72,6 +77,8 @@ internal class PortableSettingsBackup(
         }
         if (released.get() && started.compareAndSet(true, false)) {
             runCatching { source.unregisterOnSharedPreferenceChangeListener(this) }
+            callbackResource?.close()
+            callbackResource = null
         }
     }
 
@@ -80,6 +87,8 @@ internal class PortableSettingsBackup(
         if (started.compareAndSet(true, false)) {
             source.unregisterOnSharedPreferenceChangeListener(this)
         }
+        callbackResource?.close()
+        callbackResource = null
         synchronized(mirrorLock) {
             mirrorRequested = false
             mirrorJob?.cancel()
@@ -178,7 +187,7 @@ internal class PortableSettingsBackup(
         const val BACKUP_CHECKSUM_KEY = "_checksum"
         const val BACKUP_CREATED_AT_KEY = "_created_at_ms"
         const val BACKUP_FORMAT_VERSION = 1
-        const val MIRROR_COALESCE_DELAY_MS = 100L
+        const val MIRROR_COALESCE_DELAY_MS = 400L
         val PORTABLE_KEYS = portableSettingKeys
     }
 }

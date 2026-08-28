@@ -82,6 +82,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSeman
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -226,16 +227,21 @@ internal fun PlaylistNameDialog(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            DynamicBackdropSurface(
+            PopupCardMotionHost(
+                visible = true,
                 modifier = Modifier
                     .fillMaxWidth()
                     .offset(y = (-20).dp)
-                    .padding(horizontal = 20.dp)
-                    .consumePointersWithoutSemantics(),
-                shape = RoundedCornerShape(ElovaireRadii.card),
-                overlayAlpha = 0.6f,
-                borderColor = blurSurfaceBorderColor(),
+                    .padding(horizontal = 20.dp),
             ) {
+                DynamicBackdropSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .consumePointersWithoutSemantics(),
+                    shape = RoundedCornerShape(ElovaireRadii.card),
+                    overlayAlpha = 0.6f,
+                    borderColor = blurSurfaceBorderColor(),
+                ) {
                 Column(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 20.dp),
                     verticalArrangement = Arrangement.spacedBy(18.dp),
@@ -297,6 +303,7 @@ internal fun PlaylistNameDialog(
                             )
                         }
                     }
+                }
                 }
             }
         }
@@ -474,15 +481,20 @@ internal fun PlaylistSelectionDialog(
                 },
             contentAlignment = Alignment.Center,
         ) {
-            DynamicBackdropSurface(
+            PopupCardMotionHost(
+                visible = true,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 20.dp)
-                    .consumePointersWithoutSemantics(),
-                shape = RoundedCornerShape(ElovaireRadii.card),
-                overlayAlpha = 0.6f,
-                borderColor = blurSurfaceBorderColor(),
+                    .padding(horizontal = 20.dp),
             ) {
+                DynamicBackdropSurface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .consumePointersWithoutSemantics(),
+                    shape = RoundedCornerShape(ElovaireRadii.card),
+                    overlayAlpha = 0.6f,
+                    borderColor = blurSurfaceBorderColor(),
+                ) {
                 Column(
                     modifier = Modifier
                         .padding(horizontal = 20.dp, vertical = 20.dp)
@@ -687,6 +699,7 @@ internal fun PlaylistSelectionDialog(
                             )
                         }
                     }
+                }
                 }
             }
         }

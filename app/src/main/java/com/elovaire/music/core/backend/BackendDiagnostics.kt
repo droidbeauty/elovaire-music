@@ -15,8 +15,13 @@ internal data class BackendEventSnapshot(
 )
 
 internal enum class BackendResourceKind(val key: String) {
-    ActiveScan("active_scans"),
+    ActiveScan("active_library_scans"),
+    ActiveNetworkScan("active_network_scans"),
     ActiveNetworkRead("active_network_reads"),
+    ActiveMetadataRead("active_metadata_reads"),
+    ActiveArtworkDecode("active_artwork_decodes"),
+    ActiveHttpRequest("active_http_requests"),
+    ActiveRegisteredCallback("active_registered_callbacks"),
     ActiveRetriever("active_retrievers"),
     DatabaseInstance("database_instances"),
     PendingRoomOperation("pending_room_operations"),
@@ -193,6 +198,8 @@ private val SAFE_DIAGNOSTIC_FIELDS = setOf(
     "rows_changed",
     "bytes_read",
     "bytes_written",
+    "cache_hits",
+    "cache_misses",
     "cache",
     "fallback",
     "error_type",

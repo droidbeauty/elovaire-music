@@ -68,6 +68,6 @@ class LyricsService internal constructor(
         )
     }.catch { throwable ->
         if (throwable is CancellationException) throw throwable
-        emit(LyricsResult.Timeout)
+        emit(LyricsResult.Unavailable)
     }.flowOn(ioDispatcher)
 }

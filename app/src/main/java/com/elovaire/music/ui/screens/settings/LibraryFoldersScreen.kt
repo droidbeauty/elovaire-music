@@ -30,7 +30,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -59,6 +58,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.ui.window.Dialog
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
@@ -74,6 +74,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.theme.DestructiveRed
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -306,22 +307,55 @@ internal fun LibraryFoldersScreen(
                 },
             )
             pendingNetworkRemoval?.let { source ->
-                AlertDialog(
-                    onDismissRequest = { pendingNetworkRemoval = null },
-                    title = { Text("Remove network source?") },
-                    text = { Text("This removes the source from the library. Files on the network are not deleted.") },
-                    dismissButton = {
-                        TextButton(onClick = { pendingNetworkRemoval = null }) { Text("Cancel") }
-                    },
-                    confirmButton = {
-                        TextButton(
-                            onClick = {
-                                pendingNetworkRemoval = null
-                                onRemoveNetworkSource(source)
-                            },
-                        ) { Text("Remove") }
-                    },
-                )
+                Dialog(onDismissRequest = { pendingNetworkRemoval = null }) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        PopupCardMotionHost(
+                            visible = true,
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                        ) {
+                            DynamicBackdropSurface(
+                                modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(ElovaireRadii.card),
+                                overlayAlpha = 0.6f,
+                                borderColor = blurSurfaceBorderColor(),
+                            ) {
+                                Column(
+                                    modifier = Modifier.padding(20.dp),
+                                    verticalArrangement = Arrangement.spacedBy(14.dp),
+                                ) {
+                                    Text(
+                                        text = "Remove network source?",
+                                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
+                                    )
+                                    Text(
+                                        text = "This removes the source from the library. Files on the network are not deleted.",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = readableSecondaryTextColor(),
+                                    )
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                    ) {
+                                        TextButton(onClick = { pendingNetworkRemoval = null }) {
+                                            Text("Cancel")
+                                        }
+                                        TextButton(
+                                            onClick = {
+                                                pendingNetworkRemoval = null
+                                                onRemoveNetworkSource(source)
+                                            },
+                                        ) {
+                                            Text("Remove", color = DestructiveRed)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
             }
         } else {
             NetworkSourceEditorScreen(
@@ -387,22 +421,41 @@ private fun LibrarySourceChooserSheet(
     onAddFolder: () -> Unit,
     onAddNetwork: () -> Unit,
 ) {
-    AnimatedVisibility(
-        visible = visible,
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .zIndex(10f),
-        enter = ElovaireMotion.bottomSheetEnter(),
-        exit = ElovaireMotion.bottomSheetExit(),
     ) {
+        AnimatedVisibility(
+            visible = visible,
+            modifier = Modifier.matchParentSize(),
+            enter = fadeIn(animationSpec = ElovaireMotion.fadeMedium()),
+            exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.4f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onDismiss,
+                    ),
+            )
+        }
+        PopupCardMotionHost(
+            visible = visible,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth(),
+        ) {
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .background(Color.Black.copy(alpha = 0.4f))
+                .fillMaxWidth()
                 .clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
-                    onClick = onDismiss,
+                    onClick = {},
                 ),
         ) {
             DynamicBackdropSurface(
@@ -483,6 +536,7 @@ private fun LibrarySourceChooserSheet(
                     )
                 }
             }
+        }
         }
     }
 }

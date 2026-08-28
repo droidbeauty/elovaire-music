@@ -114,7 +114,7 @@ internal fun ElovaireRootReadyHost(
                 appState = appState,
                 playlistActions = actionRuntime.playlistActions,
                 openCurrentPlayingAlbum = uiRuntime.openCurrentPlayingAlbum,
-                navController = composition.navController,
+                navigationState = navigationState,
             )
         },
     )

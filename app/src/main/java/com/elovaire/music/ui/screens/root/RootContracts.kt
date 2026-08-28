@@ -521,6 +521,10 @@ internal fun LyricsResult.toUiState(): LyricsUiState = when (this) {
         ?: LyricsUiState.Empty
     LyricsResult.NotFound -> LyricsUiState.Empty
     LyricsResult.Timeout -> LyricsUiState.Empty
+    LyricsResult.Unavailable -> LyricsUiState.Empty
+    LyricsResult.MalformedResponse -> LyricsUiState.Empty
+    is LyricsResult.RateLimited -> LyricsUiState.Empty
+    is LyricsResult.Rejected -> LyricsUiState.Empty
 }
 
 internal enum class ProgressiveChromeEdge {

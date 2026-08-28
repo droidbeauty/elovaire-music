@@ -10,6 +10,7 @@
         <item>Redesigned changelog pop-up card</item>
         <item>Reliability focused changes in many areas</item>
         <item>Better UI responsiveness overall during quick navigation</item>
+        <item>Fine tuned some areas that were previously less efficient</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

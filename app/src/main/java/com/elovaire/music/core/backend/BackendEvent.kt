@@ -25,6 +25,8 @@ internal data class BackendOperationMetrics(
     val rowsChanged: Int? = null,
     val bytesRead: Long? = null,
     val bytesWritten: Long? = null,
+    val cacheHits: Int? = null,
+    val cacheMisses: Int? = null,
     val cache: String? = null,
     val fallback: Boolean? = null,
 )
@@ -50,6 +52,8 @@ internal data class BackendOperationContext(
         metrics.rowsChanged?.nonNegative()?.let { put("rows_changed", it.toString()) }
         metrics.bytesRead?.nonNegative()?.let { put("bytes_read", it.toString()) }
         metrics.bytesWritten?.nonNegative()?.let { put("bytes_written", it.toString()) }
+        metrics.cacheHits?.nonNegative()?.let { put("cache_hits", it.toString()) }
+        metrics.cacheMisses?.nonNegative()?.let { put("cache_misses", it.toString()) }
         metrics.cache?.takeIf { it == "hit" || it == "miss" || it == "disabled" }
             ?.let { put("cache", it) }
         metrics.fallback?.let { put("fallback", it.toString()) }

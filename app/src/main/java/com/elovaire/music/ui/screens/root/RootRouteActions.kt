@@ -43,7 +43,11 @@ internal class RootRouteActions(
     val networkProbeResults = libraryDependencies.networkProbeResults
 
     fun navigateUp() {
-        navController.navigateUp()
+        if (navController.navigateUp()) {
+            RootInteractionState.begin("back")
+        } else {
+            RootInteractionState.finish()
+        }
     }
 
     fun openAlbum(
@@ -60,7 +64,7 @@ internal class RootRouteActions(
     ) {
         navigationState.detailExpandOrigin = origin
         navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-        navController.navigate(Routes.playlist(playlistId))
+        navigationState.navigateTo(Routes.playlist(playlistId))
     }
 
     fun openSmartPlaylist(
@@ -69,63 +73,63 @@ internal class RootRouteActions(
     ) {
         navigationState.detailExpandOrigin = origin
         navigationState.detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-        navController.navigate(Routes.smartPlaylist(playlistId))
+        navigationState.navigateTo(Routes.smartPlaylist(playlistId))
     }
 
     fun openSmartPlaylistEditor(playlistId: Long? = null) {
-        navController.navigate(Routes.smartPlaylistEditor(playlistId))
+        navigationState.navigateTo(Routes.smartPlaylistEditor(playlistId))
     }
 
     fun openLibraryCollection(kind: LibraryCollectionKind) {
-        navController.navigate(Routes.libraryCollection(kind))
+        navigationState.navigateTo(Routes.libraryCollection(kind))
     }
 
     fun openRecentlyAdded() {
-        navController.navigate(RECENTLY_ADDED_ROUTE)
+        navigationState.navigateTo(RECENTLY_ADDED_ROUTE)
     }
 
     fun openArtist(artistName: String) {
-        navController.navigate(Routes.artist(artistName))
+        navigationState.navigateTo(Routes.artist(artistName))
     }
 
     fun openGenre(genre: String) {
-        navController.navigate(Routes.genre(genre))
+        navigationState.navigateTo(Routes.genre(genre))
     }
 
     fun openAlbumId(albumId: Long) {
-        navController.navigate(Routes.album(albumId))
+        navigationState.navigateTo(Routes.album(albumId))
     }
 
     fun openTagEditor(albumId: Long) {
-        navController.navigate(Routes.tagEditor(albumId))
+        navigationState.navigateTo(Routes.tagEditor(albumId))
     }
 
     fun openEqualizer() {
-        navController.navigate(EQUALIZER_ROUTE)
+        navigationState.navigateTo(EQUALIZER_ROUTE)
     }
 
     fun openCrossfade() {
-        navController.navigate(CROSSFADE_ROUTE)
+        navigationState.navigateTo(CROSSFADE_ROUTE)
     }
 
     fun openLibraryFolders() {
-        navController.navigate(LIBRARY_FOLDERS_ROUTE)
+        navigationState.navigateTo(LIBRARY_FOLDERS_ROUTE)
     }
 
     fun openChangelog() {
-        navController.navigate(CHANGELOG_ROUTE)
+        navigationState.navigateTo(CHANGELOG_ROUTE)
     }
 
     fun openPrivacyPolicy() {
-        navController.navigate(PRIVACY_POLICY_ROUTE)
+        navigationState.navigateTo(PRIVACY_POLICY_ROUTE)
     }
 
     fun openManagePlaylists() {
-        navController.navigate(MANAGE_PLAYLISTS_ROUTE)
+        navigationState.navigateTo(MANAGE_PLAYLISTS_ROUTE)
     }
 
     fun openNowPlayingBarStyle() {
-        navController.navigate(NOW_PLAYING_BAR_STYLE_ROUTE)
+        navigationState.navigateTo(NOW_PLAYING_BAR_STYLE_ROUTE)
     }
 
     fun refreshLibrary() {

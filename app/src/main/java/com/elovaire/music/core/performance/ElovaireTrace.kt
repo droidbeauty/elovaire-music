@@ -25,6 +25,7 @@ internal object ElovaireTrace {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     suspend fun <T> suspendSection(
         name: String,
         block: suspend () -> T,
@@ -34,11 +35,22 @@ internal object ElovaireTrace {
         val cookie = nextAsyncCookie.getAndUpdate { current ->
             if (current == Int.MAX_VALUE) 1 else current + 1
         }
-        Trace.beginAsyncSection(traceName, cookie)
+        val tracingStarted = try {
+            Trace.beginAsyncSection(traceName, cookie)
+            true
+        } catch (failure: RuntimeException) {
+            if (failure.message?.contains("not mocked", ignoreCase = true) == true) {
+                false
+            } else {
+                throw failure
+            }
+        }
         return try {
             block()
         } finally {
-            Trace.endAsyncSection(traceName, cookie)
+            if (tracingStarted) {
+                Trace.endAsyncSection(traceName, cookie)
+            }
         }
     }
 

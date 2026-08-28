@@ -11,7 +11,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
-import androidx.navigation.NavHostController
 import dev.chrisbanes.haze.HazeState
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
@@ -157,11 +156,12 @@ internal fun BoxScope.RootPlayerLayerSlot(
     appState: RootAppState,
     playlistActions: RootPlaylistActions,
     openCurrentPlayingAlbum: (Long) -> Unit,
-    navController: NavHostController,
+    navigationState: RootNavigationState,
 ) {
     RootPlayerLayerHost(
         visible = chromeVisibility.showPlayerOverlay,
         playerLayerState = playerLayerState,
+        transitionGeneration = playerLayerController.transitionGeneration,
         onExitFinished = playerLayerController::clearTransitionSnapshot,
         onReturnToCompactFinished = playerLayerController::finishReturnToCompact,
         nowPlayingViewModel = nowPlayingViewModel,
@@ -178,7 +178,7 @@ internal fun BoxScope.RootPlayerLayerSlot(
         onCreatePlaylist = playlistActions::createPlaylist,
         onOpenEqualizer = {
             playerLayerController.hide(false)
-            navController.navigate(EQUALIZER_ROUTE)
+            navigationState.navigateTo(EQUALIZER_ROUTE)
         },
         transitionSnapshot = playerLayerController.transitionSnapshot,
         modifier = Modifier.fillMaxSize(),

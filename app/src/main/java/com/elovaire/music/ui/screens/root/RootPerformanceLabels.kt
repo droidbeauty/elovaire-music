@@ -1,6 +1,9 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 
@@ -40,7 +43,21 @@ internal fun rootPerformanceLibraryLabel(libraryState: LibraryUiState): String {
     }
 }
 
-internal fun rootPerformanceInteractionLabel(): String = "idle"
+internal object RootInteractionState {
+    private var currentKind by mutableStateOf<String?>(null)
+
+    fun begin(kind: String) {
+        currentKind = kind
+    }
+
+    fun finish() {
+        currentKind = null
+    }
+
+    fun label(): String = currentKind ?: "idle"
+}
+
+internal fun rootPerformanceInteractionLabel(): String = RootInteractionState.label()
 
 internal fun rootPerformancePlaybackLabel(isPlaybackActuallyPlaying: Boolean): String {
     return if (isPlaybackActuallyPlaying) "playing" else "idle"

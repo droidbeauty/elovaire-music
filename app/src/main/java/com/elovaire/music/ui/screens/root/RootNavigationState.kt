@@ -28,6 +28,7 @@ internal class RootNavigationState(
     lastLibraryTabRouteState: MutableState<String>,
     lastPlaylistsTabRouteState: MutableState<String>,
     lastSearchTabRouteState: MutableState<String>,
+    pendingTopLevelRouteState: MutableState<String?>,
     homeScrollRequestVersionState: MutableLongState,
     libraryScrollRequestVersionState: MutableLongState,
     playlistsScrollRequestVersionState: MutableLongState,
@@ -39,6 +40,7 @@ internal class RootNavigationState(
     var lastLibraryTabRoute by lastLibraryTabRouteState
     var lastPlaylistsTabRoute by lastPlaylistsTabRouteState
     var lastSearchTabRoute by lastSearchTabRouteState
+    var pendingTopLevelRoute by pendingTopLevelRouteState
     val routeOwnerOverrides = mutableStateMapOf<String, String>()
 
     var detailExpandOrigin by mutableStateOf(ExpandOrigin())
@@ -58,10 +60,10 @@ internal class RootNavigationState(
     }
 
     fun syncTopLevelSelection(currentRoute: String?) {
-        if (currentRoute in TopLevelRoutes) {
-            browsingOriginRoute = currentRoute.orEmpty()
-            selectedBottomRoute = currentRoute.orEmpty()
-        }
+        val committedRoute = committedTopLevelRoute(currentRoute, pendingTopLevelRoute) ?: return
+        pendingTopLevelRoute = null
+        browsingOriginRoute = committedRoute
+        selectedBottomRoute = committedRoute
     }
 
     fun syncRouteOwnership(
@@ -78,30 +80,21 @@ internal class RootNavigationState(
             "$LIBRARY_COLLECTION_ROUTE/{kind}" -> ALBUMS_ROUTE
             "$GENRE_ROUTE/{genre}",
             "$ARTIST_ROUTE/{artistName}",
-            -> routeOwnerOverrides[concreteRoute]
-                ?: navController.previousBackStackEntry?.concreteNavigationRoute()?.let(routeOwnerOverrides::get)
-                ?: topLevelOwnerRoute(
-                    navController.previousBackStackEntry?.destination?.route,
-                    browsingOriginRoute,
-                )
-                ?: browsingOriginRoute.takeIf { it in TopLevelRoutes }
-                ?: selectedBottomRoute
+            -> detailOwnerRoute(concreteRoute)
 
-            "$PLAYLIST_ROUTE/{playlistId}" -> PLAYLISTS_ROUTE
-            "$ALBUM_ROUTE/{albumId}" -> {
-                routeOwnerOverrides[concreteRoute]
-                    ?: navController.previousBackStackEntry?.concreteNavigationRoute()?.let(routeOwnerOverrides::get)
-                    ?: topLevelOwnerRoute(
-                        navController.previousBackStackEntry?.destination?.route,
-                        browsingOriginRoute,
-                    )
-                    ?: browsingOriginRoute.takeIf { it in TopLevelRoutes }
-                    ?: selectedBottomRoute
-            }
+            "$PLAYLIST_ROUTE/{playlistId}",
+            "$SMART_PLAYLIST_ROUTE/{smartPlaylistId}",
+            SMART_PLAYLIST_EDITOR_ROUTE,
+            "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}",
+            "$ALBUM_ROUTE/{albumId}",
+            "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+            -> detailOwnerRoute(concreteRoute)
 
             else -> topLevelOwnerRoute(currentRoute, browsingOriginRoute) ?: selectedBottomRoute
         }
-        if (ownerRoute in TopLevelRoutes) {
+        if (ownerRoute in TopLevelRoutes &&
+            (concreteRoute in TopLevelRoutes || concreteRoute.isOwnerTrackedRoute())
+        ) {
             routeOwnerOverrides[concreteRoute] = ownerRoute
         }
         if (concreteRoute in setOf(PLAYER_ROUTE, SETTINGS_ROUTE, MANAGE_PLAYLISTS_ROUTE, EQUALIZER_ROUTE, CROSSFADE_ROUTE, LIBRARY_FOLDERS_ROUTE, CHANGELOG_ROUTE, ABOUT_ROUTE, PRIVACY_POLICY_ROUTE, RECENTLY_ADDED_ROUTE)) {
@@ -122,9 +115,13 @@ internal class RootNavigationState(
     }
 
     fun activeBottomRoute(currentConcreteRoute: String?, currentRoute: String?): String {
-        return routeOwnerOverrides[currentConcreteRoute]
-            ?: topLevelOwnerRoute(currentRoute, browsingOriginRoute)
-            ?: selectedBottomRoute
+        return resolveActiveBottomRoute(
+            pendingTopLevelRoute = pendingTopLevelRoute,
+            routeOwner = routeOwnerOverrides[currentConcreteRoute],
+            currentRoute = currentRoute,
+            browsingOriginRoute = browsingOriginRoute,
+            selectedBottomRoute = selectedBottomRoute,
+        )
     }
 
     fun resetTopLevelTabState(route: String) {
@@ -154,6 +151,8 @@ internal class RootNavigationState(
         activeBottomRoute: String,
         currentRoute: String?,
     ) {
+        require(route in TopLevelRoutes) { "Unknown top-level route: $route" }
+        pendingTopLevelRoute = route
         browsingOriginRoute = route
         selectedBottomRoute = route
         routeOwnerOverrides[route] = route
@@ -172,6 +171,7 @@ internal class RootNavigationState(
                 resetTopLevelTabState(route)
             } else {
                 resetTopLevelTabState(route)
+                RootInteractionState.finish()
             }
         } else {
             val poppedToHome = route == HOME_ROUTE && navController.popBackStack(HOME_ROUTE, inclusive = false)
@@ -185,6 +185,43 @@ internal class RootNavigationState(
                 }
             }
         }
+        if (route != activeBottomRoute || currentRoute != route) {
+            RootInteractionState.begin("bottom_nav")
+        }
+    }
+
+    fun navigateTo(route: String) {
+        if (route in TopLevelRoutes) {
+            navigateBottomTab(
+                route = route,
+                activeBottomRoute = activeBottomRoute(
+                    currentConcreteRoute = navController.currentBackStackEntry?.concreteNavigationRoute(),
+                    currentRoute = navController.currentBackStackEntry?.destination?.route,
+                ),
+                currentRoute = navController.currentBackStackEntry?.destination?.route,
+            )
+            return
+        }
+        if (route.isOwnerTrackedRoute()) {
+            val currentConcreteRoute = navController.currentBackStackEntry?.concreteNavigationRoute()
+            val currentRoute = navController.currentBackStackEntry?.destination?.route
+            routeOwnerOverrides[route] = activeBottomRoute(currentConcreteRoute, currentRoute)
+        }
+        navController.navigate(route) {
+            launchSingleTop = true
+        }
+        RootInteractionState.begin("navigation")
+    }
+
+    private fun detailOwnerRoute(concreteRoute: String): String {
+        return routeOwnerOverrides[concreteRoute]
+            ?: navController.previousBackStackEntry?.concreteNavigationRoute()?.let(routeOwnerOverrides::get)
+            ?: topLevelOwnerRoute(
+                navController.previousBackStackEntry?.destination?.route,
+                browsingOriginRoute,
+            )
+            ?: browsingOriginRoute.takeIf { it in TopLevelRoutes }
+            ?: selectedBottomRoute
     }
 
     fun openAlbum(album: Album, origin: ExpandOrigin, source: AlbumOpenSource) {
@@ -193,7 +230,7 @@ internal class RootNavigationState(
         }
         detailExpandOrigin = origin
         detailRouteTransitionMode = DetailRouteTransitionMode.TileExpand
-        navController.navigate(Routes.album(album.id))
+        navigateTo(Routes.album(album.id))
     }
 }
 
@@ -207,6 +244,7 @@ internal fun rememberRootNavigationState(
     val lastLibraryTabRoute = rememberSaveable { mutableStateOf(ALBUMS_ROUTE) }
     val lastPlaylistsTabRoute = rememberSaveable { mutableStateOf(PLAYLISTS_ROUTE) }
     val lastSearchTabRoute = rememberSaveable { mutableStateOf(SEARCH_ROUTE) }
+    val pendingTopLevelRoute = rememberSaveable { mutableStateOf<String?>(null) }
     val homeScrollRequestVersion = remember { mutableLongStateOf(0L) }
     val libraryScrollRequestVersion = remember { mutableLongStateOf(0L) }
     val playlistsScrollRequestVersion = remember { mutableLongStateOf(0L) }
@@ -219,6 +257,7 @@ internal fun rememberRootNavigationState(
         lastLibraryTabRoute,
         lastPlaylistsTabRoute,
         lastSearchTabRoute,
+        pendingTopLevelRoute,
         homeScrollRequestVersion,
         libraryScrollRequestVersion,
         playlistsScrollRequestVersion,
@@ -232,12 +271,47 @@ internal fun rememberRootNavigationState(
             lastLibraryTabRouteState = lastLibraryTabRoute,
             lastPlaylistsTabRouteState = lastPlaylistsTabRoute,
             lastSearchTabRouteState = lastSearchTabRoute,
+            pendingTopLevelRouteState = pendingTopLevelRoute,
             homeScrollRequestVersionState = homeScrollRequestVersion,
             libraryScrollRequestVersionState = libraryScrollRequestVersion,
             playlistsScrollRequestVersionState = playlistsScrollRequestVersion,
             searchScrollRequestVersionState = searchScrollRequestVersion,
         )
     }
+}
+
+private fun String.isOwnerTrackedRoute(): Boolean {
+    return startsWith("$ALBUM_ROUTE/") ||
+        startsWith("$PLAYLIST_ROUTE/") ||
+        startsWith("$SMART_PLAYLIST_ROUTE/") ||
+        startsWith("$ARTIST_ROUTE/") ||
+        startsWith("$GENRE_ROUTE/") ||
+        startsWith("$LIBRARY_COLLECTION_ROUTE/") ||
+        startsWith("$ALBUM_TAG_EDITOR_ROUTE/") ||
+        this == SMART_PLAYLIST_EDITOR_ROUTE ||
+        startsWith("$SMART_PLAYLIST_EDITOR_ROUTE/")
+}
+
+internal fun resolveActiveBottomRoute(
+    pendingTopLevelRoute: String?,
+    routeOwner: String?,
+    currentRoute: String?,
+    browsingOriginRoute: String?,
+    selectedBottomRoute: String,
+): String {
+    return pendingTopLevelRoute
+        ?: routeOwner
+        ?: topLevelOwnerRoute(currentRoute, browsingOriginRoute)
+        ?: selectedBottomRoute
+}
+
+internal fun committedTopLevelRoute(
+    currentRoute: String?,
+    pendingRoute: String?,
+): String? {
+    if (currentRoute !in TopLevelRoutes) return null
+    if (pendingRoute != null && pendingRoute != currentRoute) return null
+    return currentRoute
 }
 
 internal fun clearTopLevelScrollPositionMemory(route: String) {

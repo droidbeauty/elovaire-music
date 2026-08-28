@@ -294,6 +294,7 @@ import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
+import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
@@ -1571,7 +1572,6 @@ private fun AlbumSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (AlbumSortMode) -> Unit,
 ) {
-    val motionSpecs = rememberMotionSpecs()
     val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Surface(
@@ -1610,18 +1610,8 @@ private fun AlbumSortControl(
             }
         }
 
-        AnimatedVisibility(
+        PopupCardMotionHost(
             visible = expanded,
-            enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
-                slideInVertically(
-                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
-                    initialOffsetY = { -it / 4 },
-                ),
-            exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
-                slideOutVertically(
-                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
-                    targetOffsetY = { -it / 4 },
-                ),
         ) {
             Surface(
                 shape = RoundedCornerShape(ElovaireRadii.card),
@@ -2036,7 +2026,6 @@ private fun SongSortControl(
     onToggleExpanded: () -> Unit,
     onSelect: (SongSortMode) -> Unit,
 ) {
-    val motionSpecs = rememberMotionSpecs()
     val interactionSource = rememberElovaireInteractionSource()
     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Surface(
@@ -2075,18 +2064,8 @@ private fun SongSortControl(
             }
         }
 
-        AnimatedVisibility(
+        PopupCardMotionHost(
             visible = expanded,
-            enter = fadeIn(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
-                slideInVertically(
-                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
-                    initialOffsetY = { -it / 4 },
-                ),
-            exit = fadeOut(animationSpec = motionSpecs.tween(MotionDuration.Quick)) +
-                slideOutVertically(
-                    animationSpec = motionSpecs.tween(MotionDuration.Quick),
-                    targetOffsetY = { -it / 4 },
-                ),
         ) {
             Surface(
                 shape = RoundedCornerShape(ElovaireRadii.card),
@@ -3545,7 +3524,7 @@ private fun SearchSongsResultsHeader(
                 }
             }
         }
-        AnimatedVisibility(visible = expanded) {
+        PopupCardMotionHost(visible = expanded) {
             Surface(
                 shape = RoundedCornerShape(ElovaireRadii.card),
                 color = MaterialTheme.colorScheme.surface,
@@ -7520,13 +7499,11 @@ internal fun NowPlayingScreen(
                     )
                 }
 
-                androidx.compose.animation.AnimatedVisibility(
+                PopupCardMotionHost(
                     visible = showQueueSheet,
                     modifier = Modifier
                         .fillMaxWidth()
                         .align(Alignment.BottomCenter),
-                    enter = ElovaireMotion.bottomSheetEnter(),
-                    exit = ElovaireMotion.bottomSheetExit(),
                 ) {
                     QueueSheet(
                         queue = playerUiState.queue,
@@ -8276,13 +8253,11 @@ private fun SleepTimerDialog(
                     onClick = onDismiss,
                 ),
         )
-        androidx.compose.animation.AnimatedVisibility(
+        PopupCardMotionHost(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth(),
             visible = visible,
-            enter = ElovaireMotion.bottomSheetEnter(),
-            exit = ElovaireMotion.bottomSheetExit(),
         ) {
             DynamicBackdropSurface(
                 modifier = Modifier.fillMaxWidth(),
@@ -8709,13 +8684,9 @@ private fun QueueSongOverflowMenuButton(
     var expanded by remember { mutableStateOf(false) }
     var shouldRenderMenu by remember { mutableStateOf(false) }
     val interactionSource = rememberElovaireInteractionSource()
-    val motionRuntime = LocalMotionRuntime.current
     LaunchedEffect(expanded) {
         if (expanded) {
             shouldRenderMenu = true
-        } else if (shouldRenderMenu) {
-            delay(motionRuntime.duration(180L))
-            shouldRenderMenu = false
         }
     }
 
@@ -8748,6 +8719,7 @@ private fun QueueSongOverflowMenuButton(
             OverflowContextMenuPopup(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
+                onExitFinished = { shouldRenderMenu = false },
             ) {
                 QueueContextMenuSurface(
                     modifier = Modifier.width(210.dp),
@@ -9188,7 +9160,10 @@ private object OverflowContextMenuPositionProvider : PopupPositionProvider {
     ): IntOffset {
         val maxX = (windowSize.width - popupContentSize.width).coerceAtLeast(0)
         val maxY = (windowSize.height - popupContentSize.height).coerceAtLeast(0)
-        val x = (anchorBounds.right - popupContentSize.width).coerceIn(0, maxX)
+        val x = when (layoutDirection) {
+            androidx.compose.ui.unit.LayoutDirection.Ltr -> anchorBounds.right - popupContentSize.width
+            androidx.compose.ui.unit.LayoutDirection.Rtl -> anchorBounds.left
+        }.coerceIn(0, maxX)
         val y = anchorBounds.top.coerceIn(0, maxY)
         return IntOffset(x, y)
     }
@@ -9198,19 +9173,17 @@ private object OverflowContextMenuPositionProvider : PopupPositionProvider {
 private fun OverflowContextMenuPopup(
     expanded: Boolean,
     onDismissRequest: () -> Unit,
+    onExitFinished: () -> Unit,
     content: @Composable () -> Unit,
 ) {
-    val motionTransitions = rememberMotionTransitions()
     Popup(
         popupPositionProvider = OverflowContextMenuPositionProvider,
         onDismissRequest = onDismissRequest,
         properties = PopupProperties(focusable = true),
     ) {
-        androidx.compose.animation.AnimatedVisibility(
+        PopupCardMotionHost(
             visible = expanded,
-            enter = motionTransitions.contextMenuEnter(),
-            exit = motionTransitions.contextMenuExit(),
-            label = "OverflowContextMenuVisibility",
+            onExitFinished = onExitFinished,
         ) {
             content()
         }
@@ -9232,15 +9205,11 @@ private fun AlbumOverflowMenuButton(
     var expanded by remember(album.id) { mutableStateOf(false) }
     var shouldRenderMenu by remember(album.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(album.id) { mutableStateOf(false) }
-    val motionRuntime = LocalMotionRuntime.current
     val interactionSource = rememberElovaireInteractionSource()
 
     LaunchedEffect(expanded) {
         if (expanded) {
             shouldRenderMenu = true
-        } else if (shouldRenderMenu) {
-            delay(motionRuntime.duration(180L))
-            shouldRenderMenu = false
         }
     }
 
@@ -9271,6 +9240,7 @@ private fun AlbumOverflowMenuButton(
             OverflowContextMenuPopup(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
+                onExitFinished = { shouldRenderMenu = false },
             ) {
                 FrostedContextMenuSurface(
                     modifier = Modifier.width(208.dp),
@@ -9336,14 +9306,10 @@ internal fun SongOverflowMenuButton(
     var expanded by remember(song.id) { mutableStateOf(false) }
     var shouldRenderMenu by remember(song.id) { mutableStateOf(false) }
     var showPlaylistDialog by remember(song.id) { mutableStateOf(false) }
-    val motionRuntime = LocalMotionRuntime.current
     val interactionSource = rememberElovaireInteractionSource()
     LaunchedEffect(expanded) {
         if (expanded) {
             shouldRenderMenu = true
-        } else if (shouldRenderMenu) {
-            delay(motionRuntime.duration(180L))
-            shouldRenderMenu = false
         }
     }
 
@@ -9376,6 +9342,7 @@ internal fun SongOverflowMenuButton(
             OverflowContextMenuPopup(
                 expanded = expanded,
                 onDismissRequest = { expanded = false },
+                onExitFinished = { shouldRenderMenu = false },
             ) {
                 FrostedContextMenuSurface(
                     modifier = Modifier.width(208.dp),
@@ -9492,15 +9459,12 @@ internal fun TopBarContextMenuOverlay(
                     ),
             )
         }
-        ElovaireAnimatedVisibility(
+        PopupCardMotionHost(
             visible = expanded,
             modifier = Modifier
                 .align(Alignment.TopEnd)
                 .statusBarsPadding()
                 .padding(top = 6.dp, end = 10.dp),
-            enter = motionTransitions.contextMenuEnter(),
-            exit = motionTransitions.contextMenuExit(),
-            label = "TopBarContextMenuVisibility",
         ) {
             FrostedContextMenuSurface(
                 modifier = Modifier.width(190.dp),

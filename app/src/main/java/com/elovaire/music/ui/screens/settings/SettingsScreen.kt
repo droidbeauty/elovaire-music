@@ -6,7 +6,6 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.DrawableRes
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.animateDpAsState
@@ -39,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -86,6 +86,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
+import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -461,23 +462,23 @@ private fun LanguagePickerRow(
             }
         }
     }
-    if (expanded) {
-        LanguageSelectionDialog(
-            selectedLanguage = selectedLanguage,
-            title = copy.language,
-            onDismiss = { expanded = false },
-            onConfirm = { language ->
-                expanded = false
-                onLanguageSelected(language)
-            },
-        )
-    }
+    LanguageSelectionDialog(
+        selectedLanguage = selectedLanguage,
+        title = copy.language,
+        visible = expanded,
+        onDismiss = { expanded = false },
+        onConfirm = { language ->
+            expanded = false
+            onLanguageSelected(language)
+        },
+    )
 }
 
 @Composable
 private fun LanguageSelectionDialog(
     selectedLanguage: AppLanguage,
     title: String,
+    visible: Boolean,
     onDismiss: () -> Unit,
     onConfirm: (AppLanguage) -> Unit,
 ) {
@@ -489,6 +490,12 @@ private fun LanguageSelectionDialog(
     }
     var pendingLanguage by rememberSaveable(selectedLanguage) { mutableStateOf(selectedLanguage) }
     val rowSpacing = 2.dp
+    var mounted by remember { mutableStateOf(false) }
+    LaunchedEffect(visible) {
+        if (visible) mounted = true
+    }
+
+    if (!visible && !mounted) return
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -504,14 +511,13 @@ private fun LanguageSelectionDialog(
                 ),
             contentAlignment = Alignment.BottomCenter,
         ) {
-            AnimatedVisibility(
+            PopupCardMotionHost(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .fillMaxWidth()
                     .fillMaxHeight(0.5f),
-                visible = true,
-                enter = ElovaireMotion.bottomSheetEnter(),
-                exit = ElovaireMotion.bottomSheetExit(),
+                visible = visible,
+                onExitFinished = { if (!visible) mounted = false },
             ) {
                 DynamicBackdropSurface(
                     modifier = Modifier

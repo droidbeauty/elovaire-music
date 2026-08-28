@@ -103,35 +103,48 @@ class MotionTransitions internal constructor(
         )
     }
 
-    fun bottomSheetEnter(): EnterTransition = fadeIn(
-        initialAlpha = 0f,
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Emphasized,
-            easing = MotionEasing.RefinedDecelerate,
-        ),
-    ) +
-        expandVertically(
+    /**
+     * The single motion language for card-backed popups: the card grows from its bottom edge
+     * while fading in, then contracts towards that same edge while fading out.
+     *
+     * Keep this transition on the card itself. Any dimming layer belongs to the parent overlay
+     * and should only fade, so the popup never inherits a second geometry animation.
+     */
+    fun popupCardEnter(): EnterTransition = cached(StaticMotionTransition.PopupCardEnter) {
+        fadeIn(
+            initialAlpha = 0f,
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Emphasized,
+                easing = MotionEasing.RefinedDecelerate,
+            ),
+        ) + expandVertically(
             expandFrom = Alignment.Bottom,
             animationSpec = specs.tween(
                 durationMillis = MotionDuration.Emphasized,
                 easing = MotionEasing.RefinedDecelerate,
             ),
         )
+    }
 
-    fun bottomSheetExit(): ExitTransition = fadeOut(
-        targetAlpha = 0f,
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Fast,
-            easing = MotionEasing.RefinedAccelerate,
-        ),
-    ) +
-        shrinkVertically(
+    fun popupCardExit(): ExitTransition = cached(StaticMotionTransition.PopupCardExit) {
+        fadeOut(
+            targetAlpha = 0f,
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Fast,
+                easing = MotionEasing.RefinedAccelerate,
+            ),
+        ) + shrinkVertically(
             shrinkTowards = Alignment.Bottom,
             animationSpec = specs.tween(
                 durationMillis = MotionDuration.Fast,
                 easing = MotionEasing.RefinedAccelerate,
             ),
         )
+    }
+
+    fun bottomSheetEnter(): EnterTransition = popupCardEnter()
+
+    fun bottomSheetExit(): ExitTransition = popupCardExit()
 
     fun bannerEnter(): EnterTransition = fadeSlideVerticalEnter(
         fadeDuration = MotionDuration.Standard,
@@ -509,6 +522,8 @@ internal enum class StaticMotionTransition {
     DetailBackExit,
     QueueMenuEnter,
     QueueMenuExit,
+    PopupCardEnter,
+    PopupCardExit,
     AlbumDetailForwardExit,
     AlbumDetailBackEnter,
 }

@@ -110,6 +110,66 @@ internal fun MacrobenchmarkScope.clickTextContains(text: String) {
     uiDevice.findObject(By.textContains(text))?.click()
 }
 
+internal data class BurstInputSample(
+    val description: String,
+    val injectedAtElapsedMs: Long,
+)
+
+internal fun MacrobenchmarkScope.burstClickDescriptions(
+    descriptions: List<String>,
+    interInputDelayMs: Long,
+): List<BurstInputSample> {
+    var lastInputAt = SystemClock.uptimeMillis()
+    val samples = ArrayList<BurstInputSample>(descriptions.size)
+    descriptions.forEach { description ->
+        val selector = By.desc(description)
+        val injectedAt = SystemClock.uptimeMillis()
+        if (uiDevice.clickWithoutIdle(selector)) {
+            val now = SystemClock.uptimeMillis()
+            samples += BurstInputSample(description, injectedAt)
+            val remaining = interInputDelayMs - (now - lastInputAt)
+            if (remaining > 0L) SystemClock.sleep(remaining)
+            lastInputAt = SystemClock.uptimeMillis()
+        }
+    }
+    return samples
+}
+
+private fun UiDevice.clickWithoutIdle(selector: BySelector): Boolean {
+    repeat(3) {
+        val target = findObject(selector) ?: return false
+        try {
+            target.clickActionable()
+            return true
+        } catch (_: StaleObjectException) {
+            // Compose replaced the semantics node between lookup and click; retry without waiting for idle.
+        }
+    }
+    return false
+}
+
+internal fun MacrobenchmarkScope.burstPressBack(
+    count: Int,
+    interInputDelayMs: Long,
+): List<Long> {
+    val samples = ArrayList<Long>(count.coerceAtLeast(0))
+    repeat(count) { index ->
+        uiDevice.pressBack()
+        samples += SystemClock.uptimeMillis()
+        if (index < count - 1 && interInputDelayMs > 0L) {
+            SystemClock.sleep(interInputDelayMs)
+        }
+    }
+    return samples
+}
+
+internal fun MacrobenchmarkScope.rapidBottomNavigationBurst(interInputDelayMs: Long): List<BurstInputSample> {
+    return burstClickDescriptions(
+        descriptions = listOf("Albums", "Playlists", "Search", "Home"),
+        interInputDelayMs = interInputDelayMs,
+    )
+}
+
 private fun MacrobenchmarkScope.acceptFirstLaunchStoragePermissionIfVisible() {
     uiDevice.findObject(By.text("Allow storage access"))?.let { button ->
         button.click()

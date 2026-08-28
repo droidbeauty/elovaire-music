@@ -7,6 +7,8 @@ import elovaire.music.droidbeauty.app.data.library.MediaFailureDomain
 import elovaire.music.droidbeauty.app.data.library.MediaFailureKey
 import elovaire.music.droidbeauty.app.data.library.MediaFailureRegistry
 import elovaire.music.droidbeauty.app.data.library.mediaFailureCategory
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import java.io.IOException
 import kotlinx.coroutines.CancellationException
 
@@ -24,6 +26,7 @@ internal class NetworkMetadataReader(
             domain = MediaFailureDomain.Metadata,
         )
         if (failureRegistry.shouldSuppress(failureKey, force)) return null
+        val metadataResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveMetadataRead)
         return try {
             val retriever = MediaMetadataRetriever()
             try {
@@ -64,6 +67,8 @@ internal class NetworkMetadataReader(
         } catch (failure: IllegalStateException) {
             failureRegistry.recordFailure(failureKey, mediaFailureCategory(failure))
             null
+        } finally {
+            metadataResource.close()
         }
     }
 }

@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.lyrics
 
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.io.IOException
 import java.net.URLEncoder
 import kotlinx.coroutines.CancellationException
 import org.json.JSONObject
@@ -25,22 +26,28 @@ internal class LrclibClient(
                 ),
                 maxBytes = MAX_RESPONSE_BYTES,
             )
-            return when (response.statusCode) {
-                200 -> parse(response.body)
-                404 -> LyricsResult.NotFound
-                408, 429, 500, 502, 503, 504 -> LyricsResult.Timeout
-                else -> LyricsResult.Timeout
+            return if (response.statusCode == 200) {
+                parse(response.body)
+            } else {
+                lrclibResponseResult(response.statusCode, response.retryAfterMs)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Exception) {
-            LyricsResult.Timeout
+        } catch (_: IOException) {
+            LyricsResult.Unavailable
+        } catch (_: SecurityException) {
+            LyricsResult.Unavailable
+        } catch (_: IllegalArgumentException) {
+            LyricsResult.Unavailable
+        } catch (_: IllegalStateException) {
+            LyricsResult.Unavailable
         }
     }
 
     private fun parse(bytes: ByteArray): LyricsResult {
-        if (bytes.isEmpty() || bytes.size > MAX_RESPONSE_BYTES) return LyricsResult.Timeout
-        val response = runCatching { JSONObject(bytes.toString(Charsets.UTF_8)) }.getOrNull() ?: return LyricsResult.Timeout
+        if (bytes.isEmpty() || bytes.size > MAX_RESPONSE_BYTES) return LyricsResult.MalformedResponse
+        val response = runCatching { JSONObject(bytes.toString(Charsets.UTF_8)) }.getOrNull()
+            ?: return LyricsResult.MalformedResponse
         val raw = response.optString("syncedLyrics").takeIf(String::isNotBlank)
             ?: response.optString("plainLyrics").takeIf(String::isNotBlank)
             ?: return LyricsResult.NotFound

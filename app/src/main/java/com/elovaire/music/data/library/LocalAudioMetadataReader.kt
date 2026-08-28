@@ -27,39 +27,45 @@ internal class LocalAudioMetadataReader(context: Context) {
         identityKey: String? = null,
         revisionKey: String? = null,
     ): LocalAudioMetadata {
-        val platformFailureKey = revisionKey?.let {
-            MediaFailureKey(
-                identity = identityKey ?: uri.toString(),
-                revision = it,
-                domain = MediaFailureDomain.Metadata,
+        val metadataResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveMetadataRead)
+        try {
+            val platformFailureKey = revisionKey?.let {
+                MediaFailureKey(
+                    identity = identityKey ?: uri.toString(),
+                    revision = it,
+                    domain = MediaFailureDomain.Metadata,
+                )
+            }
+            val platform = readPlatformMetadata(uri, platformFailureKey)
+            val embedded = embeddedReader.read(uri, filePath, fileName)
+            val canonical = CanonicalMetadataResolver.resolve(
+                embedded = embedded?.toMetadataSourceValues(),
+                platform = platform.toMetadataSourceValues(),
+                indexed = indexed,
             )
+            return LocalAudioMetadata(
+                durationMs = platform.durationMs,
+                title = canonical.title,
+                artist = canonical.artist,
+                albumArtist = canonical.albumArtist,
+                album = canonical.album,
+                releaseYear = canonical.releaseYear,
+                genre = canonical.genre ?: fallbackGenre,
+                trackNumber = canonical.trackNumber,
+                discNumber = canonical.discNumber,
+                sampleRate = platform.sampleRate,
+                bitDepth = platform.bitDepth,
+                bitrate = platform.bitrate,
+                volumeNormalization = canonical.volumeNormalization,
+            )
+        } finally {
+            metadataResource.close()
         }
-        val platform = readPlatformMetadata(uri, platformFailureKey)
-        val embedded = embeddedReader.read(uri, filePath, fileName)
-        val canonical = CanonicalMetadataResolver.resolve(
-            embedded = embedded?.toMetadataSourceValues(),
-            platform = platform.toMetadataSourceValues(),
-            indexed = indexed,
-        )
-        return LocalAudioMetadata(
-            durationMs = platform.durationMs,
-            title = canonical.title,
-            artist = canonical.artist,
-            albumArtist = canonical.albumArtist,
-            album = canonical.album,
-            releaseYear = canonical.releaseYear,
-            genre = canonical.genre ?: fallbackGenre,
-            trackNumber = canonical.trackNumber,
-            discNumber = canonical.discNumber,
-            sampleRate = platform.sampleRate,
-            bitDepth = platform.bitDepth,
-            bitrate = platform.bitrate,
-            volumeNormalization = canonical.volumeNormalization,
-        )
     }
 
     /** Resolve only duration for provider rows whose indexed duration is missing or stale. */
     fun readDuration(uri: Uri): Long {
+        val metadataResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveMetadataRead)
         return try {
             val retriever = MediaMetadataRetriever()
             val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
@@ -77,6 +83,8 @@ internal class LocalAudioMetadataReader(context: Context) {
             throw cancellation
         } catch (_: Exception) {
             0L
+        } finally {
+            metadataResource.close()
         }
     }
 

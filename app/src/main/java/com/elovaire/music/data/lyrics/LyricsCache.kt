@@ -21,6 +21,7 @@ internal class LyricsCache(
     private val cacheLock = Any()
     private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>()
     private var cacheLoaded = false
+    private var expiredEntriesPending = false
 
     fun get(
         identity: LyricsIdentity,
@@ -42,12 +43,14 @@ internal class LyricsCache(
                 }
             }
             if (removedExpired) {
-                persistLocked()
+                // Expired entries are already invisible to callers. Defer the full-file
+                // rewrite until the next durable cache mutation or explicit prune.
+                expiredEntriesPending = true
             }
             when {
                 entry == null -> null
                 entry.online && !includeOnline -> null
-                !includeNotFound && (entry.result == LyricsResult.NotFound || entry.result == LyricsResult.Timeout) -> null
+                !includeNotFound && entry.result !is LyricsResult.Found -> null
                 else -> entry.result
             }
         }
@@ -66,14 +69,14 @@ internal class LyricsCache(
             }
         }
         if (trimLocked()) changed = true
-        if (changed) persistLocked()
+        if (changed || expiredEntriesPending) persistLocked()
     }
 
     fun clearExpired() = synchronized(cacheLock) {
         ensureLoadedLocked()
         val now = clock.wallTimeMs()
         val removed = cacheEntries.entries.removeIf { (_, entry) -> entry.isExpired(now) }
-        if (removed) {
+        if (removed || expiredEntriesPending) {
             persistLocked()
         }
     }
@@ -84,7 +87,7 @@ internal class LyricsCache(
         identity.cacheKeys.forEach { key ->
             removed = cacheEntries.remove(key) != null || removed
         }
-        if (removed) {
+        if (removed || expiredEntriesPending) {
             persistLocked()
         }
     }
@@ -134,23 +137,23 @@ internal class LyricsCache(
                     "entries",
                     JSONArray().apply {
                         cacheEntries.forEach { (key, entry) ->
+                            val resultJson = when (val result = entry.result) {
+                                is LyricsResult.Found -> JSONObject().apply {
+                                    put("result", RESULT_FOUND)
+                                    put("payload", result.payload.toJson())
+                                }
+                                LyricsResult.NotFound -> JSONObject().put("result", RESULT_NOT_FOUND)
+                                LyricsResult.Timeout -> JSONObject().put("result", RESULT_TIMEOUT)
+                                LyricsResult.Unavailable,
+                                LyricsResult.MalformedResponse,
+                                is LyricsResult.RateLimited,
+                                is LyricsResult.Rejected -> null
+                            } ?: return@forEach
                             put(
-                                JSONObject().apply {
+                                resultJson.apply {
                                     put("key", key)
                                     put("expiresAtMillis", entry.expiresAtMillis)
                                     put("online", entry.online)
-                                    when (val result = entry.result) {
-                                        is LyricsResult.Found -> {
-                                            put("result", RESULT_FOUND)
-                                            put("payload", result.payload.toJson())
-                                        }
-                                        LyricsResult.NotFound -> {
-                                            put("result", RESULT_NOT_FOUND)
-                                        }
-                                        LyricsResult.Timeout -> {
-                                            put("result", RESULT_TIMEOUT)
-                                        }
-                                    }
                                 },
                             )
                         }
@@ -164,6 +167,7 @@ internal class LyricsCache(
                     output.flush()
                     atomicFile.finishWrite(output)
                     committed = true
+                    expiredEntriesPending = false
                 } finally {
                     if (!committed) atomicFile.failWrite(output)
                 }

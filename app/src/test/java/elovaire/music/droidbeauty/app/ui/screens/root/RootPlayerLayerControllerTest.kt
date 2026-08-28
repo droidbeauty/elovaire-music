@@ -87,6 +87,62 @@ class RootPlayerLayerControllerTest {
     }
 
     @Test
+    fun requestOpen_twiceBeforeRecomposition_keepsTheFirstSnapshot() {
+        var stateName = PlayerLayerState.Compact.name
+        var snapshot: NowPlayingTransitionSnapshot? = null
+        val first = NowPlayingTransitionSnapshot(
+            songId = 1L,
+            barBounds = Rect(0f, 0f, 100f, 80f),
+            artworkBounds = Rect(8f, 8f, 56f, 56f),
+        )
+        val second = first.copy(songId = 2L)
+        val controller = rootPlayerLayerController(
+            stateName = stateName,
+            setStateName = { stateName = it },
+            setTransitionSnapshot = { snapshot = it },
+            currentSongPresent = true,
+        )
+
+        controller.requestOpen(first)
+        controller.requestOpen(second)
+
+        assertEquals(PlayerLayerState.Expanded.name, stateName)
+        assertSame(first, snapshot)
+    }
+
+    @Test
+    fun staleExitCompletion_cannotClearOrCollapseANewerOpen() {
+        var stateName = PlayerLayerState.Compact.name
+        var snapshot: NowPlayingTransitionSnapshot? = null
+        var generation = 0L
+        val first = NowPlayingTransitionSnapshot(
+            songId = 1L,
+            barBounds = Rect(0f, 0f, 100f, 80f),
+            artworkBounds = Rect(8f, 8f, 56f, 56f),
+        )
+        val second = first.copy(songId = 2L)
+        val controller = rootPlayerLayerController(
+            stateName = stateName,
+            setStateName = { stateName = it },
+            setTransitionSnapshot = { snapshot = it },
+            currentSongPresent = true,
+            transitionGeneration = generation,
+            setTransitionGeneration = { generation = it },
+        )
+
+        controller.requestOpen(first)
+        val staleGeneration = controller.transitionGeneration
+        controller.hide(returnToCompact = true)
+        controller.requestOpen(second)
+
+        controller.clearTransitionSnapshot(staleGeneration)
+        controller.finishReturnToCompact(staleGeneration)
+
+        assertEquals(PlayerLayerState.Expanded.name, stateName)
+        assertSame(second, snapshot)
+    }
+
+    @Test
     fun resetIfSongMissing_returnsToCompactAndClearsSnapshot() {
         var stateName = PlayerLayerState.Expanded.name
         var snapshot: NowPlayingTransitionSnapshot? = NowPlayingTransitionSnapshot(
@@ -144,6 +200,8 @@ class RootPlayerLayerControllerTest {
         setStateName: (String) -> Unit = {},
         setTransitionSnapshot: (NowPlayingTransitionSnapshot?) -> Unit = {},
         currentSongPresent: Boolean,
+        transitionGeneration: Long = 0L,
+        setTransitionGeneration: (Long) -> Unit = {},
     ): RootPlayerLayerController {
         return RootPlayerLayerController(
             stateName = stateName,
@@ -151,6 +209,8 @@ class RootPlayerLayerControllerTest {
             transitionSnapshot = transitionSnapshot,
             setTransitionSnapshot = setTransitionSnapshot,
             currentSongPresent = currentSongPresent,
+            transitionGeneration = transitionGeneration,
+            setTransitionGeneration = setTransitionGeneration,
         )
     }
 }

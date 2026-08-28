@@ -38,6 +38,10 @@ internal object MediaStoreAudioQuery {
 
     val orderBy: String? = null
 
+    private const val DELTA_SELECTION =
+        "${MediaStore.MediaColumns.GENERATION_ADDED} > ? OR " +
+            "${MediaStore.MediaColumns.GENERATION_MODIFIED} > ?"
+
     internal enum class ProjectionKind { Full, Compatibility }
 
     internal data class QueryResult(
@@ -70,4 +74,53 @@ internal object MediaStoreAudioQuery {
 
         throw MediaStoreQueryUnavailableException(firstFailure)
     }
+
+    /** Returns null when the provider does not support generation-based selection. */
+    @Suppress("TooGenericExceptionCaught")
+    fun queryDelta(
+        resolver: ContentResolver,
+        generation: Long,
+    ): QueryResult? {
+        if (generation < 0L) return null
+        return try {
+            resolver.query(
+                collectionUri,
+                deltaProjection,
+                DELTA_SELECTION,
+                arrayOf(generation.toString(), generation.toString()),
+                orderBy,
+            )?.let { QueryResult(it, ProjectionKind.Full) }
+        } catch (failure: SecurityException) {
+            throw failure
+        } catch (_: RuntimeException) {
+            null
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    fun queryIdentity(resolver: ContentResolver): Cursor? {
+        return try {
+            resolver.query(
+                collectionUri,
+                identityProjection,
+                null,
+                null,
+                null,
+            )
+        } catch (failure: SecurityException) {
+            throw failure
+        } catch (_: RuntimeException) {
+            null
+        }
+    }
+
+    private val identityProjection: Array<String> = arrayOf(
+        MediaStore.Audio.Media._ID,
+        MediaStore.MediaColumns.VOLUME_NAME,
+    )
+
+    private val deltaProjection: Array<String> = projection + arrayOf(
+        MediaStore.MediaColumns.GENERATION_ADDED,
+        MediaStore.MediaColumns.GENERATION_MODIFIED,
+    )
 }

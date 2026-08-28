@@ -11,12 +11,16 @@ import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.hideFromAccessibility
+import androidx.compose.ui.semantics.semantics
 
 @Composable
 fun MotionVisibilityHost(
@@ -30,7 +34,7 @@ fun MotionVisibilityHost(
     val state = remember { MutableTransitionState(false) }
     val exitCallbackGate = remember { MotionExitCallbackGate() }
     val currentOnExitFinished by rememberUpdatedState(onExitFinished)
-    LaunchedEffect(visible) {
+    SideEffect {
         exitCallbackGate.onVisibilityTargetChanged(visible)
         state.targetState = visible
     }
@@ -42,6 +46,7 @@ fun MotionVisibilityHost(
         content = content,
     )
     LaunchedEffect(state.currentState, state.targetState, state.isIdle) {
+        exitCallbackGate.onCurrentStateChanged(state.currentState)
         if (
             state.isIdle &&
             !state.currentState &&
@@ -53,16 +58,65 @@ fun MotionVisibilityHost(
     }
 }
 
+/**
+ * Hosts a card-style popup for its full visual lifetime. The logical [visible] target changes
+ * immediately, while the content remains mounted until the exit transition completes. This
+ * keeps popup dismissal reversible and prevents an exiting card from receiving input or focus.
+ */
+@Composable
+fun PopupCardMotionHost(
+    visible: Boolean,
+    modifier: Modifier = Modifier,
+    onExitFinished: (() -> Unit)? = null,
+    content: @Composable AnimatedVisibilityScope.() -> Unit,
+) {
+    val transitions = rememberMotionTransitions()
+    MotionVisibilityHost(
+        visible = visible,
+        enter = transitions.popupCardEnter(),
+        exit = transitions.popupCardExit(),
+        modifier = modifier
+            .semantics {
+                if (!visible) hideFromAccessibility()
+            }
+            .pointerInput(visible) {
+                if (!visible) {
+                    awaitPointerEventScope {
+                        while (true) {
+                            awaitPointerEvent().changes.forEach { it.consume() }
+                        }
+                    }
+                }
+            },
+        onExitFinished = onExitFinished,
+        content = content,
+    )
+}
+
 internal class MotionExitCallbackGate {
-    private var exitArmed = false
+    private var hasEntered = false
+    private var lastVisibilityTarget: Boolean? = null
+    private var visibilityGeneration = 0L
+    private var pendingExitGeneration: Long? = null
 
     fun onVisibilityTargetChanged(visible: Boolean) {
-        if (visible) exitArmed = true
+        if (lastVisibilityTarget == visible) return
+        lastVisibilityTarget = visible
+        visibilityGeneration += 1L
+        if (visible) {
+            pendingExitGeneration = null
+        } else if (hasEntered) {
+            pendingExitGeneration = visibilityGeneration
+        }
+    }
+
+    fun onCurrentStateChanged(visible: Boolean) {
+        if (visible) hasEntered = true
     }
 
     fun consumeFinishedExit(): Boolean {
-        if (!exitArmed) return false
-        exitArmed = false
+        if (pendingExitGeneration != visibilityGeneration) return false
+        pendingExitGeneration = null
         return true
     }
 }

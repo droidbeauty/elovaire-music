@@ -19,8 +19,13 @@ import java.security.MessageDigest
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParserException
 
@@ -45,19 +50,34 @@ internal class NetworkLibraryScanner(
         forceRefresh: Boolean = false,
         enrichMetadata: Boolean = true,
     ): NetworkLibraryScanResult = withContext(Dispatchers.IO) {
+        val networkScan = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkScan)
         val networkRead = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkRead)
         try {
-            val result = mutableListOf<Song>()
-            var isComplete = true
-            sources.filter(NetworkLibrarySource::enabled).forEach { source ->
-                currentCoroutineContext().ensureActive()
-                val sourceResult = scanSourceSafely(source, forceRefresh, enrichMetadata)
-                result += sourceResult.songs
-                isComplete = isComplete && sourceResult.isComplete
+            val enabledSources = sources.filter(NetworkLibrarySource::enabled)
+            val sourceSemaphore = Semaphore(MAX_CONCURRENT_SOURCE_SCANS)
+            val metadataSemaphore = Semaphore(MAX_CONCURRENT_METADATA_READS)
+            val sourceResults = supervisorScope {
+                enabledSources.map { source ->
+                    async {
+                        sourceSemaphore.withPermit {
+                            currentCoroutineContext().ensureActive()
+                            scanSourceSafely(
+                                source = source,
+                                forceRefresh = forceRefresh,
+                                enrichMetadata = enrichMetadata,
+                                metadataSemaphore = metadataSemaphore,
+                            )
+                        }
+                    }
+                }.awaitAll()
             }
-            NetworkLibraryScanResult(result, isComplete)
+            NetworkLibraryScanResult(
+                songs = sourceResults.flatMap(NetworkLibrarySourceScanResult::songs),
+                isComplete = sourceResults.all(NetworkLibrarySourceScanResult::isComplete),
+            )
         } finally {
             networkRead.close()
+            networkScan.close()
         }
     }
 
@@ -66,9 +86,10 @@ internal class NetworkLibraryScanner(
         source: NetworkLibrarySource,
         forceRefresh: Boolean,
         enrichMetadata: Boolean,
+        metadataSemaphore: Semaphore,
     ): NetworkLibrarySourceScanResult {
         return try {
-            scanSource(source, forceRefresh, enrichMetadata)
+            scanSource(source, forceRefresh, enrichMetadata, metadataSemaphore)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: IOException) {
@@ -109,6 +130,7 @@ internal class NetworkLibraryScanner(
         source: NetworkLibrarySource,
         forceRefresh: Boolean,
         enrichMetadata: Boolean,
+        metadataSemaphore: Semaphore,
     ): NetworkLibrarySourceScanResult {
         val cached = inventory.load(source)
         val sourceGeneration = registry.sourceGeneration(source.id)
@@ -120,7 +142,7 @@ internal class NetworkLibraryScanner(
             if (!enrichMetadata || !hasUnresolvedCachedMetadata) {
                 return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = true)
             }
-            return enrichCommittedInventory(source, sourceGeneration, cached)
+            return enrichCommittedInventory(source, sourceGeneration, cached, metadataSemaphore)
         }
         val credentials = registry.credentials(source)
         if (credentials == null) {
@@ -190,6 +212,7 @@ internal class NetworkLibraryScanner(
             artworkByDirectory = artworkByDirectory,
             enrichMetadata = enrichMetadata,
             forceRefresh = forceRefresh,
+            metadataSemaphore = metadataSemaphore,
         )
         val inventoryChanged = inventoryEntries.size != cached.size || inventoryEntries.any { current ->
             val previous = cachedByPath[current.entry.path]
@@ -229,6 +252,7 @@ internal class NetworkLibraryScanner(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
         cached: List<NetworkInventoryEntry>,
+        metadataSemaphore: Semaphore,
     ): NetworkLibrarySourceScanResult {
         val credentials = registry.credentials(source)
         if (credentials == null) {
@@ -256,6 +280,7 @@ internal class NetworkLibraryScanner(
             artworkByDirectory = emptyMap(),
             enrichMetadata = true,
             forceRefresh = false,
+            metadataSemaphore = metadataSemaphore,
         )
         if (!isCurrent(source, sourceGeneration, credentials)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
@@ -271,7 +296,7 @@ internal class NetworkLibraryScanner(
         return NetworkLibrarySourceScanResult(enriched.map(NetworkInventoryEntry::song), isComplete = true)
     }
 
-    private fun buildInventoryEntries(
+    private suspend fun buildInventoryEntries(
         source: NetworkLibrarySource,
         audioEntries: List<NetworkFileEntry>,
         cachedByPath: Map<String, NetworkInventoryEntry>,
@@ -280,8 +305,9 @@ internal class NetworkLibraryScanner(
         artworkByDirectory: Map<String, Uri?>,
         enrichMetadata: Boolean,
         forceRefresh: Boolean,
+        metadataSemaphore: Semaphore,
     ): List<NetworkInventoryEntry> {
-        return audioEntries.map { entry ->
+        val buildEntry: suspend (NetworkFileEntry) -> NetworkInventoryEntry = { entry ->
             val previous = cachedByPath[entry.path]
                 ?: entry.sourceEntryId
                     ?.let { cachedByEntryId[it].orEmpty().singleOrNull() }
@@ -333,6 +359,15 @@ internal class NetworkLibraryScanner(
                         preservedSongId = previous?.song?.id,
                     ),
                 )
+            }
+        }
+        return if (!enrichMetadata) {
+            audioEntries.map { entry -> buildEntry(entry) }
+        } else {
+            supervisorScope {
+                audioEntries.map { entry ->
+                    async { metadataSemaphore.withPermit { buildEntry(entry) } }
+                }.awaitAll()
             }
         }
     }
@@ -451,6 +486,8 @@ internal class NetworkLibraryScanner(
     private companion object {
         val TRACK_PREFIX = Regex("^(\\d{1,3})[ ._-]")
         const val MAX_ARTWORKS_PER_SCAN = 256
+        const val MAX_CONCURRENT_SOURCE_SCANS = 2
+        const val MAX_CONCURRENT_METADATA_READS = 2
     }
 
     private fun Throwable.toProbeResult(): NetworkProbeResult {

@@ -252,9 +252,12 @@ internal class PlaybackHistoryWriteBuffer {
     @Synchronized
     fun relocateSongIds(replacements: Map<Long, Long>) {
         if (replacements.isEmpty()) return
-        val relocatedCounts = songCounts.entries
-            .groupBy { resolveRelocatedSongId(it.key, replacements) }
-            .mapValues { (_, entries) -> entries.maxOf { it.value } }
+        val relocatedCounts = HashMap<Long, Int>(songCounts.size)
+        songCounts.forEach { (id, count) ->
+            val resolvedId = resolveRelocatedSongId(id, replacements)
+            val existing = relocatedCounts[resolvedId]
+            if (existing == null || count > existing) relocatedCounts[resolvedId] = count
+        }
         songCounts.clear()
         songCounts.putAll(relocatedCounts)
         val pendingRecent = recent

@@ -30,7 +30,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -83,8 +82,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
+import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.AboutCardButtonAccent
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -204,14 +203,12 @@ internal fun ChangelogBottomSheetOverlay(
                     onClick = onDismiss,
                 ),
         )
-        AnimatedVisibility(
+        PopupCardMotionHost(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .fillMaxHeight(0.5f),
             visible = visible,
-            enter = ElovaireMotion.bottomSheetEnter(),
-            exit = ElovaireMotion.bottomSheetExit(),
         ) {
             DynamicBackdropSurface(
                 modifier = Modifier.fillMaxSize(),
@@ -459,14 +456,12 @@ internal fun UpdateAvailableDialog(
                     ),
             )
         }
-        AnimatedVisibility(
+        PopupCardMotionHost(
             visible = visible,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
                 .fillMaxHeight(0.5f),
-            enter = ElovaireMotion.bottomSheetEnter(),
-            exit = ElovaireMotion.bottomSheetExit(),
         ) {
             DynamicBackdropSurface(
                 modifier = Modifier

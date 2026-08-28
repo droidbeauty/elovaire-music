@@ -281,6 +281,22 @@ internal fun librarySongsContentRevision(songs: List<Song>): String {
     return digest.digest().toHexString()
 }
 
+internal fun libraryPatchedContentRevision(
+    previousRevision: String,
+    patches: List<LibrarySongPatch>,
+): String {
+    if (patches.isEmpty()) return previousRevision
+    val digest = MessageDigest.getInstance("SHA-256")
+    digest.appendRevisionValue(previousRevision)
+    patches
+        .sortedBy { MediaIdentityResolver.stableKey(it.after) }
+        .forEach { patch ->
+            digest.appendRevisionValue(MediaIdentityResolver.stableKey(patch.before))
+            digest.appendSongRevision(patch.after)
+        }
+    return digest.digest().toHexString()
+}
+
 internal fun libraryIndexContentRevision(
     snapshot: LibrarySnapshot,
     filterFingerprint: String,

@@ -3,8 +3,7 @@ package elovaire.music.droidbeauty.app.data.artist
 import android.content.Context
 import android.net.Uri
 import android.util.Log
-import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
-import elovaire.music.droidbeauty.app.data.artwork.decodeArtworkBytes
+import elovaire.music.droidbeauty.app.data.artwork.isArtworkFileDecodable
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
@@ -269,23 +268,19 @@ internal class ArtistImageRepository(
     private fun persistArtwork(uri: Uri, artistKey: String): Uri? {
         if (uri.scheme != "https") return null
         val context = appContext ?: return null
-        val response = runCatching {
-            artworkTransport.getBlocking(
-                rawUrl = uri.toString(),
-                headers = mapOf("Accept" to "image/*"),
-                maxBytes = MAX_REMOTE_ARTWORK_BYTES,
-            )
-        }.getOrNull() ?: return null
-        val bytes = response.body.takeIf { response.statusCode in 200..299 && it.isNotEmpty() }
-            ?: return null
-        if (decodeArtworkBytes(bytes, targetPx = 128, purpose = ArtworkPurpose.UiLarge) == null) return null
-
         val directory = context.cacheDir.resolve(ARTIST_IMAGE_CACHE_DIRECTORY)
         if (!directory.exists() && !directory.mkdirs()) return null
         val cachedFile = directory.resolve("${cacheKey(artistKey)}.img")
         val temporaryFile = directory.resolve("${cacheKey(artistKey)}.tmp")
         return runCatching {
-            temporaryFile.outputStream().use { output -> output.write(bytes) }
+            val response = artworkTransport.getBlockingToFile(
+                rawUrl = uri.toString(),
+                target = temporaryFile,
+                headers = mapOf("Accept" to "image/*"),
+                maxBytes = MAX_REMOTE_ARTWORK_BYTES,
+            )
+            if (response.statusCode !in 200..299 || response.bytesWritten <= 0L) return@runCatching null
+            if (!isArtworkFileDecodable(temporaryFile)) return@runCatching null
             if (!temporaryFile.renameTo(cachedFile)) {
                 temporaryFile.delete()
                 return@runCatching null

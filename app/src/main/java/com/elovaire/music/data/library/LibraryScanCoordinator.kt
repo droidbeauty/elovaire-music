@@ -82,6 +82,7 @@ internal class LibraryScanCoordinator(
         refreshMediaIndex: Boolean = false,
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
+        mediaStoreGenerationFloor: Long? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         baseSnapshot: LibrarySnapshot? = null,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
@@ -89,6 +90,7 @@ internal class LibraryScanCoordinator(
         refreshMediaIndex = refreshMediaIndex,
         refreshMediaPaths = refreshMediaPaths,
         enrichMetadata = enrichMetadata,
+        mediaStoreGenerationFloor = mediaStoreGenerationFloor,
         targetedNetworkSourceIds = targetedNetworkSourceIds,
         baseSnapshot = baseSnapshot,
         onProgress = onProgress,
@@ -98,6 +100,7 @@ internal class LibraryScanCoordinator(
         refreshMediaIndex: Boolean = false,
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
+        mediaStoreGenerationFloor: Long? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         baseSnapshot: LibrarySnapshot? = null,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
@@ -116,6 +119,7 @@ internal class LibraryScanCoordinator(
                 refreshMediaIndex = refreshMediaIndex,
                 refreshMediaPaths = refreshMediaPaths,
                 enrichMetadata = enrichMetadata,
+                mediaStoreGenerationFloor = mediaStoreGenerationFloor,
                 onProgress = onProgress,
                 baseSnapshot = baseSnapshot,
             )
@@ -153,10 +157,12 @@ internal class LibraryScanCoordinator(
         val existingNetworkSongs = baseSnapshot?.songs
             .orEmpty()
             .asSequence()
-            .filter { song ->
-                NetworkResourceUri.sourceId(song.uri)?.let(preservedNetworkSourceIds::contains) == true
+            .mapNotNull { song ->
+                NetworkResourceUri.sourceId(song.uri)
+                    ?.takeIf(preservedNetworkSourceIds::contains)
+                    ?.let { sourceId -> sourceId to song }
             }
-            .groupBy { song -> NetworkResourceUri.sourceId(song.uri)!! }
+            .groupBy({ (sourceId, _) -> sourceId }, { (_, song) -> song })
         val networkScan = networkScannerProvider().scanWithStatus(
             sources = sourcesToScan,
             forceRefresh = refreshMediaIndex,
@@ -187,6 +193,7 @@ internal class LibraryScanCoordinator(
         refreshMediaIndex: Boolean,
         refreshMediaPaths: List<String>,
         enrichMetadata: Boolean,
+        mediaStoreGenerationFloor: Long?,
         onProgress: ((current: Int, total: Int) -> Unit)?,
         baseSnapshot: LibrarySnapshot?,
     ): LocalSourceScanResult {
@@ -194,6 +201,12 @@ internal class LibraryScanCoordinator(
             refreshMediaIndex = refreshMediaIndex,
             refreshMediaPaths = refreshMediaPaths,
             enrichMetadata = enrichMetadata,
+            mediaStoreGenerationFloor = mediaStoreGenerationFloor,
+            baseMediaStoreSongs = baseSnapshot?.songs
+                .orEmpty()
+                .filter { song ->
+                    MediaIdentityResolver.resolve(song) is MediaSourceIdentity.MediaStoreItem
+                },
             onProgress = onProgress,
         )
         val local = when (localResult) {

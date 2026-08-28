@@ -137,6 +137,18 @@ sealed interface LyricsResult {
     data class Found(val payload: LyricsPayload) : LyricsResult
     data object NotFound : LyricsResult
     data object Timeout : LyricsResult
+    data object Unavailable : LyricsResult
+    data object MalformedResponse : LyricsResult
+    data class RateLimited(val retryAfterMs: Long?) : LyricsResult
+    data class Rejected(val statusCode: Int) : LyricsResult
+}
+
+internal fun lrclibResponseResult(statusCode: Int, retryAfterMs: Long?): LyricsResult = when {
+    statusCode == 404 -> LyricsResult.NotFound
+    statusCode == 429 -> LyricsResult.RateLimited(retryAfterMs)
+    statusCode == 408 || statusCode in 500..599 -> LyricsResult.Timeout
+    statusCode in 400..499 -> LyricsResult.Rejected(statusCode)
+    else -> LyricsResult.Unavailable
 }
 
 internal data class LyricsCacheEntry(

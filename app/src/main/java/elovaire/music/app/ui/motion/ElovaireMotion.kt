@@ -9,7 +9,6 @@ import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -18,7 +17,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.TransformOrigin
@@ -250,24 +248,6 @@ object ElovaireMotion {
     fun quickContentSwapTransform(): ContentTransform =
         fadeIn(animationSpec = scaledTween(durationMillis = ComponentBase, easing = FadeIn)) togetherWith
             fadeOut(animationSpec = scaledTween(durationMillis = FastBase, easing = FadeOut))
-
-    fun bottomSheetEnter(): EnterTransition = fadeIn(
-        initialAlpha = 0f,
-        animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = EmphasizedDecelerate),
-    ) +
-        expandVertically(
-            expandFrom = Alignment.Bottom,
-            animationSpec = scaledTween(durationMillis = EmphasizedBase, easing = EmphasizedDecelerate),
-        )
-
-    fun bottomSheetExit(): ExitTransition = fadeOut(
-        targetAlpha = 0f,
-        animationSpec = scaledTween(durationMillis = FastBase, easing = EmphasizedAccelerate),
-    ) +
-        shrinkVertically(
-            shrinkTowards = Alignment.Bottom,
-            animationSpec = scaledTween(durationMillis = FastBase, easing = EmphasizedAccelerate),
-        )
 
     fun softContentTransform(): ContentTransform =
         (fadeIn(animationSpec = contentFadeInSpec()) +

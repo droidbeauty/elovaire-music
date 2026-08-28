@@ -16,8 +16,9 @@ import elovaire.music.droidbeauty.app.ui.motion.PlayerOverlayMotionHost
 internal fun RootPlayerLayerHost(
     visible: Boolean,
     playerLayerState: PlayerLayerState,
-    onExitFinished: () -> Unit,
-    onReturnToCompactFinished: () -> Unit,
+    transitionGeneration: Long,
+    onExitFinished: (Long) -> Unit,
+    onReturnToCompactFinished: (Long) -> Unit,
     nowPlayingViewModel: NowPlayingViewModel,
     playbackManager: PlaybackManager,
     songsById: Map<Long, Song>,
@@ -35,9 +36,9 @@ internal fun RootPlayerLayerHost(
     PlayerOverlayMotionHost(
         visible = visible,
         onExitFinished = {
-            onExitFinished()
+            onExitFinished(transitionGeneration)
             if (playerLayerState == PlayerLayerState.ReturningToCompact) {
-                onReturnToCompactFinished()
+                onReturnToCompactFinished(transitionGeneration)
             }
         },
         modifier = modifier

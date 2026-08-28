@@ -89,7 +89,6 @@ internal fun rememberRootUiRuntime(
         sharedTopBarController = sharedTopBarController,
     )
     val openCurrentPlayingAlbum = rememberOpenCurrentPlayingAlbum(
-        navController = navController,
         navigationState = navigationState,
         currentRoute = routeObservation.route,
         currentAlbumRouteId = routeObservation.currentAlbumRouteId,
@@ -105,7 +104,7 @@ internal fun rememberRootUiRuntime(
         chromeVisibility = chromeVisibility,
         shellInputs = shellInputs,
         overlayState = overlayState,
-        topBarMenuActions = rememberRootTopBarMenuActions(navController, overlayState),
+        topBarMenuActions = rememberRootTopBarMenuActions(navigationState, overlayState),
         sharedTopBarSpec = sharedTopBarController.registration?.spec
             ?: rootSharedTopBarSpec(
                 currentRoute = routeObservation.route,

@@ -14,6 +14,8 @@ class MotionTransitionsTest {
         assertSame(transitions.detailForwardExit(), transitions.detailForwardExit())
         assertSame(transitions.playerOverlayEnter(), transitions.playerOverlayEnter())
         assertSame(transitions.softContentTransform(), transitions.softContentTransform())
+        assertSame(transitions.popupCardEnter(), transitions.popupCardEnter())
+        assertSame(transitions.popupCardExit(), transitions.popupCardExit())
     }
 
     @Test
@@ -22,6 +24,34 @@ class MotionTransitionsTest {
 
         assertFalse(gate.consumeFinishedExit())
         gate.onVisibilityTargetChanged(true)
+        assertFalse(gate.consumeFinishedExit())
+        gate.onCurrentStateChanged(true)
+        gate.onVisibilityTargetChanged(false)
+        assertTrue(gate.consumeFinishedExit())
+        assertFalse(gate.consumeFinishedExit())
+    }
+
+    @Test
+    fun exitCallbackGate_reentryCancelsThePendingExit() {
+        val gate = MotionExitCallbackGate()
+
+        gate.onVisibilityTargetChanged(true)
+        gate.onCurrentStateChanged(true)
+        gate.onVisibilityTargetChanged(false)
+        gate.onVisibilityTargetChanged(true)
+
+        assertFalse(gate.consumeFinishedExit())
+    }
+
+    @Test
+    fun exitCallbackGate_ignoresRepeatedTargetUpdatesFromRecomposition() {
+        val gate = MotionExitCallbackGate()
+
+        gate.onVisibilityTargetChanged(true)
+        gate.onCurrentStateChanged(true)
+        gate.onVisibilityTargetChanged(false)
+        gate.onVisibilityTargetChanged(false)
+
         assertTrue(gate.consumeFinishedExit())
         assertFalse(gate.consumeFinishedExit())
     }

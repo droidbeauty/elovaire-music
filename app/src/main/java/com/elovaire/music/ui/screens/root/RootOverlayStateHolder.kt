@@ -8,6 +8,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
 internal class RootOverlayStateHolder(
+    currentRoute: String? = null,
     showTopBarMenu: Boolean,
     showChangelogSheet: Boolean,
     showPlaylistCreateDialog: Boolean,
@@ -15,9 +16,9 @@ internal class RootOverlayStateHolder(
     private val setChangelogSheet: (Boolean) -> Unit,
     private val setPlaylistCreateDialog: (Boolean) -> Unit,
 ) {
-    val showTopBarMenu: Boolean = showTopBarMenu
-    val showChangelogSheet: Boolean = showChangelogSheet
-    val showPlaylistCreateDialog: Boolean = showPlaylistCreateDialog
+    val showTopBarMenu: Boolean = showTopBarMenu && currentRoute in TOP_BAR_MENU_ROUTES
+    val showChangelogSheet: Boolean = showChangelogSheet && currentRoute in TOP_BAR_MENU_ROUTES
+    val showPlaylistCreateDialog: Boolean = showPlaylistCreateDialog && currentRoute == PLAYLISTS_ROUTE
 
     fun openTopBarMenu() = setTopBarMenu(true)
     fun dismissTopBarMenu() = setTopBarMenu(false)
@@ -31,6 +32,7 @@ internal class RootOverlayStateHolder(
 
     fun onRouteChanged(route: String?) {
         setTopBarMenu(false)
+        setChangelogSheet(false)
         if (route != PLAYLISTS_ROUTE) {
             setPlaylistCreateDialog(false)
         }
@@ -43,6 +45,7 @@ internal fun rememberRootOverlayStateHolder(currentRoute: String?): RootOverlayS
     var showChangelogSheet by rememberSaveable { mutableStateOf(false) }
     var showPlaylistCreateDialog by rememberSaveable { mutableStateOf(false) }
     val currentHolder = RootOverlayStateHolder(
+        currentRoute = currentRoute,
         showTopBarMenu = showTopBarMenu,
         showChangelogSheet = showChangelogSheet,
         showPlaylistCreateDialog = showPlaylistCreateDialog,
@@ -55,3 +58,5 @@ internal fun rememberRootOverlayStateHolder(currentRoute: String?): RootOverlayS
     }
     return currentHolder
 }
+
+private val TOP_BAR_MENU_ROUTES = setOf(HOME_ROUTE, ALBUMS_ROUTE, PLAYLISTS_ROUTE)

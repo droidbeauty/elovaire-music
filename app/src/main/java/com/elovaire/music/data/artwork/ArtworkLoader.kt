@@ -16,6 +16,8 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport
 import java.io.ByteArrayOutputStream
+import java.io.Closeable
+import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
 import java.util.Locale
@@ -98,22 +100,27 @@ internal fun loadArtworkBitmap(
     val size = normalizeArtworkRequestSize(targetPx)
     val key = artworkRequestKey(requestUri, size, purpose)
     val decode = {
-        ElovaireTrace.section("artwork_decode") {
-            val targetSize = ImageTargetSize(size, size)
-            val bitmap = if (shouldUseContentResolverThumbnail(requestUri, purpose)) {
-                runCatching {
-                    context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
-                }.getOrNull()
-            } else {
-                null
-            }
-            bitmap
-                ?: if (isLikelyAudioMediaUri(requestUri)) {
-                    null
+        val artworkResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveArtworkDecode)
+        try {
+            ElovaireTrace.section("artwork_decode") {
+                val targetSize = ImageTargetSize(size, size)
+                val bitmap = if (shouldUseContentResolverThumbnail(requestUri, purpose)) {
+                    runCatching {
+                        context.contentResolver.loadThumbnail(requestUri, Size(size, size), null)
+                    }.getOrNull()
                 } else {
-                    decodeBitmapStream(context, requestUri, targetSize, purpose)
+                    null
                 }
-                ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
+                bitmap
+                    ?: if (isLikelyAudioMediaUri(requestUri)) {
+                        null
+                    } else {
+                        decodeBitmapStream(context, requestUri, targetSize, purpose)
+                    }
+                    ?: decodeEmbeddedArtwork(context, requestUri, targetSize, purpose)
+            }
+        } finally {
+            artworkResource.close()
         }
     }
     return key?.let { ArtworkBitmapCache.getOrLoad(it.cacheKey, decode) } ?: decode()
@@ -140,6 +147,16 @@ internal fun decodeArtworkBytes(
             ?: return@runCatching null
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampledOptions)
     }.getOrNull()
+}
+
+internal fun isArtworkFileDecodable(file: File): Boolean {
+    return runCatching {
+        FileInputStream(file).use { input ->
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeStream(input, null, bounds)
+            isArtworkBoundsSafe(bounds.outWidth, bounds.outHeight)
+        }
+    }.getOrDefault(false)
 }
 
 internal fun encodeArtworkForMediaSession(bitmap: Bitmap): ByteArray? {
@@ -307,6 +324,7 @@ internal object ArtworkBitmapCache {
         .coerceAtLeast(2L * 1024L * 1024L)
         .toInt()
     private var callbacksRegistered = false
+    private var callbackResource: Closeable? = null
     private val indexedBitmaps = mutableMapOf<String, TreeMap<Int, Bitmap>>()
     private val cache = object : LruCache<String, Bitmap>(maxCacheBytes) {
         override fun sizeOf(key: String, value: Bitmap): Int {
@@ -344,6 +362,7 @@ internal object ArtworkBitmapCache {
             }
         })
         callbacksRegistered = true
+        callbackResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRegisteredCallback)
     }
 
     @Synchronized

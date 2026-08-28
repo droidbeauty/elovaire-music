@@ -41,6 +41,7 @@ internal fun rememberRootRouteObservation(
             navigationState.logRouteTransition(previousMotionRoute, concreteRoute)
         }
         previousMotionRoute = concreteRoute
+        RootInteractionState.finish()
     }
     LaunchedEffect(route) {
         navigationState.syncTopLevelSelection(route)

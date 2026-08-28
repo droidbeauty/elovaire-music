@@ -39,7 +39,39 @@ internal data class LibrarySongRelocation(
     val after: Song,
 )
 
+internal data class LibrarySongPatch(
+    val before: Song,
+    val after: Song,
+)
+
 internal object LibraryChangeSetCalculator {
+    fun fromPatches(patches: List<LibrarySongPatch>): LibraryChangeSet {
+        if (patches.isEmpty()) return LibraryChangeSet.Empty
+        val relocated = patches.mapNotNull { patch ->
+            if (locatorChanged(patch.before, patch.after) && sameLogicalContent(patch.before, patch.after)) {
+                LibrarySongRelocation(patch.before, patch.after)
+            } else {
+                null
+            }
+        }
+        val relocatedBeforeKeys = relocated.mapTo(hashSetOf()) { MediaIdentityResolver.stableKey(it.before) }
+        val updated = patches.mapNotNull { patch ->
+            if (sameSong(patch.before, patch.after) ||
+                MediaIdentityResolver.stableKey(patch.before) in relocatedBeforeKeys
+            ) {
+                null
+            } else {
+                LibrarySongUpdate(patch.before, patch.after)
+            }
+        }
+        return buildChangeSet(
+            added = emptyList(),
+            updated = updated,
+            relocated = relocated,
+            removed = emptyList(),
+        )
+    }
+
     fun between(
         previous: List<Song>,
         next: List<Song>,
@@ -90,6 +122,15 @@ internal object LibraryChangeSetCalculator {
             after.takeIf { !sameSong(before, it) && key !in relocatedBeforeKeys }
                 ?.let { LibrarySongUpdate(before, it) }
         }
+        return buildChangeSet(added, updated, relocated, removed)
+    }
+
+    private fun buildChangeSet(
+        added: List<Song>,
+        updated: List<LibrarySongUpdate>,
+        relocated: List<LibrarySongRelocation>,
+        removed: List<Song>,
+    ): LibraryChangeSet {
         val affectedAlbumIds = buildSet {
             added.forEach { add(it.albumId) }
             removed.forEach { add(it.albumId) }

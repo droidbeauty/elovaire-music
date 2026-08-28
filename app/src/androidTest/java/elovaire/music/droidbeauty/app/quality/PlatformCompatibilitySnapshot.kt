@@ -14,6 +14,7 @@ import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.AppExitCategory
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.StrictModeViolationRecorder
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 
 internal enum class PlatformPermissionState {
@@ -62,7 +63,6 @@ internal data class PlatformCompatibilityRuntimeState(
     val memoryPressureMode: MemoryPressure = MemoryPressure.Normal,
     val lastExitCategory: AppExitCategory? = null,
     val compatibilityChanges: Set<String> = emptySet(),
-    val resourceCounters: Map<String, Int> = emptyMap(),
 )
 
 internal data class PlatformCompatibilitySnapshot(
@@ -174,7 +174,7 @@ internal fun Context.platformCompatibilitySnapshot(
         memoryPressureMode = runtimeState.memoryPressureMode,
         lastExitCategory = runtimeState.lastExitCategory,
         strictModeViolationCount = StrictModeViolationRecorder.snapshot().sumOf { it.count },
-        resourceCounters = runtimeState.resourceCounters
+        resourceCounters = BackendResourceRegistry.snapshot()
             .asSequence()
             .sortedBy { (name, _) -> name }
             .take(MAX_DIAGNOSTIC_ENTRIES)

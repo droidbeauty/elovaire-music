@@ -3,6 +3,8 @@ package elovaire.music.droidbeauty.app.core
 import android.app.Activity
 import android.app.Application
 import android.os.Bundle
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import java.io.Closeable
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,9 +19,11 @@ internal class AppForegroundTracker(
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
     private var startedCount = 0
     private val closed = AtomicBoolean(false)
+    private val callbackResource: Closeable
 
     init {
         application.registerActivityLifecycleCallbacks(this)
+        callbackResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRegisteredCallback)
     }
 
     override fun onActivityStarted(activity: Activity) {
@@ -55,5 +59,6 @@ internal class AppForegroundTracker(
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         application.unregisterActivityLifecycleCallbacks(this)
+        callbackResource.close()
     }
 }
