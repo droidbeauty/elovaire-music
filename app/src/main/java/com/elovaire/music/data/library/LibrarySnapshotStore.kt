@@ -134,7 +134,13 @@ internal class LibrarySnapshotStore(
         filterFingerprint: String,
         syncState: LibraryMediaStoreSyncState? = null,
     ) = synchronized(snapshotLock) {
-        val songs = snapshot.songs.filter(::isSupportedLibrarySong)
+        // Scans already apply this predicate. Keep the defensive filter for untrusted callers,
+        // but avoid allocating a second full song list on the normal save path.
+        val songs = if (snapshot.songs.all(::isSupportedLibrarySong)) {
+            snapshot.songs
+        } else {
+            snapshot.songs.filter(::isSupportedLibrarySong)
+        }
         val contentRevision = librarySnapshotContentRevision(
             snapshot = if (songs.size == snapshot.songs.size) {
                 snapshot.copy(songs = songs)

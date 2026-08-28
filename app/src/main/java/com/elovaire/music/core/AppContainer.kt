@@ -31,7 +31,7 @@ class AppContainer(
     private val appRuntimeScope = AppRuntimeScope()
     private val appScope = appRuntimeScope.scope
     private val portableSettingsBackup = ElovaireTrace.section("portable_settings_restore") {
-        PortableSettingsBackup(applicationContext).also { it.restore() }
+        PortableSettingsBackup(applicationContext, ownerScope = appScope).also { it.restore() }
     }
 
     private val services = ElovaireTrace.section("app_services_init") {

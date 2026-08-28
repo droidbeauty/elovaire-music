@@ -1123,7 +1123,7 @@ internal fun ThemeModeSegmentedPicker(
                 val iconResId = when (option) {
                     ThemeMode.Light -> R.drawable.ic_lucide_sun
                     ThemeMode.Dark -> R.drawable.ic_lucide_moon
-                    ThemeMode.System -> R.drawable.ic_lucide_settings_2
+                    ThemeMode.System -> R.drawable.ic_lucide_smartphone
                 }
                 Box(
                     modifier = Modifier

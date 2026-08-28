@@ -30,10 +30,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlin.coroutines.EmptyCoroutineContext
 
 class PreferenceStore internal constructor(
     context: Context,
     private val userDataStore: RoomUserDataStore,
+    ownerScope: CoroutineScope? = null,
 ) :
     RootSettingsReader,
     AppearanceSettingsWriter,
@@ -47,7 +49,11 @@ class PreferenceStore internal constructor(
         // Initial settings must be available synchronously before the first UI state is published.
         PreferenceStorage(appContext).preferences.also { it.all }
     }
-    private val preferenceScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val preferenceScope = CoroutineScope(
+        (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
+            SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
+            Dispatchers.IO,
+    )
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null
     private var crossfadePersistJob: Job? = null

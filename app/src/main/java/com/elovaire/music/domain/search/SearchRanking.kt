@@ -27,24 +27,25 @@ internal fun buildSearchResults(
 ): SearchResults {
     if (query.value.isBlank()) return SearchResults()
 
-    val rankedSongs = index.songs.rankMatching(
-        query = query,
-        normalizedTitle = SearchableSong::normalizedTitle,
-        normalizedArtist = SearchableSong::normalizedArtist,
-        normalizedAlbum = SearchableSong::normalizedAlbum,
-        normalizedComposite = SearchableSong::normalizedComposite,
-    )
-    val sortedSongs = if (includeAllSongs) {
+    val (sortedSongs, totalSongMatchCount) = if (includeAllSongs) {
+        val rankedSongs = index.songs.rankMatching(
+            query = query,
+            normalizedTitle = SearchableSong::normalizedTitle,
+            normalizedArtist = SearchableSong::normalizedArtist,
+            normalizedAlbum = SearchableSong::normalizedAlbum,
+            normalizedComposite = SearchableSong::normalizedComposite,
+        )
         sortRankedSongs(
             ranked = rankedSongs,
             sortMode = sortMode,
-        )
+        ) to rankedSongs.size
     } else {
-        topRankedSongs(
-            ranked = rankedSongs,
+        topMatchingSongs(
+            songs = index.songs,
+            query = query,
             sortMode = sortMode,
             limit = 20,
-        )
+        ).let { it.songs to it.matchCount }
     }
 
     val matchingAlbums = index.albums
@@ -81,34 +82,47 @@ internal fun buildSearchResults(
     return SearchResults(
         allMatchingSongs = if (includeAllSongs) sortedSongs else emptyList(),
         matchingSongs = if (includeAllSongs) sortedSongs.take(20) else sortedSongs,
-        totalSongMatchCount = rankedSongs.size,
+        totalSongMatchCount = totalSongMatchCount,
         matchingAlbums = matchingAlbums,
         matchingArtists = matchingArtists,
     )
 }
 
-private fun topRankedSongs(
-    ranked: List<RankedResult<SearchableSong>>,
+private data class TopMatchingSongs(
+    val songs: List<Song>,
+    val matchCount: Int,
+)
+
+private fun topMatchingSongs(
+    songs: List<SearchableSong>,
+    query: NormalizedSearchQuery,
     sortMode: SearchSortMode,
     limit: Int,
-): List<Song> {
-    if (ranked.size <= limit) {
-        return sortRankedSongs(
-            ranked = ranked,
-            sortMode = sortMode,
-        )
-    }
-
+): TopMatchingSongs {
     val bestFirst = rankedSongComparator(sortMode)
     val worstFirst = bestFirst.reversed()
     val heap = PriorityQueue<RankedResult<SearchableSong>>(limit, worstFirst)
-    ranked.forEach { candidate ->
-        if (heap.size < limit) {
-            heap += candidate
-        } else if (bestFirst.compare(candidate, heap.peek()) < 0) {
-            heap.poll()
-            heap += candidate
+    var matchCount = 0
+    songs.forEach { song ->
+        scoreMatch(
+            query = query,
+            normalizedTitle = song.normalizedTitle,
+            normalizedArtist = song.normalizedArtist,
+            normalizedAlbum = song.normalizedAlbum,
+            normalizedComposite = song.normalizedComposite,
+        )?.let { score ->
+            matchCount++
+            val candidate = RankedResult(song, score)
+            if (heap.size < limit) {
+                heap += candidate
+            } else if (bestFirst.compare(candidate, heap.peek()) < 0) {
+                heap.poll()
+                heap += candidate
+            }
         }
     }
-    return heap.sortedWith(bestFirst).map { it.value.song }
+    return TopMatchingSongs(
+        songs = heap.sortedWith(bestFirst).map { it.value.song },
+        matchCount = matchCount,
+    )
 }

@@ -139,6 +139,37 @@ class SearchIndexTest {
         assertEquals(emptyList<Song>(), results.allMatchingSongs)
     }
 
+    @Test
+    fun buildSearchResults_previewMatchesTheTopSongsFromFullResults() {
+        val songs = (1L..60L).map { id ->
+            song(
+                id = id,
+                title = if (id % 2 == 0L) "Dream Song $id" else "Dream Alternate $id",
+                artist = if (id % 3 == 0L) "Dream Artist" else "Other Artist",
+                albumArtist = null,
+            )
+        }
+        val index = buildSearchIndex(songs = songs, albums = emptyList())
+        val query = NormalizedSearchQuery.from("dream")
+
+        val fullResults = buildSearchResults(
+            query = query,
+            sortMode = SearchSortMode.Artist,
+            index = index,
+            includeAllSongs = true,
+        )
+        val previewResults = buildSearchResults(
+            query = query,
+            sortMode = SearchSortMode.Artist,
+            index = index,
+            includeAllSongs = false,
+        )
+
+        assertEquals(fullResults.totalSongMatchCount, previewResults.totalSongMatchCount)
+        assertEquals(fullResults.matchingSongs.take(20), previewResults.matchingSongs)
+        assertEquals(emptyList<Song>(), previewResults.allMatchingSongs)
+    }
+
     private fun song(
         id: Long,
         title: String = "Song $id",

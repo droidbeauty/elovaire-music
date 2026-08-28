@@ -65,6 +65,7 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlin.coroutines.EmptyCoroutineContext
 
 @Suppress("TooManyFunctions", "TooGenericExceptionCaught")
 internal class RoomUserDataStore(
@@ -73,6 +74,7 @@ internal class RoomUserDataStore(
     private val clock: AppClock = AndroidAppClock,
     ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val recoverySnapshot: UserDataRecoverySnapshot? = null,
+    ownerScope: CoroutineScope? = null,
 ) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
     private val preferences = allowStrictModeDiskReads {
         PreferenceStorage(context.applicationContext).preferences
@@ -91,7 +93,11 @@ internal class RoomUserDataStore(
     // Durable mutations are accepted only when they fit in the bounded channel. Coalescible
     // state uses one replaceable slot per semantic operation instead of suspended senders.
     private val operations = Channel<RoomOperation>(MAX_OPERATION_QUEUE_DEPTH)
-    private val operationScope = CoroutineScope(SupervisorJob() + ioDispatcher)
+    private val operationScope = CoroutineScope(
+        (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
+            SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
+            ioDispatcher,
+    )
     private val queueDepth = AtomicInteger()
     private val maxQueueDepth = AtomicInteger()
     private val submissionLock = Any()

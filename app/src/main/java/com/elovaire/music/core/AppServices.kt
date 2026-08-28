@@ -98,8 +98,9 @@ internal class AppServices(
         context = applicationContext,
         dao = database.userDataDao(),
         recoverySnapshot = UserDataRecoverySnapshot(applicationContext),
+        ownerScope = appScope,
     )
-    val preferenceStore = PreferenceStore(applicationContext, userDataStore)
+    val preferenceStore = PreferenceStore(applicationContext, userDataStore, ownerScope = appScope)
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
     private val networkSourceMutationJournal = NetworkSourceMutationJournal(applicationContext)
     private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())

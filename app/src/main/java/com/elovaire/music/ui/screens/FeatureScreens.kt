@@ -8075,7 +8075,7 @@ private fun QueueSheetFooter(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             PlayerSecondaryActionButton(
-                iconResId = R.drawable.ic_lucide_separator_vertical,
+                iconResId = R.drawable.ic_lucide_send_to_back,
                 label = "",
                 contentDescription = if (crossfadeEnabled) "Disable crossfade" else "Enable crossfade",
                 iconSize = 20.dp,

@@ -14,10 +14,12 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlin.coroutines.EmptyCoroutineContext
 
 internal class PortableSettingsBackup(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
+    ownerScope: CoroutineScope? = null,
 ) : SharedPreferences.OnSharedPreferenceChangeListener {
     private val appContext = context.applicationContext
     private val source by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -33,7 +35,11 @@ internal class PortableSettingsBackup(
     private val restored = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
-    private val mirrorScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val mirrorScope = CoroutineScope(
+        (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
+            SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
+            Dispatchers.IO,
+    )
     private val mirrorLock = Any()
     private var mirrorJob: Job? = null
     private var mirrorRequested = false
