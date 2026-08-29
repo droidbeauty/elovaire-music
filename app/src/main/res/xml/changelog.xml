@@ -8,6 +8,7 @@
     -->
     <release version="2.8.1">
         <item>Redesigned changelog pop-up card</item>
+        <item>Made translations in some previously missing parts of the UI</item>
         <item>Reliability focused changes in many areas</item>
         <item>Better UI responsiveness overall during quick navigation</item>
         <item>Fine tuned some areas that were previously less efficient</item>

@@ -125,7 +125,13 @@ private class RangeMediaDataSource(
         val requestSize = minOf(WINDOW_BYTES.toLong(), this.size - start, remainingBudget).toInt()
         if (requestSize <= 0) throw IOException("Network metadata read budget exceeded")
         val loaded = ByteArray(requestSize)
-        val readHandle = registry.openBlocking(source.id, entry.path, start, requestSize.toLong())
+        val readHandle = registry.openBlocking(
+            sourceId = source.id,
+            path = entry.path,
+            position = start,
+            length = requestSize.toLong(),
+            purpose = NetworkReadPurpose.Metadata,
+        )
         var total = 0
         try {
             readHandle.use { handle ->

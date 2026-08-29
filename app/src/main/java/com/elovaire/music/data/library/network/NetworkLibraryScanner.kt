@@ -3,8 +3,6 @@ package elovaire.music.droidbeauty.app.data.library.network
 import android.content.Context
 import android.net.Uri
 import com.hierynomus.smbj.common.SMBRuntimeException
-import com.hierynomus.mssmb2.SMBApiException
-import com.hierynomus.mserref.NtStatus
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
@@ -90,6 +88,11 @@ internal class NetworkLibraryScanner(
     ): NetworkLibrarySourceScanResult {
         return try {
             scanSource(source, forceRefresh, enrichMetadata, metadataSemaphore)
+        } catch (_: NetworkScanSupersededException) {
+            NetworkLibrarySourceScanResult(
+                songs = inventory.load(source).map(NetworkInventoryEntry::song),
+                isComplete = false,
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (failure: IOException) {
@@ -134,7 +137,8 @@ internal class NetworkLibraryScanner(
     ): NetworkLibrarySourceScanResult {
         val cached = inventory.load(source)
         val sourceGeneration = registry.sourceGeneration(source.id)
-        if (!isCurrentSource(source, sourceGeneration)) {
+        val transportGeneration = registry.networkGeneration()
+        if (!isCurrent(source, sourceGeneration, registry.credentials(source), transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         val hasUnresolvedCachedMetadata = cached.any { !it.song.metadataResolved }
@@ -142,7 +146,7 @@ internal class NetworkLibraryScanner(
             if (!enrichMetadata || !hasUnresolvedCachedMetadata) {
                 return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = true)
             }
-            return enrichCommittedInventory(source, sourceGeneration, cached, metadataSemaphore)
+            return enrichCommittedInventory(source, sourceGeneration, transportGeneration, cached, metadataSemaphore)
         }
         val credentials = registry.credentials(source)
         if (credentials == null) {
@@ -163,7 +167,7 @@ internal class NetworkLibraryScanner(
         val incompleteReason = (listing as? NetworkListingResult.Incomplete)?.reason
         // A source edit/removal may have completed while the blocking listing was in flight.
         // Never commit or republish the result for an obsolete configuration.
-        if (!isCurrent(source, sourceGeneration, credentials)) {
+        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         publishAvailability(
@@ -197,6 +201,7 @@ internal class NetworkLibraryScanner(
                 .entries
                 .take(MAX_ARTWORKS_PER_SCAN)
                 .associate { (directory, entry) ->
+                    ensureCurrent(source, sourceGeneration, credentials, transportGeneration)
                     directory to artworkCache.uriFor(source, entry, registry)
                 }
                 .also { artworkCache.trim() }
@@ -213,6 +218,9 @@ internal class NetworkLibraryScanner(
             enrichMetadata = enrichMetadata,
             forceRefresh = forceRefresh,
             metadataSemaphore = metadataSemaphore,
+            isCurrent = {
+                isCurrent(source, sourceGeneration, credentials, transportGeneration)
+            },
         )
         val inventoryChanged = inventoryEntries.size != cached.size || inventoryEntries.any { current ->
             val previous = cachedByPath[current.entry.path]
@@ -220,7 +228,7 @@ internal class NetworkLibraryScanner(
                 previous != current
         }
         val nowMs = clock.wallTimeMs()
-        if (!isCurrent(source, sourceGeneration, credentials)) {
+        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         if (incompleteReason != null) {
@@ -251,6 +259,7 @@ internal class NetworkLibraryScanner(
     private suspend fun enrichCommittedInventory(
         source: NetworkLibrarySource,
         sourceGeneration: Long,
+        transportGeneration: Long,
         cached: List<NetworkInventoryEntry>,
         metadataSemaphore: Semaphore,
     ): NetworkLibrarySourceScanResult {
@@ -264,7 +273,7 @@ internal class NetworkLibraryScanner(
             )
             return NetworkLibrarySourceScanResult(cached.map(NetworkInventoryEntry::song), isComplete = false)
         }
-        if (!isCurrent(source, sourceGeneration, credentials)) {
+        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         val cachedByPath = cached.associateBy { it.entry.path }
@@ -281,8 +290,11 @@ internal class NetworkLibraryScanner(
             enrichMetadata = true,
             forceRefresh = false,
             metadataSemaphore = metadataSemaphore,
+            isCurrent = {
+                isCurrent(source, sourceGeneration, credentials, transportGeneration)
+            },
         )
-        if (!isCurrent(source, sourceGeneration, credentials)) {
+        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         if (enriched != cached) {
@@ -306,8 +318,11 @@ internal class NetworkLibraryScanner(
         enrichMetadata: Boolean,
         forceRefresh: Boolean,
         metadataSemaphore: Semaphore,
+        isCurrent: () -> Boolean,
     ): List<NetworkInventoryEntry> {
         val buildEntry: suspend (NetworkFileEntry) -> NetworkInventoryEntry = { entry ->
+            currentCoroutineContext().ensureActive()
+            if (!isCurrent()) throw NetworkScanSupersededException()
             val previous = cachedByPath[entry.path]
                 ?: entry.sourceEntryId
                     ?.let { cachedByEntryId[it].orEmpty().singleOrNull() }
@@ -337,6 +352,7 @@ internal class NetworkLibraryScanner(
                 } else {
                     null
                 }
+                if (!isCurrent()) throw NetworkScanSupersededException()
                 val provisionalSong = if (metadata == null && previous != null) {
                     previous.song.copy(
                         fileName = entry.path.substringAfterLast('/').ifBlank { "Unknown" },
@@ -425,6 +441,25 @@ internal class NetworkLibraryScanner(
         credentials: NetworkCredentials?,
     ): Boolean = isCurrentSource(source, sourceGeneration) && registry.credentials(source) == credentials
 
+    private fun isCurrent(
+        source: NetworkLibrarySource,
+        sourceGeneration: Long,
+        credentials: NetworkCredentials?,
+        transportGeneration: Long,
+    ): Boolean = isCurrent(source, sourceGeneration, credentials) &&
+        registry.networkGeneration() == transportGeneration
+
+    private fun ensureCurrent(
+        source: NetworkLibrarySource,
+        sourceGeneration: Long,
+        credentials: NetworkCredentials?,
+        transportGeneration: Long,
+    ) {
+        if (!isCurrent(source, sourceGeneration, credentials, transportGeneration)) {
+            throw NetworkScanSupersededException()
+        }
+    }
+
     private fun NetworkFileEntry.toSong(
         source: NetworkLibrarySource,
         artUri: Uri?,
@@ -494,34 +529,8 @@ internal class NetworkLibraryScanner(
         if (this is NetworkLocalNetworkPermissionException) {
             return NetworkProbeResult(NetworkAvailability.LocalNetworkPermissionRequired, this::class.simpleName)
         }
-        if (this is WebDavHttpException) {
-            return NetworkProbeResult(
-                availability = when (statusCode) {
-                    401, 403 -> NetworkAvailability.AuthenticationRequired
-                    408, 429, in 500..599 -> NetworkAvailability.Offline
-                    else -> NetworkAvailability.Unavailable
-                },
-                message = this::class.simpleName,
-            )
-        }
-        if (this is SMBApiException) {
-            return NetworkProbeResult(
-                availability = if (
-                    getStatus() == NtStatus.STATUS_LOGON_FAILURE ||
-                    getStatus() == NtStatus.STATUS_ACCESS_DENIED
-                ) {
-                    NetworkAvailability.AuthenticationRequired
-                } else {
-                    NetworkAvailability.Unavailable
-                },
-                message = this::class.simpleName,
-            )
-        }
-        val offline = this is java.net.UnknownHostException ||
-            this is java.net.ConnectException ||
-            this is java.net.SocketTimeoutException
         return NetworkProbeResult(
-            availability = if (offline) NetworkAvailability.Offline else NetworkAvailability.Unavailable,
+            availability = remoteIoFailureKind().toNetworkAvailability(),
             message = this::class.simpleName,
         )
     }
@@ -623,7 +632,13 @@ private class NetworkArtworkCache(context: Context) {
     ): Boolean {
         var completed = false
         try {
-            registry.openBlocking(source.id, entry.path, 0L, MAX_ARTWORK_BYTES + 1L).use { handle ->
+            registry.openBlocking(
+                sourceId = source.id,
+                path = entry.path,
+                position = 0L,
+                length = MAX_ARTWORK_BYTES + 1L,
+                purpose = NetworkReadPurpose.Artwork,
+            ).use { handle ->
                 if (handle.length != null && handle.length > MAX_ARTWORK_BYTES) return false
                 FileOutputStream(temporary).use { output ->
                     val buffer = ByteArray(16 * 1024)
@@ -664,6 +679,8 @@ internal data class NetworkLibraryScanResult(
     val songs: List<Song>,
     val isComplete: Boolean,
 )
+
+private class NetworkScanSupersededException : IOException("Network scan was superseded")
 
 private data class NetworkLibrarySourceScanResult(
     val songs: List<Song>,

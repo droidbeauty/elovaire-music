@@ -37,6 +37,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
+import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryInvalidationCoordinator
 import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryReadExecutor
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
@@ -51,9 +52,11 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -103,6 +106,7 @@ internal class AppServices(
                 NetworkLibraryProtocol.WebDav to WebDavNetworkFileSystem(),
             ),
             localNetworkAccessAllowed = { applicationContext.hasLocalNetworkPermission() },
+            applicationContext = applicationContext,
         )
     }
     private val networkScannerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
@@ -247,6 +251,12 @@ internal class AppServices(
         mediaMutationJournal = mediaMutationJournal,
         updateControllerProvider = { updateController },
     )
+    private val mediaLibraryInvalidationCoordinator = MediaLibraryInvalidationCoordinator(
+        session = playbackManager.mediaLibrarySession,
+        libraryRepository = libraryRepository,
+        settings = preferenceStore,
+        scope = libraryScope,
+    )
 
     init {
         playbackManager.setMediaLibrarySessionCallback(
@@ -261,11 +271,21 @@ internal class AppServices(
     }
 
     fun start() {
+        startNetworkServices()
+        mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.start()
     }
 
     fun startPlayback() {
+        startNetworkServices()
+        mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.startPlayback()
+    }
+
+    private fun startNetworkServices() {
+        optionalScope.launch(Dispatchers.IO) {
+            networkFileSystemRegistryDelegate.value.start()
+        }
     }
 
     internal fun exportPortableUserData(): ByteArray {
@@ -305,6 +325,7 @@ internal class AppServices(
     fun release() {
         startupCoordinator.release()
         networkMutationRuntime.release()
+        mediaLibraryInvalidationCoordinator.close()
         optionalScope.cancel()
         playbackManager.release()
         playbackScope.cancel()

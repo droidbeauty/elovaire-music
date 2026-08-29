@@ -20,6 +20,8 @@ import java.util.EnumSet
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -40,13 +42,10 @@ internal class SmbNetworkFileSystem(
             withShare(source, credentials) { share -> share.folderExists(smbPath(source)) }
             NetworkProbeResult(NetworkAvailability.Available)
         }.getOrElse { failure ->
+            val remoteFailure = failure.asRemoteIoFailure()
             NetworkProbeResult(
-                availability = if (failure.isAuthenticationFailure()) {
-                    NetworkAvailability.AuthenticationRequired
-                } else {
-                    NetworkAvailability.Unavailable
-                },
-                message = failure::class.simpleName,
+                availability = remoteFailure.kind.toNetworkAvailability(),
+                message = remoteFailure::class.simpleName,
             )
         }
     }
@@ -131,7 +130,16 @@ internal class SmbNetworkFileSystem(
             val range = resolveNetworkRange(totalLength, position, length)
             val start = position
             NetworkReadHandle(
-                input = SmbRangeInputStream(openedFile, start, range.exposedLength, totalLength),
+                input = SmbRangeInputStream(
+                    file = openedFile,
+                    start = start,
+                    requestedLength = range.exposedLength,
+                    totalLength = totalLength,
+                    onReadFailure = { failure ->
+                        if (failure.shouldInvalidateSession()) session.invalidate()
+                        failure.asRemoteIoFailure()
+                    },
+                ),
                 length = range.exposedLength,
                 closeHandle = {
                     runCatching { openedFile.close() }
@@ -141,7 +149,8 @@ internal class SmbNetworkFileSystem(
         } catch (failure: Throwable) {
             runCatching { file?.close() }
             lease.close()
-            throw failure
+            if (failure.shouldInvalidateSession()) session.invalidate()
+            throw failure.asRemoteIoFailure()
         } finally {
             if (file == null) {
                 lease.close()
@@ -152,6 +161,13 @@ internal class SmbNetworkFileSystem(
     override fun invalidate(sourceId: String) {
         val session = synchronized(sessionMapLock) { sessions.remove(sourceId) }
         session?.invalidate()
+    }
+
+    override fun invalidateAll() {
+        val activeSessions = synchronized(sessionMapLock) {
+            sessions.values.toList().also { sessions.clear() }
+        }
+        activeSessions.forEach(SourceSession::invalidate)
     }
 
     override fun release() {
@@ -170,6 +186,7 @@ internal class SmbNetworkFileSystem(
         return removePrefix(rootPath).trimStart('/').ifBlank { this }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun <T> withShare(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
@@ -179,6 +196,9 @@ internal class SmbNetworkFileSystem(
         val lease = session.acquire()
         return try {
             block(lease.share)
+        } catch (failure: Throwable) {
+            if (failure.shouldInvalidateSession()) session.invalidate()
+            throw failure.asRemoteIoFailure()
         } finally {
             lease.close()
         }
@@ -415,9 +435,15 @@ internal class SmbNetworkFileSystem(
         val session: com.hierynomus.smbj.session.Session,
         val share: DiskShare,
     ) : AutoCloseable {
+        private val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveSmbSession)
+
         override fun close() {
-            listOf(share, session, connection, client)
-                .forEach { resource -> runCatching { resource.close() } }
+            try {
+                listOf(share, session, connection, client)
+                    .forEach { resource -> runCatching { resource.close() } }
+            } finally {
+                resource.close()
+            }
         }
     }
 
@@ -434,23 +460,83 @@ internal class SmbNetworkFileSystem(
         .digest(toByteArray(Charsets.UTF_8))
         .joinToString("") { byte -> "%02x".format(byte) }
 
-    private fun Throwable.isAuthenticationFailure(): Boolean {
-        return when (this) {
-            is SMBApiException -> getStatus() == NtStatus.STATUS_LOGON_FAILURE ||
-                getStatus() == NtStatus.STATUS_ACCESS_DENIED
-            else -> false
+    private fun Throwable.asRemoteIoFailure(): NetworkRemoteIoException {
+        if (this is NetworkRemoteIoException) return this
+        val kind = when (this) {
+            is SMBApiException -> when (getStatus()) {
+                NtStatus.STATUS_LOGON_FAILURE,
+                NtStatus.STATUS_PASSWORD_EXPIRED,
+                NtStatus.STATUS_ACCOUNT_DISABLED,
+                -> RemoteIoFailureKind.Authentication
+                NtStatus.STATUS_ACCESS_DENIED,
+                NtStatus.STATUS_PRIVILEGE_NOT_HELD,
+                NtStatus.STATUS_LOGON_TYPE_NOT_GRANTED,
+                -> RemoteIoFailureKind.Permission
+                NtStatus.STATUS_BAD_NETWORK_NAME -> RemoteIoFailureKind.ShareMissing
+                NtStatus.STATUS_OBJECT_NAME_NOT_FOUND,
+                NtStatus.STATUS_OBJECT_PATH_NOT_FOUND,
+                NtStatus.STATUS_NO_SUCH_FILE,
+                NtStatus.STATUS_NOT_FOUND,
+                NtStatus.STATUS_FILE_DELETED,
+                -> RemoteIoFailureKind.PathMissing
+                NtStatus.STATUS_TIMEOUT,
+                NtStatus.STATUS_IO_TIMEOUT,
+                -> RemoteIoFailureKind.Timeout
+                NtStatus.STATUS_CONNECTION_DISCONNECTED,
+                NtStatus.STATUS_CONNECTION_RESET,
+                NtStatus.STATUS_NETWORK_NAME_DELETED,
+                -> RemoteIoFailureKind.ConnectionReset
+                NtStatus.STATUS_NETWORK_SESSION_EXPIRED,
+                NtStatus.STATUS_USER_SESSION_DELETED,
+                -> RemoteIoFailureKind.SessionInvalid
+                NtStatus.STATUS_BAD_NETWORK_PATH -> RemoteIoFailureKind.HostUnreachable
+                NtStatus.STATUS_NOT_SUPPORTED,
+                NtStatus.STATUS_NOT_IMPLEMENTED,
+                NtStatus.STATUS_INVALID_PARAMETER,
+                -> RemoteIoFailureKind.Protocol
+                NtStatus.STATUS_RETRY,
+                NtStatus.STATUS_REQUEST_NOT_ACCEPTED,
+                -> RemoteIoFailureKind.TransientServer
+                else -> RemoteIoFailureKind.Unknown
+            }
+            else -> remoteIoFailureKind()
         }
+        return NetworkRemoteIoException(kind, "SMB operation failed", this)
+    }
+
+    private fun Throwable.shouldInvalidateSession(): Boolean {
+        val kind = when (this) {
+            is SMBApiException -> when (getStatus()) {
+                NtStatus.STATUS_TIMEOUT,
+                NtStatus.STATUS_IO_TIMEOUT,
+                NtStatus.STATUS_CONNECTION_DISCONNECTED,
+                NtStatus.STATUS_CONNECTION_RESET,
+                NtStatus.STATUS_NETWORK_NAME_DELETED,
+                NtStatus.STATUS_NETWORK_SESSION_EXPIRED,
+                NtStatus.STATUS_USER_SESSION_DELETED,
+                -> RemoteIoFailureKind.ConnectionReset
+                else -> RemoteIoFailureKind.Unknown
+            }
+            else -> remoteIoFailureKind()
+        }
+        return kind in setOf(
+            RemoteIoFailureKind.HostUnreachable,
+            RemoteIoFailureKind.Timeout,
+            RemoteIoFailureKind.ConnectionReset,
+            RemoteIoFailureKind.SessionInvalid,
+        )
     }
 
     private fun FileIdBothDirectoryInformation.isDirectory(): Boolean {
         return fileAttributes and FileAttributes.FILE_ATTRIBUTE_DIRECTORY.value != 0L
     }
 
-    private class SmbRangeInputStream(
+    private inner class SmbRangeInputStream(
         private val file: com.hierynomus.smbj.share.File,
         private val start: Long,
         private val requestedLength: Long?,
         private val totalLength: Long,
+        private val onReadFailure: (Throwable) -> Throwable,
     ) : InputStream() {
         private var position = 0L
 
@@ -464,7 +550,11 @@ internal class SmbNetworkFileSystem(
             val remaining = requestedLength?.minus(position)?.coerceAtLeast(0L)
                 ?: (totalLength - start - position).coerceAtLeast(0L)
             if (remaining == 0L) return -1
-            val count = file.read(buffer, start + position, offset, minOf(length.toLong(), remaining).toInt())
+            val count = try {
+                file.read(buffer, start + position, offset, minOf(length.toLong(), remaining).toInt())
+            } catch (failure: Exception) {
+                throw onReadFailure(failure)
+            }
             if (count > 0) position += count
             return count
         }

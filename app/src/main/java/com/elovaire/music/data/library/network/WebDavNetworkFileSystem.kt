@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
-import android.util.Xml
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.FilterInputStream
@@ -12,9 +11,16 @@ import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Base64
 import java.util.Locale
-import org.xmlpull.v1.XmlPullParser
+import java.util.concurrent.ConcurrentHashMap
+import javax.xml.XMLConstants
+import javax.xml.parsers.DocumentBuilderFactory
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import org.w3c.dom.Element
 
 internal class WebDavNetworkFileSystem : NetworkFileSystem {
+    private val rangeCapabilities = ConcurrentHashMap<String, NetworkRangeCapability>()
+
     override fun probeBlocking(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
@@ -83,20 +89,25 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         } else {
             null
         }
-        val connection = openConnection(source, credentials, path)
-        connection.requestMethod = "GET"
-        if (position > 0L || length > 0L) {
-            connection.setRequestProperty("Range", "bytes=$position-${requestedEnd ?: ""}")
+        val requestsRange = position > 0L || length > 0L
+        if (position > 0L && rangeCapabilities[source.id] == NetworkRangeCapability.Unsupported) {
+            throw NetworkRangeUnsupportedException("WebDAV server does not support byte ranges")
         }
-        connection.connect()
+        val connection = executeGet(
+            source = source,
+            credentials = credentials,
+            path = path,
+            range = if (requestsRange) "bytes=$position-${requestedEnd ?: ""}" else null,
+        )
         val status = connection.responseCode
         if (status == HTTP_RANGE_NOT_SATISFIABLE) {
             val totalLength = parseUnsatisfiedContentRange(connection.getHeaderField("Content-Range"))
             connection.disconnect()
             if (totalLength != null && position == totalLength) {
+                rangeCapabilities[source.id] = NetworkRangeCapability.Supported
                 return NetworkReadHandle(
                     input = ByteArrayInputStream(ByteArray(0)),
-                    length = length.takeIf { it >= 0L } ?: 0L,
+                    length = 0L,
                     closeHandle = {},
                 )
             }
@@ -126,14 +137,17 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                     connection.disconnect()
                     throw IOException("WebDAV server returned an invalid Content-Range")
                 }
+                rangeCapabilities[source.id] = NetworkRangeCapability.Supported
                 input = connection.inputStream
-                handleLength = if (length >= 0L) length else rangeLength
+                handleLength = if (length >= 0L) minOf(length, rangeLength) else rangeLength
             }
             HttpURLConnection.HTTP_OK -> {
                 if (position > 0L) {
                     connection.disconnect()
-                    throw IOException("WebDAV server did not honor the requested byte range")
+                    rangeCapabilities[source.id] = NetworkRangeCapability.Unsupported
+                    throw NetworkRangeUnsupportedException("WebDAV server did not honor the requested byte range")
                 }
+                if (requestsRange) rangeCapabilities[source.id] = NetworkRangeCapability.Unsupported
                 val boundedLength = if (length >= 0L) {
                     minOf(length, responseLength ?: length)
                 } else {
@@ -146,18 +160,33 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                         stream
                     }
                 }
-                handleLength = if (length >= 0L) length else boundedLength
+                handleLength = boundedLength
             }
             else -> {
                 connection.disconnect()
                 throw IOException("WebDAV media request returned unsupported HTTP $status")
             }
         }
+        val requestResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveWebDavRequest)
         return NetworkReadHandle(
             input = input,
             length = handleLength,
-            closeHandle = connection::disconnect,
+            closeHandle = {
+                try {
+                    connection.disconnect()
+                } finally {
+                    requestResource.close()
+                }
+            },
         )
+    }
+
+    override fun invalidate(sourceId: String) {
+        rangeCapabilities.remove(sourceId)
+    }
+
+    override fun invalidateAll() {
+        rangeCapabilities.clear()
     }
 
     private fun propFind(
@@ -166,34 +195,93 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         path: String,
         depth: Int,
     ): List<NetworkFileEntry> {
-        val connection = openConnection(source, credentials, path)
-        connection.requestMethod = "PROPFIND"
-        connection.setRequestProperty("Depth", depth.toString())
-        connection.setRequestProperty("Content-Type", "application/xml; charset=utf-8")
-        connection.doOutput = true
-        val requestBody = PROPFIND_BODY.toByteArray(Charsets.UTF_8)
-        connection.setRequestProperty("Content-Length", requestBody.size.toString())
-        connection.connect()
-        connection.outputStream.use { output -> output.write(requestBody) }
-        val status = connection.responseCode
-        if (status !in 200..299) {
-            connection.disconnect()
-            throw WebDavHttpException(status)
-        }
+        val requestResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveWebDavRequest)
+        var connection: HttpURLConnection? = null
         return try {
-            connection.inputStream.use { input -> parseMultiStatus(input.readBounded(MAX_PROPFIND_BYTES), source, path) }
+            val establishedConnection = executePropFind(source, credentials, path, depth)
+            connection = establishedConnection
+            establishedConnection.inputStream.use { input ->
+                parseMultiStatus(input.readBounded(MAX_PROPFIND_BYTES), source, path)
+            }
         } finally {
-            connection.disconnect()
+            connection?.disconnect()
+            requestResource.close()
         }
     }
 
-    private fun openConnection(
+    private fun executeGet(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
         path: String,
+        range: String?,
     ): HttpURLConnection {
-        val url = NetworkPathPolicy.webDavResourceUrl(source.server, path)
+        var url = NetworkPathPolicy.webDavResourceUrl(source.server, path)
             ?: throw IOException("WebDAV requires an HTTPS server URL")
+        val visited = hashSetOf(url.toString())
+        var redirects = 0
+        while (true) {
+            val connection = openConnection(url, credentials)
+            try {
+                connection.requestMethod = "GET"
+                if (range != null) connection.setRequestProperty("Range", range)
+                connection.connect()
+                val status = connection.responseCode
+                if (status !in REDIRECT_STATUSES) return connection
+                val next = connection.getHeaderField("Location")
+                    ?.let { resolveRedirect(url, it, source) }
+                connection.disconnect()
+                if (++redirects > MAX_REDIRECTS || next == null || !visited.add(next.toString())) {
+                    throw NetworkRedirectException("WebDAV redirect policy rejected the response")
+                }
+                url = next
+            } catch (failure: Exception) {
+                connection.disconnect()
+                throw failure
+            }
+        }
+    }
+
+    private fun executePropFind(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+        path: String,
+        depth: Int,
+    ): HttpURLConnection {
+        var url = NetworkPathPolicy.webDavResourceUrl(source.server, path)
+            ?: throw IOException("WebDAV requires an HTTPS server URL")
+        val visited = hashSetOf(url.toString())
+        val requestBody = PROPFIND_BODY.toByteArray(Charsets.UTF_8)
+        var redirects = 0
+        while (true) {
+            val connection = openConnection(url, credentials)
+            try {
+                connection.requestMethod = "PROPFIND"
+                connection.setRequestProperty("Depth", depth.toString())
+                connection.setRequestProperty("Content-Type", "application/xml; charset=utf-8")
+                connection.setRequestProperty("Content-Length", requestBody.size.toString())
+                connection.doOutput = true
+                connection.connect()
+                connection.outputStream.use { output -> output.write(requestBody) }
+                val status = connection.responseCode
+                if (status !in REDIRECT_STATUSES) {
+                    if (status !in 200..299) throw WebDavHttpException(status)
+                    return connection
+                }
+                val next = connection.getHeaderField("Location")
+                    ?.let { resolveRedirect(url, it, source) }
+                connection.disconnect()
+                if (++redirects > MAX_REDIRECTS || next == null || !visited.add(next.toString())) {
+                    throw NetworkRedirectException("WebDAV redirect policy rejected the response")
+                }
+                url = next
+            } catch (failure: Exception) {
+                connection.disconnect()
+                throw failure
+            }
+        }
+    }
+
+    private fun openConnection(url: URL, credentials: NetworkCredentials): HttpURLConnection {
         if (!url.protocol.equals("https", ignoreCase = true)) throw IOException("WebDAV requires HTTPS")
         return (url.openConnection() as? HttpURLConnection)?.apply {
             connectTimeout = TIMEOUT_MS
@@ -204,56 +292,144 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         } ?: throw IOException("Unsupported WebDAV connection")
     }
 
-    private fun parseMultiStatus(
+    private fun resolveRedirect(current: URL, location: String, source: NetworkLibrarySource): URL? {
+        val resolved = runCatching { java.net.URI(current.toString()).resolve(location) }.getOrNull() ?: return null
+        if (
+            !resolved.scheme.equals("https", ignoreCase = true) ||
+            resolved.host.isNullOrBlank() ||
+            resolved.userInfo != null ||
+            resolved.query != null ||
+            resolved.fragment != null
+        ) return null
+        val origin = runCatching { java.net.URI(source.server.trim()) }.getOrNull() ?: return null
+        val resolvedPort = resolved.port.takeIf { it >= 0 } ?: 443
+        val originPort = origin.port.takeIf { it >= 0 } ?: 443
+        if (!resolved.host.equals(origin.host, ignoreCase = true) || resolvedPort != originPort) return null
+        val decodedPath = NetworkPathPolicy.decodeUriPath(resolved.rawPath ?: return null) ?: return null
+        val configuredRoot = NetworkPathPolicy.webDavConfiguredRoot(source).orEmpty().trimEnd('/')
+        if (
+            configuredRoot.isNotBlank() &&
+            decodedPath != configuredRoot &&
+            !decodedPath.startsWith("$configuredRoot/")
+        ) return null
+        return runCatching {
+            URL("https://${resolved.rawAuthority}/${NetworkPathPolicy.encodePath(decodedPath)}")
+        }.getOrNull()
+    }
+
+    internal fun parseMultiStatus(
         body: ByteArray,
         source: NetworkLibrarySource,
         requestedPath: String,
     ): List<NetworkFileEntry> {
-        val parser = Xml.newPullParser().apply {
-            setInput(ByteArrayInputStream(body), Charsets.UTF_8.name())
-        }
-        val entries = mutableListOf<NetworkFileEntry>()
-        var event = parser.eventType
-        var inResponse = false
-        var currentHref: String? = null
-        var currentResourceType = false
-        var currentLength: Long? = null
-        var currentModified: Long? = null
-        var currentType: String? = null
-        var currentEtag: String? = null
-        while (event != XmlPullParser.END_DOCUMENT) {
-            when (event) {
-                XmlPullParser.START_TAG -> when (parser.name.substringAfterLast(':').lowercase(Locale.ROOT)) {
-                    "response" -> {
-                        inResponse = true
-                        currentHref = null
-                        currentResourceType = false
-                        currentLength = null
-                        currentModified = null
-                        currentType = null
-                        currentEtag = null
-                    }
-                    "href" -> if (inResponse) currentHref = parser.nextText()
-                    "collection" -> if (inResponse) currentResourceType = true
-                    "getcontentlength" -> if (inResponse) currentLength = parser.nextText().toLongOrNull()
-                    "getlastmodified" -> if (inResponse) currentModified = parseHttpDate(parser.nextText())
-                    "getcontenttype" -> if (inResponse) currentType = parser.nextText().trim().takeIf(String::isNotBlank)
-                    "getetag" -> if (inResponse) currentEtag = parser.nextText().trim().takeIf(String::isNotBlank)
-                }
-                XmlPullParser.END_TAG -> if (parser.name.substringAfterLast(':').equals("response", true)) {
-                    val path = currentHref?.let { hrefToPath(it, source, requestedPath) }
-                    if (path != null) {
-                        entries += NetworkFileEntry(path, currentResourceType, currentLength, currentModified, currentType, currentEtag)
-                    }
-                    inResponse = false
-                }
+        val parsed = runCatching {
+            parseMultiStatusDocument(body, source, requestedPath)
+        }.getOrNull()
+        if (parsed != null) return parsed
+        return RESPONSE_FRAGMENT.findAll(body.toString(Charsets.UTF_8))
+            .map { match ->
+                runCatching {
+                    parseMultiStatusDocument(
+                        responseFragmentDocument(match.value),
+                        source,
+                        requestedPath,
+                    )
+                }.getOrDefault(emptyList())
             }
-            event = parser.next()
-        }
-        return entries.distinctBy { it.path }
+            .flatten()
+            .distinctBy(NetworkFileEntry::path)
+            .toList()
     }
 
-    private fun hrefToPath(href: String, source: NetworkLibrarySource, requestedPath: String): String? {
+    private fun responseFragmentDocument(fragment: String): ByteArray {
+        val prefix = Regex("<(?:([A-Za-z_][A-Za-z0-9_.-]*):)?response\\b", RegexOption.IGNORE_CASE)
+            .find(fragment)
+            ?.groupValues
+            ?.getOrNull(1)
+        val namespace = prefix?.let { " xmlns:$it=\"DAV:\"" }.orEmpty()
+        return "<multistatus$namespace>$fragment</multistatus>".toByteArray(Charsets.UTF_8)
+    }
+
+    private fun parseMultiStatusDocument(
+        body: ByteArray,
+        source: NetworkLibrarySource,
+        requestedPath: String,
+    ): List<NetworkFileEntry> {
+        val factory = DocumentBuilderFactory.newInstance().apply {
+            isNamespaceAware = true
+            setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true)
+            setFeature("http://apache.org/xml/features/disallow-doctype-decl", true)
+            setFeature("http://xml.org/sax/features/external-general-entities", false)
+            setFeature("http://xml.org/sax/features/external-parameter-entities", false)
+            isXIncludeAware = false
+            isExpandEntityReferences = false
+        }
+        val document = factory.newDocumentBuilder().parse(ByteArrayInputStream(body))
+        return document.documentElement.childElements("response")
+            .mapNotNull { response -> parseResponse(response, source, requestedPath) }
+            .distinctBy(NetworkFileEntry::path)
+    }
+
+    private fun parseResponse(
+        response: Element,
+        source: NetworkLibrarySource,
+        requestedPath: String,
+    ): NetworkFileEntry? {
+        val responseStatus = response.childElement("status")?.textContent?.let(::parseHttpStatus)
+        if (!isSuccessfulHttpStatus(responseStatus)) return null
+        val href = response.childElement("href")?.textContent ?: return null
+        val properties = MutableWebDavProperties()
+        response.childElements("propstat").forEach { propstat ->
+            val status = propstat.childElement("status")?.textContent?.let(::parseHttpStatus)
+            if (!isSuccessfulHttpStatus(status)) return@forEach
+            val prop = propstat.childElement("prop") ?: return@forEach
+            properties.isDirectory = properties.isDirectory || prop.childElement("resourcetype")
+                ?.childElement("collection") != null
+            properties.sizeBytes = prop.childElement("getcontentlength")
+                ?.textContent
+                ?.trim()
+                ?.toLongOrNull()
+                ?.takeIf { it >= 0L }
+                ?: properties.sizeBytes
+            properties.modifiedAtMs = prop.childElement("getlastmodified")
+                ?.textContent
+                ?.let(::parseHttpDate)
+                ?: properties.modifiedAtMs
+            properties.contentType = prop.childElement("getcontenttype")
+                ?.textContent
+                ?.trim()
+                ?.takeIf(String::isNotBlank)
+                ?: properties.contentType
+            properties.etag = prop.childElement("getetag")
+                ?.textContent
+                ?.trim()
+                ?.takeIf(String::isNotBlank)
+                ?: properties.etag
+        }
+        val path = hrefToPath(href, source, requestedPath) ?: return null
+        return NetworkFileEntry(
+            path = path,
+            isDirectory = properties.isDirectory,
+            sizeBytes = properties.sizeBytes,
+            modifiedAtMs = properties.modifiedAtMs,
+            contentType = properties.contentType,
+            etag = properties.etag,
+        )
+    }
+
+    private fun Element.childElement(name: String): Element? = childElements(name).firstOrNull()
+
+    private fun Element.childElements(name: String): List<Element> {
+        val children = childNodes
+        return (0 until children.length)
+            .mapNotNull { children.item(it) as? Element }
+            .filter { element ->
+                (element.localName ?: element.tagName.substringAfterLast(':'))
+                    .equals(name, ignoreCase = true)
+            }
+    }
+
+    internal fun hrefToPath(href: String, source: NetworkLibrarySource, requestedPath: String): String? {
         val requestUrl = NetworkPathPolicy.webDavResourceUrl(source.server, requestedPath) ?: return null
         val base = URL("${requestUrl.toString().trimEnd('/')}/")
         val resolved = runCatching { URL(base, href) }.getOrNull() ?: return null
@@ -279,6 +455,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
             !resolvedPath.startsWith("$configuredRoot/")
         ) return null
         val relative = when {
+            basePath.isBlank() -> resolvedPath
             resolvedPath == basePath -> ""
             resolvedPath.startsWith("$basePath/") -> resolvedPath.removePrefix(basePath).trim('/')
             else -> return null
@@ -296,19 +473,14 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         )
     }
 
-    private fun classifyFailure(failure: Throwable): NetworkAvailability = when (failure) {
-        is WebDavHttpException -> when {
-            failure.statusCode == 401 || failure.statusCode == 403 -> NetworkAvailability.AuthenticationRequired
-            failure.statusCode == 404 -> NetworkAvailability.Unavailable
-            failure.statusCode == 408 || failure.statusCode == 429 || failure.statusCode in 500..599 -> NetworkAvailability.Offline
-            else -> NetworkAvailability.Unavailable
-        }
-        is java.net.UnknownHostException,
-        is java.net.ConnectException,
-        is java.net.SocketTimeoutException,
-        -> NetworkAvailability.Offline
-        else -> NetworkAvailability.Unavailable
-    }
+    private fun classifyFailure(failure: Throwable): NetworkAvailability =
+        failure.remoteIoFailureKind().toNetworkAvailability()
+
+    private fun parseHttpStatus(value: String): Int? =
+        Regex("\\b(\\d{3})\\b").find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
+
+    private fun isSuccessfulHttpStatus(statusCode: Int?): Boolean =
+        statusCode == null || statusCode in 200..299
 
     private fun java.io.InputStream.readBounded(maxBytes: Int): ByteArray {
         val output = ByteArrayOutputStream(minOf(maxBytes, 32 * 1024))
@@ -330,6 +502,12 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         const val MAX_DIRECTORY_COUNT = 25_000
         const val TIMEOUT_MS = 12_000
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
+        const val MAX_REDIRECTS = 3
+        val REDIRECT_STATUSES = setOf(301, 302, 303, 307, 308)
+        val RESPONSE_FRAGMENT = Regex(
+            "<(?:[A-Za-z_][A-Za-z0-9_.-]*:)?response\\b.*?</(?:[A-Za-z_][A-Za-z0-9_.-]*:)?response\\s*>",
+            setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),
+        )
         const val PROPFIND_BODY = """
             <?xml version="1.0" encoding="utf-8" ?>
             <D:propfind xmlns:D="DAV:">
@@ -343,6 +521,14 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
             </D:propfind>
         """
     }
+}
+
+private class MutableWebDavProperties {
+    var isDirectory = false
+    var sizeBytes: Long? = null
+    var modifiedAtMs: Long? = null
+    var contentType: String? = null
+    var etag: String? = null
 }
 
 internal data class WebDavContentRange(

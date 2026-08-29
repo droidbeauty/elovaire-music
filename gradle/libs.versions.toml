@@ -29,7 +29,7 @@ ksp = "2.3.10"
 tracing = "2.0.0"
 coroutines = "1.11.0"
 serializationCore = "1.11.0"
-smbj = "0.14.0"
+smbj = "0.15.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "androidxCore" }

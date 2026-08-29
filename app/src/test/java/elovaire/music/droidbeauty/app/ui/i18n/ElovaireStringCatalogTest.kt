@@ -41,4 +41,43 @@ class ElovaireStringCatalogTest {
             ).forEach { value -> assertFalse(value.isBlank()) }
         }
     }
+
+    @Test
+    fun networkSourceEntriesArePopulatedForEveryLanguage() {
+        AppLanguage.entries.forEach { language ->
+            val copy = networkSourcesCopy(language)
+            listOf(
+                copy.sectionTitle,
+                copy.available,
+                copy.checking,
+                copy.signIn,
+                copy.allowLocalNetwork,
+                copy.addSource,
+                copy.closeSourcePicker,
+                copy.chooseFolderSubtitle,
+                copy.nasTitle,
+                copy.nasSubtitle,
+                copy.removeTitle,
+                copy.removeMessage,
+                copy.remove,
+                copy.editorTitle,
+                copy.saveEditor,
+                copy.name,
+                copy.server,
+                copy.httpsServer,
+                copy.sharePath,
+                copy.path,
+                copy.username,
+                copy.domainOptional,
+                copy.password,
+                copy.connectionAvailable,
+                copy.allowLocalNetworkSettings,
+                copy.authenticationRequired,
+                copy.hostUnreachable,
+                copy.checkServerPath,
+                copy.sourceUnavailable,
+                copy.testingConnection,
+            ).forEach { value -> assertFalse(value.isBlank()) }
+        }
+    }
 }

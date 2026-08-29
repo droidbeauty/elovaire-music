@@ -9,7 +9,11 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.datasource.BaseDataSource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkFileSystemRegistry
 import elovaire.music.droidbeauty.app.data.library.network.NetworkReadHandle
+import elovaire.music.droidbeauty.app.data.library.network.NetworkReadPurpose
 import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
+import elovaire.music.droidbeauty.app.data.library.network.RemoteIoFailureKind
+import elovaire.music.droidbeauty.app.data.library.network.NetworkRemoteIoException
+import elovaire.music.droidbeauty.app.data.library.network.remoteIoFailureKind
 import java.io.IOException
 
 /** Routes only Elovaire's network URI scheme to the protocol adapters. */
@@ -52,11 +56,12 @@ private class RoutingDataSource(
                 path = path,
                 position = dataSpec.position,
                 length = dataSpec.length,
+                purpose = NetworkReadPurpose.Playback,
             )
-        } catch (failure: elovaire.music.droidbeauty.app.data.library.network.NetworkRangeException) {
+        } catch (failure: NetworkRemoteIoException) {
             throw DataSourceException(
                 failure,
-                PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE,
+                failure.media3ErrorCode(),
             )
         }
         networkHandle = handle
@@ -67,7 +72,18 @@ private class RoutingDataSource(
 
     override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
         networkHandle?.let { handle ->
-            val read = handle.input.read(buffer, offset, length)
+            val read = try {
+                handle.input.read(buffer, offset, length)
+            } catch (failure: NetworkRemoteIoException) {
+                throw DataSourceException(failure, failure.media3ErrorCode())
+            } catch (failure: IOException) {
+                val remoteFailure = NetworkRemoteIoException(
+                    kind = failure.remoteIoFailureKind(),
+                    message = "Network media read failed",
+                    cause = failure,
+                )
+                throw DataSourceException(remoteFailure, remoteFailure.media3ErrorCode())
+            }
             if (read > 0) bytesTransferred(read)
             return read
         }
@@ -97,4 +113,26 @@ private class RoutingDataSource(
     private companion object {
         const val C_LENGTH_UNKNOWN = -1L
     }
+}
+
+private fun NetworkRemoteIoException.media3ErrorCode(): Int = when (kind) {
+    RemoteIoFailureKind.RangeOutOfBounds -> PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE
+    RemoteIoFailureKind.Authentication,
+    RemoteIoFailureKind.Permission,
+    -> PlaybackException.ERROR_CODE_IO_NO_PERMISSION
+    RemoteIoFailureKind.PathMissing,
+    RemoteIoFailureKind.ShareMissing,
+    RemoteIoFailureKind.SourceRemoved,
+    -> PlaybackException.ERROR_CODE_IO_FILE_NOT_FOUND
+    RemoteIoFailureKind.Timeout -> PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT
+    RemoteIoFailureKind.HostUnreachable,
+    RemoteIoFailureKind.ConnectionReset,
+    RemoteIoFailureKind.TransientServer,
+    -> PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED
+    RemoteIoFailureKind.RangeUnsupported,
+    RemoteIoFailureKind.SessionInvalid,
+    RemoteIoFailureKind.Protocol,
+    RemoteIoFailureKind.Interrupted,
+    RemoteIoFailureKind.Unknown,
+    -> PlaybackException.ERROR_CODE_IO_UNSPECIFIED
 }

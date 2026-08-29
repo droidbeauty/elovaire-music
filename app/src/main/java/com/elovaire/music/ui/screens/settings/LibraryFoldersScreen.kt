@@ -69,8 +69,13 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkAvailability
 import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.ui.i18n.commonUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.libraryFoldersCopy
 import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
+import elovaire.music.droidbeauty.app.ui.i18n.NetworkSourcesCopy
+import elovaire.music.droidbeauty.app.ui.i18n.networkSourcesCopy
+import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
+import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
@@ -99,6 +104,7 @@ internal fun LibraryFoldersScreen(
 ) {
     val context = LocalContext.current
     val copy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
+    val networkCopy = remember(appLanguage) { networkSourcesCopy(appLanguage) }
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val songCountsByFolder = remember(folders, songs) {
         folders.associateWith { folder -> songs.countInFolder(folder) }
@@ -143,7 +149,7 @@ internal fun LibraryFoldersScreen(
             if (networkSources.isNotEmpty()) {
                 item {
                     Text(
-                        text = "Network sources",
+                        text = networkCopy.sectionTitle,
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
                         color = MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier.padding(bottom = 8.dp),
@@ -155,10 +161,10 @@ internal fun LibraryFoldersScreen(
                     contentType = { "network-library-source-row" },
                 ) { source ->
                     val status = when (networkProbeResults[source.id]?.availability) {
-                        NetworkAvailability.Available -> "Available"
-                        NetworkAvailability.Checking -> "Testing..."
-                        NetworkAvailability.AuthenticationRequired -> "Sign in"
-                        NetworkAvailability.LocalNetworkPermissionRequired -> "Allow local network access"
+                        NetworkAvailability.Available -> networkCopy.available
+                        NetworkAvailability.Checking -> networkCopy.checking
+                        NetworkAvailability.AuthenticationRequired -> networkCopy.signIn
+                        NetworkAvailability.LocalNetworkPermissionRequired -> networkCopy.allowLocalNetwork
                         NetworkAvailability.Offline -> copy.unavailable
                         NetworkAvailability.Misconfigured,
                         NetworkAvailability.Unavailable,
@@ -175,6 +181,7 @@ internal fun LibraryFoldersScreen(
                         ),
                         trailingLabel = status,
                         showRemove = editMode,
+                        removeLabel = networkCopy.remove,
                         iconResId = R.drawable.ic_lucide_library,
                         onClick = {
                             editingNetworkSource = source
@@ -225,6 +232,7 @@ internal fun LibraryFoldersScreen(
                         songCountLabel = localizedCountLabel(songCountsByFolder[folder] ?: 0, "song", appLanguage),
                         trailingLabel = if (unavailable) copy.unavailable else null,
                         showRemove = editMode,
+                        removeLabel = uiPhrase(appLanguage, UiPhrase.Delete),
                         iconResId = R.drawable.ic_lucide_library,
                         onClick = {},
                         onLongClick = { editMode = true },
@@ -245,7 +253,7 @@ internal fun LibraryFoldersScreen(
                 exit = fadeOut(animationSpec = ElovaireMotion.fadeFast()),
             ) {
                 AddFolderPill(
-                    text = "Add source",
+                    text = networkCopy.addSource,
                     onClick = { showSourceChooser = true },
                 )
             }
@@ -270,7 +278,7 @@ internal fun LibraryFoldersScreen(
                 )
             }
             PinnedBackTopBar(
-                title = "Library",
+                title = commonUiCopy(appLanguage).library,
                 onBack = onBack,
                 modifier = Modifier.align(Alignment.TopCenter),
             )
@@ -295,6 +303,7 @@ internal fun LibraryFoldersScreen(
             LibrarySourceChooserSheet(
                 visible = showSourceChooser,
                 addFolderLabel = copy.addFolder,
+                copy = networkCopy,
                 onDismiss = { showSourceChooser = false },
                 onAddFolder = {
                     showSourceChooser = false
@@ -327,11 +336,11 @@ internal fun LibraryFoldersScreen(
                                     verticalArrangement = Arrangement.spacedBy(14.dp),
                                 ) {
                                     Text(
-                                        text = "Remove network source?",
+                                        text = networkCopy.removeTitle,
                                         style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                                     )
                                     Text(
-                                        text = "This removes the source from the library. Files on the network are not deleted.",
+                                        text = networkCopy.removeMessage,
                                         style = MaterialTheme.typography.bodyMedium,
                                         color = readableSecondaryTextColor(),
                                     )
@@ -340,7 +349,7 @@ internal fun LibraryFoldersScreen(
                                         horizontalArrangement = Arrangement.End,
                                     ) {
                                         TextButton(onClick = { pendingNetworkRemoval = null }) {
-                                            Text("Cancel")
+                                            Text(uiPhrase(appLanguage, UiPhrase.Cancel))
                                         }
                                         TextButton(
                                             onClick = {
@@ -348,7 +357,7 @@ internal fun LibraryFoldersScreen(
                                                 onRemoveNetworkSource(source)
                                             },
                                         ) {
-                                            Text("Remove", color = DestructiveRed)
+                                            Text(networkCopy.remove, color = DestructiveRed)
                                         }
                                     }
                                 }
@@ -362,6 +371,7 @@ internal fun LibraryFoldersScreen(
                 source = editingNetworkSource,
                 probeResults = networkProbeResults,
                 bottomPadding = bottomPadding,
+                copy = networkCopy,
                 onDismiss = {
                     showNetworkEditor = false
                     editingNetworkSource = null
@@ -417,6 +427,7 @@ private fun AddFolderPill(
 private fun LibrarySourceChooserSheet(
     visible: Boolean,
     addFolderLabel: String,
+    copy: NetworkSourcesCopy,
     onDismiss: () -> Unit,
     onAddFolder: () -> Unit,
     onAddNetwork: () -> Unit,
@@ -497,7 +508,7 @@ private fun LibrarySourceChooserSheet(
                                 modifier = Modifier.size(18.dp),
                             )
                             Text(
-                                text = "Add source",
+                                text = copy.addSource,
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -516,7 +527,7 @@ private fun LibrarySourceChooserSheet(
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.ic_lucide_x),
-                                contentDescription = "Close source picker",
+                                contentDescription = copy.closeSourcePicker,
                                 tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.92f),
                                 modifier = Modifier.size(16.dp),
                             )
@@ -525,13 +536,13 @@ private fun LibrarySourceChooserSheet(
                     LibrarySourceChoice(
                         iconResId = R.drawable.ic_lucide_library,
                         title = addFolderLabel,
-                        subtitle = "Choose a folder on this device",
+                        subtitle = copy.chooseFolderSubtitle,
                         onClick = onAddFolder,
                     )
                     LibrarySourceChoice(
                         iconResId = R.drawable.ic_about_globe,
-                        title = "NAS or WebDAV",
-                        subtitle = "Connect to a network music source",
+                        title = copy.nasTitle,
+                        subtitle = copy.nasSubtitle,
                         onClick = onAddNetwork,
                     )
                 }
@@ -604,6 +615,7 @@ private fun NetworkSourceEditorScreen(
     source: NetworkLibrarySource?,
     probeResults: Map<String, NetworkProbeResult>,
     bottomPadding: Dp,
+    copy: NetworkSourcesCopy,
     onDismiss: () -> Unit,
     onSave: (NetworkLibrarySource, NetworkCredentials) -> Unit,
 ) {
@@ -642,6 +654,7 @@ private fun NetworkSourceEditorScreen(
         ) {
             networkSourceEditorItems(
                 protocol = protocol,
+                copy = copy,
                 name = name,
                 onNameChange = { name = it },
                 server = server,
@@ -659,13 +672,13 @@ private fun NetworkSourceEditorScreen(
             )
         }
         PinnedBackTopBar(
-            title = "Network source",
+            title = copy.editorTitle,
             onBack = onDismiss,
             modifier = Modifier.align(Alignment.TopCenter),
             actions = listOf(
                 TopBarActionSpec(
                     iconResId = R.drawable.ic_lucide_check,
-                    contentDescription = "Save network source",
+                    contentDescription = copy.saveEditor,
                     onClick = {
                         if (canSave && !isChecking) {
                             onSave(
@@ -695,6 +708,7 @@ private fun NetworkSourceEditorScreen(
 
 private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorItems(
     protocol: NetworkLibraryProtocol,
+    copy: NetworkSourcesCopy,
     name: String,
     onNameChange: (String) -> Unit,
     server: String,
@@ -720,7 +734,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
         OutlinedTextField(
             value = name,
             onValueChange = onNameChange,
-            label = { Text("Name") },
+            label = { Text(copy.name) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -729,7 +743,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
         OutlinedTextField(
             value = server,
             onValueChange = onServerChange,
-            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Server" else "HTTPS server") },
+            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) copy.server else copy.httpsServer) },
             placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "192.168.1.20" else "https://nas.example.com/music") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -739,7 +753,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
         OutlinedTextField(
             value = path,
             onValueChange = onPathChange,
-            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Share / path" else "Path") },
+            label = { Text(if (protocol == NetworkLibraryProtocol.Smb) copy.sharePath else copy.path) },
             placeholder = { Text(if (protocol == NetworkLibraryProtocol.Smb) "Music" else "") },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
@@ -749,7 +763,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
         OutlinedTextField(
             value = username,
             onValueChange = onUsernameChange,
-            label = { Text("Username") },
+            label = { Text(copy.username) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -759,7 +773,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
             OutlinedTextField(
                 value = domain,
                 onValueChange = onDomainChange,
-                label = { Text("Domain / workgroup (optional)") },
+                label = { Text(copy.domainOptional) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -769,7 +783,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
         OutlinedTextField(
             value = password,
             onValueChange = onPasswordChange,
-            label = { Text("Password") },
+            label = { Text(copy.password) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = PasswordVisualTransformation(),
@@ -778,7 +792,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
     probeResult?.let { result ->
         item {
             Text(
-                text = networkProbeMessage(result.availability),
+                text = networkProbeMessage(result.availability, copy),
                 color = if (result.availability == NetworkAvailability.Available) {
                     MaterialTheme.colorScheme.primary
                 } else {
@@ -790,14 +804,17 @@ private fun androidx.compose.foundation.lazy.LazyListScope.networkSourceEditorIt
     }
 }
 
-private fun networkProbeMessage(availability: NetworkAvailability): String = when (availability) {
-    NetworkAvailability.Available -> "Connection available"
-    NetworkAvailability.LocalNetworkPermissionRequired -> "Allow local network access in Android settings"
-    NetworkAvailability.AuthenticationRequired -> "Authentication required"
-    NetworkAvailability.Offline -> "Host is unreachable"
-    NetworkAvailability.Misconfigured -> "Check the server and path"
-    NetworkAvailability.Unavailable -> "Network source is unavailable"
-    NetworkAvailability.Checking -> "Testing connection..."
+private fun networkProbeMessage(
+    availability: NetworkAvailability,
+    copy: NetworkSourcesCopy,
+): String = when (availability) {
+    NetworkAvailability.Available -> copy.connectionAvailable
+    NetworkAvailability.LocalNetworkPermissionRequired -> copy.allowLocalNetworkSettings
+    NetworkAvailability.AuthenticationRequired -> copy.authenticationRequired
+    NetworkAvailability.Offline -> copy.hostUnreachable
+    NetworkAvailability.Misconfigured -> copy.checkServerPath
+    NetworkAvailability.Unavailable -> copy.sourceUnavailable
+    NetworkAvailability.Checking -> copy.testingConnection
 }
 
 @Composable
@@ -879,6 +896,7 @@ private fun LibraryFolderListRow(
     onLongClick: () -> Unit = {},
     trailingLabel: String? = null,
     showRemove: Boolean = false,
+    removeLabel: String,
     onRemove: () -> Unit = {},
 ) {
     val interactionSource = remember { MutableInteractionSource() }
@@ -939,7 +957,7 @@ private fun LibraryFolderListRow(
         AnimatedVisibility(visible = showRemove) {
             HeaderIconButton(
                 iconResId = R.drawable.ic_lucide_x,
-                contentDescription = "Remove",
+                contentDescription = removeLabel,
                 showBackground = true,
                 tint = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier
