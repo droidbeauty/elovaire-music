@@ -5,7 +5,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Composable
@@ -18,7 +18,7 @@ internal fun RootRouteGraph(
     padding: RootRoutePadding,
     searchViewModel: SearchViewModel,
     viewModelFactory: ElovaireViewModelFactory,
-    artistImageRepository: ArtistImageRepository,
+    artistImageRepository: ArtistImageReader,
     modifier: Modifier = Modifier,
 ) {
     RootNavigationHost(

@@ -49,7 +49,7 @@ class AppContainer(
     val preferenceStore get() = services.preferenceStore
     internal val updateController get() = services.updateController
     internal val artistImageRepository get() = services.artistImageRepository
-    val lyricsService get() = services.lyricsService
+    internal val lyricsService get() = services.lyricsService
     internal val albumTagEditorService get() = services.albumTagEditorService
     val playbackManager get() = services.playbackManager
     val libraryRepository get() = services.libraryRepository
@@ -74,36 +74,37 @@ class AppContainer(
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
     private val appShortcutChannel = Channel<AppShortcutCommand>(capacity = Channel.BUFFERED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
-    private val playbackStarted = AtomicBoolean(false)
-    private val started = AtomicBoolean(false)
-    private val released = AtomicBoolean(false)
+    private val runtimeCoordinator = AppRuntimeCoordinator(
+        startPlaybackAction = {
+            services.startPlayback()
+            bridgeCoordinator.startPlayback()
+            notificationController().setNotificationsEnabled(true)
+        },
+        startAction = {
+            services.start()
+            bridgeCoordinator.start()
+            notificationController().setNotificationsEnabled(true)
+        },
+        memoryPressureAction = services::onMemoryPressure,
+        releaseAction = {
+            openNowPlayingChannel.close()
+            appShortcutChannel.close()
+            bridgeCoordinator.release()
+            notificationControllerHolder.release()
+            services.release()
+            appRuntimeScope.close()
+            appForegroundTracker.close()
+        },
+    )
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()
     val appShortcutCommands: Flow<AppShortcutCommand> = appShortcutChannel.receiveAsFlow()
 
     fun start() {
-        if (released.get() || !started.compareAndSet(false, true)) return
-        var completed = false
-        try {
-            services.start()
-            bridgeCoordinator.start()
-            notificationController().setNotificationsEnabled(true)
-            completed = true
-        } finally {
-            if (!completed) release()
-        }
+        runtimeCoordinator.start()
     }
 
     internal fun startPlayback() {
-        if (released.get() || !playbackStarted.compareAndSet(false, true)) return
-        var completed = false
-        try {
-            services.startPlayback()
-            bridgeCoordinator.startPlayback()
-            notificationController().setNotificationsEnabled(true)
-            completed = true
-        } finally {
-            if (!completed) release()
-        }
+        runtimeCoordinator.startPlayback()
     }
 
     fun requestOpenNowPlaying() {
@@ -123,20 +124,11 @@ class AppContainer(
     }
 
     internal fun onMemoryPressure(pressure: MemoryPressure) {
-        if (!released.get()) services.onMemoryPressure(pressure)
+        runtimeCoordinator.onMemoryPressure(pressure)
     }
 
     fun release() {
-        if (!released.compareAndSet(false, true)) return
-        started.set(false)
-        playbackStarted.set(false)
-        openNowPlayingChannel.close()
-        appShortcutChannel.close()
-        bridgeCoordinator.release()
-        notificationControllerHolder.release()
-        services.release()
-        appRuntimeScope.close()
-        appForegroundTracker.close()
+        runtimeCoordinator.release()
     }
 
     private fun notificationController(): PlaybackNotificationController {

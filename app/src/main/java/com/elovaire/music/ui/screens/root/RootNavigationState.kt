@@ -50,6 +50,20 @@ internal class RootNavigationState(
     var playlistsScrollRequestVersion by playlistsScrollRequestVersionState
     var searchScrollRequestVersion by searchScrollRequestVersionState
 
+    private fun policyState(): RootNavigationPolicyState {
+        return RootNavigationPolicyState(
+            browsingOriginRoute = browsingOriginRoute,
+            selectedBottomRoute = selectedBottomRoute,
+            pendingTopLevelRoute = pendingTopLevelRoute,
+        )
+    }
+
+    private fun applyPolicyState(state: RootNavigationPolicyState) {
+        browsingOriginRoute = state.browsingOriginRoute
+        selectedBottomRoute = state.selectedBottomRoute
+        pendingTopLevelRoute = state.pendingTopLevelRoute
+    }
+
     fun logRouteTransition(previousRoute: String?, currentRoute: String?) {
         if (BuildConfig.DEBUG && previousRoute != currentRoute) {
             Log.d(
@@ -60,10 +74,12 @@ internal class RootNavigationState(
     }
 
     fun syncTopLevelSelection(currentRoute: String?) {
-        val committedRoute = committedTopLevelRoute(currentRoute, pendingTopLevelRoute) ?: return
-        pendingTopLevelRoute = null
-        browsingOriginRoute = committedRoute
-        selectedBottomRoute = committedRoute
+        applyPolicyState(
+            RootNavigationReducer.reduce(
+                state = policyState(),
+                event = RootNavigationEvent.DestinationObserved(currentRoute),
+            ),
+        )
     }
 
     fun syncRouteOwnership(
@@ -152,9 +168,12 @@ internal class RootNavigationState(
         currentRoute: String?,
     ) {
         require(route in TopLevelRoutes) { "Unknown top-level route: $route" }
-        pendingTopLevelRoute = route
-        browsingOriginRoute = route
-        selectedBottomRoute = route
+        applyPolicyState(
+            RootNavigationReducer.reduce(
+                state = policyState(),
+                event = RootNavigationEvent.TopLevelRequested(route),
+            ),
+        )
         routeOwnerOverrides[route] = route
         if (route == activeBottomRoute) {
             if (currentRoute != route) {
@@ -290,28 +309,6 @@ private fun String.isOwnerTrackedRoute(): Boolean {
         startsWith("$ALBUM_TAG_EDITOR_ROUTE/") ||
         this == SMART_PLAYLIST_EDITOR_ROUTE ||
         startsWith("$SMART_PLAYLIST_EDITOR_ROUTE/")
-}
-
-internal fun resolveActiveBottomRoute(
-    pendingTopLevelRoute: String?,
-    routeOwner: String?,
-    currentRoute: String?,
-    browsingOriginRoute: String?,
-    selectedBottomRoute: String,
-): String {
-    return pendingTopLevelRoute
-        ?: routeOwner
-        ?: topLevelOwnerRoute(currentRoute, browsingOriginRoute)
-        ?: selectedBottomRoute
-}
-
-internal fun committedTopLevelRoute(
-    currentRoute: String?,
-    pendingRoute: String?,
-): String? {
-    if (currentRoute !in TopLevelRoutes) return null
-    if (pendingRoute != null && pendingRoute != currentRoute) return null
-    return currentRoute
 }
 
 internal fun clearTopLevelScrollPositionMemory(route: String) {

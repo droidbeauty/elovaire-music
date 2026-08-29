@@ -6,7 +6,7 @@ import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.EqualizerSettingsStore
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
@@ -64,7 +64,7 @@ internal data class EqualizerUiState(
 
 @OptIn(kotlinx.coroutines.FlowPreview::class)
 internal class EqualizerViewModel(
-    private val preferenceStore: PreferenceStore,
+    private val preferenceStore: EqualizerSettingsStore,
 ) : ViewModel() {
     private val _uiState = MutableStateFlow(preferenceStore.eqSettings.value.toEqualizerUiState())
     val uiState: StateFlow<EqualizerUiState> = _uiState.asStateFlow()

@@ -54,7 +54,11 @@ internal fun RootEffectsHost(
                             }
                             lastPlayedAlbum != null -> {
                                 current.container.playbackManager.playAlbum(
-                                    lastPlayedAlbum,
+                                    album = lastPlayedAlbum,
+                                    startSongId = null,
+                                    sourceLabel = lastPlayedAlbum.title,
+                                    shuffleEnabled = false,
+                                    sourcePlaylistId = null,
                                 )
                             }
                         }

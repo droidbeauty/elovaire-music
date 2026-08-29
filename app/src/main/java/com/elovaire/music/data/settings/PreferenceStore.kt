@@ -41,6 +41,9 @@ class PreferenceStore internal constructor(
     AppearanceSettingsWriter,
     LibrarySettingsWriter,
     PlaybackSettingsWriter,
+    EqualizerSettingsStore,
+    NowPlayingSettingsStore,
+    SearchSettingsStore,
     PlaylistStore by userDataStore,
     FavoritesStore by userDataStore {
     private val appContext = context.applicationContext
@@ -77,7 +80,7 @@ class PreferenceStore internal constructor(
     val playbackVolume: StateFlow<Float> = _playbackVolume.asStateFlow()
 
     private val _crossfadeEnabled = MutableStateFlow(loadCrossfadeEnabled())
-    val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled.asStateFlow()
+    override val crossfadeEnabled: StateFlow<Boolean> = _crossfadeEnabled.asStateFlow()
 
     private val _crossfadeDurationMs = MutableStateFlow(loadCrossfadeDurationMs())
     override val crossfadeDurationMs: StateFlow<Long> = _crossfadeDurationMs.asStateFlow()
@@ -109,7 +112,7 @@ class PreferenceStore internal constructor(
     private val _libraryFolders = MutableStateFlow(loadLibraryFolders())
     override val libraryFolders: StateFlow<List<LibraryFolderSelection>> = _libraryFolders.asStateFlow()
 
-    val searchHistory get() = userDataStore.searchHistory
+    override val searchHistory get() = userDataStore.searchHistory
     override val userDataReadiness get() = userDataStore.userDataReadiness
     override val userDataSnapshot get() = userDataStore.userDataSnapshot
     override val albumPlayCounts get() = userDataStore.albumPlayCounts
@@ -146,11 +149,11 @@ class PreferenceStore internal constructor(
         }
     }
 
-    fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
+    override fun addSearchHistoryEntry(entry: SearchHistoryEntry) {
         userDataStore.addSearchHistoryEntry(entry)
     }
 
-    fun clearSearchHistory() {
+    override fun clearSearchHistory() {
         userDataStore.clearSearchHistoryEntries()
     }
 
@@ -246,7 +249,7 @@ class PreferenceStore internal constructor(
         persistEqSettings(_eqSettings.value.copy(monoEnabled = enabled))
     }
 
-    fun setEqSettings(settings: EqSettings) {
+    override fun setEqSettings(settings: EqSettings) {
         persistEqSettings(EqValuePolicy.sanitize(settings))
     }
 

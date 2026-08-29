@@ -12,35 +12,37 @@ internal class ElovaireViewModelFactory(
     override fun <T : ViewModel> create(modelClass: Class<T>): T {
         return when {
             modelClass.isAssignableFrom(RootViewModel::class.java) -> {
-                RootViewModel(dependencies) as T
+                RootViewModel(dependencies.root) as T
             }
 
             modelClass.isAssignableFrom(SearchViewModel::class.java) -> {
                 SearchViewModel(
-                    libraryRepository = dependencies.libraryRepository,
-                    preferenceStore = dependencies.preferenceStore,
-                    playbackReader = dependencies.playbackManager,
+                    libraryRepository = dependencies.search.libraryReader,
+                    preferenceStore = dependencies.search.searchSettings,
+                    playbackReader = dependencies.search.playbackReader,
                 ) as T
             }
 
             modelClass.isAssignableFrom(NowPlayingViewModel::class.java) -> {
                 NowPlayingViewModel(
-                    playbackManager = dependencies.playbackManager,
-                    preferenceStore = dependencies.preferenceStore,
-                    lyricsService = dependencies.lyricsService,
+                    playbackManager = dependencies.nowPlaying.playback,
+                    preferenceStore = dependencies.nowPlaying.settings,
+                    lyricsReader = dependencies.nowPlaying.lyricsReader,
+                    lyricsWriter = dependencies.nowPlaying.lyricsWriter,
                 ) as T
             }
 
             modelClass.isAssignableFrom(EqualizerViewModel::class.java) -> {
                 EqualizerViewModel(
-                    preferenceStore = dependencies.preferenceStore,
+                    preferenceStore = dependencies.equalizer.settings,
                 ) as T
             }
 
             modelClass.isAssignableFrom(AlbumTagEditorViewModel::class.java) -> {
                 AlbumTagEditorViewModel(
-                    libraryRepository = dependencies.libraryRepository,
-                    tagEditorService = dependencies.albumTagEditorService,
+                    libraryRepository = dependencies.albumTagEditor.libraryReader,
+                    libraryTagUpdates = dependencies.albumTagEditor.libraryTagUpdates,
+                    tagEditorService = dependencies.albumTagEditor.editor,
                 ) as T
             }
 

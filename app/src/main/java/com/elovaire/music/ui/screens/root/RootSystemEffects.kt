@@ -136,18 +136,15 @@ internal fun rememberRootPermissionController(
         }
     }
 
-    val showFirstLaunchPermissionOverlay =
-        firstLaunchPermissionExperienceActive &&
-            (
-                !hasPermission ||
-                    libraryState.isLoading ||
-                    (
-                        libraryState.songs.isEmpty() &&
-                            libraryState.albums.isEmpty() &&
-                            libraryState.errorMessage == null &&
-                            !playFirstLaunchHomeReveal
-                        )
-                )
+    val showFirstLaunchPermissionOverlay = shouldShowFirstLaunchPermissionOverlay(
+        firstLaunchPermissionExperienceActive = firstLaunchPermissionExperienceActive,
+        hasAudioPermission = hasPermission,
+        isLibraryLoading = libraryState.isLoading,
+        songsCount = libraryState.songs.size,
+        albumsCount = libraryState.albums.size,
+        errorMessage = libraryState.errorMessage,
+        playFirstLaunchHomeReveal = playFirstLaunchHomeReveal,
+    )
 
     LaunchedEffect(
         firstLaunchPermissionExperienceActive,
@@ -158,11 +155,14 @@ internal fun rememberRootPermissionController(
         libraryState.albums.size,
         libraryState.errorMessage,
     ) {
-        if (
-            firstLaunchPermissionExperienceActive &&
-            hasPermission &&
-            !libraryState.isLoading &&
-            (libraryState.songs.isNotEmpty() || libraryState.albums.isNotEmpty() || libraryState.errorMessage != null)
+        if (shouldRevealFirstLaunchHome(
+                firstLaunchPermissionExperienceActive = firstLaunchPermissionExperienceActive,
+                hasAudioPermission = hasPermission,
+                isLibraryLoading = libraryState.isLoading,
+                songsCount = libraryState.songs.size,
+                albumsCount = libraryState.albums.size,
+                errorMessage = libraryState.errorMessage,
+            )
         ) {
             playFirstLaunchHomeReveal = true
         }

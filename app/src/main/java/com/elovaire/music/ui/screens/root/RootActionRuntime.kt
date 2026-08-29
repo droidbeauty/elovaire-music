@@ -30,7 +30,7 @@ internal fun rememberRootActionRuntime(
         songsById = derivedState.songsById,
         albumsById = derivedState.albumsById,
         playbackManager = container.playbackManager,
-        preferenceStore = container.preferenceStore,
+        playlistStore = container.playlistActionDependencies.playlistStore,
         onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
         openAlbum = uiRuntime.openAlbum,
         navigateToAlbumId = { albumId -> uiRuntime.navigationState.navigateTo(Routes.album(albumId)) },

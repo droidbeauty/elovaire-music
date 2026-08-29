@@ -9,7 +9,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
-import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.domain.model.Song
 
 @Composable
@@ -87,7 +87,7 @@ internal fun LibraryCollectionRouteHost(
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
-    artistImageRepository: ArtistImageRepository,
+    artistImageRepository: ArtistImageReader,
 ) {
     val appState = routeState.appState
     LibraryCollectionScreen(
@@ -190,7 +190,7 @@ internal fun ArtistRouteHost(
     routeState: RootRouteState,
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
-    artistImageRepository: ArtistImageRepository,
+    artistImageRepository: ArtistImageReader,
 ) {
     val appState = routeState.appState
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }

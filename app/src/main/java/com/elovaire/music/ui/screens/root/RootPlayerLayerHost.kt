@@ -6,7 +6,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.zIndex
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
@@ -20,7 +20,7 @@ internal fun RootPlayerLayerHost(
     onExitFinished: (Long) -> Unit,
     onReturnToCompactFinished: (Long) -> Unit,
     nowPlayingViewModel: NowPlayingViewModel,
-    playbackManager: PlaybackManager,
+    playbackManager: NowPlayingPlayback,
     songsById: Map<Long, Song>,
     isCurrentSongFavorite: Boolean,
     playlists: List<Playlist>,

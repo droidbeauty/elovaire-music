@@ -21,4 +21,17 @@ class MediaStoreGenreLookupTest {
         assertFalse(canQueryMediaStoreGenre(0L))
         assertFalse(canQueryMediaStoreGenre(Int.MAX_VALUE.toLong() + 1L))
     }
+
+    @Test
+    fun genreFallbackIsNotQueriedWhenMetadataAlreadyResolved() {
+        var fallbackCalls = 0
+
+        val genre = resolveMediaStoreGenre("Rock") {
+            fallbackCalls += 1
+            "Fallback"
+        }
+
+        assertEquals("Rock", genre)
+        assertEquals(0, fallbackCalls)
+    }
 }

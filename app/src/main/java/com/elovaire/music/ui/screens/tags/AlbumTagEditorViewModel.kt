@@ -7,10 +7,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.OperationIdGenerator
 import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
-import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryReader
+import elovaire.music.droidbeauty.app.data.library.LibraryTagUpdateWriter
 import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtworkCache
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
-import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
+import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditor
 import elovaire.music.droidbeauty.app.data.tags.mutatedUris
 import elovaire.music.droidbeauty.app.data.tags.retryForFailures
 import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
@@ -49,8 +50,9 @@ internal sealed interface AlbumTagEditorEvent {
 }
 
 internal class AlbumTagEditorViewModel(
-    private val libraryRepository: LibraryRepository,
-    private val tagEditorService: AlbumTagEditorService,
+    private val libraryRepository: LibraryReader,
+    private val libraryTagUpdates: LibraryTagUpdateWriter,
+    private val tagEditorService: AlbumTagEditor,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : ViewModel() {
     private val albumId = MutableStateFlow<Long?>(null)
@@ -304,7 +306,7 @@ internal class AlbumTagEditorViewModel(
                 invalidateEditedArtwork(artworkUrisToInvalidate)
             }
             if (result.editedSongIds.isNotEmpty()) {
-                libraryRepository.applyVerifiedTagEdits(result.editedSongs)
+                libraryTagUpdates.applyVerifiedTagEdits(result.editedSongs)
             }
             val failures = result.failures.map { failure ->
                 TagEditFailureUi(

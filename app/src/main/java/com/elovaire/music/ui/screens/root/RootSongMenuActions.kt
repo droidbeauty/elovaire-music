@@ -3,8 +3,8 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueCommands
+import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -33,20 +33,20 @@ internal fun rememberRootSongMenuActions(
     playlists: List<Playlist>,
     songsById: Map<Long, Song>,
     albumsById: Map<Long, Album>,
-    playbackManager: PlaybackManager,
-    preferenceStore: PreferenceStore,
+    playbackManager: PlaybackQueueCommands,
+    playlistStore: PlaylistStore,
     onDeleteSongsFromDevice: (List<Song>) -> Unit,
     openAlbum: (Album, ExpandOrigin, AlbumOpenSource) -> Unit,
     navigateToAlbumId: (Long) -> Unit,
 ): SongMenuActions {
-    return remember(playlists, songsById, albumsById, playbackManager, preferenceStore, onDeleteSongsFromDevice) {
+    return remember(playlists, songsById, albumsById, playbackManager, playlistStore, onDeleteSongsFromDevice) {
         SongMenuActions(
             playlists = playlists.filterNot { it.isSystem },
             songsById = songsById,
             onAddToPlaylist = { playlistId, song ->
-                preferenceStore.addSongsToPlaylist(playlistId, listOf(song.id))
+                playlistStore.addSongsToPlaylist(playlistId, listOf(song.id))
             },
-            onCreatePlaylist = preferenceStore::createPlaylist,
+            onCreatePlaylist = playlistStore::createPlaylist,
             onAddToQueue = playbackManager::enqueueSong,
             onGoToAlbum = { song ->
                 val album = albumsById[song.albumId]

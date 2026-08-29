@@ -2,7 +2,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import elovaire.music.droidbeauty.app.core.ElovaireViewModelDependencies
+import elovaire.music.droidbeauty.app.core.RootViewModelDependencies
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
@@ -38,7 +38,7 @@ internal data class RootCollectionState(
 )
 
 internal class RootViewModel(
-    dependencies: ElovaireViewModelDependencies,
+    dependencies: RootViewModelDependencies,
 ) : ViewModel() {
     val libraryState = combine(
         dependencies.libraryReader.contentState,

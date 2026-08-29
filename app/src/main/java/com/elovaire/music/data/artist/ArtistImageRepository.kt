@@ -36,12 +36,22 @@ sealed interface ArtistBackdropState {
     }
 }
 
+internal interface ArtistImageReader {
+    fun imageState(artistName: String, localArtworkUri: Uri?): Flow<ArtistBackdropState>
+
+    fun backdropState(
+        artistName: String,
+        songs: List<Song>,
+        albums: List<Album>,
+    ): Flow<ArtistBackdropState>
+}
+
 internal class ArtistImageRepository(
     private val client: ArtistImageClient = YouTubeMusicArtistImageClient(),
     private val scope: CoroutineScope,
     private val appContext: Context? = null,
     private val clock: AppClock = AndroidAppClock,
-) {
+) : ArtistImageReader {
     private data class CachedImage(
         val uri: Uri?,
         val expiresAtMs: Long,
@@ -62,7 +72,7 @@ internal class ArtistImageRepository(
         readTimeoutMs = REMOTE_ARTWORK_READ_TIMEOUT_MS,
     )
 
-    fun imageState(
+    override fun imageState(
         artistName: String,
         localArtworkUri: Uri?,
     ): Flow<ArtistBackdropState> = flow {
@@ -85,7 +95,7 @@ internal class ArtistImageRepository(
         }
     }.flowOn(Dispatchers.IO)
 
-    fun backdropState(
+    override fun backdropState(
         artistName: String,
         songs: List<Song>,
         albums: List<Album>,

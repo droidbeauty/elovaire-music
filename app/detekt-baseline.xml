@@ -2,7 +2,6 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
-    <ID>ComplexCondition:RootSystemEffects.kt:firstLaunchPermissionExperienceActive &amp;&amp; hasPermission &amp;&amp; !libraryState.isLoading &amp;&amp; (libraryState.songs.isNotEmpty() || libraryState.albums.isNotEmpty() || libraryState.errorMessage != null)</ID>
     <ID>CyclomaticComplexMethod:AboutScreens.kt:private fun localizedAboutDescription: String</ID>
     <ID>CyclomaticComplexMethod:AboutScreens.kt:private fun localizedAboutLinkLabel: String</ID>
     <ID>CyclomaticComplexMethod:AlbumTagEditorService.kt:AlbumTagEditorService$suspend fun applyEdits: TagEditApplyResult</ID>
@@ -41,7 +40,6 @@
     <ID>LongMethod:FeatureScreens.kt:@Composable private fun SearchScreen</ID>
     <ID>LongMethod:FeatureScreens.kt:@OptIn(ExperimentalHazeApi::class) @Composable internal fun HomeScreen</ID>
     <ID>LongMethod:LibraryFoldersScreen.kt:@Composable internal fun LibraryFoldersScreen</ID>
-    <ID>LongMethod:MediaStoreScanner.kt:MediaStoreScanner$suspend fun scan: LibrarySnapshot</ID>
     <ID>LongMethod:PlaylistDetailScreen.kt:@Composable internal fun PlaylistDetailScreen</ID>
     <ID>LongMethod:PlaylistDetailScreen.kt:@Composable internal fun PlaylistSongRow</ID>
     <ID>LongMethod:PlaylistDialogs.kt:@Composable internal fun PlaylistSelectionDialog</ID>

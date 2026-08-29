@@ -30,6 +30,40 @@ class RootNavigationTransitionsTest {
     }
 
     @Test
+    fun reducer_tracks_latest_requested_tab_until_destination_commits() {
+        val requested = RootNavigationReducer.reduce(
+            state = RootNavigationPolicyState(),
+            event = RootNavigationEvent.TopLevelRequested(SEARCH_ROUTE),
+        )
+
+        assertEquals(SEARCH_ROUTE, requested.selectedBottomRoute)
+        assertEquals(SEARCH_ROUTE, requested.pendingTopLevelRoute)
+        val committed = RootNavigationReducer.reduce(
+            state = requested,
+            event = RootNavigationEvent.DestinationObserved(SEARCH_ROUTE),
+        )
+        assertEquals(SEARCH_ROUTE, committed.selectedBottomRoute)
+        assertEquals(SEARCH_ROUTE, committed.browsingOriginRoute)
+        assertNull(committed.pendingTopLevelRoute)
+    }
+
+    @Test
+    fun reducer_ignores_stale_destination_after_new_request() {
+        val requested = RootNavigationReducer.reduce(
+            state = RootNavigationPolicyState(),
+            event = RootNavigationEvent.TopLevelRequested(SEARCH_ROUTE),
+        )
+
+        assertEquals(
+            requested,
+            RootNavigationReducer.reduce(
+                state = requested,
+                event = RootNavigationEvent.DestinationObserved(ALBUMS_ROUTE),
+            ),
+        )
+    }
+
+    @Test
     fun resolveActiveBottomRoute_prefersLatestPendingTabOverStaleDetailOwner() {
         assertEquals(
             SEARCH_ROUTE,

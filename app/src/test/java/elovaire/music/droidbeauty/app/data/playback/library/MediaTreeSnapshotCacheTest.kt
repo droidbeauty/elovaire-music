@@ -95,6 +95,33 @@ class MediaTreeSnapshotCacheTest {
         assertEquals(listOf(1L, 2L), snapshot.songsByTitle().map(Song::id))
     }
 
+    @Test
+    fun contextSongsAreSortedOnceAndReusedForArtistAndGenreBrowses() {
+        val songs = listOf(
+            testSong(id = 3L).copy(album = "B", trackNumber = 1),
+            testSong(id = 1L).copy(album = "A", trackNumber = 2),
+            testSong(id = 2L).copy(album = "A", trackNumber = 1),
+        )
+        val snapshot = MediaTreeSnapshotCache().snapshot(
+            true,
+            songs,
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            null,
+            null,
+        )
+
+        val artistSongs = snapshot.songsForArtistInContext("Artist")
+        val genreSongs = snapshot.songsForGenreInContext("Genre")
+
+        assertEquals(listOf(2L, 1L, 3L), artistSongs.map(Song::id))
+        assertEquals(listOf(2L, 1L, 3L), genreSongs.map(Song::id))
+        assertSame(artistSongs, snapshot.songsForArtistInContext("Artist"))
+        assertSame(genreSongs, snapshot.songsForGenreInContext("Genre"))
+    }
+
     private fun testSong(
         id: Long,
         genre: String = "Genre",

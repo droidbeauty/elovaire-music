@@ -58,6 +58,26 @@ internal interface PlaybackIntegrationSettings {
     fun recordPlaybackTransition(songId: Long?, albumId: Long?)
 }
 
+/** Settings owned by the equalizer screen and consumed by the playback runtime. */
+internal interface EqualizerSettingsStore {
+    val eqSettings: StateFlow<EqSettings>
+    fun setEqSettings(settings: EqSettings)
+}
+
+/** Settings that affect the player presentation and playback transition policy. */
+internal interface NowPlayingSettingsStore {
+    val crossfadeEnabled: StateFlow<Boolean>
+    fun setCrossfadeEnabled(enabled: Boolean)
+}
+
+/** Read/write settings used only by search discovery. */
+internal interface SearchSettingsStore {
+    val albumPlayCounts: StateFlow<Map<Long, Int>>
+    val searchHistory: StateFlow<List<SearchHistoryEntry>>
+    fun addSearchHistoryEntry(entry: SearchHistoryEntry)
+    fun clearSearchHistory()
+}
+
 internal interface AppearanceSettingsWriter {
     fun setThemeMode(themeMode: ThemeMode)
     fun setTextSizePreset(textSizePreset: TextSizePreset)

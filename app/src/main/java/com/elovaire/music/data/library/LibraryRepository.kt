@@ -98,7 +98,7 @@ class LibraryRepository internal constructor(
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val libraryIndexStore: LibraryIndexStore? = null,
     private val onSongRelocations: suspend (Map<Long, Long>) -> Boolean = { true },
-) : LibraryReader {
+) : LibraryReader, LibraryTagUpdateWriter {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
     private val snapshotPublisher = LibrarySnapshotPublisher(
@@ -799,7 +799,7 @@ class LibraryRepository internal constructor(
         }
     }
 
-    suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
+    override suspend fun applyVerifiedTagEdits(editedSongs: List<Song>) {
         if (editedSongs.isEmpty()) return
         val current = _contentState.value
         val updatedState = snapshotPublisher.patchSongs(

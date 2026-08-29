@@ -37,14 +37,30 @@ internal class AppDependencies(
         override val favoritesStore get() = services.preferenceStore
     }
     val viewModelDependencies: ElovaireViewModelDependencies = object : ElovaireViewModelDependencies {
-        override val libraryReader get() = services.libraryRepository
-        override val libraryRepository get() = services.libraryRepository
-        override val rootSettingsReader get() = services.preferenceStore
-        override val preferenceStore get() = services.preferenceStore
-        override val playbackReader get() = services.playbackManager
-        override val playbackManager get() = services.playbackManager
-        override val lyricsService get() = services.lyricsService
-        override val albumTagEditorService get() = services.albumTagEditorService
-        override val backgroundWorkPolicy get() = backgroundWorkPolicy
+        override val root: RootViewModelDependencies = object : RootViewModelDependencies {
+            override val libraryReader get() = services.libraryRepository
+            override val rootSettingsReader get() = services.preferenceStore
+            override val playbackReader get() = services.playbackManager
+        }
+        override val search: SearchViewModelDependencies = object : SearchViewModelDependencies {
+            override val libraryReader get() = services.libraryRepository
+            override val searchSettings get() = services.preferenceStore
+            override val playbackReader get() = services.playbackManager
+        }
+        override val nowPlaying: NowPlayingViewModelDependencies = object : NowPlayingViewModelDependencies {
+            override val playback get() = services.playbackManager
+            override val settings get() = services.preferenceStore
+            override val lyricsReader get() = services.lyricsService
+            override val lyricsWriter get() = services.lyricsService
+        }
+        override val equalizer: EqualizerViewModelDependencies = object : EqualizerViewModelDependencies {
+            override val settings get() = services.preferenceStore
+        }
+        override val albumTagEditor: AlbumTagEditorViewModelDependencies =
+            object : AlbumTagEditorViewModelDependencies {
+                override val libraryReader get() = services.libraryRepository
+                override val libraryTagUpdates get() = services.libraryRepository
+                override val editor get() = services.albumTagEditorService
+            }
     }
 }

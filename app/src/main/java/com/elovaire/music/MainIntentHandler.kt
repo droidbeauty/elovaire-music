@@ -58,6 +58,8 @@ internal class MainIntentHandler(
                 song = song,
                 collection = listOf(song),
                 sourceLabel = "External audio",
+                shuffleEnabled = false,
+                sourcePlaylistId = null,
             )
             container.requestOpenNowPlaying()
             activity.setIntent(

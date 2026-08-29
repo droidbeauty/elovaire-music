@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import elovaire.music.droidbeauty.app.core.PlaybackActionDependencies
 import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueCommands
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -12,7 +12,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 
 internal class RootPlaybackActions internal constructor(
-    private val playbackManager: PlaybackManager,
+    private val playbackManager: PlaybackQueueCommands,
     private val languageProvider: () -> AppLanguage,
     private val songsByAlbumIdProvider: () -> Map<Long, List<Song>>,
     private val albumsByIdProvider: () -> Map<Long, Album>,
@@ -130,7 +130,7 @@ internal class RootPlaylistActions internal constructor(
 @Composable
 internal fun rememberRootPlaybackActions(
     dependencies: PlaybackActionDependencies,
-    playbackManager: PlaybackManager,
+    playbackManager: PlaybackQueueCommands,
     appLanguage: AppLanguage,
     songsByAlbumId: Map<Long, List<Song>>,
     albumsById: Map<Long, Album>,

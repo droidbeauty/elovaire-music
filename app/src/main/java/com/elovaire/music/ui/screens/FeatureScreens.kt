@@ -229,7 +229,6 @@ import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
-import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
@@ -238,14 +237,13 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsLine
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
 import elovaire.music.droidbeauty.app.data.lyrics.toEmbeddedLyricsText
-import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
-import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
+import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspConfig
 import elovaire.music.droidbeauty.app.data.playback.EqualizerDspModel
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNowPlayingState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
@@ -1818,7 +1816,7 @@ private fun LibraryHubRow(
 internal fun LibraryCollectionScreen(
     kind: LibraryCollectionKind,
     libraryState: LibraryUiState,
-    artistImageRepository: ArtistImageRepository,
+    artistImageRepository: ArtistImageReader,
     playlists: List<Playlist>,
     songPlayCounts: Map<Long, Int>,
     favoriteSongIds: Set<Long>,
@@ -2112,7 +2110,7 @@ private fun SongSortControl(
 @Composable
 private fun ArtistCollectionScreen(
     songs: List<Song>,
-    artistImageRepository: ArtistImageRepository,
+    artistImageRepository: ArtistImageReader,
     bottomPadding: Dp,
     onBack: () -> Unit,
     onArtistSelected: (String) -> Unit,
@@ -4286,7 +4284,7 @@ private fun ArtistGridCard(
 @Composable
 private fun ArtistRow(
     artist: ArtistEntry,
-    artistImageRepository: ArtistImageRepository? = null,
+    artistImageRepository: ArtistImageReader? = null,
     onClick: () -> Unit,
 ) {
     val language = LocalAppLanguage.current
@@ -4346,7 +4344,7 @@ private fun ArtistRow(
 @Composable
 private fun rememberArtistArtworkUri(
     artist: ArtistEntry,
-    artistImageRepository: ArtistImageRepository?,
+    artistImageRepository: ArtistImageReader?,
 ): Uri? {
     if (artistImageRepository == null) return artist.artUri
     val state by remember(artist.name, artist.artUri, artistImageRepository) {
@@ -6561,7 +6559,7 @@ private fun SelectableAlbumPickerRow(
 
 @Composable
 internal fun NowPlayingScreen(
-    playbackManager: PlaybackManager,
+    playbackManager: NowPlayingPlayback,
     playerUiState: PlayerUiState,
     enrichedSongsById: Map<Long, Song>,
     isFavorite: Boolean,
@@ -7682,7 +7680,7 @@ internal fun NowPlayingScreen(
 
 @Composable
 private fun rememberRenderedPlaybackProgress(
-    playbackManager: PlaybackManager,
+    playbackManager: NowPlayingPlayback,
     currentSongId: Long?,
     freezeUpdates: Boolean,
 ): PlaybackProgressState {
@@ -7695,7 +7693,7 @@ private fun rememberRenderedPlaybackProgress(
 
 @Composable
 private fun NowPlayingProgressSummary(
-    playbackManager: PlaybackManager,
+    playbackManager: NowPlayingPlayback,
     currentSongId: Long,
     freezeUpdates: Boolean,
     format: String,

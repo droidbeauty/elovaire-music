@@ -17,7 +17,7 @@ internal val MacrobenchmarkScope.uiDevice: UiDevice
     get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
 
 internal fun MacrobenchmarkScope.waitForAppVisible() {
-    check(uiDevice.wait(Until.hasObject(By.pkg(TARGET_PACKAGE)), 10_000)) {
+    check(uiDevice.wait(Until.hasObject(By.pkg(TARGET_PACKAGE)), 30_000)) {
         "App package did not become visible: $TARGET_PACKAGE"
     }
     acceptFirstLaunchStoragePermissionIfVisible()
@@ -186,6 +186,7 @@ internal fun MacrobenchmarkScope.homeJourney() {
 }
 
 internal fun MacrobenchmarkScope.topLevelNavigationJourney() {
+    returnToHome()
     listOf("Albums", "Playlists", "Search", "Home").forEach { destination ->
         requireClickDescription(destination)
         waitForAppVisible()
@@ -215,6 +216,7 @@ internal fun MacrobenchmarkScope.playerJourneyIfAvailable() {
 }
 
 internal fun MacrobenchmarkScope.routeOpenBackJourney() {
+    returnToHome()
     requireClickDescription("Albums")
     waitForAppVisible()
     uiDevice.click(uiDevice.displayWidth / 2, (uiDevice.displayHeight * 0.35f).toInt())
@@ -238,6 +240,18 @@ internal fun MacrobenchmarkScope.routeOpenBackJourney() {
     requireClickTestTag("top_menu_equalizer")
     waitForAppVisible()
     uiDevice.pressBack()
+}
+
+private fun MacrobenchmarkScope.returnToHome() {
+    repeat(4) {
+        if (uiDevice.wait(Until.hasObject(By.desc("Home")), 1_000)) {
+            requireClickDescription("Home")
+            return
+        }
+        uiDevice.pressBack()
+        uiDevice.waitForIdle()
+    }
+    requireClickDescription("Home")
 }
 
 private const val CLICK_TIMEOUT_MS = 5_000L

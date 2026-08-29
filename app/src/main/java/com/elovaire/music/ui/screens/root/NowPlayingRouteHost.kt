@@ -17,7 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
 import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -28,7 +28,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
 @Composable
 internal fun NowPlayingRouteHost(
     viewModel: NowPlayingViewModel,
-    playbackManager: PlaybackManager,
+    playbackManager: NowPlayingPlayback,
     enrichedSongsById: Map<Long, Song>,
     isFavorite: Boolean,
     playlists: List<Playlist>,

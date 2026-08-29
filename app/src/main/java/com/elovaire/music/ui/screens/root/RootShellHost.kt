@@ -12,9 +12,9 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import dev.chrisbanes.haze.HazeState
-import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRepository
+import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
@@ -146,7 +146,7 @@ internal fun rememberChangelogReleases(): List<ChangelogRelease> {
 
 @Composable
 internal fun BoxScope.RootPlayerLayerSlot(
-    container: AppContainer,
+    playback: NowPlayingPlayback,
     chromeVisibility: RootChromeVisibility,
     playerLayerState: PlayerLayerState,
     playerLayerController: RootPlayerLayerController,
@@ -165,7 +165,7 @@ internal fun BoxScope.RootPlayerLayerSlot(
         onExitFinished = playerLayerController::clearTransitionSnapshot,
         onReturnToCompactFinished = playerLayerController::finishReturnToCompact,
         nowPlayingViewModel = nowPlayingViewModel,
-        playbackManager = container.playbackManager,
+        playbackManager = playback,
         songsById = songsById,
         isCurrentSongFavorite = playbackState.currentSong?.id in appState.favoriteSongIds,
         playlists = appState.playlists.filterNot { it.isSystem },

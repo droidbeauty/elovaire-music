@@ -1,13 +1,10 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.content.Context
-import android.database.sqlite.SQLiteException
-import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
-import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryScanCoordinator
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.SafTreeLibraryScanner
@@ -23,8 +20,6 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordinator
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationRuntime
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationJournal
-import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationMarker
-import elovaire.music.droidbeauty.app.data.library.network.recover
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
@@ -37,7 +32,6 @@ import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageRepository
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
-import elovaire.music.droidbeauty.app.data.mutation.MediaMutationRecoveryResult
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
@@ -50,18 +44,13 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PortableUserDataBackup
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
-import elovaire.music.droidbeauty.app.data.settings.UserDataSnapshot
 import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
 import elovaire.music.droidbeauty.app.data.settings.UserDataRecoverySnapshot
 import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
-import elovaire.music.droidbeauty.app.domain.model.Song
-import com.google.common.util.concurrent.SettableFuture
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -69,12 +58,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.TimeoutCancellationException
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import java.util.concurrent.atomic.AtomicBoolean
-import java.security.GeneralSecurityException
 
 @OptIn(UnstableApi::class)
 internal class AppServices(
@@ -83,9 +66,6 @@ internal class AppServices(
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val portableSettingsBackup: PortableSettingsBackup,
 ) {
-    private val playbackStarted = AtomicBoolean(false)
-    private val started = AtomicBoolean(false)
-    private val released = AtomicBoolean(false)
     private val playbackScope = CoroutineScope(
         appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
     )
@@ -96,12 +76,6 @@ internal class AppServices(
         appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
     )
     private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
-    private val durableStartupStarted = AtomicBoolean(false)
-    private val durableStartupReady = SettableFuture.create<Unit>()
-    private var portableUserDataBackupJob: Job? = null
-    private val exitDiagnosticsDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        AppExitDiagnostics(applicationContext)
-    }
     private val database = ElovaireDatabase.create(applicationContext)
     private val databaseResource = BackendResourceRegistry.acquire(BackendResourceKind.DatabaseInstance)
     private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
@@ -257,6 +231,22 @@ internal class AppServices(
     }
 
     private val mediaTree = ElovaireMediaTree(libraryRepository, preferenceStore)
+    private val startupCoordinator = AppStartupCoordinator(
+        applicationContext = applicationContext,
+        appScope = appScope,
+        optionalScope = optionalScope,
+        backgroundWorkPolicy = backgroundWorkPolicy,
+        portableSettingsBackup = portableSettingsBackup,
+        portableUserDataBackup = portableUserDataBackup,
+        userDataStore = userDataStore,
+        libraryRepository = libraryRepository,
+        networkSourceMutationJournal = networkSourceMutationJournal,
+        networkSourceStore = networkSourceStore,
+        networkCredentialStoreProvider = { networkCredentialStoreDelegate.value },
+        networkInventoryStore = networkInventoryStore,
+        mediaMutationJournal = mediaMutationJournal,
+        updateControllerProvider = { updateController },
+    )
 
     init {
         playbackManager.setMediaLibrarySessionCallback(
@@ -265,148 +255,17 @@ internal class AppServices(
                 commandResolver = mediaTree,
                 playbackManager = playbackManager,
                 readExecutor = mediaLibraryReadExecutor,
-                startupReady = durableStartupReady,
+                startupReady = startupCoordinator.durableStartupReady,
             ),
         )
     }
 
-    @Suppress("TooGenericExceptionCaught")
     fun start() {
-        if (released.get() || !started.compareAndSet(false, true)) return
-        startPlayback()
-        try {
-            updateController.start()
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: RuntimeException) {
-            backgroundWorkPolicy.setOptionalStartupSuppressed(true)
-            Log.w(TAG, "Optional update service could not start", failure)
-        }
+        startupCoordinator.start()
     }
 
-    @Suppress("TooGenericExceptionCaught")
     fun startPlayback() {
-        if (released.get() || !playbackStarted.compareAndSet(false, true)) return
-        if (!durableStartupStarted.compareAndSet(false, true)) return
-        startPortableUserDataBackup()
-        optionalScope.launch(Dispatchers.IO) {
-            try {
-                val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
-                val pendingSourceIds = networkSourceMutationJournal.pending()
-                    .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
-                val blockedSourceIds = try {
-                    withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
-                        networkSourceMutationJournal.recover(
-                            sourceStore = networkSourceStore,
-                            credentialStore = networkCredentialStoreDelegate.value,
-                            inventoryStore = networkInventoryStore,
-                        )
-                    }
-                    emptySet()
-                } catch (_: TimeoutCancellationException) {
-                    pendingSourceIds
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (failure: SQLiteException) {
-                    Log.w(TAG, "Network source mutation recovery deferred", failure)
-                    pendingSourceIds
-                } catch (failure: IllegalStateException) {
-                    Log.w(TAG, "Network source mutation recovery deferred", failure)
-                    pendingSourceIds
-                } catch (failure: SecurityException) {
-                    Log.w(TAG, "Network source mutation recovery deferred", failure)
-                    pendingSourceIds
-                } catch (failure: GeneralSecurityException) {
-                    Log.w(TAG, "Network source credential recovery deferred", failure)
-                    pendingSourceIds
-                } catch (failure: RuntimeException) {
-                    Log.e(TAG, "Network source mutation recovery failed", failure)
-                    pendingSourceIds
-                }
-                if (blockedSourceIds.isNotEmpty()) {
-                    libraryRepository.blockNetworkSources(blockedSourceIds)
-                }
-                libraryRepository.start()
-                libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
-                durableStartupReady.set(Unit)
-
-                try {
-                    val exitSnapshot = exitDiagnosticsDelegate.value.inspect()
-                    backgroundWorkPolicy.setOptionalStartupSuppressed(
-                        exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
-                    )
-                    portableSettingsBackup.start()
-                    updateController.scheduleStartupMaintenance()
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (failure: Exception) {
-                    Log.w(TAG, "Optional startup work deferred after playback startup", failure)
-                    backgroundWorkPolicy.setOptionalStartupSuppressed(true)
-                }
-            } catch (cancelled: CancellationException) {
-                durableStartupReady.cancel(false)
-                throw cancelled
-            } catch (failure: Exception) {
-                Log.e(TAG, "Durable playback startup failed", failure)
-                durableStartupReady.setException(failure)
-            }
-        }
-    }
-
-    private fun startPortableUserDataBackup() {
-        if (portableUserDataBackupJob?.isActive == true) return
-        portableUserDataBackupJob = appScope.launch {
-            var restoreChecked = false
-            kotlinx.coroutines.flow.combine(
-                userDataStore.userDataSnapshot,
-                userDataStore.userDataReadiness,
-                libraryRepository.contentState,
-                libraryRepository.scanState,
-            ) { snapshot, readiness, content, scan ->
-                PortableUserDataBackupState(snapshot, readiness, content.songs, scan)
-            }.collect { state ->
-                if (
-                    state.readiness != UserDataReadiness.Ready ||
-                    !state.scan.isAuthoritative ||
-                    !state.scan.permissionGranted
-                ) return@collect
-                if (!restoreChecked) {
-                    val encoded = withContext(Dispatchers.IO) { portableUserDataBackup.readBytes() }
-                    val backupContainsSongReferences = encoded?.let {
-                        withContext(Dispatchers.IO) { it.containsPortableSongReferences() }
-                    } == true
-                    if (encoded != null && state.songs.isEmpty() && backupContainsSongReferences) {
-                        return@collect
-                    }
-                    if (encoded != null && !state.snapshot.hasPortableUserData()) {
-                        when (userDataStore.restorePortableUserData(encoded, state.songs).await()) {
-                            is PlaylistMutationResult.Success -> {
-                                restoreChecked = true
-                                return@collect
-                            }
-                            else -> return@collect
-                        }
-                    }
-                    restoreChecked = true
-                }
-                if (state.songs.isEmpty() && state.snapshot.hasPortableSongReferences()) return@collect
-                try {
-                    withContext(Dispatchers.IO) {
-                        portableUserDataBackup.write(state.snapshot, state.songs)
-                    }
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (failure: java.io.IOException) {
-                    Log.w(TAG, "Portable user-data backup deferred", failure)
-                } catch (failure: SecurityException) {
-                    Log.w(TAG, "Portable user-data backup deferred", failure)
-                } catch (failure: IllegalArgumentException) {
-                    Log.w(TAG, "Portable user-data backup deferred", failure)
-                } catch (failure: IllegalStateException) {
-                    Log.w(TAG, "Portable user-data backup deferred", failure)
-                }
-            }
-        }
+        startupCoordinator.startPlayback()
     }
 
     internal fun exportPortableUserData(): ByteArray {
@@ -436,29 +295,6 @@ internal class AppServices(
         return userDataStore.restorePortableUserData(bytes, libraryRepository.contentState.value.songs)
     }
 
-    @Suppress("TooGenericExceptionCaught")
-    private suspend fun recoverCriticalMediaMutations(): Boolean {
-        return try {
-            withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
-                mediaMutationJournal.recoverIncomplete() is MediaMutationRecoveryResult.Success
-            }
-        } catch (failure: TimeoutCancellationException) {
-            Log.w(TAG, "Media mutation recovery timed out", failure)
-            false
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: SQLiteException) {
-            Log.w(TAG, "Media mutation recovery deferred", failure)
-            false
-        } catch (failure: IllegalStateException) {
-            Log.w(TAG, "Media mutation recovery deferred", failure)
-            false
-        } catch (failure: RuntimeException) {
-            Log.e(TAG, "Media mutation recovery failed", failure)
-            false
-        }
-    }
-
     fun onMemoryPressure(pressure: MemoryPressure) {
         if (lyricsServiceDelegate.isInitialized()) lyricsService.onMemoryPressure(pressure)
         if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.onMemoryPressure(pressure)
@@ -467,13 +303,9 @@ internal class AppServices(
     }
 
     fun release() {
-        if (!released.compareAndSet(false, true)) return
-        started.set(false)
-        playbackStarted.set(false)
+        startupCoordinator.release()
         networkMutationRuntime.release()
         optionalScope.cancel()
-        portableUserDataBackupJob?.cancel()
-        portableUserDataBackupJob = null
         playbackManager.release()
         playbackScope.cancel()
         if (updateControllerDelegate.isInitialized()) updateController.release()
@@ -489,39 +321,5 @@ internal class AppServices(
         }
         portableSettingsBackup.release()
         mediaLibraryReadExecutor.close()
-        durableStartupReady.cancel(false)
     }
-}
-
-private const val DURABLE_RECOVERY_TIMEOUT_MS = 15_000L
-private const val TAG = "ElovaireAppServices"
-
-private data class PortableUserDataBackupState(
-    val snapshot: UserDataSnapshot,
-    val readiness: UserDataReadiness,
-    val songs: List<Song>,
-    val scan: LibraryScanState,
-)
-
-private fun UserDataSnapshot.hasPortableUserData(): Boolean {
-    return playlists.isNotEmpty() || smartPlaylists.isNotEmpty() || hasPortableSongReferences()
-}
-
-private fun UserDataSnapshot.hasPortableSongReferences(): Boolean {
-    return playlists.any { it.songIds.isNotEmpty() } ||
-        favoriteSongIds.isNotEmpty() ||
-        songPlayCounts.isNotEmpty() ||
-        recentSongIds.isNotEmpty()
-}
-
-private fun ByteArray.containsPortableSongReferences(): Boolean {
-    return runCatching {
-        val data = elovaire.music.droidbeauty.app.data.settings.decodePortableUserData(this)
-        data?.let { payload ->
-            payload.playlists.any { it.songs.isNotEmpty() } ||
-                payload.favoriteSongs.isNotEmpty() ||
-                payload.songPlayCounts.isNotEmpty() ||
-                payload.recentSongs.isNotEmpty()
-        } == true
-    }.getOrDefault(false)
 }

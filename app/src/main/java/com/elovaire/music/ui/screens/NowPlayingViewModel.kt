@@ -11,16 +11,17 @@ import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.lyrics.EmbeddedLyricsWriteResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsPayload
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsResult
-import elovaire.music.droidbeauty.app.data.lyrics.LyricsService
+import elovaire.music.droidbeauty.app.data.lyrics.LyricsReader
+import elovaire.music.droidbeauty.app.data.lyrics.LyricsWriter
 import elovaire.music.droidbeauty.app.data.lyrics.canonicalEmbeddedLyricsText
 import elovaire.music.droidbeauty.app.data.lyrics.toDisplayPayload
-import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSleepTimerState
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.NowPlayingSettingsStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -111,9 +112,10 @@ internal data class MiniPlayerUiState(
 )
 
 internal class NowPlayingViewModel(
-    private val playbackManager: PlaybackManager,
-    private val preferenceStore: PreferenceStore,
-    private val lyricsService: LyricsService,
+    private val playbackManager: NowPlayingPlayback,
+    private val preferenceStore: NowPlayingSettingsStore,
+    private val lyricsReader: LyricsReader,
+    private val lyricsWriter: LyricsWriter,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : ViewModel() {
     private val lyricsVisible = MutableStateFlow(false)
@@ -206,14 +208,14 @@ internal class NowPlayingViewModel(
                     return@flow
                 }
 
-                lyricsService.localLyrics(request.song)?.let { local ->
+                lyricsReader.localLyrics(request.song)?.let { local ->
                     val localState = local.toUiState()
                     emit(localState)
                     logLyrics("local song=${request.song.id} state=${localState::class.simpleName}")
                     return@flow
                 }
 
-                lyricsService.cachedLyrics(request.song, includeNotFound = false)?.let { cached ->
+                lyricsReader.cachedLyrics(request.song, includeNotFound = false)?.let { cached ->
                     val cachedState = cached.toUiState()
                     emit(cachedState)
                     logLyrics("cache song=${request.song.id} state=${cachedState::class.simpleName}")
@@ -222,7 +224,7 @@ internal class NowPlayingViewModel(
                     }
                 }
 
-                lyricsService.lyricsForSong(request.song).collect { fetchedResult ->
+                lyricsReader.lyricsForSong(request.song).collect { fetchedResult ->
                     val state = fetchedResult.toUiState()
                     logLyrics("local song=${request.song.id} state=${state::class.simpleName}")
                     emit(state)
@@ -351,7 +353,7 @@ internal class NowPlayingViewModel(
         )
         lyricsSaveJob = viewModelScope.launch {
             val approvedMediaUri = (pending.permissionState as? LyricsSavePermissionState.Granted)?.mediaUri
-            val result = lyricsService.saveEmbeddedLyrics(
+            val result = lyricsWriter.saveEmbeddedLyrics(
                 song = pending.song,
                 lyrics = pending.lyrics,
                 operationId = pending.operationId,

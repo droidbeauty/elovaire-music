@@ -73,6 +73,7 @@ internal object ScannerDebugLogger {
         val missingExtensionRows: Int,
         val preflightPassedRows: Int,
         val mediaStoreIncluded: Int,
+        val mediaStoreGenreLookups: Int,
         val finalSongs: Int,
         val excludedByReason: Map<String, Int>,
     )
@@ -94,6 +95,7 @@ internal object ScannerDebugLogger {
         private var missingExtensionRows = 0
         private var preflightPassedRows = 0
         private var mediaStoreIncluded = 0
+        private var mediaStoreGenreLookups = 0
         private var safIncluded = 0
         private var duplicateSafSongs = 0
         private var finalSongs = 0
@@ -150,6 +152,10 @@ internal object ScannerDebugLogger {
             if (enabled) mediaStoreIncluded += 1
         }
 
+        fun recordMediaStoreGenreLookup() {
+            if (enabled) mediaStoreGenreLookups += 1
+        }
+
         fun recordMediaStoreExclude(reason: String) {
             if (!enabled) return
             excludedByReason[reason] = (excludedByReason[reason] ?: 0) + 1
@@ -191,6 +197,7 @@ internal object ScannerDebugLogger {
                 missingExtensionRows = missingExtensionRows,
                 preflightPassedRows = preflightPassedRows,
                 mediaStoreIncluded = mediaStoreIncluded,
+                mediaStoreGenreLookups = mediaStoreGenreLookups,
                 finalSongs = finalSongCount,
                 excludedByReason = excludedByReason.toMap(),
             )
@@ -211,6 +218,7 @@ internal object ScannerDebugLogger {
                     "missingExtensionRows=$missingExtensionRows, " +
                     "preflightPassedRows=$preflightPassedRows, " +
                     "mediaStoreIncluded=$mediaStoreIncluded, " +
+                    "mediaStoreGenreLookups=$mediaStoreGenreLookups, " +
                     "safIncluded=$safIncluded, duplicateSafSongs=$duplicateSafSongs, " +
                     "finalSongs=$finalSongCount, excludedByReason=$reasons",
             )

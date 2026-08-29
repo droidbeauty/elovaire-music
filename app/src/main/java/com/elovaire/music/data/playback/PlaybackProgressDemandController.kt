@@ -1,6 +1,6 @@
 package elovaire.music.droidbeauty.app.data.playback
 
-internal enum class PlaybackProgressConsumer {
+enum class PlaybackProgressConsumer {
     NowPlaying,
     CompactDock,
     SyncedLyrics,

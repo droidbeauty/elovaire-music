@@ -2,9 +2,9 @@ package elovaire.music.droidbeauty.app.ui.screens
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
+import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -87,8 +87,8 @@ internal data class SearchResultKey(
 }
 
 internal class SearchViewModel(
-    libraryRepository: LibraryRepository,
-    private val preferenceStore: PreferenceStore,
+    libraryRepository: LibraryReader,
+    private val preferenceStore: SearchSettingsStore,
     playbackReader: PlaybackReader,
 ) : ViewModel() {
     private val searchUiConfig = MutableStateFlow(SearchInteractionConfig())

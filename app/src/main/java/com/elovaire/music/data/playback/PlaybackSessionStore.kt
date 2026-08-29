@@ -109,31 +109,36 @@ internal class PlaybackSessionStore(
         val comparable = normalized.withoutSavedAt()
         val plan = playbackSessionSavePlan(lastSavedSession, comparable)
         if (plan == PlaybackSessionSavePlan.None) return
-        lastSavedSession = comparable
         clearStateKnown = false
         val structureNeedsGeneration = structurePreferences.getLong(KEY_GENERATION, 0L) <= 0L
         val saveStructure = plan.saveStructure || structureNeedsGeneration
         if (saveStructure) {
             nextGeneration = maxOf(nextGeneration + 1L, 1L)
-            structurePreferences.edit()
+            check(
+                structurePreferences.edit()
                 .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
                 .putString(KEY_QUEUE_IDS, normalized.queueSongIds.joinToString(","))
                 .putString(KEY_REPEAT_MODE, normalized.repeatMode.name)
                 .putBoolean(KEY_SHUFFLE, normalized.shuffleEnabled)
                 .putLong(KEY_SOURCE_PLAYLIST_ID, normalized.sourcePlaylistId ?: -1L)
                 .putLong(KEY_GENERATION, nextGeneration)
-                .apply()
+                .commit(),
+            ) { "Unable to persist playback session structure." }
         }
         if (plan.saveRecovery) {
-            recoveryPreferences.edit()
+            check(
+                recoveryPreferences.edit()
                 .putLong(KEY_CURRENT_SONG_ID, normalized.currentSongId ?: -1L)
                 .putInt(KEY_CURRENT_INDEX, normalized.currentIndex)
                 .putLong(KEY_POSITION_MS, normalized.positionMs)
                 .putBoolean(KEY_WAS_PLAYING, normalized.wasPlaying)
                 .putLong(KEY_SAVED_AT, clock.wallTimeMs())
                 .putLong(KEY_GENERATION, nextGeneration.coerceAtLeast(1L))
-                .apply()
+                .commit(),
+            ) { "Unable to persist playback session recovery state." }
         }
+        // Only suppress a retry after every required file has reported a durable commit.
+        lastSavedSession = comparable
         clearLegacyPreferencesIfNeeded()
     }
 
@@ -143,15 +148,23 @@ internal class PlaybackSessionStore(
         if (clearStateKnown) return
         listOf(structurePreferences, recoveryPreferences)
             .filter { it.all.isNotEmpty() }
-            .forEach { it.edit().clear().apply() }
+            .forEach { preferences ->
+                check(preferences.edit().clear().commit()) {
+                    "Unable to clear playback session state."
+                }
+            }
         clearLegacyPreferencesIfNeeded()
         clearStateKnown = true
     }
 
     private fun clearLegacyPreferencesIfNeeded() {
         if (legacyPreferencesCleared) return
+        if (legacyPreferences.all.isNotEmpty()) {
+            check(legacyPreferences.edit().clear().commit()) {
+                "Unable to clear legacy playback session state."
+            }
+        }
         legacyPreferencesCleared = true
-        if (legacyPreferences.all.isNotEmpty()) legacyPreferences.edit().clear().apply()
     }
 
     private companion object {

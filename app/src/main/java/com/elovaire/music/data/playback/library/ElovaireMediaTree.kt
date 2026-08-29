@@ -21,6 +21,14 @@ import elovaire.music.droidbeauty.app.domain.search.toSearchableAlbum
 import elovaire.music.droidbeauty.app.domain.search.toSearchableSong
 import java.util.Locale
 
+private val songContextComparator = compareBy<Song>(
+    { it.album.lowercase(Locale.ROOT) },
+    { it.discNumber },
+    { it.trackNumber },
+    { it.title.lowercase(Locale.ROOT) },
+    { it.id },
+)
+
 internal interface MediaLibraryBrowser {
     fun childrenOf(id: ElovaireMediaId): List<MediaItem>
     fun childrenOfPage(id: ElovaireMediaId, page: Int, pageSize: Int): List<MediaItem> {
@@ -122,12 +130,10 @@ internal class ElovaireMediaTree(
                 ?.songs.orEmpty()
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Artist -> snapshot
-                .songsForArtist(ElovaireMediaIds.decodeName(id.encodedName))
-                .sortedSongsForContext()
+                .songsForArtistInContext(ElovaireMediaIds.decodeName(id.encodedName))
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Genre -> snapshot
-                .songsForGenre(ElovaireMediaIds.decodeName(id.encodedName))
-                .sortedSongsForContext()
+                .songsForGenreInContext(ElovaireMediaIds.decodeName(id.encodedName))
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Playlist -> snapshot.playlistSongs(id.playlistId).map(ElovaireMediaItems::song)
             is ElovaireMediaId.Bucket -> bucketChildren(id, snapshot)
@@ -182,12 +188,12 @@ internal class ElovaireMediaTree(
             is ElovaireMediaId.Album -> pageWindow(snapshot.album(id.albumId)?.songs.orEmpty(), page, pageSize)
                 .map(ElovaireMediaItems::song)
             is ElovaireMediaId.Artist -> pageWindow(
-                snapshot.songsForArtist(ElovaireMediaIds.decodeName(id.encodedName)).sortedSongsForContext(),
+                snapshot.songsForArtistInContext(ElovaireMediaIds.decodeName(id.encodedName)),
                 page,
                 pageSize,
             ).map(ElovaireMediaItems::song)
             is ElovaireMediaId.Genre -> pageWindow(
-                snapshot.songsForGenre(ElovaireMediaIds.decodeName(id.encodedName)).sortedSongsForContext(),
+                snapshot.songsForGenreInContext(ElovaireMediaIds.decodeName(id.encodedName)),
                 page,
                 pageSize,
             ).map(ElovaireMediaItems::song)
@@ -247,14 +253,12 @@ internal class ElovaireMediaTree(
             }
             is ElovaireMediaId.Artist -> {
                 val artist = ElovaireMediaIds.decodeName(parsed.encodedName)
-                snapshot.songsForArtist(artist)
-                    .sortedSongsForContext()
+                snapshot.songsForArtistInContext(artist)
                     .toQueue(artist)
             }
             is ElovaireMediaId.Genre -> {
                 val genre = ElovaireMediaIds.decodeName(parsed.encodedName)
-                snapshot.songsForGenre(genre)
-                    .sortedSongsForContext()
+                snapshot.songsForGenreInContext(genre)
                     .toQueue(genre)
             }
             is ElovaireMediaId.Playlist -> {
@@ -274,11 +278,24 @@ internal class ElovaireMediaTree(
     }
 
     override fun search(query: String, limit: Int): List<MediaItem> {
-        val normalizedQuery = NormalizedSearchQuery.from(query)
         val snapshot = snapshot()
-        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return emptyList()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty() || limit <= 0) return emptyList()
+        val normalizedQuery = NormalizedSearchQuery.from(query)
+        return searchMediaIds(snapshot, normalizedQuery, limit).mapNotNull { mediaId ->
+            searchMediaItem(snapshot, mediaId)
+        }
+    }
+
+    private fun searchMediaIds(
+        snapshot: MediaTreeSnapshot,
+        normalizedQuery: NormalizedSearchQuery,
+        limit: Int,
+    ): List<String> {
+        if (limit <= 0) return emptyList()
         if (normalizedQuery.value.isBlank()) {
-            return defaultQueue(snapshot)?.queue.orEmpty().take(limit).map(ElovaireMediaItems::song)
+            return defaultQueue(snapshot)?.queue.orEmpty().take(limit).map { song ->
+                ElovaireMediaIds.song(song.id)
+            }
         }
         val artistRows = snapshot.artistSearchRows()
         val genreRows = snapshot.genreSearchRows()
@@ -289,14 +306,22 @@ internal class ElovaireMediaTree(
             .sortedBy(SearchableSong::normalizedTitle)
             .map(SearchableSong::song)
         val broaderSongs = searchIndexedSongsForPicker(snapshot.searchableSongs(), normalizedQuery)
-        return mutableListOf<MediaItem>().apply {
-            addDistinctItems(exactAndStrongTitleSongs, limit, ElovaireMediaItems::song)
-            addDistinctItems(
+        return ArrayList<String>(limit.coerceAtMost(128)).apply {
+            val seen = HashSet<String>(limit.coerceAtMost(128))
+            fun addDistinctId(mediaId: String) {
+                if (size < limit && seen.add(mediaId)) add(mediaId)
+            }
+            fun <T> addDistinctIds(items: Iterable<T>, id: (T) -> String) {
+                for (item in items) {
+                    if (size >= limit) return
+                    addDistinctId(id(item))
+                }
+            }
+            addDistinctIds(exactAndStrongTitleSongs) { ElovaireMediaIds.song(it.id) }
+            addDistinctIds(
                 searchIndexedAlbumsForPicker(snapshot.searchableAlbums(), normalizedQuery),
-                limit,
-                ElovaireMediaItems::album,
-            )
-            addDistinctItems(
+            ) { ElovaireMediaIds.album(it.id) }
+            addDistinctIds(
                 searchArtistsForPicker(
                     artists = artistRows,
                     query = normalizedQuery,
@@ -304,14 +329,11 @@ internal class ElovaireMediaTree(
                     songs = NamedSongs::songs,
                     songCount = { it.songs.size },
                 ),
-                limit,
-            ) { ElovaireMediaItems.artist(it.name) }
-            addDistinctItems(
+            ) { ElovaireMediaIds.artist(it.name) }
+            addDistinctIds(
                 searchIndexedPlaylists(snapshot.searchablePlaylists(), normalizedQuery),
-                limit,
-                ElovaireMediaItems::playlist,
-            )
-            addDistinctItems(
+            ) { ElovaireMediaIds.playlist(it.id) }
+            addDistinctIds(
                 searchArtistsForPicker(
                     artists = genreRows,
                     query = normalizedQuery,
@@ -319,9 +341,24 @@ internal class ElovaireMediaTree(
                     songs = NamedSongs::songs,
                     songCount = { it.songs.size },
                 ),
-                limit,
-            ) { ElovaireMediaItems.genre(it.name) }
-            addDistinctItems(broaderSongs, limit, ElovaireMediaItems::song)
+            ) { ElovaireMediaIds.genre(it.name) }
+            addDistinctIds(broaderSongs) { ElovaireMediaIds.song(it.id) }
+        }
+    }
+
+    private fun searchMediaItem(snapshot: MediaTreeSnapshot, mediaId: String): MediaItem? {
+        return when (val parsed = ElovaireMediaIds.parse(mediaId)) {
+            is ElovaireMediaId.Song -> snapshot.song(parsed.songId)?.let(ElovaireMediaItems::song)
+            is ElovaireMediaId.Album -> snapshot.album(parsed.albumId)?.let(ElovaireMediaItems::album)
+            is ElovaireMediaId.Artist -> ElovaireMediaItems.artist(
+                ElovaireMediaIds.decodeName(parsed.encodedName),
+            )
+            is ElovaireMediaId.Genre -> ElovaireMediaItems.genre(
+                ElovaireMediaIds.decodeName(parsed.encodedName),
+            )
+            is ElovaireMediaId.Playlist -> snapshot.playlist(parsed.playlistId)
+                ?.let(ElovaireMediaItems::playlist)
+            else -> null
         }
     }
 
@@ -340,7 +377,11 @@ internal class ElovaireMediaTree(
         if (offset < 0 || limit <= 0) return emptyList()
         val endExclusive = offset.toLong() + limit.toLong()
         if (endExclusive > MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS) return emptyList()
-        return search(query, endExclusive.toInt()).drop(offset).take(limit)
+        val snapshot = snapshot()
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return emptyList()
+        return searchMediaIds(snapshot, NormalizedSearchQuery.from(query), endExclusive.toInt())
+            .drop(offset)
+            .mapNotNull { mediaId -> searchMediaItem(snapshot, mediaId) }
     }
 
     override fun searchCount(query: String): Int {
@@ -348,7 +389,11 @@ internal class ElovaireMediaTree(
         val snapshot = snapshot()
         if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return 0
         if (normalizedQuery.value.isBlank()) return defaultQueue(snapshot)?.queue?.size ?: 0
-        return search(query, MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS).size
+        return searchMediaIds(
+            snapshot = snapshot,
+            normalizedQuery = normalizedQuery,
+            limit = MediaLibraryRequestPolicy.MAX_SEARCH_RESULT_ITEMS,
+        ).size
     }
 
     override fun resolveSearchQueue(query: String): ResolvedPlayableQueue? {
@@ -414,16 +459,6 @@ internal class ElovaireMediaTree(
         val startSong = firstOrNull() ?: return null
         return ResolvedPlayableQueue(startSong, this, sourceLabel, sourcePlaylistId)
     }
-
-    private fun List<Song>.sortedSongsForContext(): List<Song> = sortedWith(
-        compareBy<Song>(
-            { it.album.lowercase(Locale.ROOT) },
-            { it.discNumber },
-            { it.trackNumber },
-            { it.title.lowercase(Locale.ROOT) },
-            { it.id },
-        ),
-    )
 
     private fun bucketChildren(
         id: ElovaireMediaId.Bucket,
@@ -535,23 +570,6 @@ internal class ElovaireMediaTree(
             ?: snapshot.songsByTitle().toQueue("Songs")
     }
 
-    private fun MutableList<MediaItem>.addDistinct(item: MediaItem) {
-        if (none { it.mediaId == item.mediaId }) {
-            add(item)
-        }
-    }
-
-    private inline fun <T> MutableList<MediaItem>.addDistinctItems(
-        items: List<T>,
-        limit: Int,
-        itemFactory: (T) -> MediaItem,
-    ) {
-        for (item in items) {
-            if (size >= limit) return
-            addDistinct(itemFactory(item))
-        }
-    }
-
     internal data class MediaTreeSnapshot(
         val permissionGranted: Boolean,
         val songs: List<Song>,
@@ -619,6 +637,12 @@ internal class ElovaireMediaTree(
         private val songsByGenre by lazy(LazyThreadSafetyMode.PUBLICATION) {
             songs.groupBy { it.genre.ifBlank { UNKNOWN_GENRE }.lowercase(Locale.ROOT) }
         }
+        private val songsByArtistForContext by lazy(LazyThreadSafetyMode.PUBLICATION) {
+            songsByArtist.mapValues { (_, songs) -> songs.sortedWith(songContextComparator) }
+        }
+        private val songsByGenreForContext by lazy(LazyThreadSafetyMode.PUBLICATION) {
+            songsByGenre.mapValues { (_, songs) -> songs.sortedWith(songContextComparator) }
+        }
         private val artistSearchRows by lazy(LazyThreadSafetyMode.PUBLICATION) {
             artistNames.map { name -> NamedSongs(name = name, songs = songsForArtist(name)) }
         }
@@ -652,6 +676,10 @@ internal class ElovaireMediaTree(
         fun playlist(id: Long): Playlist? = playlistsById[id]
         fun songsForArtist(name: String): List<Song> = songsByArtist[name.lowercase(Locale.ROOT)].orEmpty()
         fun songsForGenre(name: String): List<Song> = songsByGenre[name.lowercase(Locale.ROOT)].orEmpty()
+        fun songsForArtistInContext(name: String): List<Song> =
+            songsByArtistForContext[name.lowercase(Locale.ROOT)].orEmpty()
+        fun songsForGenreInContext(name: String): List<Song> =
+            songsByGenreForContext[name.lowercase(Locale.ROOT)].orEmpty()
         fun hasUsefulGenres(): Boolean = usefulGenres
         fun playlistSongs(playlistId: Long): List<Song> {
             val playlist = playlistsById[playlistId] ?: return emptyList()

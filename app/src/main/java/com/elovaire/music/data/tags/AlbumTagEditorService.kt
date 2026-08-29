@@ -73,6 +73,16 @@ internal data class TagEditApplyResult(
     val permissionRequest: PendingIntent? = null,
 )
 
+internal interface AlbumTagEditor {
+    suspend fun applyEdits(
+        request: AlbumTagEditRequest,
+        writeConsentGranted: Boolean,
+    ): TagEditApplyResult
+
+    suspend fun applyEdits(request: AlbumTagEditRequest): TagEditApplyResult =
+        applyEdits(request, writeConsentGranted = false)
+}
+
 internal data class TagEditFailure(
     val songId: Long,
     val fileName: String,
@@ -101,15 +111,15 @@ internal class AlbumTagEditorService(
     context: Context,
     private val mediaMutationJournal: MediaMutationJournal? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) {
+) : AlbumTagEditor {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val contentIo = ContentIo(contentResolver)
     private val audioFormatDetector = AudioFormatDetector(appContext)
     private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME)
-    suspend fun applyEdits(
+    override suspend fun applyEdits(
         request: AlbumTagEditRequest,
-        writeConsentGranted: Boolean = false,
+        writeConsentGranted: Boolean,
     ): TagEditApplyResult = withContext(ioDispatcher) {
         MediaMutationCoordinator.withTargets(request.album.songs.map(Song::uri)) {
         logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")

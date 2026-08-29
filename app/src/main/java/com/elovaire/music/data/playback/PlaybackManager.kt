@@ -180,7 +180,7 @@ class PlaybackManager(
         lastPlayedCollectionKind: PlaybackCollectionKind?,
         lastPlayedCollectionId: Long?,
     ) -> Unit = { _, _, _, _ -> },
-) : PlaybackReader, PlaybackController {
+) : NowPlayingPlayback {
     private val scope = scope
     private val appContext = context.applicationContext
     private val audioProcessorsProvider = audioProcessorsProvider
@@ -572,13 +572,13 @@ class PlaybackManager(
             ),
         )
     private val _progressState = MutableStateFlow(PlaybackProgressState())
-    val progressState: StateFlow<PlaybackProgressState> = _progressState.asStateFlow()
+    override val progressState: StateFlow<PlaybackProgressState> = _progressState.asStateFlow()
     private val _playbackFormatFailure = MutableStateFlow<PlaybackFormatFailure?>(null)
     val playbackFormatFailure: StateFlow<PlaybackFormatFailure?> = _playbackFormatFailure.asStateFlow()
     private val _manualPlaybackStartVersion = MutableStateFlow(0L)
     private var hasManualPlaybackStarted = false
     val manualPlaybackStartVersion: StateFlow<Long> = _manualPlaybackStartVersion.asStateFlow()
-    val sleepTimerState: StateFlow<PlaybackSleepTimerState> = sleepTimerController.state
+    override val sleepTimerState: StateFlow<PlaybackSleepTimerState> = sleepTimerController.state
     val playerInstance: Player
         get() = commandGatewayPlayer
     val mediaSessionToken
@@ -771,7 +771,7 @@ class PlaybackManager(
         if (hydrated != current) _state.value = hydrated
     }
 
-    internal fun setProgressConsumerActive(
+    override fun setProgressConsumerActive(
         consumer: PlaybackProgressConsumer,
         active: Boolean,
     ) {
@@ -784,12 +784,12 @@ class PlaybackManager(
         }
     }
 
-    fun playSong(
+    override fun playSong(
         song: Song,
         collection: List<Song>,
-        sourceLabel: String? = song.album,
-        shuffleEnabled: Boolean = false,
-        sourcePlaylistId: Long? = null,
+        sourceLabel: String?,
+        shuffleEnabled: Boolean,
+        sourcePlaylistId: Long?,
     ) {
         if (released.get()) return
         recordManualPlaybackStart()
@@ -867,12 +867,12 @@ class PlaybackManager(
         playerGenerationGate.invalidate(target)
     }
 
-    fun playAlbum(
+    override fun playAlbum(
         album: Album,
-        startSongId: Long? = null,
-        sourceLabel: String? = album.title,
-        shuffleEnabled: Boolean = false,
-        sourcePlaylistId: Long? = null,
+        startSongId: Long?,
+        sourceLabel: String?,
+        shuffleEnabled: Boolean,
+        sourcePlaylistId: Long?,
     ) {
         if (released.get()) return
         recordManualPlaybackStart()
@@ -970,19 +970,19 @@ class PlaybackManager(
         updateState()
     }
 
-    fun beginScrub() {
+    override fun beginScrub() {
         if (released.get()) return
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, true)
         _progressState.value = playbackProgressController.beginScrub()
         syncProgressUpdateLoop()
     }
 
-    fun updateScrubPosition(positionMs: Long) {
+    override fun updateScrubPosition(positionMs: Long) {
         if (released.get()) return
         _progressState.value = playbackProgressController.updateScrubPosition(positionMs)
     }
 
-    fun finishScrub(positionMs: Long) {
+    override fun finishScrub(positionMs: Long) {
         if (released.get()) return
         val result = playbackProgressController.finishScrub(positionMs)
         _progressState.value = result.state
@@ -991,14 +991,14 @@ class PlaybackManager(
         syncProgressUpdateLoop()
     }
 
-    fun cancelScrub() {
+    override fun cancelScrub() {
         if (released.get()) return
         _progressState.value = playbackProgressController.cancelScrub()
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         syncProgressUpdateLoop()
     }
 
-    fun setVolume(volume: Float) {
+    override fun setVolume(volume: Float) {
         if (released.get()) return
         val requestedVolume = volume.quantizedVolume()
         if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
@@ -1022,7 +1022,7 @@ class PlaybackManager(
         updateState()
     }
 
-    fun cycleRepeatMode() {
+    override fun cycleRepeatMode() {
         if (released.get()) return
         crossfadeController.cancel()
         player.repeatMode = when (_state.value.repeatMode) {
@@ -1033,7 +1033,7 @@ class PlaybackManager(
         updateState()
     }
 
-    fun toggleShuffle() {
+    override fun toggleShuffle() {
         if (released.get()) return
         crossfadeController.cancel()
         player.shuffleModeEnabled = !player.shuffleModeEnabled
@@ -1068,18 +1068,18 @@ class PlaybackManager(
         updateState()
     }
 
-    fun playQueueIndex(index: Int) {
+    override fun playQueueIndex(index: Int) {
         if (released.get()) return
         queueController.playQueueIndex(index)
     }
 
-    fun enqueueSong(song: Song) {
+    override fun enqueueSong(song: Song) {
         if (released.get()) return
         crossfadeController.cancel()
         queueController.enqueueSong(song)
     }
 
-    fun removeQueueIndex(index: Int) {
+    override fun removeQueueIndex(index: Int) {
         if (released.get()) return
         crossfadeController.cancel()
         queueController.removeQueueIndex(index)
@@ -1147,7 +1147,7 @@ class PlaybackManager(
         player.volume = targetPlayerOutputGain()
     }
 
-    fun setSleepTimer(option: SleepTimerOption) {
+    override fun setSleepTimer(option: SleepTimerOption) {
         if (released.get()) return
         sleepTimerController.setTimer(
             option = option,
