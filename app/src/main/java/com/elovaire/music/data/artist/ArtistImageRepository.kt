@@ -282,24 +282,30 @@ internal class ArtistImageRepository(
         if (!directory.exists() && !directory.mkdirs()) return null
         val cachedFile = directory.resolve("${cacheKey(artistKey)}.img")
         val temporaryFile = directory.resolve("${cacheKey(artistKey)}.tmp")
-        return runCatching {
+        var committed = false
+        return try {
             val response = artworkTransport.getBlockingToFile(
                 rawUrl = uri.toString(),
                 target = temporaryFile,
                 headers = mapOf("Accept" to "image/*"),
                 maxBytes = MAX_REMOTE_ARTWORK_BYTES,
             )
-            if (response.statusCode !in 200..299 || response.bytesWritten <= 0L) return@runCatching null
-            if (!isArtworkFileDecodable(temporaryFile)) return@runCatching null
+            if (response.statusCode !in 200..299 || response.bytesWritten <= 0L) return null
+            if (!isArtworkFileDecodable(temporaryFile)) return null
             if (!temporaryFile.renameTo(cachedFile)) {
-                temporaryFile.delete()
-                return@runCatching null
+                return null
             }
+            committed = true
             trimDiskArtworkCache(directory, cachedFile)
             Uri.fromFile(cachedFile)
-        }.getOrElse {
-            temporaryFile.delete()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: IOException) {
             null
+        } catch (_: RuntimeException) {
+            null
+        } finally {
+            if (!committed) temporaryFile.delete()
         }
     }
 
@@ -328,6 +334,9 @@ internal class ArtistImageRepository(
             ?.filter { it.isFile && it.extension == "img" && it != keep }
             ?.sortedByDescending(File::lastModified)
             .orEmpty()
+        directory.listFiles()
+            ?.filter { it.isFile && it.extension == "tmp" }
+            ?.forEach(File::delete)
         var totalBytes = keep.length()
         files.forEachIndexed { index, file ->
             if (index < DISK_CACHE_FILE_LIMIT - 1 && totalBytes + file.length() <= MAX_DISK_CACHE_BYTES) {

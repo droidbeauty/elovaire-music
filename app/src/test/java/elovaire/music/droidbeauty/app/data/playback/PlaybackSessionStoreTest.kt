@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.playback
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackSessionStoreTest {
@@ -26,6 +27,7 @@ class PlaybackSessionStoreTest {
     @Test
     fun persistedFormatRejectsUnknownFutureVersions() {
         assertEquals(true, isSupportedPlaybackSessionVersion(LEGACY_FORMAT_VERSION))
+        assertTrue(isSupportedPlaybackSessionVersion(DUAL_FILE_FORMAT_VERSION))
         assertEquals(true, isSupportedPlaybackSessionVersion(CURRENT_FORMAT_VERSION))
         assertEquals(false, isSupportedPlaybackSessionVersion(CURRENT_FORMAT_VERSION + 1))
         assertEquals(false, isSupportedPlaybackSessionVersion(-1))

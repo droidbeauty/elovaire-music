@@ -207,8 +207,8 @@ internal fun PortableUserData.mergeInto(
         when (result.confidence) {
             TrackMatchConfidence.Exact,
             TrackMatchConfidence.Strong,
-            TrackMatchConfidence.Probable,
             -> result.song?.id?.let { return it }
+            TrackMatchConfidence.Probable,
             TrackMatchConfidence.Ambiguous,
             TrackMatchConfidence.NoMatch,
             -> Unit

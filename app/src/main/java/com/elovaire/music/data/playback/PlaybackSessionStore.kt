@@ -22,6 +22,9 @@ internal class PlaybackSessionStore(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
 ) {
+    private val committedPreferences = allowStrictModeDiskReads {
+        context.applicationContext.getSharedPreferences(COMMITTED_FILE_NAME, Context.MODE_PRIVATE)
+    }
     private val structurePreferences = allowStrictModeDiskReads {
         context.applicationContext.getSharedPreferences(STRUCTURE_FILE_NAME, Context.MODE_PRIVATE)
     }
@@ -38,18 +41,24 @@ internal class PlaybackSessionStore(
 
     @Synchronized
     fun load(): PersistedPlaybackSession? {
-        return if (structurePreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
-            load(
-                structurePreferences,
-                recoveryPreferences,
-            )
+        return if (committedPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION) == CURRENT_FORMAT_VERSION) {
+            load(committedPreferences, committedPreferences)
         } else {
-            val version = legacyPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION)
+            val hasDualFileState = structurePreferences.contains(KEY_FORMAT_VERSION)
+            val version = if (hasDualFileState) {
+                structurePreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION)
+            } else {
+                legacyPreferences.getInt(KEY_FORMAT_VERSION, LEGACY_FORMAT_VERSION)
+            }
             if (!isSupportedPlaybackSessionVersion(version)) {
                 clear()
                 null
             } else {
-                load(legacyPreferences, legacyPreferences)
+                if (hasDualFileState && version == DUAL_FILE_FORMAT_VERSION) {
+                    load(structurePreferences, recoveryPreferences)
+                } else {
+                    load(legacyPreferences, legacyPreferences)
+                }
             }
         }
     }
@@ -110,64 +119,65 @@ internal class PlaybackSessionStore(
         val plan = playbackSessionSavePlan(lastSavedSession, comparable)
         if (plan == PlaybackSessionSavePlan.None) return
         clearStateKnown = false
-        val structureNeedsGeneration = structurePreferences.getLong(KEY_GENERATION, 0L) <= 0L
+        val structureNeedsGeneration = committedPreferences.getLong(KEY_GENERATION, 0L) <= 0L
         val saveStructure = plan.saveStructure || structureNeedsGeneration
+        nextGeneration = maxOf(
+            nextGeneration + 1L,
+            committedPreferences.getLong(KEY_GENERATION, 0L) + 1L,
+            1L,
+        )
+        val editor = committedPreferences.edit()
+            .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
+            .putLong(KEY_GENERATION, nextGeneration)
         if (saveStructure) {
-            nextGeneration = maxOf(nextGeneration + 1L, 1L)
-            check(
-                structurePreferences.edit()
-                .putInt(KEY_FORMAT_VERSION, CURRENT_FORMAT_VERSION)
+            editor
                 .putString(KEY_QUEUE_IDS, normalized.queueSongIds.joinToString(","))
                 .putString(KEY_REPEAT_MODE, normalized.repeatMode.name)
                 .putBoolean(KEY_SHUFFLE, normalized.shuffleEnabled)
                 .putLong(KEY_SOURCE_PLAYLIST_ID, normalized.sourcePlaylistId ?: -1L)
-                .putLong(KEY_GENERATION, nextGeneration)
-                .commit(),
-            ) { "Unable to persist playback session structure." }
         }
-        if (plan.saveRecovery) {
-            check(
-                recoveryPreferences.edit()
+        if (plan.saveRecovery || saveStructure) {
+            editor
                 .putLong(KEY_CURRENT_SONG_ID, normalized.currentSongId ?: -1L)
                 .putInt(KEY_CURRENT_INDEX, normalized.currentIndex)
                 .putLong(KEY_POSITION_MS, normalized.positionMs)
                 .putBoolean(KEY_WAS_PLAYING, normalized.wasPlaying)
                 .putLong(KEY_SAVED_AT, clock.wallTimeMs())
-                .putLong(KEY_GENERATION, nextGeneration.coerceAtLeast(1L))
-                .commit(),
-            ) { "Unable to persist playback session recovery state." }
         }
-        // Only suppress a retry after every required file has reported a durable commit.
+        check(editor.commit()) { "Unable to persist playback session." }
         lastSavedSession = comparable
-        clearLegacyPreferencesIfNeeded()
+        clearObsoletePreferencesIfNeeded()
     }
 
     @Synchronized
     fun clear() {
         lastSavedSession = null
         if (clearStateKnown) return
-        listOf(structurePreferences, recoveryPreferences)
+        listOf(committedPreferences, structurePreferences, recoveryPreferences)
             .filter { it.all.isNotEmpty() }
             .forEach { preferences ->
                 check(preferences.edit().clear().commit()) {
                     "Unable to clear playback session state."
                 }
             }
-        clearLegacyPreferencesIfNeeded()
+        clearObsoletePreferencesIfNeeded()
         clearStateKnown = true
     }
 
-    private fun clearLegacyPreferencesIfNeeded() {
+    private fun clearObsoletePreferencesIfNeeded() {
         if (legacyPreferencesCleared) return
-        if (legacyPreferences.all.isNotEmpty()) {
-            check(legacyPreferences.edit().clear().commit()) {
-                "Unable to clear legacy playback session state."
+        listOf(structurePreferences, recoveryPreferences, legacyPreferences)
+            .filter { it.all.isNotEmpty() }
+            .forEach { preferences ->
+                check(preferences.edit().clear().commit()) {
+                    "Unable to clear obsolete playback session state."
+                }
             }
-        }
         legacyPreferencesCleared = true
     }
 
     private companion object {
+        const val COMMITTED_FILE_NAME = "playback_session_committed"
         const val LEGACY_FILE_NAME = "playback_session"
         const val STRUCTURE_FILE_NAME = "playback_session_structure"
         const val RECOVERY_FILE_NAME = "playback_session_recovery"
@@ -189,7 +199,8 @@ internal class PlaybackSessionStore(
 private const val MAX_PLAYBACK_SESSION_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
 
 internal const val LEGACY_FORMAT_VERSION = 0
-internal const val CURRENT_FORMAT_VERSION = 2
+internal const val DUAL_FILE_FORMAT_VERSION = 2
+internal const val CURRENT_FORMAT_VERSION = 3
 
 internal fun isPlaybackSessionFresh(
     nowWallTimeMs: Long,

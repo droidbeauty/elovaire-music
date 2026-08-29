@@ -39,12 +39,16 @@ class PersistenceMaintenanceWorker(
             if (!health.isMaintenanceSuccessful()) {
                 Result.failure()
             } else {
-                applicationContext
+                val checkpointSaved = applicationContext
                     .getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
                     .edit()
                     .putLong(KEY_LAST_HEALTH_CHECK_MS, System.currentTimeMillis())
-                    .apply()
-                Result.success()
+                    .commit()
+                when {
+                    checkpointSaved -> Result.success()
+                    runAttemptCount < MAX_RETRY_COUNT -> Result.retry()
+                    else -> Result.failure()
+                }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled

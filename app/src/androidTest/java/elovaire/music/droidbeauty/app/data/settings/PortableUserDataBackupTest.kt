@@ -58,6 +58,36 @@ class PortableUserDataBackupTest {
     }
 
     @Test
+    fun probableMediaIsNotAutomaticallyBound() {
+        val source = song(1L).copy(
+            album = "Source album",
+            durationMs = 0L,
+            trackNumber = 0,
+            discNumber = 0,
+        )
+        val bytes = encodePortableUserData(
+            UserDataSnapshot(favoriteSongIds = listOf(1L)),
+            listOf(source),
+            createdAtMs = 100L,
+            appVersion = "test",
+        )
+        val candidate = source.copy(
+            id = 500L,
+            album = "Different album",
+            fileName = "different.mp3",
+            uri = Uri.parse("content://media/external/audio/media/500"),
+        )
+
+        val imported = requireNotNull(decodePortableUserData(bytes)).mergeInto(
+            UserDataSnapshot(),
+            listOf(candidate),
+        )
+
+        assertEquals(emptyList<Long>(), imported.snapshot.favoriteSongIds)
+        assertEquals(1, imported.unresolvedReferenceCount)
+    }
+
+    @Test
     fun corruptedBackupIsRejected() {
         val bytes = encodePortableUserData(UserDataSnapshot(), emptyList(), 100L, "test")
         assertNull(decodePortableUserData(bytes.copyOf().also { it[it.lastIndex] = 'x'.code.toByte() }))

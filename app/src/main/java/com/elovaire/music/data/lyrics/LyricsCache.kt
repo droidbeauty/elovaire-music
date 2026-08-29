@@ -95,15 +95,15 @@ internal class LyricsCache(
     private fun ensureLoadedLocked() {
         if (cacheLoaded) return
         cacheLoaded = true
-        runCatching {
+        val loaded = runCatching {
             val serialized = atomicFile.openRead().use { input ->
                 if (input.channel.size() !in 1..MAX_CACHE_FILE_BYTES.toLong()) {
-                    return@runCatching
+                    return@runCatching false
                 }
                 input.readBytes().toString(Charsets.UTF_8)
             }
             val root = JSONObject(serialized)
-            if (root.optInt("version") != CACHE_VERSION) return@runCatching
+            if (root.optInt("version") != CACHE_VERSION) return@runCatching false
             val entries = root.optJSONArray("entries") ?: JSONArray()
             repeat(entries.length()) { index ->
                 val entryJson = entries.optJSONObject(index) ?: return@repeat
@@ -125,6 +125,11 @@ internal class LyricsCache(
                     online = entryJson.optBoolean("online", false),
                 )
             }
+            true
+        }.getOrDefault(false)
+        if (!loaded) {
+            cacheEntries.clear()
+            runCatching { atomicFile.delete() }
         }
     }
 
