@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenanceWorker
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 internal class AppBridgeCoordinator(
     scope: CoroutineScope,
     private val services: AppServices,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val bridgeJob = SupervisorJob(scope.coroutineContext[Job])
     private val bridgeScope = CoroutineScope(scope.coroutineContext + bridgeJob)
@@ -40,6 +42,7 @@ internal class AppBridgeCoordinator(
         playback = services.playbackManager,
         effects = services.playbackEffectsController,
         sessionStore = services.playbackSessionStore,
+        ioDispatcher = ioDispatcher,
     )
     private val preferences = services.preferenceStore
     private val library = services.libraryRepository
@@ -67,7 +70,7 @@ internal class AppBridgeCoordinator(
     fun scheduleDeferredStartupWork() {
         if (!appStarted || released || deferredStartupScheduled) return
         deferredStartupScheduled = true
-        bridgeScope.launch(Dispatchers.IO) {
+        bridgeScope.launch(ioDispatcher) {
             PersistenceMaintenanceWorker.enqueue(applicationContext)
         }
     }

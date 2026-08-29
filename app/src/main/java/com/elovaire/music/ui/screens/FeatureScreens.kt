@@ -322,7 +322,6 @@ import elovaire.music.droidbeauty.app.ui.i18n.sleepTimerCopy
 import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.displayLabel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
-import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorEvent
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing

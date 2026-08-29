@@ -14,8 +14,8 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 
 internal interface LyricsReader {
-    fun cachedLyrics(song: Song, includeNotFound: Boolean = true): LyricsResult?
-    fun localLyrics(song: Song): LyricsResult?
+    suspend fun cachedLyrics(song: Song, includeNotFound: Boolean = true): LyricsResult?
+    suspend fun localLyrics(song: Song): LyricsResult?
     fun lyricsForSong(song: Song): Flow<LyricsResult>
 }
 
@@ -40,16 +40,20 @@ internal class LyricsService internal constructor(
         ioDispatcher = ioDispatcher,
     )
 
-    override fun cachedLyrics(
+    override suspend fun cachedLyrics(
         song: Song,
         includeNotFound: Boolean,
-    ): LyricsResult? = repository.cachedLyrics(song, includeNotFound, onlineLyricsEnabled())
+    ): LyricsResult? = withContext(ioDispatcher) {
+        repository.cachedLyrics(song, includeNotFound, onlineLyricsEnabled())
+    }
 
     fun clearCacheFor(song: Song) {
         repository.clearCacheFor(song)
     }
 
-    override fun localLyrics(song: Song): LyricsResult? = repository.localLyrics(song)
+    override suspend fun localLyrics(song: Song): LyricsResult? = withContext(ioDispatcher) {
+        repository.localLyrics(song)
+    }
 
     override suspend fun saveEmbeddedLyrics(
         song: Song,

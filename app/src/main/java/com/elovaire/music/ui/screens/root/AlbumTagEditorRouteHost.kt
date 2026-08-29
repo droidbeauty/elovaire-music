@@ -21,7 +21,8 @@ import elovaire.music.droidbeauty.app.platform.MediaWriteTargetClassifier
 import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
 import elovaire.music.droidbeauty.app.platform.safTreeUriForDocument
 import elovaire.music.droidbeauty.app.platform.takePersistableTreeWritePermission
-import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorEvent
+import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorPlatformAction
+import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorSaveOutcome
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorScreen
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +43,12 @@ internal fun AlbumTagEditorRouteHost(
     )
     val tagEditorState by tagEditorViewModel.uiState.collectAsStateWithLifecycle()
 
-    AlbumTagWriteEffects(tagEditorViewModel, onBack)
+    AlbumTagWriteEffects(
+        viewModel = tagEditorViewModel,
+        platformAction = tagEditorState.platformAction,
+        saveOutcome = tagEditorState.saveOutcome,
+        onBack = onBack,
+    )
 
     val coverArtPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
@@ -80,6 +86,8 @@ internal fun AlbumTagEditorRouteHost(
 @Composable
 private fun AlbumTagWriteEffects(
     viewModel: AlbumTagEditorViewModel,
+    platformAction: AlbumTagEditorPlatformAction?,
+    saveOutcome: AlbumTagEditorSaveOutcome?,
     onBack: () -> Unit,
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -111,73 +119,77 @@ private fun AlbumTagWriteEffects(
         )
         if (!granted) safWriteAttemptedOperationId = null
     }
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is AlbumTagEditorEvent.RequestWritePermission -> {
-                    val unsupported = event.uris
+    LaunchedEffect(platformAction) {
+        val action = platformAction ?: return@LaunchedEffect
+        viewModel.consumePlatformAction(action.operationId)
+        when (action) {
+            is AlbumTagEditorPlatformAction.RequestWritePermission -> {
+                val unsupported = action.uris
                         .map { MediaWriteTargetClassifier.classify(context, it) }
                         .filterIsInstance<MediaWriteTarget.Unsupported>()
                         .firstOrNull()
-                    if (unsupported != null) {
-                        viewModel.onWritePreflightFailed(event.operationId, unsupported.reason)
-                        return@collect
-                    }
-                    val safProblem = withContext(Dispatchers.IO) {
-                        firstSafWriteProblem(context, event.uris)
-                    }
-                    if (safProblem != null) {
-                        if (safWriteAttemptedOperationId == event.operationId) {
-                            safWriteAttemptedOperationId = null
-                            viewModel.onSafWritePermissionResult(
-                                event.operationId,
-                                granted = false,
-                                failureMessage = safProblem.message,
-                            )
-                            return@collect
-                        }
-                        safWriteAttemptedOperationId = event.operationId
-                        pendingSafWriteOperationId = event.operationId
-                        runCatching {
-                            safWriteLauncher.launch(safTreeUriForDocument(safProblem.uri))
-                        }.onFailure {
-                            pendingSafWriteOperationId = null
-                            safWriteAttemptedOperationId = null
-                            viewModel.onWritePermissionLaunchFailed(event.operationId)
-                        }
-                        return@collect
-                    }
-                    safWriteAttemptedOperationId = null
-                    pendingWriteOperationId = event.operationId
-                    val requestResult = runCatching { mediaStoreWriteRequest(context, event.uris) }
-                    if (requestResult.isFailure) {
-                        viewModel.onWritePermissionLaunchFailed(event.operationId)
-                        pendingWriteOperationId = null
-                        return@collect
-                    }
-                    when (val request = requestResult.getOrNull()) {
-                        null -> {
-                            viewModel.onWritePermissionNotRequired(event.operationId)
-                            pendingWriteOperationId = null
-                        }
-                        else -> runCatching { mediaStoreLauncher.launch(request) }.onFailure {
-                            viewModel.onWritePermissionLaunchFailed(event.operationId)
-                            pendingWriteOperationId = null
-                        }
-                    }
+                if (unsupported != null) {
+                    viewModel.onWritePreflightFailed(action.operationId, unsupported.reason)
+                    return@LaunchedEffect
                 }
-                is AlbumTagEditorEvent.RequestRecoverableWritePermission -> {
-                    pendingWriteOperationId = event.operationId
+                val safProblem = withContext(Dispatchers.IO) {
+                    firstSafWriteProblem(context, action.uris)
+                }
+                if (safProblem != null) {
+                    if (safWriteAttemptedOperationId == action.operationId) {
+                        safWriteAttemptedOperationId = null
+                        viewModel.onSafWritePermissionResult(
+                            action.operationId,
+                            granted = false,
+                            failureMessage = safProblem.message,
+                        )
+                        return@LaunchedEffect
+                    }
+                    safWriteAttemptedOperationId = action.operationId
+                    pendingSafWriteOperationId = action.operationId
                     runCatching {
-                        mediaStoreLauncher.launch(IntentSenderRequest.Builder(event.intentSender).build())
+                        safWriteLauncher.launch(safTreeUriForDocument(safProblem.uri))
                     }.onFailure {
-                        viewModel.onWritePermissionLaunchFailed(event.operationId)
+                        pendingSafWriteOperationId = null
+                        safWriteAttemptedOperationId = null
+                        viewModel.onWritePermissionLaunchFailed(action.operationId)
+                    }
+                    return@LaunchedEffect
+                }
+                safWriteAttemptedOperationId = null
+                pendingWriteOperationId = action.operationId
+                val requestResult = runCatching { mediaStoreWriteRequest(context, action.uris) }
+                if (requestResult.isFailure) {
+                    viewModel.onWritePermissionLaunchFailed(action.operationId)
+                    pendingWriteOperationId = null
+                    return@LaunchedEffect
+                }
+                when (val request = requestResult.getOrNull()) {
+                    null -> {
+                        viewModel.onWritePermissionNotRequired(action.operationId)
+                        pendingWriteOperationId = null
+                    }
+                    else -> runCatching { mediaStoreLauncher.launch(request) }.onFailure {
+                        viewModel.onWritePermissionLaunchFailed(action.operationId)
                         pendingWriteOperationId = null
                     }
                 }
-                AlbumTagEditorEvent.SaveSucceeded -> onBack()
-                is AlbumTagEditorEvent.SavePartiallySucceeded -> Unit
             }
+            is AlbumTagEditorPlatformAction.RequestRecoverableWritePermission -> {
+                pendingWriteOperationId = action.operationId
+                runCatching {
+                    mediaStoreLauncher.launch(IntentSenderRequest.Builder(action.intentSender).build())
+                }.onFailure {
+                    viewModel.onWritePermissionLaunchFailed(action.operationId)
+                    pendingWriteOperationId = null
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(saveOutcome) {
+        if (saveOutcome is AlbumTagEditorSaveOutcome.Succeeded) {
+            onBack()
         }
     }
 }

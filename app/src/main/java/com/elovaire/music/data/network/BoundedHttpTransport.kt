@@ -9,6 +9,7 @@ import java.io.FileOutputStream
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,7 @@ internal class BoundedHttpTransport(
     private val connectTimeoutMs: Int = DEFAULT_CONNECT_TIMEOUT_MS,
     private val readTimeoutMs: Int = DEFAULT_READ_TIMEOUT_MS,
     private val maxRedirects: Int = DEFAULT_MAX_REDIRECTS,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     init {
         require(connectTimeoutMs > 0) { "connectTimeoutMs must be positive" }
@@ -34,7 +36,7 @@ internal class BoundedHttpTransport(
     ): BoundedHttpResponse {
         val httpResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveHttpRequest)
         return try {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 getBlocking(rawUrl, headers, maxBytes, urlPolicy, cancellationContext = currentCoroutineContext())
             }
         } finally {
@@ -200,7 +202,7 @@ internal class BoundedHttpTransport(
         headers: Map<String, String> = emptyMap(),
         maxBytes: Int,
         urlPolicy: (URL) -> Boolean = ::isHttpsUrl,
-    ): BoundedHttpResponse = withContext(Dispatchers.IO) {
+    ): BoundedHttpResponse = withContext(ioDispatcher) {
         val cancellationContext = currentCoroutineContext()
         withTrafficStatsTag {
             val httpResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveHttpRequest)

@@ -5,6 +5,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibrarySnapshotStore
 import elovaire.music.droidbeauty.app.data.library.LibraryScanCoordinator
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
 import elovaire.music.droidbeauty.app.data.library.SafTreeLibraryScanner
@@ -35,6 +36,7 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
+import elovaire.music.droidbeauty.app.data.playback.DefaultPlaybackResumptionGateway
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryInvalidationCoordinator
@@ -52,7 +54,6 @@ import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -66,6 +67,7 @@ import kotlinx.coroutines.flow.update
 internal class AppServices(
     val applicationContext: Context,
     private val appScope: CoroutineScope,
+    private val appDispatchers: AppDispatchers,
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val portableSettingsBackup: PortableSettingsBackup,
 ) {
@@ -86,10 +88,16 @@ internal class AppServices(
         context = applicationContext,
         dao = database.userDataDao(),
         recoverySnapshot = UserDataRecoverySnapshot(applicationContext),
+        ioDispatcher = appDispatchers.io,
         ownerScope = appScope,
     )
     private val portableUserDataBackup = PortableUserDataBackup(applicationContext)
-    val preferenceStore = PreferenceStore(applicationContext, userDataStore, ownerScope = appScope)
+    val preferenceStore = PreferenceStore(
+        context = applicationContext,
+        userDataStore = userDataStore,
+        ioDispatcher = appDispatchers.io,
+        ownerScope = appScope,
+    )
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
     private val networkSourceMutationJournal = NetworkSourceMutationJournal(applicationContext)
     private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
@@ -114,6 +122,7 @@ internal class AppServices(
             context = applicationContext,
             registry = networkFileSystemRegistryDelegate.value,
             inventory = networkInventoryStore,
+            ioDispatcher = appDispatchers.io,
             onAvailabilityChanged = { sourceId, result ->
                 _networkProbeResults.update { it + (sourceId to result) }
             },
@@ -146,6 +155,7 @@ internal class AppServices(
         ArtistImageRepository(
             appContext = applicationContext,
             scope = optionalScope,
+            ioDispatcher = appDispatchers.io,
         )
     }
     val artistImageRepository get() = artistImageRepositoryDelegate.value
@@ -153,6 +163,7 @@ internal class AppServices(
         AlbumTagEditorService(
             applicationContext,
             mediaMutationJournal = mediaMutationJournal,
+            ioDispatcher = appDispatchers.io,
         )
     }
     val playbackEffectsController = PlaybackEffectsController()
@@ -169,11 +180,19 @@ internal class AppServices(
         playbackDataSourceFactory = networkDataSourceFactory,
     )
     val playbackSessionStore = PlaybackSessionStore(applicationContext)
+    private val librarySnapshotStore = LibrarySnapshotStore(applicationContext)
+    val playbackResumptionGateway = DefaultPlaybackResumptionGateway(
+        hasAudioReadPermission = { applicationContext.hasAudioReadPermission() },
+        persistedSessionReader = playbackSessionStore::load,
+        librarySongsReader = { librarySnapshotStore.load()?.snapshot?.songs.orEmpty() },
+        ioDispatcher = appDispatchers.io,
+    )
     val libraryRepository = LibraryRepository(
         appContext = applicationContext,
         scanner = LibraryScanCoordinator(
             localScanner = MediaStoreScanner(
                 context = applicationContext,
+                ioDispatcher = appDispatchers.io,
             ),
             safScanner = SafTreeLibraryScanner(applicationContext),
             networkScannerProvider = { networkScannerDelegate.value },
@@ -183,6 +202,8 @@ internal class AppServices(
         scope = libraryScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
         libraryIndexStore = LibraryIndexStore(database.libraryDao()),
+        ioDispatcher = appDispatchers.io,
+        defaultDispatcher = appDispatchers.default,
         onSongRelocations = { replacements ->
             when (val result = userDataStore.relocateSongReferences(replacements).await()) {
                 is PlaylistMutationResult.Success -> true
@@ -250,6 +271,7 @@ internal class AppServices(
         networkInventoryStore = networkInventoryStore,
         mediaMutationJournal = mediaMutationJournal,
         updateControllerProvider = { updateController },
+        ioDispatcher = appDispatchers.io,
     )
     private val mediaLibraryInvalidationCoordinator = MediaLibraryInvalidationCoordinator(
         session = playbackManager.mediaLibrarySession,
@@ -283,7 +305,7 @@ internal class AppServices(
     }
 
     private fun startNetworkServices() {
-        optionalScope.launch(Dispatchers.IO) {
+        optionalScope.launch(appDispatchers.io) {
             networkFileSystemRegistryDelegate.value.start()
         }
     }

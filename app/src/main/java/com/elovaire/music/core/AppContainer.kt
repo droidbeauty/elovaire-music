@@ -10,9 +10,12 @@ import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 enum class AppShortcutCommand {
     LastPlayed,
@@ -30,22 +33,28 @@ class AppContainer(
         AppForegroundTracker(applicationContext as Application)
     }
     private val backgroundWorkPolicy = AppBackgroundWorkPolicy(appForegroundTracker.isForeground)
+    private val appDispatchers = AppDispatchers.production()
     private val appRuntimeScope = AppRuntimeScope()
     private val appScope = appRuntimeScope.scope
     private val portableSettingsBackup = ElovaireTrace.section("portable_settings_restore") {
-        PortableSettingsBackup(applicationContext, ownerScope = appScope).also { it.restore() }
+        PortableSettingsBackup(
+            context = applicationContext,
+            ioDispatcher = appDispatchers.io,
+            ownerScope = appScope,
+        ).also { it.restore() }
     }
 
     private val services = ElovaireTrace.section("app_services_init") {
         AppServices(
             applicationContext = applicationContext,
             appScope = appScope,
+            appDispatchers = appDispatchers,
             backgroundWorkPolicy = backgroundWorkPolicy,
             portableSettingsBackup = portableSettingsBackup,
         )
     }
-    private val bridgeCoordinator = AppBridgeCoordinator(appScope, services)
-    private val dependencies = AppDependencies(services, backgroundWorkPolicy)
+    private val bridgeCoordinator = AppBridgeCoordinator(appScope, services, appDispatchers.io)
+    private val dependencies = AppDependencies(services, backgroundWorkPolicy, appDispatchers)
     val preferenceStore get() = services.preferenceStore
     internal val updateController get() = services.updateController
     internal val artistImageRepository get() = services.artistImageRepository
@@ -54,6 +63,8 @@ class AppContainer(
     val playbackManager get() = services.playbackManager
     val libraryRepository get() = services.libraryRepository
     internal val interactionWorkPolicy get() = backgroundWorkPolicy
+    internal val dispatchers: AppDispatchers get() = appDispatchers
+    internal val playbackResumptionGateway get() = services.playbackResumptionGateway
     internal val rootReadDependencies get() = dependencies.rootReadDependencies
     internal val playbackActionDependencies get() = dependencies.playbackActionDependencies
     internal val libraryActionDependencies get() = dependencies.libraryActionDependencies
@@ -105,6 +116,10 @@ class AppContainer(
 
     internal fun startPlayback() {
         runtimeCoordinator.startPlayback()
+    }
+
+    internal fun launchApplicationWork(block: suspend CoroutineScope.() -> Unit): Job {
+        return appScope.launch(block = block)
     }
 
     fun requestOpenNowPlaying() {

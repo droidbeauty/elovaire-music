@@ -16,6 +16,7 @@ import elovaire.music.droidbeauty.app.core.AppClock
 import java.io.File
 import java.io.Closeable
 import java.util.ArrayDeque
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -32,6 +33,7 @@ internal class LibraryObserverController(
     private val scope: CoroutineScope,
     private val onObservedRefresh: (forceMediaIndex: Boolean, changedFilePath: String?) -> Unit,
     private val clock: AppClock = AndroidAppClock,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val contentResolver = appContext.contentResolver
     private var mediaObserverRegistered = false
@@ -165,7 +167,7 @@ internal class LibraryObserverController(
         val rebuildJob = scope.launch(start = CoroutineStart.LAZY) {
             val currentJob = currentCoroutineContext()[Job] ?: return@launch
             var installed = false
-            val observers = withContext(Dispatchers.IO) {
+            val observers = withContext(ioDispatcher) {
                 val roots = scanner.scanRoots()
                 val rootPaths = roots.map(File::getAbsolutePath)
                 if (!forceRebuild && currentRootPaths == rootPaths) return@withContext null
@@ -173,7 +175,7 @@ internal class LibraryObserverController(
             } ?: return@launch
             try {
                 if (observerRebuildJob !== currentJob || !directoryObserversEnabled) return@launch
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     observers.forEach(RecursiveMusicDirectoryObserver::startWatching)
                 }
                 if (observerRebuildJob !== currentJob || !directoryObserversEnabled) return@launch
@@ -186,7 +188,7 @@ internal class LibraryObserverController(
                 installed = true
             } finally {
                 if (!installed) {
-                    withContext(NonCancellable + Dispatchers.IO) {
+                    withContext(NonCancellable + ioDispatcher) {
                         observers.forEach(RecursiveMusicDirectoryObserver::stopWatching)
                     }
                 }
@@ -219,7 +221,7 @@ internal class LibraryObserverController(
             if (observerRebuildJob !== currentJob) return@launch
             observerRebuildJob = null
             if (libraryFolderObservers.isNotEmpty()) {
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     libraryFolderObservers.forEach(RecursiveMusicDirectoryObserver::rebuildWatchingTree)
                 }
             } else {
@@ -250,7 +252,7 @@ internal class LibraryObserverController(
         return RecursiveMusicDirectoryObserver(
             rootDirectory = rootDirectory,
             onEventReceived = { event, changedFile ->
-                scope.launch(Dispatchers.IO) {
+                scope.launch(ioDispatcher) {
                     handleObservedDirectoryEvent(event, changedFile)
                 }
             },

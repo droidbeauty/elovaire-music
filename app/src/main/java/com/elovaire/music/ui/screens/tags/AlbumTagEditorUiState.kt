@@ -1,11 +1,35 @@
 package elovaire.music.droidbeauty.app.ui.screens.tags
 
+import android.content.IntentSender
 import android.net.Uri
 import androidx.compose.runtime.Immutable
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.EditableAlbumTrack
 import elovaire.music.droidbeauty.app.data.tags.TagFieldEdit
 import elovaire.music.droidbeauty.app.domain.model.Album
+
+internal sealed interface AlbumTagEditorPlatformAction {
+    val operationId: String
+
+    data class RequestWritePermission(
+        override val operationId: String,
+        val request: AlbumTagEditRequest,
+        val uris: List<Uri>,
+    ) : AlbumTagEditorPlatformAction
+
+    data class RequestRecoverableWritePermission(
+        override val operationId: String,
+        val request: AlbumTagEditRequest,
+        val intentSender: IntentSender,
+    ) : AlbumTagEditorPlatformAction
+}
+
+internal sealed interface AlbumTagEditorSaveOutcome {
+    data object Succeeded : AlbumTagEditorSaveOutcome
+    data class PartiallySucceeded(
+        val failures: List<TagEditFailureUi>,
+    ) : AlbumTagEditorSaveOutcome
+}
 
 @Immutable
 internal data class AlbumTagEditorUiState(
@@ -26,6 +50,8 @@ internal data class AlbumTagEditorUiState(
     val validationErrors: List<String> = emptyList(),
     val saveFailures: List<TagEditFailureUi> = emptyList(),
     val statusMessage: String? = null,
+    val platformAction: AlbumTagEditorPlatformAction? = null,
+    val saveOutcome: AlbumTagEditorSaveOutcome? = null,
 )
 
 @Immutable

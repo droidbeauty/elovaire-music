@@ -6,22 +6,39 @@ import android.view.KeyEvent
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaButtonReceiver
+import elovaire.music.droidbeauty.app.ElovaireApp
 import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
-import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
-import elovaire.music.droidbeauty.app.data.library.LibrarySnapshotStore
 import elovaire.music.droidbeauty.app.data.playback.library.ResolvedPlayableQueue
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal data class MediaButtonPlaybackResumption(
     val queue: ResolvedPlayableQueue,
     val persisted: PersistedPlaybackSession,
 )
+
+internal interface PlaybackResumptionGateway {
+    suspend fun resolve(): MediaButtonPlaybackResumption?
+}
+
+internal class DefaultPlaybackResumptionGateway(
+    private val hasAudioReadPermission: () -> Boolean,
+    private val persistedSessionReader: () -> PersistedPlaybackSession?,
+    private val librarySongsReader: () -> List<Song>,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+) : PlaybackResumptionGateway {
+    override suspend fun resolve(): MediaButtonPlaybackResumption? = withContext(ioDispatcher) {
+        if (!hasAudioReadPermission()) return@withContext null
+        resolveMediaButtonResumption(
+            persisted = persistedSessionReader(),
+            songs = librarySongsReader(),
+        )
+    }
+}
 
 private val pendingMediaButtonResumption = AtomicReference<MediaButtonPlaybackResumption?>()
 private val mediaButtonResumptionInFlight = AtomicBoolean()
@@ -71,16 +88,15 @@ class ElovaireMediaButtonReceiver : MediaButtonReceiver() {
         val pendingResult = goAsync()
         val applicationContext = context.applicationContext
         val serviceIntent = Intent(intent)
-        CoroutineScope(Dispatchers.IO).launch {
+        val app = applicationContext as? ElovaireApp
+        if (app == null) {
+            mediaButtonResumptionInFlight.set(false)
+            pendingResult.finish()
+            return
+        }
+        app.container.launchApplicationWork {
             try {
-                val resumption = if (applicationContext.hasAudioReadPermission()) {
-                    resolveMediaButtonResumption(
-                        persisted = PlaybackSessionStore(applicationContext).load(),
-                        songs = LibrarySnapshotStore(applicationContext).load()?.snapshot?.songs.orEmpty(),
-                    )
-                } else {
-                    null
-                }
+                val resumption = app.container.playbackResumptionGateway.resolve()
                 storePendingMediaButtonResumption(resumption)
                 if (resumption != null) {
                     withContext(Dispatchers.Main.immediate) {

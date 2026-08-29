@@ -6,6 +6,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
@@ -22,11 +23,12 @@ internal class DeviceDeleteCoordinator(
     private val playbackManager: PlaybackManager,
     private val preferenceStore: PreferenceStore,
     private val invalidateArtwork: (Collection<Uri?>) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     suspend fun prepareSongDeletePlan(songs: List<Song>): DeviceDeletePlan? {
         val uniqueSongs = songs.distinctBy(Song::id)
         if (uniqueSongs.isEmpty()) return null
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             val filePaths = querySongFilePaths(uniqueSongs)
             DeviceDeletePlan(
                 songs = uniqueSongs,
@@ -65,7 +67,7 @@ internal class DeviceDeleteCoordinator(
     }
 
     private suspend fun cleanupEmptyDirectories(paths: Set<String>) {
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             paths.asSequence()
                 .map(::File)
                 .filter { file -> file.exists() && file.isDirectory }

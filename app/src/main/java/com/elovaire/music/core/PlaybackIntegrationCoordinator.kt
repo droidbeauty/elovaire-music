@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.DisposableHandle
@@ -47,12 +48,15 @@ internal class PlaybackIntegrationCoordinator(
     private val effects: PlaybackEffectsController,
     private val sessionStore: PlaybackSessionStore,
     private val clock: AppClock = AndroidAppClock,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private var restorationAttempted = false
     private var cachedQueue: List<elovaire.music.droidbeauty.app.domain.model.Song>? = null
     private var cachedQueueIds: List<Long> = emptyList()
     private val released = AtomicBoolean(false)
-    private val sessionWriterScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val sessionWriterScope = CoroutineScope(
+        scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]) + ioDispatcher,
+    )
     // Keep the writer alive long enough to drain the final checkpoint during normal release,
     // but cancel it if its owning bridge scope is terminated without calling release.
     private val ownerCompletionHandle: DisposableHandle? =
@@ -196,9 +200,9 @@ internal class PlaybackIntegrationCoordinator(
             return
         }
         restorationAttempted = true
-        val persisted = withContext(Dispatchers.IO) { sessionStore.load() } ?: return
+        val persisted = withContext(ioDispatcher) { sessionStore.load() } ?: return
         if (persisted.queueSongIds.isEmpty()) {
-            withContext(Dispatchers.IO) { sessionStore.clear() }
+            withContext(ioDispatcher) { sessionStore.clear() }
             return
         }
         val songsById = songs.associateBy { it.id }
@@ -208,7 +212,7 @@ internal class PlaybackIntegrationCoordinator(
             // unresolved remote media. Preserve the valid order, or clear an empty queue,
             // and checkpoint only after the decision has been made.
             if (restoredQueue.isEmpty()) {
-                withContext(Dispatchers.IO) { sessionStore.clear() }
+                withContext(ioDispatcher) { sessionStore.clear() }
                 return
             }
         }

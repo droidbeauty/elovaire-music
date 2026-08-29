@@ -17,6 +17,7 @@ import java.security.MessageDigest
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -51,6 +52,7 @@ internal class ArtistImageRepository(
     private val scope: CoroutineScope,
     private val appContext: Context? = null,
     private val clock: AppClock = AndroidAppClock,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : ArtistImageReader {
     private data class CachedImage(
         val uri: Uri?,
@@ -93,7 +95,7 @@ internal class ArtistImageRepository(
                 ),
             )
         }
-    }.flowOn(Dispatchers.IO)
+    }.flowOn(ioDispatcher)
 
     override fun backdropState(
         artistName: String,
@@ -156,7 +158,7 @@ internal class ArtistImageRepository(
             is ResolutionClaim.Await -> return claim.deferred.await()
             ResolutionClaim.Saturated -> return null
             is ResolutionClaim.Owner -> claim.deferred.also { ownerDeferred ->
-                scope.launch(Dispatchers.IO) {
+                scope.launch(ioDispatcher) {
                     try {
                         resolveOwnedRemoteArtwork(artistName, artistKey, ownerDeferred)
                     } catch (failure: IllegalArgumentException) {

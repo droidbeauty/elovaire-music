@@ -53,7 +53,11 @@ internal class MainIntentHandler(
         externalAudioJob?.cancel()
         container.startPlayback()
         val job = activity.lifecycleScope.launch {
-            val song = ExternalAudioIntentHandler.buildSong(activity.applicationContext, request) ?: return@launch
+            val song = ExternalAudioIntentHandler.buildSong(
+                context = activity.applicationContext,
+                intent = request,
+                ioDispatcher = container.dispatchers.io,
+            ) ?: return@launch
             container.playbackManager.playSong(
                 song = song,
                 collection = listOf(song),

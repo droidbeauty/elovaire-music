@@ -18,6 +18,7 @@ import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.withContext
 
 internal object ExternalAudioIntentHandler {
@@ -34,7 +35,8 @@ internal object ExternalAudioIntentHandler {
     suspend fun buildSong(
         context: Context,
         intent: Intent?,
-    ): Song? = withContext(Dispatchers.IO) {
+        ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ): Song? = withContext(ioDispatcher) {
         if (!canHandle(intent)) return@withContext null
         val uri = intent?.data ?: return@withContext null
         if (uri.scheme == ContentResolver.SCHEME_FILE && !uri.isReadableFileAudioInput()) return@withContext null

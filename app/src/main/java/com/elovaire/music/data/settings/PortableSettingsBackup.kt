@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import java.io.Closeable
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,6 +24,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 internal class PortableSettingsBackup(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ownerScope: CoroutineScope? = null,
 ) : SharedPreferences.OnSharedPreferenceChangeListener {
     private val appContext = context.applicationContext
@@ -42,7 +44,7 @@ internal class PortableSettingsBackup(
     private val mirrorScope = CoroutineScope(
         (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
-            Dispatchers.IO,
+            ioDispatcher,
     )
     private val mirrorLock = Any()
     private var mirrorJob: Job? = null

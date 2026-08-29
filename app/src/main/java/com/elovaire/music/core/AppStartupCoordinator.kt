@@ -23,6 +23,7 @@ import elovaire.music.droidbeauty.app.data.update.UpdateController
 import com.google.common.util.concurrent.SettableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -47,6 +48,7 @@ internal class AppStartupCoordinator(
     private val networkInventoryStore: NetworkInventoryStore,
     private val mediaMutationJournal: MediaMutationJournal,
     private val updateControllerProvider: () -> UpdateController,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     internal val durableStartupReady = SettableFuture.create<Unit>()
 
@@ -78,7 +80,7 @@ internal class AppStartupCoordinator(
         if (released.get() || !playbackStarted.compareAndSet(false, true)) return
         if (!durableStartupStarted.compareAndSet(false, true)) return
         startPortableUserDataBackup()
-        optionalScope.launch(Dispatchers.IO) {
+        optionalScope.launch(ioDispatcher) {
             try {
                 val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
                 val pendingSourceIds = networkSourceMutationJournal.pending()
@@ -167,9 +169,9 @@ internal class AppStartupCoordinator(
                     !state.scan.permissionGranted
                 ) return@collect
                 if (!restoreChecked) {
-                    val encoded = withContext(Dispatchers.IO) { portableUserDataBackup.readBytes() }
+                    val encoded = withContext(ioDispatcher) { portableUserDataBackup.readBytes() }
                     val backupContainsSongReferences = encoded?.let {
-                        withContext(Dispatchers.IO) { it.containsPortableSongReferences() }
+                        withContext(ioDispatcher) { it.containsPortableSongReferences() }
                     } == true
                     if (encoded != null && state.songs.isEmpty() && backupContainsSongReferences) {
                         return@collect
@@ -187,7 +189,7 @@ internal class AppStartupCoordinator(
                 }
                 if (state.songs.isEmpty() && state.snapshot.hasPortableSongReferences()) return@collect
                 try {
-                    withContext(Dispatchers.IO) {
+                    withContext(ioDispatcher) {
                         portableUserDataBackup.write(state.snapshot, state.songs)
                     }
                 } catch (cancelled: CancellationException) {

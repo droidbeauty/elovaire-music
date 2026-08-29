@@ -2,11 +2,24 @@ package elovaire.music.droidbeauty.app.core
 
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
+import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtworkCache
+import elovaire.music.droidbeauty.app.data.tags.AlbumTagArtworkInvalidator
+import elovaire.music.droidbeauty.app.data.tags.AlbumTagMutationCoordinator
+import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 
 internal class AppDependencies(
     services: AppServices,
     backgroundWorkPolicy: AppBackgroundWorkPolicy,
+    appDispatchers: AppDispatchers,
 ) {
+    private val albumTagMutationCoordinator = AlbumTagMutationCoordinator(
+        editor = services.albumTagEditorService,
+        artworkInvalidator = AlbumTagArtworkInvalidator { uris ->
+            invalidateArtworkCaches(uris)
+            invalidateNotificationArtworkCache(uris)
+        },
+    )
+
     val rootReadDependencies: RootReadDependencies = object : RootReadDependencies {
         override val libraryReader get() = services.libraryRepository
         override val rootSettingsReader get() = services.preferenceStore
@@ -37,6 +50,7 @@ internal class AppDependencies(
         override val favoritesStore get() = services.preferenceStore
     }
     val viewModelDependencies: ElovaireViewModelDependencies = object : ElovaireViewModelDependencies {
+        override val dispatchers = appDispatchers
         override val root: RootViewModelDependencies = object : RootViewModelDependencies {
             override val libraryReader get() = services.libraryRepository
             override val rootSettingsReader get() = services.preferenceStore
@@ -60,7 +74,7 @@ internal class AppDependencies(
             object : AlbumTagEditorViewModelDependencies {
                 override val libraryReader get() = services.libraryRepository
                 override val libraryTagUpdates get() = services.libraryRepository
-                override val editor get() = services.albumTagEditorService
+                override val editor get() = albumTagMutationCoordinator
             }
     }
 }

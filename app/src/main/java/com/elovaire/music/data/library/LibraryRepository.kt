@@ -25,6 +25,7 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -98,6 +99,8 @@ class LibraryRepository internal constructor(
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val libraryIndexStore: LibraryIndexStore? = null,
     private val onSongRelocations: suspend (Map<Long, Long>) -> Boolean = { true },
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : LibraryReader, LibraryTagUpdateWriter {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
@@ -143,6 +146,7 @@ class LibraryRepository internal constructor(
         scope = scope,
         onObservedRefresh = ::scheduleMediaRefresh,
         clock = clock,
+        ioDispatcher = ioDispatcher,
     )
 
     fun start() {
@@ -236,7 +240,7 @@ class LibraryRepository internal constructor(
         _runtimeState.value = LibraryRuntimeState.Bootstrapping(bootstrapPermissionVersion)
         bootstrapJob = scope.launch {
             try {
-                val cachedSnapshot = withContext(Dispatchers.IO) {
+                val cachedSnapshot = withContext(ioDispatcher) {
                     ElovaireTrace.section("library_snapshot_load") { snapshotStore.load() }
                 }
                 if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
@@ -266,8 +270,8 @@ class LibraryRepository internal constructor(
                     if (_scanState.value != cachedScanState) {
                         _scanState.value = cachedScanState
                     }
-                    val currentSyncState = withContext(Dispatchers.IO) { scanner.currentSyncState() }
-                    val networkSourceNeedsRefresh = withContext(Dispatchers.IO) {
+                    val currentSyncState = withContext(ioDispatcher) { scanner.currentSyncState() }
+                    val networkSourceNeedsRefresh = withContext(ioDispatcher) {
                         scanner.networkSourceNeedsRefresh()
                     }
                     if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
@@ -473,7 +477,7 @@ class LibraryRepository internal constructor(
             _scanState.value = nextScanState
         }
         if (scanResult.isComplete) {
-            withContext(Dispatchers.IO) {
+            withContext(ioDispatcher) {
                 ElovaireTrace.section("library_snapshot_persist") {
                     snapshotStore.save(
                         snapshot = prepared.snapshot,
@@ -536,7 +540,7 @@ class LibraryRepository internal constructor(
         var suppressedSongIds = deletionMarkers.suppressingSongIds()
         var visibleSongs = songs.filterNot { it.id in suppressedSongIds }
         var preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content") {
-            withContext(Dispatchers.Default) {
+            withContext(defaultDispatcher) {
                 snapshotPublisher.prepareSongs(visibleSongs)
             }
         }
@@ -545,7 +549,7 @@ class LibraryRepository internal constructor(
             suppressedSongIds = latestSuppressedSongIds
             visibleSongs = songs.filterNot { it.id in suppressedSongIds }
             preparedSnapshot = ElovaireTrace.suspendSection("library_prepare_content_refresh") {
-                withContext(Dispatchers.Default) {
+                withContext(defaultDispatcher) {
                     snapshotPublisher.prepareSongs(visibleSongs)
                 }
             }
@@ -582,7 +586,7 @@ class LibraryRepository internal constructor(
         showLoadingIndicator: Boolean,
         permissionVersion: Long,
         progressThrottler: LibraryScanProgressThrottler,
-    ): CoordinatedLibraryScan = withContext(Dispatchers.IO) {
+    ): CoordinatedLibraryScan = withContext(ioDispatcher) {
         val existingSnapshot = snapshotPublisher.snapshotOf(_contentState.value)
         ElovaireTrace.suspendSection("library_refresh_scan") {
             scanner.scanWithStatus(
@@ -725,7 +729,7 @@ class LibraryRepository internal constructor(
         val remainingSongs = _contentState.value.songs.filterNot { it.id in request.songIds }
         val publication = publishLibraryContent(remainingSongs)
         val updatedState = publication.state
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
             snapshotStore.save(
                 snapshot = updatedSnapshot,
@@ -740,7 +744,7 @@ class LibraryRepository internal constructor(
         invalidateArtworkBitmapCache(publication.changeSet.artworkInvalidatedUris)
 
         var remainingTargets = request.uriBySongId
-        var stillPresent = withContext(Dispatchers.IO) {
+        var stillPresent = withContext(ioDispatcher) {
             if (remainingTargets.isNotEmpty()) {
                 scanner.targetExistenceProbe.findExistingSongIds(remainingTargets)
             } else {
@@ -751,7 +755,7 @@ class LibraryRepository internal constructor(
         while (stillPresent.isNotEmpty() && pollCount < DELETE_CONFIRMATION_MAX_POLLS) {
             pollCount += 1
             delay(DELETE_CONFIRMATION_POLL_MS)
-            stillPresent = withContext(Dispatchers.IO) {
+            stillPresent = withContext(ioDispatcher) {
                 if (remainingTargets.isNotEmpty()) {
                     remainingTargets = remainingTargets.filterKeys { it in stillPresent }
                     scanner.targetExistenceProbe.findExistingSongIds(remainingTargets)
@@ -809,7 +813,7 @@ class LibraryRepository internal constructor(
         )
         val changeSet = snapshotPublisher.takeLastPatchChangeSet()
         if (changeSet.isEmpty) return
-        withContext(Dispatchers.IO) {
+        withContext(ioDispatcher) {
             val updatedSnapshot = snapshotPublisher.snapshotOf(updatedState)
             snapshotStore.save(
                 snapshot = updatedSnapshot,

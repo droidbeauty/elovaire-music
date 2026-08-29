@@ -220,6 +220,7 @@ internal fun rememberRootDeleteController(
             playbackManager = container.playbackManager,
             preferenceStore = container.preferenceStore,
             invalidateArtwork = ::invalidateArtworkCaches,
+            ioDispatcher = container.dispatchers.io,
         )
     }
     var pendingSongDeletion by remember { mutableStateOf<DeviceDeletePlan?>(null) }

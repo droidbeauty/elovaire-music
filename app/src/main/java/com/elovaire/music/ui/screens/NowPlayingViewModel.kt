@@ -24,7 +24,6 @@ import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.data.settings.NowPlayingSettingsStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +34,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
@@ -229,7 +227,7 @@ internal class NowPlayingViewModel(
                     logLyrics("local song=${request.song.id} state=${state::class.simpleName}")
                     emit(state)
                 }
-            }.flowOn(Dispatchers.IO)
+            }
         }
         .distinctUntilChanged()
         .stateIn(

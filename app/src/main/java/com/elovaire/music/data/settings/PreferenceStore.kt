@@ -20,6 +20,7 @@ import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskWrites
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -35,6 +36,7 @@ import kotlin.coroutines.EmptyCoroutineContext
 class PreferenceStore internal constructor(
     context: Context,
     private val userDataStore: RoomUserDataStore,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ownerScope: CoroutineScope? = null,
 ) :
     RootSettingsReader,
@@ -55,7 +57,7 @@ class PreferenceStore internal constructor(
     private val preferenceScope = CoroutineScope(
         (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
-            Dispatchers.IO,
+            ioDispatcher,
     )
     private var eqPersistJob: Job? = null
     private var pendingEqSettings: EqSettings? = null

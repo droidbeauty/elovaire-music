@@ -56,6 +56,7 @@ internal interface AlbumTagEditorViewModelDependencies {
 }
 
 internal interface ElovaireViewModelDependencies {
+    val dispatchers: AppDispatchers
     val root: RootViewModelDependencies
     val search: SearchViewModelDependencies
     val nowPlaying: NowPlayingViewModelDependencies

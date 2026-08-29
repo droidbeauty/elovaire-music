@@ -47,6 +47,10 @@ class TestUri(
 
     override fun toString(): String = value
 
+    override fun equals(other: Any?): Boolean = other is TestUri && other.value == value
+
+    override fun hashCode(): Int = value.hashCode()
+
     override fun writeToParcel(parcel: Parcel, flags: Int) = Unit
 
     override fun describeContents(): Int = 0

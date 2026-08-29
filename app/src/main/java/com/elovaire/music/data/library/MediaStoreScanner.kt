@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
@@ -22,6 +23,7 @@ import kotlinx.coroutines.ensureActive
 internal class MediaStoreScanner(
     private val context: Context,
     indexRefresher: MediaStoreIndexRefresher? = null,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val metadataCache = ScannerMetadataCache()
     private val audioFormatDetector = AudioFormatDetector(context)
@@ -102,7 +104,7 @@ internal class MediaStoreScanner(
         val indexRefreshJob: Deferred<MediaStoreIndexRefreshResult?>? = when {
             refreshMediaIndex -> {
                 val scanContext = currentCoroutineContext()
-                CoroutineScope(scanContext + Dispatchers.IO).async {
+                CoroutineScope(scanContext + ioDispatcher).async {
                     try {
                         ElovaireTrace.section("library_media_index_refresh") {
                             refreshMediaIndex {
@@ -119,7 +121,7 @@ internal class MediaStoreScanner(
             }
             refreshMediaPaths.isNotEmpty() -> {
                 val scanContext = currentCoroutineContext()
-                CoroutineScope(scanContext + Dispatchers.IO).async {
+                CoroutineScope(scanContext + ioDispatcher).async {
                     try {
                         ElovaireTrace.section("library_media_index_refresh_paths") {
                             refreshMediaIndex(refreshMediaPaths) {

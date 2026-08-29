@@ -16,6 +16,7 @@ import java.io.IOException
 import java.security.MessageDigest
 import java.util.Locale
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
@@ -33,6 +34,7 @@ internal class NetworkLibraryScanner(
     private val inventory: NetworkInventoryStore,
     private val onAvailabilityChanged: (String, NetworkProbeResult) -> Unit = { _, _ -> },
     private val clock: AppClock = AndroidAppClock,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val artworkCache = NetworkArtworkCache(context)
     private val metadataReader = NetworkMetadataReader(registry)
@@ -47,7 +49,7 @@ internal class NetworkLibraryScanner(
         sources: List<NetworkLibrarySource>,
         forceRefresh: Boolean = false,
         enrichMetadata: Boolean = true,
-    ): NetworkLibraryScanResult = withContext(Dispatchers.IO) {
+    ): NetworkLibraryScanResult = withContext(ioDispatcher) {
         val networkScan = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkScan)
         val networkRead = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkRead)
         try {

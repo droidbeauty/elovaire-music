@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
@@ -21,6 +22,7 @@ import elovaire.music.droidbeauty.app.domain.search.playbackSourceLabel
 import elovaire.music.droidbeauty.app.domain.search.sanitizeSearchHistory
 import elovaire.music.droidbeauty.app.domain.search.toSearchIndex
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -90,8 +92,19 @@ internal class SearchViewModel(
     libraryRepository: LibraryReader,
     private val preferenceStore: SearchSettingsStore,
     playbackReader: PlaybackReader,
+    private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val savedStateHandle: SavedStateHandle = SavedStateHandle(),
 ) : ViewModel() {
-    private val searchUiConfig = MutableStateFlow(SearchInteractionConfig())
+    private val searchUiConfig = MutableStateFlow(
+        SearchInteractionConfig(
+            query = savedStateHandle.get<String>(KEY_QUERY).orEmpty(),
+            showAllSongs = savedStateHandle[KEY_SHOW_ALL_SONGS] ?: false,
+            sortMode = savedStateHandle.get<String>(KEY_SORT_MODE)
+                ?.let { saved -> SearchSongSortMode.entries.firstOrNull { it.name == saved } }
+                ?: SearchSongSortMode.Title,
+            showSortOptions = savedStateHandle[KEY_SHOW_SORT_OPTIONS] ?: false,
+        ).normalized(),
+    )
 
     private val searchIndex = libraryRepository.contentState
         .map { content ->
@@ -104,7 +117,7 @@ internal class SearchViewModel(
         .map { snapshot -> snapshot to snapshot.signature() }
         .distinctUntilChangedBy { (_, revision) -> revision }
         .map { (snapshot, revision) -> snapshot.toSearchIndex(revision) }
-        .flowOn(Dispatchers.Default)
+        .flowOn(defaultDispatcher)
         .shareIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
@@ -121,7 +134,7 @@ internal class SearchViewModel(
             }
             emit(token)
         }
-        .flowOn(Dispatchers.Default)
+        .flowOn(defaultDispatcher)
 
     private val uiConfigWithIndex = combine(searchUiConfig, searchIndex) { config, index ->
         SearchUiConfigWithIndex(config = config, indexRevision = index.revision)
@@ -172,7 +185,7 @@ internal class SearchViewModel(
             }
         }
         .distinctUntilChanged()
-        .flowOn(Dispatchers.Default)
+        .flowOn(defaultDispatcher)
 
     private val playbackSnapshot = combine(
         playbackReader.nowPlayingState,
@@ -202,7 +215,7 @@ internal class SearchViewModel(
         }
     }
         .distinctUntilChanged()
-        .flowOn(Dispatchers.Default)
+        .flowOn(defaultDispatcher)
 
     private val recentSearches = combine(
         preferenceStore.searchHistory,
@@ -214,7 +227,7 @@ internal class SearchViewModel(
         )
     }
         .distinctUntilChanged()
-        .flowOn(Dispatchers.Default)
+        .flowOn(defaultDispatcher)
 
     val uiState: StateFlow<SearchUiState> = combine(
         uiConfigWithIndex,
@@ -343,11 +356,23 @@ internal class SearchViewModel(
         )
 
         const val SEARCH_QUERY_DEBOUNCE_MS = 150L
+        const val KEY_QUERY = "search.query"
+        const val KEY_SHOW_ALL_SONGS = "search.show_all_songs"
+        const val KEY_SORT_MODE = "search.sort_mode"
+        const val KEY_SHOW_SORT_OPTIONS = "search.show_sort_options"
     }
 
     private fun updateConfig(transform: (SearchInteractionConfig) -> SearchInteractionConfig) {
-        searchUiConfig.update { current -> transform(current).normalized() }
+        searchUiConfig.update { current ->
+            transform(current).normalized().also { next ->
+                savedStateHandle[KEY_QUERY] = next.query
+                savedStateHandle[KEY_SHOW_ALL_SONGS] = next.showAllSongs
+                savedStateHandle[KEY_SORT_MODE] = next.sortMode.name
+                savedStateHandle[KEY_SHOW_SORT_OPTIONS] = next.showSortOptions
+            }
+        }
     }
+
 }
 
 private fun SearchSongSortMode.toSearchSortMode(): SearchSortMode {
