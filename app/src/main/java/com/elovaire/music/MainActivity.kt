@@ -1,12 +1,14 @@
 package elovaire.music.droidbeauty.app
 
 import android.content.Intent
+import android.content.pm.ActivityInfo
 import android.content.pm.ShortcutManager
 import android.media.AudioManager
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import elovaire.music.droidbeauty.app.core.shouldLockPhoneOrientation
 import elovaire.music.droidbeauty.app.core.performance.ElovaireJankMonitor
 
 class MainActivity : ComponentActivity() {
@@ -15,6 +17,9 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (shouldLockPhoneOrientation(resources.configuration.smallestScreenWidthDp)) {
+            requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
         enableEdgeToEdge()
         if (BuildConfig.DEBUG) {
             jankMonitor = runCatching { ElovaireJankMonitor.start(window) }.getOrNull()

@@ -65,9 +65,13 @@ internal class LibraryScanCoordinator(
     fun invalidateMetadataCacheForSongIds(songIds: Collection<Long>) = localScanner.invalidateMetadataCacheForSongIds(songIds)
 
     internal suspend fun networkSourceNeedsRefresh(): Boolean {
+        return staleNetworkSourceIds().isNotEmpty()
+    }
+
+    internal suspend fun staleNetworkSourceIds(): Set<String> {
         val sources = networkSources.filter { it.enabled && it.id !in blockedNetworkSourceIds }
-        if (sources.isEmpty()) return false
-        return networkScannerProvider().needsRefresh(sources, clock.wallTimeMs())
+        if (sources.isEmpty()) return emptySet()
+        return networkScannerProvider().staleSourceIds(sources, clock.wallTimeMs())
     }
 
     fun blockNetworkSources(sourceIds: Set<String>) {

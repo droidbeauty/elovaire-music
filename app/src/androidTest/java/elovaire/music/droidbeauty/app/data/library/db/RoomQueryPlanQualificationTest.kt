@@ -4,7 +4,10 @@ import androidx.room.Room
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import android.net.Uri
+import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertEquals
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -15,6 +18,7 @@ import org.junit.runner.RunWith
 class RoomQueryPlanQualificationTest {
     private lateinit var database: ElovaireDatabase
     private lateinit var dao: UserDataDao
+    private lateinit var libraryDao: LibraryDao
 
     @Before
     fun setUp() {
@@ -23,6 +27,7 @@ class RoomQueryPlanQualificationTest {
             ElovaireDatabase::class.java,
         ).build()
         dao = database.userDataDao()
+        libraryDao = database.libraryDao()
     }
 
     @After
@@ -50,6 +55,64 @@ class RoomQueryPlanQualificationTest {
                 "WHERE sourceId = 'qualification' AND lastSeenGeneration = 1",
         )
     }
+
+    @Test
+    fun fullGenerationRetiresDerivedMediaFilesAtomically() = runBlocking {
+        val first = LibraryDatabaseMapper.mediaFileEntity(song(1L), generationId = 1L, scannedAtMs = 1L)
+        val second = LibraryDatabaseMapper.mediaFileEntity(song(2L), generationId = 1L, scannedAtMs = 1L)
+        libraryDao.replaceGeneration(
+            generation = generation(1L),
+            songs = emptyList(),
+            albums = emptyList(),
+            files = listOf(first, second),
+            removedAtMs = 1L,
+        )
+
+        libraryDao.replaceGeneration(
+            generation = generation(2L),
+            songs = emptyList(),
+            albums = emptyList(),
+            files = listOf(first.copy(lastSeenGenerationId = 2L)),
+            removedAtMs = 2L,
+        )
+
+        database.query(SimpleSQLiteQuery("SELECT stableFileKey FROM media_files ORDER BY stableFileKey")).use { cursor ->
+            val keys = buildList {
+                while (cursor.moveToNext()) add(cursor.getString(0))
+            }
+            assertEquals(listOf(first.stableFileKey), keys)
+        }
+    }
+
+    private fun generation(id: Long) = LibraryScanGenerationEntity(
+        generationId = id,
+        startedAtMs = id,
+        finishedAtMs = id,
+        source = "test",
+        filterFingerprint = "test",
+        status = "Completed",
+        error = null,
+    )
+
+    private fun song(id: Long) = Song(
+        id = id,
+        title = "Song $id",
+        isExplicit = false,
+        artist = "Artist",
+        album = "Album",
+        releaseYear = null,
+        genre = "",
+        audioFormat = "WAV",
+        audioQuality = null,
+        fileName = "song$id.wav",
+        albumId = 1L,
+        durationMs = 1_000L,
+        trackNumber = 1,
+        discNumber = 1,
+        dateAddedSeconds = 1L,
+        uri = Uri.parse("content://media/$id"),
+        artUri = null,
+    )
 
     private fun assertIndexed(sql: String) {
         val details = database.query(SimpleSQLiteQuery("EXPLAIN QUERY PLAN $sql")).use { cursor ->

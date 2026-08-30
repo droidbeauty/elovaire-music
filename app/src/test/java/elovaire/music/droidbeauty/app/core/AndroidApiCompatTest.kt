@@ -63,4 +63,10 @@ class AndroidApiCompatTest {
         assertTrue(AndroidCapabilities.requiresLocalNetworkPermission(37))
         assertEquals("android.permission.ACCESS_LOCAL_NETWORK", AndroidCapabilities.LOCAL_NETWORK_PERMISSION)
     }
+
+    @Test
+    fun phoneOrientationPolicyDoesNotRestrictLargeScreens() {
+        assertTrue(shouldLockPhoneOrientation(599))
+        assertFalse(shouldLockPhoneOrientation(600))
+    }
 }

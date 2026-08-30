@@ -122,6 +122,8 @@ class LibraryRepository internal constructor(
     private var permissionChangeVersion = 0L
     private var didBootstrapLibrary = false
     private var needsForegroundReconcile = false
+    @Volatile
+    private var lastSuccessfulMediaStoreSyncState: LibraryMediaStoreSyncState? = null
     override val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     override val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
     val state: StateFlow<LibraryUiState> = combine(contentState, scanState) { content, scan ->
@@ -192,12 +194,21 @@ class LibraryRepository internal constructor(
                     needsForegroundReconcile &&
                     _scanState.value.permissionGranted
                 ) {
-                    needsForegroundReconcile = false
-                    refresh(
-                        forceMediaIndex = false,
-                        enrichMetadata = false,
-                        showLoadingIndicator = false,
-                    )
+                    if (scanJob?.isActive != true) {
+                        val reconcileRequest = withContext(ioDispatcher) {
+                            decideForegroundReconcile(
+                                cached = lastSuccessfulMediaStoreSyncState,
+                                current = scanner.currentSyncState(),
+                                cachedSongCount = _contentState.value.songs.size,
+                                hasSafSelections = scanner.hasSafSelections(),
+                                staleNetworkSourceIds = scanner.staleNetworkSourceIds(),
+                            )
+                        }
+                        needsForegroundReconcile = false
+                        reconcileRequest?.let { request ->
+                            startRefresh(request, showLoadingIndicator = false)
+                        }
+                    }
                 }
             }
         }
@@ -275,6 +286,7 @@ class LibraryRepository internal constructor(
                         scanner.networkSourceNeedsRefresh()
                     }
                     if (!hasCurrentPermission(bootstrapPermissionVersion)) return@launch
+                    lastSuccessfulMediaStoreSyncState = cachedSnapshot.syncState
                     val syncDecision = decideLibrarySyncAtStartup(
                         cached = cachedSnapshot.syncState,
                         current = currentSyncState,
@@ -478,11 +490,12 @@ class LibraryRepository internal constructor(
         }
         if (scanResult.isComplete) {
             withContext(ioDispatcher) {
+                val syncState = scanner.currentSyncState()
                 ElovaireTrace.section("library_snapshot_persist") {
                     snapshotStore.save(
                         snapshot = prepared.snapshot,
                         filterFingerprint = scanner.currentFilterFingerprint(),
-                        syncState = scanner.currentSyncState(),
+                        syncState = syncState,
                     )
                 }
                 ElovaireTrace.section("library_room_index_commit") {
@@ -493,6 +506,7 @@ class LibraryRepository internal constructor(
                             prepared.changeSet.added.size == prepared.snapshot.songs.size,
                     )
                 }
+                lastSuccessfulMediaStoreSyncState = syncState
             }
         }
         invalidateArtworkBitmapCache(prepared.changeSet.artworkInvalidatedUris)

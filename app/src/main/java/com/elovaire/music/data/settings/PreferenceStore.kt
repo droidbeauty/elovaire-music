@@ -1,9 +1,11 @@
 package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
-import android.content.SharedPreferences
 import android.net.Uri
-import androidx.core.content.edit
+import android.util.Log
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
@@ -19,9 +21,10 @@ import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
-import elovaire.music.droidbeauty.app.core.allowStrictModeDiskWrites
+import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -31,6 +34,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.EmptyCoroutineContext
 
 class PreferenceStore internal constructor(
@@ -49,11 +53,8 @@ class PreferenceStore internal constructor(
     PlaylistStore by userDataStore,
     FavoritesStore by userDataStore {
     private val appContext = context.applicationContext
-    private val preferences = allowStrictModeDiskWrites {
-        // SharedPreferences may create its private directory during first startup.
-        // Initial settings must be available synchronously before the first UI state is published.
-        PreferenceStorage(appContext).preferences.also { it.all }
-    }
+    private val settingsDataStore: DataStore<Preferences> = appContext.elovaireSettingsDataStore()
+    private val preferences = readInitialSettings(settingsDataStore, ioDispatcher)
     private val preferenceScope = CoroutineScope(
         (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
@@ -64,6 +65,7 @@ class PreferenceStore internal constructor(
     private var crossfadePersistJob: Job? = null
     private var pendingCrossfadeDurationMs: Long? = null
     private var pendingCrossfadeSilenceThresholdDb: Float? = null
+    private var settingsWriteJob: Job? = null
 
 
     private val _themeMode = MutableStateFlow(loadThemeMode())
@@ -304,7 +306,7 @@ class PreferenceStore internal constructor(
     override fun setAlbumCollectionLayoutMode(mode: String) {
         val normalizedMode = mode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE }
         if (_albumCollectionLayoutMode.value == normalizedMode) return
-        preferences.edit {
+        enqueueSettingsEdit {
             putString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, normalizedMode)
             putBoolean(KEY_ALBUM_COLLECTION_LAYOUT_MODE_USER_SELECTED, true)
         }
@@ -320,7 +322,7 @@ class PreferenceStore internal constructor(
     override fun setAlbumCollectionSortMode(sortMode: String) {
         val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_ALBUM_COLLECTION_SORT_MODE }
         if (_albumCollectionSortMode.value == normalizedSortMode) return
-        preferences.edit {
+        enqueueSettingsEdit {
             putString(KEY_ALBUM_COLLECTION_SORT_MODE, normalizedSortMode)
         }
         _albumCollectionSortMode.value = normalizedSortMode
@@ -329,7 +331,7 @@ class PreferenceStore internal constructor(
     override fun setSongCollectionSortMode(sortMode: String) {
         val normalizedSortMode = sortMode.trim().ifBlank { DEFAULT_SONG_COLLECTION_SORT_MODE }
         if (_songCollectionSortMode.value == normalizedSortMode) return
-        preferences.edit {
+        enqueueSettingsEdit {
             putString(KEY_SONG_COLLECTION_SORT_MODE, normalizedSortMode)
         }
         _songCollectionSortMode.value = normalizedSortMode
@@ -353,7 +355,7 @@ class PreferenceStore internal constructor(
     override fun setLibraryFolders(selections: List<LibraryFolderSelection>) {
         val normalized = LibraryFolderSelectionResolver.normalize(selections)
         if (_libraryFolders.value == normalized) return
-        preferences.edit {
+        enqueueSettingsEdit {
             putString(
                 KEY_LIBRARY_FOLDERS,
                 normalized.joinToString(PreferenceCollectionCodec.RECORD_SEPARATOR) {
@@ -370,8 +372,15 @@ class PreferenceStore internal constructor(
     }
 
     fun release(onUserDataDrained: () -> Unit = {}) {
-        flushEqSettingsPersistence(commit = true)
-        flushCrossfadePersistence(commit = true)
+        eqPersistJob?.cancel()
+        eqPersistJob = null
+        crossfadePersistJob?.cancel()
+        crossfadePersistJob = null
+        runBlocking(ioDispatcher) {
+            flushEqSettingsPersistence()
+            flushCrossfadePersistence()
+            settingsWriteJob?.join()
+        }
         userDataStore.release(onUserDataDrained)
         preferenceScope.cancel()
     }
@@ -385,8 +394,10 @@ class PreferenceStore internal constructor(
         if (_eqSettings.value == normalizedSettings && pendingEqSettings == null) return
         _eqSettings.value = normalizedSettings
         if (immediate) {
-            flushEqSettingsPersistence(commit = false)
-            writeEqSettings(normalizedSettings, commit = false)
+            eqPersistJob?.cancel()
+            eqPersistJob = null
+            pendingEqSettings = null
+            enqueueSettingsWrite { writeEqSettings(normalizedSettings) }
         } else {
             pendingEqSettings = normalizedSettings
             scheduleEqSettingsPersistence()
@@ -397,23 +408,19 @@ class PreferenceStore internal constructor(
         eqPersistJob?.cancel()
         eqPersistJob = preferenceScope.launch {
             delay(EQ_SETTINGS_PERSIST_DEBOUNCE_MS)
-            flushEqSettingsPersistence(commit = false)
+            flushEqSettingsPersistence()
         }
     }
 
-    private fun flushEqSettingsPersistence(commit: Boolean) {
-        eqPersistJob?.cancel()
+    private suspend fun flushEqSettingsPersistence() {
         eqPersistJob = null
         val settings = pendingEqSettings ?: return
         pendingEqSettings = null
-        writeEqSettings(settings, commit = commit)
+        persistSettings("equalizer") { writeEqSettings(settings) }
     }
 
-    private fun writeEqSettings(
-        settings: EqSettings,
-        commit: Boolean,
-    ) {
-        preferences.edit(commit = commit) {
+    private suspend fun writeEqSettings(settings: EqSettings) {
+        settingsDataStore.editSettings {
             putString(KEY_BANDS, settings.bands.joinToString(","))
             putFloat(KEY_BASS, settings.bass)
             putFloat(KEY_MIDRANGE, settings.midrange)
@@ -430,34 +437,64 @@ class PreferenceStore internal constructor(
         crossfadePersistJob?.cancel()
         crossfadePersistJob = preferenceScope.launch {
             delay(CROSSFADE_SETTINGS_PERSIST_DEBOUNCE_MS)
-            flushCrossfadePersistence(commit = false)
+            flushCrossfadePersistence()
         }
     }
 
-    private fun flushCrossfadePersistence(commit: Boolean) {
-        crossfadePersistJob?.cancel()
+    private suspend fun flushCrossfadePersistence() {
         crossfadePersistJob = null
         val durationMs = pendingCrossfadeDurationMs
         val thresholdDb = pendingCrossfadeSilenceThresholdDb
         if (durationMs == null && thresholdDb == null) return
         pendingCrossfadeDurationMs = null
         pendingCrossfadeSilenceThresholdDb = null
-        preferences.edit(commit = commit) {
-            durationMs?.let { putLong(KEY_CROSSFADE_DURATION_MS, it) }
-            thresholdDb?.let { putFloat(KEY_CROSSFADE_SILENCE_THRESHOLD_DB, it) }
+        persistSettings("crossfade") {
+            settingsDataStore.editSettings {
+                durationMs?.let { putLong(KEY_CROSSFADE_DURATION_MS, it) }
+                thresholdDb?.let { putFloat(KEY_CROSSFADE_SILENCE_THRESHOLD_DB, it) }
+            }
         }
     }
 
     private inline fun <T> updateStateAndPreference(
         state: MutableStateFlow<T>,
         value: T,
-        crossinline write: SharedPreferences.Editor.() -> Unit,
+        crossinline write: MutablePreferences.() -> Unit,
     ) {
         if (state.value == value) return
-        preferences.edit {
-            write()
+        enqueueSettingsWrite {
+            settingsDataStore.editSettings { write() }
         }
         state.value = value
+    }
+
+    private fun enqueueSettingsEdit(write: MutablePreferences.() -> Unit) {
+        enqueueSettingsWrite {
+            settingsDataStore.editSettings { write() }
+        }
+    }
+
+    private fun enqueueSettingsWrite(write: suspend () -> Unit) {
+        val previous = settingsWriteJob
+        settingsWriteJob = preferenceScope.launch {
+            previous?.join()
+            persistSettings("settings", write)
+        }
+    }
+
+    private suspend fun persistSettings(
+        kind: String,
+        write: suspend () -> Unit,
+    ) {
+        try {
+            write()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: IOException) {
+            Log.w(TAG, "Unable to persist $kind settings.", failure)
+        } catch (failure: IllegalStateException) {
+            Log.w(TAG, "Unable to persist $kind settings.", failure)
+        }
     }
 
     private fun loadThemeMode(): ThemeMode {
@@ -552,7 +589,7 @@ class PreferenceStore internal constructor(
             preferences.getBoolean(KEY_GAPLESS_PLAYBACK_ENABLED, false)
         }
         if (preferences.contains(KEY_GAPLESS_PLAYBACK_ENABLED)) {
-            preferences.edit {
+            enqueueSettingsEdit {
                 putBoolean(KEY_CROSSFADE_ENABLED, enabled)
                 remove(KEY_GAPLESS_PLAYBACK_ENABLED)
             }
@@ -597,7 +634,7 @@ class PreferenceStore internal constructor(
                 savedMode.equals("DenseGrid", ignoreCase = true) &&
                 !preferences.getBoolean(KEY_ALBUM_COLLECTION_LAYOUT_MODE_USER_SELECTED, false)
             ) {
-                preferences.edit {
+                enqueueSettingsEdit {
                     putString(KEY_ALBUM_COLLECTION_LAYOUT_MODE, DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE)
                 }
                 return DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE
@@ -657,7 +694,7 @@ class PreferenceStore internal constructor(
             LibraryFolderSelectionResolver.defaultMusicFolder()
         }
         val normalized = LibraryFolderSelectionResolver.normalize(listOf(migrated))
-        preferences.edit {
+        enqueueSettingsEdit {
             putString(
                 KEY_LIBRARY_FOLDERS,
                 normalized.joinToString(PreferenceCollectionCodec.RECORD_SEPARATOR) {
@@ -704,6 +741,7 @@ class PreferenceStore internal constructor(
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"
         const val EQ_SETTINGS_PERSIST_DEBOUNCE_MS = 120L
+        const val TAG = "PreferenceStore"
     }
 }
 

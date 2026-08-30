@@ -128,7 +128,20 @@ internal class NetworkLibraryScanner(
     }
 
     suspend fun needsRefresh(sources: List<NetworkLibrarySource>, nowMs: Long): Boolean {
-        return sources.any { it.enabled && !inventory.hasFreshListing(it, nowMs) }
+        return staleSourceIds(sources, nowMs).isNotEmpty()
+    }
+
+    suspend fun staleSourceIds(
+        sources: List<NetworkLibrarySource>,
+        nowMs: Long,
+    ): Set<String> {
+        val stale = linkedSetOf<String>()
+        for (source in sources) {
+            if (source.enabled && !inventory.hasFreshListing(source, nowMs)) {
+                stale += source.id
+            }
+        }
+        return stale
     }
 
     private suspend fun scanSource(

@@ -1,14 +1,20 @@
 package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
-import android.content.SharedPreferences
-import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.booleanPreferencesKey
+import androidx.datastore.preferences.core.floatPreferencesKey
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.core.stringSetPreferencesKey
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
-import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
-import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
-import java.io.Closeable
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineDispatcher
@@ -17,22 +23,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.FlowPreview
 import kotlin.coroutines.EmptyCoroutineContext
 
+@OptIn(FlowPreview::class)
 internal class PortableSettingsBackup(
     context: Context,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     ownerScope: CoroutineScope? = null,
-) : SharedPreferences.OnSharedPreferenceChangeListener {
+) {
     private val appContext = context.applicationContext
-    private val source by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        allowStrictModeDiskReads {
-            appContext.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
-        }
-    }
+    private val settingsDataStore: DataStore<Preferences> = appContext.elovaireSettingsDataStore()
     private val backup by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         allowStrictModeDiskReads {
             appContext.getSharedPreferences(BACKUP_FILE_NAME, Context.MODE_PRIVATE)
@@ -46,95 +52,47 @@ internal class PortableSettingsBackup(
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
             ioDispatcher,
     )
-    private val mirrorLock = Any()
-    private var mirrorJob: Job? = null
-    private var mirrorRequested = false
-    private var callbackResource: Closeable? = null
+    private var settingsObservationJob: Job? = null
 
     fun restore() {
         if (released.get()) return
         if (!restored.compareAndSet(false, true)) return
-        allowStrictModeDiskReads {
+        runBlocking(ioDispatcher) {
             val backupValues = backup.all.filterKeys(::isPortableSettingKey)
-            if (source.all.isEmpty() && backupValues.isNotEmpty() && isValidBackup(backupValues)) {
-                copyValues(backup, source, PORTABLE_KEYS)
+            val current = settingsDataStore.data.first().portableValues()
+            if (current.isEmpty() && backupValues.isNotEmpty() && isValidBackup(backupValues)) {
+                settingsDataStore.edit { values ->
+                    backupValues.forEach { (key, value) -> values.putPortableValue(key, value) }
+                }
             }
-            syncAll()
+            syncAll(settingsDataStore.data.first())
         }
     }
 
-    @Suppress("TooGenericExceptionCaught")
     fun start() {
         if (released.get()) return
         restore()
         if (released.get()) return
         if (!started.compareAndSet(false, true)) return
-        try {
-            source.registerOnSharedPreferenceChangeListener(this)
-            callbackResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRegisteredCallback)
-        } catch (failure: RuntimeException) {
-            started.set(false)
-            runCatching { source.unregisterOnSharedPreferenceChangeListener(this) }
-            throw failure
-        }
-        if (released.get() && started.compareAndSet(true, false)) {
-            runCatching { source.unregisterOnSharedPreferenceChangeListener(this) }
-            callbackResource?.close()
-            callbackResource = null
+        settingsObservationJob = mirrorScope.launch {
+            settingsDataStore.data
+                .debounce(MIRROR_COALESCE_DELAY_MS)
+                .collect(::syncAll)
         }
     }
 
     fun release() {
         released.set(true)
         if (started.compareAndSet(true, false)) {
-            source.unregisterOnSharedPreferenceChangeListener(this)
+            settingsObservationJob?.cancel()
         }
-        callbackResource?.close()
-        callbackResource = null
-        synchronized(mirrorLock) {
-            mirrorRequested = false
-            mirrorJob?.cancel()
-            mirrorJob = null
-        }
+        settingsObservationJob = null
         mirrorScope.cancel()
     }
 
-    @Suppress("UNUSED_PARAMETER")
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
-        if (key == null || !isPortableSettingKey(key)) return
-        synchronized(mirrorLock) {
-            mirrorRequested = true
-            if (mirrorJob?.isActive != true && !released.get()) {
-                mirrorJob = mirrorScope.launch { drainMirrorRequests() }
-            }
-        }
-    }
-
-    private suspend fun drainMirrorRequests() {
-        // Preference callbacks are commonly delivered on the UI thread. Keep the listener
-        // constant-time and coalesce a burst of slider writes into one backup write.
-        delay(MIRROR_COALESCE_DELAY_MS)
-        while (true) {
-            synchronized(mirrorLock) {
-                if (!mirrorRequested) {
-                    mirrorJob = null
-                    return
-                }
-                mirrorRequested = false
-            }
-            syncAll()
-            val again = synchronized(mirrorLock) { mirrorRequested }
-            if (!again) {
-                synchronized(mirrorLock) { mirrorJob = null }
-                return
-            }
-            delay(MIRROR_COALESCE_DELAY_MS)
-        }
-    }
-
-    private fun syncAll() {
+    private fun syncAll(settings: Preferences) {
         ElovaireTrace.section("settings_backup_checkpoint") {
-            val desired = source.all.filterKeys(::isPortableSettingKey)
+            val desired = settings.portableValues()
             val current = backup.all.filterKeys(::isPortableSettingKey)
             val checksum = portableSettingsBackupChecksum(desired)
             val currentVersion = runCatching { backup.getInt(BACKUP_FORMAT_VERSION_KEY, 0) }.getOrDefault(0)
@@ -154,15 +112,6 @@ internal class PortableSettingsBackup(
         }
     }
 
-    private fun copyValues(from: SharedPreferences, to: SharedPreferences, keys: Set<String>) {
-        val values = from.all
-        val editor = to.edit()
-        keys.forEach { key ->
-            if (key in values) editor.putPreferenceValue(key, values[key]) else editor.remove(key)
-        }
-        editor.apply()
-    }
-
     private fun isValidBackup(values: Map<String, *>): Boolean {
         val storedVersion = runCatching { backup.getInt(BACKUP_FORMAT_VERSION_KEY, 0) }.getOrDefault(0)
         val storedChecksum = runCatching { backup.getString(BACKUP_CHECKSUM_KEY, null) }.getOrNull()
@@ -171,7 +120,7 @@ internal class PortableSettingsBackup(
             storedChecksum == portableSettingsBackupChecksum(values)
     }
 
-    private fun SharedPreferences.Editor.putPreferenceValue(key: String, value: Any?): SharedPreferences.Editor {
+    private fun android.content.SharedPreferences.Editor.putPreferenceValue(key: String, value: Any?): android.content.SharedPreferences.Editor {
         return when (value) {
             is Boolean -> putBoolean(key, value)
             is Float -> putFloat(key, value)
@@ -183,6 +132,18 @@ internal class PortableSettingsBackup(
         }
     }
 
+    private fun MutablePreferences.putPortableValue(key: String, value: Any?) {
+        return when (value) {
+            is Boolean -> set(booleanPreferencesKey(key), value)
+            is Float -> set(floatPreferencesKey(key), value)
+            is Int -> set(intPreferencesKey(key), value)
+            is Long -> set(longPreferencesKey(key), value)
+            is String -> set(stringPreferencesKey(key), value)
+            is Set<*> -> set(stringSetPreferencesKey(key), value.filterIsInstance<String>().toSet())
+            else -> Unit
+        }
+    }
+
     private companion object {
         const val BACKUP_FILE_NAME = "portable_settings"
         const val BACKUP_FORMAT_VERSION_KEY = "_format_version"
@@ -190,9 +151,13 @@ internal class PortableSettingsBackup(
         const val BACKUP_CREATED_AT_KEY = "_created_at_ms"
         const val BACKUP_FORMAT_VERSION = 1
         const val MIRROR_COALESCE_DELAY_MS = 400L
-        val PORTABLE_KEYS = portableSettingKeys
     }
 }
+
+private fun Preferences.portableValues(): Map<String, Any?> = asMap()
+    .asSequence()
+    .filter { (key, _) -> isPortableSettingKey(key.name) }
+    .associate { (key, value) -> key.name to value }
 
 internal fun portableSettingsBackupChecksum(values: Map<String, *>): String {
     val canonical = values

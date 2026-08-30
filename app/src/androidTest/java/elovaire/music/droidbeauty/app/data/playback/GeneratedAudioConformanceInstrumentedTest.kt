@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.playback
 import android.content.ContentValues
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.provider.MediaStore
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -87,9 +88,9 @@ class GeneratedAudioConformanceInstrumentedTest {
                 playbackManager = manager
                 manager.playAlbum(album)
             }
-            val deadline = System.currentTimeMillis() + 10_000L
+            val deadline = SystemClock.elapsedRealtime() + 10_000L
             var advanced = false
-            while (System.currentTimeMillis() < deadline) {
+            while (SystemClock.elapsedRealtime() < deadline) {
                 val manager = playbackManager ?: break
                 if (
                     manager.state.value.currentSong?.id == song.id &&

@@ -119,6 +119,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/playback/PlaybackSessionStore.kt",
             "/data/playback/UsbDacHardwareVolumeManager.kt",
             "/data/settings/PortableSettingsBackup.kt",
+            "/data/settings/SettingsDataStore.kt",
             "/data/settings/PreferenceStorage.kt",
             "/data/settings/PreferenceStore.kt",
             "/data/settings/UpdatePreferencesStoreImpl.kt",

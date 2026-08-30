@@ -83,6 +83,9 @@ internal interface LibraryDao {
     @Query("UPDATE albums SET removedAtMs = :removedAtMs WHERE lastSeenGenerationId != :generationId AND removedAtMs IS NULL")
     suspend fun markAlbumsMissingFromGeneration(generationId: Long, removedAtMs: Long)
 
+    @Query("DELETE FROM media_files WHERE lastSeenGenerationId != :generationId")
+    suspend fun deleteMediaFilesMissingFromGeneration(generationId: Long)
+
     @Query("UPDATE songs SET removedAtMs = :removedAtMs WHERE songId IN (:songIds)")
     suspend fun markSongsRemoved(songIds: Set<Long>, removedAtMs: Long)
 
@@ -151,6 +154,7 @@ internal interface LibraryDao {
         upsertSongs(songs)
         upsertAlbums(albums)
         upsertMediaFiles(files)
+        deleteMediaFilesMissingFromGeneration(generation.generationId)
         markSongsMissingFromGeneration(generation.generationId, removedAtMs)
         markAlbumsMissingFromGeneration(generation.generationId, removedAtMs)
     }

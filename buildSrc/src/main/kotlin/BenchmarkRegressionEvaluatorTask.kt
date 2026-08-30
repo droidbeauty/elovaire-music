@@ -53,23 +53,26 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
 
         val hardRegressions = mutableListOf<String>()
         observations.forEach { (current, baseline) ->
-            if (baseline.value <= 0.0) return@forEach
-            val delta = (current.value - baseline.value) / baseline.value
-            val classification = when {
-                delta >= HARD_REGRESSION_RATIO -> "HARD_REGRESSION"
-                delta >= SUSPICIOUS_RATIO -> "SUSPICIOUS"
-                else -> "PASS"
-            }
+            val classification = classifyBenchmarkRegression(
+                metric = current.metric,
+                baseline = baseline.value,
+                current = current.value,
+            ).name
+            val delta = regressionDelta(
+                metric = current.metric,
+                baseline = baseline.value,
+                current = current.value,
+            )
             if (classification != "PASS") {
                 logger.lifecycle(
                     "scenario=${current.scenario} metric=${current.metric} " +
                         "baseline=${format(baseline.value)} current=${format(current.value)} " +
-                        "delta=${formatPercent(delta)} classification=$classification",
+                        "delta=${formatDelta(current.metric, delta)} classification=$classification",
                 )
             }
             if (classification == "HARD_REGRESSION") {
                 hardRegressions +=
-                    "${current.scenario}/${current.metric} ${formatPercent(delta)} " +
+                    "${current.scenario}/${current.metric} ${formatDelta(current.metric, delta)} " +
                         "(${format(baseline.value)} -> ${format(current.value)})"
             }
         }
@@ -157,6 +160,24 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
 
     private fun formatPercent(value: Double): String = "%.1f%%".format(Locale.US, value * 100.0)
 
+    private fun regressionDelta(metric: String, baseline: Double, current: Double): Double {
+        return if (metric.endsWith("frameOverrunMs", ignoreCase = true)) {
+            current - baseline
+        } else if (baseline != 0.0) {
+            (current - baseline) / baseline
+        } else {
+            current - baseline
+        }
+    }
+
+    private fun formatDelta(metric: String, delta: Double): String {
+        return if (metric.endsWith("frameOverrunMs", ignoreCase = true)) {
+            "${if (delta >= 0.0) "+" else ""}${format(delta)}ms"
+        } else {
+            formatPercent(delta)
+        }
+    }
+
     private data class Sample(
         val key: String,
         val scenario: String,
@@ -166,8 +187,6 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
     )
 
     private companion object {
-        const val SUSPICIOUS_RATIO = 0.15
-        const val HARD_REGRESSION_RATIO = 0.30
         val ENVIRONMENT_KEYS = setOf(
             "device",
             "deviceid",

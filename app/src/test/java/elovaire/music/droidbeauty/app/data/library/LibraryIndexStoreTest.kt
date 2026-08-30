@@ -94,6 +94,7 @@ private class RecordingLibraryDao : LibraryDao {
     var changedAlbumIds = emptyList<Long>()
     var removedSongIds = emptySet<Long>()
     var removedAlbumIds = emptySet<Long>()
+    var retiredMediaFilesGeneration: Long? = null
 
     override suspend fun latestGenerationId(): Long? = null
     override suspend fun recoverableMutations(): List<LibraryMutationEntity> = emptyList()
@@ -122,6 +123,9 @@ private class RecordingLibraryDao : LibraryDao {
     override suspend fun deleteNetworkInventorySource(sourceId: String) = Unit
     override suspend fun markSongsMissingFromGeneration(generationId: Long, removedAtMs: Long) = Unit
     override suspend fun markAlbumsMissingFromGeneration(generationId: Long, removedAtMs: Long) = Unit
+    override suspend fun deleteMediaFilesMissingFromGeneration(generationId: Long) {
+        retiredMediaFilesGeneration = generationId
+    }
     override suspend fun markSongsRemoved(songIds: Set<Long>, removedAtMs: Long) {
         removedSongIds = songIds
     }

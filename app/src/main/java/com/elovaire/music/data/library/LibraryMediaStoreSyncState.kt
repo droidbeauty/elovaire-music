@@ -49,3 +49,40 @@ internal fun decideLibrarySyncAtStartup(
         decideLibrarySync(cached, current, cachedSongCount)
     }
 }
+
+internal fun decideForegroundReconcile(
+    cached: LibraryMediaStoreSyncState?,
+    current: LibraryMediaStoreSyncState?,
+    cachedSongCount: Int,
+    hasSafSelections: Boolean,
+    staleNetworkSourceIds: Set<String>,
+): LibraryRefreshRequest? {
+    if (hasSafSelections) return LibraryRefreshRequest()
+    val mediaStoreDecision = decideLibrarySync(cached, current, cachedSongCount)
+    return when (mediaStoreDecision) {
+        LibrarySyncDecision.ReuseCached -> null
+        LibrarySyncDecision.FullScan -> LibraryRefreshRequest()
+        LibrarySyncDecision.IncrementalScan -> {
+            val generationFloor = cached
+                ?.volumes
+                ?.map(LibraryMediaStoreVolumeSyncState::generation)
+                ?.distinct()
+                ?.singleOrNull()
+            if (generationFloor == null) {
+                LibraryRefreshRequest()
+            } else {
+                LibraryRefreshRequest(mediaStoreGenerationFloor = generationFloor)
+            }
+        }
+    }.let { mediaStoreRequest ->
+        if (staleNetworkSourceIds.isEmpty()) {
+            mediaStoreRequest
+        } else if (mediaStoreDecision == LibrarySyncDecision.ReuseCached) {
+            LibraryRefreshRequest(targetedNetworkSourceIds = staleNetworkSourceIds)
+        } else {
+            // A targeted network request tells the coordinator to reuse local
+            // state, so it must not mask a required MediaStore reconciliation.
+            LibraryRefreshRequest()
+        }
+    }
+}

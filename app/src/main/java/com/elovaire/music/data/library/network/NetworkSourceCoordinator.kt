@@ -42,7 +42,18 @@ internal class NetworkSourceCoordinator(
     ): NetworkSourceMutationOutcome = withSourceLock(source.id) {
         val credentialStore = credentialStoreProvider()
         val previousSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
-        val previous = credentialStore.get(previousSource?.credentialKey ?: source.credentialKey)
+        val previousResult = credentialStore.read(previousSource?.credentialKey ?: source.credentialKey)
+        val previous = when (previousResult) {
+            NetworkCredentialReadResult.Missing -> null
+            is NetworkCredentialReadResult.Available -> previousResult.credentials
+            NetworkCredentialReadResult.KeyUnavailable,
+            is NetworkCredentialReadResult.Corrupt,
+            -> if (credentials.password.isBlank()) {
+                throw IllegalStateException("Stored network credentials are unavailable; enter the password again")
+            } else {
+                null
+            }
+        }
         val effectiveCredentials = if (credentials.password.isBlank() && previous != null) {
             previous.copy(
                 username = credentials.username.ifBlank { previous.username },

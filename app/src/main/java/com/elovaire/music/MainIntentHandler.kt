@@ -90,7 +90,7 @@ internal class MainIntentHandler(
                 Intent.FLAG_GRANT_READ_URI_PERMISSION,
             )
         } catch (_: SecurityException) {
-            // Providers without a persistable grant remain valid for the active component lifetime.
+            // ExternalAudioIntentHandler stages non-persistable sources before playback.
         }
     }
 

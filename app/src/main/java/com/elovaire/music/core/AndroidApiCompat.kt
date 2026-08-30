@@ -41,6 +41,8 @@ internal fun requiredAudioPermission(sdkInt: Int): String {
     }
 }
 
+internal fun shouldLockPhoneOrientation(smallestScreenWidthDp: Int): Boolean = smallestScreenWidthDp < 600
+
 internal fun Context.hasAudioReadPermission(): Boolean {
     return ContextCompat.checkSelfPermission(this, requiredAudioPermission()) == PackageManager.PERMISSION_GRANTED
 }

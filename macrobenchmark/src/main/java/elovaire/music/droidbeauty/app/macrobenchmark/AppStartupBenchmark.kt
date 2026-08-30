@@ -161,15 +161,49 @@ class AppStartupBenchmark {
             mode = TraceSectionMetric.Mode.Count,
             label = "route_change_count",
         ),
-    ) + BACKEND_TRACE_SECTIONS.map { section ->
         TraceSectionMetric(
-            sectionName = section,
-            mode = TraceSectionMetric.Mode.Count,
-            label = "trace_${section}_count",
-        )
+            sectionName = "route_change",
+            mode = TraceSectionMetric.Mode.Sum,
+            label = "route_change_duration_ms",
+        ),
+    ) + BACKEND_TRACE_SECTIONS.flatMap { section ->
+        buildList {
+            add(
+                TraceSectionMetric(
+                    sectionName = section,
+                    mode = TraceSectionMetric.Mode.Count,
+                    label = "trace_${section}_count",
+                ),
+            )
+            if (section in DURATION_TRACE_SECTIONS) {
+                add(
+                    TraceSectionMetric(
+                        sectionName = section,
+                        mode = TraceSectionMetric.Mode.Sum,
+                        label = "trace_${section}_duration_ms",
+                    ),
+                )
+            }
+        }
     }
 
     private companion object {
+        val DURATION_TRACE_SECTIONS = setOf(
+            "route_change",
+            "library_refresh_scan",
+            "library_prepare_content",
+            "library_diff",
+            "library_snapshot_persist",
+            "library_room_index_commit",
+            "mediastore_discovery",
+            "mediastore_query_full",
+            "mediastore_query_delta",
+            "mediastore_metadata_enrichment",
+            "network_source_list",
+            "network_metadata_enrichment",
+            "artwork_remote_fetch",
+            "artwork_decode",
+        )
         val BACKEND_TRACE_SECTIONS = listOf(
             "library_refresh_scan",
             "library_prepare_content",
