@@ -242,9 +242,18 @@ internal class MediaStoreScanner(
                 while (cursor.moveToNext()) {
                     currentCoroutineContext().ensureActive()
                     processedRows += 1
-                    rowProcessor.process(rowMapper.row(cursor))?.let { processedSong ->
-                        scannedMetadataUris += processedSong.identityKey
-                        songs += processedSong.song
+                    try {
+                        rowProcessor.process(rowMapper.row(cursor))?.let { processedSong ->
+                            scannedMetadataUris += processedSong.identityKey
+                            songs += processedSong.song
+                        }
+                    } catch (failure: CancellationException) {
+                        throw failure
+                    } catch (failure: RuntimeException) {
+                        // One malformed provider row must not hide otherwise valid library rows.
+                        decisionMap.recordMediaStoreExclude(
+                            "Row processing failed: ${failure::class.simpleName ?: "Unknown"}",
+                        )
                     }
                     if (processedRows == totalRows || processedRows % 24 == 0) {
                         progressEmitter.emit(processedRows, totalRows)
@@ -259,6 +268,8 @@ internal class MediaStoreScanner(
             progressEmitter.emit(totalRows, totalRows)
         }
 
+        // Query the authoritative provider before waiting for best-effort index repair. A slow
+        // MediaScannerConnection callback must never prevent already indexed rows from being read.
         indexRefreshJob?.await()?.let(decisionMap::recordIndexRefresh)
 
         currentCoroutineContext().ensureActive()
@@ -364,7 +375,6 @@ internal class MediaStoreScanner(
         shouldContinue: () -> Unit = {},
     ): MediaStoreIndexRefreshResult = mediaStoreIndexer.refreshAll {
         shouldContinue()
-        true
     }
 
     fun refreshMediaIndex(
@@ -372,7 +382,6 @@ internal class MediaStoreScanner(
         shouldContinue: () -> Unit = {},
     ): MediaStoreIndexRefreshResult = mediaStoreIndexer.refreshPaths(paths) {
         shouldContinue()
-        true
     }
 
     private fun buildAudioFileFilter(

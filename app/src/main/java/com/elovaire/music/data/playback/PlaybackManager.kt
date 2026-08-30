@@ -227,7 +227,9 @@ class PlaybackManager(
     private val playbackHandler = Handler(Looper.getMainLooper())
     private var pendingAudioPathReason: String? = null
     private var isDirectPlaybackActive = false
-    private var runtimeTransition: PlaybackRuntimeTransition = PlaybackRuntimeTransition.Idle
+    private val runtimeStateMachine = PlaybackRuntimeStateMachine()
+    private val runtimeTransition: PlaybackRuntimeTransition
+        get() = runtimeStateMachine.state
     private var lastAppliedPreferredDeviceKey: PreferredAudioDeviceKey? = null
     private var lastAppliedAudioPathDecisionKey: AudioPathDecisionKey? = null
     private var crossfadeEnabled = false
@@ -1163,7 +1165,7 @@ class PlaybackManager(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         beginPlaybackOperation()
-        runtimeTransition = PlaybackRuntimeTransition.Released
+        runtimeStateMachine.release()
         pauseFadeJob?.cancel()
         crossfadeController.release()
         sleepTimerController.release()
@@ -1293,7 +1295,7 @@ class PlaybackManager(
         reason: String,
         decisionKey: AudioPathDecisionKey,
     ) {
-        runtimeTransition = PlaybackRuntimeTransition.Rebuilding(reason)
+        if (!runtimeStateMachine.beginRebuild(reason)) return
         try {
             crossfadeController.cancel()
             val previousPlayer = player
@@ -1316,9 +1318,7 @@ class PlaybackManager(
             lastAppliedAudioPathDecisionKey = decisionKey
             if (crossfadeEnabled) prepareCrossfadeIfPossible()
         } finally {
-            if (runtimeTransition !is PlaybackRuntimeTransition.Released) {
-                runtimeTransition = PlaybackRuntimeTransition.Idle
-            }
+            runtimeStateMachine.complete()
         }
     }
 
@@ -1741,7 +1741,7 @@ class PlaybackManager(
         bitPerfectUsbManager.clearPlaybackFormat()
         lastAppliedAudioPathDecisionKey = null
         scheduleAudioPathReevaluation("recover-idle", AUDIO_PATH_REEVALUATION_DELAY_MS)
-        runtimeTransition = PlaybackRuntimeTransition.Recovering(unexpectedIdleRecoveryCount)
+        if (!runtimeStateMachine.beginRecovery(unexpectedIdleRecoveryCount)) return
         val operationRevision = playbackOperationRevision
         scope.launch {
             if (!isCurrentPlaybackOperation(operationRevision)) return@launch
@@ -1758,8 +1758,8 @@ class PlaybackManager(
                 player.playWhenReady = true
                 player.play()
             }
+            runtimeStateMachine.complete()
             if (runtimeTransition !is PlaybackRuntimeTransition.Released) {
-                runtimeTransition = PlaybackRuntimeTransition.Idle
                 scheduleAudioPathReevaluation("recovery-completed")
             }
             updateState()
@@ -1791,9 +1791,7 @@ class PlaybackManager(
         pausedForAudioFocusLoss = false
         isManualPausePending = false
         isPauseTransitioningToStopped = false
-        if (runtimeTransition !is PlaybackRuntimeTransition.Released) {
-            runtimeTransition = PlaybackRuntimeTransition.Idle
-        }
+        runtimeStateMachine.complete()
         player.pause()
         player.playWhenReady = false
         abandonAudioFocus()

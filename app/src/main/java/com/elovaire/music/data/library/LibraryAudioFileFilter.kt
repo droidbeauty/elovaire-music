@@ -35,7 +35,6 @@ internal class LibraryAudioFileFilter(
     libraryRootPaths: Set<String>,
     explicitCustomRootPaths: Set<String> = emptySet(),
     explicitCustomRelativeRoots: Set<String> = emptySet(),
-    private val implicitDefaultDiscovery: Boolean = false,
     private val allowUnscopedMediaStoreRows: Boolean = false,
 ) {
     private val selectedRelativeRoots = selectedRelativeRoots.mapNotNullTo(linkedSetOf()) { it.normalizeFilterRelativePath() }
@@ -137,7 +136,11 @@ internal class LibraryAudioFileFilter(
                 return FolderMatch.DefaultRoot
             }
         }
-        if (implicitDefaultDiscovery || allowUnscopedMediaStoreRows) return FolderMatch.DefaultRoot
+
+        // A provider-supplied location is positive evidence. Do not widen a selected-folder
+        // query just because an optional compatibility fallback was used.
+        if (normalizedAbsolutePath != null || normalizedRelativePath != null) return FolderMatch.None
+        if (allowUnscopedMediaStoreRows) return FolderMatch.DefaultRoot
         return FolderMatch.None
     }
 

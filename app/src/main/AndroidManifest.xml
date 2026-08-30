@@ -61,8 +61,7 @@
         <service
             android:name=".data.playback.ElovaireMediaLibraryService"
             android:enabled="true"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
+            android:exported="true">
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaLibraryService" />
                 <action android:name="android.media.browse.MediaBrowserService" />

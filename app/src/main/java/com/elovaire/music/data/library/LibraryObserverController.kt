@@ -268,13 +268,8 @@ internal class LibraryObserverController(
         if (event and DIRECTORY_STRUCTURE_CHANGE_MASK != 0) {
             requestMusicDirectoryObserverRebuild()
         }
-        val requiresFullMediaIndexRefresh = event and FULL_INDEX_REFRESH_EVENT_MASK != 0
         val normalizedChangedPath = changedFile?.absolutePath?.normalizedObservedPath()
         if (consumeExpectedMutation(changedUri = null, changedPath = normalizedChangedPath)) return
-        if (requiresFullMediaIndexRefresh) {
-            onObservedRefresh(true, null)
-            return
-        }
         if (
             normalizedChangedPath != null &&
             shouldCoalesceObservedPath(normalizedChangedPath)
@@ -424,11 +419,6 @@ internal class LibraryObserverController(
             FileObserver.CREATE or
                 FileObserver.MOVED_TO or
                 FileObserver.DELETE or
-                FileObserver.MOVED_FROM or
-                FileObserver.DELETE_SELF or
-                FileObserver.MOVE_SELF
-        const val FULL_INDEX_REFRESH_EVENT_MASK =
-            FileObserver.DELETE or
                 FileObserver.MOVED_FROM or
                 FileObserver.DELETE_SELF or
                 FileObserver.MOVE_SELF

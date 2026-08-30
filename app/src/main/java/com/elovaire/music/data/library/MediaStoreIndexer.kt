@@ -11,11 +11,11 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
 
 internal interface MediaStoreIndexRefresher {
-    fun refreshAll(shouldContinue: () -> Boolean = { true }): MediaStoreIndexRefreshResult
+    fun refreshAll(shouldContinue: () -> Unit = {}): MediaStoreIndexRefreshResult
 
     fun refreshPaths(
         paths: List<String>,
-        shouldContinue: () -> Boolean = { true },
+        shouldContinue: () -> Unit = {},
     ): MediaStoreIndexRefreshResult
 }
 
@@ -23,7 +23,7 @@ internal class MediaStoreIndexer(
     private val context: Context,
     private val scanRoots: () -> List<File>,
 ) : MediaStoreIndexRefresher {
-    override fun refreshAll(shouldContinue: () -> Boolean): MediaStoreIndexRefreshResult {
+    override fun refreshAll(shouldContinue: () -> Unit): MediaStoreIndexRefreshResult {
         shouldContinue()
         val roots = scanRoots()
             .filter { it.exists() && it.isDirectory }
@@ -67,7 +67,7 @@ internal class MediaStoreIndexer(
 
     override fun refreshPaths(
         paths: List<String>,
-        shouldContinue: () -> Boolean,
+        shouldContinue: () -> Unit,
     ): MediaStoreIndexRefreshResult {
         shouldContinue()
         return scanAudioPaths(
@@ -81,7 +81,7 @@ internal class MediaStoreIndexer(
     private fun scanAudioPaths(
         paths: Iterable<String>,
         timeoutSeconds: Long,
-        shouldContinue: () -> Boolean,
+        shouldContinue: () -> Unit,
     ): MediaStoreIndexRefreshResult {
         shouldContinue()
         val audioPaths = paths

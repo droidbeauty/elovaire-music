@@ -179,21 +179,40 @@ class LibraryAudioFileFilterTest {
     }
 
     @Test
-    fun evaluate_implicitDefaultDiscoveryAcceptsSupportedSharedStorageAudio() {
+    fun evaluate_unscopedFallbackAcceptsAudioOnlyWhenLocationEvidenceIsUnavailable() {
         val filter = LibraryAudioFileFilter(
             selectedRelativeRoots = emptySet(),
             libraryRootPaths = emptySet(),
-            implicitDefaultDiscovery = true,
+            allowUnscopedMediaStoreRows = true,
         )
 
         assertTrue(
             filter.evaluate(
                 candidate(
                     absolutePath = null,
-                    relativePath = "Download/Elovaire/track.mp3",
+                    relativePath = null,
                     isMusic = true,
                 ),
             ) is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun evaluate_excludesKnownOutOfScopeRelativePathEvenWhenUnscopedFallbackIsEnabled() {
+        val filter = LibraryAudioFileFilter(
+            selectedRelativeRoots = setOf("music"),
+            libraryRootPaths = emptySet(),
+            allowUnscopedMediaStoreRows = true,
+        )
+
+        assertExcludedReason(
+            expectedReason = "Outside selected library folders",
+            decision = filter.evaluate(
+                candidate(
+                    absolutePath = null,
+                    relativePath = "Download/Elovaire/track.mp3",
+                ),
+            ),
         )
     }
 

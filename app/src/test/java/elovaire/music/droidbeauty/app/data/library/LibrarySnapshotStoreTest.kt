@@ -97,11 +97,11 @@ class LibrarySnapshotStoreTest {
     }
 
     @Test
-    fun snapshotSongValidation_rejectsUnplayableCachedRows() {
+    fun snapshotSongValidation_keepsAudioRowsWithUnknownDuration() {
         assertEquals(true, isValidSnapshotSong(snapshotSong(id = 1L, modifiedSeconds = 10L)))
         assertEquals(false, isValidSnapshotSong(snapshotSong(id = 0L, modifiedSeconds = 10L)))
         assertEquals(
-            false,
+            true,
             isValidSnapshotSong(snapshotSong(id = 1L, modifiedSeconds = 10L).copy(durationMs = 0L)),
         )
     }

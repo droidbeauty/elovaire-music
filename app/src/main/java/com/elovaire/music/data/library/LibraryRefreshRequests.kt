@@ -34,8 +34,11 @@ internal data class LibraryRefreshRequest(
             listOfNotNull(mediaStoreGenerationFloor, other.mediaStoreGenerationFloor).minOrNull()
         }
         if (mergedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
+            // A large path burst is already a full MediaStore reconciliation. Escalating it to
+            // a recursive MediaScannerConnection walk adds unbounded storage work and is not
+            // required to query the authoritative provider state.
             return LibraryRefreshRequest(
-                forceMediaIndex = true,
+                forceMediaIndex = false,
                 enrichMetadata = enrichMetadata || other.enrichMetadata,
             )
         }
@@ -61,7 +64,7 @@ internal data class LibraryRefreshRequest(
         }
         if (normalizedPaths.size > MAX_TARGETED_REFRESH_PATHS) {
             return copy(
-                forceMediaIndex = true,
+                forceMediaIndex = false,
                 targetedPaths = emptyList(),
             )
         }

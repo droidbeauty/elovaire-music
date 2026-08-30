@@ -73,13 +73,31 @@ internal class SafTreeLibraryScanner(
                     )
                 }
                 val outcome = scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds)
-                outcome.incompleteReason?.let { reason ->
-                    SafTreeScanResult.Incomplete(
-                        selection = selection,
-                        songs = outcome.songs,
-                        failure = SafScanIncompleteException(treeUri.authority, reason),
-                    )
-                } ?: SafTreeScanResult.Complete(selection = selection, songs = outcome.songs)
+                when {
+                    outcome.providerFailure != null && outcome.songs.isEmpty() -> {
+                        SafTreeScanResult.Unavailable(selection, outcome.providerFailure)
+                    }
+                    outcome.providerFailure != null -> {
+                        SafTreeScanResult.Incomplete(
+                            selection = selection,
+                            songs = outcome.songs,
+                            failure = SafScanIncompleteException(
+                                treeUri.authority,
+                                "${outcome.providerFailure.operation}: partial results",
+                            ),
+                        )
+                    }
+                    outcome.incompleteReason != null -> {
+                        SafTreeScanResult.Incomplete(
+                            selection = selection,
+                            songs = outcome.songs,
+                            failure = SafScanIncompleteException(treeUri.authority, outcome.incompleteReason),
+                        )
+                    }
+                    else -> {
+                        SafTreeScanResult.Complete(selection = selection, songs = outcome.songs)
+                    }
+                }
             } catch (failure: CancellationException) {
                 throw failure
             } catch (failure: SafScanIncompleteException) {
@@ -131,134 +149,150 @@ internal class SafTreeLibraryScanner(
         val songs = mutableListOf<Song>()
         var visitedDocuments = 0
         var incompleteReason: String? = null
+        var providerFailure: SafProviderUnavailableException? = null
         while (pending.isNotEmpty() && incompleteReason == null) {
             currentCoroutineContext().ensureActive()
             val directory = pending.removeFirst()
             if (!visitedDirectories.add(SafDocumentKey(providerKey, directory.documentId))) continue
-            ElovaireTrace.section("library_saf_child_query") {
-                queryChildren(treeUri, directory.documentId)
-            }.forEach { child ->
-                currentCoroutineContext().ensureActive()
-                if (visitedDocuments >= MAX_DOCUMENTS) {
-                    incompleteReason = "document budget exceeded"
-                    return@forEach
-                }
-                visitedDocuments += 1
-                if (child.name.startsWith('.')) return@forEach
-                val childRelativePath = listOf(directory.relativePath, child.name)
-                    .filter(String::isNotBlank)
-                    .joinToString("/")
-                if (child.isDirectory) {
-                    if (childRelativePath.count { it == '/' } < MAX_DEPTH) {
-                        pending += SafDirectory(
-                            documentId = child.documentId,
-                            relativePath = childRelativePath,
-                        )
-                    } else {
-                        incompleteReason = "directory depth budget exceeded"
-                    }
-                    return@forEach
-                }
-                val extension = child.name.substringAfterLast('.', "").lowercase(Locale.ROOT)
-                if (extension !in AudioFormatPolicy.scannerExtensions) return@forEach
-                val documentKey = SafDocumentKey(providerKey, child.documentId)
-                val cachedFile = (refreshedCache[documentKey] ?: fileMetadataCache[documentKey])
-                    ?.takeIf { it.matches(child) }
-                val detectedFormat = cachedFile?.detectedFormat
-                    ?: audioFormatDetector.detect(
-                        uri = child.uri,
-                        fileName = child.name,
-                        mediaStoreMimeType = child.mimeType,
-                        revisionKey = if (child.lastModifiedMs != null || child.sizeBytes != null) {
-                            MediaIdentityResolver.sourceRevisionKey(
-                                modifiedAtMs = child.lastModifiedMs,
-                                sizeBytes = child.sizeBytes,
+            try {
+                ElovaireTrace.suspendSection("library_saf_child_query") {
+                    forEachChild(treeUri, directory.documentId) child@{ child ->
+                        currentCoroutineContext().ensureActive()
+                        if (visitedDocuments >= MAX_DOCUMENTS) {
+                            incompleteReason = "document budget exceeded"
+                            return@child false
+                        }
+                        visitedDocuments += 1
+                        if (child.name.startsWith('.')) return@child true
+                        val childRelativePath = listOf(directory.relativePath, child.name)
+                            .filter(String::isNotBlank)
+                            .joinToString("/")
+                        if (child.isDirectory) {
+                            if (childRelativePath.count { it == '/' } < MAX_DEPTH) {
+                                pending += SafDirectory(
+                                    documentId = child.documentId,
+                                    relativePath = childRelativePath,
+                                )
+                            } else {
+                                incompleteReason = "directory depth budget exceeded"
+                                return@child false
+                            }
+                            return@child true
+                        }
+                        val extension = child.name.substringAfterLast('.', "").lowercase(Locale.ROOT)
+                        if (extension !in AudioFormatPolicy.scannerExtensions) return@child true
+                        try {
+                            val documentKey = SafDocumentKey(providerKey, child.documentId)
+                            val cachedFile = (refreshedCache[documentKey] ?: fileMetadataCache[documentKey])
+                                ?.takeIf { it.matches(child) }
+                            val revisionKey = if (child.lastModifiedMs != null || child.sizeBytes != null) {
+                                MediaIdentityResolver.sourceRevisionKey(
+                                    modifiedAtMs = child.lastModifiedMs,
+                                    sizeBytes = child.sizeBytes,
+                                )
+                            } else null
+                            val identityKey = MediaIdentityResolver.safDocument(
+                                providerKey,
+                                child.documentId,
+                            )?.stableKey
+                            val detectedFormat = cachedFile?.detectedFormat
+                                ?: audioFormatDetector.detect(
+                                    uri = child.uri,
+                                    fileName = child.name,
+                                    mediaStoreMimeType = child.mimeType,
+                                    revisionKey = revisionKey,
+                                    identityKey = identityKey,
+                                )
+                            val metadata = cachedFile?.metadata ?: readMetadata(
+                                uri = child.uri,
+                                fileName = child.name,
+                                identityKey = identityKey,
+                                revisionKey = revisionKey,
                             )
-                        } else null,
-                        identityKey = MediaIdentityResolver.safDocument(
-                            providerKey,
-                            child.documentId,
-                        )?.stableKey,
-                    )
-                val metadata = cachedFile?.metadata ?: readMetadata(
-                    uri = child.uri,
-                    fileName = child.name,
-                    identityKey = MediaIdentityResolver.safDocument(providerKey, child.documentId)?.stableKey,
-                    revisionKey = if (child.lastModifiedMs != null || child.sizeBytes != null) {
-                        MediaIdentityResolver.sourceRevisionKey(
-                            modifiedAtMs = child.lastModifiedMs,
-                            sizeBytes = child.sizeBytes,
-                        )
-                    } else null,
-                )
-                if (child.hasStableChangeSignal) {
-                    refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
+                            if (child.hasStableChangeSignal) {
+                                refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
+                            }
+                            val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: 0L
+                            val libraryPath = resolveSafLibraryPath(canonicalRoot, rootKey, childRelativePath)
+                            val stableSongId = stableNegativeId(identityKey ?: "saf-uri:${child.uri}")
+                            val candidate = AudioScanCandidate(
+                                id = stableSongId,
+                                uri = child.uri,
+                                displayName = child.name,
+                                title = metadata.title,
+                                artist = metadata.artist,
+                                album = metadata.album,
+                                durationMs = durationMs,
+                                mimeType = child.mimeType,
+                                relativePath = childRelativePath.substringBeforeLast('/', ""),
+                                absolutePath = libraryPath,
+                                extension = extension,
+                                isMusic = true,
+                                detectedFormat = detectedFormat,
+                            )
+                            if (audioFileFilter.evaluate(candidate) !is AudioFileFilterDecision.Include) {
+                                return@child true
+                            }
+                            val title = metadata.title ?: child.name.substringBeforeLast('.').ifBlank { child.name }
+                            val artist = metadata.artist ?: "Unknown Artist"
+                            val album = metadata.album ?: selection.displayName.ifBlank { "Unknown Album" }
+                            val albumArtist = metadata.albumArtist ?: artist
+                            val albumIdentity = "$providerKey|$rootKey|$albumArtist::$album"
+                            songs += Song(
+                                id = stableSongId,
+                                title = title,
+                                isExplicit = false,
+                                artist = artist,
+                                album = album,
+                                releaseYear = metadata.releaseYear,
+                                genre = metadata.genre ?: "Unknown Genre",
+                                audioFormat = detectedFormat.displayName,
+                                audioQuality = null,
+                                fileName = child.name,
+                                albumId = albumIds.getOrPut(albumIdentity) {
+                                    stableNegativeId("saf-album:$albumIdentity")
+                                },
+                                durationMs = durationMs,
+                                trackNumber = metadata.trackNumber ?: 0,
+                                discNumber = metadata.discNumber ?: 1,
+                                dateAddedSeconds = 0L,
+                                dateModifiedSeconds = child.lastModifiedMs?.div(1000L),
+                                libraryPath = libraryPath,
+                                uri = child.uri,
+                                artUri = null,
+                                metadataResolved = true,
+                                albumArtist = albumArtist,
+                                volumeNormalization = metadata.volumeNormalization,
+                            )
+                        } catch (cancelled: CancellationException) {
+                            throw cancelled
+                        } catch (_: RuntimeException) {
+                            // A malformed media item must not discard valid siblings.
+                        }
+                        true
+                    }
                 }
-                val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: 0L
-                val libraryPath = resolveSafLibraryPath(canonicalRoot, rootKey, childRelativePath)
-                val stableSongId = stableNegativeId(
-                    MediaIdentityResolver.safDocument(providerKey, child.documentId)?.stableKey
-                        ?: "saf-uri:${child.uri}",
-                )
-                val candidate = AudioScanCandidate(
-                    id = stableSongId,
-                    uri = child.uri,
-                    displayName = child.name,
-                    title = metadata.title,
-                    artist = metadata.artist,
-                    album = metadata.album,
-                    durationMs = durationMs,
-                    mimeType = child.mimeType,
-                    relativePath = childRelativePath.substringBeforeLast('/', ""),
-                    absolutePath = libraryPath,
-                    extension = extension,
-                    isMusic = true,
-                    detectedFormat = detectedFormat,
-                )
-                if (audioFileFilter.evaluate(candidate) !is AudioFileFilterDecision.Include) return@forEach
-                val title = metadata.title ?: child.name.substringBeforeLast('.').ifBlank { child.name }
-                val artist = metadata.artist ?: "Unknown Artist"
-                val album = metadata.album ?: selection.displayName.ifBlank { "Unknown Album" }
-                val albumArtist = metadata.albumArtist ?: artist
-                val albumIdentity = "$providerKey|$rootKey|$albumArtist::$album"
-                songs += Song(
-                    id = stableSongId,
-                    title = title,
-                    isExplicit = false,
-                    artist = artist,
-                    album = album,
-                    releaseYear = metadata.releaseYear,
-                    genre = metadata.genre ?: "Unknown Genre",
-                    audioFormat = detectedFormat.displayName,
-                    audioQuality = null,
-                    fileName = child.name,
-                    albumId = albumIds.getOrPut(albumIdentity) {
-                        stableNegativeId("saf-album:$albumIdentity")
-                    },
-                    durationMs = durationMs,
-                    trackNumber = metadata.trackNumber ?: 0,
-                    discNumber = metadata.discNumber ?: 1,
-                    dateAddedSeconds = 0L,
-                    dateModifiedSeconds = child.lastModifiedMs?.div(1000L),
-                    libraryPath = libraryPath,
-                    uri = child.uri,
-                    artUri = null,
-                    metadataResolved = true,
-                    albumArtist = albumArtist,
-                    volumeNormalization = metadata.volumeNormalization,
-                )
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (failure: SafProviderUnavailableException) {
+                providerFailure = failure
             }
         }
         if (incompleteReason == null && pending.isNotEmpty()) {
             incompleteReason = "directory traversal budget exceeded"
         }
-        return SafTreeScanOutcome(songs = songs, incompleteReason = incompleteReason)
+        return SafTreeScanOutcome(
+            songs = songs,
+            incompleteReason = incompleteReason,
+            providerFailure = providerFailure,
+        )
     }
 
-    private fun queryChildren(
+    private suspend fun forEachChild(
         treeUri: Uri,
         documentId: String,
-    ): List<SafDocument> {
+        onChild: suspend (SafDocument) -> Boolean,
+    ) {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
         return try {
             val cursor = context.contentResolver.query(
@@ -273,38 +307,54 @@ internal class SafTreeLibraryScanner(
                 cause = IllegalStateException("The document provider returned no cursor."),
             )
             cursor.use {
-                val idIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
-                val nameIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
-                val mimeIndex = cursor.getColumnIndexOrThrow(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                val idIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
+                val nameIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
+                if (idIndex < 0 || nameIndex < 0) {
+                    throw treeUri.providerFailure(
+                        IllegalStateException("The document provider omitted a required child column."),
+                        "query children missing required columns",
+                    )
+                }
+                val mimeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_MIME_TYPE)
+                val flagsIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_FLAGS)
                 val modifiedIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
                 val sizeIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_SIZE)
-                buildList {
-                    while (cursor.moveToNext()) {
-                        val childId = cursor.getString(idIndex) ?: continue
-                        val name = cursor.getString(nameIndex)?.trim().orEmpty()
-                        if (name.isBlank()) continue
-                        val mimeType = cursor.getString(mimeIndex)?.trim()?.ifBlank { null }
-                        add(
-                            SafDocument(
-                                uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, childId),
-                                documentId = childId,
-                                name = name,
-                                mimeType = mimeType,
-                                lastModifiedMs = modifiedIndex
-                                    .takeIf { it >= 0 && !cursor.isNull(it) }
-                                    ?.let(cursor::getLong)
-                                    ?.takeIf { it > 0L },
-                                sizeBytes = sizeIndex
-                                    .takeIf { it >= 0 && !cursor.isNull(it) }
-                                    ?.let(cursor::getLong)
-                                    ?.takeIf { it >= 0L },
-                            ),
-                        )
-                    }
+                while (cursor.moveToNext()) {
+                    val childId = cursor.getString(idIndex) ?: continue
+                    val name = cursor.getString(nameIndex)?.trim().orEmpty()
+                    if (name.isBlank()) continue
+                    val mimeType = mimeIndex
+                        .takeIf { it >= 0 && !cursor.isNull(it) }
+                        ?.let(cursor::getString)
+                        ?.trim()
+                        ?.ifBlank { null }
+                    val flags = flagsIndex
+                        .takeIf { it >= 0 && !cursor.isNull(it) }
+                        ?.let(cursor::getInt)
+                    val shouldContinue = onChild(
+                        SafDocument(
+                            uri = DocumentsContract.buildDocumentUriUsingTree(treeUri, childId),
+                            documentId = childId,
+                            name = name,
+                            mimeType = mimeType,
+                            flags = flags,
+                            lastModifiedMs = modifiedIndex
+                                .takeIf { it >= 0 && !cursor.isNull(it) }
+                                ?.let(cursor::getLong)
+                                ?.takeIf { it > 0L },
+                            sizeBytes = sizeIndex
+                                .takeIf { it >= 0 && !cursor.isNull(it) }
+                                ?.let(cursor::getLong)
+                                ?.takeIf { it >= 0L },
+                        ),
+                    )
+                    if (!shouldContinue) return@use
                 }
             }
         } catch (throwable: CancellationException) {
             throw throwable
+        } catch (failure: SafProviderUnavailableException) {
+            throw failure
         } catch (failure: SecurityException) {
             throw treeUri.providerFailure(failure)
         } catch (failure: RemoteException) {
@@ -314,6 +364,8 @@ internal class SafTreeLibraryScanner(
         } catch (failure: SQLiteException) {
             throw treeUri.providerFailure(failure)
         } catch (failure: IllegalStateException) {
+            throw treeUri.providerFailure(failure)
+        } catch (failure: RuntimeException) {
             throw treeUri.providerFailure(failure)
         }
     }
@@ -360,6 +412,7 @@ internal class SafTreeLibraryScanner(
     private data class SafTreeScanOutcome(
         val songs: List<Song>,
         val incompleteReason: String?,
+        val providerFailure: SafProviderUnavailableException? = null,
     )
 
     private data class SafDocument(
@@ -367,10 +420,12 @@ internal class SafTreeLibraryScanner(
         val documentId: String,
         val name: String,
         val mimeType: String?,
+        val flags: Int?,
         val lastModifiedMs: Long?,
         val sizeBytes: Long?,
     ) {
-        val isDirectory: Boolean = mimeType == DocumentsContract.Document.MIME_TYPE_DIR
+        val isDirectory: Boolean = mimeType == DocumentsContract.Document.MIME_TYPE_DIR ||
+            mimeType == null && flags?.and(DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE) != 0
         val hasStableChangeSignal: Boolean = lastModifiedMs != null || sizeBytes != null
     }
 
@@ -414,12 +469,15 @@ internal class SafTreeLibraryScanner(
     }
 
     private companion object {
-        const val MAX_DOCUMENTS = 5_000
-        const val MAX_DEPTH = 16
+        // This is an abuse guard, not a normal-library limit. Child rows are processed directly
+        // from the cursor so the bound does not require retaining the provider's whole tree.
+        const val MAX_DOCUMENTS = 100_000
+        const val MAX_DEPTH = 64
         val DOCUMENT_PROJECTION = arrayOf(
             DocumentsContract.Document.COLUMN_DOCUMENT_ID,
             DocumentsContract.Document.COLUMN_DISPLAY_NAME,
             DocumentsContract.Document.COLUMN_MIME_TYPE,
+            DocumentsContract.Document.COLUMN_FLAGS,
             DocumentsContract.Document.COLUMN_LAST_MODIFIED,
             DocumentsContract.Document.COLUMN_SIZE,
         )

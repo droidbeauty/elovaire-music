@@ -62,17 +62,6 @@ internal class LibraryScanRoots(
         )
     }
 
-    fun usesImplicitDefaultDiscovery(): Boolean {
-        return selectedFolders.size == 1 && selectedFolders.single().let { selection ->
-            selection.uri == null && (
-                selection.isDefaultMusicFolder ||
-                    normalizeAbsolutePath(selection.path) == normalizeAbsolutePath(
-                    MediaFilePathResolver.defaultMusicDirectory().absolutePath,
-                )
-                )
-        }
-    }
-
     fun safTreeSelections(): List<LibraryFolderSelection> {
         return selectedFolders.filter { it.uri != null }
     }

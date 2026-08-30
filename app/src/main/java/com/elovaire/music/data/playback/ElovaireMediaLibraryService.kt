@@ -33,6 +33,16 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
         super.onDestroy()
     }
 
+    /**
+     * The app's custom notification controller is the only foreground owner. Keeping Media3's
+     * default provider disabled prevents this session-only service from creating a second
+     * notification or foreground-service lifecycle.
+     */
+    override fun onUpdateNotification(
+        session: MediaSession,
+        startInForegroundRequired: Boolean,
+    ) = Unit
+
     override fun onGetSession(
         controllerInfo: MediaSession.ControllerInfo,
     ): MediaLibrarySession? {
@@ -48,7 +58,7 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
             .playbackManager
         if (!playbackManager.state.value.transportShowsPause) {
             stopSelf()
+            super.onTaskRemoved(rootIntent)
         }
-        super.onTaskRemoved(rootIntent)
     }
 }

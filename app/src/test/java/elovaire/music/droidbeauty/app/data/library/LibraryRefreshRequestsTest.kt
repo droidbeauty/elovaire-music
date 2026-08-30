@@ -64,7 +64,7 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
-    fun tooManyTargetedPaths_fallsBackToFullFastScan() {
+    fun tooManyTargetedPaths_fallsBackToFullProviderReconciliationWithoutIndexWalk() {
         val requests = LibraryRefreshRequests()
 
         requests.enqueue(
@@ -72,7 +72,7 @@ class LibraryRefreshRequestsTest {
         )
 
         assertEquals(
-            LibraryRefreshRequest(forceMediaIndex = true),
+            LibraryRefreshRequest(forceMediaIndex = false),
             requests.takePendingAfterScan(),
         )
     }

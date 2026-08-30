@@ -61,12 +61,12 @@ class MediaStoreScannerInstrumentedTest {
             MediaStoreScanner(
                 context = context,
                 indexRefresher = object : MediaStoreIndexRefresher {
-                    override fun refreshAll(shouldContinue: () -> Boolean): MediaStoreIndexRefreshResult =
+                    override fun refreshAll(shouldContinue: () -> Unit): MediaStoreIndexRefreshResult =
                         MediaStoreIndexRefreshResult.Unavailable(IllegalStateException("test index failure"))
 
                     override fun refreshPaths(
                         paths: List<String>,
-                        shouldContinue: () -> Boolean,
+                        shouldContinue: () -> Unit,
                     ): MediaStoreIndexRefreshResult =
                         MediaStoreIndexRefreshResult.Unavailable(IllegalStateException("test index failure"))
                 },
@@ -106,6 +106,33 @@ class MediaStoreScannerInstrumentedTest {
                 allowUnscopedMediaStoreRows = true,
             ).evaluate(AudioScanCandidateMapper.toCandidate(row, detectedFormat = null))
                 is AudioFileFilterDecision.Include,
+        )
+    }
+
+    @Test
+    fun knownOutOfScopeRelativePathIsNotWidenedByCompatibilityFallback() {
+        val cursor = MatrixCursor(
+            arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.DISPLAY_NAME,
+                MediaStore.MediaColumns.RELATIVE_PATH,
+            ),
+        ).apply {
+            addRow(arrayOf<Any?>(43L, "outside.mp3", "Download/Elovaire"))
+        }
+
+        val row = cursor.use {
+            assertTrue(it.moveToFirst())
+            MediaStoreAudioRowMapper(context, it).row(it)
+        }
+
+        assertTrue(
+            LibraryAudioFileFilter(
+                selectedRelativeRoots = setOf("music"),
+                libraryRootPaths = emptySet(),
+                allowUnscopedMediaStoreRows = true,
+            ).evaluate(AudioScanCandidateMapper.toCandidate(row, detectedFormat = null))
+                is AudioFileFilterDecision.Exclude,
         )
     }
 

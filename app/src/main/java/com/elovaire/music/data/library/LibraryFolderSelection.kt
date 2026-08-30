@@ -5,6 +5,8 @@ import android.net.Uri
 import android.os.Environment
 import android.provider.DocumentsContract
 import java.io.File
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import java.util.Locale
 
 data class LibraryFolderSelection(
@@ -118,7 +120,17 @@ object LibraryFolderSelectionResolver {
     }
 
     fun safSyntheticRoot(uri: Uri): String {
-        return "saf/${uri.toString().hashCode().toUInt().toString(16)}"
+        val authority = uri.authority?.lowercase(Locale.ROOT).orEmpty()
+        val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }
+            .getOrNull()
+        val identity = if (documentId != null) {
+            "$authority\u0000$documentId"
+        } else {
+            normalizedUriIdentity(uri.toString())
+        }
+        val digest = MessageDigest.getInstance("SHA-256")
+            .digest(identity.toByteArray(StandardCharsets.UTF_8))
+        return "saf/${digest.toHexString()}"
     }
 
     fun isUriBackedPath(path: String): Boolean {
@@ -198,4 +210,11 @@ object LibraryFolderSelectionResolver {
     }
 
     private val STORAGE_ROOT_REGEX = Regex("^/storage/emulated/[^/]+/|^/storage/[^/]+/|^/mnt/media_rw/[^/]+/")
+}
+
+private fun ByteArray.toHexString(): String = buildString(size * 2) {
+    for (byte in this@toHexString) {
+        append(((byte.toInt() ushr 4) and 0x0f).toString(16))
+        append((byte.toInt() and 0x0f).toString(16))
+    }
 }

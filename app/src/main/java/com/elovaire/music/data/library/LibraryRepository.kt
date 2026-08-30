@@ -322,7 +322,9 @@ class LibraryRepository internal constructor(
                     }
                 } else {
                     refresh(
-                        forceMediaIndex = true,
+                        // MediaStore is the authoritative catalog. A first run must not walk
+                        // every file under Music just to read rows the provider already indexes.
+                        forceMediaIndex = false,
                         enrichMetadata = false,
                         showLoadingIndicator = true,
                     )
