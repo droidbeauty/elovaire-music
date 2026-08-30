@@ -1,11 +1,13 @@
 package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
+import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
@@ -35,8 +37,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.coroutines.EmptyCoroutineContext
 
+@Suppress("TooManyFunctions")
 class PreferenceStore internal constructor(
     context: Context,
     private val userDataStore: RoomUserDataStore,
@@ -50,11 +54,15 @@ class PreferenceStore internal constructor(
     EqualizerSettingsStore,
     NowPlayingSettingsStore,
     SearchSettingsStore,
+    UpdatePreferencesStore,
     PlaylistStore by userDataStore,
     FavoritesStore by userDataStore {
     private val appContext = context.applicationContext
     private val settingsDataStore: DataStore<Preferences> = appContext.elovaireSettingsDataStore()
     private val preferences = readInitialSettings(settingsDataStore, ioDispatcher)
+    private val legacyPreferences: SharedPreferences = allowStrictModeDiskReads {
+        PreferenceStorage(appContext).preferences
+    }
     private val preferenceScope = CoroutineScope(
         (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
@@ -67,6 +75,21 @@ class PreferenceStore internal constructor(
     private var pendingCrossfadeSilenceThresholdDb: Float? = null
     private var settingsWriteJob: Job? = null
 
+    private val _dismissedUpdateVersion = MutableStateFlow(
+        preferences.getString(KEY_DISMISSED_UPDATE_VERSION, null)
+            ?: runCatching { legacyPreferences.getString(KEY_DISMISSED_UPDATE_VERSION, null) }.getOrNull(),
+    )
+    override val dismissedUpdateVersion: StateFlow<String?> = _dismissedUpdateVersion.asStateFlow()
+    private val lastUpdateCheckAtMs = AtomicLong(
+        if (preferences.contains(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS)
+        ) {
+            preferences.getLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, 0L)
+        } else {
+            runCatching {
+                legacyPreferences.getLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, 0L)
+            }.getOrDefault(0L)
+        }.coerceAtLeast(0L),
+    )
 
     private val _themeMode = MutableStateFlow(loadThemeMode())
     override val themeMode: StateFlow<ThemeMode> = _themeMode.asStateFlow()
@@ -128,6 +151,34 @@ class PreferenceStore internal constructor(
     override val smartPlaylists get() = userDataStore.smartPlaylists
     override val favoriteSongIds get() = userDataStore.favoriteSongIds
     override val playlists get() = userDataStore.playlists
+
+    init {
+        migrateLegacyUpdatePreferencesIfNeeded()
+    }
+
+    override fun setDismissedUpdateVersion(versionName: String?) {
+        val normalized = versionName?.trim()?.takeIf { it.isNotBlank() }
+        if (_dismissedUpdateVersion.value == normalized) return
+        enqueueSettingsWrite {
+            settingsDataStore.editSettings {
+                remove(KEY_DISMISSED_UPDATE_VERSION)
+                normalized?.let { putString(KEY_DISMISSED_UPDATE_VERSION, it) }
+            }
+        }
+        _dismissedUpdateVersion.value = normalized
+    }
+
+    override fun lastAutomaticUpdateCheckAtMs(): Long = lastUpdateCheckAtMs.get()
+
+    override fun setLastAutomaticUpdateCheckAtMs(timestampMs: Long) {
+        val normalized = timestampMs.coerceAtLeast(0L)
+        lastUpdateCheckAtMs.set(normalized)
+        enqueueSettingsWrite {
+            settingsDataStore.editSettings {
+                putLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, normalized)
+            }
+        }
+    }
 
     override fun setThemeMode(themeMode: ThemeMode) {
         updateStateAndPreference(_themeMode, themeMode) {
@@ -482,6 +533,37 @@ class PreferenceStore internal constructor(
         }
     }
 
+    private fun migrateLegacyUpdatePreferencesIfNeeded() {
+        val hasLegacyDismissed = legacyPreferences.contains(KEY_DISMISSED_UPDATE_VERSION)
+        val hasLegacyCheck = legacyPreferences.contains(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS)
+        if (!hasLegacyDismissed && !hasLegacyCheck) return
+        enqueueSettingsWrite {
+            settingsDataStore.editSettings {
+                if (!preferences.contains(KEY_DISMISSED_UPDATE_VERSION)) {
+                    runCatching { legacyPreferences.getString(KEY_DISMISSED_UPDATE_VERSION, null) }
+                        .getOrNull()
+                        ?.trim()
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { putString(KEY_DISMISSED_UPDATE_VERSION, it) }
+                }
+                if (!preferences.contains(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS)) {
+                    putLong(
+                        KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS,
+                        runCatching {
+                            legacyPreferences.getLong(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS, 0L)
+                        }.getOrDefault(0L).coerceAtLeast(0L),
+                    )
+                }
+            }
+            check(
+                legacyPreferences.edit()
+                    .remove(KEY_DISMISSED_UPDATE_VERSION)
+                    .remove(KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS)
+                    .commit(),
+            ) { "Unable to retire legacy update preferences." }
+        }
+    }
+
     private suspend fun persistSettings(
         kind: String,
         write: suspend () -> Unit,
@@ -737,6 +819,8 @@ class PreferenceStore internal constructor(
         const val KEY_MONO_ENABLED = "mono_playback_enabled"
         const val KEY_REVERB_DURATION_MS = "eq_reverb_duration_ms"
         const val KEY_REVERB_PROFILE = "eq_reverb_profile"
+        const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
+        const val KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS = "last_automatic_update_check_at_ms"
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"

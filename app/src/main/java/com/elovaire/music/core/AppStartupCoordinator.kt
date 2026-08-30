@@ -27,6 +27,8 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
@@ -59,6 +61,9 @@ internal class AppStartupCoordinator(
     private val started = AtomicBoolean(false)
     private val playbackStarted = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
+    private val criticalRecoveryScope = CoroutineScope(
+        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]) + ioDispatcher,
+    )
     private var portableUserDataBackupJob: Job? = null
 
     @Suppress("TooGenericExceptionCaught")
@@ -80,7 +85,7 @@ internal class AppStartupCoordinator(
         if (released.get() || !playbackStarted.compareAndSet(false, true)) return
         if (!durableStartupStarted.compareAndSet(false, true)) return
         startPortableUserDataBackup()
-        optionalScope.launch(ioDispatcher) {
+        criticalRecoveryScope.launch {
             try {
                 val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
                 val pendingSourceIds = networkSourceMutationJournal.pending()
@@ -120,19 +125,8 @@ internal class AppStartupCoordinator(
                 libraryRepository.start()
                 libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
                 durableStartupReady.set(Unit)
-
-                try {
-                    val exitSnapshot = exitDiagnosticsDelegate.value.inspect()
-                    backgroundWorkPolicy.setOptionalStartupSuppressed(
-                        exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
-                    )
-                    portableSettingsBackup.start()
-                    updateControllerProvider().scheduleStartupMaintenance()
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (failure: Exception) {
-                    Log.w(TAG, "Optional startup work deferred after playback startup", failure)
-                    backgroundWorkPolicy.setOptionalStartupSuppressed(true)
+                optionalScope.launch(ioDispatcher) {
+                    runOptionalStartup(mediaMutationRecoverySucceeded)
                 }
             } catch (cancelled: CancellationException) {
                 durableStartupReady.cancel(false)
@@ -148,7 +142,25 @@ internal class AppStartupCoordinator(
         if (!released.compareAndSet(false, true)) return
         portableUserDataBackupJob?.cancel()
         portableUserDataBackupJob = null
+        criticalRecoveryScope.cancel()
         durableStartupReady.cancel(false)
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private suspend fun runOptionalStartup(mediaMutationRecoverySucceeded: Boolean) {
+        try {
+            val exitSnapshot = exitDiagnosticsDelegate.value.inspect()
+            backgroundWorkPolicy.setOptionalStartupSuppressed(
+                exitSnapshot.suppressOptionalStartup || !mediaMutationRecoverySucceeded,
+            )
+            portableSettingsBackup.start()
+            updateControllerProvider().scheduleStartupMaintenance()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: RuntimeException) {
+            Log.w(TAG, "Optional startup work deferred after playback startup", failure)
+            backgroundWorkPolicy.setOptionalStartupSuppressed(true)
+        }
     }
 
     private fun startPortableUserDataBackup() {

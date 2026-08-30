@@ -48,11 +48,18 @@ internal class LrclibClient(
         if (bytes.isEmpty() || bytes.size > MAX_RESPONSE_BYTES) return LyricsResult.MalformedResponse
         val response = runCatching { JSONObject(bytes.toString(Charsets.UTF_8)) }.getOrNull()
             ?: return LyricsResult.MalformedResponse
-        val raw = response.optString("syncedLyrics").takeIf(String::isNotBlank)
-            ?: response.optString("plainLyrics").takeIf(String::isNotBlank)
+        val raw = response.optNullableString("syncedLyrics")
+            ?: response.optNullableString("plainLyrics")
             ?: return LyricsResult.NotFound
         return parseLrcOrPlain(raw)?.takeIf { it.lines.isNotEmpty() }?.let(LyricsResult::Found)
             ?: LyricsResult.NotFound
+    }
+
+    private fun JSONObject.optNullableString(name: String): String? {
+        return opt(name)
+            ?.takeUnless { it == JSONObject.NULL }
+            ?.toString()
+            ?.takeIf(String::isNotBlank)
     }
 
     private companion object {

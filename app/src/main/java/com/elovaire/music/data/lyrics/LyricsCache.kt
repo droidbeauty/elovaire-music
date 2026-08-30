@@ -222,7 +222,10 @@ internal class LyricsCache(
                 val lineJson = linesArray.optJSONObject(index) ?: return@repeat
                 add(
                     LyricsLine(
-                        text = lineJson.optString("text"),
+                        text = lineJson.opt("text")
+                            ?.takeUnless { it == JSONObject.NULL }
+                            ?.toString()
+                            .orEmpty(),
                         startTimeMs = lineJson.opt("startTimeMs")?.takeUnless { it == JSONObject.NULL }?.toString()?.toLongOrNull(),
                         endTimeMs = lineJson.opt("endTimeMs")?.takeUnless { it == JSONObject.NULL }?.toString()?.toLongOrNull(),
                         index = lineJson.optInt("index", index),

@@ -33,8 +33,14 @@ internal object MediaStoreAudioQuery {
 
     val collectionUri: Uri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL)
 
-    /** Duration and provider-side collation are not authoritative on all Android 11 providers. */
-    val selection: String? = null
+    /**
+     * Only published media is part of the discoverable catalog.  These columns are platform
+     * columns on every API supported by the app, and applying the predicate in the provider
+     * query also keeps pending/trashed rows out of delta reconciliation.
+     */
+    val selection: String =
+        "${MediaStore.MediaColumns.IS_PENDING} = 0 AND " +
+            "${MediaStore.MediaColumns.IS_TRASHED} = 0"
 
     val orderBy: String? = null
 
@@ -63,7 +69,7 @@ internal object MediaStoreAudioQuery {
         }
 
         try {
-            resolver.query(collectionUri, compatibilityProjection, null, null, null)?.let {
+            resolver.query(collectionUri, compatibilityProjection, selection, null, orderBy)?.let {
                 return QueryResult(it, ProjectionKind.Compatibility)
             }
         } catch (failure: SecurityException) {
@@ -86,7 +92,7 @@ internal object MediaStoreAudioQuery {
             resolver.query(
                 collectionUri,
                 deltaProjection,
-                DELTA_SELECTION,
+                "$selection AND ($DELTA_SELECTION)",
                 arrayOf(generation.toString(), generation.toString()),
                 orderBy,
             )?.let { QueryResult(it, ProjectionKind.Full) }
@@ -103,7 +109,7 @@ internal object MediaStoreAudioQuery {
             resolver.query(
                 collectionUri,
                 identityProjection,
-                null,
+                selection,
                 null,
                 null,
             )

@@ -683,10 +683,9 @@ internal class RoomUserDataStore(
                     recoveryCheckpointJob?.isActive != true
                 }
                 if (shouldSchedule) {
-                    val generation = synchronized(recoveryStateLock) { recoveryGeneration }
                     val job = operationScope.launch {
                         delay(RECOVERY_CHECKPOINT_COALESCE_DELAY_MS)
-                        flushRecoveryCheckpoint(recovery, generation)
+                        flushRecoveryCheckpoint(recovery)
                     }
                     synchronized(recoveryStateLock) {
                         if (recoveryCheckpointJob?.isActive != true) {
@@ -702,16 +701,15 @@ internal class RoomUserDataStore(
 
     private suspend fun flushRecoveryCheckpoint(
         recovery: UserDataRecoverySnapshot,
-        generation: Long,
     ) {
-        val snapshot = synchronized(recoveryStateLock) {
-            if (generation != recoveryGeneration) return
+        val pending = synchronized(recoveryStateLock) {
             val next = pendingRecoverySnapshot
             pendingRecoverySnapshot = null
             recoveryCheckpointJob = null
-            next
-        } ?: return
-        writeRecoverySnapshot(recovery, snapshot, generation)
+            next to recoveryGeneration
+        }
+        val snapshot = pending.first ?: return
+        writeRecoverySnapshot(recovery, snapshot, pending.second)
     }
 
     private suspend fun flushPendingRecoverySnapshot() {
@@ -736,7 +734,13 @@ internal class RoomUserDataStore(
                 recovery.write(snapshot)
                 lastRecoverySnapshot.set(snapshot)
                 recoveryWriteFailureReported.set(false)
-            } catch (failure: Exception) {
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (failure: java.io.IOException) {
+                if (recoveryWriteFailureReported.compareAndSet(false, true)) {
+                    Log.w(TAG, "User-data recovery snapshot write failed.", failure)
+                }
+            } catch (failure: RuntimeException) {
                 if (recoveryWriteFailureReported.compareAndSet(false, true)) {
                     Log.w(TAG, "User-data recovery snapshot write failed.", failure)
                 }
@@ -806,18 +810,16 @@ internal class RoomUserDataStore(
     private fun tryEnqueue(operation: RoomOperation, coalescible: Boolean = false): Boolean {
         synchronized(submissionLock) {
             if (released.get() || lifecycle.get() == StoreLifecycle.Failed) return false
-            if (operations.trySend(operation).isSuccess) {
+            val accepted = operations.trySend(operation).isSuccess
+            if (accepted) {
                 val depth = queueDepth.incrementAndGet()
                 maxQueueDepth.updateAndGet { current -> maxOf(current, depth) }
                 updatePendingOperationResourceLocked()
-                return true
-            }
-            if (coalescible) {
+            } else if (coalescible) {
                 coalescedOperations[operation.name] = operation
                 updatePendingOperationResourceLocked()
-                return true
             }
-            return false
+            return accepted || coalescible
         }
     }
 

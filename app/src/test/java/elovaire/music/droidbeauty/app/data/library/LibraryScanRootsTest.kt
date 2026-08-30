@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library
 import android.net.TestUri
 import java.io.File
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -62,6 +63,39 @@ class LibraryScanRootsTest {
         )
 
         assertTrue(roots.directFileRoots().isEmpty())
+    }
+
+    @Test
+    fun requiresMediaIndexRepair_onlyForCustomPathRoots() {
+        val roots = LibraryScanRoots(
+            listOf(
+                LibraryFolderSelection(
+                    uri = null,
+                    path = "/storage/emulated/0/Music",
+                    displayName = "Music",
+                    isDefaultMusicFolder = true,
+                ),
+                LibraryFolderSelection(
+                    uri = TestUri("content://tree/music"),
+                    path = "content://tree/music",
+                    displayName = "Music",
+                ),
+            ),
+        )
+
+        assertFalse(roots.requiresMediaIndexRepair())
+
+        roots.setSelections(
+            listOf(
+                LibraryFolderSelection(
+                    uri = null,
+                    path = "/storage/emulated/0/Recordings",
+                    displayName = "Recordings",
+                ),
+            ),
+        )
+
+        assertTrue(roots.requiresMediaIndexRepair())
     }
 
     @Test

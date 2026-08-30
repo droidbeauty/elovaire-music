@@ -66,6 +66,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.window.Dialog
+import dev.chrisbanes.haze.HazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -443,6 +444,7 @@ internal fun PlaylistSelectionDialog(
     onDismiss: () -> Unit,
     onPlaylistSelected: suspend (Long) -> PlaylistMutationResult,
     onCreatePlaylist: PlaylistCreateAction?,
+    hazeState: HazeState? = null,
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val language = LocalAppLanguage.current
@@ -494,6 +496,7 @@ internal fun PlaylistSelectionDialog(
                     shape = RoundedCornerShape(ElovaireRadii.card),
                     overlayAlpha = 0.6f,
                     borderColor = blurSurfaceBorderColor(),
+                    hazeState = hazeState,
                 ) {
                 Column(
                     modifier = Modifier
@@ -864,6 +867,7 @@ internal fun AddToPlaylistPickerDialog(
     onDismiss: () -> Unit,
     onPlaylistSelected: suspend (Long) -> PlaylistMutationResult,
     onCreatePlaylist: PlaylistCreateAction? = null,
+    hazeState: HazeState? = null,
 ) {
     val language = LocalAppLanguage.current
     PlaylistSelectionDialog(
@@ -874,5 +878,6 @@ internal fun AddToPlaylistPickerDialog(
         onDismiss = onDismiss,
         onPlaylistSelected = onPlaylistSelected,
         onCreatePlaylist = onCreatePlaylist,
+        hazeState = hazeState,
     )
 }

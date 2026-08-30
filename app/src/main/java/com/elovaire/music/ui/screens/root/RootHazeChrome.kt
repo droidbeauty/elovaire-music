@@ -48,6 +48,7 @@ private const val SCROLL_POSITION_CACHE_SAMPLE_INTERVAL_MS = 100L
 
 internal val LocalChromeHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
+internal val LocalPlayerSurfaceHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
 
 @Composable
@@ -199,19 +200,20 @@ internal fun DynamicBackdropSurface(
     borderColor: Color? = null,
     showTopEdgeLine: Boolean = false,
     showBottomEdgeLine: Boolean = false,
+    hazeState: HazeState? = null,
     content: @Composable BoxScope.() -> Unit = {},
 ) {
-    val hazeState = LocalPlayerHazeState.current ?: LocalChromeHazeState.current
+    val effectiveHazeState = hazeState ?: LocalPlayerHazeState.current ?: LocalChromeHazeState.current
     val overlayColor = blurSurfaceOverlayColor()
 
     Box(
         modifier = modifier.clip(shape),
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hazeState != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && effectiveHazeState != null) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
-                    .hazeEffect(hazeState) {
+                    .hazeEffect(effectiveHazeState) {
                         blurRadius = 30.dp
                         backgroundColor = overlayColor.copy(alpha = overlayAlpha)
                         tints = listOf(HazeTint(overlayColor.copy(alpha = overlayAlpha)))
@@ -261,12 +263,14 @@ internal fun ProgressiveChromeBackdrop(
     overlayAlpha: Float? = null,
     flatOverlay: Boolean = false,
     showEdgeLine: Boolean = true,
+    hazeState: HazeState? = null,
 ) {
     DynamicBackdropSurface(
         modifier = modifier,
         overlayAlpha = overlayAlpha ?: 0.7f,
         showTopEdgeLine = edge == ProgressiveChromeEdge.Bottom && showEdgeLine,
         showBottomEdgeLine = edge == ProgressiveChromeEdge.Top && showEdgeLine,
+        hazeState = hazeState,
     )
 }
 
@@ -279,6 +283,7 @@ internal fun ChromeHazeLayer(
     overlayAlpha: Float? = null,
     flatOverlay: Boolean = false,
     showEdgeLine: Boolean = true,
+    hazeState: HazeState? = null,
 ) {
     ProgressiveChromeBackdrop(
         darkTheme = darkTheme,
@@ -287,6 +292,7 @@ internal fun ChromeHazeLayer(
         flatOverlay = flatOverlay,
         showEdgeLine = showEdgeLine,
         modifier = modifier,
+        hazeState = hazeState,
     )
 }
 
@@ -299,6 +305,7 @@ internal fun FrostedTopBarBackground(
     overlayAlpha: Float? = null,
     flatOverlay: Boolean = false,
     showEdgeLine: Boolean = true,
+    hazeState: HazeState? = null,
 ) {
     ChromeHazeLayer(
         darkTheme = darkTheme,
@@ -307,6 +314,7 @@ internal fun FrostedTopBarBackground(
         flatOverlay = flatOverlay,
         showEdgeLine = showEdgeLine,
         modifier = modifier,
+        hazeState = hazeState,
     )
 }
 
@@ -314,7 +322,9 @@ internal fun FrostedTopBarBackground(
 internal fun Modifier.playerFrostedSurface(
     tint: Color,
 ): Modifier = composed {
-    val hazeState = LocalPlayerHazeState.current
+    val hazeState = LocalPlayerSurfaceHazeState.current
+        ?: LocalPlayerHazeState.current
+        ?: LocalChromeHazeState.current
     if (hazeState == null) {
         this
     } else {

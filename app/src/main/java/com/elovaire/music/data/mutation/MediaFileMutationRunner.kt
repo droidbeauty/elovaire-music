@@ -20,6 +20,7 @@ import java.security.MessageDigest
 internal class MediaFileMutationRunner(
     context: Context,
     private val tempDirectoryName: String,
+    private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
 ) {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
@@ -38,6 +39,7 @@ internal class MediaFileMutationRunner(
     }
 
     fun preflight(song: Song) {
+        faultInjector.checkpoint(MediaMutationTransactionPhase.SourcePreflight)
         val target = MediaWriteTargetClassifier.classify(appContext, song.uri)
         requireWritable(song.uri)
         val sourceSize = when (target) {
@@ -72,6 +74,13 @@ internal class MediaFileMutationRunner(
         try {
             contentIo.copyToFile(song.uri, destination)
             check(destination.length() > 0L) { "The song file is empty." }
+            faultInjector.checkpoint(
+                if (purpose == "backup") {
+                    MediaMutationTransactionPhase.BackupCopied
+                } else {
+                    MediaMutationTransactionPhase.PersistedVerification
+                },
+            )
             complete = true
             return destination
         } finally {
@@ -104,6 +113,7 @@ internal class MediaFileMutationRunner(
             check(copied == source.length() && destination.length() == source.length()) {
                 "Unable to create a complete working copy."
             }
+            faultInjector.checkpoint(MediaMutationTransactionPhase.WorkingCopyCopied)
             complete = true
             return copied
         } finally {
@@ -115,6 +125,7 @@ internal class MediaFileMutationRunner(
         uri: Uri,
         source: File,
     ) {
+        faultInjector.checkpoint(MediaMutationTransactionPhase.OriginalOverwrite)
         check(source.isFile && source.length() > 0L) { "The replacement song file is empty." }
         val target = MediaWriteTargetClassifier.classify(appContext, uri)
         if (target is MediaWriteTarget.Unsupported) error(target.reason)
@@ -144,15 +155,18 @@ internal class MediaFileMutationRunner(
                 if (!moved) replacement.delete()
             }
             check(destination.length() == source.length()) { "Unable to replace the complete song file." }
+            faultInjector.checkpoint(MediaMutationTransactionPhase.OriginalCommitted)
             return
         }
         contentIo.replaceFromFile(uri, source)
+        faultInjector.checkpoint(MediaMutationTransactionPhase.OriginalCommitted)
     }
 
     fun verifyOriginalBytes(
         uri: Uri,
         expected: File,
     ) {
+        faultInjector.checkpoint(MediaMutationTransactionPhase.PersistedVerification)
         val actualDigest = contentResolver.openInputStream(uri)?.use(::sha256)
             ?: error("Unable to verify the restored song.")
         val expectedDigest = expected.inputStream().use(::sha256)

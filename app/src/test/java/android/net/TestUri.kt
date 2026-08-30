@@ -13,7 +13,7 @@ class TestUri(
 
     override fun getEncodedFragment(): String? = null
 
-    override fun getEncodedPath(): String = "/"
+    override fun getEncodedPath(): String = path
 
     override fun getEncodedQuery(): String? = null
 
@@ -27,7 +27,15 @@ class TestUri(
 
     override fun getLastPathSegment(): String = "test"
 
-    override fun getPath(): String = "/"
+    override fun getPath(): String {
+        val authorityAndPath = value.substringAfter("://", value)
+        val separator = authorityAndPath.indexOf('/')
+        return when {
+            separator < 0 -> "/"
+            authorityAndPath[separator] == '/' -> authorityAndPath.substring(separator)
+            else -> "/${authorityAndPath.substring(separator + 1)}"
+        }
+    }
 
     override fun getPathSegments(): List<String> = listOf("test")
 

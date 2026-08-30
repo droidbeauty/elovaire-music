@@ -207,6 +207,7 @@ if (providers.gradleProperty("app.composeCompilerReports").map(String::toBoolean
 detekt {
     buildUponDefaultConfig = false
     config.setFrom(rootProject.files("config/detekt/detekt.yml"))
+    baseline.set(layout.projectDirectory.file("detekt-baseline.xml"))
     source.setFrom(
         files(
             "src/main/java",

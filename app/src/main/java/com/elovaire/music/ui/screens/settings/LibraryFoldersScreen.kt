@@ -59,6 +59,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import androidx.compose.ui.window.Dialog
+import dev.chrisbanes.haze.ExperimentalHazeApi
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
@@ -87,6 +91,8 @@ import elovaire.music.droidbeauty.app.platform.takePersistableTreePermission
 import elovaire.music.droidbeauty.app.platform.releasePersistableTreePermission
 import java.util.UUID
 
+@OptIn(ExperimentalHazeApi::class)
+@Suppress("LongMethod")
 @Composable
 internal fun LibraryFoldersScreen(
     appLanguage: AppLanguage,
@@ -106,6 +112,7 @@ internal fun LibraryFoldersScreen(
     val copy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
     val networkCopy = remember(appLanguage) { networkSourcesCopy(appLanguage) }
     val listState = remember { androidx.compose.foundation.lazy.LazyListState() }
+    val sourceChooserHazeState = rememberHazeState()
     val songCountsByFolder = remember(folders, songs) {
         folders.associateWith { folder -> songs.countInFolder(folder) }
     }
@@ -133,6 +140,11 @@ internal fun LibraryFoldersScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         if (!showNetworkEditor) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(sourceChooserHazeState, zIndex = -1f),
+            ) {
             LazyColumn(
                 state = listState,
                 overscrollEffect = null,
@@ -300,8 +312,10 @@ internal fun LibraryFoldersScreen(
                     onClick = onRefresh,
                 )
             }
+            }
             LibrarySourceChooserSheet(
                 visible = showSourceChooser,
+                hazeState = sourceChooserHazeState,
                 addFolderLabel = copy.addFolder,
                 copy = networkCopy,
                 onDismiss = { showSourceChooser = false },
@@ -424,8 +438,10 @@ private fun AddFolderPill(
 }
 
 @Composable
+@Suppress("LongMethod")
 private fun LibrarySourceChooserSheet(
     visible: Boolean,
+    hazeState: HazeState,
     addFolderLabel: String,
     copy: NetworkSourcesCopy,
     onDismiss: () -> Unit,
@@ -484,6 +500,7 @@ private fun LibrarySourceChooserSheet(
                 ),
                 overlayAlpha = 0.6f,
                 borderColor = null,
+                hazeState = hazeState,
             ) {
                 Column(
                     modifier = Modifier

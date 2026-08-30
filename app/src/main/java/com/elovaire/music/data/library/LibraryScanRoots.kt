@@ -35,6 +35,15 @@ internal class LibraryScanRoots(
         )
     }
 
+    /**
+     * MediaScanner repair is only useful for path-backed custom roots. The default Music source
+     * is already represented by the authoritative MediaStore query, and SAF trees have their own
+     * provider traversal; neither should trigger a recursive filesystem walk when folders change.
+     */
+    fun requiresMediaIndexRepair(): Boolean {
+        return selectedFolders.any { it.uri == null && !it.isDefaultMusicFolder }
+    }
+
     fun relativeRoots(): Set<String> {
         return LibraryFolderSelectionResolver.relativeRoots(selectedFolders)
     }

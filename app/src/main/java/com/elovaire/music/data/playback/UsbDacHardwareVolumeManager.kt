@@ -46,8 +46,10 @@ internal class UsbDacHardwareVolumeManager(
     private var currentCapability: UsbDacHardwareVolumeCapability? = null
     private var permissionReceiverRegistered = false
     private var pendingRequestedVolume: Float? = null
-    private val capabilityCache = linkedMapOf<String, UsbDacHardwareVolumeCapability>()
+    private val capabilityCache = UsbDacCapabilityCache()
     private var currentDeviceCacheKey: String? = null
+    private var connectionGeneration = 0L
+    private var currentConnection: UsbDacConnectionToken? = null
     private var released = false
 
     private val permissionReceiver = object : BroadcastReceiver() {
@@ -60,7 +62,16 @@ internal class UsbDacHardwareVolumeManager(
                 ACTION_USB_DAC_PERMISSION -> {
                     val device = intent.getParcelableExtraCompat<UsbDevice>(UsbManager.EXTRA_DEVICE)
                     val granted = intent.getBooleanExtra(UsbManager.EXTRA_PERMISSION_GRANTED, false)
-                    if (device == null || currentUsbDevice?.deviceId != device.deviceId) return
+                    val callbackGeneration = intent.getLongExtra(EXTRA_CONNECTION_GENERATION, -1L)
+                    if (
+                        device == null ||
+                        !isCurrentUsbDacCallback(
+                            current = currentConnection,
+                            callbackGeneration = callbackGeneration,
+                            callbackDeviceId = device.deviceId,
+                            callbackIdentityKey = device.toIdentity().persistenceKey(),
+                        )
+                    ) return
                     if (granted) {
                         refreshConnectedDevice()
                         pendingRequestedVolume?.let { requested ->
@@ -75,7 +86,7 @@ internal class UsbDacHardwareVolumeManager(
 
                 UsbManager.ACTION_USB_DEVICE_DETACHED -> {
                     val detached = intent.getParcelableExtraCompat<UsbDevice>(UsbManager.EXTRA_DEVICE)
-                    if (detached != null && detached.deviceId == currentUsbDevice?.deviceId) {
+                    if (detached != null && isCurrentUsbDacDevice(detached)) {
                         clearCurrentDevice()
                         publishStatus("usb-detached")
                     }
@@ -139,8 +150,22 @@ internal class UsbDacHardwareVolumeManager(
         }
         val identity = usbDevice.toIdentity()
         val cacheKey = identity.reliableCacheKey()
+        val connection = currentConnection
         if (
-            currentUsbDevice?.deviceId == usbDevice.deviceId &&
+            connection == null ||
+            connection.deviceId != usbDevice.deviceId ||
+            connection.identityKey != identity.persistenceKey()
+        ) {
+            connectionGeneration += 1L
+            currentConnection = UsbDacConnectionToken(
+                generation = connectionGeneration,
+                deviceId = usbDevice.deviceId,
+                identityKey = identity.persistenceKey(),
+            )
+        }
+        if (
+            currentConnection?.deviceId == usbDevice.deviceId &&
+            currentConnection?.identityKey == identity.persistenceKey() &&
             currentCapability != null &&
             currentDeviceCacheKey == cacheKey
         ) {
@@ -156,7 +181,7 @@ internal class UsbDacHardwareVolumeManager(
         if (usbManager?.hasPermission(usbDevice) != true) {
             return
         }
-        inspectCurrentUsbDevice(usbDevice, identity)
+        inspectCurrentUsbDevice(usbDevice, identity, currentConnection)
     }
 
     fun updateAudioOutputDevice(
@@ -167,6 +192,7 @@ internal class UsbDacHardwareVolumeManager(
         if (currentAudioDeviceFingerprint == nextFingerprint) return
         currentAudioDeviceDescriptor = audioDeviceDescriptor
         currentAudioDeviceFingerprint = nextFingerprint
+        invalidateCurrentConnection()
         refreshConnectedDevice()
     }
 
@@ -196,13 +222,14 @@ internal class UsbDacHardwareVolumeManager(
     fun setHardwareVolume(normalizedValue: Float): Boolean {
         if (released || !usbHostSupported) return false
         val usbDevice = currentUsbDevice ?: return false
+        val connectionToken = currentConnection ?: return false
         if (usbManager?.hasPermission(usbDevice) != true) {
             pendingRequestedVolume = normalizedValue.coerceIn(0f, 1f)
-            requestPermissionIfNeeded(usbDevice)
+            requestPermissionIfNeeded(usbDevice, connectionToken)
             return true
         }
         val capability = currentCapability ?: run {
-            inspectCurrentUsbDevice(usbDevice, usbDevice.toIdentity())
+            inspectCurrentUsbDevice(usbDevice, usbDevice.toIdentity(), connectionToken)
             currentCapability ?: return false
         }
         if (!capability.canWriteVolume) {
@@ -215,7 +242,7 @@ internal class UsbDacHardwareVolumeManager(
             normalizedValue = normalizedValue,
             range = capability.range,
         )
-        val applied = performVolumeWrite(usbDevice, capability, targetRaw)
+        val applied = performVolumeWrite(usbDevice, capability, targetRaw, connectionToken)
         val afterSystemVolume = currentSystemMediaVolume()
         logDebug(
             "event=set identity=${capability.identity.persistenceKey()} api=${Build.VERSION.SDK_INT} " +
@@ -255,7 +282,9 @@ internal class UsbDacHardwareVolumeManager(
     private fun inspectCurrentUsbDevice(
         usbDevice: UsbDevice,
         identity: UsbDacDeviceIdentity,
+        expectedConnection: UsbDacConnectionToken?,
     ) {
+        if (!isCurrentConnection(expectedConnection, usbDevice, identity)) return
         val connection = runCatching { usbManager?.openDevice(usbDevice) }.getOrNull()
         if (connection == null) {
             controller.onHardwareVolumeUnavailable("Unable to open USB device")
@@ -264,6 +293,7 @@ internal class UsbDacHardwareVolumeManager(
         }
         runCatching {
             connection.useSafely { safeConnection ->
+                if (!isCurrentConnection(expectedConnection, usbDevice, identity)) return@useSafely
                 val parsedCapability = capabilityCache[identity.reliableCacheKey()] ?: parser.parse(
                     rawDescriptors = runCatching { safeConnection.getRawDescriptors() }.getOrNull() ?: ByteArray(0),
                     identity = identity,
@@ -298,6 +328,7 @@ internal class UsbDacHardwareVolumeManager(
                     publishStatus("unsupported-no-range")
                     return@useSafely
                 }
+                if (!isCurrentConnection(expectedConnection, usbDevice, identity)) return@useSafely
                 currentCapability = resolvedCapability
                 identity.reliableCacheKey()?.let { capabilityCache[it] = resolvedCapability }
                 val currentRaw = if (resolvedCapability.canReadCurrent) {
@@ -335,10 +366,13 @@ internal class UsbDacHardwareVolumeManager(
         usbDevice: UsbDevice,
         capability: UsbDacHardwareVolumeCapability,
         targetRaw: Int,
+        expectedConnection: UsbDacConnectionToken,
     ): Boolean {
+        if (!isCurrentConnection(expectedConnection, usbDevice, capability.identity)) return false
         val connection = runCatching { usbManager?.openDevice(usbDevice) }.getOrNull() ?: return false
         return connection.useSafely { safeConnection ->
-            capability.controlChannels.all { channel ->
+            if (!isCurrentConnection(expectedConnection, usbDevice, capability.identity)) return@useSafely false
+            val written = capability.controlChannels.all { channel ->
                 setVolumeRaw(
                     connection = safeConnection,
                     capability = capability,
@@ -346,6 +380,7 @@ internal class UsbDacHardwareVolumeManager(
                     rawValue = targetRaw,
                 )
             }
+            written && isCurrentConnection(expectedConnection, usbDevice, capability.identity)
         }
     }
 
@@ -425,13 +460,18 @@ internal class UsbDacHardwareVolumeManager(
         return transferred == payload.size
     }
 
-    private fun requestPermissionIfNeeded(usbDevice: UsbDevice) {
+    private fun requestPermissionIfNeeded(
+        usbDevice: UsbDevice,
+        connection: UsbDacConnectionToken,
+    ) {
         if (released || !usbHostSupported) return
         val pendingIntent = runCatching {
             PendingIntent.getBroadcast(
                 appContext,
                 usbDevice.deviceId,
-                Intent(ACTION_USB_DAC_PERMISSION).setPackage(appContext.packageName),
+                Intent(ACTION_USB_DAC_PERMISSION)
+                    .setPackage(appContext.packageName)
+                    .putExtra(EXTRA_CONNECTION_GENERATION, connection.generation),
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
             )
         }.getOrNull() ?: return
@@ -517,11 +557,45 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     private fun clearCurrentDevice() {
+        invalidateCurrentConnection()
         currentUsbDevice = null
         currentCapability = null
         pendingRequestedVolume = null
         currentDeviceCacheKey = null
         controller.onNoExternalDac()
+    }
+
+    private fun invalidateCurrentConnection() {
+        connectionGeneration += 1L
+        currentConnection = null
+        currentUsbDevice = null
+        currentCapability = null
+        pendingRequestedVolume = null
+        currentDeviceCacheKey = null
+    }
+
+    private fun isCurrentConnection(
+        expected: UsbDacConnectionToken?,
+        device: UsbDevice,
+        identity: UsbDacDeviceIdentity,
+    ): Boolean {
+        return !released &&
+            isCurrentUsbDacCallback(
+                current = currentConnection,
+                callbackGeneration = expected?.generation ?: -1L,
+                callbackDeviceId = device.deviceId,
+                callbackIdentityKey = identity.persistenceKey(),
+            )
+    }
+
+    private fun isCurrentUsbDacDevice(device: UsbDevice): Boolean {
+        val current = currentConnection ?: return false
+        return isCurrentUsbDacCallback(
+            current = current,
+            callbackGeneration = current.generation,
+            callbackDeviceId = device.deviceId,
+            callbackIdentityKey = device.toIdentity().persistenceKey(),
+        )
     }
 
     private fun publishStatus(reason: String) {
@@ -587,6 +661,7 @@ internal class UsbDacHardwareVolumeManager(
         const val TAG = "UsbDacVolume"
         const val PREFS_NAME = "usb_dac_hardware_volume"
         const val ACTION_USB_DAC_PERMISSION = "elovaire.music.droidbeauty.app.action.USB_DAC_PERMISSION"
+        const val EXTRA_CONNECTION_GENERATION = "connection_generation"
         const val CONTROL_SELECTOR_VOLUME = 0x02
         const val REQUEST_SET_CUR = 0x01
         const val REQUEST_GET_CUR = 0x81

@@ -164,6 +164,7 @@ data class PlaybackFormatFailure(
 )
 
 @SuppressLint("UnsafeOptInUsageError")
+@Suppress("LargeClass", "TooManyFunctions")
 class PlaybackManager(
     context: Context,
     scope: CoroutineScope,
@@ -623,7 +624,7 @@ class PlaybackManager(
                 get() = _state.value
 
             override fun publishState(state: PlaybackUiState) {
-                _state.value = state
+                publishPlaybackState(state)
             }
 
             override fun updateState() = this@PlaybackManager.updateState()
@@ -751,6 +752,7 @@ class PlaybackManager(
             sourceLabel = songs[index].album,
             sourcePlaylistId = null,
         )
+        ExternalAudioStageUsage.setActivePlaybackUris(songs.map(Song::uri))
         publishProgressSnapshot(force = true)
         syncRuntimeObservers()
         syncProgressUpdateLoop()
@@ -1183,6 +1185,7 @@ class PlaybackManager(
         detachPlayerObservers(player)
         sessionOwner.release()
         releasePlayer(player)
+        ExternalAudioStageUsage.setActivePlaybackUris(emptyList())
     }
 
     private fun scheduleAudioPathReevaluation(
@@ -1370,6 +1373,7 @@ class PlaybackManager(
             audioSessionId = 0,
             sourcePlaylistId = null,
         )
+        ExternalAudioStageUsage.setActivePlaybackUris(emptyList())
         queueMetadataRefresher.reset()
         _progressState.value = playbackProgressController.clear()
         syncRuntimeObservers()
@@ -1407,6 +1411,7 @@ class PlaybackManager(
     ): Boolean {
         if (nextState == currentState) return false
         _state.value = nextState
+        ExternalAudioStageUsage.setActivePlaybackUris(nextState.queue.map(Song::uri))
         return true
     }
 
@@ -1802,6 +1807,7 @@ class PlaybackManager(
         )
         if (nextState != _state.value) {
             _state.value = nextState
+            ExternalAudioStageUsage.setActivePlaybackUris(nextState.queue.map(Song::uri))
         }
         publishProgressSnapshot()
     }

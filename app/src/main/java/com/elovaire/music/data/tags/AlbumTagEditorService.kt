@@ -16,6 +16,9 @@ import elovaire.music.droidbeauty.app.data.audio.TagWriteSupport
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationCoordinator
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationFaultInjector
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationTransactionPhase
+import elovaire.music.droidbeauty.app.data.mutation.NoOpMediaMutationFaultInjector
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.platform.ContentIo
@@ -111,12 +114,13 @@ internal class AlbumTagEditorService(
     context: Context,
     private val mediaMutationJournal: MediaMutationJournal? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
 ) : AlbumTagEditor {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val contentIo = ContentIo(contentResolver)
     private val audioFormatDetector = AudioFormatDetector(appContext)
-    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME)
+    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_TAG_EDIT_DIR_NAME, faultInjector)
     override suspend fun applyEdits(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean,
@@ -183,223 +187,20 @@ internal class AlbumTagEditorService(
             )
         }
         plans.forEach { plan ->
-            val song = plan.song
-            val trackEdit = plan.trackEdit
-            val mutationId = mediaMutationJournal?.create(
-                MediaMutationOperation(
-                    type = if (coverArtBytes != null) MediaMutationType.ArtworkWrite else MediaMutationType.TagEdit,
-                    songId = song.id,
-                    albumId = song.albumId,
-                    uri = song.uri,
-                    displayName = song.fileName,
-                ),
+            val result = applyPlan(
+                plan = plan,
+                request = request,
+                coverArtBytes = coverArtBytes,
+                coverArtMimeType = coverArtMimeType,
+                writeConsentGranted = writeConsentGranted,
             )
-            val detectedFormat = song.fileName
-                .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
-                ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
-            if (AudioFormatPolicy.tagWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
-                val capability = AudioFormatPolicy.capabilityForFileName(song.fileName)
-                logDebug("Skipped unsafe tag write for ${song.fileName}: ${capability?.notes ?: "unknown format"}")
-                mutationId?.let {
-                    mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported tag write format")
-                }
-                failures += TagEditFailure(
-                    songId = song.id,
-                    fileName = song.fileName,
-                    reason = "This audio format cannot be tagged safely.",
-                    cause = TagEditFailureCause.UnsupportedFormat,
-                )
-                return@forEach
-            }
-            if (coverArtBytes != null && !AudioFormatPolicy.canEmbedArtwork(detectedFormat, song.fileName)) {
-                mutationId?.let {
-                    mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported artwork write format")
-                }
-                failures += TagEditFailure(
-                    songId = song.id,
-                    fileName = song.fileName,
-                    reason = "Artwork cannot be embedded safely in this audio format.",
-                    cause = TagEditFailureCause.UnsupportedArtworkFormat,
-                )
-                return@forEach
-            }
-            if (trackEdit == null) {
-                logDebug("Missing per-track edit row for songId=${song.id}; applying album-level values only.")
-            }
-            val effectiveTrack = EffectiveTrackEdit.from(song, trackEdit)
-            var tempFile: File? = null
-            var backupFile: File? = null
-            var persistedVerificationFile: File? = null
-            var phase = TagEditWritePhase.SourceRead
-            var rollbackFailed = false
-            var originalOverwritten = false
-            try {
-                logPhase(phase, song, writeConsentGranted)
-                mutationRunner.requireWritable(song.uri)
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
-                val originalBackup = mutationRunner.copySongToTemp(song, "backup")
-                backupFile = originalBackup
-                val workingFile = mutationRunner.createTempFile(song, "working").also { file ->
-                    mutationRunner.copyFileDurably(originalBackup, file)
-                }
-                tempFile = workingFile
-                phase = TagEditWritePhase.TempWrite
-                logPhase(phase, song, writeConsentGranted)
-                updateTagFile(
-                    tempFile = workingFile,
-                    originalSong = song,
-                    request = request,
-                    track = effectiveTrack,
-                    coverArtBytes = coverArtBytes,
-                    coverArtMimeType = coverArtMimeType,
-                )
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
-                phase = TagEditWritePhase.TempVerification
-                logPhase(phase, song, writeConsentGranted)
-                val verificationFailures = verifyWrittenTags(
-                    tempFile = workingFile,
-                    expected = ExpectedTagValues(
-                        title = trackEdit?.let { effectiveTrack.title },
-                        artist = trackEdit?.let { effectiveTrack.artist },
-                        album = request.albumTitle.expectedValue(),
-                        albumArtist = request.albumArtist.expectedValue(),
-                        year = request.releaseYear.expectedYear(),
-                        genre = request.genre.expectedValue(),
-                        shouldClearAlbum = request.albumTitle is TagFieldEdit.Cleared,
-                        shouldClearAlbumArtist = request.albumArtist is TagFieldEdit.Cleared,
-                        shouldClearYear = request.releaseYear is TagFieldEdit.Cleared,
-                        shouldClearGenre = request.genre is TagFieldEdit.Cleared,
-                        trackNumber = trackEdit?.let { effectiveTrack.trackNumber.coerceAtLeast(1).toString() },
-                        discNumber = trackEdit?.let { effectiveTrack.discNumber.coerceAtLeast(1).toString() },
-                    ),
-                    expectArtwork = coverArtBytes != null,
-                )
-                if (verificationFailures.isNotEmpty()) {
-                    mutationId?.let {
-                        mediaMutationJournal.mark(it, MediaMutationStatus.Failed, verificationFailures.joinToString())
-                    }
-                    failures += TagEditFailure(
-                        songId = song.id,
-                        fileName = song.fileName,
-                        reason = verificationFailures.joinToString(),
-                        cause = TagEditFailureCause.TempVerificationFailed,
-                    )
-                    return@forEach
-                }
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
-                phase = TagEditWritePhase.OriginalOverwrite
-                logPhase(phase, song, writeConsentGranted, replacementBytes = workingFile.length())
-                try {
-                    mutationRunner.overwriteOriginal(song.uri, tempFile)
-                    originalOverwritten = true
-                } catch (writeFailure: Throwable) {
-                    rollbackFailed = !restoreOriginal(song.uri, originalBackup)
-                    throw writeFailure
-                }
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
-                phase = TagEditWritePhase.PersistedVerification
-                logPhase(phase, song, writeConsentGranted)
-                persistedVerificationFile = mutationRunner.copySongToTemp(song, "verify")
-                val persistedFailures = verifyWrittenTags(
-                    tempFile = persistedVerificationFile,
-                    expected = ExpectedTagValues(
-                        title = trackEdit?.let { effectiveTrack.title },
-                        artist = trackEdit?.let { effectiveTrack.artist },
-                        album = request.albumTitle.expectedValue(),
-                        albumArtist = request.albumArtist.expectedValue(),
-                        year = request.releaseYear.expectedYear(),
-                        genre = request.genre.expectedValue(),
-                        shouldClearAlbum = request.albumTitle is TagFieldEdit.Cleared,
-                        shouldClearAlbumArtist = request.albumArtist is TagFieldEdit.Cleared,
-                        shouldClearYear = request.releaseYear is TagFieldEdit.Cleared,
-                        shouldClearGenre = request.genre is TagFieldEdit.Cleared,
-                        trackNumber = trackEdit?.let { effectiveTrack.trackNumber.coerceAtLeast(1).toString() },
-                        discNumber = trackEdit?.let { effectiveTrack.discNumber.coerceAtLeast(1).toString() },
-                    ),
-                    expectArtwork = coverArtBytes != null,
-                )
-                if (persistedFailures.isNotEmpty()) {
-                    mutationId?.let {
-                        mediaMutationJournal.mark(it, MediaMutationStatus.NeedsRepair, persistedFailures.joinToString())
-                    }
-                    rollbackFailed = !restoreOriginal(song.uri, originalBackup)
-                    error("Persisted tag verification failed: ${persistedFailures.joinToString()}")
-                }
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
+            result.editedSong?.let { song ->
                 editedSongIds += song.id
                 editedUris += song.uri
-                editedSongs += song.copy(
-                    title = trackEdit?.let { effectiveTrack.title } ?: song.title,
-                    artist = trackEdit?.let { effectiveTrack.artist } ?: song.artist,
-                    album = request.albumTitle.valueOr(song.album),
-                    albumArtist = request.albumArtist.valueOr(song.albumArtist ?: song.artist)
-                        .takeIf(String::isNotBlank),
-                    releaseYear = request.releaseYear.valueOr(song.releaseYear),
-                    genre = request.genre.valueOr(song.genre),
-                    trackNumber = trackEdit?.let { effectiveTrack.trackNumber } ?: song.trackNumber,
-                    discNumber = trackEdit?.let { effectiveTrack.discNumber } ?: song.discNumber,
-                    metadataResolved = true,
-                )
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Completed) }
-                logDebug("Completed songId=${song.id} authority=${song.uri.authority.orEmpty()}")
-            } catch (throwable: CancellationException) {
-                withContext(NonCancellable) {
-                    if (originalOverwritten && backupFile != null) {
-                        rollbackFailed = !restoreOriginal(song.uri, backupFile)
-                    }
-                    mutationId?.let {
-                        mediaMutationJournal.mark(
-                            it,
-                            if (rollbackFailed) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Cancelled,
-                        )
-                    }
-                }
-                throw throwable
-            } catch (throwable: RecoverableSecurityException) {
-                mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.NeedsPermission) }
-                if (!writeConsentGranted && permissionRequest == null) {
-                    permissionRequest = throwable.userAction.actionIntent
-                }
-                failures += TagEditFailure(
-                    songId = song.id,
-                    fileName = song.fileName,
-                    reason = if (writeConsentGranted) {
-                        "The system did not allow this file to be updated after write access was granted."
-                    } else {
-                        "Additional write access is required for this file."
-                    },
-                    cause = if (writeConsentGranted) {
-                        TagEditFailureCause.PermissionDeniedAfterGrant
-                    } else {
-                        TagEditFailureCause.PermissionRequired
-                    },
-                )
-            } catch (throwable: Throwable) {
-                logDebug("Tag write failed phase=${phase.name} type=${throwable.javaClass.simpleName}: ${throwable.message.orEmpty()}")
-                val failureCause = if (rollbackFailed) TagEditFailureCause.RollbackFailed else phase.cause
-                val reason = if (rollbackFailed) {
-                    "The song could not be restored after the tag write failed."
-                } else {
-                    phase.userMessage
-                }
-                mutationId?.let {
-                    mediaMutationJournal.mark(
-                        it,
-                        if (rollbackFailed) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Failed,
-                        "${phase.name}:${throwable.javaClass.simpleName}:${throwable.message.orEmpty()}",
-                    )
-                }
-                failures += TagEditFailure(
-                    songId = song.id,
-                    fileName = song.fileName,
-                    reason = reason,
-                    cause = failureCause,
-                )
-            } finally {
-                runCatching { tempFile?.delete() }
-                if (!rollbackFailed) runCatching { backupFile?.delete() }
-                runCatching { persistedVerificationFile?.delete() }
+                editedSongs += song
             }
+            result.failure?.let(failures::add)
+            if (permissionRequest == null) permissionRequest = result.permissionRequest
         }
         TagEditApplyResult(
             editedSongIds = editedSongIds,
@@ -412,6 +213,243 @@ internal class AlbumTagEditorService(
         )
         }
     }
+
+    @Suppress("CyclomaticComplexMethod", "LongMethod", "TooGenericExceptionCaught")
+    private suspend fun applyPlan(
+        plan: TagEditPlan,
+        request: AlbumTagEditRequest,
+        coverArtBytes: ByteArray?,
+        coverArtMimeType: String?,
+        writeConsentGranted: Boolean,
+    ): SingleTagEditResult {
+        val song = plan.song
+        val trackEdit = plan.trackEdit
+        faultInjector.checkpoint(MediaMutationTransactionPhase.BeforeJournal)
+        val mutationId = mediaMutationJournal?.create(
+            MediaMutationOperation(
+                type = if (coverArtBytes != null) MediaMutationType.ArtworkWrite else MediaMutationType.TagEdit,
+                songId = song.id,
+                albumId = song.albumId,
+                uri = song.uri,
+                displayName = song.fileName,
+            ),
+        )
+        val detectedFormat = song.fileName
+            .takeIf { AudioFormatPolicy.requiresContainerValidation(it.substringAfterLast('.', "")) }
+            ?.let { audioFormatDetector.detect(song.uri, song.fileName, null) }
+        if (AudioFormatPolicy.tagWriteSupport(detectedFormat, song.fileName) != TagWriteSupport.Safe) {
+            val capability = AudioFormatPolicy.capabilityForFileName(song.fileName)
+            logDebug("Skipped unsafe tag write for ${song.fileName}: ${capability?.notes ?: "unknown format"}")
+            mutationId?.let {
+                mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported tag write format")
+            }
+            return SingleTagEditResult(
+                failure = TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = "This audio format cannot be tagged safely.",
+                    cause = TagEditFailureCause.UnsupportedFormat,
+                ),
+            )
+        }
+        if (coverArtBytes != null && !AudioFormatPolicy.canEmbedArtwork(detectedFormat, song.fileName)) {
+            mutationId?.let {
+                mediaMutationJournal.mark(it, MediaMutationStatus.Failed, "Unsupported artwork write format")
+            }
+            return SingleTagEditResult(
+                failure = TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = "Artwork cannot be embedded safely in this audio format.",
+                    cause = TagEditFailureCause.UnsupportedArtworkFormat,
+                ),
+            )
+        }
+        if (trackEdit == null) {
+            logDebug("Missing per-track edit row for songId=${song.id}; applying album-level values only.")
+        }
+        val effectiveTrack = EffectiveTrackEdit.from(song, trackEdit)
+        var tempFile: File? = null
+        var backupFile: File? = null
+        var persistedVerificationFile: File? = null
+        var phase = TagEditWritePhase.SourceRead
+        var rollbackFailed = false
+        var originalOverwritten = false
+        var rollbackAttempted = false
+        fun rollbackIfNeeded() {
+            val backup = backupFile
+            if (originalOverwritten && backup != null && !rollbackAttempted) {
+                rollbackAttempted = true
+                rollbackFailed = !restoreOriginal(song.uri, backup)
+            }
+        }
+        return try {
+            faultInjector.checkpoint(MediaMutationTransactionPhase.AfterJournal)
+            logPhase(phase, song, writeConsentGranted)
+            mutationRunner.requireWritable(song.uri)
+            mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PreflightPassed) }
+            val originalBackup = mutationRunner.copySongToTemp(song, "backup")
+            backupFile = originalBackup
+            val workingFile = mutationRunner.createTempFile(song, "working").also { file ->
+                mutationRunner.copyFileDurably(originalBackup, file)
+            }
+            tempFile = workingFile
+            phase = TagEditWritePhase.TempWrite
+            logPhase(phase, song, writeConsentGranted)
+            faultInjector.checkpoint(MediaMutationTransactionPhase.WorkingMutationStarted)
+            updateTagFile(
+                tempFile = workingFile,
+                originalSong = song,
+                request = request,
+                track = effectiveTrack,
+                coverArtBytes = coverArtBytes,
+                coverArtMimeType = coverArtMimeType,
+            )
+            mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempWritten) }
+            phase = TagEditWritePhase.TempVerification
+            logPhase(phase, song, writeConsentGranted)
+            val verificationFailures = verifyWrittenTags(
+                tempFile = workingFile,
+                expected = expectedTagValues(request, trackEdit, effectiveTrack),
+                expectArtwork = coverArtBytes != null,
+            )
+            faultInjector.checkpoint(MediaMutationTransactionPhase.WorkingVerified)
+            if (verificationFailures.isNotEmpty()) {
+                mutationId?.let {
+                    mediaMutationJournal.mark(it, MediaMutationStatus.Failed, verificationFailures.joinToString())
+                }
+                return SingleTagEditResult(
+                    failure = TagEditFailure(
+                        songId = song.id,
+                        fileName = song.fileName,
+                        reason = verificationFailures.joinToString(),
+                        cause = TagEditFailureCause.TempVerificationFailed,
+                    ),
+                )
+            }
+            mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.TempVerified) }
+            phase = TagEditWritePhase.OriginalOverwrite
+            logPhase(phase, song, writeConsentGranted, replacementBytes = workingFile.length())
+            try {
+                mutationRunner.overwriteOriginal(song.uri, workingFile)
+                originalOverwritten = true
+            } catch (writeFailure: Exception) {
+                rollbackIfNeeded()
+                throw writeFailure
+            }
+            mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Committed) }
+            phase = TagEditWritePhase.PersistedVerification
+            logPhase(phase, song, writeConsentGranted)
+            persistedVerificationFile = mutationRunner.copySongToTemp(song, "verify")
+            val persistedFailures = verifyWrittenTags(
+                tempFile = persistedVerificationFile,
+                expected = expectedTagValues(request, trackEdit, effectiveTrack),
+                expectArtwork = coverArtBytes != null,
+            )
+            if (persistedFailures.isNotEmpty()) {
+                mutationId?.let {
+                    mediaMutationJournal.mark(it, MediaMutationStatus.NeedsRepair, persistedFailures.joinToString())
+                }
+                rollbackIfNeeded()
+                error("Persisted tag verification failed: ${persistedFailures.joinToString()}")
+            }
+            mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.PersistedVerified) }
+            val editedSong = song.copy(
+                title = trackEdit?.let { effectiveTrack.title } ?: song.title,
+                artist = trackEdit?.let { effectiveTrack.artist } ?: song.artist,
+                album = request.albumTitle.valueOr(song.album),
+                albumArtist = request.albumArtist.valueOr(song.albumArtist ?: song.artist)
+                    .takeIf(String::isNotBlank),
+                releaseYear = request.releaseYear.valueOr(song.releaseYear),
+                genre = request.genre.valueOr(song.genre),
+                trackNumber = trackEdit?.let { effectiveTrack.trackNumber } ?: song.trackNumber,
+                discNumber = trackEdit?.let { effectiveTrack.discNumber } ?: song.discNumber,
+                metadataResolved = true,
+            )
+            mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.Completed) }
+            logDebug("Completed songId=${song.id} authority=${song.uri.authority.orEmpty()}")
+            SingleTagEditResult(editedSong = editedSong)
+        } catch (throwable: CancellationException) {
+            withContext(NonCancellable) {
+                rollbackIfNeeded()
+                mutationId?.let {
+                    mediaMutationJournal.mark(
+                        it,
+                        if (rollbackFailed) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Cancelled,
+                    )
+                }
+            }
+            throw throwable
+        } catch (throwable: RecoverableSecurityException) {
+            rollbackIfNeeded()
+            mutationId?.let { mediaMutationJournal.mark(it, MediaMutationStatus.NeedsPermission) }
+            SingleTagEditResult(
+                permissionRequest = throwable.userAction.actionIntent.takeIf { !writeConsentGranted },
+                failure = TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = if (writeConsentGranted) {
+                        "The system did not allow this file to be updated after write access was granted."
+                    } else {
+                        "Additional write access is required for this file."
+                    },
+                    cause = if (writeConsentGranted) {
+                        TagEditFailureCause.PermissionDeniedAfterGrant
+                    } else {
+                        TagEditFailureCause.PermissionRequired
+                    },
+                ),
+            )
+        } catch (throwable: Exception) {
+            rollbackIfNeeded()
+            logDebug("Tag write failed phase=${phase.name} type=${throwable.javaClass.simpleName}: ${throwable.message.orEmpty()}")
+            val failureCause = if (rollbackFailed) TagEditFailureCause.RollbackFailed else phase.cause
+            val reason = if (rollbackFailed) {
+                "The song could not be restored after the tag write failed."
+            } else {
+                phase.userMessage
+            }
+            mutationId?.let {
+                mediaMutationJournal.mark(
+                    it,
+                    if (rollbackFailed) MediaMutationStatus.NeedsRepair else MediaMutationStatus.Failed,
+                    "${phase.name}:${throwable.javaClass.simpleName}:${throwable.message.orEmpty()}",
+                )
+            }
+            SingleTagEditResult(
+                failure = TagEditFailure(
+                    songId = song.id,
+                    fileName = song.fileName,
+                    reason = reason,
+                    cause = failureCause,
+                ),
+            )
+        } finally {
+            checkpointCleanup()
+            runCatching { tempFile?.delete() }
+            if (!rollbackFailed) runCatching { backupFile?.delete() }
+            runCatching { persistedVerificationFile?.delete() }
+        }
+    }
+
+    private fun expectedTagValues(
+        request: AlbumTagEditRequest,
+        trackEdit: EditableAlbumTrack?,
+        effectiveTrack: EffectiveTrackEdit,
+    ): ExpectedTagValues = ExpectedTagValues(
+        title = trackEdit?.let { effectiveTrack.title },
+        artist = trackEdit?.let { effectiveTrack.artist },
+        album = request.albumTitle.expectedValue(),
+        albumArtist = request.albumArtist.expectedValue(),
+        year = request.releaseYear.expectedYear(),
+        genre = request.genre.expectedValue(),
+        shouldClearAlbum = request.albumTitle is TagFieldEdit.Cleared,
+        shouldClearAlbumArtist = request.albumArtist is TagFieldEdit.Cleared,
+        shouldClearYear = request.releaseYear is TagFieldEdit.Cleared,
+        shouldClearGenre = request.genre is TagFieldEdit.Cleared,
+        trackNumber = trackEdit?.let { effectiveTrack.trackNumber.coerceAtLeast(1).toString() },
+        discNumber = trackEdit?.let { effectiveTrack.discNumber.coerceAtLeast(1).toString() },
+    )
 
     private fun preflightFailure(
         plan: TagEditPlan,
@@ -457,11 +495,27 @@ internal class AlbumTagEditorService(
     }
 
     private fun restoreOriginal(uri: Uri, backup: File): Boolean {
-        return runCatching {
+        return try {
+            faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
             mutationRunner.overwriteOriginal(uri, backup)
             mutationRunner.verifyOriginalBytes(uri, backup)
             logDebug("Rollback verified authority=${uri.authority.orEmpty()} bytes=${backup.length()}")
-        }.isSuccess
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            false
+        }
+    }
+
+    private fun checkpointCleanup() {
+        try {
+            faultInjector.checkpoint(MediaMutationTransactionPhase.CleanupStarted)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            // Cleanup faults must not hide the durable mutation result.
+        }
     }
 
     private fun logPhase(
@@ -680,6 +734,12 @@ internal class AlbumTagEditorService(
         val shouldClearGenre: Boolean,
         val trackNumber: String?,
         val discNumber: String?,
+    )
+
+    private data class SingleTagEditResult(
+        val editedSong: Song? = null,
+        val failure: TagEditFailure? = null,
+        val permissionRequest: PendingIntent? = null,
     )
 
     private fun TagFieldEdit<String>.expectedValue(): String? = (this as? TagFieldEdit.Value)?.value

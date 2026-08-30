@@ -47,6 +47,8 @@ internal class LibraryScanCoordinator(
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean =
         localScanner.setLibraryFolders(selections)
 
+    fun requiresMediaIndexRepair(): Boolean = localScanner.requiresMediaIndexRepair()
+
     fun currentFilterFingerprint(): String {
         val remote = networkFilterFingerprint(networkSources)
         return "${localScanner.currentFilterFingerprint()}::network:$remote"

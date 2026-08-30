@@ -59,7 +59,6 @@ internal class SafTreeLibraryScanner(
     suspend fun scanByTree(selections: List<LibraryFolderSelection>): List<SafTreeScanResult> {
         if (selections.isEmpty()) return emptyList()
         val refreshedCache = HashMap<SafDocumentKey, CachedSafFile>(fileMetadataCache.size)
-        val visitedDirectories = hashSetOf<SafDocumentKey>()
         val albumIds = hashMapOf<String, Long>()
         val results = selections.mapNotNull { selection ->
             currentCoroutineContext().ensureActive()
@@ -72,7 +71,16 @@ internal class SafTreeLibraryScanner(
                         cause = SecurityException("Persisted SAF read permission is unavailable."),
                     )
                 }
-                val outcome = scanTree(selection, treeUri, refreshedCache, visitedDirectories, albumIds)
+                // Each configured tree is an independent access source.  Providers may expose
+                // overlapping roots, so one tree's traversal must not make another tree appear
+                // empty; canonical song deduplication happens after source scans are merged.
+                val outcome = scanTree(
+                    selection = selection,
+                    treeUri = treeUri,
+                    refreshedCache = refreshedCache,
+                    visitedDirectories = hashSetOf(),
+                    albumIds = albumIds,
+                )
                 when {
                     outcome.providerFailure != null && outcome.songs.isEmpty() -> {
                         SafTreeScanResult.Unavailable(selection, outcome.providerFailure)
@@ -424,8 +432,7 @@ internal class SafTreeLibraryScanner(
         val lastModifiedMs: Long?,
         val sizeBytes: Long?,
     ) {
-        val isDirectory: Boolean = mimeType == DocumentsContract.Document.MIME_TYPE_DIR ||
-            mimeType == null && flags?.and(DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE) != 0
+        val isDirectory: Boolean = isSafDirectory(mimeType, flags)
         val hasStableChangeSignal: Boolean = lastModifiedMs != null || sizeBytes != null
     }
 
@@ -482,6 +489,15 @@ internal class SafTreeLibraryScanner(
             DocumentsContract.Document.COLUMN_SIZE,
         )
     }
+}
+
+internal fun isSafDirectory(
+    mimeType: String?,
+    flags: Int?,
+): Boolean {
+    return mimeType == DocumentsContract.Document.MIME_TYPE_DIR ||
+        mimeType == null && flags?.and(DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE) ==
+        DocumentsContract.Document.FLAG_DIR_SUPPORTS_CREATE
 }
 
 internal fun resolveSafLibraryPath(

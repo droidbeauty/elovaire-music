@@ -860,7 +860,7 @@ class LibraryRepository internal constructor(
                 observerController.ensureLibraryFolderObservers(forceRebuild = true)
             }
             refresh(
-                forceMediaIndex = true,
+                forceMediaIndex = scanner.requiresMediaIndexRepair(),
                 enrichMetadata = enrichMetadata,
                 showLoadingIndicator = showLoadingIndicator,
             )

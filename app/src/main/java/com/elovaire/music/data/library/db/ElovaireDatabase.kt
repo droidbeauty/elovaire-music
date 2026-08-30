@@ -42,7 +42,13 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 context.applicationContext,
                 ElovaireDatabase::class.java,
                 "elovaire-library.db",
-            ).addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4).build()
+            )
+                // The app and the WorkManager maintenance worker can hold separate handles to
+                // this file. WAL keeps short user-data writes from blocking integrity checks.
+                .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+                .enableMultiInstanceInvalidation()
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .build()
         }
 
         internal val MIGRATION_1_2 = object : Migration(1, 2) {

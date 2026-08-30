@@ -1033,6 +1033,7 @@ private fun AlbumCollectionContent(
     var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
     val listState = rememberElovaireLazyListState(title, "album_collection_list")
     val gridState = rememberElovaireLazyGridState(title, "album_collection_grid")
+    val selectionHazeState = rememberHazeState()
     val selectionModeActive = selectedAlbumIds.isNotEmpty()
     val sortedAlbums = remember(albums, sortMode) {
         when (sortMode) {
@@ -1062,6 +1063,11 @@ private fun AlbumCollectionContent(
         showPlaylistPicker = false
     }
     Box(modifier = Modifier.fillMaxSize()) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(selectionHazeState, zIndex = -1f),
+        ) {
         when (layoutMode) {
             AlbumLayoutMode.Grid -> {
                 LazyVerticalGrid(
@@ -1339,6 +1345,7 @@ private fun AlbumCollectionContent(
             }
 
         }
+        }
         AnimatedVisibility(
             visible = selectionModeActive,
             modifier = Modifier
@@ -1350,6 +1357,7 @@ private fun AlbumCollectionContent(
         ) {
             TopBarSelectionMenu(
                 topBarHeight = topPadding,
+                hazeState = selectionHazeState,
                 onAddToPlaylist = { showPlaylistPicker = true },
                 onDelete = {
                     onDeleteAlbumFromDevice(
@@ -1405,6 +1413,7 @@ private fun AlbumCollectionContent(
 @Composable
 private fun TopBarSelectionMenu(
     topBarHeight: Dp,
+    hazeState: HazeState,
     onAddToPlaylist: () -> Unit,
     onDelete: () -> Unit,
     modifier: Modifier = Modifier,
@@ -1419,6 +1428,7 @@ private fun TopBarSelectionMenu(
         FrostedTopBarBackground(
             darkTheme = darkTheme,
             modifier = Modifier.matchParentSize(),
+            hazeState = hazeState,
         )
         Row(
             modifier = Modifier
@@ -2439,6 +2449,7 @@ private fun ArtistHeroHeader(
     val backdropImage = rememberArtworkBitmap(sourceUri, size = 1024).value
     val gradient = rememberArtworkGradient(sourceUri).value
     val paletteAccent = rememberAnimatedArtistPaletteAccent(sourceUri)
+    val heroHazeState = rememberHazeState()
     var displayedBackdropImage by remember { mutableStateOf<ImageBitmap?>(null) }
     LaunchedEffect(artistName, backdropImage, sourceUri) {
         when {
@@ -2458,24 +2469,30 @@ private fun ArtistHeroHeader(
             )
             .background(MaterialTheme.colorScheme.background),
     ) {
-        ArtistHeroBackdrop(
-            image = displayedBackdropImage,
-            gradient = gradient,
-        )
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color.Black.copy(alpha = 0.48f),
-                            Color.Transparent,
-                            Color.Black.copy(alpha = 0.84f),
+                .hazeSource(heroHazeState, zIndex = -1f),
+        ) {
+            ArtistHeroBackdrop(
+                image = displayedBackdropImage,
+                gradient = gradient,
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Black.copy(alpha = 0.48f),
+                                Color.Transparent,
+                                Color.Black.copy(alpha = 0.84f),
+                            ),
                         ),
-                ),
-            ),
-        )
-        ArtistHeroAccentGradient(accent = paletteAccent)
+                    ),
+            )
+            ArtistHeroAccentGradient(accent = paletteAccent)
+        }
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -2506,6 +2523,7 @@ private fun ArtistHeroHeader(
                 )
                 ArtistShuffleButton(
                     enabled = enabled,
+                    hazeState = heroHazeState,
                     onClick = onShuffle,
                 )
                 Spacer(modifier = Modifier.weight(1f))
@@ -2594,15 +2612,15 @@ private fun BoxScope.ArtistHeroAccentGradient(accent: Color) {
 @Composable
 private fun ArtistShuffleButton(
     enabled: Boolean,
+    hazeState: HazeState,
     onClick: () -> Unit,
 ) {
-    val hazeState = LocalChromeHazeState.current
     Box(
         modifier = Modifier
             .size(44.dp)
             .clip(CircleShape),
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && hazeState != null) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -5200,6 +5218,7 @@ internal fun AlbumScreen(
         }
     }
     val detailTopPadding = detailTopBarOccupiedHeight()
+    val selectionHazeState = rememberHazeState()
     val topBarBottomPx = with(density) { detailTopPadding.roundToPx() }
     val detailTopBarTitle = if ((albumTitleBounds?.top ?: Float.MAX_VALUE) < topBarBottomPx) {
         album.title
@@ -5223,20 +5242,25 @@ internal fun AlbumScreen(
             .background(MaterialTheme.colorScheme.background),
     ) {
         val listState = rememberLazyListState()
-        LazyColumn(
-            state = listState,
-            overscrollEffect = null,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .ensureSingleItemRubberBand(listState),
-            contentPadding = PaddingValues(
-                start = 20.dp,
-                top = detailTopPadding + ElovaireSpacing.albumHeaderTopGap,
-                end = 20.dp,
-                bottom = bottomPadding,
-            ),
-            verticalArrangement = Arrangement.spacedBy(0.dp),
+                .hazeSource(selectionHazeState, zIndex = -1f),
         ) {
+            LazyColumn(
+                state = listState,
+                overscrollEffect = null,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .ensureSingleItemRubberBand(listState),
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    top = detailTopPadding + ElovaireSpacing.albumHeaderTopGap,
+                    end = 20.dp,
+                    bottom = bottomPadding,
+                ),
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+            ) {
             item {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
@@ -5489,12 +5513,13 @@ internal fun AlbumScreen(
                     )
                 }
             }
+            }
+            FastScrollbar(
+                state = listState,
+                topInset = detailTopPadding + 16.dp,
+                bottomInset = bottomPadding + 16.dp,
+            )
         }
-        FastScrollbar(
-            state = listState,
-            topInset = detailTopPadding + 16.dp,
-            bottomInset = bottomPadding + 16.dp,
-        )
 
         DetailListTopBar(
             title = detailTopBarTitle,
@@ -5520,6 +5545,7 @@ internal fun AlbumScreen(
         ) {
             TopBarSelectionMenu(
                 topBarHeight = detailTopPadding,
+                hazeState = selectionHazeState,
                 onAddToPlaylist = { showPlaylistPicker = true },
                 onDelete = {
                     onDeleteSongsFromDevice(selectedSongs)
@@ -6593,6 +6619,7 @@ internal fun NowPlayingScreen(
     val motionSpecs = rememberMotionSpecs()
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
     val playerHazeState = rememberHazeState()
+    val playerSurfaceHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     var playerDismissTriggered by rememberSaveable { mutableStateOf(false) }
@@ -6858,102 +6885,118 @@ internal fun NowPlayingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        baseSurface.copy(alpha = 0.68f * effectiveTransitionProgress.coerceIn(0f, 1f)),
+                    .then(
+                        if (transitionInFlight) {
+                            Modifier
+                        } else {
+                            Modifier.hazeSource(playerSurfaceHazeState, zIndex = -1f)
+                        },
                     ),
-            )
-            Box(
-                modifier = Modifier
-                    .offset {
-                        IntOffset(
-                            x = animatedSurfaceBounds.left.roundToInt(),
-                            y = animatedSurfaceBounds.top.roundToInt(),
-                        )
-                    }
-                    .width(with(density) { animatedSurfaceBounds.width.toDp() })
-                    .height(with(density) { animatedSurfaceBounds.height.toDp() })
-                    .clip(RoundedCornerShape(with(density) { playerSurfaceCorner.toDp() }))
-                    .background(baseSurface)
-                    .graphicsLayer {
-                        clip = true
-                    },
             ) {
-        val backgroundArtworkBitmap = artwork.value
-        if (backgroundArtworkBitmap != null) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (transitionInFlight) {
-                    Image(
-                        bitmap = backgroundArtworkBitmap,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(
+                            baseSurface.copy(alpha = 0.68f * effectiveTransitionProgress.coerceIn(0f, 1f)),
+                        ),
+                )
+                Box(
+                    modifier = Modifier
+                        .offset {
+                            IntOffset(
+                                x = animatedSurfaceBounds.left.roundToInt(),
+                                y = animatedSurfaceBounds.top.roundToInt(),
+                            )
+                        }
+                        .width(with(density) { animatedSurfaceBounds.width.toDp() })
+                        .height(with(density) { animatedSurfaceBounds.height.toDp() })
+                        .clip(RoundedCornerShape(with(density) { playerSurfaceCorner.toDp() }))
+                        .background(baseSurface)
+                        .graphicsLayer {
+                            clip = true
+                        },
+                ) {
+                    val backgroundArtworkBitmap = artwork.value
+                    if (backgroundArtworkBitmap != null) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            if (transitionInFlight) {
+                                Image(
+                                    bitmap = backgroundArtworkBitmap,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            scaleX = 1.04f
+                                            scaleY = 1.04f
+                                        }
+                                        .blur(56.dp),
+                                    alpha = 0.92f,
+                                )
+                            } else {
+                                Image(
+                                    bitmap = backgroundArtworkBitmap,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            scaleX = 1.08f
+                                            scaleY = 1.08f
+                                        }
+                                        .blur(116.dp),
+                                    alpha = 0.98f,
+                                )
+                                Image(
+                                    bitmap = backgroundArtworkBitmap,
+                                    contentDescription = null,
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .graphicsLayer {
+                                            scaleX = 1.03f
+                                            scaleY = 1.03f
+                                            alpha = 0.34f
+                                        }
+                                        .blur(48.dp),
+                                )
+                            }
+                        }
+                    }
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = 1.04f
-                                scaleY = 1.04f
-                            }
-                            .blur(56.dp),
-                        alpha = 0.92f,
+                            .background(
+                                Brush.verticalGradient(
+                                    colors = listOf(
+                                        tintColor.copy(alpha = 0.38f),
+                                        baseSurface.copy(alpha = 0.44f),
+                                        baseSurface.copy(alpha = 0.7f),
+                                        baseSurface.copy(alpha = 0.9f),
+                                    ),
+                                ),
+                            ),
                     )
-                } else {
-                    Image(
-                        bitmap = backgroundArtworkBitmap,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = 1.08f
-                                scaleY = 1.08f
-                            }
-                            .blur(116.dp),
-                        alpha = 0.98f,
-                    )
-                    Image(
-                        bitmap = backgroundArtworkBitmap,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .graphicsLayer {
-                                scaleX = 1.03f
-                                scaleY = 1.03f
-                                alpha = 0.34f
-                            }
-                            .blur(48.dp),
+                            .background(
+                                Brush.radialGradient(
+                                    colors = listOf(
+                                        gradient.first().copy(alpha = 0.18f),
+                                        Color.Transparent,
+                                    ),
+                                    radius = 1200f,
+                                ),
+                            ),
                     )
                 }
             }
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            tintColor.copy(alpha = 0.38f),
-                            baseSurface.copy(alpha = 0.44f),
-                            baseSurface.copy(alpha = 0.7f),
-                            baseSurface.copy(alpha = 0.9f),
-                        ),
-                    ),
-                ),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(
-                            gradient.first().copy(alpha = 0.18f),
-                            Color.Transparent,
-                        ),
-                        radius = 1200f,
-                    ),
-                ),
-        )
 
-        CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
+        CompositionLocalProvider(
+            LocalPlayerHazeState provides playerHazeState,
+            LocalPlayerSurfaceHazeState provides playerSurfaceHazeState,
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -7644,6 +7687,7 @@ internal fun NowPlayingScreen(
             AddToPlaylistPickerDialog(
                 playlists = playlists,
                 playlistSongsById = enrichedSongsById,
+                hazeState = playerHazeState,
                 onDismiss = { showAddToPlaylistDialog = false },
                 onPlaylistSelected = { playlistId ->
                     currentSong?.let { onAddCurrentSongToPlaylist(playlistId, it).await() }
@@ -7651,7 +7695,6 @@ internal fun NowPlayingScreen(
                 },
                 onCreatePlaylist = onCreatePlaylist,
             )
-        }
         }
         ElovaireAnimatedVisibility(
             visible = showSleepTimerDialog,
@@ -9585,7 +9628,7 @@ private fun LyricsOverlay(
     var overlayEntered by remember(song?.id) { mutableStateOf(false) }
     val hideButtonArea = 112.dp
     val lyricsBottomBlurArea = 72.dp
-    val bottomBlurSurfaceHeight = lyricsBottomBlurArea + navigationBarInsetDp()
+    val bottomBlurSurfaceHeight = hideButtonArea + lyricsBottomBlurArea + navigationBarInsetDp()
     val lyricsHazeState = rememberHazeState()
     val listState = rememberLazyListState()
     var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
@@ -9708,9 +9751,9 @@ private fun LyricsOverlay(
     ) {
         val screenWidth = LocalConfiguration.current.screenWidthDp.dp
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .hazeSource(lyricsHazeState),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .hazeSource(lyricsHazeState, zIndex = -1f),
         ) {
             Column(
                 modifier = Modifier
@@ -9931,7 +9974,7 @@ private fun LyricsOverlay(
                     modifier = Modifier
                         .matchParentSize()
                         .hazeEffect(lyricsHazeState) {
-                            progressive = HazeProgressive.LinearGradient(
+                            progressive = HazeProgressive.verticalGradient(
                                 startIntensity = 0f,
                                 endIntensity = 1f,
                                 preferPerformance = true,
@@ -9970,10 +10013,10 @@ private fun LyricsOverlay(
                     )
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
+                            .align(Alignment.BottomCenter)
                             .fillMaxWidth()
                             .height(lyricsBottomBlurArea)
-                            .offset(y = (-12).dp)
+                            .offset(y = (-22).dp)
                             .padding(horizontal = 20.dp)
                             .zIndex(4f),
                         contentAlignment = Alignment.Center,
@@ -10017,10 +10060,10 @@ private fun LyricsOverlay(
             ) {
                 Box(
                     modifier = Modifier
-                        .align(Alignment.TopCenter)
+                        .align(Alignment.BottomCenter)
                         .fillMaxWidth()
                         .height(lyricsBottomBlurArea)
-                        .offset(y = (-12).dp)
+                        .offset(y = (-22).dp)
                         .padding(horizontal = 20.dp),
                     contentAlignment = Alignment.Center,
                     ) {

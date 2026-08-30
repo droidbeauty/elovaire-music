@@ -57,9 +57,9 @@ class PlaybackNotificationController(
                 ) {
                     val state = playbackManager.state.value
                     if (ongoing && state.transportShowsPause && state.currentSong != null) {
-                        PlaybackKeepAliveService.start(context, notificationId, notification)
+                        ElovaireMediaLibraryService.start(context, notificationId, notification)
                     } else {
-                        PlaybackKeepAliveService.demote(context)
+                        ElovaireMediaLibraryService.demote(context)
                     }
                 }
 
@@ -75,7 +75,7 @@ class PlaybackNotificationController(
                             updateNotificationPlayer(null)
                         }
                     }
-                    PlaybackKeepAliveService.stop(context)
+                    ElovaireMediaLibraryService.stop(context)
                 }
             },
         )
@@ -184,7 +184,7 @@ class PlaybackNotificationController(
         if (!enabled) {
             stopNotificationCollectors()
             updateNotificationPlayer(null)
-            PlaybackKeepAliveService.stop(context)
+            ElovaireMediaLibraryService.stop(context)
             return
         }
         startNotificationCollectorsIfNeeded()

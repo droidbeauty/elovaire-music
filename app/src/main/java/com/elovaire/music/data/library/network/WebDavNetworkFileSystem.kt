@@ -209,6 +209,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun executeGet(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
@@ -234,13 +235,17 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                     throw NetworkRedirectException("WebDAV redirect policy rejected the response")
                 }
                 url = next
-            } catch (failure: Exception) {
+            } catch (failure: IOException) {
+                connection.disconnect()
+                throw failure
+            } catch (failure: RuntimeException) {
                 connection.disconnect()
                 throw failure
             }
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun executePropFind(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
@@ -274,7 +279,10 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
                     throw NetworkRedirectException("WebDAV redirect policy rejected the response")
                 }
                 url = next
-            } catch (failure: Exception) {
+            } catch (failure: IOException) {
+                connection.disconnect()
+                throw failure
+            } catch (failure: RuntimeException) {
                 connection.disconnect()
                 throw failure
             }

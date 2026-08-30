@@ -545,6 +545,7 @@ internal class SmbNetworkFileSystem(
             return if (read(one, 0, 1) < 0) -1 else one[0].toInt() and 0xff
         }
 
+        @Suppress("TooGenericExceptionCaught")
         override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
             if (length == 0) return 0
             val remaining = requestedLength?.minus(position)?.coerceAtLeast(0L)
@@ -552,7 +553,9 @@ internal class SmbNetworkFileSystem(
             if (remaining == 0L) return -1
             val count = try {
                 file.read(buffer, start + position, offset, minOf(length.toLong(), remaining).toInt())
-            } catch (failure: Exception) {
+            } catch (failure: IOException) {
+                throw onReadFailure(failure)
+            } catch (failure: RuntimeException) {
                 throw onReadFailure(failure)
             }
             if (count > 0) position += count

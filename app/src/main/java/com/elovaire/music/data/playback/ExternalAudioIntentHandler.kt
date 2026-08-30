@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.StatFs
 import android.provider.MediaStore
 import android.provider.OpenableColumns
+import android.provider.DocumentsContract
 import android.webkit.MimeTypeMap
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -20,11 +21,17 @@ import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
 import java.nio.ByteBuffer
+import java.nio.file.AtomicMoveNotSupportedException
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.Locale
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 internal object ExternalAudioIntentHandler {
@@ -113,11 +120,26 @@ internal object ExternalAudioIntentHandler {
         val resolver = contentResolver
         val hasPersistedGrant = runCatching {
             resolver.persistedUriPermissions.any { permission ->
-                permission.uri == uri && permission.isReadPermission
+                permission.isReadPermission && permissionGrantsUri(permission.uri, uri)
             }
         }.getOrDefault(false)
         if (hasPersistedGrant) return true
         return uri.authority == MediaStore.AUTHORITY && hasAudioReadPermission()
+    }
+
+    private fun Context.permissionGrantsUri(
+        grantUri: Uri,
+        uri: Uri,
+    ): Boolean {
+        if (grantUri == uri) return true
+        return runCatching {
+            DocumentsContract.isTreeUri(grantUri) &&
+                grantUri.authority == uri.authority &&
+                DocumentsContract.buildDocumentUriUsingTree(
+                    grantUri,
+                    DocumentsContract.getDocumentId(uri),
+                ) == uri
+        }.getOrDefault(false)
     }
 
     private fun Uri.isReadableFileAudioInput(): Boolean {
@@ -188,33 +210,48 @@ private object ExternalAudioPrivateCopy {
     private const val COPY_BUFFER_SIZE = 32 * 1024
     private const val MIN_REMAINING_BYTES = 4L * 1024L * 1024L
     private const val MAX_COPY_BYTES = 512L * 1024L * 1024L
+    private val lockRegistry = mutableMapOf<String, StageLock>()
+    private val lockRegistryGuard = Any()
 
     suspend fun materialize(
         context: Context,
         sourceUri: Uri,
         displayName: String,
     ): Uri? {
+        val metadata = queryMetadata(context.contentResolver, sourceUri)
+        val cacheKey = if (metadata.hasReliableRevision) {
+            externalAudioStageKey(sourceUri, metadata)
+        } else {
+            freshExternalAudioStageKey(sourceUri)
+        }
+        return withStageLock(sourceUri.toString()) {
+            ExternalAudioStageUsage.registerDirectory(context.noBackupFilesDir.resolve(DIRECTORY_NAME))
+            materializeLocked(context, sourceUri, displayName, metadata, cacheKey)
+        }
+    }
+
+    private suspend fun materializeLocked(
+        context: Context,
+        sourceUri: Uri,
+        displayName: String,
+        metadata: ExternalAudioStageMetadata,
+        cacheKey: String,
+    ): Uri? {
         val directory = context.noBackupFilesDir.resolve(DIRECTORY_NAME)
         if (!directory.exists() && !directory.mkdirs()) return null
-        val target = directory.resolve("${digest(sourceUri.toString())}${extension(displayName)}")
-        if (target.isFile && target.length() > 0L) {
+        val target = directory.resolve("$cacheKey${extension(displayName)}")
+        if (
+            metadata.hasReliableRevision &&
+            target.isFile &&
+            target.length() > 0L &&
+            target.length() == metadata.sizeBytes
+        ) {
             prune(directory, target)
             return Uri.fromFile(target)
         }
-        if (target.exists() && !target.delete()) return null
+        if (target.exists() && !target.isFile) return null
 
-        val declaredSize = runCatching {
-            context.contentResolver.query(
-                sourceUri,
-                arrayOf(OpenableColumns.SIZE),
-                null,
-                null,
-                null,
-            )?.use { cursor ->
-                if (!cursor.moveToFirst()) null
-                else cursor.getLong(cursor.getColumnIndexOrThrow(OpenableColumns.SIZE))
-            }
-        }.getOrNull()
+        val declaredSize = metadata.sizeBytes
         if (declaredSize != null && declaredSize > MAX_COPY_BYTES) return null
 
         val temporary = runCatching {
@@ -245,14 +282,20 @@ private object ExternalAudioPrivateCopy {
                     }
                     output.fd.sync()
                     if (total == 0L) throw IOException("External audio source is empty.")
+                    if (declaredSize != null && total != declaredSize) {
+                        throw IOException("External audio source changed while it was copied.")
+                    }
                 }
             } ?: throw IOException("External audio source could not be opened.")
-            if (!temporary.renameTo(target)) {
-                if (target.isFile && target.length() > 0L) {
-                    temporary.delete()
-                } else {
-                    throw IOException("Unable to commit external audio copy.")
-                }
+            try {
+                Files.move(
+                    temporary.toPath(),
+                    target.toPath(),
+                    StandardCopyOption.ATOMIC_MOVE,
+                    StandardCopyOption.REPLACE_EXISTING,
+                )
+            } catch (unsupported: AtomicMoveNotSupportedException) {
+                throw IOException("The file system cannot atomically commit external audio.", unsupported)
             }
             prune(directory, target)
             Uri.fromFile(target)
@@ -271,10 +314,58 @@ private object ExternalAudioPrivateCopy {
         }
     }
 
-    private fun digest(value: String): String {
-        return MessageDigest.getInstance("SHA-256")
-            .digest(value.toByteArray(Charsets.UTF_8))
-            .joinToString(separator = "") { byte -> "%02x".format(Locale.ROOT, byte) }
+    private suspend fun <T> withStageLock(
+        key: String,
+        block: suspend () -> T,
+    ): T {
+        val stageLock = synchronized(lockRegistryGuard) {
+            lockRegistry.getOrPut(key, ::StageLock).also { it.references += 1 }
+        }
+        return try {
+            stageLock.mutex.withLock { block() }
+        } finally {
+            synchronized(lockRegistryGuard) {
+                stageLock.references -= 1
+                if (stageLock.references == 0) lockRegistry.remove(key, stageLock)
+            }
+        }
+    }
+
+    private fun queryMetadata(
+        resolver: android.content.ContentResolver,
+        uri: Uri,
+    ): ExternalAudioStageMetadata {
+        return runCatching {
+            resolver.query(
+                uri,
+                arrayOf(OpenableColumns.SIZE, DocumentsContract.Document.COLUMN_LAST_MODIFIED),
+                null,
+                null,
+                null,
+            )?.use { cursor ->
+                if (!cursor.moveToFirst()) return@use ExternalAudioStageMetadata()
+                val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
+                val modifiedIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_LAST_MODIFIED)
+                ExternalAudioStageMetadata(
+                    sizeBytes = sizeIndex.takeIf { it >= 0 && !cursor.isNull(it) }
+                        ?.let { cursor.getLong(it) }
+                        ?.takeIf { it >= 0L },
+                    modifiedAtMs = modifiedIndex.takeIf { it >= 0 && !cursor.isNull(it) }
+                        ?.let { cursor.getLong(it) }
+                        ?.takeIf { it >= 0L },
+                )
+            } ?: ExternalAudioStageMetadata()
+        }.getOrDefault(ExternalAudioStageMetadata())
+    }
+
+    private fun freshExternalAudioStageKey(sourceUri: Uri): String {
+        return externalAudioStageKey(
+            sourceUri = sourceUri,
+            metadata = ExternalAudioStageMetadata(
+                sizeBytes = null,
+                modifiedAtMs = UUID.randomUUID().mostSignificantBits,
+            ),
+        )
     }
 
     private fun extension(displayName: String): String {
@@ -290,6 +381,7 @@ private object ExternalAudioPrivateCopy {
         directory.listFiles()
             .orEmpty()
             .filter { it != keep }
+            .filterNot(ExternalAudioStageUsage::isActive)
             .filter { file ->
                 val age = now - file.lastModified()
                 (file.name.endsWith(".tmp") && age > MAX_TEMP_FILE_AGE_MS) ||
@@ -305,6 +397,7 @@ private object ExternalAudioPrivateCopy {
         directory.listFiles()
             .orEmpty()
             .filter { it.isFile && it != keep && !it.name.endsWith(".tmp") }
+            .filterNot(ExternalAudioStageUsage::isActive)
             .sortedBy(File::lastModified)
             .forEach { file ->
                 if (totalBytes <= MAX_CACHE_BYTES) return@forEach
@@ -316,6 +409,55 @@ private object ExternalAudioPrivateCopy {
     private const val MAX_CACHE_AGE_MS = 7L * 24L * 60L * 60L * 1_000L
     private const val MAX_TEMP_FILE_AGE_MS = 60L * 60L * 1_000L
     private const val MAX_CACHE_BYTES = 512L * 1024L * 1024L
+
+    private class StageLock {
+        val mutex = Mutex()
+        var references = 0
+    }
+}
+
+internal object ExternalAudioStageUsage {
+    private val stageDirectory = java.util.concurrent.atomic.AtomicReference<String?>(null)
+    private val activePaths = java.util.concurrent.atomic.AtomicReference<Set<String>>(emptySet())
+
+    fun registerDirectory(directory: File) {
+        stageDirectory.compareAndSet(null, directory.absolutePath)
+    }
+
+    fun setActivePlaybackUris(uris: Collection<Uri>) {
+        val directory = stageDirectory.get() ?: return
+        val prefix = if (directory.endsWith(File.separator)) directory else "$directory${File.separator}"
+        activePaths.set(
+            uris.asSequence()
+                .mapNotNull(Uri::getPath)
+                .filter { it.startsWith(prefix) }
+                .toSet(),
+        )
+    }
+
+    fun isActive(file: File): Boolean = file.absolutePath in activePaths.get()
+}
+
+internal data class ExternalAudioStageMetadata(
+    val sizeBytes: Long? = null,
+    val modifiedAtMs: Long? = null,
+) {
+    val hasReliableRevision: Boolean
+        get() = sizeBytes != null && modifiedAtMs != null
+}
+
+internal fun externalAudioStageKey(
+    sourceUri: Uri,
+    metadata: ExternalAudioStageMetadata,
+): String {
+    val value = listOf(
+        sourceUri.toString(),
+        metadata.sizeBytes?.toString().orEmpty(),
+        metadata.modifiedAtMs?.toString().orEmpty(),
+    ).joinToString("|")
+    return MessageDigest.getInstance("SHA-256")
+        .digest(value.toByteArray(Charsets.UTF_8))
+        .joinToString(separator = "") { byte -> "%02x".format(Locale.ROOT, byte) }
 }
 
 internal fun stableExternalId(

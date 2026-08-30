@@ -96,7 +96,7 @@ internal fun MutablePreferences.remove(key: String) {
 // This migration is intentionally limited to settings. The legacy preferences file also
 // contains Room's one-time user-data migration and update-controller state, which must remain
 // available to their owners until those migrations have completed.
-private val settingsPreferenceKeys = setOf(
+internal val settingsPreferenceKeys = setOf(
     "theme_mode",
     "text_size_preset",
     "app_language",
@@ -126,4 +126,6 @@ private val settingsPreferenceKeys = setOf(
     "mono_playback_enabled",
     "eq_reverb_duration_ms",
     "eq_reverb_profile",
+    "dismissed_update_version",
+    "last_automatic_update_check_at_ms",
 )

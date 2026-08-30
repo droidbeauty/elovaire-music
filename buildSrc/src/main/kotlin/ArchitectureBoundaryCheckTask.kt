@@ -122,7 +122,6 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/settings/SettingsDataStore.kt",
             "/data/settings/PreferenceStorage.kt",
             "/data/settings/PreferenceStore.kt",
-            "/data/settings/UpdatePreferencesStoreImpl.kt",
             "/data/settings/RoomUserDataStore.kt",
             "/data/library/network/NetworkCredentialStore.kt",
             "/data/library/network/NetworkLibrarySourceStore.kt",
@@ -163,7 +162,8 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "last_automatic_update_check_at_ms",
         )
         val UPDATE_ALLOWED = setOf(
-            "/data/settings/UpdatePreferencesStoreImpl.kt",
+            "/data/settings/PreferenceStore.kt",
+            "/data/settings/SettingsDataStore.kt",
             "/data/update/GitHubUpdateController.kt",
             "/src/main/AndroidManifest.xml",
         )

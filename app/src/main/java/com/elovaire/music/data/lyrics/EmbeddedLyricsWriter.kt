@@ -14,6 +14,9 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaMutationCoordinator
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationOperation
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationType
 import elovaire.music.droidbeauty.app.data.mutation.MediaFileMutationRunner
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationFaultInjector
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationTransactionPhase
+import elovaire.music.droidbeauty.app.data.mutation.NoOpMediaMutationFaultInjector
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.MediaWriteTarget
@@ -58,10 +61,11 @@ internal sealed interface EmbeddedLyricsWriteResult {
 internal class EmbeddedLyricsWriter(
     context: Context,
     private val mediaMutationJournal: MediaMutationJournal? = null,
+    private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
 ) {
     private val appContext = context.applicationContext
     private val audioFormatDetector = AudioFormatDetector(appContext)
-    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_DIRECTORY)
+    private val mutationRunner = MediaFileMutationRunner(appContext, TEMP_DIRECTORY, faultInjector)
 
     suspend fun write(
         song: Song,
@@ -72,6 +76,7 @@ internal class EmbeddedLyricsWriter(
         writeLocked(song, rawLyrics, operationId, approvedMediaUri)
     }
 
+    @Suppress("LongMethod", "TooGenericExceptionCaught")
     private suspend fun writeLocked(
         song: Song,
         rawLyrics: String,
@@ -89,6 +94,7 @@ internal class EmbeddedLyricsWriter(
             canonicalLyrics = lyrics,
             tagKind = classifyLyricsTagKind(lyrics),
         )
+        faultInjector.checkpoint(MediaMutationTransactionPhase.BeforeJournal)
         val mutationId = createMutation(song, operationId)
         tracePermissionContext(song, operationId, approvedMediaUri)
         if (approvedMediaUri != null) {
@@ -104,7 +110,16 @@ internal class EmbeddedLyricsWriter(
         var phase = LyricsWritePhase.SourceRead
         var needsRepair = false
         var originalOverwritten = false
+        var rollbackAttempted = false
+        fun rollbackIfNeeded() {
+            val backup = backupFile
+            if (originalOverwritten && backup != null && !rollbackAttempted) {
+                rollbackAttempted = true
+                needsRepair = rollback(song, backup)
+            }
+        }
         return try {
+            faultInjector.checkpoint(MediaMutationTransactionPhase.AfterJournal)
             trace(song, "preflight")
             mutationRunner.preflight(song)
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PreflightPassed) }
@@ -118,11 +133,13 @@ internal class EmbeddedLyricsWriter(
 
             phase = LyricsWritePhase.TagCommit
             trace(song, "tag_commit:${request.tagKind.name}")
+            faultInjector.checkpoint(MediaMutationTransactionPhase.WorkingMutationStarted)
             EmbeddedLyricsMetadata.write(workingFile, request)
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.TempWritten) }
             phase = LyricsWritePhase.TempVerification
             trace(song, "temp_verify")
             verifyLyrics(workingFile, request)
+            faultInjector.checkpoint(MediaMutationTransactionPhase.WorkingVerified)
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.TempVerified) }
 
             phase = LyricsWritePhase.OriginalOverwrite
@@ -130,19 +147,19 @@ internal class EmbeddedLyricsWriter(
             try {
                 mutationRunner.overwriteOriginal(song.uri, workingFile)
                 originalOverwritten = true
-            } catch (throwable: Throwable) {
-                needsRepair = rollback(song, backupFile)
+            } catch (throwable: Exception) {
+                rollbackIfNeeded()
                 throw throwable
             }
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Committed) }
 
             phase = LyricsWritePhase.PersistedVerification
             trace(song, "persisted_verify")
-            persistedFile = mutationRunner.copySongToTemp(song, "verify")
             try {
+                persistedFile = mutationRunner.copySongToTemp(song, "verify")
                 verifyLyrics(persistedFile, request)
-            } catch (throwable: Throwable) {
-                needsRepair = rollback(song, backupFile)
+            } catch (throwable: Exception) {
+                rollbackIfNeeded()
                 throw throwable
             }
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.PersistedVerified) }
@@ -151,9 +168,7 @@ internal class EmbeddedLyricsWriter(
             successResult(lyrics)
         } catch (throwable: CancellationException) {
             withContext(NonCancellable) {
-                if (originalOverwritten && backupFile != null) {
-                    needsRepair = rollback(song, backupFile)
-                }
+                rollbackIfNeeded()
                 mutationId?.let {
                     mediaMutationJournal?.mark(
                         it,
@@ -163,6 +178,7 @@ internal class EmbeddedLyricsWriter(
             }
             throw throwable
         } catch (throwable: RecoverableSecurityException) {
+            rollbackIfNeeded()
             if (approvedMediaUri != null) {
                 return handlePostGrantSecurityFailure(song, mutationId, throwable)
             }
@@ -170,17 +186,20 @@ internal class EmbeddedLyricsWriter(
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.NeedsPermission) }
             EmbeddedLyricsWriteResult.PermissionRequired(song.uri, throwable.userAction.actionIntent)
         } catch (throwable: SecurityException) {
+            rollbackIfNeeded()
             if (approvedMediaUri != null) {
                 handlePostGrantSecurityFailure(song, mutationId, throwable)
             } else {
                 handleSecurityFailure(song, mutationId, throwable)
             }
         } catch (throwable: ProviderRejectedWriteModeException) {
+            rollbackIfNeeded()
             val failure = EmbeddedLyricsWriteFailure.ProviderRejectedWriteMode
             trace(song, "failed:${failure.name}", throwable)
             mutationId?.let { mediaMutationJournal?.mark(it, MediaMutationStatus.Failed, failure.name) }
             EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
-        } catch (throwable: Throwable) {
+        } catch (throwable: Exception) {
+            rollbackIfNeeded()
             val failure = if (needsRepair) EmbeddedLyricsWriteFailure.RollbackFailed else phase.failure
             trace(song, "failed:${failure.name}", throwable)
             mutationId?.let {
@@ -192,6 +211,7 @@ internal class EmbeddedLyricsWriter(
             }
             EmbeddedLyricsWriteResult.Failure(failure, failure.userMessage)
         } finally {
+            checkpointCleanup()
             if (!needsRepair) runCatching { backupFile?.delete() }
             runCatching { workingFile?.delete() }
             runCatching { persistedFile?.delete() }
@@ -238,10 +258,26 @@ internal class EmbeddedLyricsWriter(
     }
 
     private fun rollback(song: Song, backupFile: File): Boolean {
-        return runCatching {
+        return try {
+            faultInjector.checkpoint(MediaMutationTransactionPhase.RollbackStarted)
             mutationRunner.overwriteOriginal(song.uri, backupFile)
             mutationRunner.verifyOriginalBytes(song.uri, backupFile)
-        }.isFailure
+            false
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            true
+        }
+    }
+
+    private fun checkpointCleanup() {
+        try {
+            faultInjector.checkpoint(MediaMutationTransactionPhase.CleanupStarted)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            // Cleanup faults must not hide the durable mutation result.
+        }
     }
 
     private suspend fun createMutation(song: Song, operationId: String?): String? {

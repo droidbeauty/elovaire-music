@@ -42,14 +42,12 @@ import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
 import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryInvalidationCoordinator
 import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryReadExecutor
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
-import elovaire.music.droidbeauty.app.data.settings.PreferenceStorage
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PortableUserDataBackup
 import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
 import elovaire.music.droidbeauty.app.data.settings.UserDataRecoverySnapshot
-import elovaire.music.droidbeauty.app.data.settings.UpdatePreferencesStoreImpl
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
@@ -140,13 +138,10 @@ internal class AppServices(
         mutationJournal = networkSourceMutationJournal,
     )
     private val updateControllerDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        val updatePreferences = allowStrictModeDiskReads {
-            UpdatePreferencesStoreImpl(PreferenceStorage(applicationContext).preferences)
-        }
         createUpdateController(
             context = applicationContext,
             scope = optionalScope,
-            preferences = updatePreferences,
+            preferences = preferenceStore,
             backgroundWorkPolicy = backgroundWorkPolicy,
         )
     }

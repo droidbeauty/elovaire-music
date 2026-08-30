@@ -95,17 +95,18 @@ internal class LibrarySnapshotPublisher(
             updatedSongs[position] = replacements[currentSong.id]
                 ?: replacementsByIdentity.getValue(MediaIdentityResolver.stableKey(currentSong))
         }
+        val canonicalUpdatedSongs = LibrarySnapshotAssembler.canonicalizeAlbumIds(updatedSongs)
         val patches = replacementPositions.map { position ->
             LibrarySongPatch(
                 before = current.songs[position],
-                after = updatedSongs[position],
+                after = canonicalUpdatedSongs[position],
             )
         }
         lastPatchChangeSet = LibraryChangeSetCalculator.fromPatches(patches)
 
         val affectedAlbumIds = buildSet {
             replacementPositions.forEach { position -> add(current.songs[position].albumId) }
-            replacementPositions.forEach { position -> add(updatedSongs[position].albumId) }
+            replacementPositions.forEach { position -> add(canonicalUpdatedSongs[position].albumId) }
         }
         val affectedPositions = buildSet {
             affectedAlbumIds.forEach { albumId ->
@@ -115,7 +116,7 @@ internal class LibrarySnapshotPublisher(
         }
         val rebuiltAlbums = affectedAlbumIds.flatMap { albumId ->
             buildAlbumsFromSongs(
-                affectedPositions.map(updatedSongs::get).filter { it.albumId == albumId },
+                affectedPositions.map(canonicalUpdatedSongs::get).filter { it.albumId == albumId },
             )
         }
         val updatedAlbums = current.albums.toMutableList()
@@ -127,7 +128,7 @@ internal class LibrarySnapshotPublisher(
             updatedAlbums.add(insertionPoint, album)
         }
         val nextState = LibraryContentState(
-            songs = updatedSongs,
+            songs = canonicalUpdatedSongs,
             albums = updatedAlbums,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,

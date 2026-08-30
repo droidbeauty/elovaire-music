@@ -24,7 +24,12 @@ internal class MediaTargetExistenceProbe(
                 arrayOf(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
             }
             val exists = runCatching {
-                resolver.query(uri, projection, null, null, null)?.use { it.moveToFirst() }
+                val selection = if (uri.authority.equals(MediaStore.AUTHORITY, ignoreCase = true)) {
+                    MediaStoreAudioQuery.selection
+                } else {
+                    null
+                }
+                resolver.query(uri, projection, selection, null, null)?.use { it.moveToFirst() }
                     ?: false
             }.getOrDefault(false)
             songId.takeIf { exists }

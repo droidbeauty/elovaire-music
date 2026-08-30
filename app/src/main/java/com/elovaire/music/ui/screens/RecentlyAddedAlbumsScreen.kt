@@ -50,6 +50,9 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.elovaireListReveal
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 @Composable
 @Suppress("LongMethod")
@@ -84,7 +87,9 @@ internal fun RecentlyAddedAlbumsScreen(
     }
     val listState = rememberElovaireLazyListState("recently_added_albums_list")
     val revealRegistry = rememberMotionRevealRegistry()
-    val contentTopInset = detailTopBarOccupiedHeight() + 92.dp
+    val searchBarAreaHeight = 96.dp
+    val contentTopInset = detailTopBarOccupiedHeight() + searchBarAreaHeight
+    val searchBarHazeState = rememberHazeState()
 
     Box(modifier = Modifier.fillMaxSize()) {
         if (matchingAlbums.isEmpty()) {
@@ -97,68 +102,74 @@ internal fun RecentlyAddedAlbumsScreen(
                     ),
             )
         } else {
-            LazyColumn(
-                state = listState,
-                overscrollEffect = null,
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .ensureSingleItemRubberBand(listState),
-                contentPadding = PaddingValues(
-                    start = 20.dp,
-                    top = contentTopInset,
-                    end = 20.dp,
-                    bottom = bottomPadding + 12.dp,
-                ),
-                verticalArrangement = Arrangement.spacedBy(0.dp),
+                    .hazeSource(searchBarHazeState, zIndex = -1f),
             ) {
-                itemsIndexed(
-                    items = matchingAlbums,
-                    key = { _, album -> album.id },
-                    contentType = { _, _ -> "album_compact_row" },
-                ) { index, album ->
-                    Box(
-                        modifier = Modifier
-                            .animateItem(placementSpec = ElovaireMotion.listPlacementSpec())
-                            .elovaireListReveal(
-                                itemKey = album.id,
-                                index = index,
-                                registry = revealRegistry,
-                            ),
-                    ) {
-                        CompactAlbumRow(
-                            album = album,
-                            isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
-                            showFavoriteButton = true,
-                            playlists = playlists,
-                            playlistSongsById = playlistSongsById,
-                            onOpen = { origin -> onAlbumSelected(album, origin) },
-                            onToggleFavorite = {
-                                onSetAlbumFavorite(
-                                    album.songs.map(Song::id),
-                                    album.songs.any { it.id !in favoriteSongIds },
-                                )
-                            },
-                            onAddToQueue = { onAddAlbumToQueue(album) },
-                            onAddToPlaylist = { playlistId -> onAddAlbumToPlaylist(playlistId, album) },
-                            onCreatePlaylist = onCreatePlaylist,
-                            onDeleteAlbum = { onDeleteAlbumFromDevice(album) },
-                        )
-                    }
-                    if (index != matchingAlbums.lastIndex) {
+                LazyColumn(
+                    state = listState,
+                    overscrollEffect = null,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .ensureSingleItemRubberBand(listState),
+                    contentPadding = PaddingValues(
+                        start = 20.dp,
+                        top = contentTopInset,
+                        end = 20.dp,
+                        bottom = bottomPadding + 12.dp,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(0.dp),
+                ) {
+                    itemsIndexed(
+                        items = matchingAlbums,
+                        key = { _, album -> album.id },
+                        contentType = { _, _ -> "album_compact_row" },
+                    ) { index, album ->
                         Box(
-                            modifier = Modifier.fillMaxWidth(),
-                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .animateItem(placementSpec = ElovaireMotion.listPlacementSpec())
+                                .elovaireListReveal(
+                                    itemKey = album.id,
+                                    index = index,
+                                    registry = revealRegistry,
+                                ),
                         ) {
-                            DividerLine(modifier = Modifier.fillMaxWidth(0.9f))
+                            CompactAlbumRow(
+                                album = album,
+                                isFavorite = album.songs.isNotEmpty() && album.songs.all { it.id in favoriteSongIds },
+                                showFavoriteButton = true,
+                                playlists = playlists,
+                                playlistSongsById = playlistSongsById,
+                                onOpen = { origin -> onAlbumSelected(album, origin) },
+                                onToggleFavorite = {
+                                    onSetAlbumFavorite(
+                                        album.songs.map(Song::id),
+                                        album.songs.any { it.id !in favoriteSongIds },
+                                    )
+                                },
+                                onAddToQueue = { onAddAlbumToQueue(album) },
+                                onAddToPlaylist = { playlistId -> onAddAlbumToPlaylist(playlistId, album) },
+                                onCreatePlaylist = onCreatePlaylist,
+                                onDeleteAlbum = { onDeleteAlbumFromDevice(album) },
+                            )
+                        }
+                        if (index != matchingAlbums.lastIndex) {
+                            Box(
+                                modifier = Modifier.fillMaxWidth(),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                DividerLine(modifier = Modifier.fillMaxWidth(0.9f))
+                            }
                         }
                     }
                 }
+                FastScrollbar(
+                    state = listState,
+                    topInset = contentTopInset,
+                    bottomInset = bottomPadding + 16.dp,
+                )
             }
-            FastScrollbar(
-                state = listState,
-                topInset = contentTopInset,
-                bottomInset = bottomPadding + 16.dp,
-            )
         }
 
         Box(
@@ -168,7 +179,7 @@ internal fun RecentlyAddedAlbumsScreen(
                 .padding(
                     top = detailTopBarOccupiedHeight(),
                 )
-                .height(72.dp),
+                .height(searchBarAreaHeight),
             contentAlignment = Alignment.Center,
         ) {
             RecentlyAddedSearchControls(
@@ -176,6 +187,7 @@ internal fun RecentlyAddedAlbumsScreen(
                 searchPlaceholder = searchCopy.placeholder,
                 onQueryChange = { query = it },
                 onClearQuery = { query = "" },
+                hazeState = searchBarHazeState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 20.dp),
@@ -196,62 +208,70 @@ private fun RecentlyAddedSearchControls(
     searchPlaceholder: String,
     onQueryChange: (String) -> Unit,
     onClearQuery: () -> Unit,
+    hazeState: HazeState,
     modifier: Modifier = Modifier,
 ) {
     val searchBarContentColor = MaterialTheme.colorScheme.onSurface
-    OutlinedTextField(
-        value = query,
-        onValueChange = onQueryChange,
+    DynamicBackdropSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(ElovaireRadii.input),
-        singleLine = true,
-        placeholder = { Text(searchPlaceholder) },
-        leadingIcon = {
-            Icon(
-                painter = painterResource(id = R.drawable.ic_lucide_search),
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp),
-            )
-        },
-        trailingIcon = {
-            if (query.isNotBlank()) {
-                val interactionSource = rememberElovaireInteractionSource()
-                Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .clip(CircleShape)
-                        .background(searchBarContentColor.copy(alpha = 0.1f))
-                        .elovaireActionBump(
-                            interactionSource = interactionSource,
-                            label = "recently_added_clear_search_bump",
+        overlayAlpha = 0.6f,
+        hazeState = hazeState,
+    ) {
+        OutlinedTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(ElovaireRadii.input),
+            singleLine = true,
+            placeholder = { Text(searchPlaceholder) },
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(id = R.drawable.ic_lucide_search),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
+                )
+            },
+            trailingIcon = {
+                if (query.isNotBlank()) {
+                    val interactionSource = rememberElovaireInteractionSource()
+                    Box(
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(CircleShape)
+                            .background(searchBarContentColor.copy(alpha = 0.1f))
+                            .elovaireActionBump(
+                                interactionSource = interactionSource,
+                                label = "recently_added_clear_search_bump",
+                            )
+                            .clickable(
+                                interactionSource = interactionSource,
+                                indication = null,
+                                onClick = onClearQuery,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.ic_lucide_x),
+                            contentDescription = "Clear search",
+                            tint = searchBarContentColor.copy(alpha = 0.86f),
+                            modifier = Modifier.size(14.dp),
                         )
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClick = onClearQuery,
-                        ),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.ic_lucide_x),
-                        contentDescription = "Clear search",
-                        tint = searchBarContentColor.copy(alpha = 0.86f),
-                        modifier = Modifier.size(14.dp),
-                    )
+                    }
                 }
-            }
-        },
-        colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = Color.Transparent,
-            unfocusedBorderColor = Color.Transparent,
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
-            cursorColor = searchBarContentColor,
-            focusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
-            unfocusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
-        ),
-    )
+            },
+            colors = OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color.Transparent,
+                unfocusedBorderColor = Color.Transparent,
+                focusedContainerColor = Color.Transparent,
+                unfocusedContainerColor = Color.Transparent,
+                cursorColor = searchBarContentColor,
+                focusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
+                unfocusedPlaceholderColor = searchBarContentColor.copy(alpha = 0.5f),
+            ),
+        )
+    }
 }
 
 @Composable

@@ -20,6 +20,37 @@ class LibrarySnapshotAssemblerTest {
     }
 
     @Test
+    fun assemble_separatesSameMediaStoreAlbumIdAcrossVolumes() {
+        val primary = song(1L, "content://media/external_primary/audio/media/1")
+            .copy(albumId = 42L, libraryPath = "/storage/emulated/0/Music/primary.mp3")
+        val removable = song(2L, "content://media/1234-5678/audio/media/2")
+            .copy(
+                albumId = 42L,
+                fileName = "removable.mp3",
+                libraryPath = "/storage/1234-5678/Music/removable.mp3",
+            )
+
+        val snapshot = LibrarySnapshotAssembler.assemble(listOf(primary, removable))
+
+        assertEquals(2, snapshot.albums.size)
+        assertEquals(2, snapshot.songs.map(Song::albumId).distinct().size)
+        assertEquals(42L, snapshot.songs.first { it.id == primary.id }.albumId)
+    }
+
+    @Test
+    fun assemble_separatesSameAlbumIdAcrossIndependentProviders() {
+        val first = song(1L, "content://provider.one/tree/root/document/track-one")
+            .copy(id = -1L, albumId = -9L, libraryPath = null)
+        val second = song(2L, "content://provider.two/tree/root/document/track-two")
+            .copy(id = -2L, albumId = -9L, fileName = "second.mp3", libraryPath = null)
+
+        val snapshot = LibrarySnapshotAssembler.assemble(listOf(first, second))
+
+        assertEquals(2, snapshot.albums.size)
+        assertEquals(2, snapshot.songs.map(Song::albumId).distinct().size)
+    }
+
+    @Test
     fun patchSongs_rebuildsOnlyAffectedAlbum() {
         val first = song(1L, "content://media/external/audio/media/1")
         val second = song(2L, "content://media/external/audio/media/2")

@@ -54,6 +54,12 @@ class LrcParserTest {
     }
 
     @Test
+    fun nullSentinelIsNotDisplayedAsLyrics() {
+        assertNull(parseLrcOrPlain("null"))
+        assertNull(parseLrcOrPlain(" NULL "))
+    }
+
+    @Test
     fun duplicateTimestampsUseNextDistinctLineForEndTime() {
         val payload = requireNotNull(
             parseLrcOrPlain(

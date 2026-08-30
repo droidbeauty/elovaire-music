@@ -134,6 +134,7 @@ internal fun sanitizeLyricLine(line: String): String? {
 
     if (cleaned.isBlank()) return null
     val normalized = cleaned.lowercase(Locale.US)
+    if (normalized == "null") return null
     if (normalized == "embed") return null
     if (normalized.startsWith("translations")) return null
     if (normalized.startsWith("you might also like")) return null

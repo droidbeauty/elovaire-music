@@ -11,6 +11,7 @@ import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -78,6 +79,48 @@ class MediaStoreScannerInstrumentedTest {
 
         assertTrue(snapshot.songs.any { song -> song.fileName == fixtureName })
         assertTrue(ScannerDebugLogger.latestDiagnosticSnapshot()?.indexRefresh?.startsWith("Unavailable:") == true)
+    }
+
+    @Test
+    fun unpublishedMediaStoreRowsAreNotDiscoverable() {
+        val fixtureName = "elovaire-pending-${System.nanoTime()}.wav"
+        val uri = resolver.insert(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, fixtureName)
+                put(MediaStore.Audio.Media.MIME_TYPE, "audio/wav")
+                put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/ElovaireScanTest")
+                put(MediaStore.Audio.Media.IS_MUSIC, 1)
+                put(MediaStore.Audio.Media.IS_PENDING, 1)
+            },
+        ) ?: error("Unable to insert pending MediaStore fixture.")
+        insertedUris += uri
+        resolver.openOutputStream(uri)?.use { output -> output.write(wavBytes()) }
+            ?: error("Unable to write pending MediaStore fixture.")
+
+        fun queryContainsFixture(): Boolean = MediaStoreAudioQuery.query(resolver).cursor.use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+            buildList {
+                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+            }.contains(fixtureName)
+        }
+
+        assertFalse(queryContainsFixture())
+        resolver.update(
+            uri,
+            ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) },
+            null,
+            null,
+        )
+        assertTrue(queryContainsFixture())
+
+        resolver.update(
+            uri,
+            ContentValues().apply { put(MediaStore.Audio.Media.IS_TRASHED, 1) },
+            null,
+            null,
+        )
+        assertFalse(queryContainsFixture())
     }
 
     @Test
