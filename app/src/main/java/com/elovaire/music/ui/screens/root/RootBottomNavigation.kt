@@ -31,7 +31,7 @@ import dev.chrisbanes.haze.ExperimentalHazeApi
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
@@ -123,7 +123,7 @@ private fun BottomNavigationItemButton(
         label = "BottomNavItemSelection",
     )
     val iconTint by selectionTransition.animateColor(
-        transitionSpec = { ElovaireMotion.colorFadeSpec() },
+        transitionSpec = { motionSpecs.tween(durationMillis = MotionDuration.Fast) },
         label = "BottomNavItemIconTint",
     ) { isSelected ->
         if (isSelected) {
@@ -137,7 +137,7 @@ private fun BottomNavigationItemButton(
             if (suppressEnterAnimation) {
                 motionSpecs.tween(durationMillis = 0)
             } else {
-                ElovaireMotion.releaseSpringSpec<Float>(
+                motionSpecs.spring<Float>(
                     dampingRatio = 0.8f,
                     stiffness = 540f,
                 )
@@ -151,7 +151,7 @@ private fun BottomNavigationItemButton(
             .size(56.dp)
             .elovairePressScale(
                 pressedScale = 0.88f,
-                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                animationSpec = motionSpecs.chromeRelease(),
                 interactionSource = interactionSource,
                 label = "${contentDescription}_bottom_nav_scale",
             )

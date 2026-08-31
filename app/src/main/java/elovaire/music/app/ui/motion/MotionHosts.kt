@@ -45,7 +45,7 @@ fun MotionVisibilityHost(
         exit = exit,
         content = content,
     )
-    LaunchedEffect(state.currentState, state.targetState, state.isIdle) {
+    LaunchedEffect(visible, state.currentState, state.targetState, state.isIdle) {
         exitCallbackGate.onCurrentStateChanged(state.currentState)
         if (
             state.isIdle &&
@@ -104,6 +104,9 @@ internal class MotionExitCallbackGate {
         lastVisibilityTarget = visible
         visibilityGeneration += 1L
         if (visible) {
+            // The content is mounted as soon as the target becomes visible. Track that
+            // lifetime even when a zero-duration enter never publishes currentState=true.
+            hasEntered = true
             pendingExitGeneration = null
         } else if (hasEntered) {
             pendingExitGeneration = visibilityGeneration

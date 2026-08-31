@@ -45,7 +45,9 @@ import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSeman
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedContent
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -125,7 +127,7 @@ private fun SharedTopBarSpec.topBarDepth(): Int = when (this) {
     is SharedTopBarSpec.Detail -> 2
 }
 
-private fun ElovaireMotion.topBarTextTransform(direction: TopBarMotionDirection) = when (direction) {
+private fun MotionTransitions.topBarTextTransform(direction: TopBarMotionDirection) = when (direction) {
     TopBarMotionDirection.Forward -> topBarTextForwardTransform()
     TopBarMotionDirection.Back -> topBarTextBackTransform()
     TopBarMotionDirection.Lateral -> titleSwapTransform()
@@ -405,6 +407,7 @@ private fun AnimatedSharedTopBarActions(
     actions: List<TopBarActionSpec>,
     modifier: Modifier = Modifier,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     val latestActions by rememberUpdatedState(actions)
     val visualActions = remember(actions) {
         actions.mapIndexed { index, action ->
@@ -420,7 +423,7 @@ private fun AnimatedSharedTopBarActions(
     ElovaireAnimatedContent(
         targetState = visualActions,
         modifier = modifier,
-        transitionSpec = { ElovaireMotion.topBarActionSwapTransform() },
+        transitionSpec = { motionTransitions.topBarActionSwapTransform() },
         contentKey = { it },
         label = "SharedTopBarActionSwap",
     ) { currentVisualActions ->
@@ -451,6 +454,7 @@ internal fun SharedTopBarOverlay(
     spec: SharedTopBarSpec,
     modifier: Modifier = Modifier,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     val language = LocalAppLanguage.current
     val copy = remember(language) { rootUiCopy(language) }
     Box(
@@ -467,9 +471,9 @@ internal fun SharedTopBarOverlay(
             targetState = spec,
             transitionSpec = {
                 when (topBarMotionDirection(initialState, targetState)) {
-                    TopBarMotionDirection.Forward -> ElovaireMotion.sharedTopBarForwardTransform()
-                    TopBarMotionDirection.Back -> ElovaireMotion.sharedTopBarBackTransform()
-                    TopBarMotionDirection.Lateral -> ElovaireMotion.sharedTopBarTransform()
+                    TopBarMotionDirection.Forward -> motionTransitions.sharedTopBarForwardTransform()
+                    TopBarMotionDirection.Back -> motionTransitions.sharedTopBarBackTransform()
+                    TopBarMotionDirection.Lateral -> motionTransitions.sharedTopBarTransform()
                 }
             },
             contentKey = { it.visualSignature() },
@@ -494,7 +498,7 @@ internal fun SharedTopBarOverlay(
                             ElovaireAnimatedContent(
                                 targetState = currentSpec.title,
                                 transitionSpec = {
-                                    ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Lateral)
+                                    motionTransitions.topBarTextTransform(TopBarMotionDirection.Lateral)
                                 },
                                 label = "SharedTopBarUnifiedTitle",
                             ) { currentTitle ->
@@ -560,7 +564,7 @@ internal fun SharedTopBarOverlay(
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
                                     transitionSpec = {
-                                        ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Back)
+                                        motionTransitions.topBarTextTransform(TopBarMotionDirection.Back)
                                     },
                                     label = "SharedTopBarBackCenteredTitle",
                                 ) { currentTitle ->
@@ -590,7 +594,7 @@ internal fun SharedTopBarOverlay(
                         ) {
                             ElovaireAnimatedContent(
                                 targetState = "back",
-                                transitionSpec = { ElovaireMotion.topBarNavigationTransform() },
+                                transitionSpec = { motionTransitions.topBarNavigationTransform() },
                                 label = "SharedTopBarBackNavigation",
                             ) {
                                 HeaderIconButton(
@@ -609,7 +613,7 @@ internal fun SharedTopBarOverlay(
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
                                     transitionSpec = {
-                                        ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Back)
+                                        motionTransitions.topBarTextTransform(TopBarMotionDirection.Back)
                                     },
                                     label = "SharedTopBarBackTitle",
                                 ) { currentTitle ->
@@ -638,7 +642,7 @@ internal fun SharedTopBarOverlay(
                     ) {
                         ElovaireAnimatedContent(
                             targetState = "detail",
-                            transitionSpec = { ElovaireMotion.topBarNavigationTransform() },
+                            transitionSpec = { motionTransitions.topBarNavigationTransform() },
                             label = "SharedTopBarDetailNavigation",
                         ) {
                             HeaderIconButton(
@@ -655,7 +659,7 @@ internal fun SharedTopBarOverlay(
                             ) {
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
-                                    transitionSpec = { ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Forward) },
+                                    transitionSpec = { motionTransitions.topBarTextTransform(TopBarMotionDirection.Forward) },
                                     label = "SharedTopBarDetailTitleOnly",
                                 ) { currentTitle ->
                                     Text(
@@ -677,7 +681,7 @@ internal fun SharedTopBarOverlay(
                             ) {
                                 ElovaireAnimatedContent(
                                     targetState = currentSpec.title,
-                                    transitionSpec = { ElovaireMotion.topBarTextTransform(TopBarMotionDirection.Forward) },
+                                    transitionSpec = { motionTransitions.topBarTextTransform(TopBarMotionDirection.Forward) },
                                     label = "SharedTopBarDetailTitleWithSubtitle",
                                 ) { currentTitle ->
                                     Text(
@@ -720,6 +724,7 @@ internal fun HeaderIconButton(
     tint: Color = MaterialTheme.colorScheme.onSurface,
     onClick: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val interactionSource = rememberElovaireInteractionSource()
     val sharedBackPainter = LocalSharedBackIconPainter.current
     val sharedTopMenuPainter = LocalSharedTopMenuIconPainter.current
@@ -734,7 +739,7 @@ internal fun HeaderIconButton(
             .elovairePressScale(
                 enabled = enabled,
                 pressedScale = 0.88f,
-                animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                animationSpec = motionSpecs.chromeRelease(),
                 interactionSource = interactionSource,
                 label = "${contentDescription}_header_scale",
             )

@@ -10,13 +10,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
+import elovaire.music.droidbeauty.app.ui.motion.MotionRuntime
+import elovaire.music.droidbeauty.app.ui.motion.MotionRuntimeProvider
 import elovaire.music.droidbeauty.app.ui.motion.MotionVisibilityHost
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -51,5 +56,34 @@ class RapidMotionInterleavingTest {
         composeRule.mainClock.advanceTimeBy(500L)
         assertEquals(0, exitCallbacks.get())
         composeRule.onNodeWithTag("motion_surface").assertIsDisplayed()
+    }
+
+    @Test
+    fun zeroMotionScaleRemovesContentAndReportsOneCompletedExit() {
+        val visible = mutableStateOf(true)
+        val exitCallbacks = AtomicInteger()
+        composeRule.mainClock.autoAdvance = false
+        composeRule.setContent {
+            MotionRuntimeProvider(runtime = MotionRuntime(durationScale = 0f)) {
+                val transitions = rememberMotionTransitions()
+                MotionVisibilityHost(
+                    visible = visible.value,
+                    enter = transitions.standardEnter(),
+                    exit = transitions.standardExit(),
+                    onExitFinished = { exitCallbacks.incrementAndGet() },
+                ) {
+                    Box(modifier = Modifier.size(20.dp).testTag("zero_motion_surface"))
+                }
+            }
+        }
+
+        composeRule.mainClock.advanceTimeByFrame()
+        composeRule.onNodeWithTag("zero_motion_surface").assertIsDisplayed()
+        composeRule.runOnIdle { visible.value = false }
+        repeat(10) { composeRule.mainClock.advanceTimeByFrame() }
+        composeRule.waitForIdle()
+
+        assertTrue(composeRule.onAllNodesWithTag("zero_motion_surface").fetchSemanticsNodes().isEmpty())
+        assertEquals(1, exitCallbacks.get())
     }
 }

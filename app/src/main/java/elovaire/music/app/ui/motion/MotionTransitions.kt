@@ -146,63 +146,80 @@ class MotionTransitions internal constructor(
 
     fun bottomSheetExit(): ExitTransition = popupCardExit()
 
-    fun bannerEnter(): EnterTransition = fadeSlideVerticalEnter(
-        fadeDuration = MotionDuration.Standard,
-        slideDuration = MotionDuration.Screen,
-        initialAlpha = 0.82f,
-        initialOffsetY = { -(it / 2) },
-    )
+    fun bannerEnter(): EnterTransition = cached(StaticMotionTransition.BannerEnter) {
+        fadeSlideVerticalEnter(
+            fadeDuration = MotionDuration.Standard,
+            slideDuration = MotionDuration.Screen,
+            initialAlpha = 0.82f,
+            initialOffsetY = { -(it / 2) },
+        )
+    }
 
-    fun bannerExit(): ExitTransition = fadeSlideVerticalExit(
-        fadeDuration = MotionDuration.Fast,
-        slideDuration = MotionDuration.Standard,
-        targetAlpha = 0.94f,
-        targetOffsetY = { -(it / 3) },
-    )
+    fun bannerExit(): ExitTransition = cached(StaticMotionTransition.BannerExit) {
+        fadeSlideVerticalExit(
+            fadeDuration = MotionDuration.Fast,
+            slideDuration = MotionDuration.Standard,
+            targetAlpha = 0.94f,
+            targetOffsetY = { -(it / 3) },
+        )
+    }
 
-    fun bottomBarEnter(): EnterTransition = fadeSlideVerticalEnter(
-        fadeDuration = MotionDuration.Standard,
-        slideDuration = MotionDuration.Standard,
-        initialAlpha = 0.82f,
-        initialOffsetY = { it / 2 },
-    )
+    fun bottomBarEnter(): EnterTransition = cached(StaticMotionTransition.BottomBarEnter) {
+        fadeSlideVerticalEnter(
+            fadeDuration = MotionDuration.Standard,
+            slideDuration = MotionDuration.Standard,
+            initialAlpha = 0.82f,
+            initialOffsetY = { it / 2 },
+        )
+    }
 
-    fun bottomBarExit(): ExitTransition = fadeSlideVerticalExit(
-        fadeDuration = MotionDuration.Fast,
-        slideDuration = MotionDuration.Quick,
-        targetAlpha = 0.94f,
-        targetOffsetY = { it / 2 },
-    )
+    fun bottomBarExit(): ExitTransition = cached(StaticMotionTransition.BottomBarExit) {
+        fadeSlideVerticalExit(
+            fadeDuration = MotionDuration.Fast,
+            slideDuration = MotionDuration.Quick,
+            targetAlpha = 0.94f,
+            targetOffsetY = { it / 2 },
+        )
+    }
 
-    fun verticalRevealEnter(): EnterTransition = fadeIn(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Fast,
-            easing = MotionEasing.FadeIn,
-        ),
-    ) + slideInVertically(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Standard,
-            easing = MotionEasing.RefinedDecelerate,
-        ),
-        initialOffsetY = { -it / 10 },
-    )
+    fun verticalRevealEnter(): EnterTransition = cached(StaticMotionTransition.VerticalRevealEnter) {
+        fadeIn(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Fast,
+                easing = MotionEasing.FadeIn,
+            ),
+        ) + slideInVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Standard,
+                easing = MotionEasing.RefinedDecelerate,
+            ),
+            initialOffsetY = { -it / 10 },
+        )
+    }
 
-    fun verticalRevealExit(): ExitTransition = fadeOut(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Quick,
-            easing = MotionEasing.FadeOut,
-        ),
-    ) + slideOutVertically(
-        animationSpec = specs.tween(
-            durationMillis = MotionDuration.Component,
-            easing = MotionEasing.RefinedAccelerate,
-        ),
-        targetOffsetY = { -it / 12 },
-    )
+    fun verticalRevealExit(): ExitTransition = cached(StaticMotionTransition.VerticalRevealExit) {
+        fadeOut(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Quick,
+                easing = MotionEasing.FadeOut,
+            ),
+        ) + slideOutVertically(
+            animationSpec = specs.tween(
+                durationMillis = MotionDuration.Component,
+                easing = MotionEasing.RefinedAccelerate,
+            ),
+            targetOffsetY = { -it / 12 },
+        )
+    }
 
     fun contextMenuEnter(
-        origin: TransformOrigin = TransformOrigin(1f, 0f),
-    ): EnterTransition = fadeIn(
+        origin: TransformOrigin = DEFAULT_CONTEXT_MENU_ORIGIN,
+    ): EnterTransition {
+        if (origin != DEFAULT_CONTEXT_MENU_ORIGIN) return buildContextMenuEnter(origin)
+        return cached(StaticMotionTransition.ContextMenuEnter) { buildContextMenuEnter(origin) }
+    }
+
+    private fun buildContextMenuEnter(origin: TransformOrigin): EnterTransition = fadeIn(
         animationSpec = specs.tween(
             durationMillis = MotionDuration.Component,
             easing = MotionEasing.FadeIn,
@@ -218,8 +235,13 @@ class MotionTransitions internal constructor(
     )
 
     fun contextMenuExit(
-        origin: TransformOrigin = TransformOrigin(1f, 0f),
-    ): ExitTransition = fadeOut(
+        origin: TransformOrigin = DEFAULT_CONTEXT_MENU_ORIGIN,
+    ): ExitTransition {
+        if (origin != DEFAULT_CONTEXT_MENU_ORIGIN) return buildContextMenuExit(origin)
+        return cached(StaticMotionTransition.ContextMenuExit) { buildContextMenuExit(origin) }
+    }
+
+    private fun buildContextMenuExit(origin: TransformOrigin): ExitTransition = fadeOut(
         animationSpec = specs.tween(
             durationMillis = MotionDuration.Fast,
             easing = MotionEasing.FadeOut,
@@ -301,6 +323,111 @@ class MotionTransitions internal constructor(
         targetAlpha = 0.92f,
         targetOffsetY = { it / 12 },
     ) }
+
+    fun titleSwapTransform(): ContentTransform =
+        cached(StaticMotionTransition.TitleSwapTransform) {
+            fadeIn(animationSpec = specs.tween(MotionDuration.Component, delayMillis = 32, easing = MotionEasing.FadeIn)) togetherWith
+                fadeOut(animationSpec = specs.tween(MotionDuration.Fast, easing = MotionEasing.FadeOut))
+        }
+
+    fun sharedTopBarTransform(): ContentTransform =
+        cached(StaticMotionTransition.SharedTopBarTransform) {
+            (fadeIn(animationSpec = specs.fadeIn(MotionDuration.ScreenFade)) +
+                slideInVertically(
+                    animationSpec = specs.tween(MotionDuration.ScreenFade, easing = MotionEasing.SoftOut),
+                    initialOffsetY = { -it / 5 },
+                )) togetherWith fadeOut(animationSpec = specs.fadeOut(MotionDuration.Quick))
+        }
+
+    fun sharedTopBarForwardTransform(): ContentTransform =
+        cached(StaticMotionTransition.SharedTopBarForwardTransform) {
+            fadeIn(
+                animationSpec = specs.fadeIn(MotionDuration.ScreenFade),
+                initialAlpha = 0.9f,
+            ) togetherWith fadeOut(
+                animationSpec = specs.fadeOut(MotionDuration.Quick),
+                targetAlpha = 0.92f,
+            )
+        }
+
+    fun sharedTopBarBackTransform(): ContentTransform =
+        cached(StaticMotionTransition.SharedTopBarBackTransform) {
+            fadeIn(
+                animationSpec = specs.fadeIn(MotionDuration.ScreenFade),
+                initialAlpha = 0.94f,
+            ) togetherWith fadeOut(
+                animationSpec = specs.fadeOut(MotionDuration.Quick),
+                targetAlpha = 0.96f,
+            )
+        }
+
+    fun topBarNavigationTransform(): ContentTransform =
+        cached(StaticMotionTransition.TopBarNavigationTransform) {
+            (fadeIn(animationSpec = specs.tween(MotionDuration.Component, easing = MotionEasing.FadeIn)) +
+                scaleIn(
+                    animationSpec = specs.tween(MotionDuration.Component, easing = MotionEasing.RefinedDecelerate),
+                    initialScale = 0.96f,
+                    transformOrigin = TransformOrigin.Center,
+                )) togetherWith
+                (fadeOut(animationSpec = specs.tween(MotionDuration.Quick, easing = MotionEasing.FadeOut)) +
+                    scaleOut(
+                        animationSpec = specs.tween(MotionDuration.Quick, easing = MotionEasing.RefinedAccelerate),
+                        targetScale = 0.98f,
+                        transformOrigin = TransformOrigin.Center,
+                    ))
+        }
+
+    fun topBarTextForwardTransform(): ContentTransform =
+        cached(StaticMotionTransition.TopBarTextForwardTransform) {
+            (fadeIn(
+                animationSpec = specs.tween(MotionDuration.Component, delayMillis = 18, easing = MotionEasing.FadeIn),
+                initialAlpha = 0.72f,
+            ) + slideInHorizontally(
+                animationSpec = specs.tween(MotionDuration.Component, easing = MotionEasing.RefinedDecelerate),
+                initialOffsetX = { it / 18 },
+            )) togetherWith (fadeOut(
+                animationSpec = specs.tween(MotionDuration.Fast, easing = MotionEasing.FadeOut),
+                targetAlpha = 0.9f,
+            ) + slideOutHorizontally(
+                animationSpec = specs.tween(MotionDuration.Fast, easing = MotionEasing.RefinedAccelerate),
+                targetOffsetX = { -(it / 24) },
+            ))
+        }
+
+    fun topBarTextBackTransform(): ContentTransform =
+        cached(StaticMotionTransition.TopBarTextBackTransform) {
+            (fadeIn(
+                animationSpec = specs.tween(MotionDuration.Component, easing = MotionEasing.FadeIn),
+                initialAlpha = 0.78f,
+            ) + slideInHorizontally(
+                animationSpec = specs.tween(MotionDuration.Component, easing = MotionEasing.RefinedDecelerate),
+                initialOffsetX = { -(it / 22) },
+            )) togetherWith (fadeOut(
+                animationSpec = specs.tween(MotionDuration.Fast, easing = MotionEasing.FadeOut),
+                targetAlpha = 0.92f,
+            ) + slideOutHorizontally(
+                animationSpec = specs.tween(MotionDuration.Fast, easing = MotionEasing.RefinedAccelerate),
+                targetOffsetX = { it / 28 },
+            ))
+        }
+
+    fun topBarActionSwapTransform(): ContentTransform =
+        cached(StaticMotionTransition.TopBarActionSwapTransform) {
+            fadeIn(
+                animationSpec = specs.tween(
+                    durationMillis = MotionDuration.TopBarActionEnter,
+                    delayMillis = MotionDuration.TopBarActionExit,
+                    easing = MotionEasing.FadeIn,
+                ),
+                initialAlpha = 0f,
+            ) togetherWith fadeOut(
+                animationSpec = specs.tween(
+                    durationMillis = MotionDuration.TopBarActionExit,
+                    easing = MotionEasing.FadeOut,
+                ),
+                targetAlpha = 0f,
+            )
+        }
 
     fun softContentTransform(): ContentTransform =
         cached(StaticMotionTransition.SoftContentTransform) { (fadeIn(animationSpec = specs.fadeIn(MotionDuration.Standard)) +
@@ -494,6 +621,7 @@ class MotionTransitions internal constructor(
     private companion object {
         const val DEFAULT_OVERLAY_ENTER_ALPHA = 0.78f
         const val DEFAULT_OVERLAY_EXIT_ALPHA = 0.92f
+        val DEFAULT_CONTEXT_MENU_ORIGIN = TransformOrigin(1f, 0f)
         val DEFAULT_QUEUE_ORIGIN = TransformOrigin(1f, 1f)
     }
 }
@@ -501,6 +629,14 @@ class MotionTransitions internal constructor(
 internal enum class StaticMotionTransition {
     OverlayFadeEnter,
     OverlayFadeExit,
+    BannerEnter,
+    BannerExit,
+    BottomBarEnter,
+    BottomBarExit,
+    VerticalRevealEnter,
+    VerticalRevealExit,
+    ContextMenuEnter,
+    ContextMenuExit,
     StandardEnter,
     StandardExit,
     PlayerOverlayEnter,
@@ -526,6 +662,14 @@ internal enum class StaticMotionTransition {
     PopupCardExit,
     AlbumDetailForwardExit,
     AlbumDetailBackEnter,
+    TitleSwapTransform,
+    SharedTopBarTransform,
+    SharedTopBarForwardTransform,
+    SharedTopBarBackTransform,
+    TopBarNavigationTransform,
+    TopBarTextForwardTransform,
+    TopBarTextBackTransform,
+    TopBarActionSwapTransform,
 }
 
 @Composable

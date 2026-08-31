@@ -290,6 +290,7 @@ import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
+import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.motion.MotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.PopupCardMotionHost
@@ -5467,6 +5468,7 @@ internal fun AlbumScreen(
                             lastIndex = discSongs.lastIndex,
                         ) {
                             AlbumSongRow(
+                                motionTransitions = motionTransitions,
                                 song = song,
                                 trackIndex = if (song.trackNumber > 0) song.trackNumber else index + 1,
                                 selectionMode = selectionModeActive,
@@ -5733,6 +5735,7 @@ private data class PlaybackArtworkKey(
 
 @Composable
 private fun AlbumSongRow(
+    motionTransitions: MotionTransitions,
     song: Song,
     trackIndex: Int,
     selectionMode: Boolean,
@@ -5771,7 +5774,7 @@ private fun AlbumSongRow(
                 } else {
                     AnimatedContent(
                         targetState = isCurrentSong && isPlaybackActive,
-                        transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
+                        transitionSpec = { motionTransitions.quickContentSwapTransform() },
                         label = "album_row_track_indicator",
                     ) { showSignal ->
                         if (showSignal) {
@@ -7159,7 +7162,7 @@ internal fun NowPlayingScreen(
                                 if (!useSharedArtworkOverlay) {
                                     AnimatedContent(
                                         targetState = currentSong.id,
-                                        transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
+                                        transitionSpec = { motionTransitions.quickContentSwapTransform() },
                                         label = "player_artwork_content",
                                     ) { songId ->
                                         val animatedSong = playerUiState.queue.firstOrNull { it.id == songId } ?: currentSong
@@ -7314,7 +7317,7 @@ internal fun NowPlayingScreen(
                     ) {
                         AnimatedContent(
                             targetState = currentSong.id,
-                            transitionSpec = { ElovaireMotion.quickContentSwapTransform() },
+                            transitionSpec = { motionTransitions.quickContentSwapTransform() },
                             label = "player_metadata_content",
                             modifier = Modifier.weight(1f),
                         ) { songId ->

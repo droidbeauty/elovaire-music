@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.TransformOrigin
  */
 object ElovaireMotion {
     private val defaultSpecs = MotionSpecs(MotionRuntime(durationScale = 1f))
+    private val defaultTransitions = MotionTransitions(defaultSpecs)
 
     val Quick: Int get() = MotionDuration.Quick
     val Fast: Int get() = MotionDuration.Fast
@@ -194,13 +195,9 @@ object ElovaireMotion {
         easing = FadeOut,
     )
 
-    fun titleSwapTransform(): ContentTransform =
-        fadeIn(animationSpec = titleSwapInSpec()) togetherWith
-            fadeOut(animationSpec = titleSwapOutSpec())
+    fun titleSwapTransform(): ContentTransform = defaultTransitions.titleSwapTransform()
 
-    fun quickContentSwapTransform(): ContentTransform =
-        fadeIn(animationSpec = scaledTween(durationMillis = MotionDuration.Component, easing = FadeIn)) togetherWith
-            fadeOut(animationSpec = scaledTween(durationMillis = MotionDuration.Fast, easing = FadeOut))
+    fun quickContentSwapTransform(): ContentTransform = defaultTransitions.quickContentSwapTransform()
 
     fun softContentTransform(): ContentTransform =
         (fadeIn(animationSpec = contentFadeInSpec()) +
@@ -209,90 +206,19 @@ object ElovaireMotion {
                 initialOffsetY = { -it / 10 },
             )) togetherWith fadeOut(animationSpec = contentFadeOutSpec())
 
-    fun sharedTopBarTransform(): ContentTransform =
-        (fadeIn(animationSpec = fadeMedium()) +
-            slideInVertically(
-                animationSpec = offsetSoft(durationMillis = MotionDuration.ScreenFade),
-                initialOffsetY = { -it / 5 },
-            )) togetherWith fadeOut(animationSpec = fadeFast())
+    fun sharedTopBarTransform(): ContentTransform = defaultTransitions.sharedTopBarTransform()
 
-    fun sharedTopBarForwardTransform(): ContentTransform =
-        fadeIn(
-            animationSpec = fadeMedium(),
-            initialAlpha = 0.9f,
-        ) togetherWith fadeOut(
-            animationSpec = fadeFast(),
-            targetAlpha = 0.92f,
-        )
+    fun sharedTopBarForwardTransform(): ContentTransform = defaultTransitions.sharedTopBarForwardTransform()
 
-    fun sharedTopBarBackTransform(): ContentTransform =
-        fadeIn(
-            animationSpec = fadeMedium(),
-            initialAlpha = 0.94f,
-        ) togetherWith fadeOut(
-            animationSpec = fadeFast(),
-            targetAlpha = 0.96f,
-        )
+    fun sharedTopBarBackTransform(): ContentTransform = defaultTransitions.sharedTopBarBackTransform()
 
-    fun topBarNavigationTransform(): ContentTransform =
-        (fadeIn(animationSpec = scaledTween(durationMillis = MotionDuration.Component, easing = FadeIn)) +
-            scaleIn(
-                animationSpec = scaledTween(durationMillis = MotionDuration.Component, easing = GentleDecelerate),
-                initialScale = 0.96f,
-                transformOrigin = TransformOrigin.Center,
-            )) togetherWith
-            (fadeOut(animationSpec = scaledTween(durationMillis = MotionDuration.Quick, easing = FadeOut)) +
-                scaleOut(
-                    animationSpec = scaledTween(durationMillis = MotionDuration.Quick, easing = GentleAccelerate),
-                    targetScale = 0.98f,
-                    transformOrigin = TransformOrigin.Center,
-                ))
+    fun topBarNavigationTransform(): ContentTransform = defaultTransitions.topBarNavigationTransform()
 
-    fun topBarTextForwardTransform(): ContentTransform =
-        (fadeIn(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Component, delayMillis = 18, easing = FadeIn),
-            initialAlpha = 0.72f,
-        ) + slideInHorizontally(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Component, easing = GentleDecelerate),
-            initialOffsetX = { it / 18 },
-        )) togetherWith (fadeOut(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Fast, easing = FadeOut),
-            targetAlpha = 0.9f,
-        ) + slideOutHorizontally(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Fast, easing = GentleAccelerate),
-            targetOffsetX = { -(it / 24) },
-        ))
+    fun topBarTextForwardTransform(): ContentTransform = defaultTransitions.topBarTextForwardTransform()
 
-    fun topBarTextBackTransform(): ContentTransform =
-        (fadeIn(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Component, easing = FadeIn),
-            initialAlpha = 0.78f,
-        ) + slideInHorizontally(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Component, easing = GentleDecelerate),
-            initialOffsetX = { -(it / 22) },
-        )) togetherWith (fadeOut(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Fast, easing = FadeOut),
-            targetAlpha = 0.92f,
-        ) + slideOutHorizontally(
-            animationSpec = scaledTween(durationMillis = MotionDuration.Fast, easing = GentleAccelerate),
-            targetOffsetX = { it / 28 },
-        ))
+    fun topBarTextBackTransform(): ContentTransform = defaultTransitions.topBarTextBackTransform()
 
-    fun topBarActionSwapTransform(): ContentTransform =
-        fadeIn(
-            animationSpec = scaledTween(
-                durationMillis = MotionDuration.TopBarActionEnter,
-                delayMillis = MotionDuration.TopBarActionExit,
-                easing = FadeIn,
-            ),
-            initialAlpha = 0f,
-        ) togetherWith fadeOut(
-            animationSpec = scaledTween(
-                durationMillis = MotionDuration.TopBarActionExit,
-                easing = FadeOut,
-            ),
-            targetAlpha = 0f,
-        )
+    fun topBarActionSwapTransform(): ContentTransform = defaultTransitions.topBarActionSwapTransform()
 
     fun fullScreenForwardEnter(
         initialOffsetX: (fullWidth: Int) -> Int = { it / 64 },

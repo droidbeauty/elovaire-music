@@ -16,6 +16,18 @@ class MotionTransitionsTest {
         assertSame(transitions.softContentTransform(), transitions.softContentTransform())
         assertSame(transitions.popupCardEnter(), transitions.popupCardEnter())
         assertSame(transitions.popupCardExit(), transitions.popupCardExit())
+        assertSame(transitions.bannerEnter(), transitions.bannerEnter())
+        assertSame(transitions.bannerExit(), transitions.bannerExit())
+        assertSame(transitions.bottomBarEnter(), transitions.bottomBarEnter())
+        assertSame(transitions.bottomBarExit(), transitions.bottomBarExit())
+        assertSame(transitions.verticalRevealEnter(), transitions.verticalRevealEnter())
+        assertSame(transitions.verticalRevealExit(), transitions.verticalRevealExit())
+        assertSame(transitions.contextMenuEnter(), transitions.contextMenuEnter())
+        assertSame(transitions.contextMenuExit(), transitions.contextMenuExit())
+        assertSame(transitions.titleSwapTransform(), transitions.titleSwapTransform())
+        assertSame(transitions.topBarNavigationTransform(), transitions.topBarNavigationTransform())
+        assertSame(transitions.topBarActionSwapTransform(), transitions.topBarActionSwapTransform())
+        assertSame(transitions.sharedTopBarTransform(), transitions.sharedTopBarTransform())
     }
 
     @Test

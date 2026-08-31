@@ -68,8 +68,8 @@ import elovaire.music.droidbeauty.app.ui.interaction.compactBarGestures
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePressScale
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
@@ -97,7 +97,7 @@ internal fun CompactNowPlayingDockHost(
             keepProgressActive = true
         } else {
             delay(
-                motionRuntime.duration(ElovaireMotion.Standard.toLong())
+                motionRuntime.duration(MotionDuration.Standard.toLong())
                     .coerceAtLeast(if (motionRuntime.reduceMotion) 0L else 120L),
             )
             keepProgressActive = false
@@ -256,7 +256,7 @@ private fun CompactNowPlayingBar(
     }
     val controlIconTint by animateColorAsState(
         targetValue = if (controlBaseTint.luminance() > 0.42f) InkText else Color.White,
-        animationSpec = ElovaireMotion.colorFadeSpec(),
+        animationSpec = motionSpecs.tween(durationMillis = MotionDuration.Fast),
         label = "MiniPlayerButtonIconTint",
     )
     val contentColor = controlIconTint
@@ -426,7 +426,7 @@ private fun CompactNowPlayingBar(
                                 .elovairePressScale(
                                     enabled = visible,
                                     pressedScale = 0.88f,
-                                    animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                                    animationSpec = motionSpecs.chromeRelease(),
                                     interactionSource = interactionSource,
                                     label = "CompactMiniPlayerButtonScale",
                                 )
@@ -442,16 +442,19 @@ private fun CompactNowPlayingBar(
                                 targetState = isPlaying,
                                 transitionSpec = {
                                     (
-                                        fadeIn(animationSpec = ElovaireMotion.iconSwapInSpec()) +
+                                        fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.ScreenFade)) +
                                             scaleIn(
                                                 initialScale = 0.9f,
-                                                animationSpec = ElovaireMotion.releaseSpringSpec(),
+                                                animationSpec = motionSpecs.spring(
+                                                    dampingRatio = 0.82f,
+                                                    stiffness = 560f,
+                                                ),
                                             )
                                         ) togetherWith (
-                                        fadeOut(animationSpec = ElovaireMotion.iconSwapOutSpec()) +
+                                        fadeOut(animationSpec = motionSpecs.fadeOut(MotionDuration.Quick)) +
                                             scaleOut(
                                                 targetScale = 1.04f,
-                                                animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                                animationSpec = motionSpecs.fadeOut(MotionDuration.Quick),
                                             )
                                         )
                                 },
@@ -504,7 +507,7 @@ private fun NowPlayingBar(
     var artworkBounds by remember(song.id) { mutableStateOf<androidx.compose.ui.geometry.Rect?>(null) }
     val animatedDragOffsetX by animateFloatAsState(
         targetValue = dragOffsetX,
-        animationSpec = ElovaireMotion.releaseSpringSpec(
+        animationSpec = motionSpecs.spring(
             dampingRatio = 0.82f,
             stiffness = 380f,
         ),
@@ -666,7 +669,7 @@ private fun NowPlayingBar(
                     .elovairePressScale(
                         enabled = visible,
                         pressedScale = 0.9f,
-                        animationSpec = ElovaireMotion.chromeReleaseSpec(),
+                        animationSpec = motionSpecs.chromeRelease(),
                         interactionSource = interactionSource,
                         label = "MiniPlayerPlayButtonScale",
                     )
@@ -710,17 +713,20 @@ private fun NowPlayingBar(
                     targetState = isPlaying,
                     transitionSpec = {
                         (
-                            fadeIn(animationSpec = ElovaireMotion.iconSwapInSpec()) +
+                            fadeIn(animationSpec = motionSpecs.fadeIn(MotionDuration.ScreenFade)) +
                                 scaleIn(
                                     initialScale = 0.9f,
-                                    animationSpec = ElovaireMotion.releaseSpringSpec(),
+                                    animationSpec = motionSpecs.spring(
+                                        dampingRatio = 0.82f,
+                                        stiffness = 560f,
+                                    ),
                                 )
                             ) togetherWith
                             (
-                                fadeOut(animationSpec = ElovaireMotion.iconSwapOutSpec()) +
+                                fadeOut(animationSpec = motionSpecs.fadeOut(MotionDuration.Quick)) +
                                     scaleOut(
                                         targetScale = 1.04f,
-                                        animationSpec = ElovaireMotion.contentFadeOutSpec(),
+                                        animationSpec = motionSpecs.fadeOut(MotionDuration.Quick),
                                     )
                                 )
                     },

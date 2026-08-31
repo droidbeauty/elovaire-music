@@ -27,7 +27,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 
@@ -211,9 +211,10 @@ private fun DetailListTopBarAnimatedTitle(
     title: String,
     label: String,
 ) {
+    val motionTransitions = rememberMotionTransitions()
     AnimatedContent(
         targetState = title,
-        transitionSpec = { ElovaireMotion.titleSwapTransform() },
+        transitionSpec = { motionTransitions.titleSwapTransform() },
         label = label,
     ) { currentTitle ->
         Text(

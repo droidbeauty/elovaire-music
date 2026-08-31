@@ -30,8 +30,10 @@ import androidx.activity.compose.ReportDrawnWhen
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import elovaire.music.droidbeauty.app.core.AppContainer
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
-import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
+import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
+import elovaire.music.droidbeauty.app.ui.motion.MotionEasing
 import elovaire.music.droidbeauty.app.ui.motion.MotionRuntimeProvider
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRuntime
 import elovaire.music.droidbeauty.app.ui.screens.ElovaireRoot
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireTheme
@@ -48,6 +50,7 @@ internal fun ElovaireAppShell(
 ) {
     val motionRuntime = rememberMotionRuntime()
     MotionRuntimeProvider(runtime = motionRuntime) {
+        val motionSpecs = rememberMotionSpecs()
         val themeMode = container.preferenceStore.themeMode.collectAsStateWithLifecycle()
         val textSizePreset = container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
         val systemDark = isSystemInDarkTheme()
@@ -72,7 +75,10 @@ internal fun ElovaireAppShell(
                 themeOverlayAlpha.snapTo(1f)
                 themeOverlayAlpha.animateTo(
                     targetValue = 0f,
-                    animationSpec = ElovaireMotion.emphasizedEnterSpec(),
+                    animationSpec = motionSpecs.tween(
+                        durationMillis = MotionDuration.ScreenExpand,
+                        easing = MotionEasing.EmphasizedDecelerate,
+                    ),
                 )
             }
         }
@@ -113,13 +119,19 @@ internal fun ElovaireAppShell(
                 ElovaireAnimatedVisibility(
                     visible = showSplash,
                     enter = androidx.compose.animation.fadeIn(
-                        animationSpec = ElovaireMotion.fadeMedium(),
+                        animationSpec = motionSpecs.fadeIn(MotionDuration.ScreenFade),
                     ),
                     exit = fadeOut(
-                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = 320),
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = 320,
+                            easing = MotionEasing.SoftOut,
+                        ),
                     ) + scaleOut(
                         targetScale = 1.02f,
-                        animationSpec = ElovaireMotion.offsetSoft(durationMillis = 320),
+                        animationSpec = motionSpecs.tween(
+                            durationMillis = 320,
+                            easing = MotionEasing.SoftOut,
+                        ),
                     ),
                     label = "ColdStartSplashVisibility",
                 ) {
