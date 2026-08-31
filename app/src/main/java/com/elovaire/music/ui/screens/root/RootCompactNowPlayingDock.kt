@@ -3,7 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
@@ -70,6 +70,7 @@ import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteraction
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion
 import elovaire.music.droidbeauty.app.ui.motion.LocalMotionRuntime
+import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
@@ -242,6 +243,7 @@ private fun CompactNowPlayingBar(
     modifier: Modifier = Modifier,
 ) {
     val motionTransitions = rememberMotionTransitions()
+    val motionSpecs = rememberMotionSpecs()
     val artwork = rememberArtworkBitmap(song.artUri, size = 192)
     val barGradient = rememberArtworkGradient(song.artUri).value
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -344,11 +346,34 @@ private fun CompactNowPlayingBar(
                                 targetState = artwork.value,
                                 transitionSpec = {
                                     (
-                                        fadeIn(animationSpec = tween(260, delayMillis = 25)) +
-                                            scaleIn(initialScale = 0.96f, animationSpec = tween(300))
+                                        fadeIn(
+                                            animationSpec = motionSpecs.tween(
+                                                durationMillis = 260,
+                                                delayMillis = 25,
+                                                easing = FastOutSlowInEasing,
+                                            ),
+                                        ) +
+                                            scaleIn(
+                                                initialScale = 0.96f,
+                                                animationSpec = motionSpecs.tween(
+                                                    durationMillis = 300,
+                                                    easing = FastOutSlowInEasing,
+                                                ),
+                                            )
                                         ) togetherWith (
-                                        fadeOut(animationSpec = tween(170)) +
-                                            scaleOut(targetScale = 1.04f, animationSpec = tween(220))
+                                        fadeOut(
+                                            animationSpec = motionSpecs.tween(
+                                                durationMillis = 170,
+                                                easing = FastOutSlowInEasing,
+                                            ),
+                                        ) +
+                                            scaleOut(
+                                                targetScale = 1.04f,
+                                                animationSpec = motionSpecs.tween(
+                                                    durationMillis = 220,
+                                                    easing = FastOutSlowInEasing,
+                                                ),
+                                            )
                                         )
                                 },
                                 label = "compact_player_artwork_transition",
@@ -460,6 +485,7 @@ private fun NowPlayingBar(
     onSkipPrevious: () -> Unit,
     onSkipNext: () -> Unit,
 ) {
+    val motionSpecs = rememberMotionSpecs()
     val artwork = rememberArtworkBitmap(song.artUri, size = 192)
     val barGradient = rememberArtworkGradient(song.artUri).value
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -557,16 +583,33 @@ private fun NowPlayingBar(
                         targetState = artwork.value,
                         transitionSpec = {
                             (
-                                fadeIn(animationSpec = tween(260, delayMillis = 25)) +
+                                fadeIn(
+                                    animationSpec = motionSpecs.tween(
+                                        durationMillis = 260,
+                                        delayMillis = 25,
+                                        easing = FastOutSlowInEasing,
+                                    ),
+                                ) +
                                     scaleIn(
                                         initialScale = 0.96f,
-                                        animationSpec = tween(300),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = 300,
+                                            easing = FastOutSlowInEasing,
+                                        ),
                                     )
-                                ) togetherWith (
-                                fadeOut(animationSpec = tween(170)) +
+                            ) togetherWith (
+                                fadeOut(
+                                    animationSpec = motionSpecs.tween(
+                                        durationMillis = 170,
+                                        easing = FastOutSlowInEasing,
+                                    ),
+                                ) +
                                     scaleOut(
                                         targetScale = 1.04f,
-                                        animationSpec = tween(220),
+                                        animationSpec = motionSpecs.tween(
+                                            durationMillis = 220,
+                                            easing = FastOutSlowInEasing,
+                                        ),
                                     )
                                 )
                         },
