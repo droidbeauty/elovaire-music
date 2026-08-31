@@ -1,7 +1,11 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import java.io.File
+import java.util.concurrent.CountDownLatch
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -33,5 +37,19 @@ class MediaStoreIndexerTest {
         File(root, "notes.txt").writeText("x")
 
         assertEquals(emptyList<File>(), audioFilesForPaths(listOf(root.absolutePath, File(root, "missing.mp3").absolutePath)))
+    }
+
+    @Test
+    fun awaitMediaScannerCallbacks_checksCancellationWhileWaiting() {
+        val checks = intArrayOf(0)
+        val failure = assertThrows(CancellationException::class.java) {
+            awaitMediaScannerCallbacks(CountDownLatch(1), timeoutSeconds = 5L) {
+                checks[0] += 1
+                if (checks[0] > 1) throw CancellationException("cancelled")
+            }
+        }
+
+        assertTrue(checks[0] > 1)
+        assertEquals("cancelled", failure.message)
     }
 }

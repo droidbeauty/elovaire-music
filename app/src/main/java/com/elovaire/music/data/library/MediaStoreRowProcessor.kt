@@ -10,6 +10,9 @@ import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 internal data class MediaStoreProcessedSong(
     val song: Song,
@@ -27,7 +30,7 @@ internal class MediaStoreRowProcessor(
     private val genreCache: MutableMap<MediaStoreGenreKey, String?>,
     private val decisionMap: ScannerDebugLogger.ScannerDecisionMap,
 ) {
-    fun process(row: MediaStoreAudioRow): MediaStoreProcessedSong? {
+    suspend fun process(row: MediaStoreAudioRow): MediaStoreProcessedSong? {
         val preflightCandidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat = null)
         if (preflightCandidate.relativePath.isNullOrBlank() &&
             preflightCandidate.absolutePath.isNullOrBlank()
@@ -183,7 +186,7 @@ internal class MediaStoreRowProcessor(
         }
     }
 
-    private fun readSongMetadata(
+    private suspend fun readSongMetadata(
         row: MediaStoreAudioRow,
         durationMs: Long,
         detectedFormat: DetectedAudioFormat,
@@ -202,11 +205,13 @@ internal class MediaStoreRowProcessor(
             identityKey = identityKey,
             revisionKey = sourceRevisionKey(row),
         )
-        val resolvedGenre = resolveMediaStoreGenre(metadata.genre) {
-            genreCache.getOrPut(MediaStoreGenreKey(row.id, row.volumeName)) {
+        val resolvedGenre = metadata.genre ?: run {
+            val genreKey = MediaStoreGenreKey(row.id, row.volumeName)
+            if (!genreCache.containsKey(genreKey)) {
                 decisionMap.recordMediaStoreGenreLookup()
-                queryGenre(row.id, row.volumeName)
+                genreCache[genreKey] = queryGenre(row.id, row.volumeName)
             }
+            genreCache[genreKey]
         }
         val resolvedFormat = detectedFormat.displayName
         val sampleRate = metadata.sampleRate ?: detectedFormat.sampleRate
@@ -238,13 +243,14 @@ internal class MediaStoreRowProcessor(
         )
     }
 
-    private fun queryGenre(songId: Long, volumeName: String?): String? {
+    private suspend fun queryGenre(songId: Long, volumeName: String?): String? {
         if (!canQueryMediaStoreGenre(songId)) return null
-        return mediaStoreGenreVolumes(volumeName).firstNotNullOfOrNull { volume ->
+        for (volume in mediaStoreGenreVolumes(volumeName)) {
+            currentCoroutineContext().ensureActive()
             val genreUri = android.provider.MediaStore.Audio.Genres
                 .getContentUriForAudioId(volume, songId.toInt())
-            runCatching {
-                context.contentResolver.query(
+            val genre = try {
+                context.contentResolver.queryCancellable(
                     genreUri,
                     arrayOf(android.provider.MediaStore.Audio.Genres.NAME),
                     null,
@@ -256,8 +262,14 @@ internal class MediaStoreRowProcessor(
                         if (cursor.moveToNext()) cursor.getString(nameIndex) else null
                     }.map(String::trim).firstOrNull { it.isNotBlank() }
                 }
-            }.getOrNull()
+            } catch (failure: CancellationException) {
+                throw failure
+            } catch (_: RuntimeException) {
+                null
+            }
+            if (genre != null) return genre
         }
+        return null
     }
 
     private fun sourceRevisionKey(row: MediaStoreAudioRow): String? {

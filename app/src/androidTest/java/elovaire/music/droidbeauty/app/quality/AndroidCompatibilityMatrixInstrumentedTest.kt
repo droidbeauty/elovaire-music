@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.quality
 
 import android.content.ContentUris
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.ParcelFileDescriptor
 import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -9,6 +11,10 @@ import androidx.test.platform.app.InstrumentationRegistry
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -73,6 +79,35 @@ class AndroidCompatibilityMatrixInstrumentedTest {
         val runner = PlatformCompatChangeRunner(InstrumentationRegistry.getInstrumentation())
         val state = runner.dumpPlatformCompat()
         assertTrue(state.contains("USE_NEW_MESSAGEQUEUE"))
+    }
+
+    @Test
+    fun handlerStressRemainsLosslessAndCancellable() {
+        val handler = Handler(Looper.getMainLooper())
+        val callbackCount = 1_000
+        val completed = CountDownLatch(callbackCount)
+        val executed = AtomicInteger(0)
+        val producers = Executors.newFixedThreadPool(4)
+        try {
+            repeat(callbackCount) {
+                producers.execute {
+                    check(handler.post {
+                        executed.incrementAndGet()
+                        completed.countDown()
+                    })
+                }
+            }
+            val cancelled = AtomicInteger(0)
+            val delayed = Runnable { cancelled.incrementAndGet() }
+            check(handler.postDelayed(delayed, 1_000L))
+            handler.removeCallbacks(delayed)
+
+            assertTrue(completed.await(10L, TimeUnit.SECONDS))
+            assertEquals(callbackCount, executed.get())
+            assertEquals(0, cancelled.get())
+        } finally {
+            producers.shutdownNow()
+        }
     }
 
     @Test

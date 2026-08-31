@@ -399,11 +399,11 @@ internal class MediaStoreScanner(
         }
     }
 
-    fun findExistingSongIds(songIds: Set<Long>): Set<Long> {
+    suspend fun findExistingSongIds(songIds: Set<Long>): Set<Long> {
         if (songIds.isEmpty()) return emptySet()
         return songIds.chunked(MEDIASTORE_ID_QUERY_CHUNK_SIZE).flatMapTo(linkedSetOf()) { chunk ->
             val placeholders = List(chunk.size) { "?" }.joinToString(",")
-            context.contentResolver.query(
+            context.contentResolver.queryCancellable(
                 MediaStoreAudioQuery.collectionUri,
                 arrayOf(MediaStore.Audio.Media._ID),
                 "${MediaStoreAudioQuery.selection} AND " +

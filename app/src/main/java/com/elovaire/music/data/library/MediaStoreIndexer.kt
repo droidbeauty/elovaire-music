@@ -107,7 +107,9 @@ internal class MediaStoreIndexer(
                 ) { _, _ ->
                     latch.countDown()
                 }
-                if (!latch.await(timeoutSeconds, TimeUnit.SECONDS)) timedOutChunks += 1
+                if (!awaitMediaScannerCallbacks(latch, timeoutSeconds, shouldContinue)) {
+                    timedOutChunks += 1
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (interrupted: InterruptedException) {
@@ -144,6 +146,26 @@ internal class MediaStoreIndexer(
         const val MEDIA_SCANNER_CHUNK_SIZE = 160
     }
 }
+
+/** Polls the callback latch so a cancelled scan does not wait for the complete provider timeout. */
+internal fun awaitMediaScannerCallbacks(
+    latch: CountDownLatch,
+    timeoutSeconds: Long,
+    shouldContinue: () -> Unit,
+): Boolean {
+    val timeoutNanos = TimeUnit.SECONDS.toNanos(timeoutSeconds.coerceAtLeast(0L))
+    val deadline = System.nanoTime() + timeoutNanos
+    while (true) {
+        shouldContinue()
+        val remainingNanos = deadline - System.nanoTime()
+        if (remainingNanos <= 0L) return false
+        if (latch.await(minOf(remainingNanos, CALLBACK_POLL_NANOS), TimeUnit.NANOSECONDS)) {
+            return true
+        }
+    }
+}
+
+private const val CALLBACK_POLL_NANOS = 100_000_000L
 
 internal sealed interface MediaStoreIndexRefreshResult {
     data object Complete : MediaStoreIndexRefreshResult

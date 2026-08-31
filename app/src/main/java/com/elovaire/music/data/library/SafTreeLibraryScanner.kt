@@ -4,6 +4,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteException
 import android.net.Uri
 import android.os.RemoteException
+import android.os.Bundle
 import android.provider.DocumentsContract
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
@@ -36,6 +37,21 @@ internal sealed interface SafTreeScanResult {
         override val selection: LibraryFolderSelection,
         val failure: SafProviderUnavailableException,
     ) : SafTreeScanResult
+}
+
+internal data class SafProviderCursorStatus(
+    val loading: Boolean,
+    val error: Boolean,
+)
+
+internal fun safProviderCursorStatus(extras: Bundle): SafProviderCursorStatus {
+    return SafProviderCursorStatus(
+        loading = runCatching { extras.getBoolean(DocumentsContract.EXTRA_LOADING, false) }
+            .getOrDefault(false),
+        error = runCatching { extras.getString(DocumentsContract.EXTRA_ERROR) }
+            .getOrNull()
+            ?.isNotBlank() == true,
+    )
 }
 
 @Suppress("TooGenericExceptionCaught")
@@ -158,12 +174,14 @@ internal class SafTreeLibraryScanner(
         var visitedDocuments = 0
         var incompleteReason: String? = null
         var providerFailure: SafProviderUnavailableException? = null
+        var providerLoading = false
+        var providerError = false
         while (pending.isNotEmpty() && incompleteReason == null) {
             currentCoroutineContext().ensureActive()
             val directory = pending.removeFirst()
             if (!visitedDirectories.add(SafDocumentKey(providerKey, directory.documentId))) continue
             try {
-                ElovaireTrace.suspendSection("library_saf_child_query") {
+                val childQueryStatus = ElovaireTrace.suspendSection("library_saf_child_query") {
                     forEachChild(treeUri, directory.documentId) child@{ child ->
                         currentCoroutineContext().ensureActive()
                         if (visitedDocuments >= MAX_DOCUMENTS) {
@@ -280,19 +298,56 @@ internal class SafTreeLibraryScanner(
                         true
                     }
                 }
+                providerLoading = providerLoading || childQueryStatus.loading
+                providerError = providerError || childQueryStatus.error
             } catch (failure: CancellationException) {
                 throw failure
             } catch (failure: SafProviderUnavailableException) {
                 providerFailure = failure
             }
         }
-        if (incompleteReason == null && pending.isNotEmpty()) {
-            incompleteReason = "directory traversal budget exceeded"
-        }
-        return SafTreeScanOutcome(
+        return finishSafTreeScan(
+            treeUri = treeUri,
             songs = songs,
             incompleteReason = incompleteReason,
             providerFailure = providerFailure,
+            providerLoading = providerLoading,
+            providerError = providerError,
+            hasPendingDirectories = pending.isNotEmpty(),
+        )
+    }
+
+    private fun finishSafTreeScan(
+        treeUri: Uri,
+        songs: List<Song>,
+        incompleteReason: String?,
+        providerFailure: SafProviderUnavailableException?,
+        providerLoading: Boolean,
+        providerError: Boolean,
+        hasPendingDirectories: Boolean,
+    ): SafTreeScanOutcome {
+        var resolvedIncompleteReason = incompleteReason
+        var resolvedProviderFailure = providerFailure
+        if (providerError) {
+            if (songs.isEmpty() && resolvedProviderFailure == null) {
+                resolvedProviderFailure = treeUri.providerFailure(
+                    IllegalStateException("The document provider reported a cursor error."),
+                    "provider cursor error",
+                )
+            } else if (resolvedIncompleteReason == null) {
+                resolvedIncompleteReason = "provider cursor error"
+            }
+        }
+        if (providerLoading && resolvedIncompleteReason == null) {
+            resolvedIncompleteReason = "provider still loading"
+        }
+        if (resolvedIncompleteReason == null && hasPendingDirectories) {
+            resolvedIncompleteReason = "directory traversal budget exceeded"
+        }
+        return SafTreeScanOutcome(
+            songs = songs,
+            incompleteReason = resolvedIncompleteReason,
+            providerFailure = resolvedProviderFailure,
         )
     }
 
@@ -300,10 +355,10 @@ internal class SafTreeLibraryScanner(
         treeUri: Uri,
         documentId: String,
         onChild: suspend (SafDocument) -> Boolean,
-    ) {
+    ): SafProviderCursorStatus {
         val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(treeUri, documentId)
         return try {
-            val cursor = context.contentResolver.query(
+            val cursor = context.contentResolver.queryCancellable(
                 childrenUri,
                 DOCUMENT_PROJECTION,
                 null,
@@ -314,7 +369,9 @@ internal class SafTreeLibraryScanner(
                 operation = "query children",
                 cause = IllegalStateException("The document provider returned no cursor."),
             )
+            var status = SafProviderCursorStatus(loading = false, error = false)
             cursor.use {
+                status = safProviderCursorStatus(cursor.extras)
                 val idIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DOCUMENT_ID)
                 val nameIndex = cursor.getColumnIndex(DocumentsContract.Document.COLUMN_DISPLAY_NAME)
                 if (idIndex < 0 || nameIndex < 0) {
@@ -359,6 +416,7 @@ internal class SafTreeLibraryScanner(
                     if (!shouldContinue) return@use
                 }
             }
+            status
         } catch (throwable: CancellationException) {
             throw throwable
         } catch (failure: SafProviderUnavailableException) {

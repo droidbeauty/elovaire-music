@@ -21,6 +21,8 @@ internal object ScannerDebugLogger {
         validGrantCount: Int,
         discoveredSongCount: Int,
         incompleteTreeCount: Int,
+        providerLoadingTreeCount: Int,
+        providerErrorTreeCount: Int,
         mergedSongCount: Int,
     ) {
         if (!BuildConfig.DEBUG) return
@@ -29,12 +31,15 @@ internal object ScannerDebugLogger {
             safValidGrantCount = validGrantCount,
             safDiscoveredSongCount = discoveredSongCount,
             safIncompleteTreeCount = incompleteTreeCount,
+            safProviderLoadingTreeCount = providerLoadingTreeCount,
+            safProviderErrorTreeCount = providerErrorTreeCount,
             mergedSongCount = mergedSongCount,
         )
         Log.d(
             TAG,
             "SAF scan: trees=$treeCount, validGrants=$validGrantCount, " +
                 "discovered=$discoveredSongCount, incomplete=$incompleteTreeCount, " +
+                "loading=$providerLoadingTreeCount, providerErrors=$providerErrorTreeCount, " +
                 "merged=$mergedSongCount",
         )
     }
@@ -61,6 +66,8 @@ internal object ScannerDebugLogger {
         val safValidGrantCount: Int,
         val safDiscoveredSongCount: Int,
         val safIncompleteTreeCount: Int,
+        val safProviderLoadingTreeCount: Int,
+        val safProviderErrorTreeCount: Int,
         val mergedSongCount: Int,
         val rawRows: Int,
         val durationZeroRows: Int,
@@ -185,6 +192,8 @@ internal object ScannerDebugLogger {
                 safValidGrantCount = 0,
                 safDiscoveredSongCount = 0,
                 safIncompleteTreeCount = 0,
+                safProviderLoadingTreeCount = 0,
+                safProviderErrorTreeCount = 0,
                 mergedSongCount = finalSongCount,
                 rawRows = mediaStoreRows,
                 durationZeroRows = durationZeroRows,

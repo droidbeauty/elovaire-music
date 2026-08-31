@@ -55,24 +55,50 @@ internal object MediaStoreAudioQuery {
         val projectionKind: ProjectionKind,
     )
 
+    internal fun interface QueryExecutor {
+        suspend fun query(
+            projection: Array<String>,
+            selection: String?,
+            selectionArgs: Array<String>?,
+            sortOrder: String?,
+        ): Cursor?
+    }
+
     @Suppress("TooGenericExceptionCaught")
-    fun query(resolver: ContentResolver): QueryResult {
+    suspend fun query(resolver: ContentResolver): QueryResult {
+        return query(QueryExecutor { projection, selection, selectionArgs, sortOrder ->
+            resolver.queryCancellable(
+                collectionUri,
+                projection,
+                selection,
+                selectionArgs,
+                sortOrder,
+            )
+        })
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    internal suspend fun query(executor: QueryExecutor): QueryResult {
         var firstFailure: Throwable? = null
         try {
-            resolver.query(collectionUri, projection, selection, null, orderBy)?.let {
+            executor.query(projection, selection, null, orderBy)?.let {
                 return QueryResult(it, ProjectionKind.Full)
             }
         } catch (failure: SecurityException) {
+            throw failure
+        } catch (failure: kotlinx.coroutines.CancellationException) {
             throw failure
         } catch (failure: RuntimeException) {
             firstFailure = failure
         }
 
         try {
-            resolver.query(collectionUri, compatibilityProjection, selection, null, orderBy)?.let {
+            executor.query(compatibilityProjection, selection, null, orderBy)?.let {
                 return QueryResult(it, ProjectionKind.Compatibility)
             }
         } catch (failure: SecurityException) {
+            throw failure
+        } catch (failure: kotlinx.coroutines.CancellationException) {
             throw failure
         } catch (failure: RuntimeException) {
             throw MediaStoreQueryUnavailableException(failure)
@@ -83,13 +109,13 @@ internal object MediaStoreAudioQuery {
 
     /** Returns null when the provider does not support generation-based selection. */
     @Suppress("TooGenericExceptionCaught")
-    fun queryDelta(
+    suspend fun queryDelta(
         resolver: ContentResolver,
         generation: Long,
     ): QueryResult? {
         if (generation < 0L) return null
         return try {
-            resolver.query(
+            resolver.queryCancellable(
                 collectionUri,
                 deltaProjection,
                 "$selection AND ($DELTA_SELECTION)",
@@ -98,15 +124,17 @@ internal object MediaStoreAudioQuery {
             )?.let { QueryResult(it, ProjectionKind.Full) }
         } catch (failure: SecurityException) {
             throw failure
+        } catch (failure: kotlinx.coroutines.CancellationException) {
+            throw failure
         } catch (_: RuntimeException) {
             null
         }
     }
 
     @Suppress("TooGenericExceptionCaught")
-    fun queryIdentity(resolver: ContentResolver): Cursor? {
+    suspend fun queryIdentity(resolver: ContentResolver): Cursor? {
         return try {
-            resolver.query(
+            resolver.queryCancellable(
                 collectionUri,
                 identityProjection,
                 selection,
@@ -114,6 +142,8 @@ internal object MediaStoreAudioQuery {
                 null,
             )
         } catch (failure: SecurityException) {
+            throw failure
+        } catch (failure: kotlinx.coroutines.CancellationException) {
             throw failure
         } catch (_: RuntimeException) {
             null

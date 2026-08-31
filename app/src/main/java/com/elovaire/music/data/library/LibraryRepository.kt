@@ -859,6 +859,9 @@ class LibraryRepository internal constructor(
             if (backgroundWorkPolicy.shouldKeepRecursiveLibraryObservers(permissionGranted = true)) {
                 observerController.ensureLibraryFolderObservers(forceRebuild = true)
             }
+            if (backgroundWorkPolicy.shouldKeepMediaStoreObserver(permissionGranted = true)) {
+                observerController.ensureSafTreeObservers(forceRebuild = true)
+            }
             refresh(
                 forceMediaIndex = scanner.requiresMediaIndexRepair(),
                 enrichMetadata = enrichMetadata,

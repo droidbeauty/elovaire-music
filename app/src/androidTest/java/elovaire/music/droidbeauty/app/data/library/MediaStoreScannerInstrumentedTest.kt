@@ -33,10 +33,12 @@ class MediaStoreScannerInstrumentedTest {
         val fixtureName = "elovaire-scan-${System.nanoTime()}.wav"
         val uri = insertWav(fixtureName)
 
-        val directRows = MediaStoreAudioQuery.query(resolver).cursor.use { cursor ->
-            val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-            buildList {
-                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+        val directRows = runBlocking {
+            MediaStoreAudioQuery.query(resolver).cursor.use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                buildList {
+                    while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+                }
             }
         }
         assertTrue(fixtureName in directRows)
@@ -98,11 +100,13 @@ class MediaStoreScannerInstrumentedTest {
         resolver.openOutputStream(uri)?.use { output -> output.write(wavBytes()) }
             ?: error("Unable to write pending MediaStore fixture.")
 
-        fun queryContainsFixture(): Boolean = MediaStoreAudioQuery.query(resolver).cursor.use { cursor ->
-            val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
-            buildList {
-                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
-            }.contains(fixtureName)
+        fun queryContainsFixture(): Boolean = runBlocking {
+            MediaStoreAudioQuery.query(resolver).cursor.use { cursor ->
+                val nameIndex = cursor.getColumnIndexOrThrow(MediaStore.Audio.Media.DISPLAY_NAME)
+                buildList {
+                    while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+                }.contains(fixtureName)
+            }
         }
 
         assertFalse(queryContainsFixture())
@@ -150,6 +154,35 @@ class MediaStoreScannerInstrumentedTest {
             ).evaluate(AudioScanCandidateMapper.toCandidate(row, detectedFormat = null))
                 is AudioFileFilterDecision.Include,
         )
+    }
+
+    @Test
+    fun optionalProjectionFailureFallsBackToMinimalDiscoveryProjection() {
+        val fallbackCursor = MatrixCursor(
+            arrayOf(
+                MediaStore.Audio.Media._ID,
+                MediaStore.Audio.Media.DISPLAY_NAME,
+            ),
+        ).apply {
+            addRow(arrayOf<Any?>(44L, "projection-fallback.mp3"))
+        }
+
+        val result = runBlocking {
+            MediaStoreAudioQuery.query(
+                MediaStoreAudioQuery.QueryExecutor { projection, _, _, _ ->
+                    if (projection.contentEquals(MediaStoreAudioQuery.projection)) {
+                        throw IllegalArgumentException("optional provider column is unavailable")
+                    }
+                    fallbackCursor
+                },
+            )
+        }
+
+        assertEquals(MediaStoreAudioQuery.ProjectionKind.Compatibility, result.projectionKind)
+        result.cursor.use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals("projection-fallback.mp3", cursor.getString(1))
+        }
     }
 
     @Test

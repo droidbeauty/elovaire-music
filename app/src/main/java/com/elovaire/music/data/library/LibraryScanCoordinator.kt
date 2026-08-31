@@ -277,6 +277,16 @@ internal class LibraryScanCoordinator(
             },
             discoveredSongCount = safSongs.size,
             incompleteTreeCount = safResults.count { it !is SafTreeScanResult.Complete },
+            providerLoadingTreeCount = safResults.count { result ->
+                result is SafTreeScanResult.Incomplete && result.failure.reason == "provider still loading"
+            },
+            providerErrorTreeCount = safResults.count { result ->
+                when (result) {
+                    is SafTreeScanResult.Incomplete -> result.failure.reason == "provider cursor error"
+                    is SafTreeScanResult.Unavailable -> result.failure.operation == "provider cursor error"
+                    is SafTreeScanResult.Complete -> false
+                }
+            },
             mergedSongCount = mergedSongs.size,
         )
         return LocalSourceScanResult(
@@ -299,7 +309,7 @@ internal class LibraryScanCoordinator(
 
     internal fun hasSafSelections(): Boolean = localScanner.hasSafSelections()
 
-    fun findExistingSongIds(songIds: Set<Long>): Set<Long> = localScanner.findExistingSongIds(songIds)
+    suspend fun findExistingSongIds(songIds: Set<Long>): Set<Long> = localScanner.findExistingSongIds(songIds)
 
     fun musicDirectory(): File = localScanner.musicDirectory()
 

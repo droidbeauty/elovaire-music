@@ -38,6 +38,8 @@ internal class LibraryObserverController(
     private val contentResolver = appContext.contentResolver
     private var mediaObserverRegistered = false
     private var mediaObserverLease: Closeable? = null
+    private var safObserverUris: Set<Uri> = emptySet()
+    private var safObserverLease: Closeable? = null
     private var libraryFolderObservers: List<RecursiveMusicDirectoryObserver> = emptyList()
     private var libraryFolderObserverLeases: List<Closeable> = emptyList()
     private var observerRebuildJob: Job? = null
@@ -61,11 +63,19 @@ internal class LibraryObserverController(
         }
     }
 
+    private val safObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean, uri: Uri?) {
+            if (consumeExpectedMutation(changedUri = uri, changedPath = null)) return
+            onObservedRefresh(false, null)
+        }
+    }
+
     fun ensureRegistered(
         enableDirectoryObservers: Boolean,
         forceRebuildDirectoryObserver: Boolean = false,
     ) {
         ensureMediaObserverRegistered()
+        ensureSafTreeObservers()
         if (enableDirectoryObservers) {
             ensureLibraryFolderObservers(forceRebuild = forceRebuildDirectoryObserver)
         } else {
@@ -81,6 +91,7 @@ internal class LibraryObserverController(
         }
         synchronized(expectedMutationsLock) { expectedMutations.clear() }
         releaseLibraryFolderObservers()
+        releaseSafTreeObservers()
         unregisterMediaObserver()
     }
 
@@ -196,6 +207,34 @@ internal class LibraryObserverController(
         }
         observerRebuildJob = rebuildJob
         rebuildJob.start()
+    }
+
+    fun ensureSafTreeObservers(forceRebuild: Boolean = false) {
+        val currentUris = scanner.safTreeSelections()
+            .mapNotNull(LibraryFolderSelection::uri)
+            .toSet()
+        if (!forceRebuild && currentUris == safObserverUris) return
+        releaseSafTreeObservers()
+        if (currentUris.isEmpty()) return
+        val registeredUris = currentUris.filter { uri ->
+            runCatching {
+                contentResolver.registerContentObserver(uri, true, safObserver)
+            }.isSuccess
+        }.toSet()
+        safObserverUris = registeredUris
+        if (registeredUris.isNotEmpty()) {
+            safObserverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+        }
+        logDebug("saf observers active=${registeredUris.size}/${currentUris.size}")
+    }
+
+    private fun releaseSafTreeObservers() {
+        if (safObserverUris.isEmpty()) return
+        runCatching { contentResolver.unregisterContentObserver(safObserver) }
+        safObserverUris = emptySet()
+        safObserverLease?.close()
+        safObserverLease = null
+        logDebug("saf observers active=0")
     }
 
     fun releaseLibraryFolderObservers() {
