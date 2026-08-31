@@ -38,6 +38,9 @@ internal class NetworkLibrarySourceStore(context: Context) {
         return synchronized(mutationLock) {
             val normalized = normalized(source)
             val previous = _sources.value.firstOrNull { it.id == normalized.id }
+            check(
+                _sources.value.none { it.id != normalized.id && it.credentialKey == normalized.credentialKey },
+            ) { "Credential key is already assigned to another network source" }
             val next = (_sources.value.filterNot { it.id == normalized.id } + normalized)
                 .sortedBy { it.name.lowercase() }
             save(next)

@@ -80,7 +80,8 @@ internal class NetworkFileSystemRegistry(
     fun isCurrent(source: NetworkLibrarySource, generation: Long): Boolean =
         sourceStore.isCurrent(source, generation)
 
-    fun credentials(source: NetworkLibrarySource): NetworkCredentials? = credentialStore.get(source.credentialKey)
+    fun credentials(source: NetworkLibrarySource): NetworkCredentials? =
+        credentialStore.get(source.id, source.credentialKey)
 
     fun probeBlocking(source: NetworkLibrarySource, credentials: NetworkCredentials): NetworkProbeResult {
         if (!checkLocalNetworkAccess(throwOnDenied = false)) {

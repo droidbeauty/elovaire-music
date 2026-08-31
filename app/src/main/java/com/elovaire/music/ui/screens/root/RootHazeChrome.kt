@@ -24,7 +24,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
@@ -34,7 +33,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.ExperimentalHazeApi
-import dev.chrisbanes.haze.HazeProgressive
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
@@ -48,7 +46,6 @@ private const val SCROLL_POSITION_CACHE_SAMPLE_INTERVAL_MS = 100L
 
 internal val LocalChromeHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
-internal val LocalPlayerSurfaceHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
 
 @Composable
@@ -316,38 +313,4 @@ internal fun FrostedTopBarBackground(
         modifier = modifier,
         hazeState = hazeState,
     )
-}
-
-@OptIn(ExperimentalHazeApi::class)
-internal fun Modifier.playerFrostedSurface(
-    tint: Color,
-): Modifier = composed {
-    val hazeState = LocalPlayerSurfaceHazeState.current
-        ?: LocalPlayerHazeState.current
-        ?: LocalChromeHazeState.current
-    if (hazeState == null) {
-        this
-    } else {
-        val tintIsDark = tint.luminance() < 0.44f
-        hazeEffect(hazeState) {
-            progressive = HazeProgressive.LinearGradient(
-                startIntensity = 0.9f,
-                endIntensity = 0.42f,
-                preferPerformance = true,
-            )
-            blurRadius = 28.dp
-            backgroundColor = tint.copy(alpha = if (tintIsDark) 0.18f else 0.14f)
-            tints = listOf(
-                HazeTint(tint.copy(alpha = if (tintIsDark) 0.28f else 0.2f)),
-                HazeTint(
-                    if (tintIsDark) {
-                        Color.Black.copy(alpha = 0.14f)
-                    } else {
-                        Color.White.copy(alpha = 0.16f)
-                    },
-                ),
-            )
-            noiseFactor = 0.04f
-        }
-    }
 }

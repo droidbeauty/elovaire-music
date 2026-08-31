@@ -134,7 +134,10 @@ internal class PlaybackIntegrationCoordinator(
                 .distinctUntilChanged()
                 .collect { (songs, isAuthoritative) ->
                     restoreSessionIfNeeded(songs, isAuthoritative)
-                    playback.refreshQueuedLibraryMetadataIfNeeded(songs)
+                    playback.refreshQueuedLibraryMetadataIfNeeded(
+                        updatedSongs = songs,
+                        authoritative = isAuthoritative,
+                    )
                 }
         }
         scope.launch {

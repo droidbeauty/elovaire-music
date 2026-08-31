@@ -41,13 +41,17 @@ internal interface PersistenceMaintenanceDao {
         "SELECT COUNT(*) FROM user_playlist_entries AS entry " +
             "LEFT JOIN user_playlists AS playlist ON playlist.playlistId = entry.playlistId " +
             "WHERE playlist.playlistId IS NULL OR entry.position < 0 OR entry.position >= " +
-            "(SELECT COUNT(*) FROM user_playlist_entries AS sibling WHERE sibling.playlistId = entry.playlistId)",
+            "(SELECT COUNT(*) FROM user_playlist_entries AS sibling WHERE sibling.playlistId = entry.playlistId) OR " +
+            "entry.position != (SELECT COUNT(*) FROM user_playlist_entries AS prior " +
+            "WHERE prior.playlistId = entry.playlistId AND prior.position < entry.position)",
     )
     suspend fun invalidPlaylistEntryCount(): Int
 
     @Query(
         "SELECT COUNT(*) FROM favorite_songs AS favorite " +
-            "WHERE favorite.position < 0 OR favorite.position >= (SELECT COUNT(*) FROM favorite_songs)",
+            "WHERE favorite.position < 0 OR favorite.position >= (SELECT COUNT(*) FROM favorite_songs) OR " +
+            "favorite.position != (SELECT COUNT(*) FROM favorite_songs AS prior " +
+            "WHERE prior.position < favorite.position)",
     )
     suspend fun invalidFavoritePositionCount(): Int
 
@@ -60,7 +64,9 @@ internal interface PersistenceMaintenanceDao {
     @Query(
         "SELECT COUNT(*) FROM recent_playback AS recent " +
             "WHERE recent.position < 0 OR recent.position >= " +
-            "(SELECT COUNT(*) FROM recent_playback AS sibling WHERE sibling.kind = recent.kind)",
+            "(SELECT COUNT(*) FROM recent_playback AS sibling WHERE sibling.kind = recent.kind) OR " +
+            "recent.position != (SELECT COUNT(*) FROM recent_playback AS prior " +
+            "WHERE prior.kind = recent.kind AND prior.position < recent.position)",
     )
     suspend fun invalidRecentPositionCount(): Int
 

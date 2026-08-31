@@ -133,6 +133,10 @@ class RoomUserDataStoreTest {
         val createdId = (result as PlaylistMutationResult.Success).playlistId ?: error("missing playlist id")
         assertTrue(createdId > 1_000L)
         assertEquals("Created after initialization", database.userDataDao().playlist(createdId)?.name)
+        assertEquals(
+            "Created after initialization",
+            store.playlists.value.single { it.id == createdId }.name,
+        )
         store.release()
     }
 

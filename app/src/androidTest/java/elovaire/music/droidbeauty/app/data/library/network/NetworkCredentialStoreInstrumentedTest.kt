@@ -11,6 +11,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class NetworkCredentialStoreInstrumentedTest {
     private val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+    private val sourceId = "instrumented-source"
     private val key = "instrumented-credential-test"
     private val store = NetworkCredentialStore(context)
 
@@ -27,9 +28,10 @@ class NetworkCredentialStoreInstrumentedTest {
             domain = "domain",
         )
 
-        store.put(key, expected)
+        store.put(sourceId, key, expected)
 
-        assertEquals(NetworkCredentialReadResult.Available(expected), store.read(key))
+        assertEquals(NetworkCredentialReadResult.Available(expected), store.read(sourceId, key))
+        assertTrue(store.read("different-source", key) is NetworkCredentialReadResult.Corrupt)
     }
 
     @Test
@@ -39,7 +41,7 @@ class NetworkCredentialStoreInstrumentedTest {
             .putString(key, "not-base64")
             .commit()
 
-        val result = store.read(key)
+        val result = store.read(sourceId, key)
 
         assertTrue(result is NetworkCredentialReadResult.Corrupt)
         assertEquals(NetworkCredentialCorruption.InvalidBase64, (result as NetworkCredentialReadResult.Corrupt).reason)

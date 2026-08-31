@@ -42,7 +42,10 @@ internal class NetworkSourceCoordinator(
     ): NetworkSourceMutationOutcome = withSourceLock(source.id) {
         val credentialStore = credentialStoreProvider()
         val previousSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
-        val previousResult = credentialStore.read(previousSource?.credentialKey ?: source.credentialKey)
+        val previousResult = credentialStore.read(
+            sourceId = source.id,
+            key = previousSource?.credentialKey ?: source.credentialKey,
+        )
         val previous = when (previousResult) {
             NetworkCredentialReadResult.Missing -> null
             is NetworkCredentialReadResult.Available -> previousResult.credentials
@@ -71,15 +74,17 @@ internal class NetworkSourceCoordinator(
             previousLocationFingerprint = previousSource?.let(NetworkSourceIdentity::locationFingerprint),
             newLocationFingerprint = NetworkSourceIdentity.locationFingerprint(normalized),
         )
-        credentialStore.put(normalized.credentialKey, effectiveCredentials)
+        credentialStore.put(normalized.id, normalized.credentialKey, effectiveCredentials)
         mutationJournal.markPhase(normalized.id, "credential_persisted")
         try {
             sourceStore.upsert(normalized)
         } catch (failure: RuntimeException) {
             val rollbackComplete = runCatching {
                 if (previous != null && previousSource?.credentialKey == normalized.credentialKey) {
-                    credentialStore.put(normalized.credentialKey, previous)
-                } else {
+                    credentialStore.put(normalized.id, normalized.credentialKey, previous)
+                } else if (sourceStore.sources.value.none {
+                    it.id != normalized.id && it.credentialKey == normalized.credentialKey
+                }) {
                     credentialStore.remove(normalized.credentialKey)
                 }
             }.isSuccess

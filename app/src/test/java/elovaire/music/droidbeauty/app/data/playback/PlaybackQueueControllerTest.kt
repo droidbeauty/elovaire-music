@@ -58,6 +58,50 @@ class PlaybackQueueControllerTest {
         assertEquals(listOf(after), refreshed)
     }
 
+    @Test
+    fun authoritativeReconciliationRemovesMissingItemsAndPreservesStableOrder() {
+        val first = song(1L).copy(
+            libraryPath = "/music/first.mp3",
+            uri = TestUri("content://media/external/audio/media/1"),
+        )
+        val missing = song(2L).copy(
+            libraryPath = "/music/missing.mp3",
+            uri = TestUri("content://media/external/audio/media/2"),
+        )
+        val replacement = first.copy(
+            title = "Updated first",
+            uri = TestUri("content://media/external/audio/media/3"),
+        )
+        val result = PlaybackQueueMetadataRefresher().reconcileQueue(
+            queue = listOf(first, missing),
+            librarySongs = listOf(replacement),
+        )
+
+        assertEquals(listOf(replacement), result?.queue)
+        assertEquals(listOf(0), result?.retainedOriginalIndices)
+        assertEquals(listOf(1), result?.removedOriginalIndices)
+    }
+
+    @Test
+    fun authoritativeReconciliationDoesNotRebindAmbiguousMetadata() {
+        val queued = song(1L).copy(
+            title = "Duplicate",
+            artist = "Same Artist",
+            album = "Same Album",
+            uri = TestUri("content://media/external/audio/media/1"),
+        )
+        val candidateA = queued.copy(id = 2L, uri = TestUri("content://media/external/audio/media/2"))
+        val candidateB = queued.copy(id = 3L, uri = TestUri("content://media/external/audio/media/3"))
+
+        val result = PlaybackQueueMetadataRefresher().reconcileQueue(
+            queue = listOf(queued),
+            librarySongs = listOf(candidateA, candidateB),
+        )
+
+        assertEquals(emptyList<Song>(), result?.queue)
+        assertEquals(listOf(0), result?.unresolvedOriginalIndices)
+    }
+
     private fun song(id: Long) = Song(
         id = id,
         title = "Song $id",

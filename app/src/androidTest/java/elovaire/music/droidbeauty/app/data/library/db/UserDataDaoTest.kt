@@ -112,6 +112,25 @@ class UserDataDaoTest {
     }
 
     @Test
+    fun maintenanceDetectsOrderingGapsEvenWhenPositionsAreWithinBounds() = runBlocking {
+        dao.insertPlaylist(UserPlaylistEntity(1L, "Gapped", false))
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO user_playlist_entries(playlistId, songId, position) VALUES(1, 10, 0), (1, 20, 2)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO favorite_songs(songId, position) VALUES(10, 0), (20, 2)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO recent_playback(kind, itemId, position) VALUES('song', 10, 0), ('song', 20, 2)",
+        )
+
+        val maintenance = database.persistenceMaintenanceDao()
+        assertEquals(1, maintenance.invalidPlaylistEntryCount())
+        assertEquals(1, maintenance.invalidFavoritePositionCount())
+        assertEquals(1, maintenance.invalidRecentPositionCount())
+    }
+
+    @Test
     fun deterministicRepairNormalizesOrderingAndCountersInOneTransaction() = runBlocking {
         dao.insertPlaylist(UserPlaylistEntity(1L, "Repair", false))
         database.openHelper.writableDatabase.execSQL(

@@ -152,7 +152,12 @@ internal object AudioOutputPolicy {
             requirements.crossfadeActive
         return AudioOutputPolicyDecision(
             signalProcessingRequired = processingRequired || !directPathActive,
-            offloadAllowed = !processingRequired && !capabilities.hasActiveUsbOutput,
+            // A failed/unknown route query must not be treated as a known safe route. Staying
+            // on the regular software path is the conservative choice until the platform gives
+            // us an authoritative capability snapshot.
+            offloadAllowed = !processingRequired &&
+                capabilities.source != AudioOutputCapabilitySource.Unknown &&
+                !capabilities.hasActiveUsbOutput,
         )
     }
 }

@@ -536,6 +536,7 @@ internal fun UpdateAvailableDialog(
                         LinearProgressIndicator(
                             progress = { state.downloadProgress ?: 0f },
                             modifier = Modifier.fillMaxWidth(),
+                            drawStopIndicator = {},
                         )
                     }
                     state.errorMessage?.let { errorMessage ->

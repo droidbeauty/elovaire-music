@@ -482,6 +482,7 @@ internal fun HomeScreen(
                             .clip(RoundedCornerShape(ElovaireRadii.pill)),
                         color = MaterialTheme.colorScheme.onSurface,
                         trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.16f),
+                        drawStopIndicator = {},
                     )
                 }
                 }
@@ -6619,7 +6620,6 @@ internal fun NowPlayingScreen(
     val motionSpecs = rememberMotionSpecs()
     val liveDisplaySong = liveCurrentSong?.let { enrichedSongsById[it.id] ?: it }
     val playerHazeState = rememberHazeState()
-    val playerSurfaceHazeState = rememberHazeState()
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
     var playerDismissTriggered by rememberSaveable { mutableStateOf(false) }
@@ -6885,118 +6885,103 @@ internal fun NowPlayingScreen(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .then(
-                        if (transitionInFlight) {
-                            Modifier
-                        } else {
-                            Modifier.hazeSource(playerSurfaceHazeState, zIndex = -1f)
-                        },
+                    .background(
+                        baseSurface.copy(alpha = 0.68f * effectiveTransitionProgress.coerceIn(0f, 1f)),
                     ),
+            )
+            Box(
+                modifier = Modifier
+                    .offset {
+                        IntOffset(
+                            x = animatedSurfaceBounds.left.roundToInt(),
+                            y = animatedSurfaceBounds.top.roundToInt(),
+                        )
+                    }
+                    .width(with(density) { animatedSurfaceBounds.width.toDp() })
+                    .height(with(density) { animatedSurfaceBounds.height.toDp() })
+                    .clip(RoundedCornerShape(with(density) { playerSurfaceCorner.toDp() }))
+                    .background(baseSurface)
+                    .graphicsLayer {
+                        clip = true
+                    },
             ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(
-                            baseSurface.copy(alpha = 0.68f * effectiveTransitionProgress.coerceIn(0f, 1f)),
-                        ),
-                )
-                Box(
-                    modifier = Modifier
-                        .offset {
-                            IntOffset(
-                                x = animatedSurfaceBounds.left.roundToInt(),
-                                y = animatedSurfaceBounds.top.roundToInt(),
+                val backgroundArtworkBitmap = artwork.value
+                if (backgroundArtworkBitmap != null) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        if (transitionInFlight) {
+                            Image(
+                                bitmap = backgroundArtworkBitmap,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = 1.04f
+                                        scaleY = 1.04f
+                                    }
+                                    .blur(56.dp),
+                                alpha = 0.92f,
+                            )
+                        } else {
+                            Image(
+                                bitmap = backgroundArtworkBitmap,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = 1.08f
+                                        scaleY = 1.08f
+                                    }
+                                    .blur(116.dp),
+                                alpha = 0.98f,
+                            )
+                            Image(
+                                bitmap = backgroundArtworkBitmap,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = 1.03f
+                                        scaleY = 1.03f
+                                        alpha = 0.34f
+                                    }
+                                    .blur(48.dp),
                             )
                         }
-                        .width(with(density) { animatedSurfaceBounds.width.toDp() })
-                        .height(with(density) { animatedSurfaceBounds.height.toDp() })
-                        .clip(RoundedCornerShape(with(density) { playerSurfaceCorner.toDp() }))
-                        .background(baseSurface)
-                        .graphicsLayer {
-                            clip = true
-                        },
-                ) {
-                    val backgroundArtworkBitmap = artwork.value
-                    if (backgroundArtworkBitmap != null) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            if (transitionInFlight) {
-                                Image(
-                                    bitmap = backgroundArtworkBitmap,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer {
-                                            scaleX = 1.04f
-                                            scaleY = 1.04f
-                                        }
-                                        .blur(56.dp),
-                                    alpha = 0.92f,
-                                )
-                            } else {
-                                Image(
-                                    bitmap = backgroundArtworkBitmap,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer {
-                                            scaleX = 1.08f
-                                            scaleY = 1.08f
-                                        }
-                                        .blur(116.dp),
-                                    alpha = 0.98f,
-                                )
-                                Image(
-                                    bitmap = backgroundArtworkBitmap,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .graphicsLayer {
-                                            scaleX = 1.03f
-                                            scaleY = 1.03f
-                                            alpha = 0.34f
-                                        }
-                                        .blur(48.dp),
-                                )
-                            }
-                        }
                     }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        tintColor.copy(alpha = 0.38f),
-                                        baseSurface.copy(alpha = 0.44f),
-                                        baseSurface.copy(alpha = 0.7f),
-                                        baseSurface.copy(alpha = 0.9f),
-                                    ),
-                                ),
-                            ),
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                Brush.radialGradient(
-                                    colors = listOf(
-                                        gradient.first().copy(alpha = 0.18f),
-                                        Color.Transparent,
-                                    ),
-                                    radius = 1200f,
-                                ),
-                            ),
-                    )
                 }
             }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                tintColor.copy(alpha = 0.38f),
+                                baseSurface.copy(alpha = 0.44f),
+                                baseSurface.copy(alpha = 0.7f),
+                                baseSurface.copy(alpha = 0.9f),
+                            ),
+                        ),
+                    ),
+            )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.radialGradient(
+                            colors = listOf(
+                                gradient.first().copy(alpha = 0.18f),
+                                Color.Transparent,
+                            ),
+                            radius = 1200f,
+                        ),
+                    ),
+            )
 
-        CompositionLocalProvider(
-            LocalPlayerHazeState provides playerHazeState,
-            LocalPlayerSurfaceHazeState provides playerSurfaceHazeState,
-        ) {
+        CompositionLocalProvider(LocalPlayerHazeState provides playerHazeState) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -7820,7 +7805,6 @@ private fun SongFileInfoPill(
     tint: Color,
 ) {
     Surface(
-        modifier = Modifier.playerFrostedSurface(tint = tint),
         shape = RoundedCornerShape(ElovaireRadii.pill),
         color = tint.copy(alpha = 0.2f),
     ) {
@@ -8888,7 +8872,6 @@ private fun QueueMenuButton(
                 label = "queue_button_scale",
             )
             .clip(CircleShape)
-            .playerFrostedSurface(tint = tint)
             .background(tint.copy(alpha = backgroundAlpha))
             .clickable(
                 interactionSource = interactionSource,
@@ -9627,8 +9610,10 @@ private fun LyricsOverlay(
     val scope = rememberCoroutineScope()
     var overlayEntered by remember(song?.id) { mutableStateOf(false) }
     val hideButtonArea = 112.dp
-    val lyricsBottomBlurArea = 72.dp
-    val bottomBlurSurfaceHeight = hideButtonArea + lyricsBottomBlurArea + navigationBarInsetDp()
+    val lyricsBottomBlurArea = 92.dp
+    val lyricsButtonArea = 72.dp
+    val navigationBarInset = navigationBarInsetDp()
+    val bottomBlurSurfaceHeight = lyricsBottomBlurArea + navigationBarInset
     val lyricsHazeState = rememberHazeState()
     val listState = rememberLazyListState()
     var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
@@ -9751,9 +9736,9 @@ private fun LyricsOverlay(
     ) {
         val screenWidth = LocalConfiguration.current.screenWidthDp.dp
         Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .hazeSource(lyricsHazeState, zIndex = -1f),
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(lyricsHazeState),
         ) {
             Column(
                 modifier = Modifier
@@ -9974,7 +9959,7 @@ private fun LyricsOverlay(
                     modifier = Modifier
                         .matchParentSize()
                         .hazeEffect(lyricsHazeState) {
-                            progressive = HazeProgressive.verticalGradient(
+                            progressive = HazeProgressive.LinearGradient(
                                 startIntensity = 0f,
                                 endIntensity = 1f,
                                 preferPerformance = true,
@@ -9993,7 +9978,7 @@ private fun LyricsOverlay(
                 visible = !isEditingLyrics,
                 enter = motionTransitions.standardEnter(),
                 exit = motionTransitions.standardExit(),
-                label = "hide_lyrics_action_visibility",
+                label = "lyrics_bottom_shadow_visibility",
             ) {
                 Box(modifier = Modifier.matchParentSize()) {
                     Box(
@@ -10011,83 +9996,147 @@ private fun LyricsOverlay(
                                 ),
                             ),
                     )
+                }
+            }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(hideButtonArea + navigationBarInset)
+                .padding(bottom = navigationBarInset)
+                .zIndex(4f),
+        ) {
+            ElovaireAnimatedVisibility(
+                visible = !isEditingLyrics,
+                modifier = Modifier.fillMaxSize(),
+                enter = motionTransitions.standardEnter(),
+                exit = motionTransitions.standardExit(),
+                label = "hide_lyrics_action_visibility",
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
                     Box(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
                             .fillMaxWidth()
-                            .height(lyricsBottomBlurArea)
+                            .height(lyricsButtonArea)
                             .offset(y = (-22).dp)
-                            .padding(horizontal = 20.dp)
-                            .zIndex(4f),
+                            .padding(horizontal = 20.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         val hideLyricsInteractionSource = rememberElovaireInteractionSource()
-                        Surface(
-                            onClick = onHideLyrics,
-                            interactionSource = hideLyricsInteractionSource,
-                            modifier = Modifier.elovaireActionBump(
-                                interactionSource = hideLyricsInteractionSource,
-                                label = "hide_lyrics_bump",
-                            ),
-                            shape = RoundedCornerShape(ElovaireRadii.pill),
-                            color = contentColor.copy(alpha = 0.18f),
-                            contentColor = contentColor,
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(ElovaireRadii.pill))
+                                .then(
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        Modifier.hazeEffect(lyricsHazeState) {
+                                            blurRadius = 34.dp
+                                            backgroundColor = Color.Transparent
+                                        }
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            Surface(
+                                onClick = onHideLyrics,
+                                interactionSource = hideLyricsInteractionSource,
+                                modifier = Modifier.elovaireActionBump(
+                                    interactionSource = hideLyricsInteractionSource,
+                                    label = "hide_lyrics_bump",
+                                ),
+                                shape = RoundedCornerShape(ElovaireRadii.pill),
+                                color = contentColor.copy(alpha = 0.18f),
+                                contentColor = contentColor,
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.ic_lucide_eye_off),
-                                    contentDescription = copy.hideLyrics,
-                                    modifier = Modifier.size(15.dp),
-                                )
-                                Text(
-                                    text = copy.hideLyrics,
-                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                                )
+                                Row(
+                                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.ic_lucide_eye_off),
+                                        contentDescription = copy.hideLyrics,
+                                        modifier = Modifier.size(15.dp),
+                                    )
+                                    Text(
+                                        text = copy.hideLyrics,
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(hideButtonArea + navigationBarInset)
+                .padding(bottom = navigationBarInset)
+                .zIndex(4f),
+        ) {
             ElovaireAnimatedVisibility(
                 visible = isEditingLyrics,
+                modifier = Modifier.fillMaxSize(),
                 enter = motionTransitions.standardEnter(),
                 exit = motionTransitions.standardExit(),
                 label = "cancel_lyrics_edit_action_visibility",
             ) {
                 Box(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .height(lyricsBottomBlurArea)
-                        .offset(y = (-22).dp)
-                        .padding(horizontal = 20.dp),
-                    contentAlignment = Alignment.Center,
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(lyricsButtonArea)
+                            .offset(y = (-22).dp)
+                            .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
                         val cancelLyricsInteractionSource = rememberElovaireInteractionSource()
-                        Surface(
-                            onClick = {
-                                isEditingLyrics = false
-                                focusManager.clearFocus(force = true)
-                                onClearLyricsEditorError()
-                            },
-                            interactionSource = cancelLyricsInteractionSource,
-                            modifier = Modifier.elovaireActionBump(
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(ElovaireRadii.pill))
+                                .then(
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                                        Modifier.hazeEffect(lyricsHazeState) {
+                                            blurRadius = 34.dp
+                                            backgroundColor = Color.Transparent
+                                        }
+                                    } else {
+                                        Modifier
+                                    },
+                                ),
+                        ) {
+                            Surface(
+                                onClick = {
+                                    isEditingLyrics = false
+                                    focusManager.clearFocus(force = true)
+                                    onClearLyricsEditorError()
+                                },
                                 interactionSource = cancelLyricsInteractionSource,
-                                label = "cancel_lyrics_edit_bump",
-                            ),
-                            shape = RoundedCornerShape(ElovaireRadii.pill),
-                            color = contentColor.copy(alpha = 0.18f),
-                            contentColor = contentColor,
-                    ) {
-                        Text(
-                            text = "Cancel",
-                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                            modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
-                        )
+                                modifier = Modifier.elovaireActionBump(
+                                    interactionSource = cancelLyricsInteractionSource,
+                                    label = "cancel_lyrics_edit_bump",
+                                ),
+                                shape = RoundedCornerShape(ElovaireRadii.pill),
+                                color = contentColor.copy(alpha = 0.18f),
+                                contentColor = contentColor,
+                            ) {
+                                Text(
+                                    text = "Cancel",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -10380,7 +10429,6 @@ private fun PlayerSecondaryActionButton(
                 label = "${label}_player_secondary_bump",
             )
             .clip(RoundedCornerShape(ElovaireRadii.pill))
-            .playerFrostedSurface(tint = tint)
             .background(tint.copy(alpha = backgroundAlpha))
             .clickable(
                 interactionSource = interactionSource,

@@ -798,7 +798,27 @@ class PlaybackManager(
         if (released.get()) return
         recordManualPlaybackStart()
         val startIndex = collection.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
-        setQueue(collection, startIndex, sourceLabel, shuffleEnabled, sourcePlaylistId)
+        setQueue(
+            collection,
+            startIndex,
+            sourceLabel,
+            shuffleEnabled,
+            sourcePlaylistId,
+            libraryBacked = true,
+        )
+    }
+
+    internal fun playExternalSong(song: Song) {
+        if (released.get()) return
+        recordManualPlaybackStart()
+        setQueue(
+            songs = listOf(song),
+            startIndex = 0,
+            sourceLabel = "External audio",
+            shuffleEnabled = false,
+            sourcePlaylistId = null,
+            libraryBacked = false,
+        )
     }
 
     internal fun stageExternalQueue(
@@ -885,7 +905,14 @@ class PlaybackManager(
         } else {
             album.songs.indexOfFirst { it.id == startSongId }.coerceAtLeast(0)
         }
-        setQueue(album.songs, startIndex, sourceLabel, shuffleEnabled, sourcePlaylistId)
+        setQueue(
+            album.songs,
+            startIndex,
+            sourceLabel,
+            shuffleEnabled,
+            sourcePlaylistId,
+            libraryBacked = true,
+        )
     }
 
     override fun togglePlayback() {
@@ -1095,9 +1122,12 @@ class PlaybackManager(
         queueController.removeSongsFromQueue(songIds)
     }
 
-    fun refreshQueuedLibraryMetadataIfNeeded(updatedSongs: List<Song>) {
+    fun refreshQueuedLibraryMetadataIfNeeded(
+        updatedSongs: List<Song>,
+        authoritative: Boolean = false,
+    ) {
         if (released.get()) return
-        queueController.refreshQueuedLibraryMetadataIfNeeded(updatedSongs)
+        queueController.refreshQueuedLibraryMetadataIfNeeded(updatedSongs, authoritative)
         bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
         scheduleAudioPathReevaluation("queue-metadata-refreshed", AUDIO_PATH_REEVALUATION_DELAY_MS)
         player.volume = targetPlayerOutputGain()
@@ -1331,6 +1361,7 @@ class PlaybackManager(
         sourceLabel: String?,
         shuffleEnabled: Boolean,
         sourcePlaylistId: Long?,
+        libraryBacked: Boolean,
     ) {
         beginPlaybackOperation()
         crossfadeController.cancel()
@@ -1341,6 +1372,7 @@ class PlaybackManager(
             shuffleEnabled = shuffleEnabled,
             sourcePlaylistId = sourcePlaylistId,
             audioPathDelayMs = AUDIO_PATH_REEVALUATION_DELAY_MS,
+            libraryBacked = libraryBacked,
         )
         sleepTimerController.updateEndOfSongTarget(songs.getOrNull(startIndex)?.id)
     }

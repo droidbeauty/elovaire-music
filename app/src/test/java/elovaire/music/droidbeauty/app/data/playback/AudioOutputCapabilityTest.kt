@@ -76,6 +76,21 @@ class AudioOutputCapabilityTest {
     }
 
     @Test
+    fun unknownRouteDoesNotClaimOffloadIsSafe() {
+        val decision = AudioOutputPolicy.decide(
+            capabilities = AudioOutputCapabilitySnapshot(
+                devices = emptyList(),
+                platformSdk = 35,
+                source = AudioOutputCapabilitySource.Unknown,
+            ),
+            requirements = AudioProcessingRequirements(false, false, false, false),
+            directPathActive = false,
+        )
+
+        assertFalse(decision.offloadAllowed)
+    }
+
+    @Test
     fun normalizationDisablesOffloadLikeOtherSignalProcessing() {
         val decision = AudioOutputPolicy.decide(
             capabilities = AudioOutputCapabilitySnapshot(emptyList(), platformSdk = 35),

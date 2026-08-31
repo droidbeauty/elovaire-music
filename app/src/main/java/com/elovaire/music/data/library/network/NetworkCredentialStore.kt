@@ -15,9 +15,10 @@ internal class NetworkCredentialStore(context: Context) {
     private val preferences = context.applicationContext.getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
     private val lock = Any()
 
-    fun put(key: String, credentials: NetworkCredentials) {
-        require(key.isNotBlank() && key.length <= MAX_KEY_LENGTH)
+    fun put(sourceId: String, key: String, credentials: NetworkCredentials) {
+        validateIdentity(sourceId, key)
         val plaintext = JSONObject()
+            .put("sourceId", sourceId)
             .put("username", credentials.username)
             .put("password", credentials.password)
             .put("domain", credentials.domain.orEmpty())
@@ -26,7 +27,7 @@ internal class NetworkCredentialStore(context: Context) {
         synchronized(lock) {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.ENCRYPT_MODE, secretKey(createIfMissing = true))
-            cipher.updateAAD(key.toByteArray(Charsets.UTF_8))
+            cipher.updateAAD(binding(sourceId, key))
             val ciphertext = cipher.doFinal(plaintext)
             val value = NetworkCredentialEnvelope.encode(cipher.iv, ciphertext)
             check(
@@ -37,8 +38,8 @@ internal class NetworkCredentialStore(context: Context) {
         }
     }
 
-    fun read(key: String): NetworkCredentialReadResult {
-        require(key.isNotBlank() && key.length <= MAX_KEY_LENGTH)
+    fun read(sourceId: String, key: String): NetworkCredentialReadResult {
+        validateIdentity(sourceId, key)
         return synchronized(lock) {
             val encoded = preferences.getString(key, null)
                 ?: return@synchronized NetworkCredentialReadResult.Missing
@@ -66,27 +67,33 @@ internal class NetworkCredentialStore(context: Context) {
             } catch (_: RuntimeException) {
                 return@synchronized NetworkCredentialReadResult.KeyUnavailable
             }
-            val credentials = try {
-                val cipher = Cipher.getInstance(TRANSFORMATION)
-                cipher.init(Cipher.DECRYPT_MODE, keyMaterial, GCMParameterSpec(128, iv))
-                if (!legacy) cipher.updateAAD(key.toByteArray(Charsets.UTF_8))
-                val json = JSONObject(cipher.doFinal(ciphertext).toString(Charsets.UTF_8))
-                NetworkCredentials(
-                    username = json.optString("username"),
-                    password = json.optString("password"),
-                    domain = json.optString("domain").takeIf(String::isNotBlank),
+            val decrypted = decrypt(
+                sourceId = sourceId,
+                key = key,
+                iv = iv,
+                ciphertext = ciphertext,
+                keyMaterial = keyMaterial,
+                useLegacyBinding = legacy,
+            ) ?: if (!legacy) {
+                // Version-2 entries created before credentials were bound to the owning source
+                // used only the credential key as AAD. Read them once, then upgrade them in
+                // place with source-bound AAD and an embedded owner id.
+                decrypt(
+                    sourceId = sourceId,
+                    key = key,
+                    iv = iv,
+                    ciphertext = ciphertext,
+                    keyMaterial = keyMaterial,
+                    useLegacyBinding = true,
                 )
-            } catch (_: GeneralSecurityException) {
-                return@synchronized NetworkCredentialReadResult.Corrupt(
-                    NetworkCredentialCorruption.AuthenticationFailed,
-                )
-            } catch (_: RuntimeException) {
-                return@synchronized NetworkCredentialReadResult.Corrupt(
-                    NetworkCredentialCorruption.MalformedPayload,
-                )
-            }
-            if (legacy) {
-                val current = encrypt(key, credentials, keyMaterial)
+            } else {
+                null
+            } ?: return@synchronized NetworkCredentialReadResult.Corrupt(
+                NetworkCredentialCorruption.AuthenticationFailed,
+            )
+            val credentials = decrypted.credentials
+            if (decrypted.needsMigration) {
+                val current = encrypt(sourceId, key, credentials, keyMaterial)
                 if (preferences.getString(key, null) == encoded) {
                     preferences.edit()
                         .putString(key, Base64.encodeToString(current, Base64.NO_WRAP))
@@ -97,7 +104,8 @@ internal class NetworkCredentialStore(context: Context) {
         }
     }
 
-    fun get(key: String): NetworkCredentials? = (read(key) as? NetworkCredentialReadResult.Available)?.credentials
+    fun get(sourceId: String, key: String): NetworkCredentials? =
+        (read(sourceId, key) as? NetworkCredentialReadResult.Available)?.credentials
 
     fun remove(key: String) {
         require(key.isNotBlank() && key.length <= MAX_KEY_LENGTH)
@@ -124,8 +132,14 @@ internal class NetworkCredentialStore(context: Context) {
         return generator.generateKey()
     }
 
-    private fun encrypt(key: String, credentials: NetworkCredentials, keyMaterial: SecretKey): ByteArray {
+    private fun encrypt(
+        sourceId: String,
+        key: String,
+        credentials: NetworkCredentials,
+        keyMaterial: SecretKey,
+    ): ByteArray {
         val plaintext = JSONObject()
+            .put("sourceId", sourceId)
             .put("username", credentials.username)
             .put("password", credentials.password)
             .put("domain", credentials.domain.orEmpty())
@@ -133,15 +147,61 @@ internal class NetworkCredentialStore(context: Context) {
             .toByteArray(Charsets.UTF_8)
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, keyMaterial)
-        cipher.updateAAD(key.toByteArray(Charsets.UTF_8))
+        cipher.updateAAD(binding(sourceId, key))
         return NetworkCredentialEnvelope.encode(cipher.iv, cipher.doFinal(plaintext))
     }
+
+    private fun decrypt(
+        sourceId: String,
+        key: String,
+        iv: ByteArray,
+        ciphertext: ByteArray,
+        keyMaterial: SecretKey,
+        useLegacyBinding: Boolean,
+    ): DecryptedCredentials? {
+        return try {
+            val cipher = Cipher.getInstance(TRANSFORMATION)
+            cipher.init(Cipher.DECRYPT_MODE, keyMaterial, GCMParameterSpec(128, iv))
+            cipher.updateAAD(if (useLegacyBinding) key.toByteArray(Charsets.UTF_8) else binding(sourceId, key))
+            val json = JSONObject(cipher.doFinal(ciphertext).toString(Charsets.UTF_8))
+            val storedSourceId = json.optString("sourceId").takeIf(String::isNotBlank)
+            if (!useLegacyBinding && storedSourceId != sourceId) return null
+            if (useLegacyBinding && storedSourceId != null && storedSourceId != sourceId) return null
+            DecryptedCredentials(
+                credentials = NetworkCredentials(
+                    username = json.optString("username"),
+                    password = json.optString("password"),
+                    domain = json.optString("domain").takeIf(String::isNotBlank),
+                ),
+                needsMigration = useLegacyBinding || storedSourceId == null,
+            )
+        } catch (_: GeneralSecurityException) {
+            null
+        } catch (_: RuntimeException) {
+            null
+        }
+    }
+
+    private fun validateIdentity(sourceId: String, key: String) {
+        require(sourceId.isNotBlank() && sourceId.length <= MAX_SOURCE_ID_LENGTH)
+        require(key.isNotBlank() && key.length <= MAX_KEY_LENGTH)
+    }
+
+    private fun binding(sourceId: String, key: String): ByteArray {
+        return "$sourceId\u0000$key".toByteArray(Charsets.UTF_8)
+    }
+
+    private data class DecryptedCredentials(
+        val credentials: NetworkCredentials,
+        val needsMigration: Boolean,
+    )
 
     private companion object {
         const val ANDROID_KEYSTORE = "AndroidKeyStore"
         const val KEY_ALIAS = "elovaire-network-credentials-v1"
         const val PREFERENCES = "network_credentials_v1"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
+        const val MAX_SOURCE_ID_LENGTH = 256
         const val MAX_KEY_LENGTH = 256
     }
 }

@@ -785,11 +785,15 @@ internal class RoomUserDataStore(
     ): Deferred<PlaylistMutationResult> {
         schedulePendingCoalescedWrites()
         val completion = CompletableDeferred<PlaylistMutationResult>()
+        val mutationResult = AtomicReference<PlaylistMutationResult?>(null)
         val accepted = tryEnqueue(
             RoomOperation(
                 name = name,
-                block = { completion.complete(operation()) },
+                block = { mutationResult.set(operation()) },
                 completion = completion,
+                resultProvider = {
+                    mutationResult.get() ?: PlaylistMutationResult.Failure("Mutation did not produce a result.")
+                },
             ),
         )
         if (!accepted) {
@@ -854,6 +858,10 @@ internal class RoomUserDataStore(
             val snapshot = currentSnapshot()
             publishSnapshot(snapshot)
             persistRecoverySnapshot(snapshot)
+            operation.completion?.complete(
+                operation.resultProvider?.invoke()
+                    ?: PlaylistMutationResult.Failure("Mutation did not produce a result."),
+            )
         } catch (failure: CancellationException) {
             if (currentCoroutineContext().isActive) {
                 operation.completion?.cancel(failure)
@@ -956,6 +964,7 @@ private data class RoomOperation(
     val name: String,
     val block: suspend () -> Unit,
     val completion: CompletableDeferred<PlaylistMutationResult>? = null,
+    val resultProvider: (() -> PlaylistMutationResult)? = null,
 )
 
 internal fun nextPersistentUserDataId(current: Long): Long {
