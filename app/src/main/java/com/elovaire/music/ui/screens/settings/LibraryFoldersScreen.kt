@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
 
 import androidx.activity.compose.BackHandler
 import android.net.Uri
@@ -321,7 +322,7 @@ internal fun LibraryFoldersScreen(
                 onDismiss = { showSourceChooser = false },
                 onAddFolder = {
                     showSourceChooser = false
-                    folderPicker.launch(null)
+                    folderPicker.launch(defaultLibraryPickerUri())
                 },
                 onAddNetwork = {
                     showSourceChooser = false

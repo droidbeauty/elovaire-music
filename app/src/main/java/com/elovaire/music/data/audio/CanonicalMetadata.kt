@@ -56,8 +56,7 @@ internal object CanonicalMetadataResolver {
         val normalized = this
             ?.takeIf { it.length <= MAX_CANONICAL_METADATA_TEXT_CHARS }
             ?.let { Normalizer.normalize(it, Normalizer.Form.NFC) }
-            ?.filterNot(::isIgnorableTextCharacter)
-            ?.trim()
+            ?.let(::sanitizeMetadataText)
             ?.takeIf(String::isNotBlank)
             ?: return null
         return normalized.takeIf { value ->
@@ -68,6 +67,19 @@ internal object CanonicalMetadataResolver {
         }
     }
 
+    private fun sanitizeMetadataText(value: String): String {
+        return buildString(value.length) {
+            value.forEach { character ->
+                when {
+                    character == '\t' || character == '\n' || character == '\r' -> append(' ')
+                    isIgnorableTextCharacter(character) || isBidiFormattingMark(character) -> Unit
+                    Character.getType(character) == Character.CONTROL.toInt() -> Unit
+                    else -> append(character)
+                }
+            }
+        }.trim { it.isWhitespace() || Character.isSpaceChar(it) }
+    }
+
     private fun String.parsePositiveTagNumber(): Int? = substringBefore('/')
         .trim()
         .toIntOrNull()
@@ -76,7 +88,22 @@ internal object CanonicalMetadataResolver {
     private fun List<MetadataSourceValues>.resolveVolumeNormalization(): VolumeNormalizationMetadata? {
         // Gain and peak values describe one mastering record. Do not combine fields
         // from different sources: a stale peak could otherwise constrain a newer gain.
-        return firstNotNullOfOrNull { values -> values.volumeNormalization }
+        return firstNotNullOfOrNull { values ->
+            values.volumeNormalization?.sanitizeVolumeNormalization()
+        }
+    }
+
+    private fun VolumeNormalizationMetadata.sanitizeVolumeNormalization(): VolumeNormalizationMetadata? {
+        val sanitized = copy(
+            trackGainDb = trackGainDb?.takeIf { it.isFinite() },
+            albumGainDb = albumGainDb?.takeIf { it.isFinite() },
+            trackPeak = trackPeak?.takeIf { it.isFinite() && it > 0f },
+            albumPeak = albumPeak?.takeIf { it.isFinite() && it > 0f },
+        )
+        return sanitized.takeIf {
+            it.trackGainDb != null || it.albumGainDb != null ||
+                it.trackPeak != null || it.albumPeak != null
+        }
     }
 
     private fun isValidYear(year: Int): Boolean = year in 1..9_999
@@ -91,8 +118,24 @@ internal object CanonicalMetadataResolver {
         '\u200C',
         '\uFEFF',
     )
+    private val bidiFormattingMarks = setOf(
+        '\u061C',
+        '\u200E',
+        '\u200F',
+        '\u202A',
+        '\u202B',
+        '\u202C',
+        '\u202D',
+        '\u202E',
+        '\u2066',
+        '\u2067',
+        '\u2068',
+        '\u2069',
+    )
 
     private fun isIgnorableTextCharacter(character: Char): Boolean = character in ignorableTextCharacters
+
+    private fun isBidiFormattingMark(character: Char): Boolean = character in bidiFormattingMarks
 
     private fun isCombiningMark(character: Char): Boolean = Character.getType(character) in combiningMarkTypes
 

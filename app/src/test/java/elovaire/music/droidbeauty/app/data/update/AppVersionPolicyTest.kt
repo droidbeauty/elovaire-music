@@ -14,6 +14,21 @@ class AppVersionPolicyTest {
     }
 
     @Test
+    fun comparesPrereleaseIdentifiersWithoutOverflowOrNumericLoss() {
+        assertTrue(AppVersionPolicy.isNewer("1.2.3", "1.2.3-rc1"))
+        assertTrue(AppVersionPolicy.isNewer("1.2.3-beta", "1.2.3-alpha"))
+        assertFalse(AppVersionPolicy.isNewer("1.2.3+build2", "1.2.3+build1"))
+        assertTrue(AppVersionPolicy.isSame("v1.2", "1.2.0"))
+        assertTrue(AppVersionPolicy.isNewer("999999999999999999999.0.0", "1.999.999"))
+        assertFalse(AppVersionPolicy.isNewer("not-a-version", "1.0.0"))
+    }
+
+    @Test
+    fun resolveUsesTheReleaseTagBeforeNameOrAsset() {
+        assertEquals("2.0.0", AppVersionPolicy.resolve("v2.0.0", "Release 1.9.0", "app-3.0.0.apk"))
+    }
+
+    @Test
     fun automaticChecksUseSuccessIntervalAndFailureBackoff() {
         assertFalse(shouldRunAutomaticUpdateCheck(100L, 200L, null, 0L, 1_000L, 500L))
         assertFalse(shouldRunAutomaticUpdateCheck(0L, 2_000L, 1_900L, 2_000L, 1_000L, 500L))

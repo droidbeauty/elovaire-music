@@ -238,8 +238,11 @@ internal class LocalLyricsResolver(
                 val blockSize = ((header[1].toInt() and 0xFF) shl 16) or
                     ((header[2].toInt() and 0xFF) shl 8) or
                     (header[3].toInt() and 0xFF)
-                if (blockSize < 0 || blockSize > MAX_VORBIS_COMMENT_BYTES) {
-                    input.skip(blockSize.toLong())
+                if (blockSize < 0) {
+                    break
+                }
+                if (blockSize > MAX_VORBIS_COMMENT_BYTES) {
+                    if (!input.discardExactly(blockSize)) break
                     continue
                 }
                 val blockData = input.readBytesCompat(blockSize)
@@ -263,15 +266,19 @@ internal class LocalLyricsResolver(
         var syncedPayload: LyricsPayload? = null
         var plainPayload: LyricsPayload? = null
 
-        repeat(commentCount) {
-            if (buffer.remaining() < 4) return@repeat
+        var parsedComments = 0
+        val boundedCommentCount = boundedVorbisCommentCount(commentCount, buffer.remaining())
+        while (parsedComments < boundedCommentCount && buffer.remaining() >= 4) {
             val commentLength = buffer.int.coerceAtLeast(0)
-            if (commentLength <= 0 || commentLength > buffer.remaining()) return@repeat
+            if (commentLength <= 0 || commentLength > buffer.remaining()) break
             val commentBytes = ByteArray(commentLength)
             buffer.get(commentBytes)
             val comment = commentBytes.toString(Charsets.UTF_8)
             val separatorIndex = comment.indexOf('=')
-            if (separatorIndex <= 0) return@repeat
+            if (separatorIndex <= 0) {
+                parsedComments += 1
+                continue
+            }
             val key = comment.substring(0, separatorIndex)
                 .uppercase(Locale.US)
                 .replace(" ", "")
@@ -293,6 +300,7 @@ internal class LocalLyricsResolver(
                     }
                 }
             }
+            parsedComments += 1
         }
 
         return syncedPayload?.let(::LocalLyricsMatch) ?: plainPayload?.let(::LocalLyricsMatch)
@@ -471,6 +479,22 @@ internal class LocalLyricsResolver(
         return if (offset == buffer.size) buffer else buffer.copyOf(offset)
     }
 
+    private fun java.io.InputStream.discardExactly(byteCount: Int): Boolean {
+        var remaining = byteCount
+        val buffer = ByteArray(8 * 1024)
+        while (remaining > 0) {
+            val skipped = skip(remaining.toLong()).coerceAtMost(remaining.toLong()).toInt()
+            if (skipped > 0) {
+                remaining -= skipped
+                continue
+            }
+            val read = read(buffer, 0, minOf(buffer.size, remaining))
+            if (read <= 0) return false
+            remaining -= read
+        }
+        return true
+    }
+
     private fun String.removeBom(): String = removePrefix("\uFEFF")
 
     private fun looksLikeTimedLyrics(value: String): Boolean {
@@ -496,3 +520,10 @@ internal class LocalLyricsResolver(
             Regex("""\[(?:(\d{1,2}):)?(\d{1,2}):(\d{2})(?:[.:](\d{1,3}))?]""")
     }
 }
+
+internal fun boundedVorbisCommentCount(declaredCount: Int, remainingBytes: Int): Int {
+    if (declaredCount <= 0 || remainingBytes < 4) return 0
+    return minOf(declaredCount, MAX_VORBIS_COMMENT_COUNT, remainingBytes / 4)
+}
+
+private const val MAX_VORBIS_COMMENT_COUNT = 10_000

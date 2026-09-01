@@ -12,10 +12,10 @@ private const val LegacyPlaylistFieldSeparator = PlaylistFieldSeparator
 internal fun deserializePlaylists(value: String?): List<Playlist> {
     val rawValue = value?.takeIf { it.isNotBlank() } ?: return emptyList()
     if (rawValue.length > MAX_PLAYLIST_SERIALIZED_CHARS) return emptyList()
-    return if (rawValue.startsWith(PlaylistSchemaV2Prefix)) {
-        deserializePlaylistsV2(rawValue.removePrefix(PlaylistSchemaV2Prefix))
-    } else {
-        deserializePlaylistsLegacy(rawValue)
+    return when {
+        rawValue.startsWith(PlaylistSchemaV2Prefix) -> deserializePlaylistsV2(rawValue.removePrefix(PlaylistSchemaV2Prefix))
+        VERSIONED_PREFIX_MARKER.containsMatchIn(rawValue) -> emptyList()
+        else -> deserializePlaylistsLegacy(rawValue)
     }
 }
 
@@ -61,6 +61,7 @@ private fun deserializePlaylistsV2(value: String): List<Playlist> {
                 isSystem = parts[3].toBooleanStrictOrNull() ?: false,
             )
         }
+        ?.deduplicatePlaylistIds()
         .orEmpty()
 }
 
@@ -68,7 +69,13 @@ private fun deserializePlaylistsLegacy(value: String): List<Playlist> {
     return value.split(LegacyPlaylistRecordSeparator, limit = MAX_PLAYLIST_COUNT + 1)
         .takeIf { it.size <= MAX_PLAYLIST_COUNT }
         ?.mapNotNull { entry -> entry.toLegacyPlaylistOrNull() }
+        ?.deduplicatePlaylistIds()
         .orEmpty()
+}
+
+private fun List<Playlist>.deduplicatePlaylistIds(): List<Playlist> {
+    val seen = HashSet<Long>(size)
+    return filter { seen.add(it.id) }
 }
 
 private fun String.toLegacyPlaylistOrNull(): Playlist? {
@@ -76,7 +83,7 @@ private fun String.toLegacyPlaylistOrNull(): Playlist? {
     if (parts.size < 3) return null
     val id = parts[0].toLongOrNull() ?: return null
     val normalizedName = normalizePlaylistName(parts[1])
-    if (normalizedName.isBlank() || normalizedName.length > MAX_PLAYLIST_NAME_CHARS) return null
+    if (id <= 0L || normalizedName.isBlank() || normalizedName.length > MAX_PLAYLIST_NAME_CHARS) return null
     val encodedSongIds = parts[2]
     val songIds = if (encodedSongIds.isBlank()) {
         emptyList()
@@ -111,3 +118,4 @@ private const val MAX_PLAYLIST_COUNT = 2_048
 private const val MAX_PLAYLIST_SONG_COUNT = 100_000
 private const val MAX_PLAYLIST_NAME_CHARS = 4_096
 private const val MAX_PLAYLIST_ENCODED_NAME_CHARS = 16 * 1024
+private val VERSIONED_PREFIX_MARKER = Regex("(?i)^v\\d+:")

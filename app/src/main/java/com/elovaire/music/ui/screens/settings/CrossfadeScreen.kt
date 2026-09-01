@@ -1,4 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement

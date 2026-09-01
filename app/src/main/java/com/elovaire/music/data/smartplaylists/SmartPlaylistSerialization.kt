@@ -26,17 +26,19 @@ internal fun serializeSmartPlaylists(playlists: List<SmartPlaylist>): String {
 internal fun deserializeSmartPlaylists(value: String?): List<SmartPlaylist> {
     val raw = value?.takeIf { it.isNotBlank() } ?: return emptyList()
     if (raw.length > MAX_SMART_PLAYLIST_SERIALIZED_CHARS) return emptyList()
-    val body = raw.removePrefix(Prefix)
+    val versioned = raw.startsWith(Prefix)
+    if (!versioned && VERSIONED_PREFIX_MARKER.containsMatchIn(raw)) return emptyList()
+    val body = if (versioned) raw.removePrefix(Prefix) else raw
     return body.takeIf { it.isNotBlank() }
         ?.split(RecordSeparator, limit = MAX_SMART_PLAYLIST_COUNT + 1)
         ?.takeIf { it.size <= MAX_SMART_PLAYLIST_COUNT }
-        ?.mapNotNull(::deserializeSmartPlaylist)
+        ?.mapNotNull { deserializeSmartPlaylist(it, allowLegacySort = !versioned) }
         .orEmpty()
 }
 
-private fun deserializeSmartPlaylist(entry: String): SmartPlaylist? {
+private fun deserializeSmartPlaylist(entry: String, allowLegacySort: Boolean): SmartPlaylist? {
     val parts = entry.split(FieldSeparator)
-    if (parts.size < 9) return null
+    if (parts.size != 9) return null
     val id = parts[0].toLongOrNull()?.takeIf { it > 0L } ?: return null
     val name = parts[1].smartDecode()?.trim()?.takeIf {
         it.isNotBlank() && it.length <= MAX_SMART_PLAYLIST_NAME_CHARS
@@ -51,9 +53,10 @@ private fun deserializeSmartPlaylist(entry: String): SmartPlaylist? {
             ?.map { deserializeRule(it) ?: return null }
             ?: return null
     }
-    val sortField = parts[4].enumValueOrNull<SmartPlaylistSortField>()
-        ?: legacySortField(parts[4])
-        ?: SmartPlaylistSortField.Title
+    val sortField = (
+        parts[4].enumValueOrNull<SmartPlaylistSortField>()
+            ?: if (allowLegacySort) legacySortField(parts[4]) else null
+        ) ?: return null
     val sortDirection = parts[5].enumValueOrNull<SortDirection>() ?: return null
     val limitText = parts[6]
     val limit = when {
@@ -90,45 +93,76 @@ private fun SmartPlaylistRule.serializeRule(): String {
 private fun deserializeRule(value: String): SmartPlaylistRule? {
     val parts = value.split(":")
     return when (parts.firstOrNull()) {
-        "title" -> SmartPlaylistRule.TitleContains(
-            query = parts.getOrNull(1)?.smartDecode()?.takeIf(String::isNotBlank) ?: return null,
-            negate = parts.getOrNull(2)?.toBooleanStrictOrNull() ?: return null,
-        )
-        "artist" -> SmartPlaylistRule.ArtistContains(
-            query = parts.getOrNull(1)?.smartDecode()?.takeIf(String::isNotBlank) ?: return null,
-            negate = parts.getOrNull(2)?.toBooleanStrictOrNull() ?: return null,
-        )
-        "album" -> SmartPlaylistRule.AlbumContains(
-            query = parts.getOrNull(1)?.smartDecode()?.takeIf(String::isNotBlank) ?: return null,
-            negate = parts.getOrNull(2)?.toBooleanStrictOrNull() ?: return null,
-        )
-        "genre" -> SmartPlaylistRule.GenreMatches(
-            query = parts.getOrNull(1)?.smartDecode()?.takeIf(String::isNotBlank) ?: return null,
-            mode = parts.getOrNull(2).enumValueOrNull<TextRuleMode>() ?: return null,
-        )
-        "favorite" -> SmartPlaylistRule.FavoriteIs(
-            parts.getOrNull(1)?.toBooleanStrictOrNull() ?: return null,
-        )
-        "duration" -> {
-            val minText = parts.getOrNull(1).orEmpty()
-            val maxText = parts.getOrNull(2).orEmpty()
-            val min = minText.toNonNegativeLongOrNull() ?: if (minText.isBlank()) null else return null
-            val max = maxText.toNonNegativeLongOrNull() ?: if (maxText.isBlank()) null else return null
-            if (min != null && max != null && min > max) return null
-            SmartPlaylistRule.DurationBetween(min, max)
+        "title" -> deserializeContainsRule(parts) { query, negate ->
+            SmartPlaylistRule.TitleContains(query, negate)
         }
-        "play_count" -> SmartPlaylistRule.PlayCount(
-            operator = parts.getOrNull(1).enumValueOrNull<NumericOperator>() ?: return null,
-            value = parts.getOrNull(2)?.toIntOrNull()?.takeIf { it in 0..MAX_SMART_PLAYLIST_PLAY_COUNT } ?: return null,
-        )
-        "format" -> SmartPlaylistRule.FileFormatIs(
-            parts.getOrNull(1)?.smartDecode()?.trim()?.takeIf(String::isNotBlank) ?: return null,
-        )
-        "folder" -> SmartPlaylistRule.FolderContains(
-            parts.getOrNull(1)?.smartDecode()?.takeIf(String::isNotBlank) ?: return null,
-        )
+        "artist" -> deserializeContainsRule(parts) { query, negate ->
+            SmartPlaylistRule.ArtistContains(query, negate)
+        }
+        "album" -> deserializeContainsRule(parts) { query, negate ->
+            SmartPlaylistRule.AlbumContains(query, negate)
+        }
+        "genre" -> deserializeGenreRule(parts)
+        "favorite" -> deserializeFavoriteRule(parts)
+        "duration" -> deserializeDurationRule(parts)
+        "play_count" -> deserializePlayCountRule(parts)
+        "format" -> deserializeSingleTextRule(parts) { value ->
+            SmartPlaylistRule.FileFormatIs(value)
+        }
+        "folder" -> deserializeSingleTextRule(parts) { value ->
+            SmartPlaylistRule.FolderContains(value)
+        }
         else -> null
     }
+}
+
+private fun deserializeContainsRule(
+    parts: List<String>,
+    create: (query: String, negate: Boolean) -> SmartPlaylistRule,
+): SmartPlaylistRule? {
+    if (parts.size != 3) return null
+    val query = parts[1].smartDecode()?.takeIf(String::isNotBlank) ?: return null
+    val negate = parts[2].toBooleanStrictOrNull() ?: return null
+    return create(query, negate)
+}
+
+private fun deserializeGenreRule(parts: List<String>): SmartPlaylistRule? {
+    if (parts.size != 3) return null
+    val query = parts[1].smartDecode()?.takeIf(String::isNotBlank) ?: return null
+    val mode = parts[2].enumValueOrNull<TextRuleMode>() ?: return null
+    return SmartPlaylistRule.GenreMatches(query, mode)
+}
+
+private fun deserializeFavoriteRule(parts: List<String>): SmartPlaylistRule? {
+    if (parts.size != 2) return null
+    val favorite = parts[1].toBooleanStrictOrNull() ?: return null
+    return SmartPlaylistRule.FavoriteIs(favorite)
+}
+
+private fun deserializeDurationRule(parts: List<String>): SmartPlaylistRule? {
+    if (parts.size != 3) return null
+    val minText = parts[1]
+    val maxText = parts[2]
+    val min = minText.toNonNegativeLongOrNull() ?: if (minText.isBlank()) null else return null
+    val max = maxText.toNonNegativeLongOrNull() ?: if (maxText.isBlank()) null else return null
+    if (min != null && max != null && min > max) return null
+    return SmartPlaylistRule.DurationBetween(min, max)
+}
+
+private fun deserializePlayCountRule(parts: List<String>): SmartPlaylistRule? {
+    if (parts.size != 3) return null
+    val operator = parts[1].enumValueOrNull<NumericOperator>() ?: return null
+    val value = parts[2].toIntOrNull()?.takeIf { it in 0..MAX_SMART_PLAYLIST_PLAY_COUNT } ?: return null
+    return SmartPlaylistRule.PlayCount(operator, value)
+}
+
+private fun deserializeSingleTextRule(
+    parts: List<String>,
+    create: (value: String) -> SmartPlaylistRule,
+): SmartPlaylistRule? {
+    if (parts.size != 2) return null
+    val value = parts[1].smartDecode()?.trim()?.takeIf(String::isNotBlank) ?: return null
+    return create(value)
 }
 
 private fun String.smartEncode(): String {
@@ -164,3 +198,4 @@ private const val MAX_SMART_PLAYLIST_TEXT_CHARS = 4_096
 private const val MAX_SMART_PLAYLIST_ENCODED_FIELD_CHARS = 16 * 1024
 private const val MAX_SMART_PLAYLIST_RESULT_LIMIT = 100_000
 private const val MAX_SMART_PLAYLIST_PLAY_COUNT = 1_000_000_000
+private val VERSIONED_PREFIX_MARKER = Regex("(?i)^v\\d+:")

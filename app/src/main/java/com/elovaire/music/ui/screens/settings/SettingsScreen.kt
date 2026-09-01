@@ -1,4 +1,6 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
+import elovaire.music.droidbeauty.app.ui.screens.common.SectionTitleRow
 
 import android.content.Context
 import android.content.Intent

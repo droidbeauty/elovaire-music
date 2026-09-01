@@ -5,7 +5,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 
-class ElovaireStringCatalogTest {
+class ElovaireStringsTest {
     @Test
     fun polishSongCountsUseTheCorrectNumeralForms() {
         assertEquals("1 utwór", localizedCountLabel(1, "song", AppLanguage.Polish))

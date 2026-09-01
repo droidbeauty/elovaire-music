@@ -1,4 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
+import elovaire.music.droidbeauty.app.ui.screens.common.secondaryBodyTextStyle
+import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
 
 import android.content.Context
 import android.content.Intent

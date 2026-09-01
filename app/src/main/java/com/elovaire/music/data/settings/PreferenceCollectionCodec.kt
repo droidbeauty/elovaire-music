@@ -27,14 +27,16 @@ internal object PreferenceCollectionCodec {
 
     fun deserializeSearchHistory(value: String): SearchHistoryEntry? {
         if (value.length > MAX_SERIALIZED_FIELD_CHARS) return null
-        val parts = if (value.startsWith(VERSIONED_PREFIX)) {
+        val versioned = value.startsWith(VERSIONED_PREFIX)
+        if (!versioned && VERSIONED_PREFIX_MARKER.containsMatchIn(value)) return null
+        val parts = if (versioned) {
             value.removePrefix(VERSIONED_PREFIX)
                 .split(FIELD_SEPARATOR)
                 .map(::decodeField)
         } else {
             value.split(FIELD_SEPARATOR).map { it }
         }
-        if (parts.size < 7 || parts.any { it == null }) return null
+        if (parts.size != 7 || parts.any { it == null }) return null
         val fields = parts.mapNotNull { it }
         val kind = SearchHistoryKind.entries.firstOrNull { it.name == fields[1] } ?: return null
         return SearchHistoryEntry(
@@ -57,17 +59,20 @@ internal object PreferenceCollectionCodec {
 
     fun deserializeLibraryFolder(value: String): LibraryFolderSelection? {
         if (value.length > MAX_SERIALIZED_FIELD_CHARS) return null
-        val parts = if (value.startsWith(VERSIONED_PREFIX)) {
+        val versioned = value.startsWith(VERSIONED_PREFIX)
+        if (!versioned && VERSIONED_PREFIX_MARKER.containsMatchIn(value)) return null
+        val parts = if (versioned) {
             value.removePrefix(VERSIONED_PREFIX)
                 .split(FIELD_SEPARATOR)
                 .map(::decodeField)
         } else {
             value.split(FIELD_SEPARATOR).map { it }
         }
-        if (parts.size < 4 || parts.any { it == null }) return null
+        if (parts.size != 4 || parts.any { it == null }) return null
         val fields = parts.mapNotNull { it }
         val path = fields[1].trimCodecWhitespace()
-        val uri = fields[0].takeIf(String::isNotBlank)?.let(Uri::parse)
+        val uri = fields[0].takeIf(String::isNotBlank)?.let(::parseStoredFolderUri)
+        if (fields[0].isNotBlank() && uri == null) return null
         if (path.isBlank() && uri == null) return null
         return LibraryFolderSelection(
             uri = uri,
@@ -84,14 +89,18 @@ internal object PreferenceCollectionCodec {
         if (value.length > MAX_PLAY_COUNT_SERIALIZED_CHARS) return emptyMap()
         val entries = value.split(",", limit = MAX_PLAY_COUNT_ENTRIES + 1)
         if (entries.size > MAX_PLAY_COUNT_ENTRIES) return emptyMap()
-        return entries.mapNotNull { entry ->
-            val parts = entry.split(":")
+        val decoded = LinkedHashMap<Long, Int>(entries.size)
+        var duplicateId = false
+        entries.forEach { entry ->
+            val parts = entry.split(":", limit = 3)
+            if (parts.size != 2) return@forEach
             val id = parts.getOrNull(0)?.toLongOrNull()?.takeIf(::isValidMediaId)
-                ?: return@mapNotNull null
+                ?: return@forEach
             val count = parts.getOrNull(1)?.toIntOrNull()?.coerceAtLeast(0)
-                ?: return@mapNotNull null
-            id to count
-        }.toMap()
+                ?: return@forEach
+            if (decoded.put(id, count) != null) duplicateId = true
+        }
+        return if (duplicateId) emptyMap() else decoded
     }
 
     private fun encodeField(value: String): String {
@@ -107,7 +116,16 @@ internal object PreferenceCollectionCodec {
         }.getOrNull()
     }
 
+    private fun parseStoredFolderUri(raw: String): Uri? {
+        if (raw.length > MAX_SERIALIZED_FIELD_CHARS || raw.any(Char::isWhitespace)) return null
+        return runCatching { Uri.parse(raw) }
+            .getOrNull()
+            ?.takeIf { it.scheme.equals("content", ignoreCase = true) && !it.authority.isNullOrBlank() }
+    }
+
     private fun String.trimCodecWhitespace(): String = trim {
         it != '\u001E' && it != '\u001F' && (it.isWhitespace() || it.code <= 0x20)
     }
+
+    private val VERSIONED_PREFIX_MARKER = Regex("(?i)^v\\d+:")
 }

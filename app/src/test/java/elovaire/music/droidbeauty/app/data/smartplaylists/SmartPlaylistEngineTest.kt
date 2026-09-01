@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.smartplaylists
 
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Song
+import java.util.Base64
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -94,6 +95,41 @@ class SmartPlaylistEngineTest {
             updatedAtMs = 20L,
         )
         val serialized = serializeSmartPlaylists(listOf(playlist)).replace("Any", "UnknownMode")
+
+        assertEquals(emptyList<SmartPlaylist>(), deserializeSmartPlaylists(serialized))
+    }
+
+    @Test
+    fun unknownVersionAndVersionedUnknownSortAreRejected() {
+        val playlist = SmartPlaylist(
+            id = 12L,
+            name = "Corrupt",
+            createdAtMs = 10L,
+            updatedAtMs = 20L,
+        )
+        val serialized = serializeSmartPlaylists(listOf(playlist))
+
+        assertEquals(emptyList<SmartPlaylist>(), deserializeSmartPlaylists("v99:${serialized.removePrefix("v1:")}"))
+        assertEquals(
+            emptyList<SmartPlaylist>(),
+            deserializeSmartPlaylists(serialized.replace("Title", "FutureSort")),
+        )
+    }
+
+    @Test
+    fun extraFieldsDoNotChangeCurrentRuleSemantics() {
+        val playlist = SmartPlaylist(
+            id = 12L,
+            name = "Strict",
+            rules = listOf(SmartPlaylistRule.FavoriteIs(true)),
+            createdAtMs = 10L,
+            updatedAtMs = 20L,
+        )
+        val serialized = serializeSmartPlaylists(listOf(playlist))
+            .replace(
+                Base64.getUrlEncoder().withoutPadding().encodeToString("favorite:true".toByteArray()),
+                Base64.getUrlEncoder().withoutPadding().encodeToString("favorite:true:future".toByteArray()),
+            )
 
         assertEquals(emptyList<SmartPlaylist>(), deserializeSmartPlaylists(serialized))
     }

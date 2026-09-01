@@ -55,4 +55,19 @@ class PreferenceCollectionCodecTest {
             PreferenceCollectionCodec.serializeLibraryFolder(folder),
         ))
     }
+
+    @Test
+    fun folderUrisRequireAContentProviderAuthority() {
+        val invalid = listOf(
+            "file:///storage/emulated/0/Music\u001F/path\u001FMusic\u001Ffalse",
+            "javascript:alert(1)\u001Fpath\u001FMusic\u001Ffalse",
+        )
+
+        invalid.forEach { assertEquals(null, PreferenceCollectionCodec.deserializeLibraryFolder(it)) }
+    }
+
+    @Test
+    fun playCountDuplicateIdsAreRejectedInsteadOfBeingMapOrderDependent() {
+        assertTrue(PreferenceCollectionCodec.deserializePlayCounts("1:2,1:3").isEmpty())
+    }
 }

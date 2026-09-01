@@ -12,6 +12,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -42,7 +43,7 @@ class PersistenceMaintenanceWorker(
                 val checkpointSaved = applicationContext
                     .getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
                     .edit()
-                    .putLong(KEY_LAST_HEALTH_CHECK_MS, System.currentTimeMillis())
+                    .putLong(KEY_LAST_HEALTH_CHECK_MS, AndroidAppClock.wallTimeMs())
                     .commit()
                 when {
                     checkpointSaved -> Result.success()
@@ -94,7 +95,7 @@ class PersistenceMaintenanceWorker(
         val lastHealthCheck = applicationContext
             .getSharedPreferences(PREFERENCES, Context.MODE_PRIVATE)
             .getLong(KEY_LAST_HEALTH_CHECK_MS, 0L)
-        return persistenceHealthCheckDue(System.currentTimeMillis(), lastHealthCheck)
+        return persistenceHealthCheckDue(AndroidAppClock.wallTimeMs(), lastHealthCheck)
     }
 }
 

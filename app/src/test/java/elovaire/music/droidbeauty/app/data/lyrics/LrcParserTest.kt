@@ -157,4 +157,11 @@ class LrcParserTest {
             payload.copy(displayTimingOffsetMs = Long.MAX_VALUE).validatedForPlayback(),
         )
     }
+
+    @Test
+    fun vorbisCommentIterationIsBoundedByInputAndSafetyLimit() {
+        assertEquals(0, boundedVorbisCommentCount(Int.MAX_VALUE, 3))
+        assertEquals(2, boundedVorbisCommentCount(Int.MAX_VALUE, 9))
+        assertEquals(10_000, boundedVorbisCommentCount(Int.MAX_VALUE, 10_000 * 4))
+    }
 }

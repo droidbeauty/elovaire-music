@@ -77,4 +77,39 @@ class CanonicalMetadataTest {
 
         assertEquals("Platform title", result.title)
     }
+
+    @Test
+    fun nonFiniteNormalizationValuesNeverReachCanonicalMetadata() {
+        val result = CanonicalMetadataResolver.resolve(
+            embedded = MetadataSourceValues(
+                volumeNormalization = VolumeNormalizationMetadata(
+                    trackGainDb = Float.NaN,
+                    trackPeak = Float.POSITIVE_INFINITY,
+                ),
+            ),
+            platform = MetadataSourceValues(
+                volumeNormalization = VolumeNormalizationMetadata(trackGainDb = -6f, trackPeak = 0.9f),
+            ),
+        )
+
+        assertEquals(
+            VolumeNormalizationMetadata(trackGainDb = -6f, trackPeak = 0.9f),
+            result.volumeNormalization,
+        )
+    }
+
+    @Test
+    fun canonicalTextRemovesControlsWithoutChangingLegitimateUnicode() {
+        val result = CanonicalMetadataResolver.resolve(
+            embedded = MetadataSourceValues(title = "\u0000  東京\u200F  👨‍👩‍👧‍👦\n🎵  "),
+        )
+
+        assertEquals("東京  👨‍👩‍👧‍👦 🎵", result.title)
+        assertEquals(
+            result.title,
+            CanonicalMetadataResolver.resolve(
+                embedded = MetadataSourceValues(title = result.title),
+            ).title,
+        )
+    }
 }

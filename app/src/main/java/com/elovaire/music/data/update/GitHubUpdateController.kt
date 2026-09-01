@@ -129,7 +129,7 @@ internal class GitHubUpdateController(
             if (dismissed != null && !AppVersionPolicy.isNewer(dismissed, BuildConfig.VERSION_NAME)) {
                 preferences.setDismissedUpdateVersion(null)
             }
-            val shouldShow = release != null && (force || dismissed != release.versionName)
+            val shouldShow = release != null && (force || dismissed == null || !AppVersionPolicy.isSame(dismissed, release.versionName))
             _uiState.update {
                 it.copy(
                     availableRelease = release.takeIf { shouldShow },

@@ -15,7 +15,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
     fun checkBoundaries() {
         val violations = mutableListOf<String>()
         sourceFiles.files.filter { it.isFile }.forEach { file ->
-            val path = file.invariantSeparatorsPath
+            val path = normalizeGuardrailPath(file.invariantSeparatorsPath)
             val text = file.readText()
             if (
                 "/domain/kernel/" in path &&
@@ -28,7 +28,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
                 violations += "$path branches on broad OEM identity without an evidence-backed platform quirk: $marker"
             }
             FORBIDDEN_UPDATE_MARKERS.firstOrNull(text::contains)?.takeIf { _ ->
-                UPDATE_ALLOWED.none(path::endsWith)
+                !isGuardrailPathAllowed(path, UPDATE_ALLOWED)
             }?.let { marker ->
                 violations += "$path reintroduces removed OTA update functionality: $marker"
             }
@@ -41,42 +41,42 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             if ("/ui/" in path && "elovaire.music.droidbeauty.app.data.library.db" in text) {
                 violations += "$path imports the library database implementation"
             }
-            if ("MediaStore.createWriteRequest" in text && !path.endsWith("/platform/MediaStoreAccessRequests.kt")) {
+            if ("MediaStore.createWriteRequest" in text && !isGuardrailPathAllowed(path, setOf("/platform/MediaStoreAccessRequests.kt"))) {
                 violations += "$path creates MediaStore write requests outside the platform boundary"
             }
-            if ("BitmapFactory" in text && BITMAP_ALLOWED.none(path::endsWith)) {
+            if ("BitmapFactory" in text && !isGuardrailPathAllowed(path, BITMAP_ALLOWED)) {
                 violations += "$path decodes bitmaps outside the approved image boundaries"
             }
-            if (("HttpURLConnection" in text || ".openConnection(" in text) && HTTP_ALLOWED.none(path::endsWith)) {
+            if (("HttpURLConnection" in text || ".openConnection(" in text) && !isGuardrailPathAllowed(path, HTTP_ALLOWED)) {
                 violations += "$path opens an ad hoc HTTP connection"
             }
             if (Regex("(?<!Bounded)\\bHttpTransport\\(").containsMatchIn(text)) {
                 violations += "$path constructs a duplicate HTTP transport"
             }
-            if ("AppContainer(" in text && !path.endsWith("/ElovaireApp.kt") && !path.endsWith("/core/AppContainer.kt")) {
+            if ("AppContainer(" in text && !isGuardrailPathAllowed(path, setOf("/ElovaireApp.kt", "/core/AppContainer.kt"))) {
                 violations += "$path constructs the application graph outside ElovaireApp"
             }
-            if ("ExoPlayer.Builder" in text && !path.endsWith("/data/playback/PlaybackPlayerFactory.kt")) {
+            if ("ExoPlayer.Builder" in text && !isGuardrailPathAllowed(path, setOf("/data/playback/PlaybackPlayerFactory.kt"))) {
                 violations += "$path creates an ExoPlayer outside the player factory"
             }
             if (
                 "AudioFormatPolicy.capabilities" in text &&
-                !path.endsWith("/data/audio/AudioFormatPolicy.kt")
+                !isGuardrailPathAllowed(path, setOf("/data/audio/AudioFormatPolicy.kt"))
             ) {
                 violations += "$path bypasses the audio-format registry API"
             }
-            if (" external fun " in text && NATIVE_ALLOWED.none(path::endsWith)) {
+            if (" external fun " in text && !isGuardrailPathAllowed(path, NATIVE_ALLOWED)) {
                 violations += "$path declares a native entry point outside an approved bridge"
             }
             if (
                 ("registerAudioDeviceCallback" in text || "unregisterAudioDeviceCallback" in text) &&
-                !path.endsWith("/data/playback/PlaybackRuntimeResources.kt")
+                !isGuardrailPathAllowed(path, setOf("/data/playback/PlaybackRuntimeResources.kt"))
             ) {
                 violations += "$path registers audio-device callbacks outside playback runtime resources"
             }
             if (
                 ("getSharedPreferences" in text || "SharedPreferences" in text) &&
-                SHARED_PREFERENCES_ALLOWED.none(path::endsWith)
+                !isGuardrailPathAllowed(path, SHARED_PREFERENCES_ALLOWED)
             ) {
                 violations += "$path accesses SharedPreferences outside an approved persistence boundary"
             }
@@ -85,7 +85,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             }
             if (
                 "CoroutineScope(SupervisorJob" in text &&
-                SUPERVISOR_SCOPE_ALLOWED.none(path::endsWith)
+                !isGuardrailPathAllowed(path, SUPERVISOR_SCOPE_ALLOWED)
             ) {
                 violations += "$path creates an unapproved independent supervisor scope"
             }

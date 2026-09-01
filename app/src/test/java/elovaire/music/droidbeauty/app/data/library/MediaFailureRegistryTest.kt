@@ -47,4 +47,44 @@ class MediaFailureRegistryTest {
         assertFalse(registry.shouldSuppress(key, force = true))
         assertEquals(MediaFailureCategory.TransientIo, mediaFailureCategory(IOException()))
     }
+
+    @Test
+    fun retryPolicyKeepsTransientFailuresPromptButSuppressesStableFailuresLonger() {
+        assertTrue(
+            mediaFailureRetryDelayMs(MediaFailureCategory.TransientIo, 2) <
+                mediaFailureRetryDelayMs(MediaFailureCategory.Malformed, 2),
+        )
+        assertTrue(
+            mediaFailureRetryDelayMs(MediaFailureCategory.Resource, 2) <
+                mediaFailureRetryDelayMs(MediaFailureCategory.Missing, 2),
+        )
+    }
+
+    @Test
+    fun changingFailureCategoryStartsASeparateBackoffSequence() {
+        var now = 1_000L
+        val registry = MediaFailureRegistry(nowMs = { now })
+        val key = MediaFailureKey("song", "revision", MediaFailureDomain.FormatProbe)
+
+        registry.recordFailure(key, MediaFailureCategory.Malformed)
+        registry.recordFailure(key, MediaFailureCategory.Malformed)
+        registry.recordFailure(key, MediaFailureCategory.TransientIo)
+
+        now += 30_000L
+        assertFalse(registry.shouldSuppress(key))
+    }
+
+    @Test
+    fun backoffDeadlineDoesNotWrapAtElapsedTimeLimit() {
+        var now = Long.MAX_VALUE - 1L
+        val registry = MediaFailureRegistry(nowMs = { now })
+        val key = MediaFailureKey("song", "revision", MediaFailureDomain.FormatProbe)
+
+        registry.recordFailure(key, MediaFailureCategory.TransientIo)
+        registry.recordFailure(key, MediaFailureCategory.TransientIo)
+
+        assertTrue(registry.shouldSuppress(key))
+        now = Long.MAX_VALUE
+        assertFalse(registry.shouldSuppress(key))
+    }
 }

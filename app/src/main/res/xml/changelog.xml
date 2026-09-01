@@ -6,13 +6,8 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.8.2">
-        <item>UI tweaks to searchbar in recently added list</item>
-        <item>UI tweaks in lyrics screen</item>
-        <item>Refinements to animation quality</item>
-        <item>Reliability and efficiency oriented technical upgrades</item>
-        <item>Further refined media scanning framework</item>
-        <item>Refinements to quality of crossfade feature</item>
-        <item>Refinements to EQ and DSP effects framework</item>
+    <release version="2.8.3">
+        <item>Performance and stability tweaks</item>
+        <item>General bug fixes</item>
     </release>
 </changelog>

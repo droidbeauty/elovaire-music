@@ -23,10 +23,10 @@ abstract class DeprecatedAndroidApiUsageCheckTask : DefaultTask() {
         val violations = sourceFiles.files
             .filter { file -> file.isFile }
             .flatMap { file ->
-                val relativePath = file.relativeTo(root).path.replace(File.separatorChar, '/')
+                val relativePath = normalizeGuardrailPath(file.relativeTo(root).path)
                 file.uncommentedLines().mapNotNull { (index, line) ->
                     val pattern = riskyPatterns.firstOrNull { rule ->
-                        line.contains(rule.pattern) && rule.allowedPathSuffixes.none(relativePath::endsWith)
+                        line.contains(rule.pattern) && !isGuardrailPathAllowed(relativePath, rule.allowedPathSuffixes)
                     }
                     pattern?.let { "${file.relativeTo(root)}:${index + 1}: ${it.pattern}" }
                 }

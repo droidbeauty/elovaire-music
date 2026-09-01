@@ -8,6 +8,9 @@ import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.playback.PlaybackNotificationController
 import elovaire.music.droidbeauty.app.data.settings.PortableSettingsBackup
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
+import elovaire.music.droidbeauty.app.data.playback.invalidateNotificationArtworkCache
+import elovaire.music.droidbeauty.app.data.tags.AlbumTagArtworkInvalidator
+import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.CoroutineScope
@@ -54,7 +57,14 @@ class AppContainer(
         )
     }
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services, appDispatchers.io)
-    private val dependencies = AppDependencies(services, backgroundWorkPolicy, appDispatchers)
+    private val dependencies = AppDependencies(
+        services = services,
+        appDispatchers = appDispatchers,
+        artworkInvalidator = AlbumTagArtworkInvalidator { uris ->
+            invalidateArtworkCaches(uris)
+            invalidateNotificationArtworkCache(uris)
+        },
+    )
     val preferenceStore get() = services.preferenceStore
     internal val updateController get() = services.updateController
     internal val artistImageRepository get() = services.artistImageRepository

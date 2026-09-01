@@ -188,4 +188,12 @@ class PlaylistHelpersTest {
             imported,
         )
     }
+
+    @Test
+    fun unknownVersionAndDuplicateIdsAreHandledDeterministically() {
+        val duplicate = "1\u001FFirst\u001F1\u001Ffalse\u001E1\u001FSecond\u001F2\u001Ffalse"
+
+        assertEquals(listOf(Playlist(1L, "First", listOf(1L))), deserializePlaylists(duplicate))
+        assertTrue(deserializePlaylists("v99:$duplicate").isEmpty())
+    }
 }

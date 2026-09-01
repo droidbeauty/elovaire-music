@@ -1,4 +1,8 @@
 package elovaire.music.droidbeauty.app.ui.screens
+import elovaire.music.droidbeauty.app.ui.screens.common.ModuleCard
+import elovaire.music.droidbeauty.app.ui.screens.common.readableSecondaryTextColor
+import elovaire.music.droidbeauty.app.ui.screens.common.readableMutedIconColor
+import elovaire.music.droidbeauty.app.ui.screens.common.readableCardSurfaceColor
 
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.AnimatedVisibility

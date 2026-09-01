@@ -1,5 +1,6 @@
 package elovaire.music.droidbeauty.app.data.smartplaylists
 
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.Locale
 
@@ -15,7 +16,7 @@ internal object SmartPlaylistEngine {
         songs: List<Song>,
         favoriteSongIds: Set<Long>,
         playCounts: Map<Long, Int>,
-        nowMs: Long = System.currentTimeMillis(),
+        nowMs: Long = AndroidAppClock.wallTimeMs(),
     ): SmartPlaylistResult {
         val context = ResolutionContext(
             favoriteSongIds = favoriteSongIds,

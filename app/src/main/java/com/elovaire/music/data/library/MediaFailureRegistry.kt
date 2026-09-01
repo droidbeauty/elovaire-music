@@ -56,16 +56,16 @@ internal class MediaFailureRegistry(
     @Synchronized
     fun recordFailure(key: MediaFailureKey, category: MediaFailureCategory) {
         val previous = entries[key]
-        val attempts = (previous?.attempts ?: 0) + 1
-        val delayMs = when (attempts) {
-            1 -> 0L
-            2 -> FIRST_BACKOFF_MS
-            else -> (FIRST_BACKOFF_MS * (1L shl (attempts - 2).coerceAtMost(5))).coerceAtMost(MAX_BACKOFF_MS)
+        val attempts = if (previous?.category == category) {
+            (previous.attempts + 1).coerceAtMost(MAX_ATTEMPTS)
+        } else {
+            1
         }
+        val delayMs = mediaFailureRetryDelayMs(category, attempts)
         entries[key] = MediaFailureRecord(
             category = category,
             attempts = attempts,
-            nextRetryAtMs = nowMs() + delayMs,
+            nextRetryAtMs = saturatedAdd(nowMs(), delayMs),
         )
     }
 
@@ -89,8 +89,37 @@ internal class MediaFailureRegistry(
 
     companion object {
         private const val MAX_ENTRIES = 256
-        private const val FIRST_BACKOFF_MS = 30_000L
-        private const val MAX_BACKOFF_MS = 30L * 60L * 1_000L
+    }
+}
+
+private fun saturatedAdd(value: Long, amount: Long): Long {
+    return if (amount > 0L && value > Long.MAX_VALUE - amount) {
+        Long.MAX_VALUE
+    } else if (amount < 0L && value < Long.MIN_VALUE - amount) {
+        Long.MIN_VALUE
+    } else {
+        value + amount
+    }
+}
+
+internal fun mediaFailureRetryDelayMs(
+    category: MediaFailureCategory,
+    attempts: Int,
+): Long {
+    val safeAttempts = attempts.coerceIn(1, MAX_ATTEMPTS)
+    if (safeAttempts == 1) return 0L
+    val (baseDelayMs, maximumDelayMs) = when (category) {
+        MediaFailureCategory.TransientIo -> 30_000L to 30L * 60L * 1_000L
+        MediaFailureCategory.Resource -> 5_000L to 5L * 60L * 1_000L
+        MediaFailureCategory.Permission -> 5_000L to 60L * 60L * 1_000L
+        MediaFailureCategory.Missing -> 5L * 60L * 1_000L to 24L * 60L * 60L * 1_000L
+        MediaFailureCategory.Unsupported -> 30L * 60L * 1_000L to 7L * 24L * 60L * 60L * 1_000L
+        MediaFailureCategory.Malformed -> 10L * 60L * 1_000L to 6L * 60L * 60L * 1_000L
+        MediaFailureCategory.Unknown -> 30_000L to 30L * 60L * 1_000L
+    }
+    val multiplier = 1L shl (safeAttempts - 2).coerceAtMost(20)
+    return if (baseDelayMs > maximumDelayMs / multiplier) maximumDelayMs else {
+        (baseDelayMs * multiplier).coerceAtMost(maximumDelayMs)
     }
 }
 
@@ -103,3 +132,5 @@ internal fun mediaFailureCategory(failure: Throwable): MediaFailureCategory {
         else -> MediaFailureCategory.Unknown
     }
 }
+
+private const val MAX_ATTEMPTS = 1_000_000

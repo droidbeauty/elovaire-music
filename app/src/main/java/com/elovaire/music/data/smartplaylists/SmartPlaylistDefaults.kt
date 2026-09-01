@@ -1,9 +1,11 @@
 package elovaire.music.droidbeauty.app.data.smartplaylists
 
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+
 private const val DayMs = 24L * 60L * 60L * 1000L
 
 internal object SmartPlaylistDefaults {
-    fun builtIns(nowMs: Long = System.currentTimeMillis()): List<SmartPlaylist> {
+    fun builtIns(nowMs: Long = AndroidAppClock.wallTimeMs()): List<SmartPlaylist> {
         return listOf(
             SmartPlaylist(
                 id = -1L,
