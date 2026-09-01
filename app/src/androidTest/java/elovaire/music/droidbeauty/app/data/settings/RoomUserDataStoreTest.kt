@@ -141,6 +141,18 @@ class RoomUserDataStoreTest {
     }
 
     @Test
+    fun userDataRevisionAdvancesOnlyAfterAnAcceptedMutation() = runBlocking {
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+
+        assertEquals(0L, store.currentUserDataRevision)
+        val result = store.createPlaylist("Revisioned").await()
+
+        assertTrue(result is PlaylistMutationResult.Success)
+        assertEquals(1L, store.currentUserDataRevision)
+        store.release()
+    }
+
+    @Test
     fun legacyPlaylistStateMigratesBeforeNewMutationsAndIsClearedAfterCommit() = runBlocking {
         val legacyPlaylist = Playlist(
             id = 37L,

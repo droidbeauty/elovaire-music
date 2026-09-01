@@ -317,6 +317,7 @@ internal class AppServices(
             songs = libraryRepository.contentState.value.songs,
             createdAtMs = AndroidAppClock.wallTimeMs(),
             appVersion = BuildConfig.VERSION_NAME,
+            userDataRevision = userDataStore.currentUserDataRevision,
         )
     }
 

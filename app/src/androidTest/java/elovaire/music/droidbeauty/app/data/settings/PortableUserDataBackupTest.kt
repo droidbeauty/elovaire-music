@@ -10,6 +10,19 @@ import org.junit.Test
 
 class PortableUserDataBackupTest {
     @Test
+    fun userDataRevisionRoundTripsWithPortablePayload() {
+        val bytes = encodePortableUserData(
+            snapshot = UserDataSnapshot(),
+            songs = emptyList(),
+            createdAtMs = 100L,
+            appVersion = "test",
+            userDataRevision = 42L,
+        )
+
+        assertEquals(42L, requireNotNull(decodePortableUserData(bytes)).userDataRevision)
+    }
+
+    @Test
     fun backupRebindsPlaylistFavoritesCountsAndRecentsToNewMediaIds() {
         val oldSong = song(id = 1L)
         val backup = encodePortableUserData(

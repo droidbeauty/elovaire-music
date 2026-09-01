@@ -7,6 +7,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.junit.runner.RunWith
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 @RunWith(AndroidJUnit4::class)
 class UsbDacHardwareVolumeManagerTest {
@@ -17,6 +19,7 @@ class UsbDacHardwareVolumeManagerTest {
             audioManager = null,
             usbManager = null,
             usbHostSupported = false,
+            scope = CoroutineScope(Dispatchers.Default),
         )
         val initial = manager.status.value
 

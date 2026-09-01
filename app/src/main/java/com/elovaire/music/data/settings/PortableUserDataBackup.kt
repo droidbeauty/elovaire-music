@@ -38,8 +38,15 @@ internal class PortableUserDataBackup(
         snapshot: UserDataSnapshot,
         songs: List<Song>,
         appVersion: String = BuildConfig.VERSION_NAME,
+        userDataRevision: Long = 0L,
     ) = synchronized(lock) {
-        val bytes = encodePortableUserData(snapshot, songs, clock.wallTimeMs(), appVersion)
+        val bytes = encodePortableUserData(
+            snapshot = snapshot,
+            songs = songs,
+            createdAtMs = clock.wallTimeMs(),
+            appVersion = appVersion,
+            userDataRevision = userDataRevision,
+        )
         val output = atomicFile.startWrite()
         try {
             output.write(bytes)
@@ -68,6 +75,7 @@ internal class PortableUserDataBackup(
 internal data class PortableUserData(
     val createdAtMs: Long,
     val appVersion: String,
+    val userDataRevision: Long = 0L,
     val playlists: List<PortablePlaylist>,
     val smartPlaylists: List<SmartPlaylist>,
     val favoriteSongs: List<TrackMatchIdentity>,
@@ -96,6 +104,7 @@ internal fun encodePortableUserData(
     songs: List<Song>,
     createdAtMs: Long,
     appVersion: String,
+    userDataRevision: Long = 0L,
 ): ByteArray {
     require(appVersion.length <= MAX_APP_VERSION_CHARS)
     val songsById = songs.associateBy(Song::id)
@@ -107,6 +116,7 @@ internal fun encodePortableUserData(
         .put(KEY_SCHEMA_VERSION, FORMAT_VERSION)
         .put(KEY_CREATED_AT_MS, createdAtMs.coerceAtLeast(0L))
         .put(KEY_APP_VERSION, appVersion)
+        .put(KEY_USER_DATA_REVISION, userDataRevision.coerceAtLeast(0L))
         .put(
             KEY_PLAYLISTS,
             JSONArray().apply {
@@ -148,7 +158,7 @@ internal fun encodePortableUserData(
                 snapshot.recentSongIds.mapNotNull(::reference).map(TrackMatchIdentity::toJson).forEach(::put)
             },
         )
-    val withChecksum = root.put(KEY_CHECKSUM, portableUserDataChecksum(root))
+    val withChecksum = root.put(KEY_CHECKSUM, portableUserDataChecksum(root, CHECKSUM_KEYS_V2))
     return withChecksum.toString().toByteArray(StandardCharsets.UTF_8).also { bytes ->
         require(bytes.size <= MAX_FILE_BYTES) { "Portable user-data backup is too large." }
     }
@@ -157,8 +167,13 @@ internal fun encodePortableUserData(
 internal fun decodePortableUserData(bytes: ByteArray): PortableUserData? {
     if (bytes.isEmpty() || bytes.size > MAX_FILE_BYTES) return null
     val root = runCatching { JSONObject(bytes.toString(StandardCharsets.UTF_8)) }.getOrNull() ?: return null
-    if (root.optInt(KEY_SCHEMA_VERSION, 0) != FORMAT_VERSION) return null
-    if (root.optString(KEY_CHECKSUM) != portableUserDataChecksum(root)) return null
+    val schemaVersion = root.optInt(KEY_SCHEMA_VERSION, 0)
+    val checksumKeys = when (schemaVersion) {
+        LEGACY_FORMAT_VERSION -> CHECKSUM_KEYS_V1
+        FORMAT_VERSION -> CHECKSUM_KEYS_V2
+        else -> return null
+    }
+    if (root.optString(KEY_CHECKSUM) != portableUserDataChecksum(root, checksumKeys)) return null
     val appVersion = root.optString(KEY_APP_VERSION).takeIf { it.length <= MAX_APP_VERSION_CHARS } ?: return null
     val playlists = root.optJSONArray(KEY_PLAYLISTS)?.let { array ->
         buildList {
@@ -189,6 +204,11 @@ internal fun decodePortableUserData(bytes: ByteArray): PortableUserData? {
     return PortableUserData(
         createdAtMs = root.optLong(KEY_CREATED_AT_MS, 0L).coerceAtLeast(0L),
         appVersion = appVersion,
+        userDataRevision = if (schemaVersion == LEGACY_FORMAT_VERSION) {
+            0L
+        } else {
+            root.optLong(KEY_USER_DATA_REVISION, -1L).takeIf { it >= 0L } ?: return null
+        },
         playlists = playlists,
         smartPlaylists = smartPlaylists,
         favoriteSongs = favoriteSongs,
@@ -312,8 +332,8 @@ private fun JSONObject.optNullableString(key: String): String? {
     return if (isNull(key)) null else optString(key).takeIf(String::isNotBlank)
 }
 
-private fun portableUserDataChecksum(root: JSONObject): String {
-    val canonical = CHECKSUM_KEYS.joinToString("\n") { key ->
+private fun portableUserDataChecksum(root: JSONObject, keys: List<String>): String {
+    val canonical = keys.joinToString("\n") { key ->
         val value = root.opt(key)?.toString().orEmpty()
         "$key:${value.length}:$value"
     }
@@ -323,7 +343,8 @@ private fun portableUserDataChecksum(root: JSONObject): String {
 }
 
 private const val DEFAULT_FILE_NAME = "portable_user_data_v1.json"
-private const val FORMAT_VERSION = 1
+private const val LEGACY_FORMAT_VERSION = 1
+private const val FORMAT_VERSION = 2
 private const val MAX_FILE_BYTES = 4L * 1024L * 1024L
 private const val MAX_PLAYLIST_COUNT = 2_048
 private const val MAX_REFERENCE_COUNT = 100_000
@@ -333,6 +354,7 @@ private const val MAX_PLAYLIST_NAME_CHARS = 4_096
 private const val KEY_SCHEMA_VERSION = "schema_version"
 private const val KEY_CREATED_AT_MS = "created_at_ms"
 private const val KEY_APP_VERSION = "app_version"
+private const val KEY_USER_DATA_REVISION = "user_data_revision"
 private const val KEY_PLAYLISTS = "playlists"
 private const val KEY_SMART_PLAYLISTS = "smart_playlists"
 private const val KEY_FAVORITES = "favorites"
@@ -354,7 +376,7 @@ private const val KEY_ALBUM_ARTIST = "album_artist"
 private const val KEY_FILE_NAME = "file_name"
 private const val KEY_TRACK = "track"
 private const val KEY_DISC = "disc"
-private val CHECKSUM_KEYS = listOf(
+private val CHECKSUM_KEYS_V1 = listOf(
     KEY_SCHEMA_VERSION,
     KEY_CREATED_AT_MS,
     KEY_APP_VERSION,
@@ -364,3 +386,4 @@ private val CHECKSUM_KEYS = listOf(
     KEY_SONG_COUNTS,
     KEY_RECENT_SONGS,
 )
+private val CHECKSUM_KEYS_V2 = CHECKSUM_KEYS_V1 + KEY_USER_DATA_REVISION

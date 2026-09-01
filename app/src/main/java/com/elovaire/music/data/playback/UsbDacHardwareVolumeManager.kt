@@ -22,6 +22,16 @@ import java.nio.ByteOrder
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal class UsbDacHardwareVolumeManager(
     context: Context,
@@ -29,6 +39,8 @@ internal class UsbDacHardwareVolumeManager(
     private val usbManager: UsbManager?,
     private val parser: UsbAudioClassVolumeParser = UsbAudioClassVolumeParser(),
     private val usbHostSupported: Boolean = context.packageManager.hasSystemFeature(PackageManager.FEATURE_USB_HOST),
+    scope: CoroutineScope,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val appContext = context.applicationContext
     private val controller = UsbDacHardwareVolumeController()
@@ -42,15 +54,21 @@ internal class UsbDacHardwareVolumeManager(
 
     private var currentAudioDeviceDescriptor: UsbAudioDeviceDescriptor? = null
     private var currentAudioDeviceFingerprint: UsbAudioDeviceRoutingFingerprint? = null
-    private var currentUsbDevice: UsbDevice? = null
-    private var currentCapability: UsbDacHardwareVolumeCapability? = null
+    @Volatile private var currentUsbDevice: UsbDevice? = null
+    @Volatile private var currentCapability: UsbDacHardwareVolumeCapability? = null
     private var permissionReceiverRegistered = false
-    private var pendingRequestedVolume: Float? = null
+    @Volatile private var pendingRequestedVolume: Float? = null
     private val capabilityCache = UsbDacCapabilityCache()
     private var currentDeviceCacheKey: String? = null
     private var connectionGeneration = 0L
-    private var currentConnection: UsbDacConnectionToken? = null
-    private var released = false
+    @Volatile private var currentConnection: UsbDacConnectionToken? = null
+    @Volatile private var released = false
+    @Volatile private var inspectionJob: Job? = null
+    @Volatile private var volumeWriteJob: Job? = null
+    private val volumeWriteMutex = Mutex()
+    private val inspectionScope = CoroutineScope(
+        scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]) + ioDispatcher,
+    )
 
     private val permissionReceiver = object : BroadcastReceiver() {
         override fun onReceive(
@@ -156,6 +174,8 @@ internal class UsbDacHardwareVolumeManager(
             connection.deviceId != usbDevice.deviceId ||
             connection.identityKey != identity.persistenceKey()
         ) {
+            inspectionJob?.cancel()
+            inspectionJob = null
             connectionGeneration += 1L
             currentConnection = UsbDacConnectionToken(
                 generation = connectionGeneration,
@@ -181,7 +201,7 @@ internal class UsbDacHardwareVolumeManager(
         if (usbManager?.hasPermission(usbDevice) != true) {
             return
         }
-        inspectCurrentUsbDevice(usbDevice, identity, currentConnection)
+        scheduleInspection(usbDevice, identity, currentConnection)
     }
 
     fun updateAudioOutputDevice(
@@ -200,6 +220,7 @@ internal class UsbDacHardwareVolumeManager(
         if (released) return
         released = true
         clearCurrentDevice()
+        inspectionScope.cancel()
         if (permissionReceiverRegistered) {
             runCatching { appContext.unregisterReceiver(permissionReceiver) }
             permissionReceiverRegistered = false
@@ -229,46 +250,32 @@ internal class UsbDacHardwareVolumeManager(
             return true
         }
         val capability = currentCapability ?: run {
-            inspectCurrentUsbDevice(usbDevice, usbDevice.toIdentity(), connectionToken)
-            currentCapability ?: return false
+            pendingRequestedVolume = normalizedValue.coerceIn(0f, 1f)
+            scheduleInspection(usbDevice, usbDevice.toIdentity(), connectionToken)
+            return false
         }
         if (!capability.canWriteVolume) {
             controller.onHardwareVolumeUnsupported("DAC volume is read-only")
             publishStatus("read-only")
             return false
         }
-        val beforeSystemVolume = currentSystemMediaVolume()
-        val targetRaw = UsbDacHardwareVolumeMath.normalizedToRaw(
+        scheduleVolumeWrite(
+            usbDevice = usbDevice,
+            capability = capability,
+            connectionToken = connectionToken,
             normalizedValue = normalizedValue,
-            range = capability.range,
         )
-        val applied = performVolumeWrite(usbDevice, capability, targetRaw, connectionToken)
-        val afterSystemVolume = currentSystemMediaVolume()
-        logDebug(
-            "event=set identity=${capability.identity.persistenceKey()} api=${Build.VERSION.SDK_INT} " +
-                "supported=true min=${capability.range.minRaw} max=${capability.range.maxRaw} res=${capability.range.stepRaw} " +
-                "master=${capability.usesMasterChannel} current=${status.value.currentNormalizedVolume ?: -1f} " +
-                "requested=$normalizedValue appliedRaw=$targetRaw systemBefore=$beforeSystemVolume systemAfter=$afterSystemVolume",
-        )
-        if (applied) {
-            controller.onHardwareVolumeApplied(targetRaw)
-            storePerDeviceVolume(capability.identity, normalizedValue)
-            publishStatus("volume-applied")
-        } else {
-            controller.onHardwareVolumeWriteFailed("Hardware volume write failed")
-            publishStatus("volume-write-failed")
-        }
         return true
     }
 
     fun increaseHardwareVolume(): Boolean {
-        val current = status.value.currentNormalizedVolume ?: return false
+        val current = pendingRequestedVolume ?: status.value.currentNormalizedVolume ?: return false
         val step = currentHardwareStepNormalized() ?: DEFAULT_NORMALIZED_STEP
         return setHardwareVolume((current + step).coerceIn(0f, 1f))
     }
 
     fun decreaseHardwareVolume(): Boolean {
-        val current = status.value.currentNormalizedVolume ?: return false
+        val current = pendingRequestedVolume ?: status.value.currentNormalizedVolume ?: return false
         val step = currentHardwareStepNormalized() ?: DEFAULT_NORMALIZED_STEP
         return setHardwareVolume((current - step).coerceIn(0f, 1f))
     }
@@ -287,6 +294,7 @@ internal class UsbDacHardwareVolumeManager(
         if (!isCurrentConnection(expectedConnection, usbDevice, identity)) return
         val connection = runCatching { usbManager?.openDevice(usbDevice) }.getOrNull()
         if (connection == null) {
+            if (!isCurrentConnection(expectedConnection, usbDevice, identity)) return
             controller.onHardwareVolumeUnavailable("Unable to open USB device")
             publishStatus("open-failed")
             return
@@ -345,9 +353,69 @@ internal class UsbDacHardwareVolumeManager(
                 )
                 publishStatus("supported")
             }
-        }.onFailure {
+        }.onFailure { failure ->
+            if (failure is CancellationException) throw failure
+            if (!isCurrentConnection(expectedConnection, usbDevice, identity)) return@onFailure
             controller.onHardwareVolumeUnavailable("Unable to inspect USB device")
             publishStatus("inspect-failed")
+        }
+    }
+
+    private fun scheduleInspection(
+        usbDevice: UsbDevice,
+        identity: UsbDacDeviceIdentity,
+        expectedConnection: UsbDacConnectionToken?,
+    ) {
+        if (!isCurrentConnection(expectedConnection, usbDevice, identity)) return
+        inspectionJob?.cancel()
+        inspectionJob = inspectionScope.launch {
+            inspectCurrentUsbDevice(usbDevice, identity, expectedConnection)
+            if (isCurrentConnection(expectedConnection, usbDevice, identity) && currentCapability != null) {
+                pendingRequestedVolume?.let { requested ->
+                    pendingRequestedVolume = null
+                    setHardwareVolume(requested)
+                }
+            }
+        }
+    }
+
+    private fun scheduleVolumeWrite(
+        usbDevice: UsbDevice,
+        capability: UsbDacHardwareVolumeCapability,
+        connectionToken: UsbDacConnectionToken,
+        normalizedValue: Float,
+    ) {
+        val requested = normalizedValue.coerceIn(0f, 1f)
+        pendingRequestedVolume = requested
+        volumeWriteJob?.cancel()
+        volumeWriteJob = inspectionScope.launch {
+            volumeWriteMutex.withLock {
+                val beforeSystemVolume = currentSystemMediaVolume()
+                val targetRaw = UsbDacHardwareVolumeMath.normalizedToRaw(
+                    normalizedValue = requested,
+                    range = capability.range,
+                )
+                val applied = performVolumeWrite(usbDevice, capability, targetRaw, connectionToken)
+                val afterSystemVolume = currentSystemMediaVolume()
+                if (!isCurrentConnection(connectionToken, usbDevice, capability.identity)) return@withLock
+                val stillLatest = pendingRequestedVolume == requested
+                logDebug(
+                    "event=set identity=${capability.identity.persistenceKey()} api=${Build.VERSION.SDK_INT} " +
+                        "supported=true min=${capability.range.minRaw} max=${capability.range.maxRaw} res=${capability.range.stepRaw} " +
+                        "master=${capability.usesMasterChannel} current=${status.value.currentNormalizedVolume ?: -1f} " +
+                        "requested=$requested appliedRaw=$targetRaw systemBefore=$beforeSystemVolume systemAfter=$afterSystemVolume",
+                )
+                if (applied && stillLatest) {
+                    controller.onHardwareVolumeApplied(targetRaw)
+                    storePerDeviceVolume(capability.identity, requested)
+                    pendingRequestedVolume = null
+                    publishStatus("volume-applied")
+                } else if (!applied && stillLatest) {
+                    pendingRequestedVolume = null
+                    controller.onHardwareVolumeWriteFailed("Hardware volume write failed")
+                    publishStatus("volume-write-failed")
+                }
+            }
         }
     }
 
@@ -566,6 +634,10 @@ internal class UsbDacHardwareVolumeManager(
     }
 
     private fun invalidateCurrentConnection() {
+        inspectionJob?.cancel()
+        inspectionJob = null
+        volumeWriteJob?.cancel()
+        volumeWriteJob = null
         connectionGeneration += 1L
         currentConnection = null
         currentUsbDevice = null

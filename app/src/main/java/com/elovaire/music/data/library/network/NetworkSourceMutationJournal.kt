@@ -77,13 +77,19 @@ internal class NetworkSourceMutationJournal(context: Context) {
 
     private fun write(marker: NetworkSourceMutationMarker) {
         synchronized(lock) {
-            writeLocked(readLocked().filterNot { it.sourceId == marker.sourceId } + marker)
+            val current = readLocked()
+            val replacingExisting = current.any { it.sourceId == marker.sourceId }
+            check(replacingExisting || current.size < MAX_MARKERS) {
+                "Network source mutation journal is full"
+            }
+            writeLocked(current.filterNot { it.sourceId == marker.sourceId } + marker)
         }
     }
 
     private fun writeLocked(markers: List<NetworkSourceMutationMarker>) {
+        check(markers.size <= MAX_MARKERS) { "Network source mutation journal is full" }
         val array = JSONArray()
-        markers.take(MAX_MARKERS).forEach { marker ->
+        markers.forEach { marker ->
             array.put(
                 JSONObject()
                     .put("sourceId", marker.sourceId)

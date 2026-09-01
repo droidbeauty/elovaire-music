@@ -204,6 +204,7 @@ class PlaybackManager(
         context = appContext,
         audioManager = audioManager,
         usbManager = usbManager,
+        scope = scope,
     )
     private val bitPerfectUsbManager = BitPerfectUsbManager(
         audioManager = audioManager,

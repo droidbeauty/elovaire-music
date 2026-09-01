@@ -85,6 +85,9 @@ internal class RoomUserDataStore(
     private val released = AtomicBoolean(false)
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
+    private val userDataRevision = AtomicLong(
+        preferences.getLong(USER_DATA_REVISION_KEY, 0L).coerceAtLeast(0L),
+    )
     private val recoveryWriteFailureReported = AtomicBoolean(false)
     private val lastRecoverySnapshot = AtomicReference<UserDataSnapshot?>(null)
     private val recoveryWriteMutex = Mutex()
@@ -131,6 +134,9 @@ internal class RoomUserDataStore(
     override val lastPlayedCollectionKind get() = playbackHistoryStore.lastPlayedCollectionKind
     override val lastPlayedCollectionId get() = playbackHistoryStore.lastPlayedCollectionId
     override val searchHistory get() = searchHistoryStore.searchHistory
+
+    internal val currentUserDataRevision: Long
+        get() = userDataRevision.get()
 
     // Start only after every state flow is initialized. The actor may run on another
     // thread immediately, so starting it during an earlier property initializer can
@@ -560,6 +566,7 @@ internal class RoomUserDataStore(
             check(dao.migrationComplete(MIGRATION_ID))
             clearLegacyUserData(preferences)
             val snapshot = loadSnapshot()
+            establishUserDataRevision(legacy, snapshot)
             publishSnapshot(snapshot)
             persistRecoverySnapshot(snapshot)
         } catch (failure: CancellationException) {
@@ -592,6 +599,7 @@ internal class RoomUserDataStore(
                 ),
             )
             val restored = loadSnapshot()
+            establishUserDataRevision(UserDataSnapshot(), restored)
             publishSnapshot(restored)
             persistRecoverySnapshot(restored)
             true
@@ -764,12 +772,11 @@ internal class RoomUserDataStore(
         if (_favoriteSongIds.value != normalized) _favoriteSongIds.value = normalized
     }
 
-    private fun enqueue(name: String, operation: suspend () -> Unit) {
-        tryEnqueue(RoomOperation(name, operation))
-    }
-
     private fun enqueueCoalesced(name: String, operation: suspend () -> Unit) {
-        tryEnqueue(RoomOperation(name, operation), coalescible = true)
+        tryEnqueue(
+            RoomOperation(name, operation, advancesUserDataRevision = true),
+            coalescible = true,
+        )
     }
 
     private fun schedulePendingCoalescedWrites() {
@@ -794,6 +801,7 @@ internal class RoomUserDataStore(
                 resultProvider = {
                     mutationResult.get() ?: PlaylistMutationResult.Failure("Mutation did not produce a result.")
                 },
+                advancesUserDataRevision = true,
             ),
         )
         if (!accepted) {
@@ -855,6 +863,7 @@ internal class RoomUserDataStore(
     private suspend fun runOperation(operation: RoomOperation) {
         try {
             operation.block()
+            if (operation.advancesUserDataRevision) advanceUserDataRevision()
             val snapshot = currentSnapshot()
             publishSnapshot(snapshot)
             persistRecoverySnapshot(snapshot)
@@ -935,6 +944,27 @@ internal class RoomUserDataStore(
         return nextId.getAndUpdate(::nextPersistentUserDataId)
     }
 
+    private fun establishUserDataRevision(
+        legacy: UserDataSnapshot,
+        snapshot: UserDataSnapshot,
+    ) {
+        if (userDataRevision.get() != 0L) return
+        val recovery = recoverySnapshot?.read()
+        val hasExistingData = legacy != UserDataSnapshot() || snapshot != UserDataSnapshot() ||
+            recovery != null && recovery != UserDataSnapshot()
+        if (hasExistingData) advanceUserDataRevision()
+    }
+
+    private fun advanceUserDataRevision() {
+        val current = userDataRevision.get()
+        check(current < Long.MAX_VALUE) { "User-data revision space is exhausted." }
+        val next = current + 1L
+        check(preferences.edit().putLong(USER_DATA_REVISION_KEY, next).commit()) {
+            "Unable to persist user-data revision"
+        }
+        userDataRevision.set(next)
+    }
+
     private companion object {
         const val TAG = "RoomUserDataStore"
         const val MIGRATION_ID = "shared_preferences_domain_data_v1"
@@ -942,6 +972,7 @@ internal class RoomUserDataStore(
         const val RECENT_KIND_ALBUM = "album"
         const val MAX_OPERATION_QUEUE_DEPTH = 128
         const val RECOVERY_CHECKPOINT_COALESCE_DELAY_MS = 750L
+        const val USER_DATA_REVISION_KEY = "user_data_revision"
     }
 }
 
@@ -965,6 +996,7 @@ private data class RoomOperation(
     val block: suspend () -> Unit,
     val completion: CompletableDeferred<PlaylistMutationResult>? = null,
     val resultProvider: (() -> PlaylistMutationResult)? = null,
+    val advancesUserDataRevision: Boolean = false,
 )
 
 internal fun nextPersistentUserDataId(current: Long): Long {

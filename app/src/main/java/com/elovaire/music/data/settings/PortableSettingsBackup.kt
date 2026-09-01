@@ -108,7 +108,7 @@ internal class PortableSettingsBackup(
             editor.putInt(BACKUP_FORMAT_VERSION_KEY, BACKUP_FORMAT_VERSION)
             editor.putString(BACKUP_CHECKSUM_KEY, checksum)
             editor.putLong(BACKUP_CREATED_AT_KEY, clock.wallTimeMs())
-            editor.apply()
+            check(editor.commit()) { "Unable to persist portable settings backup" }
         }
     }
 

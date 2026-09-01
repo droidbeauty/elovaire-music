@@ -196,7 +196,7 @@ internal class UsbDacHardwareVolumeController {
     private var lastReason: String? = null
     private var state: UsbDacHardwareVolumeState = UsbDacHardwareVolumeState.NoExternalDac
 
-    fun status(): UsbDacHardwareVolumeStatus {
+    @Synchronized fun status(): UsbDacHardwareVolumeStatus {
         return UsbDacHardwareVolumeStatus(
             state = state,
             currentNormalizedVolume = currentNormalizedVolume,
@@ -207,7 +207,7 @@ internal class UsbDacHardwareVolumeController {
         )
     }
 
-    fun onNoExternalDac() {
+    @Synchronized fun onNoExternalDac() {
         capability = null
         currentNormalizedVolume = null
         identity = null
@@ -215,7 +215,7 @@ internal class UsbDacHardwareVolumeController {
         state = UsbDacHardwareVolumeState.NoExternalDac
     }
 
-    fun onExternalDacDetected(identity: UsbDacDeviceIdentity?) {
+    @Synchronized fun onExternalDacDetected(identity: UsbDacDeviceIdentity?) {
         capability = null
         currentNormalizedVolume = null
         this.identity = identity
@@ -223,21 +223,21 @@ internal class UsbDacHardwareVolumeController {
         state = UsbDacHardwareVolumeState.ExternalDacDetected
     }
 
-    fun onHardwareVolumeUnavailable(reason: String) {
+    @Synchronized fun onHardwareVolumeUnavailable(reason: String) {
         capability = null
         currentNormalizedVolume = null
         lastReason = reason
         state = UsbDacHardwareVolumeState.HardwareVolumeUnavailable
     }
 
-    fun onHardwareVolumeUnsupported(reason: String) {
+    @Synchronized fun onHardwareVolumeUnsupported(reason: String) {
         capability = null
         currentNormalizedVolume = null
         lastReason = reason
         state = UsbDacHardwareVolumeState.HardwareVolumeUnsupported
     }
 
-    fun onHardwareVolumeSupported(
+    @Synchronized fun onHardwareVolumeSupported(
         capability: UsbDacHardwareVolumeCapability,
         currentRawValue: Int?,
     ) {
@@ -252,14 +252,14 @@ internal class UsbDacHardwareVolumeController {
         }
     }
 
-    fun onHardwareVolumeApplied(appliedRawValue: Int) {
+    @Synchronized fun onHardwareVolumeApplied(appliedRawValue: Int) {
         val currentCapability = capability ?: return
         currentNormalizedVolume = UsbDacHardwareVolumeMath.rawToNormalized(appliedRawValue, currentCapability.range)
         state = UsbDacHardwareVolumeState.HardwareVolumeActive
         lastReason = null
     }
 
-    fun onHardwareVolumeWriteFailed(reason: String) {
+    @Synchronized fun onHardwareVolumeWriteFailed(reason: String) {
         lastReason = reason
         val currentCapability = capability
         state = when {
@@ -273,10 +273,10 @@ internal class UsbDacHardwareVolumeController {
         }
     }
 
-    fun onError(message: String) {
+    @Synchronized fun onError(message: String) {
         lastReason = message
         state = UsbDacHardwareVolumeState.Error(message)
     }
 
-    fun currentCapability(): UsbDacHardwareVolumeCapability? = capability
+    @Synchronized fun currentCapability(): UsbDacHardwareVolumeCapability? = capability
 }
