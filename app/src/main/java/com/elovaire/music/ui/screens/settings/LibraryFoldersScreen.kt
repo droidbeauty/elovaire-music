@@ -994,14 +994,20 @@ private fun LibraryFolderListRow(
     )
 }
 
-private fun List<Song>.countInFolder(folder: LibraryFolderSelection): Int {
-    val folderPath = folder.uri
-        ?.let(LibraryFolderSelectionResolver::safSyntheticRoot)
-        ?: LibraryFolderSelectionResolver.normalizedPathKey(folder.path)
-    if (folderPath.isBlank()) return 0
+internal fun List<Song>.countInFolder(folder: LibraryFolderSelection): Int {
+    val folderPaths = buildSet<String> {
+        folder.uri?.let { add(LibraryFolderSelectionResolver.safSyntheticRoot(it)) }
+        folder.path
+            .takeUnless(LibraryFolderSelectionResolver::isUriBackedPath)
+            ?.takeIf(String::isNotBlank)
+            ?.let { add(LibraryFolderSelectionResolver.normalizedPathKey(it)) }
+    }
+    if (folderPaths.isEmpty()) return 0
     return count { song ->
         val songPath = song.libraryPath?.let(LibraryFolderSelectionResolver::normalizedPathKey) ?: return@count false
-        songPath == folderPath || songPath.startsWith("$folderPath/")
+        folderPaths.any { folderPath ->
+            songPath == folderPath || songPath.startsWith("$folderPath/")
+        }
     }
 }
 

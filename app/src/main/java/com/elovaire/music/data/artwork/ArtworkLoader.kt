@@ -20,6 +20,7 @@ import java.io.Closeable
 import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
+import java.util.LinkedHashMap
 import java.util.Locale
 import java.util.TreeMap
 import java.util.concurrent.CompletableFuture
@@ -477,4 +478,45 @@ internal object ArtworkBitmapCache {
 
 internal fun invalidateArtworkBitmapCache(uris: Collection<String>) {
     ArtworkBitmapCache.removeAllMatchingUris(uris)
+}
+
+/** Presentation-independent artwork cache for colors derived from the same media artwork. */
+internal object ArtworkGradientCache {
+    private const val MAX_GRADIENTS = 160
+    private val gradients = object : LinkedHashMap<String, List<Int>>(MAX_GRADIENTS, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Int>>?): Boolean {
+            return size > MAX_GRADIENTS
+        }
+    }
+
+    @Synchronized
+    fun gradient(key: String): List<Int>? = gradients[key]
+
+    @Synchronized
+    fun putGradient(key: String, gradient: List<Int>) {
+        gradients[key] = gradient
+    }
+
+    @Synchronized
+    fun removeMatching(uriKeys: Set<String>) {
+        if (uriKeys.isEmpty()) return
+        val iterator = gradients.entries.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (uriKeys.any { uriKey -> entry.key.startsWith("$uriKey|") }) {
+                iterator.remove()
+            }
+        }
+    }
+}
+
+internal fun invalidateArtworkCaches(uris: Collection<Uri?>) {
+    val keys = uris
+        .filterNotNull()
+        .map(Uri::toString)
+        .filter(String::isNotBlank)
+        .toSet()
+    if (keys.isEmpty()) return
+    invalidateArtworkBitmapCache(keys)
+    ArtworkGradientCache.removeMatching(keys)
 }

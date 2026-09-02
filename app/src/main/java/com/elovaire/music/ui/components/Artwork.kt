@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.compositeOver
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
@@ -38,16 +39,16 @@ import androidx.palette.graphics.Palette
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkBitmapCache
+import elovaire.music.droidbeauty.app.data.artwork.ArtworkGradientCache
 import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
+import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkCaches as invalidateDataArtworkCaches
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
-import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.artwork.normalizeArtworkRequestSize
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
 import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.util.LinkedHashMap
 
 @Composable
 fun ArtworkImage(
@@ -191,18 +192,19 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
     val foundation = MaterialTheme.colorScheme.background
     val cacheKey = rememberGradientCacheKey(uri, 512)
     return produceState(
-        initialValue = ArtworkGradientCache.gradient(cacheKey) ?: defaultArtworkGradient(fallbackColor, foundation),
+        initialValue = ArtworkGradientCache.gradient(cacheKey)?.toComposeColors()
+            ?: defaultArtworkGradient(fallbackColor, foundation),
         key1 = uri,
     ) {
         val cached = ArtworkGradientCache.gradient(cacheKey)
         if (cached != null) {
-            value = cached
+            value = cached.toComposeColors()
             return@produceState
         }
         value = withContext(Dispatchers.IO) {
             val bitmap = loadArtworkBitmap(context, uri, 512)
             (bitmap?.let { paletteFromBitmap(it, foundation) } ?: defaultArtworkGradient(fallbackColor, foundation)).also { gradient ->
-                ArtworkGradientCache.putGradient(cacheKey, gradient)
+                ArtworkGradientCache.putGradient(cacheKey, gradient.map { it.toArgb() })
             }
         }
     }
@@ -242,15 +244,10 @@ private fun mutedPaletteColor(rgb: Int): Color {
 }
 
 internal fun invalidateArtworkCaches(uris: Collection<Uri?>) {
-    val keys = uris
-        .filterNotNull()
-        .map(Uri::toString)
-        .filter(String::isNotBlank)
-        .toSet()
-    if (keys.isEmpty()) return
-    invalidateArtworkBitmapCache(keys)
-    ArtworkGradientCache.removeMatching(keys)
+    invalidateDataArtworkCaches(uris)
 }
+
+private fun List<Int>.toComposeColors(): List<Color> = map(::Color)
 
 private fun rememberGradientCacheKey(
     uri: Uri?,
@@ -308,36 +305,4 @@ private fun defaultArtworkGradient(
     val softened = base.copy(alpha = 0.16f).compositeOver(foundation)
     val accent = base.copy(alpha = 0.08f).compositeOver(foundation)
     return listOf(softened, foundation, accent)
-}
-
-private object ArtworkGradientCache {
-    private const val MAX_GRADIENTS = 160
-    private val gradients = object : LinkedHashMap<String, List<Color>>(MAX_GRADIENTS, 0.75f, true) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<Color>>?): Boolean {
-            return size > MAX_GRADIENTS
-        }
-    }
-
-    @Synchronized
-    fun gradient(key: String): List<Color>? = gradients[key]
-
-    @Synchronized
-    fun putGradient(
-        key: String,
-        gradient: List<Color>,
-    ) {
-        gradients[key] = gradient
-    }
-
-    @Synchronized
-    fun removeMatching(uriKeys: Set<String>) {
-        if (uriKeys.isEmpty()) return
-        val iterator = gradients.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (uriKeys.any { uriKey -> entry.key.startsWith("$uriKey|") }) {
-                iterator.remove()
-            }
-        }
-    }
 }

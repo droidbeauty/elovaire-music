@@ -12,7 +12,6 @@ import elovaire.music.droidbeauty.app.data.artwork.ArtworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.encodeArtworkForMediaSession
-import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -140,7 +139,3 @@ private fun loadBitmap(
 
 private const val NOTIFICATION_ARTWORK_SIZE_PX = 1024
 private const val TAG = "NotificationArtwork"
-
-internal fun removeNotificationArtworkForUris(uris: Collection<String>) {
-    invalidateArtworkBitmapCache(uris)
-}

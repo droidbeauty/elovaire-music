@@ -17,6 +17,9 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         sourceFiles.files.filter { it.isFile }.forEach { file ->
             val path = normalizeGuardrailPath(file.invariantSeparatorsPath)
             val text = file.readText()
+            if (coreImportsUi(path, text)) {
+                violations += "$path makes the application core depend on a UI implementation"
+            }
             if (
                 "/domain/kernel/" in path &&
                 (Regex("(?m)^import android(?:x)?[.]").containsMatchIn(text) || "elovaire.music.droidbeauty.app.data." in text)

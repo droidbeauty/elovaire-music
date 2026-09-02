@@ -4,7 +4,6 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.net.Uri
 import androidx.core.app.NotificationCompat
 import androidx.media3.common.Player
 import androidx.media3.common.util.NotificationUtil
@@ -22,15 +21,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
 const val EXTRA_OPEN_PLAYER_FROM_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.OPEN_PLAYER_FROM_NOTIFICATION"
-
-internal fun invalidateNotificationArtworkCache(uris: Collection<Uri?>) {
-    val keys = uris
-        .filterNotNull()
-        .map(Uri::toString)
-        .filter(String::isNotBlank)
-    if (keys.isEmpty()) return
-    removeNotificationArtworkForUris(keys)
-}
 
 @UnstableApi
 class PlaybackNotificationController(

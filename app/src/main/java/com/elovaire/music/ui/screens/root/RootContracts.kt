@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.ui.screens
 
-import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import androidx.annotation.DrawableRes
@@ -373,20 +372,6 @@ internal fun defaultLibraryPickerUri(preferredUri: Uri? = null): Uri? {
             "primary:",
         )
     }.getOrNull()
-}
-
-internal fun createLibraryFolderPickerIntent(initialUri: Uri?): Intent {
-    return Intent(Intent.ACTION_OPEN_DOCUMENT_TREE).apply {
-        addFlags(
-            Intent.FLAG_GRANT_READ_URI_PERMISSION or
-                Intent.FLAG_GRANT_WRITE_URI_PERMISSION or
-                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION or
-                Intent.FLAG_GRANT_PREFIX_URI_PERMISSION,
-        )
-        if (initialUri != null) {
-            putExtra(DocumentsContract.EXTRA_INITIAL_URI, initialUri)
-        }
-    }
 }
 
 internal enum class AlbumLayoutMode {
