@@ -93,7 +93,9 @@ class AppContainer(
         )
     }
     private val openNowPlayingChannel = Channel<Unit>(capacity = Channel.CONFLATED)
-    private val appShortcutChannel = Channel<AppShortcutCommand>(capacity = Channel.BUFFERED)
+    // A shortcut is a navigation request, so only the newest request remains meaningful. Keeping
+    // this conflated also prevents a burst of launcher taps from accumulating work behind UI.
+    private val appShortcutChannel = Channel<AppShortcutCommand>(capacity = Channel.CONFLATED)
     private val coldStartHomeResetConsumed = AtomicBoolean(false)
     private val runtimeCoordinator = AppRuntimeCoordinator(
         startPlaybackAction = {

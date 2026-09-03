@@ -11,11 +11,15 @@ internal class ElovaireJankMonitor private constructor(
     private val jankStats: JankStats,
     private val performanceState: PerformanceMetricsState,
 ) {
+    private val attributionState = JankAttributionState()
     private var totalFrames = 0
     private var jankyFrames = 0
     private var worstFrameDurationMs = 0L
     private var lastJankState = ""
-    private var currentStates: Map<String, String> = emptyMap()
+    private var currentScreen: String? = null
+    private var currentInteraction: String? = null
+    private var currentPlaybackState: String? = null
+    private var currentLibraryWork: String? = null
 
     fun setTrackingEnabled(enabled: Boolean) {
         jankStats.isTrackingEnabled = enabled
@@ -28,10 +32,16 @@ internal class ElovaireJankMonitor private constructor(
         key: String,
         value: String,
     ) {
+        if (attributionState.update(key, value)) {
+            logAndReset("state_change")
+        }
         performanceState.putState(key, value)
     }
 
     fun removeState(key: String) {
+        if (attributionState.remove(key)) {
+            logAndReset("state_change")
+        }
         performanceState.removeState(key)
     }
 
@@ -42,7 +52,18 @@ internal class ElovaireJankMonitor private constructor(
 
     private fun onFrame(frameData: FrameData) {
         totalFrames += 1
-        currentStates = frameData.states.associate { state -> state.key to state.value }
+        currentScreen = null
+        currentInteraction = null
+        currentPlaybackState = null
+        currentLibraryWork = null
+        frameData.states.forEach { state ->
+            when (state.key) {
+                "screen" -> currentScreen = state.value
+                "interaction" -> currentInteraction = state.value
+                "playback_state" -> currentPlaybackState = state.value
+                "library_work" -> currentLibraryWork = state.value
+            }
+        }
         if (frameData.isJank) {
             jankyFrames += 1
             lastJankState = frameData.states
@@ -60,10 +81,10 @@ internal class ElovaireJankMonitor private constructor(
             ElovairePerformance.recordJankWindow(
                 JankWindowSnapshot(
                     reason = reason,
-                    screen = currentStates["screen"],
-                    interaction = currentStates["interaction"],
-                    playbackState = currentStates["playback_state"],
-                    libraryWork = currentStates["library_work"],
+                    screen = currentScreen,
+                    interaction = currentInteraction,
+                    playbackState = currentPlaybackState,
+                    libraryWork = currentLibraryWork,
                     frameCount = totalFrames,
                     jankCount = jankyFrames,
                     worstFrameMs = worstFrameDurationMs,
@@ -80,7 +101,10 @@ internal class ElovaireJankMonitor private constructor(
         jankyFrames = 0
         worstFrameDurationMs = 0L
         lastJankState = ""
-        currentStates = emptyMap()
+        currentScreen = null
+        currentInteraction = null
+        currentPlaybackState = null
+        currentLibraryWork = null
     }
 
     companion object {
@@ -103,5 +127,32 @@ internal class ElovaireJankMonitor private constructor(
         private const val LOG_WINDOW_FRAMES = 240
         private const val MAX_STATE_LOG_LENGTH = 240
         private const val NANOS_PER_MILLI = 1_000_000L
+    }
+}
+
+internal class JankAttributionState {
+    private val values = HashMap<String, String>()
+
+    fun update(
+        key: String,
+        value: String,
+    ): Boolean {
+        if (key !in BOUNDARY_KEYS) return false
+        val previous = values.put(key, value)
+        return previous != null && previous != value
+    }
+
+    fun remove(key: String): Boolean {
+        if (key !in BOUNDARY_KEYS) return false
+        return values.remove(key) != null
+    }
+
+    private companion object {
+        val BOUNDARY_KEYS = setOf(
+            "screen",
+            "interaction",
+            "playback_state",
+            "library_work",
+        )
     }
 }

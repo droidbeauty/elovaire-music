@@ -20,7 +20,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -343,23 +342,16 @@ internal class CrossfadeCueAnalyzer(
             cache[key]?.let { return scope.async { it } }
             inFlight[key]?.let { return it }
             return scope.async(dispatcher) {
-                analyzeSongUncached(song, silenceLevelDb)
+                // Publish before the Deferred completes so a second request for the same key
+                // cannot start another decoder while the completion callback is being dispatched.
+                analyzeSongUncached(song, silenceLevelDb).also { result ->
+                    cache[key] = result
+                }
             }.also { deferred ->
                 inFlight[key] = deferred
                 deferred.invokeOnCompletion {
                     synchronized(inFlight) {
                         inFlight.remove(key)
-                    }
-                    if (!deferred.isCancelled) {
-                        scope.launch {
-                            try {
-                                cache[key] = deferred.await()
-                            } catch (_: CancellationException) {
-                                // The owning playback transition was cancelled.
-                            } catch (_: Exception) {
-                                // An unsupported or corrupt source is not cacheable.
-                            }
-                        }
                     }
                 }
             }

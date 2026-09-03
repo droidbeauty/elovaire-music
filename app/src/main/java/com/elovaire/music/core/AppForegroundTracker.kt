@@ -6,6 +6,8 @@ import android.os.Bundle
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import java.io.Closeable
+import java.util.Collections
+import java.util.IdentityHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +19,7 @@ internal class AppForegroundTracker(
     private val application = application
     private val _isForeground = MutableStateFlow(false)
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
-    private var startedCount = 0
+    private val startedActivities = Collections.newSetFromMap(IdentityHashMap<Activity, Boolean>())
     private val closed = AtomicBoolean(false)
     private val callbackResource: Closeable
 
@@ -27,15 +29,15 @@ internal class AppForegroundTracker(
     }
 
     override fun onActivityStarted(activity: Activity) {
-        startedCount += 1
-        if (startedCount == 1) {
+        if (closed.get() || !startedActivities.add(activity)) return
+        if (startedActivities.size == 1) {
             _isForeground.value = true
         }
     }
 
     override fun onActivityStopped(activity: Activity) {
-        startedCount = (startedCount - 1).coerceAtLeast(0)
-        if (startedCount == 0) {
+        if (closed.get() || !startedActivities.remove(activity)) return
+        if (startedActivities.isEmpty()) {
             _isForeground.value = false
         }
     }
@@ -54,11 +56,18 @@ internal class AppForegroundTracker(
         outState: Bundle,
     ) = Unit
 
-    override fun onActivityDestroyed(activity: Activity) = Unit
+    override fun onActivityDestroyed(activity: Activity) {
+        if (closed.get() || !startedActivities.remove(activity)) return
+        if (startedActivities.isEmpty()) {
+            _isForeground.value = false
+        }
+    }
 
     override fun close() {
         if (!closed.compareAndSet(false, true)) return
         application.unregisterActivityLifecycleCallbacks(this)
+        startedActivities.clear()
+        _isForeground.value = false
         callbackResource.close()
     }
 }

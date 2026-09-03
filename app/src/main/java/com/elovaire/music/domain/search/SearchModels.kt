@@ -404,28 +404,38 @@ private fun acronymOf(value: String): String {
 }
 
 private fun fuzzyTokenMatches(value: String, token: String): Boolean {
-    return value.split(' ').any { word ->
-        word.length >= 4 && editDistanceAtMostOne(word, token)
+    var wordStart = 0
+    while (wordStart < value.length) {
+        val wordEnd = value.indexOf(' ', wordStart).let { separator ->
+            if (separator < 0) value.length else separator
+        }
+        if (wordEnd - wordStart >= 4 && editDistanceAtMostOne(value, wordStart, wordEnd, token)) {
+            return true
+        }
+        if (wordEnd == value.length) break
+        wordStart = wordEnd + 1
     }
+    return false
 }
 
-private fun editDistanceAtMostOne(left: String, right: String): Boolean {
-    if (left == right) return true
-    if (kotlin.math.abs(left.length - right.length) > 1) return false
+private fun editDistanceAtMostOne(value: String, start: Int, end: Int, right: String): Boolean {
+    val leftLength = end - start
+    if (leftLength == right.length && value.regionMatches(start, right, 0, right.length)) return true
+    if (kotlin.math.abs(leftLength - right.length) > 1) return false
 
     var differences = 0
-    var leftIndex = 0
+    var leftIndex = start
     var rightIndex = 0
-    while (leftIndex < left.length && rightIndex < right.length) {
-        if (left[leftIndex] == right[rightIndex]) {
+    while (leftIndex < end && rightIndex < right.length) {
+        if (value[leftIndex] == right[rightIndex]) {
             leftIndex++
             rightIndex++
         } else {
             differences++
             if (differences > 1) return false
             when {
-                left.length > right.length -> leftIndex++
-                right.length > left.length -> rightIndex++
+                leftLength > right.length -> leftIndex++
+                right.length > leftLength -> rightIndex++
                 else -> {
                     leftIndex++
                     rightIndex++
@@ -433,7 +443,7 @@ private fun editDistanceAtMostOne(left: String, right: String): Boolean {
             }
         }
     }
-    return differences + (left.length - leftIndex) + (right.length - rightIndex) <= 1
+    return differences + (end - leftIndex) + (right.length - rightIndex) <= 1
 }
 
 private val SEARCH_DIACRITICS_REGEX = Regex("\\p{Mn}+")

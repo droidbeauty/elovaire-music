@@ -4,6 +4,7 @@ import android.app.Application
 import android.util.Log
 import androidx.work.Configuration
 import elovaire.music.droidbeauty.app.core.AppContainer
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.PlatformCompatibilityGuard
 import elovaire.music.droidbeauty.app.core.memoryPressureForTrimLevel
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
@@ -35,6 +36,13 @@ class ElovaireApp : Application(), Configuration.Provider {
         super.onTrimMemory(level)
         if (containerDelegate.isInitialized()) {
             container.onMemoryPressure(memoryPressureForTrimLevel(level))
+        }
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        if (containerDelegate.isInitialized()) {
+            container.onMemoryPressure(MemoryPressure.Critical)
         }
     }
 }

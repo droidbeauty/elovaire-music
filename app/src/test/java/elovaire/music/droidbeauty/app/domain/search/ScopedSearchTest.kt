@@ -31,6 +31,17 @@ class ScopedSearchTest {
     }
 
     @Test
+    fun searchSongsForPicker_supportsSingleEditDistanceWithoutChangingWordBoundaries() {
+        val songs = listOf(
+            song(id = 1L, title = "Northern Signal"),
+            song(id = 2L, title = "Southern Signal"),
+        )
+
+        assertEquals(listOf(1L), searchSongsForPicker(songs, "northerm").map(Song::id))
+        assertEquals(emptyList<Long>(), searchSongsForPicker(songs, "signalll").map(Song::id))
+    }
+
+    @Test
     fun searchSongsForPicker_matchesArtistAndAlbumTokens() {
         val songs = listOf(
             song(

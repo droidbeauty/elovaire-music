@@ -36,7 +36,14 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
                 val notification = intent.getParcelableExtraCompat<Notification>(EXTRA_NOTIFICATION)
                 val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, DEFAULT_NOTIFICATION_ID)
                 if (notification == null) {
+                    invalidateForegroundRequest(intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L))
                     stopSelf()
+                } else if (!isCurrentForegroundRequest(
+                        notificationId,
+                        intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L),
+                    )
+                ) {
+                    stopSelf(startId)
                 } else {
                     runCatching {
                         ServiceCompat.startForeground(
@@ -46,10 +53,15 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
                             ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
                         )
                     }.onSuccess {
-                        runningNotificationId = notificationId
+                        markForegroundRequestComplete(
+                            notificationId,
+                            intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L),
+                        )
                     }.onFailure { throwable ->
                         logForegroundFailure("Unable to promote media library service", throwable)
-                        runningNotificationId = null
+                        invalidateForegroundRequest(
+                            intent.getLongExtra(EXTRA_REQUEST_GENERATION, 0L),
+                        )
                         stopSelf()
                     }
                 }
@@ -57,8 +69,8 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
 
             ACTION_DEMOTE -> {
                 removeForegroundNotificationOnDestroy = false
+                cancelForegroundRequest()
                 stopForeground(STOP_FOREGROUND_DETACH)
-                runningNotificationId = null
                 stopSelf()
             }
 
@@ -75,7 +87,7 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
         if (removeForegroundNotificationOnDestroy) {
             stopForeground(STOP_FOREGROUND_REMOVE)
         }
-        runningNotificationId = null
+        cancelForegroundRequest()
         super.onDestroy()
     }
 
@@ -113,36 +125,71 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
         private const val ACTION_DEMOTE = "elovaire.music.droidbeauty.app.action.PLAYBACK_SERVICE_DEMOTE"
         private const val EXTRA_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.PLAYBACK_NOTIFICATION"
         private const val EXTRA_NOTIFICATION_ID = "elovaire.music.droidbeauty.app.extra.PLAYBACK_NOTIFICATION_ID"
+        private const val EXTRA_REQUEST_GENERATION = "elovaire.music.droidbeauty.app.extra.PLAYBACK_REQUEST_GENERATION"
         private const val DEFAULT_NOTIFICATION_ID = 4101
+
+        private val foregroundRequestLock = Any()
+        private var foregroundRequestGeneration = 0L
+        private var pendingForegroundRequest: ForegroundRequest? = null
 
         @Volatile
         private var runningNotificationId: Int? = null
+
+        private data class ForegroundRequest(
+            val generation: Long,
+            val notificationId: Int,
+        )
 
         fun start(
             context: Context,
             notificationId: Int,
             notification: Notification,
         ) {
-            if (runningNotificationId == notificationId) return
+            val generation = synchronized(foregroundRequestLock) {
+                if (runningNotificationId == notificationId ||
+                    pendingForegroundRequest?.notificationId == notificationId
+                ) {
+                    return
+                }
+                foregroundRequestGeneration += 1L
+                pendingForegroundRequest = ForegroundRequest(foregroundRequestGeneration, notificationId)
+                foregroundRequestGeneration
+            }
             val intent = Intent(context, ElovaireMediaLibraryService::class.java).apply {
                 action = ACTION_START
                 putExtra(EXTRA_NOTIFICATION_ID, notificationId)
                 putExtra(EXTRA_NOTIFICATION, notification)
+                putExtra(EXTRA_REQUEST_GENERATION, generation)
             }
             runCatching {
                 ContextCompat.startForegroundService(context, intent)
             }.onFailure { throwable ->
+                synchronized(foregroundRequestLock) {
+                    if (pendingForegroundRequest?.generation == generation) {
+                        pendingForegroundRequest = null
+                    }
+                }
                 logForegroundFailure("Unable to start media library foreground service", throwable)
             }
         }
 
         fun stop(context: Context) {
-            runningNotificationId = null
+            cancelForegroundRequest()
             context.stopService(Intent(context, ElovaireMediaLibraryService::class.java))
         }
 
         fun demote(context: Context) {
-            if (runningNotificationId == null) return
+            val shouldDemote = synchronized(foregroundRequestLock) {
+                if (runningNotificationId == null && pendingForegroundRequest == null) {
+                    false
+                } else {
+                    foregroundRequestGeneration += 1L
+                    pendingForegroundRequest = null
+                    runningNotificationId = null
+                    true
+                }
+            }
+            if (!shouldDemote) return
             val intent = Intent(context, ElovaireMediaLibraryService::class.java).apply {
                 action = ACTION_DEMOTE
             }
@@ -150,6 +197,40 @@ class ElovaireMediaLibraryService : MediaLibraryService() {
                 .onFailure { throwable ->
                     logForegroundFailure("Unable to demote media library foreground service", throwable)
                 }
+        }
+
+        private fun isCurrentForegroundRequest(notificationId: Int, generation: Long): Boolean {
+            return synchronized(foregroundRequestLock) {
+                pendingForegroundRequest?.let {
+                    it.notificationId == notificationId && it.generation == generation
+                } ?: (runningNotificationId == notificationId)
+            }
+        }
+
+        private fun markForegroundRequestComplete(notificationId: Int, generation: Long) {
+            synchronized(foregroundRequestLock) {
+                if (pendingForegroundRequest?.generation == generation) {
+                    pendingForegroundRequest = null
+                    runningNotificationId = notificationId
+                }
+            }
+        }
+
+        private fun invalidateForegroundRequest(generation: Long) {
+            synchronized(foregroundRequestLock) {
+                if (generation == 0L || pendingForegroundRequest?.generation == generation) {
+                    pendingForegroundRequest = null
+                    runningNotificationId = null
+                }
+            }
+        }
+
+        private fun cancelForegroundRequest() {
+            synchronized(foregroundRequestLock) {
+                foregroundRequestGeneration += 1L
+                pendingForegroundRequest = null
+                runningNotificationId = null
+            }
         }
 
         private fun logForegroundFailure(message: String, throwable: Throwable) {

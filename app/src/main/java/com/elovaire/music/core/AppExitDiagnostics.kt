@@ -20,7 +20,6 @@ internal data class AppExitRecord(
     val status: Int,
     val importance: Int,
     val timestampMs: Long,
-    val description: String? = null,
     val category: AppExitCategory,
 )
 
@@ -48,7 +47,6 @@ internal class AppExitDiagnostics(
                 status = info.status,
                 importance = info.importance,
                 timestampMs = info.timestamp,
-                description = info.description?.take(MAX_DESCRIPTION_LENGTH),
                 category = classifyAppExitReason(info.reason, info.description),
             )
         }
@@ -73,9 +71,6 @@ internal class AppExitDiagnostics(
                         status = item.optInt("status", 0),
                         importance = item.optInt("importance", 0),
                         timestampMs = item.optLong("timestamp", 0L),
-                        description = item.optString("description")
-                            .take(MAX_DESCRIPTION_LENGTH)
-                            .takeIf(String::isNotBlank),
                         category = category,
                     ),
                 )
@@ -92,7 +87,6 @@ internal class AppExitDiagnostics(
                     .put("status", record.status)
                     .put("importance", record.importance)
                     .put("timestamp", record.timestampMs)
-                    .put("description", record.description)
                     .put("category", record.category.name),
             )
         }
@@ -106,7 +100,6 @@ internal class AppExitDiagnostics(
         const val KEY_RECORDS = "records"
         const val MAX_PLATFORM_RECORDS = 12
         const val MAX_STORED_RECORDS = 12
-        const val MAX_DESCRIPTION_LENGTH = 256
     }
 }
 

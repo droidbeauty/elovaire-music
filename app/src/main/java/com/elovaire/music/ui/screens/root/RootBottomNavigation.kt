@@ -20,10 +20,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
@@ -132,7 +131,7 @@ private fun BottomNavigationItemButton(
             baseTint.copy(alpha = 0.5f)
         }
     }
-    val baseIconScale by selectionTransition.animateFloat(
+    val baseIconScale = selectionTransition.animateFloat(
         transitionSpec = {
             if (suppressEnterAnimation) {
                 motionSpecs.tween(durationMillis = 0)
@@ -168,8 +167,11 @@ private fun BottomNavigationItemButton(
             contentDescription = contentDescription,
             tint = iconTint,
             modifier = Modifier
-                .scale(baseIconScale)
-                .alpha(if (selected) 1f else 0.95f),
+                .graphicsLayer {
+                    scaleX = baseIconScale.value
+                    scaleY = baseIconScale.value
+                    alpha = if (selected) 1f else 0.95f
+                },
         )
     }
 }
