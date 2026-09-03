@@ -145,8 +145,13 @@ internal suspend fun NetworkSourceMutationJournal.recover(
     sourceStore: NetworkLibrarySourceStore,
     credentialStore: NetworkCredentialStore,
     inventoryStore: NetworkInventoryStore,
+    invalidateRuntime: ((sourceId: String) -> Unit)? = null,
 ) {
     pending().forEach { marker ->
+        // Recovery may run after process death before the runtime registry has
+        // observed the durable mutation. Drop any session that still reflects
+        // the interrupted operation before the source is used again.
+        invalidateRuntime?.invoke(marker.sourceId)
         when (marker.kind) {
             NetworkSourceMutationKind.Save -> {
                 val current = sourceStore.sources.value.firstOrNull { it.id == marker.sourceId }

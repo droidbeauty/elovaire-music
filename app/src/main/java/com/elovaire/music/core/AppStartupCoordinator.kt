@@ -50,6 +50,7 @@ internal class AppStartupCoordinator(
     private val networkSourceMutationJournal: NetworkSourceMutationJournal,
     private val networkSourceStore: NetworkLibrarySourceStore,
     private val networkCredentialStoreProvider: () -> NetworkCredentialStore,
+    private val invalidateNetworkSourceRuntime: ((sourceId: String) -> Unit)? = null,
     private val networkInventoryStore: NetworkInventoryStore,
     private val mediaMutationJournal: MediaMutationJournal,
     private val updateControllerProvider: () -> UpdateController,
@@ -99,6 +100,7 @@ internal class AppStartupCoordinator(
                             sourceStore = networkSourceStore,
                             credentialStore = networkCredentialStoreProvider(),
                             inventoryStore = networkInventoryStore,
+                            invalidateRuntime = invalidateNetworkSourceRuntime,
                         )
                     }
                     emptySet()

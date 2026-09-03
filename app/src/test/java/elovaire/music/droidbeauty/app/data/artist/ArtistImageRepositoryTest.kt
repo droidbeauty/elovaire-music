@@ -14,6 +14,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.last
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import java.util.concurrent.atomic.AtomicInteger
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -96,6 +97,23 @@ class ArtistImageRepositoryTest {
         repository.imageState("Artist", null).last()
 
         assertEquals(2, calls.get())
+    }
+
+    @Test
+    fun unexpectedRemoteFailureCompletesSharedLookup() = runBlocking {
+        val calls = AtomicInteger()
+        val repository = newRepository(
+            ArtistImageClient {
+                calls.incrementAndGet()
+                throw UnsupportedOperationException("test failure")
+            },
+        )
+
+        withTimeout(1_000L) {
+            repository.imageState("Artist", null).last()
+        }
+
+        assertEquals(1, calls.get())
     }
 
     @Test

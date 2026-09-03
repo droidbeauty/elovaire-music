@@ -131,6 +131,7 @@ internal class ArtistImageRepository(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private suspend fun resolveRemoteArtwork(artistName: String, artistKey: String): Uri? {
         if (artistKey.isBlank() || artistKey == UNKNOWN_ARTIST_KEY) return null
         val claim = synchronized(cacheLock) {
@@ -158,13 +159,20 @@ internal class ArtistImageRepository(
             is ResolutionClaim.Await -> return claim.deferred.await()
             ResolutionClaim.Saturated -> return null
             is ResolutionClaim.Owner -> claim.deferred.also { ownerDeferred ->
-                scope.launch(ioDispatcher) {
+                val ownerJob = scope.launch(ioDispatcher) {
                     try {
                         resolveOwnedRemoteArtwork(artistName, artistKey, ownerDeferred)
-                    } catch (failure: IllegalArgumentException) {
-                        Log.w(TAG, "Artist artwork request rejected", failure)
-                    } catch (failure: IllegalStateException) {
+                    } catch (cancelled: CancellationException) {
+                        failRemoteArtwork(artistKey, ownerDeferred, cancelled)
+                        throw cancelled
+                    } catch (failure: RuntimeException) {
+                        failRemoteArtwork(artistKey, ownerDeferred, failure)
                         Log.w(TAG, "Artist artwork request failed", failure)
+                    }
+                }
+                ownerJob.invokeOnCompletion { cause ->
+                    if (cause != null && !ownerDeferred.isCompleted) {
+                        failRemoteArtwork(artistKey, ownerDeferred, cause)
                     }
                 }
             }
@@ -207,12 +215,6 @@ internal class ArtistImageRepository(
                 )
             }
         } catch (cancelled: CancellationException) {
-            completeRemoteArtwork(
-                artistKey,
-                deferred,
-                null,
-                cacheResult = false,
-            )
             throw cancelled
         } catch (_: IOException) {
             completeRemoteArtwork(
@@ -237,6 +239,21 @@ internal class ArtistImageRepository(
                 cacheResult = false,
             )
             throw failure
+        }
+    }
+
+    private fun failRemoteArtwork(
+        artistKey: String,
+        deferred: CompletableDeferred<Uri?>,
+        failure: Throwable,
+    ) {
+        synchronized(cacheLock) {
+            inFlight.remove(artistKey)
+        }
+        if (failure is CancellationException) {
+            deferred.cancel(failure)
+        } else {
+            deferred.complete(null)
         }
     }
 

@@ -55,11 +55,13 @@ internal class NetworkConnectivityObserver(
     private var state = NetworkConnectivityState()
     private val callback = object : ConnectivityManager.NetworkCallback() {
         override fun onAvailable(network: Network) {
+            if (!lifecycle.get()) return
             synchronized(lock) { activeNetworks.add(network) }
             publish()
         }
 
         override fun onLost(network: Network) {
+            if (!lifecycle.get()) return
             synchronized(lock) {
                 activeNetworks.remove(network)
                 blockedNetworks.remove(network)
@@ -68,6 +70,7 @@ internal class NetworkConnectivityObserver(
         }
 
         override fun onBlockedStatusChanged(network: Network, blocked: Boolean) {
+            if (!lifecycle.get()) return
             synchronized(lock) {
                 if (blocked) blockedNetworks.add(network) else blockedNetworks.remove(network)
             }
@@ -89,14 +92,20 @@ internal class NetworkConnectivityObserver(
     }
 
     fun syncPermission() {
-        publish()
+        if (lifecycle.get()) publish()
     }
 
     fun currentState(): NetworkConnectivityState = state
 
     override fun close() {
         if (!lifecycle.compareAndSet(true, false)) return
-        connectivityManager?.unregisterNetworkCallback(callback)
+        try {
+            connectivityManager?.unregisterNetworkCallback(callback)
+        } catch (_: IllegalArgumentException) {
+            // The callback may already have been removed by the platform.
+        } catch (_: SecurityException) {
+            // Release must still clear local state if permission changed mid-lifecycle.
+        }
         synchronized(lock) {
             activeNetworks.clear()
             blockedNetworks.clear()
@@ -104,6 +113,7 @@ internal class NetworkConnectivityObserver(
     }
 
     private fun publish() {
+        if (!lifecycle.get()) return
         val signal = synchronized(lock) {
             NetworkConnectivitySignal(
                 networkAvailable = activeNetworks.isNotEmpty(),

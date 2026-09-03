@@ -54,8 +54,9 @@ internal class PlaybackIntegrationCoordinator(
     private var cachedQueue: List<elovaire.music.droidbeauty.app.domain.model.Song>? = null
     private var cachedQueueIds: List<Long> = emptyList()
     private val released = AtomicBoolean(false)
+    private val started = AtomicBoolean(false)
     private val sessionWriterScope = CoroutineScope(
-        scope.coroutineContext + SupervisorJob(scope.coroutineContext[Job]) + ioDispatcher,
+        SupervisorJob() + ioDispatcher,
     )
     // Keep the writer alive long enough to drain the final checkpoint during normal release,
     // but cancel it if its owning bridge scope is terminated without calling release.
@@ -75,7 +76,7 @@ internal class PlaybackIntegrationCoordinator(
     }
 
     fun start() {
-        if (released.get()) return
+        if (released.get() || !started.compareAndSet(false, true)) return
         sessionWriterJob.start()
         scope.launch {
             preferences.eqSettings
@@ -183,7 +184,7 @@ internal class PlaybackIntegrationCoordinator(
     fun release() {
         if (!released.compareAndSet(false, true)) return
         ownerCompletionHandle?.dispose()
-        persistSession()
+        persistSession(allowAfterRelease = true)
         if (!sessionWriterJob.isActive) {
             sessionWriterScope.cancel()
             return
@@ -228,8 +229,11 @@ internal class PlaybackIntegrationCoordinator(
         playback.restoreSession(restoredQueue, currentIndex, persisted)
     }
 
-    private fun persistSession(positionOverrideMs: Long? = null) {
-        if (!restorationAttempted || released.get() && !sessionWriterJob.isActive) return
+    private fun persistSession(
+        positionOverrideMs: Long? = null,
+        allowAfterRelease: Boolean = false,
+    ) {
+        if (!restorationAttempted || released.get() && !allowAfterRelease) return
         val queue = playback.queueState.value
         if (queue.queue.isEmpty()) {
             sessionWrites.trySend(null)

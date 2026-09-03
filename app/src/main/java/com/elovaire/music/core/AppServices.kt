@@ -266,6 +266,9 @@ internal class AppServices(
         networkSourceMutationJournal = networkSourceMutationJournal,
         networkSourceStore = networkSourceStore,
         networkCredentialStoreProvider = { networkCredentialStoreDelegate.value },
+        invalidateNetworkSourceRuntime = { sourceId ->
+            networkFileSystemRegistryDelegate.value.invalidate(sourceId)
+        },
         networkInventoryStore = networkInventoryStore,
         mediaMutationJournal = mediaMutationJournal,
         updateControllerProvider = { updateController },
@@ -375,8 +378,11 @@ internal class AppServices(
             networkFileSystemRegistryDelegate.value.release()
         }
         preferenceStore.release {
-            database.close()
-            databaseResource.close()
+            try {
+                database.close()
+            } finally {
+                databaseResource.close()
+            }
         }
         portableSettingsBackup.release()
         mediaLibraryReadExecutor.close()
