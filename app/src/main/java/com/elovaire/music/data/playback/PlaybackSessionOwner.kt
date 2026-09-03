@@ -11,12 +11,13 @@ import elovaire.music.droidbeauty.app.MainActivity
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.playback.library.MediaLibraryCallbackRouter
+import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(UnstableApi::class)
 internal class PlaybackSessionOwner(
     context: Context,
     initialPlayer: Player,
-    ) {
+) {
     private val callbackRouter = MediaLibraryCallbackRouter()
     private val session = MediaLibrarySession.Builder(context, initialPlayer, callbackRouter)
         .setId("elovaire_playback")
@@ -33,6 +34,7 @@ internal class PlaybackSessionOwner(
         )
         .build()
     private val sessionResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveMediaSession)
+    private val released = AtomicBoolean(false)
 
     val mediaLibrarySession: MediaLibrarySession
         get() = session
@@ -52,7 +54,11 @@ internal class PlaybackSessionOwner(
     }
 
     fun release() {
-        session.release()
-        sessionResource.close()
+        if (!released.compareAndSet(false, true)) return
+        try {
+            session.release()
+        } finally {
+            sessionResource.close()
+        }
     }
 }

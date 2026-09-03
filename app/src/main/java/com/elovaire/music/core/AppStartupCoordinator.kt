@@ -3,7 +3,7 @@ package elovaire.music.droidbeauty.app.core
 import android.content.Context
 import android.database.sqlite.SQLiteException
 import android.util.Log
-import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryStartupController
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentialStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
@@ -46,7 +46,7 @@ internal class AppStartupCoordinator(
     private val portableSettingsBackup: PortableSettingsBackup,
     private val portableUserDataBackup: PortableUserDataBackup,
     private val userDataStore: RoomUserDataStore,
-    private val libraryRepository: LibraryRepository,
+    private val libraryRepository: LibraryStartupController,
     private val networkSourceMutationJournal: NetworkSourceMutationJournal,
     private val networkSourceStore: NetworkLibrarySourceStore,
     private val networkCredentialStoreProvider: () -> NetworkCredentialStore,

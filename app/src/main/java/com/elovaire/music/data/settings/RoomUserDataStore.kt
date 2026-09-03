@@ -78,7 +78,8 @@ internal class RoomUserDataStore(
     ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val recoverySnapshot: UserDataRecoverySnapshot? = null,
     ownerScope: CoroutineScope? = null,
-) : CollectionSettingsStore, PlaylistStore, FavoritesStore, PlaybackHistoryStore, SearchHistoryStore {
+) : CollectionSettingsStore, MediaLibraryUserDataReader, PlaylistStore, FavoritesStore, PlaybackHistoryStore,
+    SearchHistoryStore {
     private val preferences = allowStrictModeDiskReads {
         PreferenceStorage(context.applicationContext).preferences
     }

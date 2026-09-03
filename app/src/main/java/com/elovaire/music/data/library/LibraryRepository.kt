@@ -101,7 +101,7 @@ class LibraryRepository internal constructor(
     private val onSongRelocations: suspend (Map<Long, Long>) -> Boolean = { true },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
-) : LibraryReader, LibraryTagUpdateWriter {
+) : LibraryStartupController, LibraryTagUpdateWriter {
     private val snapshotStore = LibrarySnapshotStore(appContext)
     private val _contentState = MutableStateFlow(LibraryContentState())
     private val snapshotPublisher = LibrarySnapshotPublisher(
@@ -151,7 +151,7 @@ class LibraryRepository internal constructor(
         ioDispatcher = ioDispatcher,
     )
 
-    fun start() {
+    override fun start() {
         if (released.get() || !started.compareAndSet(false, true)) return
         foregroundObserverJob = scope.launch {
             var wasForeground = backgroundWorkPolicy.isForeground.value
@@ -214,7 +214,7 @@ class LibraryRepository internal constructor(
         }
     }
 
-    fun onPermissionChanged(granted: Boolean) {
+    override fun onPermissionChanged(granted: Boolean) {
         if (!started.get() || released.get()) return
         if (_scanState.value.permissionGranted == granted) return
         permissionChangeVersion += 1L
@@ -686,7 +686,7 @@ class LibraryRepository internal constructor(
         scanner.onMemoryPressure(pressure)
     }
 
-    internal fun blockNetworkSources(sourceIds: Set<String>) {
+    override fun blockNetworkSources(sourceIds: Set<String>) {
         scanner.blockNetworkSources(sourceIds)
     }
 

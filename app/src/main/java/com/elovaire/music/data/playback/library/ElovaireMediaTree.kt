@@ -1,10 +1,10 @@
 package elovaire.music.droidbeauty.app.data.playback.library
 
 import androidx.media3.common.MediaItem
-import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.core.MemoryPressure
-import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
+import elovaire.music.droidbeauty.app.data.settings.MediaLibraryUserDataReader
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -63,8 +63,8 @@ internal interface MediaLibraryCommandResolver {
 }
 
 internal class ElovaireMediaTree(
-    private val libraryRepository: LibraryRepository,
-    private val preferenceStore: RootSettingsReader,
+    private val libraryRepository: LibraryReader,
+    private val preferenceStore: MediaLibraryUserDataReader,
 ) : MediaLibraryBrowser, MediaLibraryCommandResolver {
     private val snapshotCache = MediaTreeSnapshotCache()
 

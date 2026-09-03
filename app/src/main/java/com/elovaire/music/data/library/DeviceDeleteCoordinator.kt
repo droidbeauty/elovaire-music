@@ -17,6 +17,12 @@ internal data class DeviceDeletePlan(
     val parentDirectories: Set<String>,
 )
 
+internal interface DeviceDeleteHandler {
+    suspend fun prepareSongDeletePlan(songs: List<Song>): DeviceDeletePlan?
+
+    suspend fun completeDelete(plan: DeviceDeletePlan)
+}
+
 internal class DeviceDeleteCoordinator(
     private val context: Context,
     private val libraryRepository: LibraryRepository,
@@ -24,8 +30,8 @@ internal class DeviceDeleteCoordinator(
     private val preferenceStore: PreferenceStore,
     private val invalidateArtwork: (Collection<Uri?>) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-) {
-    suspend fun prepareSongDeletePlan(songs: List<Song>): DeviceDeletePlan? {
+) : DeviceDeleteHandler {
+    override suspend fun prepareSongDeletePlan(songs: List<Song>): DeviceDeletePlan? {
         val uniqueSongs = songs.distinctBy(Song::id)
         if (uniqueSongs.isEmpty()) return null
         return withContext(ioDispatcher) {
@@ -41,7 +47,7 @@ internal class DeviceDeleteCoordinator(
         }
     }
 
-    suspend fun completeDelete(plan: DeviceDeletePlan) {
+    override suspend fun completeDelete(plan: DeviceDeletePlan) {
         invalidateArtwork(plan.songs.flatMap { listOf(it.artUri, it.uri) })
         val deleteResult = libraryRepository.refreshAfterDelete(
             LibraryDeleteRequest(

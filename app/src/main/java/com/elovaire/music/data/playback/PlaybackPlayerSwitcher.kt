@@ -41,11 +41,11 @@ internal class PlaybackPlayerSwitcher(
                     replacement.play()
                 }
             }
+            replacement.volume = targetPlayerOutputGain()
             detachPlayerObservers(currentPlayer)
             currentObserversDetached = true
             onPlayerReplaced(replacement)
             applyPreferredAudioDevice(true)
-            replacement.volume = targetPlayerOutputGain()
             releasePlayer(currentPlayer)
             replacement
         } catch (_: RuntimeException) {

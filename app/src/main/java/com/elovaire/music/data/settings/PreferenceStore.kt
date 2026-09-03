@@ -55,6 +55,7 @@ class PreferenceStore internal constructor(
     NowPlayingSettingsStore,
     SearchSettingsStore,
     UpdatePreferencesStore,
+    PlaybackIntegrationSettings,
     PlaylistStore by userDataStore,
     FavoritesStore by userDataStore {
     private val appContext = context.applicationContext
@@ -212,7 +213,7 @@ class PreferenceStore internal constructor(
         userDataStore.clearSearchHistoryEntries()
     }
 
-    fun recordPlaybackTransition(
+    override fun recordPlaybackTransition(
         songId: Long?,
         albumId: Long?,
     ) {

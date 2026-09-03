@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library
 
 import android.os.FileObserver
+import android.net.TestUri
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,6 +28,24 @@ class LibraryObserverControllerTest {
                 changedFileHasSupportedAudioExtension = false,
             ),
         )
+    }
+
+    @Test
+    fun completedFileWritesAreNotCoalescedWithTheirCreateEvent() {
+        assertFalse(shouldCoalesceObservedDirectoryEvent(FileObserver.CLOSE_WRITE))
+        assertTrue(shouldCoalesceObservedDirectoryEvent(FileObserver.CREATE))
+    }
+
+    @Test
+    fun mediaStoreObserverUrisIncludeAggregateAndKnownVolumes() {
+        val aggregate = TestUri("content://media/external/audio/media")
+        val primary = TestUri("content://media/external_primary/audio/media")
+        val secondary = TestUri("content://media/external_secondary/audio/media")
+        val uris = mediaStoreObserverUris(aggregate, listOf(primary, secondary, primary))
+
+        assertTrue(uris.contains(aggregate))
+        assertTrue(uris.contains(primary))
+        assertTrue(uris.contains(secondary))
     }
 
     @Test

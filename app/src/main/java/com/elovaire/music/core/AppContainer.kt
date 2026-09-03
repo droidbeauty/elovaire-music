@@ -57,6 +57,7 @@ class AppContainer(
     }
     private val bridgeCoordinator = AppBridgeCoordinator(appScope, services, appDispatchers.io)
     private val dependencies = AppDependencies(
+        applicationContext = applicationContext,
         services = services,
         appDispatchers = appDispatchers,
         artworkInvalidator = AlbumTagArtworkInvalidator { uris ->
@@ -74,6 +75,7 @@ class AppContainer(
     internal val dispatchers: AppDispatchers get() = appDispatchers
     internal val playbackResumptionGateway get() = services.playbackResumptionGateway
     internal val rootReadDependencies get() = dependencies.rootReadDependencies
+    internal val rootDeleteDependencies get() = dependencies.rootDeleteDependencies
     internal val playbackActionDependencies get() = dependencies.playbackActionDependencies
     internal val libraryActionDependencies get() = dependencies.libraryActionDependencies
     internal val settingsActionDependencies get() = dependencies.settingsActionDependencies

@@ -23,13 +23,11 @@ import elovaire.music.droidbeauty.app.core.AndroidCapabilities
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
-import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
 import elovaire.music.droidbeauty.app.data.library.DeviceDeletePlan
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.platform.mediaStoreDeleteRequest
-import elovaire.music.droidbeauty.app.ui.components.invalidateArtworkCaches
 import kotlinx.coroutines.launch
 
 internal data class RootPermissionState(
@@ -114,6 +112,9 @@ internal fun rememberRootPermissionController(
                 }
                 if (hasLocalPermission != refreshedLocalPermission) {
                     syncLocalNetworkPermission(refreshedLocalPermission)
+                }
+                if (refreshedAudioPermission) {
+                    container.libraryRepository.refresh(showLoadingIndicator = false)
                 }
             }
         }
@@ -213,16 +214,7 @@ internal fun rememberRootDeleteController(
 ): RootDeleteController {
     val context = LocalContext.current
     val rootScope = androidx.compose.runtime.rememberCoroutineScope()
-    val deleteCoordinator = remember(container, context) {
-        DeviceDeleteCoordinator(
-            context = context,
-            libraryRepository = container.libraryRepository,
-            playbackManager = container.playbackManager,
-            preferenceStore = container.preferenceStore,
-            invalidateArtwork = ::invalidateArtworkCaches,
-            ioDispatcher = container.dispatchers.io,
-        )
-    }
+    val deleteCoordinator = container.rootDeleteDependencies.deleteHandler
     var pendingSongDeletion by remember { mutableStateOf<DeviceDeletePlan?>(null) }
 
     val deleteSongLauncher = rememberLauncherForActivityResult(

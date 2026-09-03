@@ -1,7 +1,6 @@
 package elovaire.music.droidbeauty.app.core
 
 import android.annotation.SuppressLint
-import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
 import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenanceWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineDispatcher
@@ -11,6 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("UnsafeOptInUsageError")
 internal class AppBridgeCoordinator(
@@ -20,24 +20,9 @@ internal class AppBridgeCoordinator(
 ) {
     private val bridgeJob = SupervisorJob(scope.coroutineContext[Job])
     private val bridgeScope = CoroutineScope(scope.coroutineContext + bridgeJob)
-    private val playbackSettings = object : PlaybackIntegrationSettings {
-        override val eqSettings get() = services.preferenceStore.eqSettings
-        override val crossfadeEnabled get() = services.preferenceStore.crossfadeEnabled
-        override val crossfadeDurationMs get() = services.preferenceStore.crossfadeDurationMs
-        override val crossfadeSilenceThresholdDb get() = services.preferenceStore.crossfadeSilenceThresholdDb
-        override val volumeNormalizationEnabled get() = services.preferenceStore.volumeNormalizationEnabled
-        override val recentSongIds get() = services.preferenceStore.recentSongIds
-        override val recentAlbumIds get() = services.preferenceStore.recentAlbumIds
-        override val lastPlayedCollectionKind get() = services.preferenceStore.lastPlayedCollectionKind
-        override val lastPlayedCollectionId get() = services.preferenceStore.lastPlayedCollectionId
-
-        override fun recordPlaybackTransition(songId: Long?, albumId: Long?) {
-            services.preferenceStore.recordPlaybackTransition(songId, albumId)
-        }
-    }
     private val playbackIntegration = PlaybackIntegrationCoordinator(
         scope = bridgeScope,
-        preferences = playbackSettings,
+        preferences = services.preferenceStore,
         library = services.libraryRepository,
         playback = services.playbackManager,
         effects = services.playbackEffectsController,
@@ -47,40 +32,46 @@ internal class AppBridgeCoordinator(
     private val preferences = services.preferenceStore
     private val library = services.libraryRepository
     private val applicationContext = services.applicationContext
-    private var playbackStarted = false
-    private var appStarted = false
-    private var released = false
-    private var deferredStartupScheduled = false
+    private val lifecycleLock = Any()
+    private val playbackStarted = AtomicBoolean(false)
+    private val appStarted = AtomicBoolean(false)
+    private val released = AtomicBoolean(false)
+    private val deferredStartupScheduled = AtomicBoolean(false)
 
     fun startPlayback() {
-        if (playbackStarted || released) return
-        playbackStarted = true
-        playbackIntegration.start()
-        bridgeScope.launch {
-            preferences.libraryFolders.collect(library::setLibraryFolders)
+        synchronized(lifecycleLock) {
+            if (released.get() || !playbackStarted.compareAndSet(false, true)) return
+            playbackIntegration.start()
+            bridgeScope.launch {
+                preferences.libraryFolders.collect(library::setLibraryFolders)
+            }
         }
     }
 
     fun start() {
-        if (appStarted || released) return
-        startPlayback()
-        appStarted = true
+        synchronized(lifecycleLock) {
+            if (released.get()) return
+            startPlayback()
+            appStarted.set(true)
+        }
     }
 
     fun scheduleDeferredStartupWork() {
-        if (!appStarted || released || deferredStartupScheduled) return
-        deferredStartupScheduled = true
-        bridgeScope.launch(ioDispatcher) {
-            PersistenceMaintenanceWorker.enqueue(applicationContext)
+        synchronized(lifecycleLock) {
+            if (!appStarted.get() || released.get() || !deferredStartupScheduled.compareAndSet(false, true)) return
+            bridgeScope.launch(ioDispatcher) {
+                PersistenceMaintenanceWorker.enqueue(applicationContext)
+            }
         }
     }
 
     fun release() {
-        if (released) return
-        released = true
-        appStarted = false
-        playbackStarted = false
-        playbackIntegration.release()
-        bridgeScope.cancel()
+        synchronized(lifecycleLock) {
+            if (!released.compareAndSet(false, true)) return
+            appStarted.set(false)
+            playbackStarted.set(false)
+            playbackIntegration.release()
+            bridgeScope.cancel()
+        }
     }
 }

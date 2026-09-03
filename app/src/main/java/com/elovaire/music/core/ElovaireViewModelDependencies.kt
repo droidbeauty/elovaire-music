@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.core
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.library.LibraryTagUpdateWriter
+import elovaire.music.droidbeauty.app.data.library.DeviceDeleteHandler
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
@@ -23,6 +24,10 @@ import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
 import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditor
 import kotlinx.coroutines.flow.StateFlow
+
+internal interface RootDeleteDependencies {
+    val deleteHandler: DeviceDeleteHandler
+}
 
 internal interface RootReadDependencies {
     val libraryReader: LibraryReader

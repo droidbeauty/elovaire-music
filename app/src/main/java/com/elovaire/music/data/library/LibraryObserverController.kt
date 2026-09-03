@@ -35,8 +35,10 @@ internal class LibraryObserverController(
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
+    private val appContext = appContext
     private val contentResolver = appContext.contentResolver
     private var mediaObserverRegistered = false
+    private var mediaObserverUris: Set<Uri> = emptySet()
     private var mediaObserverLease: Closeable? = null
     private var safObserverUris: Set<Uri> = emptySet()
     private var safObserverLease: Closeable? = null
@@ -141,19 +143,28 @@ internal class LibraryObserverController(
     }
 
     private fun ensureMediaObserverRegistered() {
-        if (mediaObserverRegistered) return
-        val registered = runCatching {
-            contentResolver.registerContentObserver(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                true,
-                mediaObserver,
-            )
-        }.isSuccess
-        if (registered) {
-            mediaObserverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
-            mediaObserverRegistered = true
+        val requestedUris = mediaStoreObserverUris(
+            aggregateUri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            volumeUris = runCatching { MediaStore.getExternalVolumeNames(appContext) }
+                .getOrDefault(emptySet())
+                .map(MediaStore.Audio.Media::getContentUri),
+        )
+        if (mediaObserverRegistered && mediaObserverUris == requestedUris) return
+        if (mediaObserverRegistered) {
+            unregisterMediaObserver()
+            if (mediaObserverRegistered) return
         }
-        logDebug("media store observer active=$mediaObserverRegistered")
+        val registeredUris = requestedUris.filterTo(linkedSetOf()) { uri ->
+            runCatching {
+                contentResolver.registerContentObserver(uri, true, mediaObserver)
+            }.isSuccess
+        }
+        mediaObserverUris = registeredUris
+        if (registeredUris.isNotEmpty()) {
+            mediaObserverLease = BackendResourceRegistry.acquire(BackendResourceKind.ActiveObserver)
+        }
+        mediaObserverRegistered = registeredUris.isNotEmpty()
+        logDebug("media store observers active=${registeredUris.size}/${requestedUris.size}")
     }
 
     private fun unregisterMediaObserver() {
@@ -166,9 +177,10 @@ internal class LibraryObserverController(
             return
         }
         mediaObserverRegistered = false
+        mediaObserverUris = emptySet()
         mediaObserverLease?.close()
         mediaObserverLease = null
-        logDebug("media store observer active=false")
+        logDebug("media store observers active=0")
     }
 
     fun ensureLibraryFolderObservers(forceRebuild: Boolean = false) {
@@ -311,6 +323,7 @@ internal class LibraryObserverController(
         if (consumeExpectedMutation(changedUri = null, changedPath = normalizedChangedPath)) return
         if (
             normalizedChangedPath != null &&
+            shouldCoalesceObservedDirectoryEvent(event) &&
             shouldCoalesceObservedPath(normalizedChangedPath)
         ) {
             return
@@ -514,6 +527,22 @@ internal fun shouldNotifyForObservedDirectoryEvent(
         return true
     }
     return !changedFileExists || changedFileIsDirectory || changedFileHasSupportedAudioExtension
+}
+
+internal fun shouldCoalesceObservedDirectoryEvent(event: Int): Boolean {
+    // CREATE can arrive before a copied file is complete. CLOSE_WRITE is the reliable
+    // post-copy signal and must be allowed to schedule its own refresh.
+    return event and FileObserver.CLOSE_WRITE == 0
+}
+
+internal fun mediaStoreObserverUris(
+    aggregateUri: Uri,
+    volumeUris: Collection<Uri>,
+): Set<Uri> {
+    return buildSet {
+        add(aggregateUri)
+        addAll(volumeUris)
+    }
 }
 
 internal fun observerTreeIdentity(paths: List<String>): List<String> = paths.sorted()

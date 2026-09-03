@@ -6,8 +6,14 @@ import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import java.util.Collections
 import java.util.WeakHashMap
 
+internal interface PlaybackEffects {
+    fun applyEffectSettings(settings: EqSettings)
+
+    fun hasSignalAlteringEffects(): Boolean
+}
+
 @UnstableApi
-class PlaybackEffectsController {
+class PlaybackEffectsController : PlaybackEffects {
     private val equalizerProcessors = Collections.newSetFromMap(
         WeakHashMap<EqualizerAudioProcessor, Boolean>(),
     )
@@ -21,12 +27,12 @@ class PlaybackEffectsController {
     }
 
     @Synchronized
-    fun applyEffectSettings(settings: EqSettings) {
+    override fun applyEffectSettings(settings: EqSettings) {
         val sanitized = EqValuePolicy.sanitize(settings)
         if (sanitized == currentSettings) return
         currentSettings = sanitized
         equalizerProcessors.toList().forEach { it.updateSettings(currentSettings) }
     }
 
-    fun hasSignalAlteringEffects(): Boolean = EqValuePolicy.hasSignalAlteringEffects(currentSettings)
+    override fun hasSignalAlteringEffects(): Boolean = EqValuePolicy.hasSignalAlteringEffects(currentSettings)
 }

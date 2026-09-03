@@ -60,6 +60,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(UnstableApi::class)
 internal class AppServices(
@@ -78,6 +79,8 @@ internal class AppServices(
     private val optionalScope = CoroutineScope(
         appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
     )
+    private val networkServicesStarted = AtomicBoolean(false)
+    private val released = AtomicBoolean(false)
     private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
     private val database = ElovaireDatabase.create(applicationContext)
     private val databaseResource = BackendResourceRegistry.acquire(BackendResourceKind.DatabaseInstance)
@@ -288,20 +291,36 @@ internal class AppServices(
     }
 
     fun start() {
+        if (released.get()) return
         startNetworkServices()
         mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.start()
     }
 
     fun startPlayback() {
+        if (released.get()) return
         startNetworkServices()
         mediaLibraryInvalidationCoordinator.start()
         startupCoordinator.startPlayback()
     }
 
     private fun startNetworkServices() {
+        if (!networkServicesStarted.compareAndSet(false, true)) return
         optionalScope.launch(appDispatchers.io) {
-            networkFileSystemRegistryDelegate.value.start()
+            try {
+                networkFileSystemRegistryDelegate.value.start()
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (failure: SecurityException) {
+                networkServicesStarted.set(false)
+                android.util.Log.w("AppServices", "Network services could not start; retrying later.", failure)
+            } catch (failure: IllegalArgumentException) {
+                networkServicesStarted.set(false)
+                android.util.Log.w("AppServices", "Network services could not start; retrying later.", failure)
+            } catch (failure: IllegalStateException) {
+                networkServicesStarted.set(false)
+                android.util.Log.w("AppServices", "Network services could not start; retrying later.", failure)
+            }
         }
     }
 
@@ -341,6 +360,7 @@ internal class AppServices(
     }
 
     fun release() {
+        if (!released.compareAndSet(false, true)) return
         startupCoordinator.release()
         networkMutationRuntime.release()
         mediaLibraryInvalidationCoordinator.close()

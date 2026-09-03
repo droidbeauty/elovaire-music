@@ -17,32 +17,41 @@ internal class AppRuntimeCoordinator(
     private val releaseAction: () -> Unit,
 ) {
     private val phase = AtomicReference(AppRuntimePhase.Created)
+    private val transitionLock = Any()
 
     fun startPlayback() {
-        transitionTo(
-            target = AppRuntimePhase.PlaybackStarted,
-            allowedFrom = setOf(AppRuntimePhase.Created),
-            action = startPlaybackAction,
-        )
+        synchronized(transitionLock) {
+            transitionTo(
+                target = AppRuntimePhase.PlaybackStarted,
+                allowedFrom = setOf(AppRuntimePhase.Created),
+                action = startPlaybackAction,
+            )
+        }
     }
 
     fun start() {
-        transitionTo(
-            target = AppRuntimePhase.Started,
-            allowedFrom = setOf(AppRuntimePhase.Created, AppRuntimePhase.PlaybackStarted),
-            action = startAction,
-        )
+        synchronized(transitionLock) {
+            transitionTo(
+                target = AppRuntimePhase.Started,
+                allowedFrom = setOf(AppRuntimePhase.Created, AppRuntimePhase.PlaybackStarted),
+                action = startAction,
+            )
+        }
     }
 
     fun onMemoryPressure(pressure: MemoryPressure) {
-        if (phase.get() != AppRuntimePhase.Released) {
-            memoryPressureAction(pressure)
+        synchronized(transitionLock) {
+            if (phase.get() != AppRuntimePhase.Released) {
+                memoryPressureAction(pressure)
+            }
         }
     }
 
     fun release() {
-        if (phase.getAndSet(AppRuntimePhase.Released) != AppRuntimePhase.Released) {
-            releaseAction()
+        synchronized(transitionLock) {
+            if (phase.getAndSet(AppRuntimePhase.Released) != AppRuntimePhase.Released) {
+                releaseAction()
+            }
         }
     }
 
@@ -54,21 +63,17 @@ internal class AppRuntimeCoordinator(
         allowedFrom: Set<AppRuntimePhase>,
         action: () -> Unit,
     ) {
-        while (true) {
-            val current = phase.get()
-            if (current == AppRuntimePhase.Released || current == target || current == AppRuntimePhase.Started) {
-                return
-            }
-            if (current !in allowedFrom || !phase.compareAndSet(current, target)) {
-                continue
-            }
-            try {
-                action()
-            } catch (failure: Throwable) {
-                release()
-                throw failure
-            }
+        val current = phase.get()
+        if (current == AppRuntimePhase.Released || current == target || current == AppRuntimePhase.Started) {
             return
+        }
+        if (current !in allowedFrom) return
+        phase.set(target)
+        try {
+            action()
+        } catch (failure: Throwable) {
+            release()
+            throw failure
         }
     }
 }

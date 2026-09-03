@@ -8,6 +8,12 @@ interface LibraryReader {
     val scanState: StateFlow<LibraryScanState>
 }
 
+interface LibraryStartupController : LibraryReader {
+    fun start()
+    fun onPermissionChanged(granted: Boolean)
+    fun blockNetworkSources(sourceIds: Set<String>)
+}
+
 interface LibraryTagUpdateWriter {
     suspend fun applyVerifiedTagEdits(editedSongs: List<Song>)
 }

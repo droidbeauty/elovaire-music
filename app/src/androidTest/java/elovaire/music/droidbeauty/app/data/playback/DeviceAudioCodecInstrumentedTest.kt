@@ -1,7 +1,7 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.Manifest
-import android.content.ContentUris
+import android.content.ContentValues
 import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
@@ -16,6 +16,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.test.platform.app.InstrumentationRegistry
+import org.junit.After
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
@@ -29,6 +30,13 @@ import org.junit.Test
 class DeviceAudioCodecInstrumentedTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val context = instrumentation.targetContext
+    private val testContext = instrumentation.context
+    private val insertedUris = mutableListOf<Uri>()
+
+    @After
+    fun tearDown() {
+        insertedUris.forEach { uri -> runCatching { context.contentResolver.delete(uri, null, null) } }
+    }
 
     @Before
     fun grantAudioPermission() {
@@ -37,8 +45,8 @@ class DeviceAudioCodecInstrumentedTest {
 
     @Test
     fun availableRepresentativeDeviceFormatsReachAudioOutput() {
-        val availableMedia = REPRESENTATIVE_MIME_TYPES.mapNotNull { mimeType ->
-            firstMediaUri(mimeType)?.let { uri -> mimeType to uri }
+        val availableMedia = REPRESENTATIVE_FIXTURES.map { (assetName, mimeType) ->
+            mimeType to insertFixture(assetName, mimeType)
         }
         assumeTrue("No representative audio formats are available", availableMedia.isNotEmpty())
         availableMedia.forEach { (mimeType, uri) ->
@@ -101,20 +109,29 @@ class DeviceAudioCodecInstrumentedTest {
         )
     }
 
-    private fun firstMediaUri(mimeType: String): Uri? {
-        return context.contentResolver.query(
+    private fun insertFixture(assetName: String, mimeType: String): Uri {
+        val uri = context.contentResolver.insert(
             MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-            arrayOf(MediaStore.Audio.Media._ID),
-            "${MediaStore.Audio.Media.MIME_TYPE} = ?",
-            arrayOf(mimeType),
-            "${MediaStore.Audio.Media._ID} ASC",
-        )?.use { cursor ->
-            if (!cursor.moveToFirst()) return@use null
-            ContentUris.withAppendedId(
-                MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
-                cursor.getLong(0),
+            ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, "elovaire-codec-$assetName")
+                put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
+                put(MediaStore.Audio.Media.RELATIVE_PATH, "Music/ElovaireCodecTest")
+                if (Build.VERSION.SDK_INT >= 29) put(MediaStore.Audio.Media.IS_PENDING, 1)
+            },
+        ) ?: error("Unable to create codec fixture")
+        insertedUris += uri
+        context.contentResolver.openOutputStream(uri)?.use { output ->
+            testContext.assets.open("media-metadata/$assetName").use { input -> input.copyTo(output) }
+        } ?: error("Unable to write codec fixture")
+        if (Build.VERSION.SDK_INT >= 29) {
+            context.contentResolver.update(
+                uri,
+                ContentValues().apply { put(MediaStore.Audio.Media.IS_PENDING, 0) },
+                null,
+                null,
             )
         }
+        return uri
     }
 
     private fun audioPermission(): String {
@@ -126,11 +143,10 @@ class DeviceAudioCodecInstrumentedTest {
     }
 
     private companion object {
-        val REPRESENTATIVE_MIME_TYPES = listOf(
-            "audio/mpeg",
-            "audio/flac",
-            "audio/mp4",
-            "audio/ogg",
+        val REPRESENTATIVE_FIXTURES = listOf(
+            "write-fixture.mp3" to "audio/mpeg",
+            "write-fixture.flac" to "audio/flac",
+            "write-fixture.m4a" to "audio/mp4",
         )
     }
 }

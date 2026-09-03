@@ -1,8 +1,8 @@
 package elovaire.music.droidbeauty.app.core
 
 import androidx.media3.common.util.UnstableApi
-import elovaire.music.droidbeauty.app.data.library.LibraryRepository
-import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
+import elovaire.music.droidbeauty.app.data.library.LibraryReader
+import elovaire.music.droidbeauty.app.data.playback.PlaybackEffects
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
@@ -43,9 +43,9 @@ import android.util.Log
 internal class PlaybackIntegrationCoordinator(
     private val scope: CoroutineScope,
     private val preferences: PlaybackIntegrationSettings,
-    private val library: LibraryRepository,
+    private val library: LibraryReader,
     private val playback: PlaybackManager,
-    private val effects: PlaybackEffectsController,
+    private val effects: PlaybackEffects,
     private val sessionStore: PlaybackSessionStore,
     private val clock: AppClock = AndroidAppClock,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,

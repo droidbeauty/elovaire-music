@@ -1,11 +1,14 @@
 package elovaire.music.droidbeauty.app.core
 
+import android.content.Context
+import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagArtworkInvalidator
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagMutationCoordinator
 
 internal class AppDependencies(
+    applicationContext: Context,
     services: AppServices,
     appDispatchers: AppDispatchers,
     artworkInvalidator: AlbumTagArtworkInvalidator,
@@ -14,6 +17,19 @@ internal class AppDependencies(
         editor = services.albumTagEditorService,
         artworkInvalidator = artworkInvalidator,
     )
+
+    val rootDeleteDependencies: RootDeleteDependencies by lazy(LazyThreadSafetyMode.NONE) {
+        object : RootDeleteDependencies {
+            override val deleteHandler = DeviceDeleteCoordinator(
+                context = applicationContext,
+                libraryRepository = services.libraryRepository,
+                playbackManager = services.playbackManager,
+                preferenceStore = services.preferenceStore,
+                invalidateArtwork = artworkInvalidator::invalidate,
+                ioDispatcher = appDispatchers.io,
+            )
+        }
+    }
 
     val rootReadDependencies: RootReadDependencies = object : RootReadDependencies {
         override val libraryReader get() = services.libraryRepository

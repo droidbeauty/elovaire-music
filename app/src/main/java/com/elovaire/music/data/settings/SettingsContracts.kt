@@ -31,7 +31,6 @@ internal interface AppearanceSettingsStore {
 
 internal interface CollectionSettingsStore {
     val userDataReadiness: StateFlow<UserDataReadiness>
-    val userDataSnapshot: StateFlow<UserDataSnapshot>
     val playlists: StateFlow<List<Playlist>>
     val smartPlaylists: StateFlow<List<SmartPlaylist>>
     val favoriteSongIds: StateFlow<List<Long>>
@@ -43,7 +42,11 @@ internal interface CollectionSettingsStore {
     val lastPlayedCollectionId: StateFlow<Long?>
 }
 
-internal interface RootSettingsReader : AppearanceSettingsStore, CollectionSettingsStore
+internal interface MediaLibraryUserDataReader {
+    val userDataSnapshot: StateFlow<UserDataSnapshot>
+}
+
+internal interface RootSettingsReader : AppearanceSettingsStore, CollectionSettingsStore, MediaLibraryUserDataReader
 
 internal interface PlaybackIntegrationSettings {
     val eqSettings: StateFlow<EqSettings>
