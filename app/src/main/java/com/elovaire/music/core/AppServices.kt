@@ -366,6 +366,7 @@ internal class AppServices(
     fun onMemoryPressure(pressure: MemoryPressure) {
         if (lyricsServiceDelegate.isInitialized()) lyricsService.onMemoryPressure(pressure)
         if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.onMemoryPressure(pressure)
+        audiobookChapterReader.onMemoryPressure(pressure)
         libraryRepository.onMemoryPressure(pressure)
         mediaTree.onMemoryPressure(pressure)
     }

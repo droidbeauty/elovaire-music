@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
+import elovaire.music.droidbeauty.app.data.playback.resolveAudiobookProgress
+import elovaire.music.droidbeauty.app.data.playback.audiobookPartPrefixDurations
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
@@ -105,17 +107,15 @@ private fun AudiobookMiniCard(
     onClick: () -> Unit,
 ) {
     val copy = audiobookCopy(LocalAppLanguage.current)
+    val partPrefixDurations = remember(book) { audiobookPartPrefixDurations(book.parts) }
     val progressFraction = remember(book, progress) {
-        progress?.let { saved ->
-            val partIndex = book.parts.indexOfFirst { it.song.id == saved.songId }
-            if (partIndex < 0 || book.durationMs <= 0L) {
-                0f
-            } else {
-                val elapsed = book.parts.take(partIndex).sumOf { it.durationMs.coerceAtLeast(0L) } +
-                    saved.positionMs.coerceAtLeast(0L).coerceAtMost(book.parts[partIndex].durationMs.coerceAtLeast(0L))
-                (elapsed.toFloat() / book.durationMs.toFloat()).coerceIn(0f, 1f)
-            }
-        } ?: 0f
+        resolveAudiobookProgress(
+            book = book,
+            savedProgress = progress,
+            currentSongId = null,
+            currentPositionMs = 0L,
+            partPrefixDurations = partPrefixDurations,
+        ).progressFraction
     }
     Column(
         modifier = Modifier
@@ -198,6 +198,34 @@ internal fun AudiobooksScreen(
 }
 
 @Composable
+internal fun AudiobookUnavailableScreen(
+    bottomPadding: Dp,
+    onBack: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
+        DetailListTopBar(title = "Audiobook unavailable", subtitle = null, onBack = onBack)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(bottom = bottomPadding),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    text = "This audiobook is no longer available",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                )
+                Text(
+                    text = "Refresh your library and try again",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = readableSecondaryTextColor(),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun AudiobookCollectionRow(
     book: Audiobook,
     onClick: () -> Unit,
@@ -266,34 +294,29 @@ internal fun AudiobookDetailScreen(
     sleepTimerOption: SleepTimerOption,
     onSleepTimerSelected: (SleepTimerOption) -> Unit,
 ) {
+    if (book.parts.isEmpty()) {
+        AudiobookUnavailableScreen(bottomPadding = bottomPadding, onBack = onBack)
+        return
+    }
     val copy = audiobookCopy(LocalAppLanguage.current)
     val motionTransitions = rememberMotionTransitions()
     var showSleepTimerDialog by remember { mutableStateOf(false) }
-    val activeSongId = currentSongId?.takeIf { id -> book.parts.any { it.song.id == id } }
-        ?: savedProgress?.songId
-    val activePositionMs = if (activeSongId == currentSongId) progressMs else savedProgress?.positionMs ?: 0L
-    val currentPart = book.parts.withIndex()
-        .firstOrNull { (_, part) ->
-            part.song.id == activeSongId &&
-                (part.startMs == null || activePositionMs < (part.endMs ?: Long.MAX_VALUE))
-        }
-        ?.index
-        ?: book.parts.indexOfLast { it.song.id == activeSongId }.takeIf { it >= 0 }
-    val currentPartDuration = currentPart?.let { book.parts[it].durationMs } ?: 0L
-    val currentPartOffsetMs = currentPart?.let { index ->
-        val part = book.parts[index]
-        (activePositionMs - (part.startMs ?: 0L)).coerceAtLeast(0L)
-            .coerceAtMost(part.durationMs.coerceAtLeast(0L))
-    } ?: 0L
-    val elapsedBookMs = currentPart?.let { index ->
-        book.parts.take(index).sumOf { it.durationMs.coerceAtLeast(0L) } + currentPartOffsetMs
-    } ?: 0L
-    val bookProgress = if (book.durationMs > 0L) {
-        (elapsedBookMs.toFloat() / book.durationMs).coerceIn(0f, 1f)
-    } else {
-        0f
+    val partPrefixDurations = remember(book.parts) { audiobookPartPrefixDurations(book.parts) }
+    val resolvedProgress = remember(book, savedProgress, currentSongId, progressMs, partPrefixDurations) {
+        resolveAudiobookProgress(
+            book = book,
+            savedProgress = savedProgress,
+            currentSongId = currentSongId,
+            currentPositionMs = progressMs,
+            partPrefixDurations = partPrefixDurations,
+        )
     }
-    val isCompleted = savedProgress?.completed == true && activeSongId != currentSongId
+    val activeSongId = resolvedProgress.songId
+    val currentPart = resolvedProgress.partIndex
+    val currentPartDuration = currentPart?.let { book.parts.getOrNull(it)?.durationMs } ?: 0L
+    val elapsedBookMs = resolvedProgress.bookElapsedMs
+    val bookProgress = resolvedProgress.progressFraction
+    val isCompleted = resolvedProgress.completed && activeSongId != currentSongId
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = bottomPadding + 20.dp),
@@ -351,12 +374,12 @@ internal fun AudiobookDetailScreen(
                     ) {
                         Button(
                             onClick = {
-                                onPlay(
-                                    if (isCompleted) book.parts.first() else {
-                                        book.parts.getOrNull(currentPart ?: 0) ?: book.parts.first()
-                                    },
-                                    !isCompleted,
-                                )
+                                val selectedPart = if (isCompleted) {
+                                    book.parts.firstOrNull()
+                                } else {
+                                    book.parts.getOrNull(currentPart ?: 0) ?: book.parts.firstOrNull()
+                                }
+                                selectedPart?.let { onPlay(it, !isCompleted) }
                             },
                             modifier = Modifier.weight(1f),
                         ) {

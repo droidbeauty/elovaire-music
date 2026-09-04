@@ -45,6 +45,7 @@ interface PlaybackQueueCommands {
 interface NowPlayingPlayback : PlaybackReader, PlaybackController, PlaybackQueueCommands {
     val progressState: StateFlow<PlaybackProgressState>
     val sleepTimerState: StateFlow<PlaybackSleepTimerState>
+    val audiobookProgressRevision: StateFlow<Long>
 
     fun setProgressConsumerActive(consumer: PlaybackProgressConsumer, active: Boolean)
     fun cycleRepeatMode()
@@ -64,6 +65,7 @@ interface NowPlayingPlayback : PlaybackReader, PlaybackController, PlaybackQueue
         sourceLabel: String? = song.album,
         shuffleEnabled: Boolean = false,
         sourcePlaylistId: Long? = null,
+        audiobookContext: AudiobookPlaybackContext? = null,
     )
     fun audiobookProgress(bookKey: String, songId: Long): Long
     fun audiobookResumeSongId(bookKey: String): Long?

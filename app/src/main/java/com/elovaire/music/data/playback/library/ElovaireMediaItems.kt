@@ -137,6 +137,12 @@ internal object ElovaireMediaItems {
 
     fun song(song: Song): MediaItem = song(song, MediaMetadata.MEDIA_TYPE_MUSIC)
 
+    fun playable(song: Song): MediaItem = if (song.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {
+        audiobookPart(song)
+    } else {
+        song(song)
+    }
+
     private fun song(song: Song, mediaType: Int): MediaItem = MediaItem.Builder()
         .setMediaId(ElovaireMediaIds.song(song.id))
         .setUri(song.uri)

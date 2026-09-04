@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.playback.AudiobookPlaybackContext
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 import elovaire.music.droidbeauty.app.domain.search.SearchableAlbum
 import elovaire.music.droidbeauty.app.domain.search.SearchablePlaylist
@@ -258,7 +259,18 @@ internal class ElovaireMediaTree(
                     val book = snapshot.audiobooks.firstOrNull { book ->
                         book.parts.any { part -> part.song.id == song.id }
                     } ?: return null
-                    return ResolvedPlayableQueue(song, book.parts.map(AudiobookPart::song), book.title, null)
+                    return ResolvedPlayableQueue(
+                        startSong = song,
+                        queue = book.parts.map(AudiobookPart::song),
+                        sourceLabel = book.title,
+                        sourcePlaylistId = null,
+                        audiobookContext = AudiobookPlaybackContext(
+                            bookKey = book.stableKey,
+                            orderedSongIds = book.parts.map { it.song.id },
+                            bookDurationMs = book.durationMs,
+                            orderedSongDurationsMs = book.parts.map { it.song.durationMs },
+                        ),
+                    )
                 }
                 val album = snapshot.album(song.albumId)
                 if (album != null) {
@@ -285,9 +297,17 @@ internal class ElovaireMediaTree(
                 val playlist = snapshot.playlist(parsed.playlistId) ?: return null
                 snapshot.playlistSongs(playlist.id).toQueue(playlist.name, playlist.id)
             }
-            is ElovaireMediaId.Audiobook -> snapshot.audiobook(parsed.stableKey)?.parts
-                ?.map { it.song }
-                ?.toQueue(parsed.stableKey)
+            is ElovaireMediaId.Audiobook -> snapshot.audiobook(parsed.stableKey)?.let { book ->
+                book.parts.map { it.song }.toQueue(
+                    sourceLabel = book.title,
+                    audiobookContext = AudiobookPlaybackContext(
+                        bookKey = book.stableKey,
+                        orderedSongIds = book.parts.map { it.song.id },
+                        bookDurationMs = book.durationMs,
+                        orderedSongDurationsMs = book.parts.map { it.song.durationMs },
+                    ),
+                )
+            }
             is ElovaireMediaId.Bucket -> bucketQueue(parsed, snapshot)
             ElovaireMediaId.PermissionRequired,
             ElovaireMediaId.EmptyLibrary,
@@ -440,16 +460,23 @@ internal class ElovaireMediaTree(
 
     override fun defaultPlayableQueue(): ResolvedPlayableQueue? {
         val snapshot = snapshot()
-        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
-        return defaultQueue(snapshot)
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty() && snapshot.audiobooks.isEmpty()) return null
+        return defaultQueue(snapshot) ?: snapshot.audiobooks.firstOrNull()?.let { book ->
+            audiobookQueue(book, book.parts.firstOrNull()?.song)
+        }
     }
 
     override fun resumptionQueue(): ResolvedPlayableQueue? {
         val snapshot = snapshot()
-        if (!snapshot.permissionGranted || snapshot.songs.isEmpty()) return null
+        if (!snapshot.permissionGranted || snapshot.songs.isEmpty() && snapshot.audiobooks.isEmpty()) return null
         val recentSong = snapshot.recentSongIds.firstNotNullOfOrNull { songId ->
-            snapshot.song(songId)
+            snapshot.playableSong(songId)
         } ?: return null
+        if (recentSong.mediaKind == AudioMediaKind.Audiobook) {
+            val book = snapshot.audiobooks.firstOrNull { it.parts.any { part -> part.song.id == recentSong.id } }
+                ?: return null
+            return audiobookQueue(book, recentSong)
+        }
         return when (snapshot.lastPlayedCollectionKind) {
             PlaybackCollectionKind.Playlist -> snapshot.lastPlayedCollectionId
                 ?.let(snapshot::playlistSongs)
@@ -489,9 +516,10 @@ internal class ElovaireMediaTree(
     private fun List<Song>.toQueue(
         sourceLabel: String,
         sourcePlaylistId: Long? = null,
+        audiobookContext: AudiobookPlaybackContext? = null,
     ): ResolvedPlayableQueue? {
         val startSong = firstOrNull() ?: return null
-        return ResolvedPlayableQueue(startSong, this, sourceLabel, sourcePlaylistId)
+        return ResolvedPlayableQueue(startSong, this, sourceLabel, sourcePlaylistId, audiobookContext)
     }
 
     private fun bucketChildren(
@@ -602,6 +630,25 @@ internal class ElovaireMediaTree(
         return snapshot.favoriteSongsByTitle().toQueue("Favorites")
             ?: snapshot.recentlyAddedSongs().toQueue("Recently added")
             ?: snapshot.songsByTitle().toQueue("Songs")
+    }
+
+    private fun audiobookQueue(book: Audiobook, startSong: Song?): ResolvedPlayableQueue? {
+        val queue = book.parts.map(AudiobookPart::song).distinctBy(Song::id)
+        val resolvedStartSong = startSong?.takeIf { candidate -> queue.any { it.id == candidate.id } }
+            ?: queue.firstOrNull()
+            ?: return null
+        return ResolvedPlayableQueue(
+            startSong = resolvedStartSong,
+            queue = queue,
+            sourceLabel = book.title,
+            sourcePlaylistId = null,
+            audiobookContext = AudiobookPlaybackContext(
+                bookKey = book.stableKey,
+                orderedSongIds = queue.map(Song::id),
+                bookDurationMs = book.durationMs,
+                orderedSongDurationsMs = queue.map(Song::durationMs),
+            ),
+        )
     }
 
     internal data class MediaTreeSnapshot(
@@ -806,4 +853,5 @@ internal data class ResolvedPlayableQueue(
     val queue: List<Song>,
     val sourceLabel: String,
     val sourcePlaylistId: Long?,
+    val audiobookContext: AudiobookPlaybackContext? = null,
 )

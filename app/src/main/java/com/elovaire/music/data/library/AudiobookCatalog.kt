@@ -15,11 +15,11 @@ internal object AudiobookCatalog {
             .filter { it.mediaKind == AudioMediaKind.Audiobook }
             .groupBy(::groupKey)
             .values
-            .map { parts ->
+            .mapNotNull { parts ->
                 val ordered = parts.sortedWith(
                     compareBy<Song>({ it.discNumber.coerceAtLeast(1) }, { it.trackNumber.coerceAtLeast(0) }, { it.fileName.lowercase(Locale.ROOT) }, { it.id }),
-                )
-                val first = ordered.first()
+                ).distinctBy(Song::id)
+                val first = ordered.firstOrNull() ?: return@mapNotNull null
                 val author = ordered
                     .asSequence()
                     .mapNotNull { it.albumArtist?.trim()?.takeIf(String::isNotBlank) ?: it.artist.trim().takeIf(String::isNotBlank) }

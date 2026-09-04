@@ -14,6 +14,8 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
+import kotlinx.coroutines.CancellationException
 
 @Composable
 internal fun LibraryHubRouteHost(
@@ -22,7 +24,8 @@ internal fun LibraryHubRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
-    val audiobookProgressByKey = remember(routeState.libraryState.audiobooks) {
+    val audiobookProgressRevision by routeActions.playback.audiobookProgressRevision.collectAsStateWithLifecycle()
+    val audiobookProgressByKey = remember(routeState.libraryState.audiobooks, audiobookProgressRevision) {
         routeState.libraryState.audiobooks.mapNotNull { book ->
             routeActions.playback.audiobookProgress(book.stableKey)?.let { progress ->
                 book.stableKey to progress
@@ -70,44 +73,58 @@ internal fun AudiobookDetailRouteHost(
 ) {
     val book = routeState.libraryState.audiobooks.firstOrNull { it.stableKey == stableKey }
     if (book == null) {
-        AudiobooksRouteHost(routeState, routeActions, padding)
+        AudiobookUnavailableScreen(bottomPadding = padding.detailBottom, onBack = routeActions::navigateUp)
         return
     }
     val progress by routeActions.playback.progressState.collectAsStateWithLifecycle()
     val sleepTimerState by routeActions.playback.sleepTimerState.collectAsStateWithLifecycle()
     val audiobookSettings by routeActions.settings.appearanceSettings.audiobookSettings.collectAsStateWithLifecycle()
-    val savedProgress = remember(book.stableKey) {
+    val audiobookProgressRevision by routeActions.playback.audiobookProgressRevision.collectAsStateWithLifecycle()
+    val savedProgress: AudiobookProgress? = remember(book.stableKey, audiobookProgressRevision) {
         routeActions.playback.audiobookProgress(book.stableKey)
     }
-    val embeddedChapters by androidx.compose.runtime.produceState<List<AudiobookPart>?>(
-        initialValue = null,
+    val chapterLoadState by androidx.compose.runtime.produceState<AudiobookChapterLoadState>(
+        initialValue = AudiobookChapterLoadState.Loading,
         key1 = book.stableKey,
         key2 = book.parts,
     ) {
-        val expandedParts = buildList {
-            book.parts.forEach { part ->
-                val chapters = chapterReader.chapters(part.song)
-                if (chapters.isEmpty()) {
-                    add(part)
-                } else {
-                    chapters.forEach { chapter ->
-                        add(
-                            AudiobookPart(
-                                song = part.song,
-                                number = size + 1,
-                                titleOverride = chapter.title,
-                                startMs = chapter.startMs,
-                                endMs = chapter.endMs,
-                            ),
-                        )
+        try {
+            val expandedParts = buildList {
+                book.parts.forEach { part ->
+                    val chapters = chapterReader.chapters(part.song)
+                    if (chapters.isEmpty()) {
+                        add(part)
+                    } else {
+                        chapters.forEach { chapter ->
+                            add(
+                                AudiobookPart(
+                                    song = part.song,
+                                    number = size + 1,
+                                    titleOverride = chapter.title,
+                                    startMs = chapter.startMs,
+                                    endMs = chapter.endMs,
+                                ),
+                            )
+                        }
                     }
                 }
             }
+            value = if (expandedParts.isNotEmpty() && expandedParts != book.parts) {
+                AudiobookChapterLoadState.Loaded(expandedParts)
+            } else {
+                AudiobookChapterLoadState.UnavailableFallback
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            value = AudiobookChapterLoadState.UnavailableFallback
         }
-        value = expandedParts.takeIf { it.isNotEmpty() && it != book.parts }
     }
-    val displayedBook = remember(book, embeddedChapters) {
-        embeddedChapters?.let { book.copy(parts = it) } ?: book
+    val displayedBook = remember(book, chapterLoadState) {
+        (chapterLoadState as? AudiobookChapterLoadState.Loaded)
+            ?.parts
+            ?.let { book.copy(parts = it) }
+            ?: book
     }
     AudiobookDetailScreen(
         book = displayedBook,
@@ -134,6 +151,12 @@ internal fun AudiobookDetailRouteHost(
         sleepTimerOption = sleepTimerState.option,
         onSleepTimerSelected = routeActions.playback::setSleepTimer,
     )
+}
+
+private sealed interface AudiobookChapterLoadState {
+    data object Loading : AudiobookChapterLoadState
+    data class Loaded(val parts: List<AudiobookPart>) : AudiobookChapterLoadState
+    data object UnavailableFallback : AudiobookChapterLoadState
 }
 
 @Composable

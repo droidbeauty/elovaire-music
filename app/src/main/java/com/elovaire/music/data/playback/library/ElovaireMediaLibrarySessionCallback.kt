@@ -169,6 +169,7 @@ internal class ElovaireMediaLibrarySessionCallback(
                 startIndex = result.startIndex,
                 sourceLabel = queue.sourceLabel,
                 sourcePlaylistId = queue.sourcePlaylistId,
+                audiobookContext = queue.audiobookContext,
             )
             result
         }
@@ -198,6 +199,7 @@ internal class ElovaireMediaLibrarySessionCallback(
                     startIndex = result.startIndex,
                     sourceLabel = queue.sourceLabel,
                     sourcePlaylistId = queue.sourcePlaylistId,
+                    audiobookContext = queue.audiobookContext,
                 )
             }
             result
@@ -236,7 +238,7 @@ internal class ElovaireMediaLibrarySessionCallback(
             else -> startPositionMs
         }
         return MediaSession.MediaItemsWithStartPosition(
-            queue.map(ElovaireMediaItems::song),
+            queue.map(ElovaireMediaItems::playable),
             resolvedStartIndex,
             resolvedStartPositionMs,
         )

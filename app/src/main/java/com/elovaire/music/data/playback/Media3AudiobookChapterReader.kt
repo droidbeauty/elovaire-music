@@ -10,13 +10,19 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.extractor.DefaultExtractorInput
 import androidx.media3.extractor.DefaultExtractorsFactory
 import androidx.media3.extractor.Extractor
+import androidx.media3.extractor.ExtractorsFactory
 import androidx.media3.extractor.ExtractorOutput
 import androidx.media3.extractor.PositionHolder
 import androidx.media3.extractor.SeekMap
 import androidx.media3.extractor.TrackOutput
 import androidx.media3.extractor.metadata.Chapter
+import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.domain.model.AudiobookChapter
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.core.backend.BackendEvent
+import elovaire.music.droidbeauty.app.core.backend.BackendEventSink
+import elovaire.music.droidbeauty.app.core.backend.LogcatBackendEventSink
+import elovaire.music.droidbeauty.app.core.backend.emitLazy
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,21 +30,44 @@ import kotlinx.coroutines.ensureActive
 import kotlin.coroutines.coroutineContext
 import java.io.EOFException
 import java.io.IOException
+import java.util.LinkedHashMap
 import kotlin.math.min
 
 internal interface AudiobookChapterReader {
     suspend fun chapters(song: Song): List<AudiobookChapter>
+
+    fun onMemoryPressure(pressure: MemoryPressure) = Unit
 }
 
 @UnstableApi
 internal class Media3AudiobookChapterReader(
     private val dataSourceFactory: DataSource.Factory,
-    private val extractorsFactory: DefaultExtractorsFactory = DefaultExtractorsFactory(),
+    private val extractorsFactory: ExtractorsFactory = DefaultExtractorsFactory(),
+    private val backendEventSink: BackendEventSink = LogcatBackendEventSink,
 ) : AudiobookChapterReader {
+    private val cache = object : LinkedHashMap<ChapterCacheKey, List<AudiobookChapter>>(CACHE_SIZE, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<ChapterCacheKey, List<AudiobookChapter>>): Boolean =
+            size > CACHE_SIZE
+    }
+
+    override fun onMemoryPressure(pressure: MemoryPressure) {
+        if (pressure == MemoryPressure.Normal) return
+        synchronized(cache) { cache.clear() }
+    }
+
     override suspend fun chapters(song: Song): List<AudiobookChapter> = withContext(Dispatchers.IO) {
-        var dataSource = dataSourceFactory.createDataSource()
+        val cacheKey = ChapterCacheKey(song.uri.toString(), song.durationMs, song.dateModifiedSeconds)
+        synchronized(cache) { cache[cacheKey]?.let {
+            recordDiagnostics(result = "cache_hit", chapterCount = it.size)
+            return@withContext it
+        } }
+        var dataSource: DataSource? = null
         var extractor: Extractor? = null
+        var cacheResult = false
+        var sniffFailed = false
+        var result = emptyList<AudiobookChapter>()
         try {
+            dataSource = dataSourceFactory.createDataSource()
             val totalLength = dataSource.open(DataSpec(song.uri))
             var input = DefaultExtractorInput(dataSource, 0L, totalLength)
             val selectedExtractor = extractorsFactory
@@ -48,23 +77,29 @@ internal class Media3AudiobookChapterReader(
                     try {
                         candidate.sniff(input)
                     } catch (_: IOException) {
+                        sniffFailed = true
                         false
                     }
                 }
-                ?: return@withContext emptyList()
+                ?: run {
+                    cacheResult = !sniffFailed
+                    recordDiagnostics(result = "no_chapters", chapterCount = 0)
+                    return@withContext emptyList()
+                }
             extractor = selectedExtractor
             input.resetPeekPosition()
             val output = ChapterExtractorOutput()
             selectedExtractor.init(output)
             val positionHolder = PositionHolder()
-            while (!output.audioFormatCaptured) {
+            var probeIterations = 0
+            while (!output.audioFormatCaptured && probeIterations++ < MAX_PROBE_ITERATIONS) {
                 coroutineContext.ensureActive()
                 when (selectedExtractor.read(input, positionHolder)) {
                     Extractor.RESULT_CONTINUE -> Unit
                     Extractor.RESULT_END_OF_INPUT -> break
                     Extractor.RESULT_SEEK -> {
                         val position = positionHolder.position.coerceAtLeast(0L)
-                        dataSource.close()
+                        closeDataSource(dataSource)
                         dataSource = dataSourceFactory.createDataSource()
                         dataSource.open(DataSpec(song.uri, position, C.LENGTH_UNSET.toLong()))
                         input = DefaultExtractorInput(dataSource, position, totalLength)
@@ -73,20 +108,77 @@ internal class Media3AudiobookChapterReader(
                     else -> break
                 }
             }
-            output.chapters(song.durationMs)
+            if (!output.audioFormatCaptured && probeIterations >= MAX_PROBE_ITERATIONS) {
+                recordDiagnostics(result = "budget_exhausted", chapterCount = 0, errorType = "ProbeBudget")
+                return@withContext emptyList()
+            }
+            result = output.chapters(song.durationMs)
+            cacheResult = true
+            recordDiagnostics(result = if (result.isEmpty()) "no_chapters" else "chapters_found", chapterCount = result.size)
+            result
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: IOException) {
+            recordDiagnostics(result = "io_failure", chapterCount = 0, errorType = "IOException")
+            emptyList()
+        } catch (_: RuntimeException) {
+            recordDiagnostics(result = "runtime_failure", chapterCount = 0, errorType = "RuntimeException")
             emptyList()
         } finally {
-            extractor?.release()
-            dataSource.close()
+            releaseExtractor(extractor)
+            closeDataSource(dataSource)
+            if (cacheResult) {
+                synchronized(cache) { cache[cacheKey] = result }
+            }
         }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun releaseExtractor(extractor: Extractor?) {
+        try {
+            extractor?.release()
+        } catch (failure: RuntimeException) {
+            recordDiagnostics(result = "cleanup_failure", chapterCount = 0, errorType = failure::class.simpleName)
+        }
+    }
+
+    @Suppress("TooGenericExceptionCaught")
+    private fun closeDataSource(dataSource: DataSource?) {
+        try {
+            dataSource?.close()
+        } catch (failure: IOException) {
+            recordDiagnostics(result = "cleanup_failure", chapterCount = 0, errorType = failure::class.simpleName)
+        } catch (failure: RuntimeException) {
+            recordDiagnostics(result = "cleanup_failure", chapterCount = 0, errorType = failure::class.simpleName)
+        }
+    }
+
+    private fun recordDiagnostics(result: String, chapterCount: Int, errorType: String? = null) {
+        backendEventSink.emitLazy {
+            BackendEvent.AudiobookChapterRead(
+                fields = mapOf(
+                    "result" to result,
+                    "chapter_count" to chapterCount.toString(),
+                    "duration_known" to "true",
+                ) + errorType?.let { mapOf("error_type" to it) }.orEmpty(),
+            )
+        }
+    }
+
+    private companion object {
+        data class ChapterCacheKey(
+            val uri: String,
+            val durationMs: Long,
+            val dateModifiedSeconds: Long?,
+        )
+
+        const val CACHE_SIZE = 64
+        const val MAX_PROBE_ITERATIONS = 20_000
     }
 }
 
 @UnstableApi
-private class ChapterExtractorOutput : ExtractorOutput {
+internal class ChapterExtractorOutput : ExtractorOutput {
     private val trackOutputs = mutableListOf<ChapterTrackOutput>()
 
     val audioFormatCaptured: Boolean
@@ -125,7 +217,8 @@ private class ChapterExtractorOutput : ExtractorOutput {
 }
 
 @UnstableApi
-private class ChapterTrackOutput : TrackOutput {
+internal class ChapterTrackOutput : TrackOutput {
+    private val scratch = ByteArray(16 * 1024)
     var format: Format? = null
         private set
 
@@ -143,9 +236,8 @@ private class ChapterTrackOutput : TrackOutput {
         sampleDataPart: Int,
     ): Int {
         var remaining = length
-        val buffer = ByteArray(min(length, 16 * 1024).coerceAtLeast(1))
         while (remaining > 0) {
-            val read = input.read(buffer, 0, min(remaining, buffer.size))
+            val read = input.read(scratch, 0, min(remaining, scratch.size))
             if (read == C.RESULT_END_OF_INPUT) {
                 if (!allowEndOfInput) throw EOFException()
                 break

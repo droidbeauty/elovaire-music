@@ -191,6 +191,10 @@ class PlaybackManager(
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
     private val audiobookProgressStore = AudiobookProgressStore(context)
     private var audiobookPlaybackSpeed = audiobookProgressStore.loadPlaybackSpeed()
+    private var activeAudiobookContext: AudiobookPlaybackContext? = null
+    private var lastAudiobookCheckpointElapsedMs = 0L
+    private val _audiobookProgressRevision = MutableStateFlow(0L)
+    override val audiobookProgressRevision: StateFlow<Long> = _audiobookProgressRevision.asStateFlow()
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private val usbManager = context.getSystemService(UsbManager::class.java)
     private val playbackAudioAttributes = AudioAttributes.Builder()
@@ -379,6 +383,7 @@ class PlaybackManager(
                     queueIndex = oldPosition.mediaItemIndex,
                     positionMs = oldPosition.positionMs,
                     durationMs = _state.value.queue.getOrNull(oldPosition.mediaItemIndex)?.durationMs ?: 0L,
+                    force = true,
                 )
             }
             sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
@@ -390,7 +395,7 @@ class PlaybackManager(
             reason: Int,
         ) {
             if (released.get()) return
-            checkpointAudiobookProgress()
+            checkpointAudiobookProgress(force = true)
             if (!playWhenReady && sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
                 sleepTimerController.onEndOfSongReached(currentSong()?.id)
             } else {
@@ -766,6 +771,21 @@ class PlaybackManager(
             sourceLabel = songs[index].album,
             sourcePlaylistId = null,
         )
+        activeAudiobookContext = null
+        val currentSong = songs.getOrNull(index)
+        if (currentSong?.mediaKind == AudioMediaKind.Audiobook) {
+            val audiobook = AudiobookCatalog.build(songs).firstOrNull { book ->
+                book.parts.any { part -> part.song.id == currentSong.id }
+            }
+            activeAudiobookContext = audiobook?.let { book ->
+                AudiobookPlaybackContext(
+                    bookKey = book.stableKey,
+                    orderedSongIds = book.parts.map { it.song.id },
+                    bookDurationMs = book.durationMs,
+                    orderedSongDurationsMs = book.parts.map { it.song.durationMs },
+                )
+            }
+        }
         applyPlaybackSpeedForCurrentSong()
         ExternalAudioStageUsage.setActivePlaybackUris(songs.map(Song::uri))
         publishProgressSnapshot(force = true)
@@ -828,6 +848,7 @@ class PlaybackManager(
         sourceLabel: String?,
         shuffleEnabled: Boolean,
         sourcePlaylistId: Long?,
+        audiobookContext: AudiobookPlaybackContext?,
     ) {
         if (released.get()) return
         recordManualPlaybackStart()
@@ -840,6 +861,7 @@ class PlaybackManager(
             sourcePlaylistId,
             libraryBacked = true,
             startPositionMs = positionMs,
+            audiobookContext = audiobookContext,
         )
     }
 
@@ -853,6 +875,7 @@ class PlaybackManager(
             shuffleEnabled = false,
             sourcePlaylistId = null,
             libraryBacked = false,
+            audiobookContext = null,
         )
     }
 
@@ -861,8 +884,15 @@ class PlaybackManager(
         startIndex: Int,
         sourceLabel: String?,
         sourcePlaylistId: Long?,
+        audiobookContext: AudiobookPlaybackContext? = null,
     ) {
-        if (released.get()) return
+        if (released.get() || songs.isEmpty()) return
+        activeAudiobookContext = audiobookContext
+            ?.takeIf {
+                it.bookKey.isNotBlank() &&
+                    it.normalizedSongIds.isNotEmpty() &&
+                    songs.getOrNull(startIndex)?.id in it.normalizedSongIds
+            }
         queueController.stageExternalQueue(
             songs = songs,
             startIndex = startIndex,
@@ -964,9 +994,9 @@ class PlaybackManager(
         return audiobookProgressStore.load(bookKey)
     }
 
-    internal fun checkpointAudiobookProgress() {
+    internal fun checkpointAudiobookProgress(force: Boolean = false) {
         if (Looper.myLooper() != Looper.getMainLooper()) {
-            playbackHandler.post(::checkpointAudiobookProgress)
+            playbackHandler.post { checkpointAudiobookProgress(force) }
             return
         }
         val queueIndex = player.currentMediaItemIndex
@@ -975,6 +1005,7 @@ class PlaybackManager(
             queueIndex = queueIndex,
             positionMs = player.currentPosition,
             durationMs = player.duration,
+            force = force,
         )
     }
 
@@ -982,20 +1013,30 @@ class PlaybackManager(
         queueIndex: Int,
         positionMs: Long,
         durationMs: Long,
+        force: Boolean = false,
     ) {
         val song = _state.value.queue.getOrNull(queueIndex) ?: return
-        if (song.mediaKind != elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) return
-        val bookKey = AudiobookCatalog.build(_state.value.queue)
-            .firstOrNull { book -> book.parts.any { it.song.id == song.id } }
-            ?.stableKey
-            ?: return
+        if (song.mediaKind != AudioMediaKind.Audiobook) return
+        val context = activeAudiobookContext ?: return
+        val nowElapsedMs = SystemClock.elapsedRealtime()
+        if (!force && nowElapsedMs - lastAudiobookCheckpointElapsedMs < AUDIOBOOK_CHECKPOINT_INTERVAL_MS) return
+        val bookElapsedMs = resolveAudiobookBookElapsed(
+            context = context,
+            queue = _state.value.queue,
+            songId = song.id,
+            positionMs = positionMs,
+        )
         audiobookProgressStore.save(
-            bookKey = bookKey,
+            bookKey = context.bookKey,
             songId = song.id,
             positionMs = positionMs,
             durationMs = durationMs,
             nowMs = System.currentTimeMillis(),
+            bookElapsedMs = bookElapsedMs,
+            bookDurationMs = context.bookDurationMs,
         )
+        lastAudiobookCheckpointElapsedMs = nowElapsedMs
+        _audiobookProgressRevision.update { revision -> revision + 1L }
     }
 
     internal fun remapAudiobookProgress(replacements: Map<Long, Long>) {
@@ -1084,7 +1125,7 @@ class PlaybackManager(
         _progressState.value = playbackProgressController.cancelScrub()
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         player.seekTo(positionMs.coerceAtLeast(0L))
-        checkpointAudiobookProgress()
+        checkpointAudiobookProgress(force = true)
         publishProgressSnapshot(force = true)
         updateState()
     }
@@ -1292,7 +1333,12 @@ class PlaybackManager(
     }
 
     fun release() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            playbackHandler.post(::release)
+            return
+        }
         if (!released.compareAndSet(false, true)) return
+        checkpointAudiobookProgress(force = true)
         beginPlaybackOperation()
         runtimeStateMachine.release()
         pauseFadeJob?.cancel()
@@ -1460,9 +1506,18 @@ class PlaybackManager(
         sourcePlaylistId: Long?,
         libraryBacked: Boolean,
         startPositionMs: Long = 0L,
+        audiobookContext: AudiobookPlaybackContext? = null,
     ) {
+        if (songs.isEmpty()) return
         beginPlaybackOperation()
         crossfadeController.cancel()
+        activeAudiobookContext = audiobookContext
+            ?.takeIf {
+                it.bookKey.isNotBlank() &&
+                    it.normalizedSongIds.isNotEmpty() &&
+                    songs.getOrNull(startIndex)?.mediaKind == AudioMediaKind.Audiobook &&
+                    songs.getOrNull(startIndex)?.id in it.normalizedSongIds
+            }
         player.playbackParameters = PlaybackParameters(
             if (songs.getOrNull(startIndex)?.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {
                 audiobookPlaybackSpeed
@@ -1486,7 +1541,7 @@ class PlaybackManager(
     private fun stopAndClearQueue() {
         beginPlaybackOperation()
         crossfadeController.cancel()
-        checkpointAudiobookProgress()
+        checkpointAudiobookProgress(force = true)
         cancelPauseFade(resetVolume = false)
         sleepTimerController.clear()
         isStoppingQueue = true
@@ -1512,6 +1567,7 @@ class PlaybackManager(
             audioSessionId = 0,
             sourcePlaylistId = null,
         )
+        activeAudiobookContext = null
         ExternalAudioStageUsage.setActivePlaybackUris(emptyList())
         queueMetadataRefresher.reset()
         _progressState.value = playbackProgressController.clear()
@@ -2355,6 +2411,7 @@ class PlaybackManager(
         const val PAUSE_FADE_STEP_COUNT = 20
         const val PAUSE_FADE_STEP_DURATION_MS = PAUSE_FADE_DURATION_MS / PAUSE_FADE_STEP_COUNT
         const val PREVIOUS_SEEK_THRESHOLD_MS = 5_000L
+        const val AUDIOBOOK_CHECKPOINT_INTERVAL_MS = 5_000L
         const val END_OF_SONG_TIMER_TOLERANCE_MS = 350L
         const val DUCK_GAIN = 0.2f
         const val AUDIO_PATH_REEVALUATION_DELAY_MS = 80L

@@ -218,6 +218,12 @@ private val SAFE_DIAGNOSTIC_FIELDS = setOf(
     "targeted_network_sources",
     "targeted_paths",
     "type",
+    "result",
+    "part_count",
+    "chapter_count",
+    "source_kind",
+    "duration_known",
+    "resume_found",
 )
 
 private const val MAX_DIAGNOSTIC_FIELDS = 24

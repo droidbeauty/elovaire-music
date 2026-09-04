@@ -9,6 +9,8 @@ import androidx.media3.session.MediaButtonReceiver
 import elovaire.music.droidbeauty.app.ElovaireApp
 import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
 import elovaire.music.droidbeauty.app.data.playback.library.ResolvedPlayableQueue
+import elovaire.music.droidbeauty.app.data.library.AudiobookCatalog
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
@@ -66,12 +68,27 @@ internal fun resolveMediaButtonResumption(
             ?.takeIf { it >= 0 }
         ?: return null
     val currentSong = queue[index]
+    val audiobookContext = if (currentSong.mediaKind == AudioMediaKind.Audiobook) {
+        AudiobookCatalog.build(queue).firstOrNull { book ->
+            book.parts.any { part -> part.song.id == currentSong.id }
+        }?.let { book ->
+            AudiobookPlaybackContext(
+                bookKey = book.stableKey,
+                orderedSongIds = book.parts.map { it.song.id },
+                bookDurationMs = book.durationMs,
+                orderedSongDurationsMs = book.parts.map { it.song.durationMs },
+            )
+        }
+    } else {
+        null
+    }
     return MediaButtonPlaybackResumption(
         queue = ResolvedPlayableQueue(
             startSong = currentSong,
             queue = queue,
             sourceLabel = currentSong.album,
             sourcePlaylistId = persisted.sourcePlaylistId,
+            audiobookContext = audiobookContext,
         ),
         persisted = persisted,
     )

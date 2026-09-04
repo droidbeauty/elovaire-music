@@ -115,6 +115,10 @@ internal sealed interface BackendEvent {
     data class PlaybackUnsupportedFormat(override val fields: Map<String, String>) : BackendEvent {
         override val name = "PlaybackUnsupportedFormat"
     }
+
+    data class AudiobookChapterRead(override val fields: Map<String, String>) : BackendEvent {
+        override val name = "AudiobookChapterRead"
+    }
 }
 
 internal interface BackendEventSink {
@@ -164,6 +168,12 @@ private val SAFE_EXTRA_FIELDS = setOf(
     "targeted_network_sources",
     "targeted_paths",
     "type",
+    "result",
+    "part_count",
+    "chapter_count",
+    "source_kind",
+    "duration_known",
+    "resume_found",
 )
 
 private fun Int.nonNegative(): Int? = takeIf { it >= 0 }
