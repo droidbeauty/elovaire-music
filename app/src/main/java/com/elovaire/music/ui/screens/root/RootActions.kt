@@ -4,20 +4,29 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import elovaire.music.droidbeauty.app.core.PlaybackActionDependencies
 import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
-import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueCommands
+import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
+import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
+import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Audiobook
+import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.i18n.localizedAllSongsSource
 
 internal class RootPlaybackActions internal constructor(
-    private val playbackManager: PlaybackQueueCommands,
+    private val playbackManager: NowPlayingPlayback,
     private val languageProvider: () -> AppLanguage,
     private val songsByAlbumIdProvider: () -> Map<Long, List<Song>>,
     private val albumsByIdProvider: () -> Map<Long, Album>,
     private val openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
 ) {
+    val progressState get() = playbackManager.progressState
+    val sleepTimerState get() = playbackManager.sleepTimerState
+
+    fun audiobookProgress(bookKey: String): AudiobookProgress? = playbackManager.audiobookProgress(bookKey)
+
     fun playAlbum(
         album: Album,
         shuffle: Boolean = false,
@@ -93,6 +102,49 @@ internal class RootPlaybackActions internal constructor(
     fun enqueueAlbum(album: Album) {
         album.songs.forEach(playbackManager::enqueueSong)
     }
+
+    fun playAudiobook(
+        book: Audiobook,
+        part: AudiobookPart = book.parts.first(),
+        resume: Boolean = true,
+    ) {
+        val resumeSongId = if (resume) {
+            playbackManager.audiobookResumeSongId(book.stableKey)
+        } else {
+            null
+        }
+        val selectedPart = book.parts.firstOrNull { it.song.id == resumeSongId } ?: part
+        val orderedSongs = book.parts.map(AudiobookPart::song).distinctBy(Song::id)
+        val savedProgress = if (resume) playbackManager.audiobookProgress(book.stableKey) else null
+        playbackManager.playSongAtPosition(
+            song = selectedPart.song,
+            collection = orderedSongs,
+            positionMs = if (resume && resumeSongId != null && savedProgress?.songId == selectedPart.song.id) {
+                savedProgress.positionMs
+            } else if (resume && savedProgress == null) {
+                selectedPart.song.bookmarkMs?.coerceAtLeast(0L) ?: 0L
+            } else {
+                selectedPart.startMs?.coerceAtLeast(0L) ?: 0L
+            },
+            sourceLabel = book.title,
+            shuffleEnabled = false,
+        )
+    }
+
+    fun seekCurrentBy(deltaMs: Long) {
+        val progress = playbackManager.progressState.value
+        val duration = progress.durationMs.takeIf { it > 0L }
+        val target = (progress.positionMs + deltaMs).coerceAtLeast(0L)
+        playbackManager.seekTo(duration?.let { target.coerceAtMost(it) } ?: target)
+    }
+
+    fun setPlaybackSpeed(speed: Float) {
+        playbackManager.setPlaybackSpeed(speed)
+    }
+
+    fun setSleepTimer(option: SleepTimerOption) {
+        playbackManager.setSleepTimer(option)
+    }
 }
 
 internal class RootPlaylistActions internal constructor(
@@ -130,7 +182,7 @@ internal class RootPlaylistActions internal constructor(
 @Composable
 internal fun rememberRootPlaybackActions(
     dependencies: PlaybackActionDependencies,
-    playbackManager: PlaybackQueueCommands,
+    playbackManager: NowPlayingPlayback,
     appLanguage: AppLanguage,
     songsByAlbumId: Map<Long, List<Song>>,
     albumsById: Map<Long, Album>,

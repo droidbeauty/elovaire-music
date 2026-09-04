@@ -19,6 +19,13 @@ internal data class MediaStoreProcessedSong(
     val identityKey: String,
 )
 
+private fun MediaStoreAudioRow.mediaKind() = AudioMediaKindClassifier.classify(
+    isAudiobook = isAudiobook,
+    extension = extension,
+    relativePath = relativePath,
+    absolutePath = filePath,
+)
+
 /** Converts an accepted MediaStore row into one library song. */
 internal class MediaStoreRowProcessor(
     private val context: Context,
@@ -30,6 +37,7 @@ internal class MediaStoreRowProcessor(
     private val genreCache: MutableMap<MediaStoreGenreKey, String?>,
     private val decisionMap: ScannerDebugLogger.ScannerDecisionMap,
 ) {
+    @Suppress("LongMethod")
     suspend fun process(row: MediaStoreAudioRow): MediaStoreProcessedSong? {
         val preflightCandidate = AudioScanCandidateMapper.toCandidate(row, detectedFormat = null)
         if (preflightCandidate.relativePath.isNullOrBlank() &&
@@ -147,6 +155,8 @@ internal class MediaStoreRowProcessor(
                 metadataResolved = enrichMetadata || cachedMetadata?.isEnriched == true,
                 albumArtist = songMetadata.albumArtist,
                 volumeNormalization = songMetadata.volumeNormalization,
+                mediaKind = row.mediaKind(),
+                bookmarkMs = row.bookmarkMs,
             ),
             identityKey = uriKey,
         )

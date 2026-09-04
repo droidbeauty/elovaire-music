@@ -107,8 +107,6 @@ internal data class SettingsLanguageCopy(
     val bassBoost: String,
     val spaciousness: String,
     val equalizer: String,
-    val enableMono: String,
-    val monoSubtitle: String,
     val otherSettings: String,
     val scanLibrary: String,
     val scanLibrarySubtitle: String,
@@ -169,4 +167,3 @@ internal fun nowPlayingBarStyleCopy(language: AppLanguage): NowPlayingBarStyleCo
     AppLanguage.Ukrainian -> NowPlayingBarStyleCopy("Стиль панелі відтворення", "Налаштуйте модуль відтворення", "Плаваючий", "Компактний")
     AppLanguage.Urdu -> NowPlayingBarStyleCopy("اب چلنے والی بار کا انداز", "اب چلنے والے ماڈیول کو حسبِ ضرورت بنائیں", "فلوٹنگ", "کمپیکٹ")
 }
-

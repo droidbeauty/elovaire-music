@@ -17,6 +17,7 @@ interface PlaybackController {
     fun skipNext()
     fun skipPrevious()
     fun seekTo(positionMs: Long)
+    fun setPlaybackSpeed(speed: Float)
 }
 
 /** Commands that can change the shared playback queue. */
@@ -56,4 +57,15 @@ interface NowPlayingPlayback : PlaybackReader, PlaybackController, PlaybackQueue
     fun updateScrubPosition(positionMs: Long)
     fun finishScrub(positionMs: Long)
     fun cancelScrub()
+    fun playSongAtPosition(
+        song: Song,
+        collection: List<Song>,
+        positionMs: Long,
+        sourceLabel: String? = song.album,
+        shuffleEnabled: Boolean = false,
+        sourcePlaylistId: Long? = null,
+    )
+    fun audiobookProgress(bookKey: String, songId: Long): Long
+    fun audiobookResumeSongId(bookKey: String): Long?
+    fun audiobookProgress(bookKey: String): AudiobookProgress?
 }

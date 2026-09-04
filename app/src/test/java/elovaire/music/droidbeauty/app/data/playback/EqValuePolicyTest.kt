@@ -46,7 +46,6 @@ class EqValuePolicyTest {
         assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(midrange = -0.1f)))
         assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(treble = 0.1f)))
         assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(reverbDurationMs = 50)))
-        assertTrue(EqValuePolicy.hasSignalAlteringEffects(EqSettings(monoEnabled = true)))
         assertTrue(
             EqValuePolicy.hasSignalAlteringEffects(
                 EqSettings(spaciousness = 0.1f, spaciousnessMode = SpaciousnessMode.StereoWidth),

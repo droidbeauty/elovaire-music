@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.domain.search
 
 import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.nio.charset.StandardCharsets
 import java.text.Normalizer
@@ -24,6 +25,13 @@ internal data class SearchableAlbum(
     val normalizedComposite: String,
 )
 
+internal data class SearchableAudiobook(
+    val audiobook: Audiobook,
+    val normalizedTitle: String,
+    val normalizedAuthor: String,
+    val normalizedComposite: String,
+)
+
 internal data class SearchableArtist(
     val displayName: String,
     val normalizedName: String,
@@ -35,6 +43,7 @@ internal data class SearchIndex(
     val revision: String = "",
     val songs: List<SearchableSong> = emptyList(),
     val albums: List<SearchableAlbum> = emptyList(),
+    val audiobooks: List<SearchableAudiobook> = emptyList(),
     val artists: List<SearchableArtist> = emptyList(),
     val albumsById: Map<Long, Album> = emptyMap(),
     val artistsByNormalizedName: Map<String, SearchableArtist> = emptyMap(),
@@ -68,6 +77,7 @@ internal data class NormalizedSearchQuery(
 internal data class SearchLibrarySnapshot(
     val songs: List<Song>,
     val albums: List<Album>,
+    val audiobooks: List<Audiobook> = emptyList(),
     val revision: String = "",
 ) {
     fun signature(): String {
@@ -81,6 +91,12 @@ internal data class SearchLibrarySnapshot(
             digest.appendSearchRevisionValue(song.artist)
             digest.appendSearchRevisionValue(song.album)
             digest.appendSearchRevisionValue(song.albumArtist.orEmpty())
+        }
+        audiobooks.forEach { audiobook ->
+            digest.appendSearchRevisionValue(audiobook.stableKey)
+            digest.appendSearchRevisionValue(audiobook.title)
+            digest.appendSearchRevisionValue(audiobook.author)
+            audiobook.parts.forEach { part -> digest.appendSearchRevisionValue(part.song.id) }
         }
         albums.forEach { album ->
             digest.appendSearchRevisionValue(album.id)
@@ -120,20 +136,24 @@ internal fun SearchLibrarySnapshot.toSearchIndex(revision: String = signature())
     return buildSearchIndex(
         songs = songs,
         albums = albums,
+        audiobooks = audiobooks,
     ).copy(revision = revision)
 }
 
 internal fun buildSearchIndex(
     songs: List<Song>,
     albums: List<Album>,
+    audiobooks: List<Audiobook> = emptyList(),
 ): SearchIndex {
     val searchableSongs = songs.map(Song::toSearchableSong)
     val searchableAlbums = albums.map(Album::toSearchableAlbum)
+    val searchableAudiobooks = audiobooks.map(Audiobook::toSearchableAudiobook)
     val searchableArtists = buildSearchableArtists(songs)
 
     return SearchIndex(
         songs = searchableSongs,
         albums = searchableAlbums,
+        audiobooks = searchableAudiobooks,
         artists = searchableArtists,
         albumsById = searchableAlbums.associate { it.album.id to it.album },
         artistsByNormalizedName = searchableArtists.associateBy(SearchableArtist::normalizedName),
@@ -328,6 +348,17 @@ internal fun Album.toSearchableAlbum(): SearchableAlbum {
             normalizedTitle,
             normalizedArtist,
         ),
+    )
+}
+
+internal fun Audiobook.toSearchableAudiobook(): SearchableAudiobook {
+    val normalizedTitle = normalizeSearchText(title)
+    val normalizedAuthor = normalizeSearchText(author)
+    return SearchableAudiobook(
+        audiobook = this,
+        normalizedTitle = normalizedTitle,
+        normalizedAuthor = normalizedAuthor,
+        normalizedComposite = buildNormalizedComposite(normalizedTitle, normalizedAuthor),
     )
 }
 

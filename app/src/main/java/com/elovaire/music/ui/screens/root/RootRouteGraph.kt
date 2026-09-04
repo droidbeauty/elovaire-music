@@ -6,6 +6,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
+import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Composable
@@ -19,6 +20,7 @@ internal fun RootRouteGraph(
     searchViewModel: SearchViewModel,
     viewModelFactory: ElovaireViewModelFactory,
     artistImageRepository: ArtistImageReader,
+    audiobookChapterReader: AudiobookChapterReader,
     modifier: Modifier = Modifier,
 ) {
     RootNavigationHost(
@@ -42,6 +44,25 @@ internal fun RootRouteGraph(
                     routeState = routeState,
                     routeActions = routeActions,
                     padding = padding,
+                )
+            }
+        }
+        composable(AUDIOBOOKS_ROUTE) {
+            AlbumTransitionContent(this) {
+                AudiobooksRouteHost(routeState, routeActions, padding)
+            }
+        }
+        composable(
+            route = "$AUDIOBOOK_ROUTE/{bookKey}",
+            arguments = listOf(navArgument("bookKey") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            AlbumTransitionContent(this) {
+                AudiobookDetailRouteHost(
+                    stableKey = backStackEntry.audiobookRouteKey(),
+                    routeState = routeState,
+                    routeActions = routeActions,
+                    padding = padding,
+                    chapterReader = audiobookChapterReader,
                 )
             }
         }
@@ -130,6 +151,9 @@ internal fun RootRouteGraph(
         composable(CROSSFADE_ROUTE) {
             CrossfadeRouteHost(routeState, routeActions, padding)
         }
+        composable(AUDIOBOOK_SETTINGS_ROUTE) {
+            AudiobookSettingsRouteHost(routeActions, padding)
+        }
         composable(SETTINGS_ROUTE) {
             SettingsRouteHost(routeState, routeActions, padding)
         }
@@ -141,6 +165,9 @@ internal fun RootRouteGraph(
         }
         composable(NOW_PLAYING_BAR_STYLE_ROUTE) {
             NowPlayingBarStyleRouteHost(routeState, routeActions, padding)
+        }
+        composable(SMART_PLAYLIST_SETTINGS_ROUTE) {
+            SmartPlaylistSettingsRouteHost(routeActions, padding)
         }
         composable(CHANGELOG_ROUTE) {
             ChangelogRouteHost(routeActions)
@@ -182,6 +209,7 @@ private fun SearchRouteHost(
             routeActions.openAlbum(album, origin, AlbumOpenSource.SearchResults)
         },
         onArtistSelected = routeActions::openArtist,
+        onAudiobookSelected = { book -> routeActions.openAudiobook(book.stableKey) },
         onPlaylistSelected = { playlist -> routeActions.openPlaylist(playlist.id) },
         onToggleFavorite = routeActions.playlists::toggleFavorite,
     )

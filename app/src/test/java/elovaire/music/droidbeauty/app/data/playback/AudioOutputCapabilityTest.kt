@@ -18,7 +18,6 @@ class AudioOutputCapabilityTest {
             requirements = AudioProcessingRequirements(
                 signalAlteringEffectsActive = false,
                 normalizationActive = true,
-                monoOrChannelMappingActive = false,
                 crossfadeActive = false,
             ),
             directPathActive = false,
@@ -47,7 +46,7 @@ class AudioOutputCapabilityTest {
 
         val decision = AudioOutputPolicy.decide(
             capabilities = capabilities,
-            requirements = AudioProcessingRequirements(false, false, false, false),
+            requirements = AudioProcessingRequirements(false, false, false),
             directPathActive = true,
         )
 
@@ -66,7 +65,7 @@ class AudioOutputCapabilityTest {
 
         val decision = AudioOutputPolicy.decide(
             capabilities = capabilities,
-            requirements = AudioProcessingRequirements(false, false, false, false),
+            requirements = AudioProcessingRequirements(false, false, false),
             directPathActive = false,
         )
 
@@ -83,7 +82,7 @@ class AudioOutputCapabilityTest {
                 platformSdk = 35,
                 source = AudioOutputCapabilitySource.Unknown,
             ),
-            requirements = AudioProcessingRequirements(false, false, false, false),
+            requirements = AudioProcessingRequirements(false, false, false),
             directPathActive = false,
         )
 
@@ -97,7 +96,6 @@ class AudioOutputCapabilityTest {
             requirements = AudioProcessingRequirements(
                 signalAlteringEffectsActive = false,
                 normalizationActive = true,
-                monoOrChannelMappingActive = false,
                 crossfadeActive = false,
             ),
             directPathActive = false,

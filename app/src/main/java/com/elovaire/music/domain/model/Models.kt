@@ -25,6 +25,8 @@ data class Song(
     val metadataResolved: Boolean = false,
     val albumArtist: String? = null,
     val volumeNormalization: VolumeNormalizationMetadata? = null,
+    val mediaKind: AudioMediaKind = AudioMediaKind.Music,
+    val bookmarkMs: Long? = null,
 )
 
 data class Album(
@@ -40,7 +42,39 @@ data class Album(
 data class LibrarySnapshot(
     val songs: List<Song>,
     val albums: List<Album>,
+    val audiobooks: List<Audiobook> = emptyList(),
     val contentRevision: String = "",
+)
+
+data class Audiobook(
+    val stableKey: String,
+    val title: String,
+    val author: String,
+    val artUri: Uri?,
+    val durationMs: Long,
+    val parts: List<AudiobookPart>,
+)
+
+data class AudiobookPart(
+    val song: Song,
+    val number: Int,
+    val titleOverride: String? = null,
+    val startMs: Long? = null,
+    val endMs: Long? = null,
+) {
+    val title: String get() = titleOverride ?: song.title
+    val durationMs: Long
+        get() = if (startMs != null && endMs != null && endMs > startMs) {
+            endMs - startMs
+        } else {
+            song.durationMs
+        }
+}
+
+data class AudiobookChapter(
+    val title: String,
+    val startMs: Long,
+    val endMs: Long,
 )
 
 data class Playlist(
@@ -132,7 +166,6 @@ data class EqSettings(
     val treble: Float = 0f,
     val spaciousness: Float = 0f,
     val spaciousnessMode: SpaciousnessMode = SpaciousnessMode.StereoWidth,
-    val monoEnabled: Boolean = false,
     val reverbDurationMs: Int = 0,
     val reverbProfile: ReverbProfile = ReverbProfile.Dry,
 )

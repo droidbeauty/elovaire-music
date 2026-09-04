@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.smartplaylists
 
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import java.util.Locale
 
 internal data class SmartPlaylistResult(
@@ -24,7 +25,10 @@ internal object SmartPlaylistEngine {
             nowMs = nowMs,
         )
         val preparedDefinition = PreparedSmartPlaylist(definition)
-        val normalized = songs.map { NormalizedSong(it) }
+        val normalized = songs.asSequence()
+            .filter { it.mediaKind == AudioMediaKind.Music }
+            .map(::NormalizedSong)
+            .toList()
         val matched = normalized
             .asSequence()
             .filter { it.matches(preparedDefinition, context) }

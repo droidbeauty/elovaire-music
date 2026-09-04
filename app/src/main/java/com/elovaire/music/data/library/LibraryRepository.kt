@@ -22,6 +22,7 @@ import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
@@ -45,6 +46,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 data class LibraryContentState(
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
+    val audiobooks: List<Audiobook> = emptyList(),
     val removingSongIds: Set<Long> = emptySet(),
     val removingAlbumIds: Set<Long> = emptySet(),
     val contentRevision: String = "",
@@ -64,6 +66,7 @@ data class LibraryUiState(
     val scanProgress: Float = 0f,
     val songs: List<Song> = emptyList(),
     val albums: List<Album> = emptyList(),
+    val audiobooks: List<Audiobook> = emptyList(),
     val removingSongIds: Set<Long> = emptySet(),
     val removingAlbumIds: Set<Long> = emptySet(),
     val errorMessage: String? = null,
@@ -133,6 +136,7 @@ class LibraryRepository internal constructor(
             scanProgress = scan.scanProgress,
             songs = content.songs,
             albums = content.albums,
+            audiobooks = content.audiobooks,
             removingSongIds = content.removingSongIds,
             removingAlbumIds = content.removingAlbumIds,
             errorMessage = scan.errorMessage,

@@ -34,6 +34,7 @@ internal data class SongEntity(
     val audioQuality: String?,
     val metadataResolved: Boolean,
     val artUri: String?,
+    val mediaKind: String = "Music",
     val volumeNormalization: Float?,
     val lastSeenGenerationId: Long,
     val removedAtMs: Long?,
@@ -155,6 +156,7 @@ internal data class NetworkInventoryEntity(
     val dateModifiedSeconds: Long?,
     val metadataResolved: Boolean,
     val artUri: String?,
+    val mediaKind: String = "Music",
     val lastSeenGeneration: Long,
 )
 

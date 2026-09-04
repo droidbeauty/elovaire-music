@@ -4,7 +4,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import elovaire.music.droidbeauty.app.core.RootViewModelDependencies
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
@@ -27,6 +29,9 @@ internal data class RootAppearanceState(
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
+    val audiobookSettings: AudiobookSettings,
+    val smartPlaylistEnabledTypes: Set<BuiltInSmartPlaylistType>,
+    val smartPlaylistMaxSongs: Int,
 )
 
 internal data class RootCollectionState(
@@ -92,8 +97,17 @@ internal class RootViewModel(
         combine(
             dependencies.rootSettingsReader.volumeNormalizationEnabled,
             dependencies.rootSettingsReader.onlineLyricsEnabled,
-        ) { volumeNormalization, onlineLyrics ->
-            volumeNormalization to onlineLyrics
+            dependencies.rootSettingsReader.audiobookSettings,
+            dependencies.rootSettingsReader.smartPlaylistEnabledTypes,
+            dependencies.rootSettingsReader.smartPlaylistMaxSongs,
+        ) { volumeNormalization, onlineLyrics, audiobookSettings, enabledTypes, maxSongs ->
+            AppearancePlayback(
+                volumeNormalizationEnabled = volumeNormalization,
+                onlineLyricsEnabled = onlineLyrics,
+                audiobookSettings = audiobookSettings,
+                smartPlaylistEnabledTypes = enabledTypes,
+                smartPlaylistMaxSongs = maxSongs,
+            )
         },
     ) { core, layout, playback ->
         RootAppearanceState(
@@ -105,8 +119,11 @@ internal class RootViewModel(
             songCollectionGridEnabled = layout.songCollectionGridEnabled,
             albumCollectionSortModeName = layout.albumCollectionSortModeName,
             songCollectionSortModeName = layout.songCollectionSortModeName,
-            volumeNormalizationEnabled = playback.first,
-            onlineLyricsEnabled = playback.second,
+            volumeNormalizationEnabled = playback.volumeNormalizationEnabled,
+            onlineLyricsEnabled = playback.onlineLyricsEnabled,
+            audiobookSettings = playback.audiobookSettings,
+            smartPlaylistEnabledTypes = playback.smartPlaylistEnabledTypes,
+            smartPlaylistMaxSongs = playback.smartPlaylistMaxSongs,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -173,6 +190,9 @@ internal class RootViewModel(
             songCollectionSortModeName = appearance.songCollectionSortModeName,
             volumeNormalizationEnabled = appearance.volumeNormalizationEnabled,
             onlineLyricsEnabled = appearance.onlineLyricsEnabled,
+            audiobookSettings = appearance.audiobookSettings,
+            smartPlaylistEnabledTypes = appearance.smartPlaylistEnabledTypes,
+            smartPlaylistMaxSongs = appearance.smartPlaylistMaxSongs,
         )
     }.distinctUntilChanged().stateIn(
         scope = viewModelScope,
@@ -195,6 +215,9 @@ internal class RootViewModel(
             songCollectionSortModeName = appearanceState.value.songCollectionSortModeName,
             volumeNormalizationEnabled = appearanceState.value.volumeNormalizationEnabled,
             onlineLyricsEnabled = appearanceState.value.onlineLyricsEnabled,
+            audiobookSettings = appearanceState.value.audiobookSettings,
+            smartPlaylistEnabledTypes = appearanceState.value.smartPlaylistEnabledTypes,
+            smartPlaylistMaxSongs = appearanceState.value.smartPlaylistMaxSongs,
         ),
     )
 }
@@ -213,6 +236,14 @@ private data class AppearanceLayout(
     val songCollectionSortModeName: String,
 )
 
+private data class AppearancePlayback(
+    val volumeNormalizationEnabled: Boolean,
+    val onlineLyricsEnabled: Boolean,
+    val audiobookSettings: AudiobookSettings,
+    val smartPlaylistEnabledTypes: Set<BuiltInSmartPlaylistType>,
+    val smartPlaylistMaxSongs: Int,
+)
+
 private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.settings.RootSettingsReader) =
     RootAppearanceState(
         themeMode = settings.themeMode.value,
@@ -225,4 +256,7 @@ private fun rootAppearanceStateOf(settings: elovaire.music.droidbeauty.app.data.
         songCollectionSortModeName = settings.songCollectionSortMode.value,
         volumeNormalizationEnabled = settings.volumeNormalizationEnabled.value,
         onlineLyricsEnabled = settings.onlineLyricsEnabled.value,
+        audiobookSettings = settings.audiobookSettings.value,
+        smartPlaylistEnabledTypes = settings.smartPlaylistEnabledTypes.value,
+        smartPlaylistMaxSongs = settings.smartPlaylistMaxSongs.value,
     )

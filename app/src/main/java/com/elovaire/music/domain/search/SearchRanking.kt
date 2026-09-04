@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.domain.search
 
 import android.net.Uri
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.PriorityQueue
 
@@ -17,6 +18,7 @@ internal data class SearchResults(
     val totalSongMatchCount: Int = 0,
     val matchingAlbums: List<Album> = emptyList(),
     val matchingArtists: List<SearchArtistResult> = emptyList(),
+    val matchingAudiobooks: List<Audiobook> = emptyList(),
 )
 
 internal fun buildSearchResults(
@@ -79,12 +81,28 @@ internal fun buildSearchResults(
         }
         .take(6)
 
+    val matchingAudiobooks = index.audiobooks
+        .rankMatching(
+            query = query,
+            normalizedTitle = SearchableAudiobook::normalizedTitle,
+            normalizedArtist = SearchableAudiobook::normalizedAuthor,
+            normalizedComposite = SearchableAudiobook::normalizedComposite,
+        )
+        .sortedWith(
+            compareByDescending<RankedResult<SearchableAudiobook>> { it.score }
+                .thenBy { it.value.normalizedTitle }
+                .thenBy { it.value.normalizedAuthor },
+        )
+        .map { it.value.audiobook }
+        .take(6)
+
     return SearchResults(
         allMatchingSongs = if (includeAllSongs) sortedSongs else emptyList(),
         matchingSongs = if (includeAllSongs) sortedSongs.take(20) else sortedSongs,
         totalSongMatchCount = totalSongMatchCount,
         matchingAlbums = matchingAlbums,
         matchingArtists = matchingArtists,
+        matchingAudiobooks = matchingAudiobooks,
     )
 }
 

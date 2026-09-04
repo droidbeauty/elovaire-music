@@ -558,7 +558,7 @@ private val SUPPORTED_DETECTED_FORMAT_NAMES = setOf(
     "MKA",
 )
 
-private const val FILTER_FINGERPRINT_VERSION = 3
+private const val FILTER_FINGERPRINT_VERSION = 4
 
 private val LOSSY_AUDIO_FORMATS = setOf(
     "MP3",

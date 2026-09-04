@@ -11,7 +11,9 @@ import elovaire.music.droidbeauty.app.data.settings.PlaybackSettingsWriter
 import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -131,6 +133,9 @@ private class FakeAppearanceSettingsStore : AppearanceSettingsStore {
     override val nowPlayingBarStyle = MutableStateFlow(NowPlayingBarStyle.Compact)
     override val crossfadeDurationMs = MutableStateFlow(2_500L)
     override val crossfadeSilenceThresholdDb = MutableStateFlow(-80f)
+    override val audiobookSettings = MutableStateFlow(AudiobookSettings())
+    override val smartPlaylistEnabledTypes = MutableStateFlow(BuiltInSmartPlaylistType.entries.toSet())
+    override val smartPlaylistMaxSongs = MutableStateFlow(30)
 }
 
 private class FakeLibrarySettingsWriter : LibrarySettingsWriter {
@@ -155,6 +160,11 @@ private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
     override fun setCrossfadeSilenceThresholdDb(value: Float) = Unit
     override fun setVolumeNormalizationEnabled(enabled: Boolean) = Unit
     override fun setOnlineLyricsEnabled(enabled: Boolean) = Unit
+    override fun setAudiobookRewindSeconds(value: Int) = Unit
+    override fun setAudiobookForwardSeconds(value: Int) = Unit
+    override fun setAudiobookResumePlayback(enabled: Boolean) = Unit
+    override fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean) = Unit
+    override fun setSmartPlaylistMaxSongs(value: Int) = Unit
     override fun updateBass(value: Float) = Unit
     override fun updateMidrange(value: Float) = Unit
 
@@ -162,5 +172,4 @@ private class FakePlaybackSettingsWriter : PlaybackSettingsWriter {
         treble = value
     }
 
-    override fun updateMonoPlaybackEnabled(enabled: Boolean) = Unit
 }

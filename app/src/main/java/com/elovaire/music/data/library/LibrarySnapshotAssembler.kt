@@ -11,9 +11,13 @@ internal object LibrarySnapshotAssembler {
         val canonicalSongs = canonicalizeAlbumIds(
             LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(songs),
         )
+        val musicSongs = canonicalSongs.filter {
+            it.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Music
+        }
         return LibrarySnapshot(
             songs = canonicalSongs,
-            albums = buildAlbumsFromSongs(canonicalSongs),
+            albums = buildAlbumsFromSongs(musicSongs),
+            audiobooks = AudiobookCatalog.build(canonicalSongs),
             contentRevision = librarySongsContentRevision(canonicalSongs),
         )
     }

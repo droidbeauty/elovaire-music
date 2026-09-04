@@ -15,6 +15,7 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.LibrarySettingsWriter
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -88,6 +89,14 @@ internal class RootRouteActions(
         navigationState.navigateTo(RECENTLY_ADDED_ROUTE)
     }
 
+    fun openAudiobooks() {
+        navigationState.navigateTo(AUDIOBOOKS_ROUTE)
+    }
+
+    fun openAudiobook(stableKey: String) {
+        navigationState.navigateTo(Routes.audiobook(stableKey))
+    }
+
     fun openArtist(artistName: String) {
         navigationState.navigateTo(Routes.artist(artistName))
     }
@@ -112,6 +121,10 @@ internal class RootRouteActions(
         navigationState.navigateTo(CROSSFADE_ROUTE)
     }
 
+    fun openAudiobookSettings() {
+        navigationState.navigateTo(AUDIOBOOK_SETTINGS_ROUTE)
+    }
+
     fun openLibraryFolders() {
         navigationState.navigateTo(LIBRARY_FOLDERS_ROUTE)
     }
@@ -130,6 +143,10 @@ internal class RootRouteActions(
 
     fun openNowPlayingBarStyle() {
         navigationState.navigateTo(NOW_PLAYING_BAR_STYLE_ROUTE)
+    }
+
+    fun openSmartPlaylistSettings() {
+        navigationState.navigateTo(SMART_PLAYLIST_SETTINGS_ROUTE)
     }
 
     fun refreshLibrary() {
@@ -249,10 +266,6 @@ internal class SettingsRouteActions(
         settingsDependencies.playbackSettings.updateTreble(value)
     }
 
-    fun updateMonoPlaybackEnabled(enabled: Boolean) {
-        settingsDependencies.playbackSettings.updateMonoPlaybackEnabled(enabled)
-    }
-
     fun setVolumeNormalizationEnabled(enabled: Boolean) {
         settingsDependencies.playbackSettings.setVolumeNormalizationEnabled(enabled)
     }
@@ -267,6 +280,26 @@ internal class SettingsRouteActions(
 
     fun setCrossfadeSilenceThresholdDb(value: Float) {
         settingsDependencies.playbackSettings.setCrossfadeSilenceThresholdDb(value)
+    }
+
+    fun setAudiobookRewindSeconds(value: Int) {
+        settingsDependencies.playbackSettings.setAudiobookRewindSeconds(value)
+    }
+
+    fun setAudiobookForwardSeconds(value: Int) {
+        settingsDependencies.playbackSettings.setAudiobookForwardSeconds(value)
+    }
+
+    fun setAudiobookResumePlayback(enabled: Boolean) {
+        settingsDependencies.playbackSettings.setAudiobookResumePlayback(enabled)
+    }
+
+    fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean) {
+        settingsDependencies.playbackSettings.setSmartPlaylistEnabled(type, enabled)
+    }
+
+    fun setSmartPlaylistMaxSongs(value: Int) {
+        settingsDependencies.playbackSettings.setSmartPlaylistMaxSongs(value)
     }
 
 }

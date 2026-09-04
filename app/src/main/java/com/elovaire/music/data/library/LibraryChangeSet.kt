@@ -190,7 +190,9 @@ internal object LibraryChangeSetCalculator {
             first.artUri?.toString() == second.artUri?.toString() &&
             first.metadataResolved == second.metadataResolved &&
             first.albumArtist == second.albumArtist &&
-            first.volumeNormalization == second.volumeNormalization
+            first.volumeNormalization == second.volumeNormalization &&
+            first.mediaKind == second.mediaKind &&
+            first.bookmarkMs == second.bookmarkMs
     }
 
     private fun sameLogicalContent(first: Song, second: Song): Boolean {

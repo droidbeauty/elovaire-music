@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
@@ -46,7 +47,7 @@ internal class LibrarySnapshotStore(
                 input.readBytes().toString(StandardCharsets.UTF_8)
             }
             val root = JSONObject(serialized)
-            if (root.optInt("version", 0) != SNAPSHOT_VERSION) {
+            if (root.optInt("version", 0) !in 7..SNAPSHOT_VERSION) {
                 discardSnapshot()
                 return@synchronized null
             }
@@ -62,6 +63,22 @@ internal class LibrarySnapshotStore(
                 val songsArray = root.optJSONArray("songs") ?: JSONArray()
                 repeat(songsArray.length()) { index ->
                     val songJson = songsArray.optJSONObject(index) ?: return@repeat
+                    val extension = songJson.optString("fileName").substringAfterLast('.', "")
+                    val inferredMediaKind = AudioMediaKindClassifier.classify(
+                        isAudiobook = null,
+                        extension = extension,
+                        relativePath = songJson.optString("libraryPath"),
+                        absolutePath = songJson.optString("libraryPath"),
+                    )
+                    val mediaKind = songJson.optString("mediaKind")
+                        .let { value -> runCatching { AudioMediaKind.valueOf(value) }.getOrNull() }
+                        .let { persisted ->
+                            if (persisted == AudioMediaKind.Audiobook || inferredMediaKind == AudioMediaKind.Audiobook) {
+                                AudioMediaKind.Audiobook
+                            } else {
+                                AudioMediaKind.Music
+                            }
+                        }
                     add(
                         Song(
                             id = songJson.optLong("id"),
@@ -87,6 +104,8 @@ internal class LibrarySnapshotStore(
                             artUri = songJson.optString("artUri").takeIf { it.isNotBlank() }?.let(Uri::parse),
                             metadataResolved = songJson.optBoolean("metadataResolved", false),
                             volumeNormalization = songJson.optJSONObject("volumeNormalization")?.toVolumeNormalizationMetadata(),
+                            mediaKind = mediaKind,
+                            bookmarkMs = songJson.optLong("bookmarkMs").takeIf { songJson.has("bookmarkMs") && it >= 0L },
                         ),
                     )
                 }
@@ -195,6 +214,8 @@ internal class LibrarySnapshotStore(
                                 put("uri", song.uri.toString())
                                 put("artUri", song.artUri?.toString().orEmpty())
                                 put("metadataResolved", song.metadataResolved)
+                                put("mediaKind", song.mediaKind.name)
+                                song.bookmarkMs?.let { put("bookmarkMs", it) }
                                 song.volumeNormalization
                                     ?.toJson()
                                     ?.takeIf { it.length() > 0 }
@@ -221,7 +242,7 @@ internal class LibrarySnapshotStore(
 
     private companion object {
         const val SNAPSHOT_FILE_NAME = "library_snapshot_v7.json"
-        const val SNAPSHOT_VERSION = 7
+        const val SNAPSHOT_VERSION = 8
     }
 
     private fun discardSnapshot() {
@@ -250,7 +271,7 @@ internal fun libraryContentRevision(
         digest.appendRevisionValue(volume.version)
         digest.appendRevisionValue(volume.generation)
     }
-    songs.forEach { song -> digest.appendSongRevision(song) }
+    songs.forEach { song -> digest.appendLibrarySongRevision(song) }
 
     return digest.digest().toHexString()
 }
@@ -277,7 +298,7 @@ internal fun librarySnapshotContentRevision(
 
 internal fun librarySongsContentRevision(songs: List<Song>): String {
     val digest = MessageDigest.getInstance("SHA-256")
-    songs.forEach { song -> digest.appendSongRevision(song) }
+    songs.forEach { song -> digest.appendLibrarySongRevision(song) }
     return digest.digest().toHexString()
 }
 
@@ -292,7 +313,7 @@ internal fun libraryPatchedContentRevision(
         .sortedBy { MediaIdentityResolver.stableKey(it.after) }
         .forEach { patch ->
             digest.appendRevisionValue(MediaIdentityResolver.stableKey(patch.before))
-            digest.appendSongRevision(patch.after)
+            digest.appendLibrarySongRevision(patch.after)
         }
     return digest.digest().toHexString()
 }
@@ -309,7 +330,7 @@ internal fun libraryIndexContentRevision(
         digest.appendRevisionValue(snapshot.contentRevision)
         return digest.digest().toHexString()
     }
-    snapshot.songs.forEach { song -> digest.appendSongRevision(song) }
+    snapshot.songs.forEach { song -> digest.appendLibrarySongRevision(song) }
     snapshot.albums.forEach { album ->
         digest.appendRevisionValue(album.id)
         digest.appendRevisionValue(album.title)
@@ -348,6 +369,12 @@ private fun MessageDigest.appendSongRevision(song: Song) {
     appendRevisionValue(song.volumeNormalization?.albumGainDb)
     appendRevisionValue(song.volumeNormalization?.trackPeak)
     appendRevisionValue(song.volumeNormalization?.albumPeak)
+}
+
+private fun MessageDigest.appendLibrarySongRevision(song: Song) {
+    appendSongRevision(song)
+    appendRevisionValue(song.mediaKind)
+    appendRevisionValue(song.bookmarkMs ?: 0L)
 }
 
 private fun MessageDigest.appendRevisionValue(value: Any?) {

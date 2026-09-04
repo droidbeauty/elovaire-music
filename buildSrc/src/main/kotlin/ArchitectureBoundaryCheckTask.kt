@@ -120,6 +120,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         val SHARED_PREFERENCES_ALLOWED = setOf(
             "/core/AppExitDiagnostics.kt",
             "/data/playback/PlaybackSessionStore.kt",
+            "/data/playback/AudiobookProgressStore.kt",
             "/data/playback/UsbDacHardwareVolumeManager.kt",
             "/data/settings/PortableSettingsBackup.kt",
             "/data/settings/SettingsDataStore.kt",

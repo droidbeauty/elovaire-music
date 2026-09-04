@@ -6,6 +6,7 @@ import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 
@@ -76,6 +77,21 @@ internal object ElovaireMediaItems {
         extras = CarMediaStyleExtras.songsExtras(),
     )
 
+    fun audiobooksRoot(): MediaItem = browsable(
+        ElovaireMediaId.Audiobooks.value,
+        "Audiobooks",
+        MediaMetadata.MEDIA_TYPE_FOLDER_AUDIO_BOOKS,
+        artworkUri = drawableUri("ic_lucide_library"),
+    )
+
+    fun audiobook(book: Audiobook): MediaItem = browsable(
+        ElovaireMediaIds.audiobook(book.stableKey),
+        book.title,
+        MediaMetadata.MEDIA_TYPE_AUDIO_BOOK,
+        subtitle = book.author,
+        artworkUri = localArtworkUri(book.artUri) ?: drawableUri("ic_lucide_library"),
+    )
+
     fun bucket(parent: String, key: String): MediaItem = browsable(
         mediaId = ElovaireMediaIds.bucket(parent, key),
         title = key,
@@ -117,7 +133,11 @@ internal object ElovaireMediaItems {
         extras = CarMediaStyleExtras.songsExtras(),
     )
 
-    fun song(song: Song): MediaItem = MediaItem.Builder()
+    fun audiobookPart(song: Song): MediaItem = song(song, MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER)
+
+    fun song(song: Song): MediaItem = song(song, MediaMetadata.MEDIA_TYPE_MUSIC)
+
+    private fun song(song: Song, mediaType: Int): MediaItem = MediaItem.Builder()
         .setMediaId(ElovaireMediaIds.song(song.id))
         .setUri(song.uri)
         .setMediaMetadata(
@@ -134,7 +154,7 @@ internal object ElovaireMediaItems {
                 .setArtworkUri(localArtworkUri(song.artUri) ?: drawableUri("ic_lucide_music"))
                 .setIsPlayable(true)
                 .setIsBrowsable(false)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                .setMediaType(mediaType)
                 .build(),
         )
         .build()

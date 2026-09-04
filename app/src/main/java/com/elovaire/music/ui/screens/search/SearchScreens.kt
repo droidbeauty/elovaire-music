@@ -261,6 +261,7 @@ import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
@@ -302,6 +303,7 @@ import elovaire.music.droidbeauty.app.ui.motion.rememberMotionRevealRegistry
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
 import elovaire.music.droidbeauty.app.ui.i18n.MiscPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.SettingsLanguageCopy
 import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
@@ -370,6 +372,7 @@ internal fun SearchRoute(
     onPlaySong: (Song, List<Song>) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
     onArtistSelected: (String) -> Unit,
+    onAudiobookSelected: (Audiobook) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onToggleFavorite: (Long) -> Unit,
 ) {
@@ -398,6 +401,7 @@ internal fun SearchRoute(
             onAlbumSelected(album, origin)
         },
         onArtistSelected = onArtistSelected,
+        onAudiobookSelected = onAudiobookSelected,
         onPlaylistSelected = onPlaylistSelected,
         onToggleFavorite = onToggleFavorite,
         onClearSearchHistory = viewModel::clearSearchHistory,
@@ -423,6 +427,7 @@ private fun SearchScreen(
     onSongSelected: (Song, List<Song>) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin, Boolean) -> Unit,
     onArtistSelected: (String) -> Unit,
+    onAudiobookSelected: (Audiobook) -> Unit,
     onPlaylistSelected: (Playlist) -> Unit,
     onToggleFavorite: (Long) -> Unit,
     onClearSearchHistory: () -> Unit,
@@ -528,6 +533,12 @@ private fun SearchScreen(
             )
         }
     }
+
+    val hasSearchResults = state.matchingAlbums.isNotEmpty() ||
+        state.matchingSongs.isNotEmpty() ||
+        state.matchingAudiobooks.isNotEmpty() ||
+        matchingArtists.isNotEmpty() ||
+        matchingPlaylists.isNotEmpty()
 
     val searchBar: @Composable () -> Unit = {
         val searchBarContentColor = MaterialTheme.colorScheme.onSurface
@@ -891,6 +902,18 @@ private fun SearchScreen(
                             }
                         }
 
+                        if (state.matchingAudiobooks.isNotEmpty()) {
+                            item(
+                                key = "search_audiobooks",
+                                contentType = "search_audiobook_results",
+                            ) {
+                                SearchAudiobooksResults(
+                                    books = state.matchingAudiobooks,
+                                    onBookSelected = onAudiobookSelected,
+                                )
+                            }
+                        }
+
                         if (matchingPlaylists.isNotEmpty()) {
                             item(
                                 key = "search_playlists",
@@ -915,9 +938,7 @@ private fun SearchScreen(
                             }
                         }
 
-                        if (!state.isSearchPending && state.matchingAlbums.isEmpty() && state.matchingSongs.isEmpty() &&
-                            matchingArtists.isEmpty() && matchingPlaylists.isEmpty()
-                        ) {
+                        if (!state.isSearchPending && !hasSearchResults) {
                             item(
                                 key = "search_no_results",
                                 contentType = "search_empty_state",
@@ -1049,9 +1070,62 @@ private fun SearchHistorySectionHeader(
 }
 
 @Composable
+private fun SearchAudiobooksResults(
+    books: List<Audiobook>,
+    onBookSelected: (Audiobook) -> Unit,
+) {
+    val language = LocalAppLanguage.current
+    val copy = audiobookCopy(language)
+    ModuleCard(
+        contentPadding = PaddingValues(start = 18.dp, top = 18.dp, end = 18.dp, bottom = 2.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            SearchResultsCategoryHeader(
+                title = copy.title,
+                iconResId = R.drawable.ic_lucide_library,
+            )
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                items(books, key = Audiobook::stableKey, contentType = { "search_audiobook_card" }) { book ->
+                    Column(
+                        modifier = Modifier
+                            .width(124.dp)
+                            .clickable { onBookSelected(book) },
+                        verticalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        ArtworkImage(
+                            uri = book.artUri,
+                            title = book.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .aspectRatio(0.75f),
+                            cornerRadius = ElovaireRadii.artwork,
+                            requestedSizePx = 320,
+                            showArtworkGlow = true,
+                        )
+                        Text(
+                            text = book.title,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = book.author,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = readableSecondaryTextColor(),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SearchResultsCategoryHeader(
     title: String,
-    subtitle: String,
+    subtitle: String? = null,
     @DrawableRes iconResId: Int,
     modifier: Modifier = Modifier,
 ) {
@@ -1072,11 +1146,13 @@ private fun SearchResultsCategoryHeader(
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurface,
             )
-            Text(
-                text = subtitle,
-                style = MaterialTheme.typography.labelLarge,
-                color = readableSecondaryTextColor(),
-            )
+            subtitle?.takeIf(String::isNotBlank)?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = readableSecondaryTextColor(),
+                )
+            }
         }
     }
 }

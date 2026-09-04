@@ -31,6 +31,7 @@ internal object LibraryDatabaseMapper {
             audioQuality = song.audioQuality,
             metadataResolved = song.metadataResolved,
             artUri = song.artUri?.toString(),
+            mediaKind = song.mediaKind.name,
             volumeNormalization = song.volumeNormalization?.trackGainDb,
             lastSeenGenerationId = generationId,
             removedAtMs = null,

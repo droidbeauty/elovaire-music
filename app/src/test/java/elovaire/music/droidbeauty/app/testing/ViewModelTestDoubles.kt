@@ -18,11 +18,13 @@ import elovaire.music.droidbeauty.app.data.settings.UserDataSnapshot
 import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
 import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditRequest
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditor
 import elovaire.music.droidbeauty.app.data.tags.TagEditApplyResult
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -91,6 +93,9 @@ internal class FakeRootSettingsReader : RootSettingsReader {
     override val nowPlayingBarStyle = MutableStateFlow(NowPlayingBarStyle.Floating)
     override val crossfadeDurationMs = MutableStateFlow(0L)
     override val crossfadeSilenceThresholdDb = MutableStateFlow(-60f)
+    override val audiobookSettings = MutableStateFlow(AudiobookSettings())
+    override val smartPlaylistEnabledTypes = MutableStateFlow(BuiltInSmartPlaylistType.entries.toSet())
+    override val smartPlaylistMaxSongs = MutableStateFlow(20)
     override val userDataReadiness = MutableStateFlow(UserDataReadiness.Ready)
     override val userDataSnapshot = MutableStateFlow(UserDataSnapshot())
     override val playlists = MutableStateFlow<List<Playlist>>(emptyList())

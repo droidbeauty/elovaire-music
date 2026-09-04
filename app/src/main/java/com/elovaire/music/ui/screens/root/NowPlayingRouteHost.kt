@@ -20,6 +20,7 @@ import elovaire.music.droidbeauty.app.platform.mediaStoreWriteRequest
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackProgressConsumer
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceScreenState
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
@@ -30,6 +31,7 @@ internal fun NowPlayingRouteHost(
     viewModel: NowPlayingViewModel,
     playbackManager: NowPlayingPlayback,
     enrichedSongsById: Map<Long, Song>,
+    audiobookSettings: AudiobookSettings,
     isFavorite: Boolean,
     playlists: List<Playlist>,
     onBack: () -> Unit,
@@ -103,6 +105,7 @@ internal fun NowPlayingRouteHost(
             playbackManager = playbackManager,
             playerUiState = playerUiState,
             enrichedSongsById = enrichedSongsById,
+            audiobookSettings = audiobookSettings,
             isFavorite = isFavorite,
             playlists = playlists,
             lyricsUiState = lyricsUiState,

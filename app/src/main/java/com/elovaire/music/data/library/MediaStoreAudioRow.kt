@@ -25,6 +25,8 @@ internal data class MediaStoreAudioRow(
     val filePath: String?,
     val mimeType: String?,
     val isMusic: Boolean?,
+    val isAudiobook: Boolean?,
+    val bookmarkMs: Long?,
     val uri: Uri,
     val extension: String,
 )
@@ -66,6 +68,8 @@ internal class MediaStoreAudioRowMapper(
     private val volumeNameIndex = cursor.getColumnIndex(MediaStore.MediaColumns.VOLUME_NAME)
     private val mimeTypeIndex = cursor.getColumnIndex(MediaStore.Audio.Media.MIME_TYPE)
     private val isMusicIndex = cursor.getColumnIndex(MediaStore.Audio.Media.IS_MUSIC)
+    private val isAudiobookIndex = cursor.getColumnIndex(MediaStore.Audio.AudioColumns.IS_AUDIOBOOK)
+    private val bookmarkIndex = cursor.getColumnIndex(MediaStore.Audio.AudioColumns.BOOKMARK)
 
     val hasRelativePathColumn: Boolean
         get() = relativePathIndex >= 0
@@ -105,6 +109,10 @@ internal class MediaStoreAudioRowMapper(
             ),
             mimeType = mimeType,
             isMusic = isMusicIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
+            isAudiobook = isAudiobookIndex.takeIf { it >= 0 }?.let(cursor::getInt)?.let { it != 0 },
+            bookmarkMs = bookmarkIndex.takeIf { it >= 0 && !cursor.isNull(it) }
+                ?.let(cursor::getLong)
+                ?.takeIf { it >= 0L },
             uri = ContentUris.withAppendedId(
                 volumeName
                     ?.trim()

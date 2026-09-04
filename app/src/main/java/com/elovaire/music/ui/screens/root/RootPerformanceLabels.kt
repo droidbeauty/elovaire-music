@@ -22,13 +22,17 @@ internal fun rootPerformanceRouteLabel(route: String?): String? {
         PRIVACY_POLICY_ROUTE -> "privacy_policy"
         EQUALIZER_ROUTE -> "equalizer"
         CROSSFADE_ROUTE -> "crossfade"
+        AUDIOBOOK_SETTINGS_ROUTE -> "audiobook_settings"
+        SMART_PLAYLIST_SETTINGS_ROUTE -> "smart_playlist_settings"
         PLAYER_ROUTE -> "now_playing"
+        AUDIOBOOKS_ROUTE -> "audiobooks"
         else -> when {
             route.startsWith("$ALBUM_ROUTE/") || route == "$ALBUM_ROUTE/{albumId}" -> "album_detail"
             route.startsWith("$PLAYLIST_ROUTE/") || route == "$PLAYLIST_ROUTE/{playlistId}" -> "playlist_detail"
             route.startsWith("$ARTIST_ROUTE/") || route == "$ARTIST_ROUTE/{artistName}" -> "artist_detail"
             route.startsWith("$GENRE_ROUTE/") || route == "$GENRE_ROUTE/{genre}" -> "genre_detail"
             route.startsWith("$LIBRARY_COLLECTION_ROUTE/") || route == "$LIBRARY_COLLECTION_ROUTE/{kind}" -> "library_collection"
+            route.startsWith("$AUDIOBOOK_ROUTE/") || route == "$AUDIOBOOK_ROUTE/{bookKey}" -> "audiobook_detail"
             route.startsWith("$ALBUM_TAG_EDITOR_ROUTE/") || route == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> "tag_editor"
             else -> "other"
         }

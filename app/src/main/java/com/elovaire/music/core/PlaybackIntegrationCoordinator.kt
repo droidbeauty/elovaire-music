@@ -174,6 +174,7 @@ internal class PlaybackIntegrationCoordinator(
                             val positionMs = withContext(Dispatchers.Main.immediate) {
                                 playback.currentPositionForPersistence()
                             }
+                            playback.checkpointAudiobookProgress()
                             persistSession(positionMs)
                         }
                     }
@@ -234,6 +235,7 @@ internal class PlaybackIntegrationCoordinator(
         allowAfterRelease: Boolean = false,
     ) {
         if (!restorationAttempted || released.get() && !allowAfterRelease) return
+        playback.checkpointAudiobookProgress()
         val queue = playback.queueState.value
         if (queue.queue.isEmpty()) {
             sessionWrites.trySend(null)

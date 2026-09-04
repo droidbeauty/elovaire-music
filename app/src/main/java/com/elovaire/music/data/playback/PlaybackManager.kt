@@ -36,7 +36,9 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.PlaybackFailureClassifier
+import elovaire.music.droidbeauty.app.data.library.AudiobookCatalog
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -187,6 +189,8 @@ class PlaybackManager(
     private val audioProcessorsProvider = audioProcessorsProvider
     private val hasSignalAlteringEffects = hasSignalAlteringEffects
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
+    private val audiobookProgressStore = AudiobookProgressStore(context)
+    private var audiobookPlaybackSpeed = audiobookProgressStore.loadPlaybackSpeed()
     private val audioManager = context.getSystemService(AudioManager::class.java)
     private val usbManager = context.getSystemService(UsbManager::class.java)
     private val playbackAudioAttributes = AudioAttributes.Builder()
@@ -359,6 +363,7 @@ class PlaybackManager(
             bitPerfectUsbManager.updateEffectsActive(hasActiveSignalAlteringEffects())
             scheduleAudioPathReevaluation("media-item-transition", audioPathReevaluationDelayForTransition())
             sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
+            applyPlaybackSpeedForCurrentSong()
             player.volume = targetPlayerOutputGain()
             scheduleStatePublish()
         }
@@ -369,6 +374,13 @@ class PlaybackManager(
             reason: Int,
         ) {
             if (released.get()) return
+            if (oldPosition.mediaItemIndex != newPosition.mediaItemIndex) {
+                checkpointAudiobookProgressAt(
+                    queueIndex = oldPosition.mediaItemIndex,
+                    positionMs = oldPosition.positionMs,
+                    durationMs = _state.value.queue.getOrNull(oldPosition.mediaItemIndex)?.durationMs ?: 0L,
+                )
+            }
             sleepTimerController.updateEndOfSongTarget(currentSong()?.id)
             scheduleStatePublish()
         }
@@ -378,6 +390,7 @@ class PlaybackManager(
             reason: Int,
         ) {
             if (released.get()) return
+            checkpointAudiobookProgress()
             if (!playWhenReady && sleepTimerState.value.option == SleepTimerOption.EndOfSong && isPausedAtEndOfCurrentSong()) {
                 sleepTimerController.onEndOfSongReached(currentSong()?.id)
             } else {
@@ -739,7 +752,7 @@ class PlaybackManager(
             )
         }
         player.repeatMode = persisted.repeatMode.toPlayerRepeatMode()
-        player.shuffleModeEnabled = persisted.shuffleEnabled
+        player.shuffleModeEnabled = persisted.shuffleEnabled && songs.none { it.mediaKind == AudioMediaKind.Audiobook }
         player.playWhenReady = false
         player.prepare()
         queueMetadataRefresher.onQueueReplaced(songs)
@@ -753,6 +766,7 @@ class PlaybackManager(
             sourceLabel = songs[index].album,
             sourcePlaylistId = null,
         )
+        applyPlaybackSpeedForCurrentSong()
         ExternalAudioStageUsage.setActivePlaybackUris(songs.map(Song::uri))
         publishProgressSnapshot(force = true)
         syncRuntimeObservers()
@@ -797,6 +811,25 @@ class PlaybackManager(
         sourcePlaylistId: Long?,
     ) {
         if (released.get()) return
+        playSongAtPosition(
+            song = song,
+            collection = collection,
+            positionMs = 0L,
+            sourceLabel = sourceLabel,
+            shuffleEnabled = shuffleEnabled,
+            sourcePlaylistId = sourcePlaylistId,
+        )
+    }
+
+    override fun playSongAtPosition(
+        song: Song,
+        collection: List<Song>,
+        positionMs: Long,
+        sourceLabel: String?,
+        shuffleEnabled: Boolean,
+        sourcePlaylistId: Long?,
+    ) {
+        if (released.get()) return
         recordManualPlaybackStart()
         val startIndex = collection.indexOfFirst { it.id == song.id }.coerceAtLeast(0)
         setQueue(
@@ -806,6 +839,7 @@ class PlaybackManager(
             shuffleEnabled,
             sourcePlaylistId,
             libraryBacked = true,
+            startPositionMs = positionMs,
         )
     }
 
@@ -855,7 +889,6 @@ class PlaybackManager(
             requirements = AudioProcessingRequirements(
                 signalAlteringEffectsActive = hasActiveSignalAlteringEffects(),
                 normalizationActive = volumeNormalizationEnabled,
-                monoOrChannelMappingActive = false,
                 crossfadeActive = false,
             ),
             directPathActive = isDirectPlaybackActive,
@@ -914,6 +947,59 @@ class PlaybackManager(
             sourcePlaylistId,
             libraryBacked = true,
         )
+    }
+
+    override fun audiobookProgress(bookKey: String, songId: Long): Long {
+        return audiobookProgressStore.load(bookKey)
+            ?.takeIf { it.songId == songId }
+            ?.positionMs
+            ?: 0L
+    }
+
+    override fun audiobookResumeSongId(bookKey: String): Long? {
+        return audiobookProgressStore.load(bookKey)?.songId
+    }
+
+    override fun audiobookProgress(bookKey: String): AudiobookProgress? {
+        return audiobookProgressStore.load(bookKey)
+    }
+
+    internal fun checkpointAudiobookProgress() {
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            playbackHandler.post(::checkpointAudiobookProgress)
+            return
+        }
+        val queueIndex = player.currentMediaItemIndex
+        if (_state.value.queue.getOrNull(queueIndex) == null) return
+        checkpointAudiobookProgressAt(
+            queueIndex = queueIndex,
+            positionMs = player.currentPosition,
+            durationMs = player.duration,
+        )
+    }
+
+    private fun checkpointAudiobookProgressAt(
+        queueIndex: Int,
+        positionMs: Long,
+        durationMs: Long,
+    ) {
+        val song = _state.value.queue.getOrNull(queueIndex) ?: return
+        if (song.mediaKind != elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) return
+        val bookKey = AudiobookCatalog.build(_state.value.queue)
+            .firstOrNull { book -> book.parts.any { it.song.id == song.id } }
+            ?.stableKey
+            ?: return
+        audiobookProgressStore.save(
+            bookKey = bookKey,
+            songId = song.id,
+            positionMs = positionMs,
+            durationMs = durationMs,
+            nowMs = System.currentTimeMillis(),
+        )
+    }
+
+    internal fun remapAudiobookProgress(replacements: Map<Long, Long>) {
+        audiobookProgressStore.remapSongIds(replacements)
     }
 
     override fun togglePlayback() {
@@ -998,8 +1084,17 @@ class PlaybackManager(
         _progressState.value = playbackProgressController.cancelScrub()
         progressDemandController.setActive(PlaybackProgressConsumer.Scrubbing, false)
         player.seekTo(positionMs.coerceAtLeast(0L))
+        checkpointAudiobookProgress()
         publishProgressSnapshot(force = true)
         updateState()
+    }
+
+    override fun setPlaybackSpeed(speed: Float) {
+        if (released.get()) return
+        if (currentSong()?.mediaKind != AudioMediaKind.Audiobook) return
+        audiobookPlaybackSpeed = speed.coerceIn(0.5f, 2.5f)
+        audiobookProgressStore.savePlaybackSpeed(audiobookPlaybackSpeed)
+        player.playbackParameters = PlaybackParameters(audiobookPlaybackSpeed)
     }
 
     override fun beginScrub() {
@@ -1067,6 +1162,7 @@ class PlaybackManager(
 
     override fun toggleShuffle() {
         if (released.get()) return
+        if (_state.value.queue.any { it.mediaKind == AudioMediaKind.Audiobook }) return
         crossfadeController.cancel()
         player.shuffleModeEnabled = !player.shuffleModeEnabled
         updateState()
@@ -1363,17 +1459,26 @@ class PlaybackManager(
         shuffleEnabled: Boolean,
         sourcePlaylistId: Long?,
         libraryBacked: Boolean,
+        startPositionMs: Long = 0L,
     ) {
         beginPlaybackOperation()
         crossfadeController.cancel()
+        player.playbackParameters = PlaybackParameters(
+            if (songs.getOrNull(startIndex)?.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {
+                audiobookPlaybackSpeed
+            } else {
+                1f
+            },
+        )
         queueController.setQueue(
             songs = songs,
             startIndex = startIndex,
             sourceLabel = sourceLabel,
-            shuffleEnabled = shuffleEnabled,
+            shuffleEnabled = shuffleEnabled && songs.none { it.mediaKind == AudioMediaKind.Audiobook },
             sourcePlaylistId = sourcePlaylistId,
             audioPathDelayMs = AUDIO_PATH_REEVALUATION_DELAY_MS,
             libraryBacked = libraryBacked,
+            startPositionMs = startPositionMs,
         )
         sleepTimerController.updateEndOfSongTarget(songs.getOrNull(startIndex)?.id)
     }
@@ -1381,6 +1486,7 @@ class PlaybackManager(
     private fun stopAndClearQueue() {
         beginPlaybackOperation()
         crossfadeController.cancel()
+        checkpointAudiobookProgress()
         cancelPauseFade(resetVolume = false)
         sleepTimerController.clear()
         isStoppingQueue = true
@@ -1519,6 +1625,9 @@ class PlaybackManager(
         val queue = _state.value.queue
         val nextIndex = player.nextMediaItemIndex
         if (nextIndex !in queue.indices) return
+        if (currentSong()?.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook ||
+            queue[nextIndex].mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook
+        ) return
         crossfadeController.prepare(
             primary = player,
             queue = queue,
@@ -1529,6 +1638,12 @@ class PlaybackManager(
             incomingGain = effectivePlayerGain(queue[nextIndex]),
             fadeDurationMs = crossfadeDurationMs,
             silenceLevelDb = crossfadeSilenceThresholdDb,
+        )
+    }
+
+    private fun applyPlaybackSpeedForCurrentSong() {
+        player.playbackParameters = PlaybackParameters(
+            if (currentSong()?.mediaKind == AudioMediaKind.Audiobook) audiobookPlaybackSpeed else 1f,
         )
     }
 
@@ -1787,7 +1902,7 @@ class PlaybackManager(
                 song.toPlaybackMediaItem()
             }
             player.setMediaItems(mediaItems, recoverIndex, recoverPosition)
-            player.shuffleModeEnabled = snapshot.shuffleEnabled
+            player.shuffleModeEnabled = snapshot.shuffleEnabled && snapshot.queue.none { it.mediaKind == AudioMediaKind.Audiobook }
             player.repeatMode = snapshot.repeatMode.toPlayerRepeatMode()
             player.prepare()
             if (!isCurrentPlaybackOperation(operationRevision)) return@launch
@@ -2292,7 +2407,13 @@ internal fun Song.toPlaybackMediaItem(): MediaItem {
                 .setArtworkUri(artUri)
                 .setIsPlayable(true)
                 .setIsBrowsable(false)
-                .setMediaType(MediaMetadata.MEDIA_TYPE_MUSIC)
+                .setMediaType(
+                    if (mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {
+                        MediaMetadata.MEDIA_TYPE_AUDIO_BOOK_CHAPTER
+                    } else {
+                        MediaMetadata.MEDIA_TYPE_MUSIC
+                    },
+                )
                 .build(),
         )
         .build()

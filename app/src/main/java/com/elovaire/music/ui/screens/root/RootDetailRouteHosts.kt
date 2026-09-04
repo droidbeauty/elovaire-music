@@ -11,6 +11,9 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import elovaire.music.droidbeauty.app.data.artist.ArtistBackdropState
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
+import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
+import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 
 @Composable
 internal fun LibraryHubRouteHost(
@@ -19,16 +22,117 @@ internal fun LibraryHubRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
 ) {
+    val audiobookProgressByKey = remember(routeState.libraryState.audiobooks) {
+        routeState.libraryState.audiobooks.mapNotNull { book ->
+            routeActions.playback.audiobookProgress(book.stableKey)?.let { progress ->
+                book.stableKey to progress
+            }
+        }.toMap()
+    }
     LibraryHubScreen(
         libraryState = routeState.libraryState,
+        audiobookProgressByKey = audiobookProgressByKey,
+        currentSongId = routeState.playbackState.currentSong?.id,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.libraryScrollRequestVersion,
         onOpenCollection = routeActions::openLibraryCollection,
         onOpenRecentlyAdded = routeActions::openRecentlyAdded,
+        onOpenAudiobooks = routeActions::openAudiobooks,
+        onAudiobookSelected = { book -> routeActions.openAudiobook(book.stableKey) },
         onAlbumSelected = { album, origin ->
             routeActions.openAlbum(album, origin, AlbumOpenSource.LibraryAlbums)
         },
+    )
+}
+
+@Composable
+internal fun AudiobooksRouteHost(
+    routeState: RootRouteState,
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    AudiobooksScreen(
+        books = routeState.libraryState.audiobooks,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onBookSelected = { book -> routeActions.openAudiobook(book.stableKey) },
+    )
+}
+
+@Composable
+internal fun AudiobookDetailRouteHost(
+    stableKey: String,
+    routeState: RootRouteState,
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+    chapterReader: AudiobookChapterReader,
+) {
+    val book = routeState.libraryState.audiobooks.firstOrNull { it.stableKey == stableKey }
+    if (book == null) {
+        AudiobooksRouteHost(routeState, routeActions, padding)
+        return
+    }
+    val progress by routeActions.playback.progressState.collectAsStateWithLifecycle()
+    val sleepTimerState by routeActions.playback.sleepTimerState.collectAsStateWithLifecycle()
+    val audiobookSettings by routeActions.settings.appearanceSettings.audiobookSettings.collectAsStateWithLifecycle()
+    val savedProgress = remember(book.stableKey) {
+        routeActions.playback.audiobookProgress(book.stableKey)
+    }
+    val embeddedChapters by androidx.compose.runtime.produceState<List<AudiobookPart>?>(
+        initialValue = null,
+        key1 = book.stableKey,
+        key2 = book.parts,
+    ) {
+        val expandedParts = buildList {
+            book.parts.forEach { part ->
+                val chapters = chapterReader.chapters(part.song)
+                if (chapters.isEmpty()) {
+                    add(part)
+                } else {
+                    chapters.forEach { chapter ->
+                        add(
+                            AudiobookPart(
+                                song = part.song,
+                                number = size + 1,
+                                titleOverride = chapter.title,
+                                startMs = chapter.startMs,
+                                endMs = chapter.endMs,
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+        value = expandedParts.takeIf { it.isNotEmpty() && it != book.parts }
+    }
+    val displayedBook = remember(book, embeddedChapters) {
+        embeddedChapters?.let { book.copy(parts = it) } ?: book
+    }
+    AudiobookDetailScreen(
+        book = displayedBook,
+        rewindSeconds = audiobookSettings.rewindSeconds,
+        forwardSeconds = audiobookSettings.forwardSeconds,
+        currentSongId = routeState.playbackState.currentSong?.id,
+        progressMs = progress.positionMs,
+        savedProgress = savedProgress,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onPlay = { part, resume ->
+            routeActions.playback.playAudiobook(
+                displayedBook,
+                part,
+                resume = resume && audiobookSettings.resumePlayback,
+            )
+        },
+        onStartOver = {
+            displayedBook.parts.firstOrNull()?.let { routeActions.playback.playAudiobook(displayedBook, it, resume = false) }
+        },
+        onSeekBack = { routeActions.playback.seekCurrentBy(-audiobookSettings.rewindSeconds * 1_000L) },
+        onSeekForward = { routeActions.playback.seekCurrentBy(audiobookSettings.forwardSeconds * 1_000L) },
+        onSetSpeed = routeActions.playback::setPlaybackSpeed,
+        sleepTimerOption = sleepTimerState.option,
+        onSleepTimerSelected = routeActions.playback::setSleepTimer,
     )
 }
 
@@ -196,6 +300,7 @@ internal fun ArtistRouteHost(
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
     val artistSongs = remember(normalizedArtist, routeState.libraryState.songs) {
         routeState.libraryState.songs.filter { song ->
+            song.mediaKind == AudioMediaKind.Music &&
             song.libraryArtistName().equals(normalizedArtist, ignoreCase = true)
         }
     }
@@ -301,11 +406,12 @@ internal fun SettingsRouteHost(
         onAppLanguageSelected = routeActions.settings::setAppLanguage,
         onVolumeNormalizationChanged = routeActions.settings::setVolumeNormalizationEnabled,
         onOnlineLyricsChanged = routeActions.settings::setOnlineLyricsEnabled,
-        onMonoPlaybackChanged = routeActions.settings::updateMonoPlaybackEnabled,
         onOpenEqualizer = routeActions::openEqualizer,
         onOpenCrossfade = routeActions::openCrossfade,
+        onOpenAudiobookSettings = routeActions::openAudiobookSettings,
         onOpenLibraryFolders = routeActions::openLibraryFolders,
         onOpenManagePlaylists = routeActions::openManagePlaylists,
+        onOpenSmartPlaylistSettings = routeActions::openSmartPlaylistSettings,
         onOpenNowPlayingBarStyle = routeActions::openNowPlayingBarStyle,
         onOpenPrivacyPolicy = routeActions::openPrivacyPolicy,
         onOpenChangelog = routeActions::openChangelog,
@@ -346,6 +452,41 @@ internal fun CrossfadeRouteHost(
         onBack = routeActions::navigateUp,
         onDurationChanged = routeActions.settings::setCrossfadeDurationMs,
         onSilenceThresholdChanged = routeActions.settings::setCrossfadeSilenceThresholdDb,
+    )
+}
+
+@Composable
+internal fun AudiobookSettingsRouteHost(
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    val settings = routeActions.settings.appearanceSettings
+    val audiobookSettings by settings.audiobookSettings.collectAsStateWithLifecycle()
+    AudiobookSettingsScreen(
+        settings = audiobookSettings,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onRewindChanged = routeActions.settings::setAudiobookRewindSeconds,
+        onForwardChanged = routeActions.settings::setAudiobookForwardSeconds,
+        onResumePlaybackChanged = routeActions.settings::setAudiobookResumePlayback,
+    )
+}
+
+@Composable
+internal fun SmartPlaylistSettingsRouteHost(
+    routeActions: RootRouteActions,
+    padding: RootRoutePadding,
+) {
+    val settings = routeActions.settings.appearanceSettings
+    val enabledTypes by settings.smartPlaylistEnabledTypes.collectAsStateWithLifecycle()
+    val maxSongs by settings.smartPlaylistMaxSongs.collectAsStateWithLifecycle()
+    SmartPlaylistSettingsScreen(
+        enabledTypes = enabledTypes,
+        maxSongs = maxSongs,
+        bottomPadding = padding.detailBottom,
+        onBack = routeActions::navigateUp,
+        onTypeEnabledChanged = routeActions.settings::setSmartPlaylistEnabled,
+        onMaxSongsChanged = routeActions.settings::setSmartPlaylistMaxSongs,
     )
 }
 

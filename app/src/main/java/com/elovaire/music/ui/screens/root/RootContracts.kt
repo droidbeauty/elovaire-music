@@ -31,10 +31,12 @@ internal const val SEARCH_ROUTE = "search"
 internal const val PLAYER_ROUTE = "player"
 internal const val EQUALIZER_ROUTE = "equalizer"
 internal const val CROSSFADE_ROUTE = "crossfade"
+internal const val AUDIOBOOK_SETTINGS_ROUTE = "audiobook_settings"
 internal const val SETTINGS_ROUTE = "settings"
 internal const val MANAGE_PLAYLISTS_ROUTE = "manage_playlists"
 internal const val LIBRARY_FOLDERS_ROUTE = "library_folders"
 internal const val NOW_PLAYING_BAR_STYLE_ROUTE = "now_playing_bar_style"
+internal const val SMART_PLAYLIST_SETTINGS_ROUTE = "smart_playlist_settings"
 internal const val CHANGELOG_ROUTE = "changelog"
 internal const val ABOUT_ROUTE = "about"
 internal const val PRIVACY_POLICY_ROUTE = "privacy_policy"
@@ -44,6 +46,8 @@ internal const val LIBRARY_COLLECTION_ROUTE = "library_collection"
 internal const val GENRE_ROUTE = "genre"
 internal const val ARTIST_ROUTE = "artist"
 internal const val RECENTLY_ADDED_ROUTE = "recently_added"
+internal const val AUDIOBOOKS_ROUTE = "audiobooks"
+internal const val AUDIOBOOK_ROUTE = "audiobook"
 
 internal object Routes {
     fun album(albumId: Long): String = "$ALBUM_ROUTE/$albumId"
@@ -55,6 +59,7 @@ internal object Routes {
     fun genre(genre: String): String = "$GENRE_ROUTE/${Uri.encode(genre)}"
     fun libraryCollection(kind: LibraryCollectionKind): String = "$LIBRARY_COLLECTION_ROUTE/${kind.name}"
     fun tagEditor(albumId: Long): String = "$ALBUM_TAG_EDITOR_ROUTE/$albumId"
+    fun audiobook(stableKey: String): String = "$AUDIOBOOK_ROUTE/${Uri.encode(stableKey)}"
 }
 
 internal val TopLevelRoutes = setOf(
@@ -76,6 +81,8 @@ internal val BottomNavigationRoutes = setOf(
     "$LIBRARY_COLLECTION_ROUTE/{kind}",
     "$GENRE_ROUTE/{genre}",
     "$ARTIST_ROUTE/{artistName}",
+    AUDIOBOOKS_ROUTE,
+    "$AUDIOBOOK_ROUTE/{bookKey}",
 )
 internal const val NOW_PLAYING_TITLE_TEXT_SIZE_SP = 23f
 internal const val NOW_PLAYING_ARTIST_TEXT_SIZE_SP = 18f
@@ -229,6 +236,8 @@ internal object ElovaireNavigationTransitions {
             MANAGE_PLAYLISTS_ROUTE,
             LIBRARY_FOLDERS_ROUTE,
             NOW_PLAYING_BAR_STYLE_ROUTE,
+            AUDIOBOOK_SETTINGS_ROUTE,
+            SMART_PLAYLIST_SETTINGS_ROUTE,
             EQUALIZER_ROUTE,
             CROSSFADE_ROUTE,
             CHANGELOG_ROUTE,

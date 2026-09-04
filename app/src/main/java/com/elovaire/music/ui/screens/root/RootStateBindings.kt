@@ -13,8 +13,10 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -50,6 +52,9 @@ internal data class RootAppState(
     val songCollectionSortModeName: String,
     val volumeNormalizationEnabled: Boolean,
     val onlineLyricsEnabled: Boolean,
+    val audiobookSettings: AudiobookSettings,
+    val smartPlaylistEnabledTypes: Set<BuiltInSmartPlaylistType>,
+    val smartPlaylistMaxSongs: Int,
 )
 
 internal data class RootLibraryDerivedState(
@@ -74,6 +79,7 @@ internal fun libraryUiStateOf(
         scanProgress = scan.scanProgress,
         songs = content.songs,
         albums = content.albums,
+        audiobooks = content.audiobooks,
         removingSongIds = content.removingSongIds,
         removingAlbumIds = content.removingAlbumIds,
         errorMessage = scan.errorMessage,

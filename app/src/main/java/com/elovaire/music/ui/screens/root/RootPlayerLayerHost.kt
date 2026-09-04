@@ -8,6 +8,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.interaction.consumePointersWithoutSemantics
 import elovaire.music.droidbeauty.app.ui.motion.PlayerOverlayMotionHost
@@ -22,6 +23,7 @@ internal fun RootPlayerLayerHost(
     nowPlayingViewModel: NowPlayingViewModel,
     playbackManager: NowPlayingPlayback,
     songsById: Map<Long, Song>,
+    audiobookSettings: AudiobookSettings,
     isCurrentSongFavorite: Boolean,
     playlists: List<Playlist>,
     onBack: () -> Unit,
@@ -56,6 +58,7 @@ internal fun RootPlayerLayerHost(
                 viewModel = nowPlayingViewModel,
                 playbackManager = playbackManager,
                 enrichedSongsById = songsById,
+                audiobookSettings = audiobookSettings,
                 isFavorite = isCurrentSongFavorite,
                 playlists = playlists,
                 onBack = onBack,

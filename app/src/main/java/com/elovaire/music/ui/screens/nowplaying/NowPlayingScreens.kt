@@ -257,6 +257,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -264,6 +265,7 @@ import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.SpaciousnessMode
 import elovaire.music.droidbeauty.app.domain.model.TextSizePreset
 import elovaire.music.droidbeauty.app.domain.model.ThemeMode
@@ -359,6 +361,7 @@ internal fun NowPlayingScreen(
     playbackManager: NowPlayingPlayback,
     playerUiState: PlayerUiState,
     enrichedSongsById: Map<Long, Song>,
+    audiobookSettings: AudiobookSettings,
     isFavorite: Boolean,
     playlists: List<Playlist>,
     lyricsUiState: LyricsUiState,
@@ -1199,13 +1202,28 @@ internal fun NowPlayingScreen(
                                         horizontalArrangement = Arrangement.SpaceEvenly,
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
-                                        PlayerTransportButton(
-                                            iconResId = R.drawable.ic_elovaire_backward_filled,
-                                            contentDescription = "Previous",
-                                            tint = contentColor,
-                                            iconSize = 42.dp,
-                                            onClick = onSkipPrevious,
-                                        )
+                                        if (currentSong.mediaKind == AudioMediaKind.Audiobook) {
+                                            AudiobookTransportButton(
+                                                iconResId = R.drawable.ic_elovaire_backward_filled,
+                                                seconds = audiobookSettings.rewindSeconds,
+                                                contentDescription = "Rewind",
+                                                tint = contentColor,
+                                                onClick = {
+                                                    seekCurrentPlaybackBy(
+                                                        playbackManager,
+                                                        -audiobookSettings.rewindSeconds * 1_000L,
+                                                    )
+                                                },
+                                            )
+                                        } else {
+                                            PlayerTransportButton(
+                                                iconResId = R.drawable.ic_elovaire_backward_filled,
+                                                contentDescription = "Previous",
+                                                tint = contentColor,
+                                                iconSize = 42.dp,
+                                                onClick = onSkipPrevious,
+                                            )
+                                        }
                                         PlayerTransportButton(
                                             iconResId = if (transportShowsPause) R.drawable.ic_elovaire_pause_filled else R.drawable.ic_lucide_play,
                                             contentDescription = if (transportShowsPause) "Pause" else "Play",
@@ -1213,13 +1231,28 @@ internal fun NowPlayingScreen(
                                             iconSize = 46.dp,
                                             onClick = onTogglePlayback,
                                         )
-                                        PlayerTransportButton(
-                                            iconResId = R.drawable.ic_elovaire_forward_filled,
-                                            contentDescription = "Next",
-                                            tint = contentColor,
-                                            iconSize = 42.dp,
-                                            onClick = onSkipNext,
-                                        )
+                                        if (currentSong.mediaKind == AudioMediaKind.Audiobook) {
+                                            AudiobookTransportButton(
+                                                iconResId = R.drawable.ic_elovaire_forward_filled,
+                                                seconds = audiobookSettings.forwardSeconds,
+                                                contentDescription = "Forward",
+                                                tint = contentColor,
+                                                onClick = {
+                                                    seekCurrentPlaybackBy(
+                                                        playbackManager,
+                                                        audiobookSettings.forwardSeconds * 1_000L,
+                                                    )
+                                                },
+                                            )
+                                        } else {
+                                            PlayerTransportButton(
+                                                iconResId = R.drawable.ic_elovaire_forward_filled,
+                                                contentDescription = "Next",
+                                                tint = contentColor,
+                                                iconSize = 42.dp,
+                                                onClick = onSkipNext,
+                                            )
+                                        }
                                     }
                                 }
                             }
@@ -1307,6 +1340,7 @@ internal fun NowPlayingScreen(
                         playlists = playlists,
                         playlistSongsById = enrichedSongsById,
                         currentSong = currentSong,
+                        audiobookMode = currentSong.mediaKind == AudioMediaKind.Audiobook,
                         tint = contentColor,
                         secondaryTint = secondaryContentColor,
                         modifier = Modifier
@@ -1614,6 +1648,7 @@ private fun QueueSheet(
     playlists: List<Playlist>,
     playlistSongsById: Map<Long, Song>,
     currentSong: Song?,
+    audiobookMode: Boolean,
     tint: Color,
     secondaryTint: Color,
     onSongSelected: (Int) -> Unit,
@@ -1689,6 +1724,7 @@ private fun QueueSheet(
                 statusText = statusText,
                 tint = tint,
                 language = language,
+                audiobookMode = audiobookMode,
                 crossfadeEnabled = crossfadeEnabled,
                 onToggleCrossfade = onToggleCrossfade,
                 onDismiss = onDismiss,
@@ -1798,6 +1834,7 @@ private fun QueueSheetFooter(
     statusText: String?,
     tint: Color,
     language: AppLanguage,
+    audiobookMode: Boolean,
     crossfadeEnabled: Boolean,
     onToggleCrossfade: () -> Unit,
     onDismiss: () -> Unit,
@@ -1846,16 +1883,18 @@ private fun QueueSheetFooter(
             horizontalArrangement = Arrangement.Center,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlayerSecondaryActionButton(
-                iconResId = R.drawable.ic_lucide_send_to_back,
-                label = "",
-                contentDescription = if (crossfadeEnabled) "Disable crossfade" else "Enable crossfade",
-                iconSize = 20.dp,
-                tint = tint,
-                showBackground = crossfadeEnabled,
-                onClick = onToggleCrossfade,
-            )
-            Spacer(modifier = Modifier.width(20.dp))
+            if (!audiobookMode) {
+                PlayerSecondaryActionButton(
+                    iconResId = R.drawable.ic_lucide_send_to_back,
+                    label = "",
+                    contentDescription = if (crossfadeEnabled) "Disable crossfade" else "Enable crossfade",
+                    iconSize = 20.dp,
+                    tint = tint,
+                    showBackground = crossfadeEnabled,
+                    onClick = onToggleCrossfade,
+                )
+                Spacer(modifier = Modifier.width(20.dp))
+            }
             PlayerSecondaryActionButton(
                 iconResId = R.drawable.ic_lucide_sliders_vertical,
                 label = "",
@@ -1877,15 +1916,17 @@ private fun QueueSheetFooter(
                 showBackground = sleepTimerActive,
                 onClick = onOpenSleepTimer,
             )
-            Spacer(modifier = Modifier.width(20.dp))
-            PlayerSecondaryActionButton(
-                iconResId = R.drawable.ic_lucide_shuffle,
-                label = "",
-                iconSize = 20.dp,
-                tint = tint,
-                showBackground = shuffleEnabled,
-                onClick = onToggleShuffle,
-            )
+            if (!audiobookMode) {
+                Spacer(modifier = Modifier.width(20.dp))
+                PlayerSecondaryActionButton(
+                    iconResId = R.drawable.ic_lucide_shuffle,
+                    label = "",
+                    iconSize = 20.dp,
+                    tint = tint,
+                    showBackground = shuffleEnabled,
+                    onClick = onToggleShuffle,
+                )
+            }
         }
     }
 }
@@ -2016,7 +2057,7 @@ private fun QueueSeparator(
 
 @Composable
 @Suppress("LongMethod")
-private fun SleepTimerDialog(
+internal fun SleepTimerDialog(
     selectedOption: SleepTimerOption,
     visible: Boolean,
     onOptionSelected: (SleepTimerOption) -> Unit,
@@ -2558,6 +2599,42 @@ private fun QueueContextMenuSurface(
         Column(modifier = Modifier.fillMaxWidth()) {
             content()
         }
+    }
+}
+
+private fun seekCurrentPlaybackBy(
+    playbackManager: NowPlayingPlayback,
+    deltaMs: Long,
+) {
+    val progress = playbackManager.progressState.value
+    val target = (progress.positionMs + deltaMs).coerceAtLeast(0L)
+    playbackManager.seekTo(progress.durationMs.takeIf { it > 0L }?.let(target::coerceAtMost) ?: target)
+}
+
+@Composable
+private fun AudiobookTransportButton(
+    iconResId: Int,
+    seconds: Int,
+    contentDescription: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(0.dp),
+    ) {
+        PlayerTransportButton(
+            iconResId = iconResId,
+            contentDescription = contentDescription,
+            tint = tint,
+            iconSize = 42.dp,
+            onClick = onClick,
+        )
+        Text(
+            text = "${seconds}s",
+            style = MaterialTheme.typography.labelMedium,
+            color = tint.copy(alpha = 0.84f),
+        )
     }
 }
 

@@ -4,6 +4,7 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
 import elovaire.music.droidbeauty.app.data.audio.DetectedAudioFormat
 import elovaire.music.droidbeauty.app.data.audio.PlaybackSupport
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import java.util.Locale
 
 internal data class AudioScanCandidate(
@@ -19,7 +20,16 @@ internal data class AudioScanCandidate(
     val absolutePath: String?,
     val extension: String?,
     val isMusic: Boolean?,
+    val isAudiobook: Boolean? = null,
+    val bookmarkMs: Long? = null,
     val detectedFormat: DetectedAudioFormat? = null,
+)
+
+internal fun AudioScanCandidate.mediaKind(): AudioMediaKind = AudioMediaKindClassifier.classify(
+    isAudiobook = isAudiobook,
+    extension = extension,
+    relativePath = relativePath,
+    absolutePath = absolutePath,
 )
 
 internal sealed interface AudioFileFilterDecision {
@@ -102,13 +112,19 @@ internal class LibraryAudioFileFilter(
             return AudioFileFilterDecision.Exclude("Excluded name")
         }
 
-        if (candidate.isMusic == false && !isExplicitCustomFolder && folderMatch != FolderMatch.DefaultRoot) {
+        if (
+            candidate.isMusic == false &&
+            candidate.mediaKind() != AudioMediaKind.Audiobook &&
+            !isExplicitCustomFolder &&
+            folderMatch != FolderMatch.DefaultRoot
+        ) {
             return AudioFileFilterDecision.Exclude("MediaStore says non-music")
         }
 
         if (
             capability.playbackSupport == PlaybackSupport.PlatformDependent &&
             candidate.isMusic != true &&
+            candidate.mediaKind() != AudioMediaKind.Audiobook &&
             !isExplicitCustomFolder
         ) {
             return AudioFileFilterDecision.Exclude("Platform-dependent non-music audio")
@@ -224,7 +240,6 @@ internal class LibraryAudioFileFilter(
             "/facebook/",
             "/snapchat/",
             "/podcasts/",
-            "/audiobooks/",
         )
 
         private val ExcludedNameRegexes = listOf(

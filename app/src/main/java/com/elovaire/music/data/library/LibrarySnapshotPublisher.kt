@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library
 
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.util.Locale
 
@@ -38,6 +39,7 @@ internal class LibrarySnapshotPublisher(
         return LibraryContentState(
             songs = snapshot.songs,
             albums = snapshot.albums,
+            audiobooks = snapshot.audiobooks,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
             contentRevision = snapshot.contentRevision.ifBlank {
@@ -116,7 +118,9 @@ internal class LibrarySnapshotPublisher(
         }
         val rebuiltAlbums = affectedAlbumIds.flatMap { albumId ->
             buildAlbumsFromSongs(
-                affectedPositions.map(canonicalUpdatedSongs::get).filter { it.albumId == albumId },
+                affectedPositions.map(canonicalUpdatedSongs::get).filter {
+                    it.albumId == albumId && it.mediaKind == AudioMediaKind.Music
+                },
             )
         }
         val updatedAlbums = current.albums.toMutableList()
@@ -130,6 +134,7 @@ internal class LibrarySnapshotPublisher(
         val nextState = LibraryContentState(
             songs = canonicalUpdatedSongs,
             albums = updatedAlbums,
+            audiobooks = AudiobookCatalog.build(canonicalUpdatedSongs),
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
             contentRevision = libraryPatchedContentRevision(
@@ -149,6 +154,7 @@ internal class LibrarySnapshotPublisher(
         return LibrarySnapshot(
             songs = state.songs,
             albums = state.albums,
+            audiobooks = state.audiobooks,
             contentRevision = state.contentRevision.ifBlank {
                 librarySongsContentRevision(state.songs)
             },

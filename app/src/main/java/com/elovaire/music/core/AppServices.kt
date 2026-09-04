@@ -36,6 +36,8 @@ import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffectsController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
+import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
+import elovaire.music.droidbeauty.app.data.playback.Media3AudiobookChapterReader
 import elovaire.music.droidbeauty.app.data.playback.DefaultPlaybackResumptionGateway
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
@@ -133,6 +135,9 @@ internal class AppServices(
         defaultFactory = DefaultDataSource.Factory(applicationContext),
         registryProvider = { networkFileSystemRegistryDelegate.value },
     )
+    val audiobookChapterReader: AudiobookChapterReader = Media3AudiobookChapterReader(
+        dataSourceFactory = networkDataSourceFactory,
+    )
     private val networkSourceCoordinator = NetworkSourceCoordinator(
         sourceStore = networkSourceStore,
         credentialStoreProvider = { networkCredentialStoreDelegate.value },
@@ -204,7 +209,10 @@ internal class AppServices(
         defaultDispatcher = appDispatchers.default,
         onSongRelocations = { replacements ->
             when (val result = userDataStore.relocateSongReferences(replacements).await()) {
-                is PlaylistMutationResult.Success -> true
+                is PlaylistMutationResult.Success -> {
+                    playbackManager.remapAudiobookProgress(replacements)
+                    true
+                }
                 else -> false
             }
         },

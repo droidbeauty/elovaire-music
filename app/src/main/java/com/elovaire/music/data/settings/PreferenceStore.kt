@@ -9,6 +9,7 @@ import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.ReverbProfile
@@ -23,6 +24,9 @@ import elovaire.music.droidbeauty.app.data.playback.EqValuePolicy
 import elovaire.music.droidbeauty.app.data.playback.normalizeReverbDurationMs
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylistSettingsPolicy
 import java.io.IOException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -116,6 +120,16 @@ class PreferenceStore internal constructor(
     private val _crossfadeSilenceThresholdDb = MutableStateFlow(loadCrossfadeSilenceThresholdDb())
     override val crossfadeSilenceThresholdDb: StateFlow<Float> = _crossfadeSilenceThresholdDb.asStateFlow()
 
+    private val _audiobookSettings = MutableStateFlow(loadAudiobookSettings())
+    override val audiobookSettings: StateFlow<AudiobookSettings> = _audiobookSettings.asStateFlow()
+
+    private val _smartPlaylistEnabledTypes = MutableStateFlow(loadSmartPlaylistEnabledTypes())
+    override val smartPlaylistEnabledTypes: StateFlow<Set<BuiltInSmartPlaylistType>> =
+        _smartPlaylistEnabledTypes.asStateFlow()
+
+    private val _smartPlaylistMaxSongs = MutableStateFlow(loadSmartPlaylistMaxSongs())
+    override val smartPlaylistMaxSongs: StateFlow<Int> = _smartPlaylistMaxSongs.asStateFlow()
+
     private val _volumeNormalizationEnabled = MutableStateFlow(loadVolumeNormalizationEnabled())
     override val volumeNormalizationEnabled: StateFlow<Boolean> = _volumeNormalizationEnabled.asStateFlow()
 
@@ -149,12 +163,18 @@ class PreferenceStore internal constructor(
     override val recentAlbumIds get() = userDataStore.recentAlbumIds
     override val lastPlayedCollectionKind get() = userDataStore.lastPlayedCollectionKind
     override val lastPlayedCollectionId get() = userDataStore.lastPlayedCollectionId
-    override val smartPlaylists get() = userDataStore.smartPlaylists
+    private val _smartPlaylists = MutableStateFlow(configuredSmartPlaylists(userDataStore.smartPlaylists.value))
+    override val smartPlaylists: StateFlow<List<SmartPlaylist>> = _smartPlaylists.asStateFlow()
     override val favoriteSongIds get() = userDataStore.favoriteSongIds
     override val playlists get() = userDataStore.playlists
 
     init {
         migrateLegacyUpdatePreferencesIfNeeded()
+        preferenceScope.launch {
+            userDataStore.smartPlaylists.collect { playlists ->
+                _smartPlaylists.value = configuredSmartPlaylists(playlists)
+            }
+        }
     }
 
     override fun setDismissedUpdateVersion(versionName: String?) {
@@ -301,10 +321,6 @@ class PreferenceStore internal constructor(
         persistEqSettings(_eqSettings.value.copy(reverbProfile = profile))
     }
 
-    override fun updateMonoPlaybackEnabled(enabled: Boolean) {
-        persistEqSettings(_eqSettings.value.copy(monoEnabled = enabled))
-    }
-
     override fun setEqSettings(settings: EqSettings) {
         persistEqSettings(EqValuePolicy.sanitize(settings))
     }
@@ -341,6 +357,38 @@ class PreferenceStore internal constructor(
         _crossfadeSilenceThresholdDb.value = thresholdDb
         pendingCrossfadeSilenceThresholdDb = thresholdDb
         scheduleCrossfadePersistence()
+    }
+
+    override fun setAudiobookRewindSeconds(value: Int) {
+        updateAudiobookSettings(_audiobookSettings.value.copy(rewindSeconds = value.sanitizeAudiobookSeekSeconds()))
+    }
+
+    override fun setAudiobookForwardSeconds(value: Int) {
+        updateAudiobookSettings(_audiobookSettings.value.copy(forwardSeconds = value.sanitizeAudiobookSeekSeconds()))
+    }
+
+    override fun setAudiobookResumePlayback(enabled: Boolean) {
+        updateAudiobookSettings(_audiobookSettings.value.copy(resumePlayback = enabled))
+    }
+
+    override fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean) {
+        val next = _smartPlaylistEnabledTypes.value.toMutableSet().apply {
+            if (enabled) add(type) else remove(type)
+        }.toSet()
+        if (_smartPlaylistEnabledTypes.value == next) return
+        _smartPlaylistEnabledTypes.value = next
+        enqueueSettingsEdit {
+            putString(KEY_SMART_PLAYLIST_ENABLED_TYPES, next.joinToString(",") { it.name })
+        }
+        _smartPlaylists.value = configuredSmartPlaylists(userDataStore.smartPlaylists.value)
+    }
+
+    override fun setSmartPlaylistMaxSongs(value: Int) {
+        val next = SmartPlaylistSettingsPolicy.sanitizeSongLimit(value)
+        if (_smartPlaylistMaxSongs.value == next) return
+        _smartPlaylistMaxSongs.value = next
+        enqueueSettingsEdit { putInt(KEY_SMART_PLAYLIST_MAX_SONGS, next) }
+        _smartPlaylists.value = configuredSmartPlaylists(userDataStore.smartPlaylists.value)
     }
 
     override fun setVolumeNormalizationEnabled(enabled: Boolean) {
@@ -479,7 +527,6 @@ class PreferenceStore internal constructor(
             putFloat(KEY_TREBLE, settings.treble)
             putFloat(KEY_SPACIOUSNESS, settings.spaciousness)
             putString(KEY_SPACIOUSNESS_MODE, settings.spaciousnessMode.name)
-            putBoolean(KEY_MONO_ENABLED, settings.monoEnabled)
             putInt(KEY_REVERB_DURATION_MS, settings.reverbDurationMs)
             putString(KEY_REVERB_PROFILE, settings.reverbProfile.name)
         }
@@ -601,7 +648,6 @@ class PreferenceStore internal constructor(
             spaciousnessMode = preferences.getString(KEY_SPACIOUSNESS_MODE, SpaciousnessMode.StereoWidth.name)
                 ?.let { saved -> SpaciousnessMode.entries.firstOrNull { it.name == saved } }
                 ?: SpaciousnessMode.StereoWidth,
-            monoEnabled = preferences.getBoolean(KEY_MONO_ENABLED, false),
             reverbDurationMs = normalizeReverbDurationMs(preferences.getInt(KEY_REVERB_DURATION_MS, 0)),
             reverbProfile = preferences.getString(KEY_REVERB_PROFILE, ReverbProfile.Dry.name)
                 ?.let { saved -> ReverbProfile.entries.firstOrNull { it.name == saved } }
@@ -696,6 +742,55 @@ class PreferenceStore internal constructor(
                 CrossfadeSilencePolicy.BASE_LEVEL_DB,
             ),
         )
+    }
+
+    private fun loadAudiobookSettings(): AudiobookSettings {
+        return AudiobookSettings(
+            rewindSeconds = preferences.getInt(KEY_AUDIOBOOK_REWIND_SECONDS, 15).sanitizeAudiobookSeekSeconds(),
+            forwardSeconds = preferences.getInt(KEY_AUDIOBOOK_FORWARD_SECONDS, 15).sanitizeAudiobookSeekSeconds(),
+            resumePlayback = preferences.getBoolean(KEY_AUDIOBOOK_RESUME_PLAYBACK, true),
+        )
+    }
+
+    private fun loadSmartPlaylistEnabledTypes(): Set<BuiltInSmartPlaylistType> {
+        return preferences.getString(KEY_SMART_PLAYLIST_ENABLED_TYPES, null)
+            ?.split(",")
+            ?.mapNotNull { saved -> BuiltInSmartPlaylistType.entries.firstOrNull { it.name == saved } }
+            ?.toSet()
+            ?: BuiltInSmartPlaylistType.entries.toSet()
+    }
+
+    private fun loadSmartPlaylistMaxSongs(): Int {
+        return SmartPlaylistSettingsPolicy.sanitizeSongLimit(
+            preferences.getInt(KEY_SMART_PLAYLIST_MAX_SONGS, SmartPlaylistSettingsPolicy.MIN_SONG_LIMIT),
+        )
+    }
+
+    private fun updateAudiobookSettings(settings: AudiobookSettings) {
+        val normalized = settings.copy(
+            rewindSeconds = settings.rewindSeconds.sanitizeAudiobookSeekSeconds(),
+            forwardSeconds = settings.forwardSeconds.sanitizeAudiobookSeekSeconds(),
+        )
+        updateStateAndPreference(_audiobookSettings, normalized) {
+            putInt(KEY_AUDIOBOOK_REWIND_SECONDS, normalized.rewindSeconds)
+            putInt(KEY_AUDIOBOOK_FORWARD_SECONDS, normalized.forwardSeconds)
+            putBoolean(KEY_AUDIOBOOK_RESUME_PLAYBACK, normalized.resumePlayback)
+        }
+    }
+
+    private fun configuredSmartPlaylists(playlists: List<SmartPlaylist>): List<SmartPlaylist> {
+        val enabled = _smartPlaylistEnabledTypes.value
+        val limit = _smartPlaylistMaxSongs.value
+        return playlists.mapNotNull { playlist ->
+            val type = playlist.builtInType
+            if (type != null && type !in enabled) {
+                null
+            } else if (type != null) {
+                playlist.copy(limit = limit)
+            } else {
+                playlist
+            }
+        }
     }
 
     private fun loadVolumeNormalizationEnabled(): Boolean {
@@ -797,6 +892,11 @@ class PreferenceStore internal constructor(
         const val KEY_CROSSFADE_ENABLED = "crossfade_enabled"
         const val KEY_CROSSFADE_DURATION_MS = "crossfade_duration_ms"
         const val KEY_CROSSFADE_SILENCE_THRESHOLD_DB = "crossfade_silence_threshold_db"
+        const val KEY_AUDIOBOOK_REWIND_SECONDS = "audiobook_rewind_seconds"
+        const val KEY_AUDIOBOOK_FORWARD_SECONDS = "audiobook_forward_seconds"
+        const val KEY_AUDIOBOOK_RESUME_PLAYBACK = "audiobook_resume_playback"
+        const val KEY_SMART_PLAYLIST_ENABLED_TYPES = "smart_playlist_enabled_types"
+        const val KEY_SMART_PLAYLIST_MAX_SONGS = "smart_playlist_max_songs"
         const val CROSSFADE_SETTINGS_PERSIST_DEBOUNCE_MS = 250L
         const val KEY_GAPLESS_PLAYBACK_ENABLED = "gapless_playback_enabled"
         const val KEY_VOLUME_NORMALIZATION_ENABLED = "volume_normalization_enabled"
@@ -817,7 +917,6 @@ class PreferenceStore internal constructor(
         const val KEY_TREBLE = "eq_treble"
         const val KEY_SPACIOUSNESS = "eq_spaciousness"
         const val KEY_SPACIOUSNESS_MODE = "eq_spaciousness_mode"
-        const val KEY_MONO_ENABLED = "mono_playback_enabled"
         const val KEY_REVERB_DURATION_MS = "eq_reverb_duration_ms"
         const val KEY_REVERB_PROFILE = "eq_reverb_profile"
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
@@ -829,6 +928,8 @@ class PreferenceStore internal constructor(
         const val TAG = "PreferenceStore"
     }
 }
+
+private fun Int.sanitizeAudiobookSeekSeconds(): Int = coerceIn(5, 30)
 
 internal fun incrementPlayCount(current: Int?, increment: Int = 1): Int {
     val safeIncrement = increment.coerceAtLeast(0)

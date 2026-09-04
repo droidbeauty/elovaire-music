@@ -3,7 +3,9 @@ package elovaire.music.droidbeauty.app.data.settings
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
+import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -27,6 +29,9 @@ internal interface AppearanceSettingsStore {
     val nowPlayingBarStyle: StateFlow<NowPlayingBarStyle>
     val crossfadeDurationMs: StateFlow<Long>
     val crossfadeSilenceThresholdDb: StateFlow<Float>
+    val audiobookSettings: StateFlow<AudiobookSettings>
+    val smartPlaylistEnabledTypes: StateFlow<Set<BuiltInSmartPlaylistType>>
+    val smartPlaylistMaxSongs: StateFlow<Int>
 }
 
 internal interface CollectionSettingsStore {
@@ -110,7 +115,11 @@ internal interface PlaybackSettingsWriter {
     fun updateBass(value: Float)
     fun updateMidrange(value: Float)
     fun updateTreble(value: Float)
-    fun updateMonoPlaybackEnabled(enabled: Boolean)
+    fun setAudiobookRewindSeconds(value: Int)
+    fun setAudiobookForwardSeconds(value: Int)
+    fun setAudiobookResumePlayback(enabled: Boolean)
+    fun setSmartPlaylistEnabled(type: BuiltInSmartPlaylistType, enabled: Boolean)
+    fun setSmartPlaylistMaxSongs(value: Int)
 }
 
 internal interface PlaylistStore {

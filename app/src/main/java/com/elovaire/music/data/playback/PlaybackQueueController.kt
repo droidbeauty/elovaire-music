@@ -41,6 +41,7 @@ internal class PlaybackQueueController(
         sourcePlaylistId: Long?,
         audioPathDelayMs: Long,
         libraryBacked: Boolean = true,
+        startPositionMs: Long = 0L,
     ) {
         if (songs.isEmpty()) return
         queueBackedByLibrary = libraryBacked
@@ -49,7 +50,11 @@ internal class PlaybackQueueController(
         val player = runtime.player
         allowStrictModeDiskReads {
             // MediaSession metadata publication may synchronously ask MediaProvider to validate artwork URI grants.
-            player.setMediaItems(songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem), startIndex, 0L)
+            player.setMediaItems(
+                songs.mapTo(ArrayList(songs.size), Song::toPlaybackMediaItem),
+                startIndex,
+                startPositionMs.coerceAtLeast(0L),
+            )
         }
         player.shuffleModeEnabled = shuffleEnabled
         player.prepare()

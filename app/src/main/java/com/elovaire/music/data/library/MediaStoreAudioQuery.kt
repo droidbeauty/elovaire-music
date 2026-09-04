@@ -18,6 +18,8 @@ internal object MediaStoreAudioQuery {
         MediaStore.Audio.Media.SIZE,
         MediaStore.Audio.Media.MIME_TYPE,
         MediaStore.Audio.Media.IS_MUSIC,
+        MediaStore.Audio.AudioColumns.IS_AUDIOBOOK,
+        MediaStore.Audio.AudioColumns.BOOKMARK,
         MediaStore.Audio.Media.YEAR,
         MediaStore.Audio.Media.DATE_ADDED,
         MediaStore.MediaColumns.DATE_MODIFIED,

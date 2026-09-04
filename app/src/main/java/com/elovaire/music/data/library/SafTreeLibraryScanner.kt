@@ -254,6 +254,12 @@ internal class SafTreeLibraryScanner(
                                 absolutePath = libraryPath,
                                 extension = extension,
                                 isMusic = true,
+                                isAudiobook = AudioMediaKindClassifier.classify(
+                                    isAudiobook = null,
+                                    extension = extension,
+                                    relativePath = childRelativePath,
+                                    absolutePath = libraryPath,
+                                ) == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook,
                                 detectedFormat = detectedFormat,
                             )
                             if (audioFileFilter.evaluate(candidate) !is AudioFileFilterDecision.Include) {
@@ -289,6 +295,12 @@ internal class SafTreeLibraryScanner(
                                 metadataResolved = true,
                                 albumArtist = albumArtist,
                                 volumeNormalization = metadata.volumeNormalization,
+                                mediaKind = AudioMediaKindClassifier.classify(
+                                    isAudiobook = null,
+                                    extension = extension,
+                                    relativePath = childRelativePath,
+                                    absolutePath = libraryPath,
+                                ),
                             )
                         } catch (cancelled: CancellationException) {
                             throw cancelled

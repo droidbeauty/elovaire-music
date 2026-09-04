@@ -15,11 +15,15 @@ internal sealed interface ElovaireMediaId {
     data object Playlists : ElovaireMediaId { override val value = "elovaire:playlists" }
     data object Favorites : ElovaireMediaId { override val value = "elovaire:favorites" }
     data object RecentlyAdded : ElovaireMediaId { override val value = "elovaire:recently_added" }
+    data object Audiobooks : ElovaireMediaId { override val value = "elovaire:audiobooks" }
     data class Song(val songId: Long) : ElovaireMediaId { override val value = "elovaire:song:$songId" }
     data class Album(val albumId: Long) : ElovaireMediaId { override val value = "elovaire:album:$albumId" }
     data class Artist(val encodedName: String) : ElovaireMediaId { override val value = "elovaire:artist:$encodedName" }
     data class Genre(val encodedName: String) : ElovaireMediaId { override val value = "elovaire:genre:$encodedName" }
     data class Playlist(val playlistId: Long) : ElovaireMediaId { override val value = "elovaire:playlist:$playlistId" }
+    data class Audiobook(val stableKey: String) : ElovaireMediaId {
+        override val value = "elovaire:audiobook:${Uri.encode(stableKey)}"
+    }
     data class Bucket(val parent: String, val key: String) : ElovaireMediaId {
         override val value = "elovaire:bucket:$parent:${Uri.encode(key)}"
     }
@@ -31,6 +35,7 @@ internal object ElovaireMediaIds {
     fun artist(name: String): String = ElovaireMediaId.Artist(Uri.encode(name)).value
     fun genre(name: String): String = ElovaireMediaId.Genre(Uri.encode(name)).value
     fun playlist(id: Long): String = ElovaireMediaId.Playlist(id).value
+    fun audiobook(stableKey: String): String = ElovaireMediaId.Audiobook(stableKey).value
     fun bucket(parent: String, key: String): String = ElovaireMediaId.Bucket(parent, key).value
     fun decodeName(encoded: String): String = Uri.decode(encoded).orEmpty()
 
@@ -48,6 +53,7 @@ internal object ElovaireMediaIds {
             value == ElovaireMediaId.Playlists.value -> ElovaireMediaId.Playlists
             value == ElovaireMediaId.Favorites.value -> ElovaireMediaId.Favorites
             value == ElovaireMediaId.RecentlyAdded.value -> ElovaireMediaId.RecentlyAdded
+            value == ElovaireMediaId.Audiobooks.value -> ElovaireMediaId.Audiobooks
             value.startsWith(SONG_PREFIX) ->
                 value.removePrefix(SONG_PREFIX).toDomainIdOrNull()?.let(ElovaireMediaId::Song)
             value.startsWith(ALBUM_PREFIX) ->
@@ -58,6 +64,10 @@ internal object ElovaireMediaIds {
                 value.removePrefix(GENRE_PREFIX).takeIf(::isValidEncodedName)?.let(ElovaireMediaId::Genre)
             value.startsWith(PLAYLIST_PREFIX) ->
                 value.removePrefix(PLAYLIST_PREFIX).toDomainIdOrNull()?.let(ElovaireMediaId::Playlist)
+            value.startsWith(AUDIOBOOK_PREFIX) -> value
+                .removePrefix(AUDIOBOOK_PREFIX)
+                .takeIf(::isValidEncodedName)
+                ?.let { ElovaireMediaId.Audiobook(decodeName(it)) }
             value.startsWith(BUCKET_PREFIX) -> {
                 val parts = value.removePrefix(BUCKET_PREFIX).split(':', limit = 2)
                 val parent = parts.getOrNull(0).orEmpty()
@@ -78,6 +88,7 @@ internal object ElovaireMediaIds {
     private const val ARTIST_PREFIX = "elovaire:artist:"
     private const val GENRE_PREFIX = "elovaire:genre:"
     private const val PLAYLIST_PREFIX = "elovaire:playlist:"
+    private const val AUDIOBOOK_PREFIX = "elovaire:audiobook:"
     private const val BUCKET_PREFIX = "elovaire:bucket:"
     private const val MAX_MEDIA_ID_CHARACTERS = 1_024
     private const val MAX_BUCKET_KEY_CHARACTERS = 8

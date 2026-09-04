@@ -58,8 +58,7 @@ internal object EqValuePolicy {
 
     fun hasSignalAlteringEffects(settings: EqSettings): Boolean {
         val sanitized = sanitize(settings)
-        return sanitized.monoEnabled ||
-            sanitized.bands.any { abs(it) >= EFFECT_BYPASS_EPSILON } ||
+        return sanitized.bands.any { abs(it) >= EFFECT_BYPASS_EPSILON } ||
             abs(sanitized.bass) >= EFFECT_BYPASS_EPSILON ||
             abs(sanitized.midrange) >= EFFECT_BYPASS_EPSILON ||
             abs(sanitized.treble) >= EFFECT_BYPASS_EPSILON ||

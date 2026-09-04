@@ -18,6 +18,7 @@ import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.NowPlayingBarStyle
+import elovaire.music.droidbeauty.app.domain.model.AudiobookSettings
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 import kotlinx.coroutines.Dispatchers
@@ -153,6 +154,7 @@ internal fun BoxScope.RootPlayerLayerSlot(
     nowPlayingViewModel: NowPlayingViewModel,
     songsById: Map<Long, Song>,
     playbackState: PlaybackUiState,
+    audiobookSettings: AudiobookSettings,
     appState: RootAppState,
     playlistActions: RootPlaylistActions,
     openCurrentPlayingAlbum: (Long) -> Unit,
@@ -167,6 +169,7 @@ internal fun BoxScope.RootPlayerLayerSlot(
         nowPlayingViewModel = nowPlayingViewModel,
         playbackManager = playback,
         songsById = songsById,
+        audiobookSettings = audiobookSettings,
         isCurrentSongFavorite = playbackState.currentSong?.id in appState.favoriteSongIds,
         playlists = appState.playlists.filterNot { it.isSystem },
         onBack = { playerLayerController.hide(true) },

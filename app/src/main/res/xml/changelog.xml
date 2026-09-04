@@ -6,8 +6,12 @@
       2. Edit the bullet points inside that release.
       3. Add newer releases above older ones.
     -->
-    <release version="2.8.3">
-        <item>Performance and stability tweaks</item>
+    <release version="2.8.4">
+        <item>New feature - audiobooks now show in a dedicated subsection in the Library tab</item>
+        <item>Stability and performance upgrades</item>
+        <item>Specific Android 17 targeted improvements to memory usage</item>
+        <item>Further upgrades to media scanning reliability</item>
+        <item>Refined animations in interactions</item>
         <item>General bug fixes</item>
     </release>
 </changelog>

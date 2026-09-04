@@ -6,6 +6,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import elovaire.music.droidbeauty.app.core.AppShortcutCommand
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -40,9 +41,10 @@ internal fun RootEffectsHost(
                         val current = currentComposition
                         val playlist = currentDerivedState.lastPlayedPlaylist
                         val lastPlayedAlbum = currentDerivedState.lastPlayedAlbum
-                        val playlistSongs = playlist?.songIds
-                            ?.mapNotNull(currentDerivedState.songsById::get)
-                            .orEmpty()
+                            val playlistSongs = playlist?.songIds
+                                ?.mapNotNull(currentDerivedState.songsById::get)
+                                ?.filter { it.mediaKind == AudioMediaKind.Music }
+                                .orEmpty()
                         when {
                             playlist != null && playlistSongs.isNotEmpty() -> {
                                 current.container.playbackManager.playSong(

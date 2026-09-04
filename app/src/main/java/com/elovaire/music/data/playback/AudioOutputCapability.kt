@@ -131,7 +131,6 @@ internal object AudioOutputCapabilityReader {
 internal data class AudioProcessingRequirements(
     val signalAlteringEffectsActive: Boolean,
     val normalizationActive: Boolean,
-    val monoOrChannelMappingActive: Boolean,
     val crossfadeActive: Boolean,
 )
 
@@ -148,7 +147,6 @@ internal object AudioOutputPolicy {
     ): AudioOutputPolicyDecision {
         val processingRequired = requirements.signalAlteringEffectsActive ||
             requirements.normalizationActive ||
-            requirements.monoOrChannelMappingActive ||
             requirements.crossfadeActive
         return AudioOutputPolicyDecision(
             signalProcessingRequired = processingRequired || !directPathActive,

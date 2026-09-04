@@ -73,6 +73,7 @@ internal fun ElovaireRootReadyHost(
                 searchViewModel = composition.searchViewModel,
                 viewModelFactory = composition.viewModelFactory,
                 artistImageRepository = container.artistImageRepository,
+                audiobookChapterReader = container.audiobookChapterReader,
                 modifier = modifier,
             )
         },
@@ -111,6 +112,7 @@ internal fun ElovaireRootReadyHost(
                 nowPlayingViewModel = composition.nowPlayingViewModel,
                 songsById = derivedState.songsById,
                 playbackState = playbackState,
+                audiobookSettings = appState.audiobookSettings,
                 appState = appState,
                 playlistActions = actionRuntime.playlistActions,
                 openCurrentPlayingAlbum = uiRuntime.openCurrentPlayingAlbum,

@@ -5,6 +5,8 @@ import android.net.Uri
 import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
 import elovaire.music.droidbeauty.app.data.library.db.NetworkInventoryEntity
 import elovaire.music.droidbeauty.app.data.library.db.NetworkInventorySourceEntity
+import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import org.json.JSONObject
@@ -132,6 +134,13 @@ internal class NetworkInventoryStore(
                     metadataResolved = item.optBoolean("metadataResolved", true),
                     albumArtist = item.optString("albumArtist").takeIf(String::isNotBlank),
                     volumeNormalization = null,
+                    mediaKind = AudioMediaKindClassifier.classify(
+                        isAudiobook = null,
+                        extension = normalizedPath.substringAfterLast('.', ""),
+                        relativePath = normalizedPath,
+                        absolutePath = null,
+                        sourcePath = normalizedPath,
+                    ),
                 )
                 if (song.id != 0L) {
                     add(
@@ -188,6 +197,7 @@ internal data class NetworkInventoryEntry(
             dateModifiedSeconds = song.dateModifiedSeconds,
             metadataResolved = song.metadataResolved,
             artUri = song.artUri?.toString(),
+            mediaKind = song.mediaKind.name,
             lastSeenGeneration = generation,
         )
     }
@@ -255,6 +265,21 @@ private fun NetworkInventoryEntity.toInventoryEntry(source: NetworkLibrarySource
             metadataResolved = metadataResolved,
             albumArtist = albumArtist,
             volumeNormalization = null,
+            mediaKind = runCatching { AudioMediaKind.valueOf(mediaKind) }
+                .getOrNull()
+                .let { persisted ->
+                    val inferred = AudioMediaKindClassifier.classify(
+                        isAudiobook = null,
+                        extension = normalizedPath.substringAfterLast('.', ""),
+                        relativePath = normalizedPath,
+                        absolutePath = null,
+                    )
+                    if (persisted == AudioMediaKind.Audiobook || inferred == AudioMediaKind.Audiobook) {
+                        AudioMediaKind.Audiobook
+                    } else {
+                        AudioMediaKind.Music
+                    }
+                },
         ),
     )
 }

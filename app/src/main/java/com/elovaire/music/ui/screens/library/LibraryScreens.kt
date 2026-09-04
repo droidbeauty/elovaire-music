@@ -263,6 +263,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
 import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.playback.SleepTimerOption
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.domain.model.EqSettings
 import elovaire.music.droidbeauty.app.domain.model.Playlist
@@ -427,7 +428,10 @@ internal fun HomeScreen(
         favoriteAlbums.isEmpty() &&
         recentSongs.isEmpty()
     val lastPlayedPlaylistSongs = remember(lastPlayedPlaylist, songsById) {
-        lastPlayedPlaylist?.songIds?.mapNotNull(songsById::get).orEmpty()
+        lastPlayedPlaylist?.songIds
+            ?.mapNotNull(songsById::get)
+            ?.filter { it.mediaKind == AudioMediaKind.Music }
+            .orEmpty()
     }
     Box(modifier = Modifier.fillMaxSize()) {
         ElovaireAnimatedContent(
@@ -1671,25 +1675,32 @@ private fun AlbumSortControl(
 @Composable
 internal fun LibraryHubScreen(
     libraryState: LibraryUiState,
+    audiobookProgressByKey: Map<String, elovaire.music.droidbeauty.app.data.playback.AudiobookProgress> = emptyMap(),
+    currentSongId: Long? = null,
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
     onOpenCollection: (LibraryCollectionKind) -> Unit,
     onOpenRecentlyAdded: () -> Unit,
+    onOpenAudiobooks: () -> Unit,
+    onAudiobookSelected: (elovaire.music.droidbeauty.app.domain.model.Audiobook) -> Unit,
     onAlbumSelected: (Album, ExpandOrigin) -> Unit,
 ) {
     val language = LocalAppLanguage.current
     val common = remember(language) { commonUiCopy(language) }
-    val totalSongs = libraryState.songs.size
+    val musicSongs = remember(libraryState.songs) {
+        libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music }
+    }
+    val totalSongs = musicSongs.size
     val totalAlbums = libraryState.albums.size
     val recentlyAddedAlbums = remember(libraryState.albums) {
-        recentlyAddedAlbumsFor(libraryState).take(8)
+        recentlyAddedAlbumsFor(libraryState).take(4)
     }
-    val totalArtists = remember(libraryState.songs) {
-        libraryState.songs.map { it.artist.ifBlank { "Unknown Artist" } }.distinct().size
+    val totalArtists = remember(musicSongs) {
+        musicSongs.map { it.artist.ifBlank { "Unknown Artist" } }.distinct().size
     }
-    val totalGenres = remember(libraryState.songs) {
-        libraryState.songs.map { it.genre.ifBlank { "Unknown Genre" } }.distinct().size
+    val totalGenres = remember(musicSongs) {
+        musicSongs.map { it.genre.ifBlank { "Unknown Genre" } }.distinct().size
     }
 
     val listState = rememberElovaireLazyListState("library_hub")
@@ -1772,6 +1783,18 @@ internal fun LibraryHubScreen(
                             }
                         }
                     }
+                }
+            }
+
+            if (libraryState.audiobooks.isNotEmpty()) {
+                item(key = "library_audiobooks") {
+                    AudiobookMiniGallery(
+                        books = libraryState.audiobooks,
+                        progressByBookKey = audiobookProgressByKey,
+                        currentSongId = currentSongId,
+                        onOpenCollection = onOpenAudiobooks,
+                        onBookSelected = onAudiobookSelected,
+                    )
                 }
             }
         }
@@ -1863,7 +1886,7 @@ internal fun LibraryCollectionScreen(
     val common = remember(language) { commonUiCopy(language) }
     when (kind) {
         LibraryCollectionKind.Songs -> SongCollectionScreen(
-            songs = libraryState.songs,
+            songs = libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music },
             removingSongIds = libraryState.removingSongIds,
             favoriteSongIds = favoriteSongIds,
             sortMode = songSortMode,
@@ -1907,7 +1930,7 @@ internal fun LibraryCollectionScreen(
         }
 
         LibraryCollectionKind.Artists -> ArtistCollectionScreen(
-            songs = libraryState.songs,
+            songs = libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music },
             artistImageRepository = artistImageRepository,
             bottomPadding = bottomPadding,
             onBack = onBack,
@@ -1915,7 +1938,7 @@ internal fun LibraryCollectionScreen(
         )
 
         LibraryCollectionKind.Genres -> GenreCollectionScreen(
-            songs = libraryState.songs,
+            songs = libraryState.songs.filter { it.mediaKind == AudioMediaKind.Music },
             bottomPadding = bottomPadding,
             onBack = onBack,
             onGenreSelected = onGenreSelected,
@@ -2331,6 +2354,7 @@ internal fun ArtistDetailScreen(
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
     val artistSongs = remember(normalizedArtist, libraryState.songs) {
         libraryState.songs.filter { song ->
+            song.mediaKind == AudioMediaKind.Music &&
             song.libraryArtistName().equals(normalizedArtist, ignoreCase = true)
         }
     }

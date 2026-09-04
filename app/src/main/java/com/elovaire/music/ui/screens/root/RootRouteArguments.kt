@@ -24,6 +24,10 @@ internal fun NavBackStackEntry.artistRouteArg(): String {
     return arguments?.getString("artistName")?.let(Uri::decode).orEmpty()
 }
 
+internal fun NavBackStackEntry.audiobookRouteKey(): String {
+    return arguments?.getString("bookKey")?.let(Uri::decode).orEmpty()
+}
+
 private fun NavBackStackEntry.routeLongArg(name: String): Long? {
     return arguments.routeLongArg(name)
 }

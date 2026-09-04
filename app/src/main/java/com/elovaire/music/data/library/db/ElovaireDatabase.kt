@@ -28,7 +28,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NetworkInventoryEntity::class,
         NetworkInventorySourceEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
@@ -47,7 +47,7 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 // this file. WAL keeps short user-data writes from blocking integrity checks.
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .enableMultiInstanceInvalidation()
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
                 .build()
         }
 
@@ -141,6 +141,13 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                     "ALTER TABLE `network_inventory_sources` " +
                         "ADD COLUMN `locationFingerprint` TEXT",
                 )
+            }
+        }
+
+        internal val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `songs` ADD COLUMN `mediaKind` TEXT NOT NULL DEFAULT 'Music'")
+                db.execSQL("ALTER TABLE `network_inventory` ADD COLUMN `mediaKind` TEXT NOT NULL DEFAULT 'Music'")
             }
         }
     }

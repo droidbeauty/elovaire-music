@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
 import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
@@ -51,6 +52,7 @@ internal data class SearchUiState(
     val totalSongMatchCount: Int = 0,
     val matchingAlbums: List<Album> = emptyList(),
     val matchingArtists: List<SearchArtistResult> = emptyList(),
+    val matchingAudiobooks: List<elovaire.music.droidbeauty.app.domain.model.Audiobook> = emptyList(),
     val suggestedAlbums: List<Album> = emptyList(),
     val isSearchPending: Boolean = false,
     val resultQuery: String = "",
@@ -109,8 +111,9 @@ internal class SearchViewModel(
     private val searchIndex = libraryRepository.contentState
         .map { content ->
             SearchLibrarySnapshot(
-                songs = content.songs,
+                songs = content.songs.filter { it.mediaKind == AudioMediaKind.Music },
                 albums = content.albums,
+                audiobooks = content.audiobooks,
                 revision = content.contentRevision,
             )
         }
@@ -258,6 +261,7 @@ internal class SearchViewModel(
             totalSongMatchCount = results?.results?.totalSongMatchCount ?: 0,
             matchingAlbums = results?.results?.matchingAlbums.orEmpty(),
             matchingArtists = results?.results?.matchingArtists.orEmpty(),
+            matchingAudiobooks = results?.results?.matchingAudiobooks.orEmpty(),
             suggestedAlbums = if (trimmedQuery.isBlank()) suggested else emptyList(),
             isSearchPending = isSearchPending,
             resultQuery = results?.rawQuery.orEmpty(),

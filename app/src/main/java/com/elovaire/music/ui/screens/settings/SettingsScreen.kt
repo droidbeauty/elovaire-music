@@ -83,6 +83,8 @@ import elovaire.music.droidbeauty.app.ui.i18n.privacyPolicySettingsSubtitle
 import elovaire.music.droidbeauty.app.ui.i18n.rootUiCopy
 import elovaire.music.droidbeauty.app.ui.i18n.settingsCopy
 import elovaire.music.droidbeauty.app.ui.i18n.nowPlayingBarStyleCopy
+import elovaire.music.droidbeauty.app.ui.i18n.audiobookSettingsCopy
+import elovaire.music.droidbeauty.app.ui.i18n.smartPlaylistSettingsCopy
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.elovairePillActionMotion
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
@@ -113,11 +115,12 @@ internal fun SettingsScreen(
     onAppLanguageSelected: (AppLanguage) -> Unit,
     onVolumeNormalizationChanged: (Boolean) -> Unit,
     onOnlineLyricsChanged: (Boolean) -> Unit,
-    onMonoPlaybackChanged: (Boolean) -> Unit,
     onOpenEqualizer: () -> Unit,
     onOpenCrossfade: () -> Unit,
+    onOpenAudiobookSettings: () -> Unit,
     onOpenLibraryFolders: () -> Unit,
     onOpenManagePlaylists: () -> Unit,
+    onOpenSmartPlaylistSettings: () -> Unit,
     onOpenNowPlayingBarStyle: () -> Unit,
     onOpenPrivacyPolicy: () -> Unit,
     onOpenChangelog: () -> Unit,
@@ -127,6 +130,8 @@ internal fun SettingsScreen(
     val listState = rememberElovaireLazyListState("settings_screen")
     val copy = remember(appLanguage) { settingsCopy(appLanguage) }
     val styleCopy = remember(appLanguage) { nowPlayingBarStyleCopy(appLanguage) }
+    val audiobookCopy = remember(appLanguage) { audiobookSettingsCopy(appLanguage) }
+    val smartPlaylistCopy = remember(appLanguage) { smartPlaylistSettingsCopy(appLanguage) }
     val foldersCopy = remember(appLanguage) { libraryFoldersCopy(appLanguage) }
     val updateState by updateController.uiState.collectAsStateWithLifecycle()
     Box(
@@ -248,17 +253,6 @@ internal fun SettingsScreen(
                                 .align(Alignment.CenterHorizontally),
                         )
                         Spacer(modifier = Modifier.height(12.dp))
-                        SettingToggleRow(
-                            title = copy.enableMono,
-                            subtitle = copy.monoSubtitle,
-                            enabled = eqSettings.monoEnabled,
-                            onEnabledChanged = onMonoPlaybackChanged,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 2.dp)
-                                .align(Alignment.CenterHorizontally),
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
                         SettingNavigationRow(
                             title = copy.crossfadeTitle,
                             subtitle = crossfadeSummary(
@@ -267,6 +261,15 @@ internal fun SettingsScreen(
                                 language = appLanguage,
                             ),
                             onClick = onOpenCrossfade,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                        SettingNavigationRow(
+                            title = audiobookCopy.title,
+                            subtitle = audiobookCopy.subtitle,
+                            onClick = onOpenAudiobookSettings,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(horizontal = 2.dp),
@@ -292,6 +295,12 @@ internal fun SettingsScreen(
                             title = copy.managePlaylistsTitle,
                             subtitle = copy.managePlaylistsSubtitle,
                             onClick = onOpenManagePlaylists,
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
+                        )
+                        SettingNavigationRow(
+                            title = smartPlaylistCopy.title,
+                            subtitle = smartPlaylistCopy.subtitle,
+                            onClick = onOpenSmartPlaylistSettings,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
                         SettingActionRow(
@@ -845,7 +854,7 @@ internal fun SettingToggleRow(
             )
         }
         Spacer(modifier = Modifier.width(18.dp))
-        MonoPlaybackToggle(
+        SettingsToggle(
             checked = enabled,
             onCheckedChange = onEnabledChanged,
         )
@@ -1029,7 +1038,7 @@ private fun updateActionLabel(state: AppUpdateUiState, language: AppLanguage): S
 }
 
 @Composable
-private fun MonoPlaybackToggle(
+private fun SettingsToggle(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
 ) {
@@ -1048,12 +1057,12 @@ private fun MonoPlaybackToggle(
             MaterialTheme.colorScheme.onSurface.copy(alpha = if (MaterialTheme.colorScheme.background.luminance() > 0.5f) 0.16f else 0.2f)
         },
         animationSpec = motionSpecs.tween(60),
-        label = "mono_toggle_track",
+        label = "settings_toggle_track",
     )
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 18.dp else 2.dp,
         animationSpec = motionSpecs.spring(dampingRatio = 0.82f, stiffness = 420f),
-        label = "mono_toggle_thumb_offset",
+        label = "settings_toggle_thumb_offset",
     )
     Surface(
         onClick = { onCheckedChange(!checked) },

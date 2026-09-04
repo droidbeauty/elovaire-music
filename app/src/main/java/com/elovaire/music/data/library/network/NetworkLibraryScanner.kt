@@ -10,6 +10,7 @@ import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.library.isSupportedAudioExtension
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -519,6 +520,13 @@ internal class NetworkLibraryScanner(
             metadataResolved = metadata?.succeeded == true,
             albumArtist = metadata?.albumArtist?.trim().takeIf { !it.isNullOrBlank() } ?: resolvedArtist,
             volumeNormalization = null,
+            mediaKind = AudioMediaKindClassifier.classify(
+                isAudiobook = null,
+                extension = extension,
+                relativePath = normalizedPath,
+                absolutePath = null,
+                sourcePath = normalizedPath,
+            ),
         )
     }
 

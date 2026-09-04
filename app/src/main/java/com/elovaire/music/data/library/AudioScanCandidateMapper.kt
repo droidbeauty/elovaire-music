@@ -48,6 +48,8 @@ internal object AudioScanCandidateMapper {
             absolutePath = row.filePath,
             extension = row.extension,
             isMusic = row.isMusic,
+            isAudiobook = row.isAudiobook,
+            bookmarkMs = row.bookmarkMs,
             detectedFormat = detectedFormat,
         )
     }
