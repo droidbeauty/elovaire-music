@@ -137,27 +137,32 @@ internal object CrossfadeCueAlgorithm {
         minimumSilenceMs: Long = CrossfadeCuePolicy.MIN_TRAILING_SILENCE_MS,
     ): CrossfadeCueDecision {
         val duration = durationMs.coerceAtLeast(0L)
-        val usableWindows = windows.filter(::isUsableWindow)
-        if (usableWindows.isEmpty()) {
+        var hasUsableWindow = false
+        var lastAudible: CrossfadeLevelWindow? = null
+        windows.forEach { window ->
+            if (!isUsableWindow(window)) return@forEach
+            hasUsableWindow = true
+            if (window.maxChannelRms >= silenceFloor) lastAudible = window
+        }
+        if (!hasUsableWindow) {
             return CrossfadeCueDecision(
                 cueMs = duration,
                 silenceMs = 0L,
                 evidence = CrossfadeCueEvidence.NoUsableWindows,
             )
         }
-        val lastAudible = usableWindows.asReversed().firstOrNull { it.maxChannelRms >= silenceFloor }
-            ?: run {
-                val silentStart = analyzedStartMs.coerceIn(0L, duration)
-                return CrossfadeCueDecision(
-                    cueMs = silentStart,
-                    silenceMs = (duration - silentStart).coerceAtLeast(0L),
-                    evidence = CrossfadeCueEvidence.AllSilent,
-                )
-            }
-        val trailingSilence = (duration - lastAudible.endMs).coerceAtLeast(0L)
+        val audibleWindow = lastAudible ?: run {
+            val silentStart = analyzedStartMs.coerceIn(0L, duration)
+            return CrossfadeCueDecision(
+                cueMs = silentStart,
+                silenceMs = (duration - silentStart).coerceAtLeast(0L),
+                evidence = CrossfadeCueEvidence.AllSilent,
+            )
+        }
+        val trailingSilence = (duration - audibleWindow.endMs).coerceAtLeast(0L)
         return if (trailingSilence >= minimumSilenceMs) {
             CrossfadeCueDecision(
-                cueMs = lastAudible.endMs.coerceIn(0L, duration),
+                cueMs = audibleWindow.endMs.coerceIn(0L, duration),
                 silenceMs = trailingSilence,
                 evidence = CrossfadeCueEvidence.Audible,
             )
@@ -192,27 +197,35 @@ internal object CrossfadeCueAlgorithm {
         silenceFloor: Float = CrossfadeSilencePolicy.BASE_AMPLITUDE_THRESHOLD,
         minimumSilenceMs: Long = CrossfadeCuePolicy.MIN_TRAILING_SILENCE_MS,
     ): CrossfadeCueDecision {
-        val usableWindows = windows.filter(::isUsableWindow)
-        if (usableWindows.isEmpty()) {
+        var hasUsableWindow = false
+        var firstAudible: CrossfadeLevelWindow? = null
+        windows.forEach { window ->
+            if (isUsableWindow(window)) {
+                hasUsableWindow = true
+                if (firstAudible == null && window.maxChannelRms >= silenceFloor) {
+                    firstAudible = window
+                }
+            }
+        }
+        if (!hasUsableWindow) {
             return CrossfadeCueDecision(
                 cueMs = analyzedStartMs.coerceAtLeast(0L),
                 silenceMs = 0L,
                 evidence = CrossfadeCueEvidence.NoUsableWindows,
             )
         }
-        val firstAudible = usableWindows.firstOrNull { it.maxChannelRms >= silenceFloor }
-            ?: run {
-                val silentEnd = analyzedEndMs.coerceAtLeast(analyzedStartMs)
-                return CrossfadeCueDecision(
-                    cueMs = silentEnd,
-                    silenceMs = (silentEnd - analyzedStartMs).coerceAtLeast(0L),
-                    evidence = CrossfadeCueEvidence.AllSilent,
-                )
-            }
-        val leadingSilence = (firstAudible.startMs - analyzedStartMs).coerceAtLeast(0L)
+        val audibleWindow = firstAudible ?: run {
+            val silentEnd = analyzedEndMs.coerceAtLeast(analyzedStartMs)
+            return CrossfadeCueDecision(
+                cueMs = silentEnd,
+                silenceMs = (silentEnd - analyzedStartMs).coerceAtLeast(0L),
+                evidence = CrossfadeCueEvidence.AllSilent,
+            )
+        }
+        val leadingSilence = (audibleWindow.startMs - analyzedStartMs).coerceAtLeast(0L)
         return if (leadingSilence >= minimumSilenceMs) {
             CrossfadeCueDecision(
-                cueMs = firstAudible.startMs.coerceAtLeast(0L),
+                cueMs = audibleWindow.startMs.coerceAtLeast(0L),
                 silenceMs = leadingSilence,
                 evidence = CrossfadeCueEvidence.Audible,
             )

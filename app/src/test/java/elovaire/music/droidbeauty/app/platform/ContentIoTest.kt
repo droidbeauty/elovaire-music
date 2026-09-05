@@ -27,6 +27,37 @@ class ContentIoTest {
     }
 
     @Test
+    fun boundedReadWithZeroLimitDoesNotConsumeProvider() {
+        var reads = 0
+        val input = object : ByteArrayInputStream(byteArrayOf(1)) {
+            override fun read(buffer: ByteArray): Int {
+                reads += 1
+                return super.read(buffer)
+            }
+        }
+
+        assertArrayEquals(ByteArray(0), input.readBytesBounded(0))
+        org.junit.Assert.assertEquals(0, reads)
+    }
+
+    @Test
+    fun boundedReadRecoversFromZeroLengthRead() {
+        val input = object : ByteArrayInputStream(byteArrayOf(4, 5)) {
+            private var first = true
+
+            override fun read(buffer: ByteArray): Int {
+                if (first) {
+                    first = false
+                    return 0
+                }
+                return super.read(buffer)
+            }
+        }
+
+        assertArrayEquals(byteArrayOf(4, 5), input.readBytesBounded(2))
+    }
+
+    @Test
     fun replacementTruncatesContentsWhenSourceIsShorter() {
         assertReplacement(
             original = byteArrayOf(1, 2, 3, 4, 5, 6),

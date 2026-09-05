@@ -1,4 +1,6 @@
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BenchmarkRegressionPolicyTest {
@@ -48,5 +50,14 @@ class BenchmarkRegressionPolicyTest {
             BenchmarkRegressionClassification.PASS,
             classifyBenchmarkRegression("memoryHeapSizeMaxKb", 0.0, 10.0),
         )
+    }
+
+    @Test
+    fun invalidMetricValuesAreRejectedWithoutRejectingFrameHeadroom() {
+        assertFalse(isUsableBenchmarkMetric("timeToInitialDisplayMs", -1.0))
+        assertFalse(isUsableBenchmarkMetric("memoryHeapSizeMaxKb", Double.NaN))
+        assertFalse(isUsableBenchmarkMetric("rssBytes", Double.POSITIVE_INFINITY))
+        assertTrue(isUsableBenchmarkMetric("frameOverrunMs", -8.0))
+        assertTrue(isUsableBenchmarkMetric("traceCount", 0.0))
     }
 }

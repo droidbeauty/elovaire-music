@@ -89,6 +89,13 @@ internal object AudioOutputCapabilityReader {
                         source = AudioOutputCapabilitySource.Unknown,
                     )
                 }
+            if (routed.isEmpty()) {
+                return AudioOutputCapabilitySnapshot(
+                    devices = emptyList(),
+                    platformSdk = sdkInt,
+                    source = AudioOutputCapabilitySource.Unknown,
+                )
+            }
             routed to AudioOutputCapabilitySource.ActiveRoute
         } else {
             val available = runCatching { audioManager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).toList() }
@@ -155,6 +162,7 @@ internal object AudioOutputPolicy {
             // us an authoritative capability snapshot.
             offloadAllowed = !processingRequired &&
                 capabilities.source != AudioOutputCapabilitySource.Unknown &&
+                capabilities.devices.isNotEmpty() &&
                 !capabilities.hasActiveUsbOutput,
         )
     }

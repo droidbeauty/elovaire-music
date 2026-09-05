@@ -153,6 +153,40 @@ class SmartPlaylistEngineTest {
         assertEquals(listOf(1L), result.songs.map(Song::id))
     }
 
+    @Test
+    fun folderAndFormatRulesUseTheSameNormalizedValuesAsTheirDirectFields() {
+        val playlist = SmartPlaylist(
+            id = 5L,
+            name = "Scoped",
+            rules = listOf(
+                SmartPlaylistRule.FolderContains("music/live"),
+                SmartPlaylistRule.FileFormatIs(".MP3"),
+            ),
+            createdAtMs = 1L,
+            updatedAtMs = 1L,
+        )
+
+        val result = engine.resolve(
+            definition = playlist,
+            songs = listOf(
+                song(1L, "Match").copy(
+                    audioFormat = "MP3",
+                    fileName = "recording.flac",
+                    libraryPath = "/storage/emulated/0/Music/Live/recording.flac",
+                ),
+                song(2L, "Wrong format").copy(
+                    audioFormat = "OGG",
+                    fileName = "recording.ogg",
+                    libraryPath = "/storage/emulated/0/Music/Live/recording.ogg",
+                ),
+            ),
+            favoriteSongIds = emptySet(),
+            playCounts = emptyMap(),
+        )
+
+        assertEquals(listOf(1L), result.songs.map(Song::id))
+    }
+
     private fun song(
         id: Long,
         title: String,

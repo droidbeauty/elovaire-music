@@ -4,6 +4,8 @@ import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
+import java.util.HashMap
+import java.util.HashSet
 import java.util.Locale
 
 internal object LibrarySnapshotAssembler {
@@ -28,13 +30,25 @@ internal object LibrarySnapshotAssembler {
      */
     internal fun canonicalizeAlbumIds(songs: List<Song>): List<Song> {
         if (songs.size < 2) return songs
+        val firstGroupByOriginalId = HashMap<Long, AlbumGroupKey>(songs.size)
+        val collidingOriginalIds = HashSet<Long>()
+        songs.forEach { song ->
+            val group = albumGroupKey(song)
+            val firstGroup = firstGroupByOriginalId.putIfAbsent(group.originalId, group)
+            if (firstGroup != null && firstGroup != group) {
+                collidingOriginalIds += group.originalId
+            }
+        }
+        if (collidingOriginalIds.isEmpty()) return songs
+
         val groups = linkedMapOf<AlbumGroupKey, MutableList<Song>>()
         songs.forEach { song ->
             groups.getOrPut(albumGroupKey(song), ::mutableListOf).add(song)
         }
-        val groupsByOriginalId = groups.keys.groupBy(AlbumGroupKey::originalId)
-        val collidingGroups = groupsByOriginalId.values.filter { it.size > 1 }
-        if (collidingGroups.isEmpty()) return songs
+        val collidingGroups = groups.keys
+            .filter { it.originalId in collidingOriginalIds }
+            .groupBy(AlbumGroupKey::originalId)
+            .values
 
         val usedIds = songs.mapTo(hashSetOf(), Song::albumId)
         val replacementIds = hashMapOf<AlbumGroupKey, Long>()

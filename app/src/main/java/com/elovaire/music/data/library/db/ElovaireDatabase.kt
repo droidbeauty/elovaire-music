@@ -28,7 +28,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         NetworkInventoryEntity::class,
         NetworkInventorySourceEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
@@ -47,7 +47,7 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 // this file. WAL keeps short user-data writes from blocking integrity checks.
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .enableMultiInstanceInvalidation()
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
                 .build()
         }
 
@@ -148,6 +148,16 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE `songs` ADD COLUMN `mediaKind` TEXT NOT NULL DEFAULT 'Music'")
                 db.execSQL("ALTER TABLE `network_inventory` ADD COLUMN `mediaKind` TEXT NOT NULL DEFAULT 'Music'")
+            }
+        }
+
+        internal val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("DROP INDEX IF EXISTS `index_user_playlist_entries_playlistId`")
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS `index_user_playlist_entries_songId` " +
+                        "ON `user_playlist_entries` (`songId`)",
+                )
             }
         }
     }

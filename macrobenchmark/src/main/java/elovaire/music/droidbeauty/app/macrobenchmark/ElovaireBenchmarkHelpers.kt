@@ -196,9 +196,16 @@ internal fun MacrobenchmarkScope.topLevelNavigationJourney() {
 internal fun MacrobenchmarkScope.searchJourney() {
     requireClickDescription("Search")
     waitForAppVisible()
-    uiDevice.click(uiDevice.displayWidth / 2, (uiDevice.displayHeight * 0.16f).toInt())
+    val inputSelector = By.pkg(TARGET_PACKAGE).clazz("android.widget.EditText")
+    val input = checkNotNull(uiDevice.wait(Until.findObject(inputSelector), CLICK_TIMEOUT_MS)) {
+        "Search input did not become visible"
+    }
+    input.click()
     uiDevice.waitForIdle()
-    uiDevice.pressKeyCode(android.view.KeyEvent.KEYCODE_A)
+    input.text = "a"
+    check(uiDevice.wait(Until.hasObject(inputSelector.text("a")), CLICK_TIMEOUT_MS)) {
+        "Search input did not receive the benchmark query"
+    }
     uiDevice.waitForIdle()
     uiDevice.pressBack()
     requireClickDescription("Home")

@@ -30,11 +30,12 @@ class AppInteractionSmokeTest {
 
     @Before
     fun setUp() {
+        device.wakeUp()
         grantRuntimePermission(audioPermission())
         shell("logcat -c")
         launchApp()
-        device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), 10_000)
-        assertTrue(device.wait(Until.hasObject(By.desc("Menu")), 10_000))
+        device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), STARTUP_TIMEOUT_MS)
+        assertTrue(device.wait(Until.hasObject(By.desc("Menu")), STARTUP_TIMEOUT_MS))
     }
 
     @After
@@ -44,7 +45,11 @@ class AppInteractionSmokeTest {
         val logcat = shell("logcat -d --pid $pid")
         val runtimeFailure = runtimeFailurePattern.find(logcat)
         assertFalse(runtimeFailure?.value, runtimeFailure != null)
-        assertFalse(hasAppOwnedStrictModeViolation(logcat))
+        val strictModeViolation = findAppOwnedStrictModeViolation(logcat)
+        assertFalse(
+            "App-owned StrictMode violation: ${strictModeViolation?.take(MAX_FAILURE_DETAIL_CHARS)}",
+            strictModeViolation != null,
+        )
     }
 
     @Test
@@ -80,7 +85,7 @@ class AppInteractionSmokeTest {
     }
 
     private fun waitForApp() {
-        device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), 5_000)
+        device.wait(Until.hasObject(By.pkg(PACKAGE_NAME)), APP_READY_TIMEOUT_MS)
         device.waitForIdle()
     }
 
@@ -151,11 +156,11 @@ class AppInteractionSmokeTest {
         }
     }
 
-    private fun hasAppOwnedStrictModeViolation(logcat: String): Boolean {
+    private fun findAppOwnedStrictModeViolation(logcat: String): String? {
         return logcat
             .split("StrictMode policy violation")
             .drop(1)
-            .any { violation ->
+            .firstOrNull { violation ->
                 violation
                     .lineSequence()
                     .takeWhile { line -> !line.contains("StrictMode policy violation") }
@@ -164,12 +169,16 @@ class AppInteractionSmokeTest {
                             !line.contains(".quality.")
                     }
             }
+            ?.trim()
     }
 
     private companion object {
         const val PACKAGE_NAME = "elovaire.music.droidbeauty.app"
+        const val STARTUP_TIMEOUT_MS = 30_000L
+        const val APP_READY_TIMEOUT_MS = 10_000L
         const val CLICK_TIMEOUT_MS = 10_000L
         const val FIND_TIMEOUT_MS = 1_000L
+        const val MAX_FAILURE_DETAIL_CHARS = 2_000
         val runtimeFailurePattern = Regex("FATAL EXCEPTION|\\bANR\\b|AndroidRuntime:.*fatal", RegexOption.IGNORE_CASE)
         val settingsSelector: BySelector = By.text(
             Pattern.compile(

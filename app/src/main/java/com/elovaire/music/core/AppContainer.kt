@@ -71,6 +71,7 @@ class AppContainer(
     internal val albumTagEditorService get() = services.albumTagEditorService
     val playbackManager get() = services.playbackManager
     internal val audiobookChapterReader get() = services.audiobookChapterReader
+    internal val audiobookDescriptionReader get() = services.audiobookDescriptionReader
     val libraryRepository get() = services.libraryRepository
     internal val interactionWorkPolicy get() = backgroundWorkPolicy
     internal val dispatchers: AppDispatchers get() = appDispatchers

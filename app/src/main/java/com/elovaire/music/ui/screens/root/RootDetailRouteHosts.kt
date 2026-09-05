@@ -13,6 +13,7 @@ import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
+import elovaire.music.droidbeauty.app.data.library.AudiobookDescriptionReader
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
 import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
 import kotlinx.coroutines.CancellationException
@@ -70,6 +71,7 @@ internal fun AudiobookDetailRouteHost(
     routeActions: RootRouteActions,
     padding: RootRoutePadding,
     chapterReader: AudiobookChapterReader,
+    descriptionReader: AudiobookDescriptionReader,
 ) {
     val book = routeState.libraryState.audiobooks.firstOrNull { it.stableKey == stableKey }
     if (book == null) {
@@ -77,7 +79,6 @@ internal fun AudiobookDetailRouteHost(
         return
     }
     val progress by routeActions.playback.progressState.collectAsStateWithLifecycle()
-    val sleepTimerState by routeActions.playback.sleepTimerState.collectAsStateWithLifecycle()
     val audiobookSettings by routeActions.settings.appearanceSettings.audiobookSettings.collectAsStateWithLifecycle()
     val audiobookProgressRevision by routeActions.playback.audiobookProgressRevision.collectAsStateWithLifecycle()
     val savedProgress: AudiobookProgress? = remember(book.stableKey, audiobookProgressRevision) {
@@ -120,6 +121,21 @@ internal fun AudiobookDetailRouteHost(
             value = AudiobookChapterLoadState.UnavailableFallback
         }
     }
+    val descriptionState by androidx.compose.runtime.produceState<AudiobookDescriptionLoadState>(
+        initialValue = AudiobookDescriptionLoadState.Loading,
+        key1 = book.stableKey,
+        key2 = book.title,
+        key3 = book.author,
+    ) {
+        try {
+            value = descriptionReader.description(book)?.let(AudiobookDescriptionLoadState::Loaded)
+                ?: AudiobookDescriptionLoadState.Unavailable
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: RuntimeException) {
+            value = AudiobookDescriptionLoadState.Unavailable
+        }
+    }
     val displayedBook = remember(book, chapterLoadState) {
         (chapterLoadState as? AudiobookChapterLoadState.Loaded)
             ?.parts
@@ -128,11 +144,10 @@ internal fun AudiobookDetailRouteHost(
     }
     AudiobookDetailScreen(
         book = displayedBook,
-        rewindSeconds = audiobookSettings.rewindSeconds,
-        forwardSeconds = audiobookSettings.forwardSeconds,
         currentSongId = routeState.playbackState.currentSong?.id,
         progressMs = progress.positionMs,
         savedProgress = savedProgress,
+        descriptionState = descriptionState,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onPlay = { part, resume ->
@@ -145,11 +160,6 @@ internal fun AudiobookDetailRouteHost(
         onStartOver = {
             displayedBook.parts.firstOrNull()?.let { routeActions.playback.playAudiobook(displayedBook, it, resume = false) }
         },
-        onSeekBack = { routeActions.playback.seekCurrentBy(-audiobookSettings.rewindSeconds * 1_000L) },
-        onSeekForward = { routeActions.playback.seekCurrentBy(audiobookSettings.forwardSeconds * 1_000L) },
-        onSetSpeed = routeActions.playback::setPlaybackSpeed,
-        sleepTimerOption = sleepTimerState.option,
-        onSleepTimerSelected = routeActions.playback::setSleepTimer,
     )
 }
 
@@ -157,6 +167,12 @@ private sealed interface AudiobookChapterLoadState {
     data object Loading : AudiobookChapterLoadState
     data class Loaded(val parts: List<AudiobookPart>) : AudiobookChapterLoadState
     data object UnavailableFallback : AudiobookChapterLoadState
+}
+
+internal sealed interface AudiobookDescriptionLoadState {
+    data object Loading : AudiobookDescriptionLoadState
+    data class Loaded(val text: String) : AudiobookDescriptionLoadState
+    data object Unavailable : AudiobookDescriptionLoadState
 }
 
 @Composable

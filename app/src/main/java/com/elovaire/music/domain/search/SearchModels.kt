@@ -215,16 +215,13 @@ internal fun scoreMatch(
         normalizedArtist,
         normalizedAlbum,
     )
-    val titleAcronym = acronymOf(normalizedTitle)
-    val artistAcronym = acronymOf(normalizedArtist)
-    val albumAcronym = acronymOf(normalizedAlbum)
     if (!tokens.all { token ->
             tokenMatchesAnyField(
                 token = token,
                 normalizedComposite = composite,
-                titleAcronym = titleAcronym,
-                artistAcronym = artistAcronym,
-                albumAcronym = albumAcronym,
+                normalizedTitle = normalizedTitle,
+                normalizedArtist = normalizedArtist,
+                normalizedAlbum = normalizedAlbum,
             )
         }
     ) return null
@@ -250,8 +247,8 @@ internal fun scoreMatch(
         if (wordStartsWith(normalizedTitle, token)) score += 10
         if (wordStartsWith(normalizedArtist, token)) score += 7
         if (wordStartsWith(normalizedAlbum, token)) score += 5
-        if (artistAcronym.startsWith(token)) score += 12
-        if (albumAcronym.startsWith(token)) score += 10
+        if (acronymStartsWith(normalizedArtist, token)) score += 12
+        if (acronymStartsWith(normalizedAlbum, token)) score += 10
         if (token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)) score += 4
     }
 
@@ -397,14 +394,14 @@ private fun Song.libraryArtistName(): String {
 private fun tokenMatchesAnyField(
     token: String,
     normalizedComposite: String,
-    titleAcronym: String,
-    artistAcronym: String,
-    albumAcronym: String,
+    normalizedTitle: String,
+    normalizedArtist: String,
+    normalizedAlbum: String,
 ): Boolean {
     return normalizedComposite.contains(token) ||
-        titleAcronym.startsWith(token) ||
-        artistAcronym.startsWith(token) ||
-        albumAcronym.startsWith(token) ||
+        acronymStartsWith(normalizedTitle, token) ||
+        acronymStartsWith(normalizedArtist, token) ||
+        acronymStartsWith(normalizedAlbum, token) ||
         (token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token))
 }
 
@@ -420,18 +417,21 @@ private fun wordStartsWith(value: String, token: String): Boolean {
     return false
 }
 
-private fun acronymOf(value: String): String {
-    return buildString {
-        var atWordStart = true
-        value.forEach { character ->
-            if (character == ' ') {
-                atWordStart = true
-            } else if (atWordStart) {
-                append(character)
-                atWordStart = false
-            }
+private fun acronymStartsWith(value: String, token: String): Boolean {
+    if (token.isEmpty()) return true
+    var tokenIndex = 0
+    var atWordStart = true
+    value.forEach { character ->
+        if (character == ' ') {
+            atWordStart = true
+        } else if (atWordStart) {
+            if (tokenIndex >= token.length || character != token[tokenIndex]) return false
+            tokenIndex++
+            if (tokenIndex == token.length) return true
+            atWordStart = false
         }
     }
+    return false
 }
 
 private fun fuzzyTokenMatches(value: String, token: String): Boolean {

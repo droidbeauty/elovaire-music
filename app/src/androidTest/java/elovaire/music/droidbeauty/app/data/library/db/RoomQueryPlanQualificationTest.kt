@@ -49,6 +49,16 @@ class RoomQueryPlanQualificationTest {
     }
 
     @Test
+    fun songReferenceRemovalUsesReverseLookupIndex() = runBlocking {
+        dao.insertPlaylist(UserPlaylistEntity(1L, "Qualification", false))
+        dao.replacePlaylistEntries(1L, (1L..256L).toList())
+
+        assertIndexed(
+            "SELECT playlistId FROM user_playlist_entries WHERE songId IN (42, 99)",
+        )
+    }
+
+    @Test
     fun networkInventorySourceGenerationLookupHasCompositeIndex() {
         assertIndexed(
             "SELECT relativePath FROM network_inventory " +

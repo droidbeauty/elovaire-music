@@ -501,7 +501,7 @@ internal class ElovaireMediaTree(
         val userData = preferenceStore.userDataSnapshot.value
         return snapshotCache.snapshot(
             permissionGranted = scan.permissionGranted,
-            songs = content.songs.filter { it.mediaKind == AudioMediaKind.Music },
+            songs = content.songs,
             albums = content.albums,
             audiobooks = content.audiobooks,
             libraryRevision = content.contentRevision,
@@ -798,10 +798,16 @@ internal class ElovaireMediaTree(
 
 internal class MediaTreeSnapshotCache {
     private var snapshot: ElovaireMediaTree.MediaTreeSnapshot? = null
+    private var musicSongSource: List<Song>? = null
+    private var musicSongRevision: String = ""
+    private var musicSongs: List<Song>? = null
 
     @Synchronized
     fun clear() {
         snapshot = null
+        musicSongSource = null
+        musicSongRevision = ""
+        musicSongs = null
     }
 
     @Synchronized
@@ -817,10 +823,20 @@ internal class MediaTreeSnapshotCache {
         libraryRevision: String = "",
         audiobooks: List<Audiobook> = emptyList(),
     ): ElovaireMediaTree.MediaTreeSnapshot {
+        val musicSongs = when {
+            libraryRevision.isNotBlank() && musicSongRevision == libraryRevision ->
+                requireNotNull(this.musicSongs)
+            libraryRevision.isBlank() && musicSongSource === songs -> requireNotNull(this.musicSongs)
+            else -> songs.filter { it.mediaKind == AudioMediaKind.Music }.also {
+                musicSongSource = songs
+                musicSongRevision = libraryRevision
+                this.musicSongs = it
+            }
+        }
         snapshot?.takeIf {
             it.permissionGranted == permissionGranted &&
                 (libraryRevision.isNotBlank() && it.libraryRevision == libraryRevision ||
-                    libraryRevision.isBlank() && it.songs === songs && it.albums === albums) &&
+                    libraryRevision.isBlank() && it.songs === musicSongs && it.albums === albums) &&
                 it.audiobooks === audiobooks &&
                 it.playlists === playlists &&
                 it.favoriteSongIdSource === favoriteSongIds &&
@@ -830,7 +846,7 @@ internal class MediaTreeSnapshotCache {
         }?.let { return it }
         return ElovaireMediaTree.MediaTreeSnapshot(
             permissionGranted = permissionGranted,
-            songs = songs,
+            songs = musicSongs,
             albums = albums,
             audiobooks = audiobooks,
             libraryRevision = libraryRevision,

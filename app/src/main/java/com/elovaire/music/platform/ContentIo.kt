@@ -189,10 +189,19 @@ internal class ProviderRejectedWriteModeException(uri: Uri) :
 
 internal fun InputStream.readBytesBounded(maxBytes: Int): ByteArray {
     val output = ByteArrayOutputStream(minOf(maxBytes, DEFAULT_BUFFER_SIZE))
+    if (maxBytes == 0) return output.toByteArray()
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
     var total = 0
     while (true) {
         val count = read(buffer)
+        if (count == 0) {
+            val singleByte = read()
+            if (singleByte < 0) return output.toByteArray()
+            check(total < maxBytes) { "The provider response is too large." }
+            output.write(singleByte)
+            total += 1
+            continue
+        }
         if (count < 0) return output.toByteArray()
         total += count
         check(total <= maxBytes) { "The provider response is too large." }
@@ -208,9 +217,17 @@ internal fun replaceFileContents(
     output.truncate(0L)
     val expected = input.size()
     var copied = 0L
+    var zeroProgressAttempts = 0
     while (copied < expected) {
         val count = input.transferTo(copied, expected - copied, output)
-        check(count > 0L) { "The provider stopped before the file was fully replaced." }
+        if (count == 0L) {
+            zeroProgressAttempts += 1
+            check(zeroProgressAttempts <= 3) {
+                "The provider stopped before the file was fully replaced."
+            }
+            continue
+        }
+        zeroProgressAttempts = 0
         copied += count
     }
     check(copied == expected) { "The provider accepted an incomplete file." }

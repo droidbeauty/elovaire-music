@@ -169,6 +169,20 @@ class LibraryScanRootsTest {
     }
 
     @Test
+    fun isLastUriSelection_doesNotReleaseAUriStillReferencedByAnotherEntry() {
+        val uri = TestUri("content://tree/music")
+        val first = LibraryFolderSelection(uri, "/storage/emulated/0/Music", "Music")
+        val second = first.copy(displayName = "Music mirror")
+
+        assertFalse(LibraryFolderSelectionResolver.isLastUriSelection(first, listOf(first, second)))
+        assertTrue(LibraryFolderSelectionResolver.isLastUriSelection(first, listOf(first)))
+        assertFalse(LibraryFolderSelectionResolver.isLastUriSelection(
+            LibraryFolderSelection(null, "/storage/emulated/0/Music", "Music"),
+            listOf(first),
+        ))
+    }
+
+    @Test
     fun safSyntheticRoot_isStableForTheSameTreeUri() {
         val tree = TestUri("content://com.android.externalstorage.documents/tree/primary%3AMusic")
 

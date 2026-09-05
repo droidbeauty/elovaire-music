@@ -351,7 +351,7 @@ internal interface UserDataDao {
     suspend fun removeSongReferences(songIds: Set<Long>) {
         if (songIds.isEmpty()) return
         removeFavorites(songIds)
-        val affectedPlaylists = playlistIdsContaining(songIds)
+        val affectedPlaylists = playlistIdsContaining(songIds).toSet()
         deleteSongReferencesFromPlaylists(songIds)
         affectedPlaylists.forEach { playlistId ->
             replacePlaylistEntries(playlistId, songIdsForPlaylist(playlistId))
@@ -364,7 +364,7 @@ internal interface UserDataDao {
         deleteFavorites(songIds)
     }
 
-    @Query("SELECT DISTINCT playlistId FROM user_playlist_entries WHERE songId IN (:songIds)")
+    @Query("SELECT playlistId FROM user_playlist_entries WHERE songId IN (:songIds)")
     suspend fun playlistIdsContaining(songIds: Set<Long>): List<Long>
 
     @Query("SELECT songId FROM user_playlist_entries WHERE playlistId = :playlistId ORDER BY position")

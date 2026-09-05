@@ -7,12 +7,11 @@ import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
-import org.gradle.api.tasks.SkipWhenEmpty
 import org.gradle.api.tasks.TaskAction
 
 abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
+    @get:Optional
     @get:InputDirectory
-    @get:SkipWhenEmpty
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val currentResultsDir: DirectoryProperty
 
@@ -28,27 +27,51 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
             return
         }
 
-        val currentFiles = jsonFiles(currentResultsDir.asFile.get())
-        val baselineFiles = jsonFiles(baselineResultsDir.asFile.get())
-        if (currentFiles.isEmpty() || baselineFiles.isEmpty()) {
-            logger.lifecycle("Benchmark regression evaluation skipped: structured JSON results are not available yet.")
-            return
+        val currentRoot = currentResultsDir.orNull?.asFile
+        check(currentRoot?.isDirectory == true) {
+            "Benchmark regression evaluation requires current structured JSON results at " +
+                currentResultsDir.orNull?.asFile
+        }
+        val baselineRoot = baselineResultsDir.orNull?.asFile
+        check(baselineRoot?.isDirectory == true) {
+            "Benchmark regression evaluation requires a baseline directory at $baselineRoot."
+        }
+        val currentFiles = jsonFiles(currentRoot)
+        val baselineFiles = jsonFiles(baselineRoot)
+        check(currentFiles.isNotEmpty()) {
+            "Benchmark regression evaluation found no structured JSON results in $currentRoot."
+        }
+        check(baselineFiles.isNotEmpty()) {
+            "Benchmark regression evaluation found no structured JSON results in $baselineRoot."
         }
 
-        val baselineByKey = baselineFiles
-            .flatMap(::readSamples)
-            .associateBy { it.key }
-        val observations = currentFiles
-            .flatMap(::readSamples)
+        val baselineSamples = baselineFiles.flatMap(::readSamples)
+        val currentSamples = currentFiles.flatMap(::readSamples)
+        check(currentSamples.distinctBy { it.key to it.environment }.size == currentSamples.size) {
+            "Benchmark regression evaluation found duplicate current samples; results are ambiguous."
+        }
+        check(baselineSamples.distinctBy { it.key to it.environment }.size == baselineSamples.size) {
+            "Benchmark regression evaluation found duplicate baseline samples; results are ambiguous."
+        }
+        val baselineByKey = baselineSamples.associateBy { it.key to it.environment }
+        val currentKeys = currentSamples.map { it.key to it.environment }.toSet()
+        val baselineKeys = baselineSamples.map { it.key to it.environment }.toSet()
+        check(currentKeys == baselineKeys) {
+            val missing = (baselineKeys - currentKeys).take(MAX_DIAGNOSTIC_KEYS)
+            val unexpected = (currentKeys - baselineKeys).take(MAX_DIAGNOSTIC_KEYS)
+            "Benchmark regression evaluation found a changed metric set; " +
+                "missing=${missing.joinToString()} unexpected=${unexpected.joinToString()}"
+        }
+        val observations = currentSamples
             .mapNotNull { current ->
-                val baseline = baselineByKey[current.key] ?: return@mapNotNull null
+                val baseline = baselineByKey[current.key to current.environment]
+                    ?: return@mapNotNull null
                 if (current.environment.isBlank() || baseline.environment.isBlank()) return@mapNotNull null
                 if (current.environment != baseline.environment) return@mapNotNull null
                 current to baseline
             }
-        if (observations.isEmpty()) {
-            logger.lifecycle("Benchmark regression evaluation skipped: no compatible same-device samples matched.")
-            return
+        check(observations.isNotEmpty()) {
+            "Benchmark regression evaluation found no compatible same-device samples."
         }
 
         val hardRegressions = mutableListOf<String>()
@@ -86,10 +109,15 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
     }
 
     private fun readSamples(file: File): List<Sample> {
-        val parsed = runCatching { JsonSlurper().parse(file) }.getOrNull() ?: return emptyList()
+        val parsed = runCatching { JsonSlurper().parse(file) }.getOrElse { failure ->
+            error("Unable to parse benchmark result ${file.absolutePath}: ${failure.message}")
+        }
         val environment = environmentSignature(parsed)
         val samples = mutableListOf<Sample>()
         collectSamples(parsed, file.nameWithoutExtension, "", environment, samples)
+        check(samples.isNotEmpty()) {
+            "Benchmark result ${file.absolutePath} contains no recognized metric samples."
+        }
         return samples
     }
 
@@ -106,11 +134,15 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
                 val childScenario = if (key.equals("name", ignoreCase = true) && child is String) child else scenario
                 val childPath = if (path.isBlank()) key else "$path.$key"
                 if (child is Number && isMetricKey(key)) {
+                    val numericValue = child.toDouble()
+                    check(isUsableBenchmarkMetric(key, numericValue)) {
+                        "Benchmark result contains an invalid value for $childPath."
+                    }
                     samples += Sample(
                         key = "$childScenario|$childPath",
                         scenario = childScenario,
                         metric = childPath,
-                        value = child.toDouble(),
+                        value = numericValue,
                         environment = environment,
                     )
                 } else {
@@ -187,6 +219,7 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
     )
 
     private companion object {
+        const val MAX_DIAGNOSTIC_KEYS = 8
         val ENVIRONMENT_KEYS = setOf(
             "device",
             "deviceid",

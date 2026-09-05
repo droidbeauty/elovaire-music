@@ -250,8 +250,10 @@ internal fun LibraryFoldersScreen(
                         onClick = {},
                         onLongClick = { editMode = true },
                         onRemove = {
-                            folder.uri?.let { uri -> releasePersistableTreePermission(context, uri) }
                             onRemoveFolder(folder)
+                            if (LibraryFolderSelectionResolver.isLastUriSelection(folder, folders)) {
+                                folder.uri?.let { uri -> releasePersistableTreePermission(context, uri) }
+                            }
                         },
                     )
                 }

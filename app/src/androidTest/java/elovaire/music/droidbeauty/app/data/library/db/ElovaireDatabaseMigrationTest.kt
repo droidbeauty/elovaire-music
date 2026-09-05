@@ -24,7 +24,7 @@ class ElovaireDatabaseMigrationTest {
 
     @Test
     @Throws(IOException::class)
-    fun migrateOneToTwoCreatesUserDataSchemaAndReopens() {
+    fun migrateOneToSixCreatesUserDataSchemaAndReopens() {
         helper.createDatabase(DATABASE_NAME, 1).use { database ->
             database.execSQL(
                 "INSERT INTO albums(" +
@@ -49,11 +49,13 @@ class ElovaireDatabaseMigrationTest {
 
         helper.runMigrationsAndValidate(
             DATABASE_NAME,
-            4,
+            6,
             true,
             ElovaireDatabase.MIGRATION_1_2,
             ElovaireDatabase.MIGRATION_2_3,
             ElovaireDatabase.MIGRATION_3_4,
+            ElovaireDatabase.MIGRATION_4_5,
+            ElovaireDatabase.MIGRATION_5_6,
         ).use { database ->
             database.query("SELECT COUNT(*) FROM user_playlists").use { cursor ->
                 assertTrue(cursor.moveToFirst())
@@ -83,6 +85,8 @@ class ElovaireDatabaseMigrationTest {
             ElovaireDatabase.MIGRATION_1_2,
             ElovaireDatabase.MIGRATION_2_3,
             ElovaireDatabase.MIGRATION_3_4,
+            ElovaireDatabase.MIGRATION_4_5,
+            ElovaireDatabase.MIGRATION_5_6,
         ).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(
@@ -93,6 +97,37 @@ class ElovaireDatabaseMigrationTest {
             }
         } finally {
             roomDatabase.close()
+        }
+    }
+
+    @Test
+    @Throws(IOException::class)
+    fun migrateFiveToSixReplacesRedundantPlaylistIndexWithSongLookupIndex() {
+        helper.createDatabase("migration-test-v5", 5).use { database ->
+            database.execSQL("INSERT INTO user_playlists(playlistId, name, isSystem) VALUES(1, 'Migration', 0)")
+            database.execSQL(
+                "INSERT INTO user_playlist_entries(playlistId, songId, position) VALUES(1, 7, 0)",
+            )
+        }
+
+        helper.runMigrationsAndValidate(
+            "migration-test-v5",
+            6,
+            true,
+            ElovaireDatabase.MIGRATION_5_6,
+        ).use { database ->
+            database.query(
+                "SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'user_playlist_entries'",
+            ).use { cursor ->
+                val indexes = buildList {
+                    while (cursor.moveToNext()) add(cursor.getString(0))
+                }
+                assertTrue(indexes.contains("index_user_playlist_entries_songId"))
+                assertTrue(!indexes.contains("index_user_playlist_entries_playlistId"))
+            }
+            database.query("PRAGMA foreign_key_check").use { cursor ->
+                assertEquals(0, cursor.count)
+            }
         }
     }
 

@@ -90,6 +90,18 @@ object LibraryFolderSelectionResolver {
         }
     }
 
+    /**
+     * A persisted grant is shared by every configuration entry with the same tree URI. The
+     * grant may only be released after the last such entry has been removed.
+     */
+    internal fun isLastUriSelection(
+        selection: LibraryFolderSelection,
+        selections: Collection<LibraryFolderSelection>,
+    ): Boolean {
+        val uri = selection.uri ?: return false
+        return selections.count { it.uri == uri } == 1
+    }
+
     fun accessibleFileRoots(selections: List<LibraryFolderSelection>): List<File> {
         return selections.asSequence()
             .mapNotNull { selection -> selection.path.takeIf { it.isNotBlank() && !isUriBackedPath(it) }?.let(::File) }

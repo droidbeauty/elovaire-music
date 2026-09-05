@@ -264,6 +264,13 @@ internal class BoundedHttpTransport(
             cancellationContext?.ensureActive()
             val count = read(buffer)
             if (count < 0) return output.toByteArray()
+            if (count == 0) {
+                val singleByte = read()
+                if (singleByte < 0) return output.toByteArray()
+                if (output.size() >= maxBytes) error("HTTP response is too large")
+                output.write(singleByte)
+                continue
+            }
             if (output.size() > maxBytes - count) error("HTTP response is too large")
             output.write(buffer, 0, count)
         }
@@ -278,6 +285,14 @@ internal class BoundedHttpTransport(
         while (true) {
             val count = read(buffer)
             if (count < 0) return
+            if (count == 0) {
+                val singleByte = read()
+                if (singleByte < 0) return
+                if (total >= maxBytes) error("HTTP response is too large")
+                output.write(singleByte)
+                total += 1
+                continue
+            }
             if (total > maxBytes - count) error("HTTP response is too large")
             output.write(buffer, 0, count)
             total += count

@@ -13,6 +13,8 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -25,6 +27,8 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class PlaylistDetailComposeTest {
+    private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).also { it.wakeUp() }
+
     @get:Rule
     val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
 

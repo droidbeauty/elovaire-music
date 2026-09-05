@@ -38,6 +38,8 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
 import elovaire.music.droidbeauty.app.data.playback.Media3AudiobookChapterReader
+import elovaire.music.droidbeauty.app.data.library.AudiobookDescriptionReader
+import elovaire.music.droidbeauty.app.data.library.GoogleBooksAudiobookDescriptionReader
 import elovaire.music.droidbeauty.app.data.playback.DefaultPlaybackResumptionGateway
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaLibrarySessionCallback
 import elovaire.music.droidbeauty.app.data.playback.library.ElovaireMediaTree
@@ -137,6 +139,11 @@ internal class AppServices(
     )
     val audiobookChapterReader: AudiobookChapterReader = Media3AudiobookChapterReader(
         dataSourceFactory = networkDataSourceFactory,
+    )
+    val audiobookDescriptionReader: AudiobookDescriptionReader = GoogleBooksAudiobookDescriptionReader(
+        transport = elovaire.music.droidbeauty.app.data.network.BoundedHttpTransport(
+            ioDispatcher = appDispatchers.io,
+        ),
     )
     private val networkSourceCoordinator = NetworkSourceCoordinator(
         sourceStore = networkSourceStore,

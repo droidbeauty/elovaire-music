@@ -7,6 +7,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import elovaire.music.droidbeauty.app.data.artist.ArtistImageReader
 import elovaire.music.droidbeauty.app.data.playback.AudiobookChapterReader
+import elovaire.music.droidbeauty.app.data.library.AudiobookDescriptionReader
 import elovaire.music.droidbeauty.app.ui.motion.MotionTransitions
 
 @Composable
@@ -21,6 +22,7 @@ internal fun RootRouteGraph(
     viewModelFactory: ElovaireViewModelFactory,
     artistImageRepository: ArtistImageReader,
     audiobookChapterReader: AudiobookChapterReader,
+    audiobookDescriptionReader: AudiobookDescriptionReader,
     modifier: Modifier = Modifier,
 ) {
     RootNavigationHost(
@@ -63,6 +65,7 @@ internal fun RootRouteGraph(
                     routeActions = routeActions,
                     padding = padding,
                     chapterReader = audiobookChapterReader,
+                    descriptionReader = audiobookDescriptionReader,
                 )
             }
         }

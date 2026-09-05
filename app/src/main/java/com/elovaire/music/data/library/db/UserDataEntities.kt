@@ -23,8 +23,8 @@ internal data class UserPlaylistEntity(
         ),
     ],
     indices = [
-        Index(value = ["playlistId"]),
         Index(value = ["playlistId", "position"], unique = true),
+        Index(value = ["songId"]),
     ],
 )
 internal data class UserPlaylistEntryEntity(

@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.playback.library
 
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Album
+import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertNotSame
@@ -54,6 +55,38 @@ class MediaTreeSnapshotCacheTest {
             true, songs.toList(), albums.toList(), playlists, favorites, recent, null, null, "library-1",
         )
 
+        assertSame(first, second)
+    }
+
+    @Test
+    fun libraryRevisionReusesMusicProjectionAcrossEquivalentSourceLists() {
+        val music = testSong(id = 1L)
+        val audiobook = testSong(id = 2L).copy(mediaKind = AudioMediaKind.Audiobook)
+        val cache = MediaTreeSnapshotCache()
+        val first = cache.snapshot(
+            true,
+            listOf(music, audiobook),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            null,
+            null,
+            "library-2",
+        )
+        val second = cache.snapshot(
+            true,
+            listOf(music, audiobook),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            emptyList(),
+            null,
+            null,
+            "library-2",
+        )
+
+        assertEquals(listOf(music), first.songs)
         assertSame(first, second)
     }
 

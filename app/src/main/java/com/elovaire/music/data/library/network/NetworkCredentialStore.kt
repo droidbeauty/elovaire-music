@@ -67,32 +67,46 @@ internal class NetworkCredentialStore(context: Context) {
             } catch (_: RuntimeException) {
                 return@synchronized NetworkCredentialReadResult.KeyUnavailable
             }
-            val decrypted = decrypt(
+            val firstAttempt = decrypt(
                 sourceId = sourceId,
                 key = key,
                 iv = iv,
                 ciphertext = ciphertext,
                 keyMaterial = keyMaterial,
                 useLegacyBinding = legacy,
-            ) ?: if (!legacy) {
-                // Version-2 entries created before credentials were bound to the owning source
-                // used only the credential key as AAD. Read them once, then upgrade them in
-                // place with source-bound AAD and an embedded owner id.
-                decrypt(
-                    sourceId = sourceId,
-                    key = key,
-                    iv = iv,
-                    ciphertext = ciphertext,
-                    keyMaterial = keyMaterial,
-                    useLegacyBinding = true,
-                )
-            } else {
-                null
-            } ?: return@synchronized NetworkCredentialReadResult.Corrupt(
-                NetworkCredentialCorruption.AuthenticationFailed,
             )
-            val credentials = decrypted.credentials
-            if (decrypted.needsMigration) {
+            val decrypted = when {
+                firstAttempt is DecryptionResult.Success -> firstAttempt
+                firstAttempt is DecryptionResult.MalformedPayload -> {
+                    return@synchronized NetworkCredentialReadResult.Corrupt(
+                        NetworkCredentialCorruption.MalformedPayload,
+                    )
+                }
+                !legacy -> {
+                    // Version-2 entries created before credentials were bound to the owning
+                    // source used only the credential key as AAD. Read them once, then upgrade
+                    // them in place with source-bound AAD and an embedded owner id.
+                    decrypt(
+                        sourceId = sourceId,
+                        key = key,
+                        iv = iv,
+                        ciphertext = ciphertext,
+                        keyMaterial = keyMaterial,
+                        useLegacyBinding = true,
+                    )
+                }
+                else -> firstAttempt
+            }
+            val available = decrypted as? DecryptionResult.Success
+                ?: return@synchronized NetworkCredentialReadResult.Corrupt(
+                    if (decrypted is DecryptionResult.MalformedPayload) {
+                        NetworkCredentialCorruption.MalformedPayload
+                    } else {
+                        NetworkCredentialCorruption.AuthenticationFailed
+                    },
+                )
+            val credentials = available.value.credentials
+            if (available.value.needsMigration) {
                 val current = encrypt(sourceId, key, credentials, keyMaterial)
                 if (preferences.getString(key, null) == encoded) {
                     preferences.edit()
@@ -158,27 +172,35 @@ internal class NetworkCredentialStore(context: Context) {
         ciphertext: ByteArray,
         keyMaterial: SecretKey,
         useLegacyBinding: Boolean,
-    ): DecryptedCredentials? {
+    ): DecryptionResult {
         return try {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, keyMaterial, GCMParameterSpec(128, iv))
             cipher.updateAAD(if (useLegacyBinding) key.toByteArray(Charsets.UTF_8) else binding(sourceId, key))
-            val json = JSONObject(cipher.doFinal(ciphertext).toString(Charsets.UTF_8))
+            val json = try {
+                JSONObject(cipher.doFinal(ciphertext).toString(Charsets.UTF_8))
+            } catch (_: RuntimeException) {
+                return DecryptionResult.MalformedPayload
+            }
             val storedSourceId = json.optString("sourceId").takeIf(String::isNotBlank)
-            if (!useLegacyBinding && storedSourceId != sourceId) return null
-            if (useLegacyBinding && storedSourceId != null && storedSourceId != sourceId) return null
-            DecryptedCredentials(
-                credentials = NetworkCredentials(
-                    username = json.optString("username"),
-                    password = json.optString("password"),
-                    domain = json.optString("domain").takeIf(String::isNotBlank),
+            if (!useLegacyBinding && storedSourceId != sourceId) return DecryptionResult.SourceMismatch
+            if (useLegacyBinding && storedSourceId != null && storedSourceId != sourceId) {
+                return DecryptionResult.SourceMismatch
+            }
+            DecryptionResult.Success(
+                DecryptedCredentials(
+                    credentials = NetworkCredentials(
+                        username = json.optString("username"),
+                        password = json.optString("password"),
+                        domain = json.optString("domain").takeIf(String::isNotBlank),
+                    ),
+                    needsMigration = useLegacyBinding || storedSourceId == null,
                 ),
-                needsMigration = useLegacyBinding || storedSourceId == null,
             )
         } catch (_: GeneralSecurityException) {
-            null
+            DecryptionResult.AuthenticationFailed
         } catch (_: RuntimeException) {
-            null
+            DecryptionResult.AuthenticationFailed
         }
     }
 
@@ -195,6 +217,13 @@ internal class NetworkCredentialStore(context: Context) {
         val credentials: NetworkCredentials,
         val needsMigration: Boolean,
     )
+
+    private sealed interface DecryptionResult {
+        data class Success(val value: DecryptedCredentials) : DecryptionResult
+        data object AuthenticationFailed : DecryptionResult
+        data object MalformedPayload : DecryptionResult
+        data object SourceMismatch : DecryptionResult
+    }
 
     private companion object {
         const val ANDROID_KEYSTORE = "AndroidKeyStore"

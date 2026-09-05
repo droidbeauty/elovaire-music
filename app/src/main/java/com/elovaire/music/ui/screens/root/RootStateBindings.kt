@@ -69,6 +69,21 @@ internal data class RootLibraryDerivedState(
     val lastPlayedPlaylist: Playlist?,
 )
 
+internal data class RootSongIndexes(
+    val songsById: Map<Long, Song>,
+    val songsByAlbumId: Map<Long, List<Song>>,
+)
+
+internal fun buildRootSongIndexes(songs: List<Song>): RootSongIndexes {
+    val songsById = linkedMapOf<Long, Song>()
+    val songsByAlbumId = linkedMapOf<Long, MutableList<Song>>()
+    songs.forEach { song ->
+        songsById[song.id] = song
+        songsByAlbumId.getOrPut(song.albumId, ::mutableListOf).add(song)
+    }
+    return RootSongIndexes(songsById, songsByAlbumId)
+}
+
 internal fun libraryUiStateOf(
     content: LibraryContentState,
     scan: LibraryScanState,
@@ -118,8 +133,9 @@ internal fun rememberRootLibraryDerivedState(
     playlists: List<Playlist>,
     songPlayCounts: Map<Long, Int>,
 ): RootLibraryDerivedState {
-    val songsById = remember(library.songs) { library.songs.associateBy(Song::id) }
-    val songsByAlbumId = remember(library.songs) { library.songs.groupBy(Song::albumId) }
+    val songIndexes = remember(library.songs) { buildRootSongIndexes(library.songs) }
+    val songsById = songIndexes.songsById
+    val songsByAlbumId = songIndexes.songsByAlbumId
     val albumsById = remember(library.albums) { library.albums.associateBy(Album::id) }
     val playlistsById = remember(playlists) { playlists.associateBy(Playlist::id) }
     val recentlyAddedAlbums = remember(library.albums) {

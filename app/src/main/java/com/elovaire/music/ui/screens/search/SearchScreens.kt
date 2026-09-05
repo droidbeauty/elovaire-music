@@ -1515,7 +1515,7 @@ internal fun LibraryModeToggle(
 }
 
 @Composable
-private fun ToggleIconChip(
+internal fun ToggleIconChip(
     iconResId: Int,
     selected: Boolean,
     contentDescription: String,

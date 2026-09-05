@@ -100,6 +100,11 @@ internal fun loadArtworkBitmap(
     ArtworkBitmapCache.ensureRegistered(context.applicationContext)
     val size = normalizeArtworkRequestSize(targetPx)
     val key = artworkRequestKey(requestUri, size, purpose)
+    val cached = key?.let {
+        ArtworkBitmapCache[it.cacheKey]
+            ?: ArtworkBitmapCache.sameSizeForEquivalentPurpose(it.uri, it.targetPx, it.purpose)
+    }
+    if (cached != null) return cached
     val decode = {
         val artworkResource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveArtworkDecode)
         try {
@@ -377,6 +382,20 @@ internal object ArtworkBitmapCache {
     ): Bitmap? {
         val sizes = indexedBitmaps["$uri|${purpose.name}"] ?: return null
         return sizes.ceilingEntry(requestedSize)?.value ?: sizes.lastEntry()?.value
+    }
+
+    @Synchronized
+    fun sameSizeForEquivalentPurpose(
+        uri: Uri,
+        requestedSize: Int,
+        purpose: ArtworkPurpose,
+    ): Bitmap? {
+        val config = bitmapConfigForPurpose(purpose)
+        for (candidate in ArtworkPurpose.entries) {
+            if (candidate == purpose || bitmapConfigForPurpose(candidate) != config) continue
+            indexedBitmaps["$uri|${candidate.name}"]?.get(requestedSize)?.let { return it }
+        }
+        return null
     }
 
     fun put(key: String, bitmap: Bitmap) {

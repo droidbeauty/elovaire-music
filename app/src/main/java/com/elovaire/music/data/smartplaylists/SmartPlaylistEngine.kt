@@ -27,7 +27,7 @@ internal object SmartPlaylistEngine {
         val preparedDefinition = PreparedSmartPlaylist(definition)
         val normalized = songs.asSequence()
             .filter { it.mediaKind == AudioMediaKind.Music }
-            .map(::NormalizedSong)
+            .map { song -> NormalizedSong(song, preparedDefinition) }
             .toList()
         val matched = normalized
             .asSequence()
@@ -82,11 +82,10 @@ internal object SmartPlaylistEngine {
             is SmartPlaylistRule.FileFormatIs -> {
                 val expected = preparedRule.normalizedText
                 expected.isNotBlank() && (
-                    song.audioFormat.lowercase(Locale.ROOT) == expected ||
-                        song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT) == expected
+                    normalizedAudioFormat == expected || normalizedFileExtension == expected
                 )
             }
-            is SmartPlaylistRule.FolderContains -> song.libraryPath.orEmpty().normalizeSmartText()
+            is SmartPlaylistRule.FolderContains -> normalizedLibraryPath
                 .contains(preparedRule.normalizedText)
         }
     }
@@ -123,19 +122,38 @@ private data class ResolutionContext(
     val nowMs: Long,
 )
 
-private data class NormalizedSong(
+private class NormalizedSong(
     val song: Song,
+    definition: PreparedSmartPlaylist,
 ) {
     val normalizedTitle = song.title.normalizeSmartText()
     val normalizedArtist = (song.albumArtist ?: song.artist).normalizeSmartText()
     val normalizedAlbum = song.album.normalizeSmartText()
     val normalizedGenre = song.genre.normalizeSmartText()
+    val normalizedAudioFormat = if (definition.hasFileFormatRule) {
+        song.audioFormat.lowercase(Locale.ROOT)
+    } else {
+        ""
+    }
+    val normalizedFileExtension = if (definition.hasFileFormatRule) {
+        song.fileName.substringAfterLast('.', "").lowercase(Locale.ROOT)
+    } else {
+        ""
+    }
+    val normalizedLibraryPath = if (definition.hasFolderRule) {
+        song.libraryPath.orEmpty().normalizeSmartText()
+    } else {
+        ""
+    }
 }
 
 private data class PreparedSmartPlaylist(
     val source: SmartPlaylist,
     val rules: List<PreparedSmartPlaylistRule> = source.rules.map(::PreparedSmartPlaylistRule),
-)
+) {
+    val hasFileFormatRule = rules.any { it.source is SmartPlaylistRule.FileFormatIs }
+    val hasFolderRule = rules.any { it.source is SmartPlaylistRule.FolderContains }
+}
 
 private data class PreparedSmartPlaylistRule(
     val source: SmartPlaylistRule,

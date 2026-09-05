@@ -22,6 +22,13 @@ internal fun classifyBenchmarkRegression(
     }
 }
 
+internal fun isUsableBenchmarkMetric(metric: String, value: Double): Boolean {
+    if (!value.isFinite()) return false
+    // Frame timing reports encode headroom as a negative overrun. Other metrics recognized by
+    // the evaluator represent counts, durations, sizes, or costs and cannot be negative.
+    return metric.endsWith("frameOverrunMs", ignoreCase = true) || value >= 0.0
+}
+
 private fun classifyFrameOverrunRegression(
     baseline: Double,
     current: Double,

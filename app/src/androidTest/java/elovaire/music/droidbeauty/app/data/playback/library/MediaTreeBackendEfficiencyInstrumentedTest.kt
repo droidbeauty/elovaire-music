@@ -77,6 +77,74 @@ class MediaTreeBackendEfficiencyInstrumentedTest {
         )
     }
 
+    @Test
+    fun repeatedSnapshotReuseAvoidsMusicProjectionScan() {
+        val songs = (1L..5_000L).map { id ->
+            Song(
+                id = id,
+                title = "Song $id",
+                isExplicit = false,
+                artist = "Artist",
+                album = "Album",
+                releaseYear = null,
+                genre = "Genre",
+                audioFormat = "MP3",
+                audioQuality = null,
+                fileName = "$id.mp3",
+                albumId = id % 25L,
+                durationMs = 180_000L,
+                trackNumber = 1,
+                discNumber = 1,
+                dateAddedSeconds = id,
+                uri = Uri.parse("content://elovaire/projection/$id"),
+                artUri = null,
+            )
+        }
+        val cache = MediaTreeSnapshotCache()
+        cache.snapshot(
+            permissionGranted = true,
+            songs = songs,
+            albums = emptyList(),
+            playlists = emptyList(),
+            favoriteSongIds = emptyList(),
+            recentSongIds = emptyList(),
+            lastPlayedCollectionKind = null,
+            lastPlayedCollectionId = null,
+            libraryRevision = "projection-fixture",
+        )
+
+        val repeatedProjectionNanos = measureNanoTime {
+            repeat(REPETITIONS) {
+                songs.filter { it.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Music }
+            }
+        }
+        val cachedSnapshotNanos = measureNanoTime {
+            repeat(REPETITIONS) {
+                cache.snapshot(
+                    true,
+                    songs,
+                    emptyList(),
+                    emptyList(),
+                    emptyList(),
+                    emptyList(),
+                    null,
+                    null,
+                    "projection-fixture",
+                )
+            }
+        }
+
+        Log.i(
+            TAG,
+            "snapshot projection benchmark: repeatedProjectionMs=${repeatedProjectionNanos / 1_000_000.0}, " +
+                "cachedSnapshotMs=${cachedSnapshotNanos / 1_000_000.0}, songs=${songs.size}",
+        )
+        assertTrue(
+            "Cached snapshot should avoid repeated music projection: $cachedSnapshotNanos vs $repeatedProjectionNanos",
+            cachedSnapshotNanos < repeatedProjectionNanos,
+        )
+    }
+
     private companion object {
         const val REPETITIONS = 24
         const val TAG = "MediaTreeEfficiency"

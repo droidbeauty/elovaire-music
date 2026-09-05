@@ -74,6 +74,7 @@ internal fun ElovaireRootReadyHost(
                 viewModelFactory = composition.viewModelFactory,
                 artistImageRepository = container.artistImageRepository,
                 audiobookChapterReader = container.audiobookChapterReader,
+                audiobookDescriptionReader = container.audiobookDescriptionReader,
                 modifier = modifier,
             )
         },

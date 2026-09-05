@@ -14,6 +14,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.uiautomator.UiDevice
 import elovaire.music.droidbeauty.app.ui.screens.playlists.PlaylistTestActivity
 import elovaire.music.droidbeauty.app.ui.motion.MotionRuntime
 import elovaire.music.droidbeauty.app.ui.motion.MotionRuntimeProvider
@@ -28,6 +30,8 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class RapidMotionInterleavingTest {
+    private val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation()).also { it.wakeUp() }
+
     @get:Rule
     val composeRule = createAndroidComposeRule<PlaylistTestActivity>()
 

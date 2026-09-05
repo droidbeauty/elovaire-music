@@ -41,6 +41,7 @@ import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.AudioMediaKind
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharingStarted
@@ -190,7 +191,7 @@ class PlaybackManager(
     private val hasSignalAlteringEffects = hasSignalAlteringEffects
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
     private val audiobookProgressStore = AudiobookProgressStore(context)
-    private var audiobookPlaybackSpeed = audiobookProgressStore.loadPlaybackSpeed()
+    private var audiobookPlaybackSpeed = 1f
     private var activeAudiobookContext: AudiobookPlaybackContext? = null
     private var lastAudiobookCheckpointElapsedMs = 0L
     private val _audiobookProgressRevision = MutableStateFlow(0L)
@@ -235,6 +236,16 @@ class PlaybackManager(
         offloadPolicyProvider = ::currentOffloadPolicy,
     )
     private val playbackHandler = Handler(Looper.getMainLooper())
+    private val audiobookPlaybackSpeedLoadJob = scope.launch(Dispatchers.IO) {
+        val loadedSpeed = audiobookProgressStore.loadPlaybackSpeed()
+        playbackHandler.post {
+            if (released.get()) return@post
+            audiobookPlaybackSpeed = loadedSpeed
+            if (currentSong()?.mediaKind == AudioMediaKind.Audiobook) {
+                player.playbackParameters = PlaybackParameters(audiobookPlaybackSpeed)
+            }
+        }
+    }
     private var pendingAudioPathReason: String? = null
     private var isDirectPlaybackActive = false
     private val runtimeStateMachine = PlaybackRuntimeStateMachine()
@@ -1342,6 +1353,7 @@ class PlaybackManager(
         beginPlaybackOperation()
         runtimeStateMachine.release()
         pauseFadeJob?.cancel()
+        audiobookPlaybackSpeedLoadJob.cancel()
         crossfadeController.release()
         sleepTimerController.release()
         progressDemandController.clear()
