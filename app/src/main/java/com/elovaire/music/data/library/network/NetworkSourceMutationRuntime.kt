@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
@@ -17,6 +18,7 @@ internal class NetworkSourceMutationRuntime(
     private val onProbeResult: (sourceId: String, result: NetworkProbeResult) -> Unit,
     private val onSourceRemoved: (sourceId: String) -> Unit,
     private val onSourcesChanged: (sourceId: String, refreshRequired: Boolean) -> Unit,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val released = AtomicBoolean(false)
     private val stateLock = Any()
@@ -96,7 +98,7 @@ internal class NetworkSourceMutationRuntime(
         operation: suspend (MutationToken) -> Unit,
     ): Boolean {
         val token = MutationToken()
-        val job = scope.launch(Dispatchers.IO, start = CoroutineStart.LAZY) {
+        val job = scope.launch(ioDispatcher, start = CoroutineStart.LAZY) {
             operation(token)
         }
         val accepted: Boolean

@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.core
 
 import android.content.Context
 import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
+import elovaire.music.droidbeauty.app.data.library.LibraryActionController
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagArtworkInvalidator
@@ -37,10 +38,27 @@ internal class AppDependencies(
         override val playbackReader get() = services.playbackManager
     }
     val playbackActionDependencies: PlaybackActionDependencies = object : PlaybackActionDependencies {
-        override val playbackController get() = services.playbackManager
+        override val playback get() = services.playbackManager
     }
     val libraryActionDependencies: LibraryActionDependencies = object : LibraryActionDependencies {
-        override val libraryRepository get() = services.libraryRepository
+        override val libraryController: LibraryActionController = object : LibraryActionController {
+            override fun onPermissionChanged(granted: Boolean) {
+                services.libraryRepository.onPermissionChanged(granted)
+            }
+
+            override fun refresh(
+                forceMediaIndex: Boolean,
+                enrichMetadata: Boolean,
+                showLoadingIndicator: Boolean,
+            ) {
+                services.libraryRepository.refresh(
+                    forceMediaIndex = forceMediaIndex,
+                    enrichMetadata = enrichMetadata,
+                    showLoadingIndicator = showLoadingIndicator,
+                )
+            }
+
+        }
         override val networkSources get() = services.networkSources
         override val networkProbeResults get() = services.networkProbeResults
         override fun saveNetworkSource(source: NetworkLibrarySource, credentials: NetworkCredentials) {

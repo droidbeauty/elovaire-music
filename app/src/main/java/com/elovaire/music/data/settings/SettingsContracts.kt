@@ -47,7 +47,13 @@ internal interface CollectionSettingsStore {
     val lastPlayedCollectionId: StateFlow<Long?>
 }
 
-internal interface MediaLibraryUserDataReader {
+/** The MediaLibrary bridge only needs these two user-data streams for invalidation. */
+internal interface MediaLibraryInvalidationReader {
+    val favoriteSongIds: StateFlow<List<Long>>
+    val playlists: StateFlow<List<Playlist>>
+}
+
+internal interface MediaLibraryUserDataReader : MediaLibraryInvalidationReader {
     val userDataSnapshot: StateFlow<UserDataSnapshot>
 }
 

@@ -5,10 +5,12 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.session.MediaLibraryService.MediaLibrarySession
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
-import elovaire.music.droidbeauty.app.data.settings.MediaLibraryUserDataReader
+import elovaire.music.droidbeauty.app.data.settings.MediaLibraryInvalidationReader
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.combine
@@ -46,9 +48,9 @@ internal object MediaLibraryInvalidationParents {
         if (previous.favoriteSongIds != current.favoriteSongIds) {
             changed += ElovaireMediaId.Favorites.value
         }
-        val previousPlaylists = previous.playlists.associateBy(Playlist::id)
-        val currentPlaylists = current.playlists.associateBy(Playlist::id)
         if (previous.playlists != current.playlists) {
+            val previousPlaylists = previous.playlists.associateBy(Playlist::id)
+            val currentPlaylists = current.playlists.associateBy(Playlist::id)
             changed += ElovaireMediaId.Playlists.value
             previousPlaylists.keys.intersect(currentPlaylists.keys).forEach { playlistId ->
                 if (previousPlaylists[playlistId] != currentPlaylists[playlistId]) {
@@ -64,8 +66,9 @@ internal object MediaLibraryInvalidationParents {
 internal class MediaLibraryInvalidationCoordinator(
     private val session: MediaLibrarySession,
     private val libraryRepository: LibraryReader,
-    private val settings: MediaLibraryUserDataReader,
+    private val settings: MediaLibraryInvalidationReader,
     private val scope: CoroutineScope,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
     private val coalesceWindowMs: Long = 25L,
 ) : AutoCloseable {
     private val released = AtomicBoolean(false)
@@ -79,17 +82,18 @@ internal class MediaLibraryInvalidationCoordinator(
     @kotlin.OptIn(FlowPreview::class)
     fun start() {
         if (released.get() || observationJob != null) return
-        observationJob = scope.launch {
+        observationJob = scope.launch(dispatcher) {
             combine(
                 libraryRepository.contentState,
                 libraryRepository.scanState,
-                settings.userDataSnapshot,
-            ) { content, scan, userData ->
+                settings.favoriteSongIds,
+                settings.playlists,
+            ) { content, scan, favoriteSongIds, playlists ->
                 MediaLibraryCommittedState(
                     libraryRevision = content.contentRevision,
                     permissionGranted = scan.permissionGranted,
-                    favoriteSongIds = userData.favoriteSongIds,
-                    playlists = userData.playlists,
+                    favoriteSongIds = favoriteSongIds,
+                    playlists = playlists,
                 )
             }
                 .distinctUntilChanged()

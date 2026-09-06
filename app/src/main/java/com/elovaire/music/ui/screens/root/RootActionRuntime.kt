@@ -29,7 +29,7 @@ internal fun rememberRootActionRuntime(
         playlists = appState.playlists,
         songsById = derivedState.songsById,
         albumsById = derivedState.albumsById,
-        playbackManager = container.playbackManager,
+        playbackManager = container.playbackActionDependencies.playback,
         playlistStore = container.playlistActionDependencies.playlistStore,
         onDeleteSongsFromDevice = deleteController::deleteSongsFromDevice,
         openAlbum = uiRuntime.openAlbum,
@@ -37,7 +37,6 @@ internal fun rememberRootActionRuntime(
     )
     val playbackActions = rememberRootPlaybackActions(
         dependencies = container.playbackActionDependencies,
-        playbackManager = container.playbackManager,
         appLanguage = appState.appLanguage,
         songsByAlbumId = derivedState.songsByAlbumId,
         albumsById = derivedState.albumsById,

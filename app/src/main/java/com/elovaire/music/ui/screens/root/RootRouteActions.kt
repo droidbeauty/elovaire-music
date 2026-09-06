@@ -150,7 +150,7 @@ internal class RootRouteActions(
     }
 
     fun refreshLibrary() {
-        libraryDependencies.libraryRepository.refresh(
+        libraryDependencies.libraryController.refresh(
             forceMediaIndex = true,
             enrichMetadata = true,
             showLoadingIndicator = true,
@@ -163,11 +163,6 @@ internal class RootRouteActions(
         val normalizedFolders = LibraryFolderSelectionResolver.normalize(currentFolders + selection)
         if (normalizedFolders == LibraryFolderSelectionResolver.normalize(currentFolders)) return
         librarySettings.setLibraryFolders(normalizedFolders)
-        libraryDependencies.libraryRepository.setLibraryFolders(
-            selections = normalizedFolders,
-            enrichMetadata = true,
-            showLoadingIndicator = true,
-        )
     }
 
     fun renamePlaylist(

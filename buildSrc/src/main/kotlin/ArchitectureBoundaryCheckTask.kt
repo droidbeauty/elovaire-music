@@ -44,6 +44,12 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             if ("/ui/" in path && "elovaire.music.droidbeauty.app.data.library.db" in text) {
                 violations += "$path imports the library database implementation"
             }
+            if (
+                "/ui/" in path &&
+                    Regex("container\\.(playbackManager|libraryRepository|preferenceStore)").containsMatchIn(text)
+            ) {
+                violations += "$path reaches a concrete application service instead of an action/read dependency"
+            }
             if ("MediaStore.createWriteRequest" in text && !isGuardrailPathAllowed(path, setOf("/platform/MediaStoreAccessRequests.kt"))) {
                 violations += "$path creates MediaStore write requests outside the platform boundary"
             }

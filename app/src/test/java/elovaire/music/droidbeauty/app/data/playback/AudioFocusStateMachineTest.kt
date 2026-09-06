@@ -38,4 +38,22 @@ class AudioFocusStateMachineTest {
 
         assertTrue(filter.accept(AudioManager.AUDIOFOCUS_GAIN))
     }
+
+    @Test
+    fun pausingFadeIsNotMistakenForSuccessfulAutoResume() {
+        assertFalse(
+            isPlaybackAlreadyResumed(
+                isPlaying = true,
+                playWhenReady = true,
+                isPauseTransitioningToStopped = true,
+            ),
+        )
+        assertTrue(
+            isPlaybackAlreadyResumed(
+                isPlaying = true,
+                playWhenReady = false,
+                isPauseTransitioningToStopped = false,
+            ),
+        )
+    }
 }

@@ -23,11 +23,12 @@ internal class PlaybackAudioFocusController(
 
     fun request(): Boolean {
         if (hasFocus) return true
-        if (isActive) return false
+        val wasActive = isActive
         callbackFilter.reset()
-        hasFocus = audioManager?.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-        isActive = hasFocus
-        return hasFocus
+        val granted = audioManager?.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+        hasFocus = granted
+        isActive = granted || wasActive
+        return granted
     }
 
     fun abandon() {

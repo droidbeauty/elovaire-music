@@ -83,6 +83,20 @@ internal object LibrarySnapshotAssembler {
         }
     }
 
+    internal fun canonicalizeAlbumIdsAfterPatch(
+        previousSongs: List<Song>,
+        updatedSongs: List<Song>,
+        changedPositions: List<Int>,
+    ): List<Song> {
+        if (changedPositions.none { position ->
+                albumGroupKey(previousSongs[position]) != albumGroupKey(updatedSongs[position])
+            }
+        ) {
+            return updatedSongs
+        }
+        return canonicalizeAlbumIds(updatedSongs)
+    }
+
     private fun albumGroupKey(song: Song): AlbumGroupKey {
         val source = MediaIdentityResolver.resolve(song)
         val sourceNamespace = when (source) {

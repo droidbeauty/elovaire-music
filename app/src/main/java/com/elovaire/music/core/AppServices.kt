@@ -244,6 +244,7 @@ internal class AppServices(
                 forceRefreshSourceIds = if (refreshRequired) setOf(sourceId) else emptySet(),
             )
         },
+        ioDispatcher = appDispatchers.io,
     )
     private val lyricsServiceDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         LyricsService(
@@ -294,6 +295,7 @@ internal class AppServices(
         libraryRepository = libraryRepository,
         settings = preferenceStore,
         scope = libraryScope,
+        dispatcher = appDispatchers.default,
     )
 
     init {

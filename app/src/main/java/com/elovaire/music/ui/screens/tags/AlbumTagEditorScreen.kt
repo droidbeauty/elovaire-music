@@ -62,7 +62,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.artwork.decodeArtworkBytes
-import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
+import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmapAwaitingAdmission
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
@@ -420,7 +420,7 @@ private fun rememberPreviewBitmap(
         bitmap = withContext(Dispatchers.IO) {
             when {
                 artworkBytes != null -> decodeArtworkBytes(artworkBytes, TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX)
-                selectedUri != null -> loadArtworkBitmap(context, selectedUri, TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX)
+                selectedUri != null -> loadArtworkBitmapAwaitingAdmission(context, selectedUri, TAG_EDITOR_PREVIEW_ARTWORK_SIZE_PX)
                 else -> null
             }?.also { decoded -> decoded.prepareToDraw() }?.asImageBitmap()
         }

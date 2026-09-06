@@ -19,3 +19,11 @@ internal object AudioFocusStateMachine {
         else -> AudioFocusAction.Ignore
     }
 }
+
+internal fun isPlaybackAlreadyResumed(
+    isPlaying: Boolean,
+    playWhenReady: Boolean,
+    isPauseTransitioningToStopped: Boolean,
+): Boolean {
+    return !isPauseTransitioningToStopped && (isPlaying || playWhenReady)
+}

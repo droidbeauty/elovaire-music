@@ -78,7 +78,7 @@ internal fun rememberRootPermissionController(
         hasPermission = granted
         if (syncedAudioPermission != granted) {
             syncedAudioPermission = granted
-            container.libraryRepository.onPermissionChanged(granted)
+            container.libraryActionDependencies.libraryController.onPermissionChanged(granted)
         }
     }
 
@@ -114,7 +114,7 @@ internal fun rememberRootPermissionController(
                     syncLocalNetworkPermission(refreshedLocalPermission)
                 }
                 if (refreshedAudioPermission) {
-                    container.libraryRepository.refresh(showLoadingIndicator = false)
+                    container.libraryActionDependencies.libraryController.refresh(showLoadingIndicator = false)
                 }
             }
         }

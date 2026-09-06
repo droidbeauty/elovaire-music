@@ -94,6 +94,23 @@ class LibrarySnapshotAssemblerTest {
     }
 
     @Test
+    fun patchSongs_skipsGlobalAlbumCanonicalizationWhenGroupingInputsDoNotChange() {
+        val first = song(1L, "content://media/external/audio/media/1")
+        val second = song(2L, "content://media/external/audio/media/2")
+        val currentSnapshot = LibrarySnapshotAssembler.assemble(listOf(first, second))
+        val updated = currentSnapshot.songs.map { it.copy(title = "Edited ${it.id}") }
+
+        assertSame(
+            updated,
+            LibrarySnapshotAssembler.canonicalizeAlbumIdsAfterPatch(
+                previousSongs = currentSnapshot.songs,
+                updatedSongs = updated,
+                changedPositions = updated.indices.toList(),
+            ),
+        )
+    }
+
+    @Test
     fun stateForSnapshotRestoresSemanticRevisionForCachedSnapshots() {
         val song = song(1L, "content://media/external/audio/media/1")
         val snapshot = LibrarySnapshotAssembler.assemble(listOf(song)).copy(contentRevision = "")

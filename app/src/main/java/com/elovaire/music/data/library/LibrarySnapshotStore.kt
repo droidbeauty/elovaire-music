@@ -160,12 +160,13 @@ internal class LibrarySnapshotStore(
         } else {
             snapshot.songs.filter(::isSupportedLibrarySong)
         }
+        val revisionSnapshot = if (songs.size == snapshot.songs.size) {
+            snapshot
+        } else {
+            LibrarySnapshotAssembler.assemble(songs)
+        }
         val contentRevision = librarySnapshotContentRevision(
-            snapshot = if (songs.size == snapshot.songs.size) {
-                snapshot.copy(songs = songs)
-            } else {
-                LibrarySnapshotAssembler.assemble(songs)
-            },
+            snapshot = revisionSnapshot,
             filterFingerprint = filterFingerprint,
             syncState = syncState,
         )

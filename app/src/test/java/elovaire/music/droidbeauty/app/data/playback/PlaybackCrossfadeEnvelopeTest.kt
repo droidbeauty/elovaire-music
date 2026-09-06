@@ -11,6 +11,59 @@ import org.junit.Test
 
 class PlaybackCrossfadeEnvelopeTest {
     @Test
+    fun cueDecisions_stopAtTheRelevantAudibleEdge() {
+        var reads = 0
+        val windows = object : AbstractList<CrossfadeLevelWindow>() {
+            override val size = 3_000
+            override fun get(index: Int): CrossfadeLevelWindow {
+                reads++
+                return CrossfadeLevelWindow(index * 20L, (index + 1) * 20L, 0.2f)
+            }
+        }
+        assertEquals(CrossfadeCueDecision(0L, 0L, CrossfadeCueEvidence.Audible),
+            CrossfadeCueAlgorithm.leadingCueDecision(windows, analyzedEndMs = 60_000L))
+        assertEquals(1, reads)
+        reads = 0
+        assertEquals(CrossfadeCueDecision(60_000L, 0L, CrossfadeCueEvidence.Audible),
+            CrossfadeCueAlgorithm.trailingCueDecision(windows, 60_000L))
+        assertEquals(1, reads)
+    }
+
+    @Test
+    fun cueDecisions_preserveInvalidSilentAndUnorderedWindowSemantics() {
+        val random = kotlin.random.Random(43)
+        repeat(200) {
+            val windows = List(random.nextInt(80)) {
+                val start = random.nextLong(-100L, 2_000L)
+                CrossfadeLevelWindow(start, start + random.nextLong(-20L, 100L),
+                    listOf(0f, 0.2f, -1f, Float.NaN, Float.POSITIVE_INFINITY)[random.nextInt(5)])
+            }
+            val usable = windows.filter { it.endMs > it.startMs && it.maxChannelRms.isFinite() && it.maxChannelRms >= 0f }
+            for (floor in listOf(0f, 0.1f, Float.NaN)) {
+                val audible = usable.filter { it.maxChannelRms >= floor }
+                val leading = audible.firstOrNull()
+                val trailing = audible.lastOrNull()
+                val expectedLeading = when {
+                    usable.isEmpty() -> CrossfadeCueDecision(100L, 0L, CrossfadeCueEvidence.NoUsableWindows)
+                    leading == null -> CrossfadeCueDecision(2_000L, 1_900L, CrossfadeCueEvidence.AllSilent)
+                    leading.startMs - 100L >= 100L -> CrossfadeCueDecision(leading.startMs, leading.startMs - 100L, CrossfadeCueEvidence.Audible)
+                    else -> CrossfadeCueDecision(100L, 0L, CrossfadeCueEvidence.Audible)
+                }
+                val expectedTrailing = when {
+                    usable.isEmpty() -> CrossfadeCueDecision(2_000L, 0L, CrossfadeCueEvidence.NoUsableWindows)
+                    trailing == null -> CrossfadeCueDecision(100L, 1_900L, CrossfadeCueEvidence.AllSilent)
+                    2_000L - trailing.endMs >= 100L -> CrossfadeCueDecision(trailing.endMs.coerceIn(0L, 2_000L), 2_000L - trailing.endMs, CrossfadeCueEvidence.Audible)
+                    else -> CrossfadeCueDecision(2_000L, 0L, CrossfadeCueEvidence.Audible)
+                }
+                for (input in listOf(windows, java.util.LinkedList(windows))) {
+                    assertEquals(expectedLeading, CrossfadeCueAlgorithm.leadingCueDecision(input, 100L, 2_000L, floor))
+                    assertEquals(expectedTrailing, CrossfadeCueAlgorithm.trailingCueDecision(input, 2_000L, 100L, 2_000L, floor))
+                }
+            }
+        }
+    }
+
+    @Test
     fun durationPolicy_hasBoundedTwoPointFiveSecondDefault() {
         assertEquals(1_000L, CrossfadeDurationPolicy.sanitize(0L))
         assertEquals(2_500L, CrossfadeDurationPolicy.DEFAULT_DURATION_MS)

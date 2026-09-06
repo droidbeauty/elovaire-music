@@ -192,15 +192,14 @@ internal class RootPlaylistActions internal constructor(
 @Composable
 internal fun rememberRootPlaybackActions(
     dependencies: PlaybackActionDependencies,
-    playbackManager: NowPlayingPlayback,
     appLanguage: AppLanguage,
     songsByAlbumId: Map<Long, List<Song>>,
     albumsById: Map<Long, Album>,
     openNowPlaying: (NowPlayingTransitionSnapshot?) -> Unit,
 ): RootPlaybackActions {
-    return remember(dependencies, playbackManager, appLanguage, songsByAlbumId, albumsById, openNowPlaying) {
+    return remember(dependencies, appLanguage, songsByAlbumId, albumsById, openNowPlaying) {
         RootPlaybackActions(
-            playbackManager = playbackManager,
+            playbackManager = dependencies.playback,
             languageProvider = { appLanguage },
             songsByAlbumIdProvider = { songsByAlbumId },
             albumsByIdProvider = { albumsById },

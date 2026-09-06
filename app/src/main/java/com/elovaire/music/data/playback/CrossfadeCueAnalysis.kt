@@ -139,10 +139,15 @@ internal object CrossfadeCueAlgorithm {
         val duration = durationMs.coerceAtLeast(0L)
         var hasUsableWindow = false
         var lastAudible: CrossfadeLevelWindow? = null
-        windows.forEach { window ->
-            if (!isUsableWindow(window)) return@forEach
+        val iterator = windows.listIterator(windows.size)
+        while (iterator.hasPrevious()) {
+            val window = iterator.previous()
+            if (!isUsableWindow(window)) continue
             hasUsableWindow = true
-            if (window.maxChannelRms >= silenceFloor) lastAudible = window
+            if (window.maxChannelRms >= silenceFloor) {
+                lastAudible = window
+                break
+            }
         }
         if (!hasUsableWindow) {
             return CrossfadeCueDecision(
@@ -199,11 +204,12 @@ internal object CrossfadeCueAlgorithm {
     ): CrossfadeCueDecision {
         var hasUsableWindow = false
         var firstAudible: CrossfadeLevelWindow? = null
-        windows.forEach { window ->
+        for (window in windows) {
             if (isUsableWindow(window)) {
                 hasUsableWindow = true
-                if (firstAudible == null && window.maxChannelRms >= silenceFloor) {
+                if (window.maxChannelRms >= silenceFloor) {
                     firstAudible = window
+                    break
                 }
             }
         }

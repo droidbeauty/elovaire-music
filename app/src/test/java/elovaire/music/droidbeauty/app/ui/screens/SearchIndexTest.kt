@@ -11,6 +11,30 @@ import java.util.Locale
 
 class SearchIndexTest {
     @Test
+    fun previewPreservesRankingAcrossTiesSortModesAndInputOrders() {
+        val songs = (1L..200L).map { id ->
+            song(
+                id = id,
+                title = if (id % 2 == 0L) "Dréam" else "Dream Song",
+                artist = "Dream Artist ${id % 3}",
+                albumArtist = null,
+            ).copy(album = "Album ${id % 5}")
+        }
+        for (input in listOf(songs, songs.reversed(), songs.shuffled(kotlin.random.Random(17)))) {
+            val index = buildSearchIndex(input, emptyList())
+            for (sort in SearchSortMode.entries) {
+                for (rawQuery in listOf("dream", "drem", "dream artist", "dréam", "zzzzzz")) {
+                    val query = NormalizedSearchQuery.from(rawQuery)
+                    val full = buildSearchResults(query, sort, index)
+                    val preview = buildSearchResults(query, sort, index, false)
+                    assertEquals(full.allMatchingSongs.take(20), preview.matchingSongs)
+                    assertEquals(full.totalSongMatchCount, preview.totalSongMatchCount)
+                }
+            }
+        }
+    }
+
+    @Test
     fun normalizeSearchText_isLocaleIndependent() {
         val previousLocale = Locale.getDefault()
         try {

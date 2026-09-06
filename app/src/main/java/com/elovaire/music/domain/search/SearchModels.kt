@@ -260,39 +260,28 @@ internal fun sortRankedSongs(
     ranked: List<RankedResult<SearchableSong>>,
     sortMode: SearchSortMode,
 ): List<Song> {
-    val baseComparator = compareByDescending<RankedResult<SearchableSong>> { it.score }
-    val comparator = when (sortMode) {
-        SearchSortMode.Title -> baseComparator
-            .thenBy { it.value.normalizedTitle }
-            .thenBy { it.value.normalizedArtist }
-            .thenBy { it.value.normalizedAlbum }
-            .thenBy { it.value.song.id }
-
-        SearchSortMode.Artist -> baseComparator
-            .thenBy { it.value.normalizedArtist }
-            .thenBy { it.value.normalizedTitle }
-            .thenBy { it.value.normalizedAlbum }
-            .thenBy { it.value.song.id }
-    }
-    return ranked.sortedWith(comparator).map { it.value.song }
+    return ranked.sortedWith(rankedSongComparator(sortMode)).map { it.value.song }
 }
 
 internal fun rankedSongComparator(
     sortMode: SearchSortMode,
 ): Comparator<RankedResult<SearchableSong>> {
-    val baseComparator = compareByDescending<RankedResult<SearchableSong>> { it.score }
-    return when (sortMode) {
-        SearchSortMode.Title -> baseComparator
-            .thenBy { it.value.normalizedTitle }
-            .thenBy { it.value.normalizedArtist }
-            .thenBy { it.value.normalizedAlbum }
-            .thenBy { it.value.song.id }
+    val songComparator = searchableSongComparator(sortMode)
+    return compareByDescending<RankedResult<SearchableSong>> { it.score }
+        .thenComparator { left, right -> songComparator.compare(left.value, right.value) }
+}
 
-        SearchSortMode.Artist -> baseComparator
-            .thenBy { it.value.normalizedArtist }
-            .thenBy { it.value.normalizedTitle }
-            .thenBy { it.value.normalizedAlbum }
-            .thenBy { it.value.song.id }
+internal fun searchableSongComparator(sortMode: SearchSortMode): Comparator<SearchableSong> {
+    return when (sortMode) {
+        SearchSortMode.Title -> compareBy<SearchableSong> { it.normalizedTitle }
+            .thenBy { it.normalizedArtist }
+            .thenBy { it.normalizedAlbum }
+            .thenBy { it.song.id }
+
+        SearchSortMode.Artist -> compareBy<SearchableSong> { it.normalizedArtist }
+            .thenBy { it.normalizedTitle }
+            .thenBy { it.normalizedAlbum }
+            .thenBy { it.song.id }
     }
 }
 

@@ -49,7 +49,7 @@ internal class LibrarySnapshotPublisher(
     }
 
     fun publishState(nextState: LibraryContentState) {
-        if (currentState() != nextState) {
+        if (!hasSamePublishedState(currentState(), nextState)) {
             publish(nextState)
         }
     }
@@ -97,7 +97,11 @@ internal class LibrarySnapshotPublisher(
             updatedSongs[position] = replacements[currentSong.id]
                 ?: replacementsByIdentity.getValue(MediaIdentityResolver.stableKey(currentSong))
         }
-        val canonicalUpdatedSongs = LibrarySnapshotAssembler.canonicalizeAlbumIds(updatedSongs)
+        val canonicalUpdatedSongs = LibrarySnapshotAssembler.canonicalizeAlbumIdsAfterPatch(
+            previousSongs = current.songs,
+            updatedSongs = updatedSongs,
+            changedPositions = replacementPositions,
+        )
         val patches = replacementPositions.map { position ->
             LibrarySongPatch(
                 before = current.songs[position],
@@ -142,7 +146,7 @@ internal class LibrarySnapshotPublisher(
                 patches = patches,
             ),
         )
-        if (current != nextState) publish(nextState)
+        if (!hasSamePublishedState(current, nextState)) publish(nextState)
         return nextState
     }
 
@@ -159,6 +163,24 @@ internal class LibrarySnapshotPublisher(
                 librarySongsContentRevision(state.songs)
             },
         )
+    }
+
+    private fun hasSamePublishedState(
+        current: LibraryContentState,
+        next: LibraryContentState,
+    ): Boolean {
+        // The revision is calculated from the complete canonical song representation. Once it
+        // is present, comparing it avoids walking every song and every derived album on each
+        // publication. Removal markers remain independent transient state.
+        return if (
+            current.contentRevision.isNotBlank() &&
+                current.contentRevision == next.contentRevision
+        ) {
+            current.removingSongIds == next.removingSongIds &&
+                current.removingAlbumIds == next.removingAlbumIds
+        } else {
+            current == next
+        }
     }
 
     private fun updateIndices(state: LibraryContentState) {

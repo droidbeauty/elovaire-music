@@ -51,8 +51,9 @@ internal fun ElovaireAppShell(
     val motionRuntime = rememberMotionRuntime()
     MotionRuntimeProvider(runtime = motionRuntime) {
         val motionSpecs = rememberMotionSpecs()
-        val themeMode = container.preferenceStore.themeMode.collectAsStateWithLifecycle()
-        val textSizePreset = container.preferenceStore.textSizePreset.collectAsStateWithLifecycle()
+        val rootSettings = container.rootReadDependencies.rootSettingsReader
+        val themeMode = rootSettings.themeMode.collectAsStateWithLifecycle()
+        val textSizePreset = rootSettings.textSizePreset.collectAsStateWithLifecycle()
         val systemDark = isSystemInDarkTheme()
         var previousThemeMode by remember { mutableStateOf(themeMode.value) }
         var overlayColor by remember {
@@ -60,13 +61,15 @@ internal fun ElovaireAppShell(
         }
         val themeOverlayAlpha = remember { Animatable(0f) }
         var showSplash by remember { mutableStateOf(shouldShowColdStartSplash) }
-        val libraryState by container.libraryRepository.state.collectAsStateWithLifecycle()
+        val libraryReader = container.rootReadDependencies.libraryReader
+        val libraryContentState by libraryReader.contentState.collectAsStateWithLifecycle()
+        val libraryScanState by libraryReader.scanState.collectAsStateWithLifecycle()
         ReportDrawnWhen {
-            !libraryState.permissionGranted ||
-                !libraryState.isLoading ||
-                libraryState.songs.isNotEmpty() ||
-                libraryState.albums.isNotEmpty() ||
-                libraryState.errorMessage != null
+            !libraryScanState.permissionGranted ||
+                !libraryScanState.isLoading ||
+                libraryContentState.songs.isNotEmpty() ||
+                libraryContentState.albums.isNotEmpty() ||
+                libraryScanState.errorMessage != null
         }
         LaunchedEffect(themeMode.value, systemDark) {
             if (previousThemeMode != themeMode.value) {

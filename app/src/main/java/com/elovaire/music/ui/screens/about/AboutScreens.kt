@@ -72,7 +72,7 @@ import androidx.compose.ui.unit.sp
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkPurpose
-import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
+import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmapAwaitingAdmission
 import elovaire.music.droidbeauty.app.data.changelog.ChangelogRelease
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.domain.model.AppLanguage
@@ -881,7 +881,7 @@ private fun AboutEntryLogo(
         value = null
         value = withContext(Dispatchers.IO) {
             try {
-                loadArtworkBitmap(
+                loadArtworkBitmapAwaitingAdmission(
                     context = context,
                     uri = Uri.parse(source),
                     targetPx = ABOUT_LOGO_TARGET_PX,

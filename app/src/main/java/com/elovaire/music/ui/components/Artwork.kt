@@ -42,7 +42,7 @@ import elovaire.music.droidbeauty.app.data.artwork.ArtworkBitmapCache
 import elovaire.music.droidbeauty.app.data.artwork.ArtworkGradientCache
 import elovaire.music.droidbeauty.app.data.artwork.artworkRequestKey
 import elovaire.music.droidbeauty.app.data.artwork.invalidateArtworkCaches as invalidateDataArtworkCaches
-import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmap
+import elovaire.music.droidbeauty.app.data.artwork.loadArtworkBitmapAwaitingAdmission
 import elovaire.music.droidbeauty.app.data.artwork.normalizeArtworkRequestSize
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 import elovaire.music.droidbeauty.app.ui.theme.elovaireScaledSp
@@ -177,7 +177,7 @@ fun rememberArtworkBitmap(
         }
         value = value ?: fallbackImage
         val loaded = withContext(Dispatchers.IO) {
-            requestKey?.let { loadArtworkBitmap(context, it) }?.also { bitmap ->
+            requestKey?.let { loadArtworkBitmapAwaitingAdmission(context, it) }?.also { bitmap ->
                 bitmap.prepareToDraw()
             }?.asImageBitmap()
         }
@@ -202,7 +202,7 @@ fun rememberArtworkGradient(uri: Uri?): State<List<Color>> {
             return@produceState
         }
         value = withContext(Dispatchers.IO) {
-            val bitmap = loadArtworkBitmap(context, uri, 512)
+            val bitmap = loadArtworkBitmapAwaitingAdmission(context, uri, 512)
             (bitmap?.let { paletteFromBitmap(it, foundation) } ?: defaultArtworkGradient(fallbackColor, foundation)).also { gradient ->
                 ArtworkGradientCache.putGradient(cacheKey, gradient.map { it.toArgb() })
             }
@@ -219,7 +219,7 @@ fun rememberArtworkPaletteAccent(
     val normalizedSize = normalizeArtworkRequestSize(size)
     return produceState<Color?>(initialValue = null, key1 = uri, key2 = normalizedSize) {
         val bitmap = withContext(Dispatchers.IO) {
-            loadArtworkBitmap(context, uri, normalizedSize)
+            loadArtworkBitmapAwaitingAdmission(context, uri, normalizedSize)
         }
         value = bitmap?.let {
             withContext(Dispatchers.Default) {

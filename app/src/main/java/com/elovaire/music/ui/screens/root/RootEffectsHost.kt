@@ -47,7 +47,7 @@ internal fun RootEffectsHost(
                                 .orEmpty()
                         when {
                             playlist != null && playlistSongs.isNotEmpty() -> {
-                                current.container.playbackManager.playSong(
+                                current.container.playbackActionDependencies.playback.playSong(
                                     song = playlistSongs.first(),
                                     collection = playlistSongs,
                                     sourceLabel = playlist.name,
@@ -55,7 +55,7 @@ internal fun RootEffectsHost(
                                 )
                             }
                             lastPlayedAlbum != null -> {
-                                current.container.playbackManager.playAlbum(
+                                current.container.playbackActionDependencies.playback.playAlbum(
                                     album = lastPlayedAlbum,
                                     startSongId = null,
                                     sourceLabel = lastPlayedAlbum.title,

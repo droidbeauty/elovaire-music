@@ -19,11 +19,8 @@ import java.util.Locale
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.async
 import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
@@ -55,22 +52,15 @@ internal class NetworkLibraryScanner(
         val networkRead = BackendResourceRegistry.acquire(BackendResourceKind.ActiveNetworkRead)
         try {
             val enabledSources = sources.filter(NetworkLibrarySource::enabled)
-            val sourceSemaphore = Semaphore(MAX_CONCURRENT_SOURCE_SCANS)
             val metadataSemaphore = Semaphore(MAX_CONCURRENT_METADATA_READS)
-            val sourceResults = supervisorScope {
-                enabledSources.map { source ->
-                    async {
-                        sourceSemaphore.withPermit {
-                            currentCoroutineContext().ensureActive()
-                            scanSourceSafely(
-                                source = source,
-                                forceRefresh = forceRefresh,
-                                enrichMetadata = enrichMetadata,
-                                metadataSemaphore = metadataSemaphore,
-                            )
-                        }
-                    }
-                }.awaitAll()
+            val sourceResults = mapNetworkScanWork(enabledSources, MAX_CONCURRENT_SOURCE_SCANS) { source ->
+                currentCoroutineContext().ensureActive()
+                scanSourceSafely(
+                    source = source,
+                    forceRefresh = forceRefresh,
+                    enrichMetadata = enrichMetadata,
+                    metadataSemaphore = metadataSemaphore,
+                )
             }
             NetworkLibraryScanResult(
                 songs = sourceResults.flatMap(NetworkLibrarySourceScanResult::songs),
@@ -396,10 +386,8 @@ internal class NetworkLibraryScanner(
         return if (!enrichMetadata) {
             audioEntries.map { entry -> buildEntry(entry) }
         } else {
-            supervisorScope {
-                audioEntries.map { entry ->
-                    async { metadataSemaphore.withPermit { buildEntry(entry) } }
-                }.awaitAll()
+            mapNetworkScanWork(audioEntries, MAX_CONCURRENT_METADATA_READS) { entry ->
+                metadataSemaphore.withPermit { buildEntry(entry) }
             }
         }
     }

@@ -1,6 +1,6 @@
 package elovaire.music.droidbeauty.app.core
 
-import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.LibraryActionController
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.library.LibraryTagUpdateWriter
 import elovaire.music.droidbeauty.app.data.library.DeviceDeleteHandler
@@ -10,7 +10,6 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsReader
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsWriter
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
-import elovaire.music.droidbeauty.app.data.playback.PlaybackController
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsWriter
@@ -70,11 +69,11 @@ internal interface ElovaireViewModelDependencies {
 }
 
 internal interface PlaybackActionDependencies {
-    val playbackController: PlaybackController
+    val playback: NowPlayingPlayback
 }
 
 internal interface LibraryActionDependencies {
-    val libraryRepository: LibraryRepository
+    val libraryController: LibraryActionController
     val networkSources: StateFlow<List<NetworkLibrarySource>>
     val networkProbeResults: StateFlow<Map<String, NetworkProbeResult>>
     fun saveNetworkSource(source: NetworkLibrarySource, credentials: NetworkCredentials)

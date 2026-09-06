@@ -106,7 +106,7 @@ internal fun ElovaireRootReadyHost(
         },
         playerLayerHost = {
             RootPlayerLayerSlot(
-                playback = container.playbackManager,
+                playback = container.playbackActionDependencies.playback,
                 chromeVisibility = uiRuntime.chromeVisibility,
                 playerLayerState = playerLayerController.state,
                 playerLayerController = playerLayerController,

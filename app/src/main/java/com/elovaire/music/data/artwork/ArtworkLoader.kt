@@ -25,6 +25,11 @@ import java.util.Locale
 import java.util.TreeMap
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withContext
 
 internal data class ArtworkRequestKey(
     val uri: Uri,
@@ -95,6 +100,7 @@ internal fun loadArtworkBitmap(
     uri: Uri?,
     targetPx: Int,
     purpose: ArtworkPurpose = if (targetPx <= 256) ArtworkPurpose.UiGrid else ArtworkPurpose.UiLarge,
+    onAdmissionRejected: () -> Unit = {},
 ): Bitmap? {
     val requestUri = uri ?: return null
     ArtworkBitmapCache.ensureRegistered(context.applicationContext)
@@ -129,8 +135,28 @@ internal fun loadArtworkBitmap(
             artworkResource.close()
         }
     }
-    return key?.let { ArtworkBitmapCache.getOrLoad(it.cacheKey, decode) } ?: decode()
+    return if (key != null) ArtworkBitmapCache.getOrLoad(key.cacheKey, onAdmissionRejected, decode) else decode()
 }
+
+/** Visible requests suspend for admission; synchronous media callers still return immediately. */
+internal suspend fun loadArtworkBitmapAwaitingAdmission(
+    context: Context,
+    uri: Uri?,
+    targetPx: Int,
+    purpose: ArtworkPurpose = if (targetPx <= 256) ArtworkPurpose.UiGrid else ArtworkPurpose.UiLarge,
+): Bitmap? = withContext(Dispatchers.IO) {
+    var bitmap: Bitmap?
+    do {
+        val revision = ArtworkBitmapCache.completedDecodes.value
+        var rejected = false
+        bitmap = loadArtworkBitmap(context, uri, targetPx, purpose) { rejected = true }
+        if (rejected) ArtworkBitmapCache.completedDecodes.first { it != revision }
+    } while (rejected)
+    bitmap
+}
+
+internal suspend fun loadArtworkBitmapAwaitingAdmission(context: Context, key: ArtworkRequestKey): Bitmap? =
+    loadArtworkBitmapAwaitingAdmission(context, key.uri, key.targetPx, key.purpose)
 
 internal fun loadArtworkBitmap(
     context: Context,
@@ -352,6 +378,8 @@ internal object ArtworkBitmapCache {
         }
     }
     private val inFlight = mutableMapOf<String, CompletableFuture<Bitmap?>>()
+    private val _completedDecodes = MutableStateFlow(0L)
+    val completedDecodes = _completedDecodes.asStateFlow()
     private const val MAX_IN_FLIGHT = 8
 
     @Synchronized
@@ -391,8 +419,10 @@ internal object ArtworkBitmapCache {
         purpose: ArtworkPurpose,
     ): Bitmap? {
         val config = bitmapConfigForPurpose(purpose)
+        val usesThumbnail = shouldUseContentResolverThumbnail(uri, purpose)
         for (candidate in ArtworkPurpose.entries) {
             if (candidate == purpose || bitmapConfigForPurpose(candidate) != config) continue
+            if (shouldUseContentResolverThumbnail(uri, candidate) != usesThumbnail) continue
             indexedBitmaps["$uri|${candidate.name}"]?.get(requestedSize)?.let { return it }
         }
         return null
@@ -409,6 +439,7 @@ internal object ArtworkBitmapCache {
 
     fun getOrLoad(
         key: String,
+        onAdmissionRejected: () -> Unit = {},
         decode: () -> Bitmap?,
     ): Bitmap? {
         var ownerFuture: CompletableFuture<Bitmap?>? = null
@@ -424,9 +455,9 @@ internal object ArtworkBitmapCache {
                     inFlight[key] = ownerFuture
                     waitFor = null
                 } else {
-                    // A synchronous artwork caller must not park an IO/worker thread
-                    // behind an unrelated decode. The next composition/request can
-                    // retry after an existing decode frees admission.
+                    // Synchronous callers do not park behind unrelated work. Suspending
+                    // UI callers retry on completion, without holding an IO thread.
+                    onAdmissionRejected()
                     return null
                 }
             }
@@ -464,7 +495,10 @@ internal object ArtworkBitmapCache {
             )
         } finally {
             synchronized(this) {
-                if (inFlight[key] === pending) inFlight.remove(key)
+                if (inFlight[key] === pending) {
+                    inFlight.remove(key)
+                    _completedDecodes.value += 1L
+                }
             }
         }
     }

@@ -8,6 +8,26 @@ interface LibraryReader {
     val scanState: StateFlow<LibraryScanState>
 }
 
+/** Commands exposed to the application shell without leaking the repository implementation. */
+interface LibraryActionController {
+    fun onPermissionChanged(granted: Boolean)
+
+    fun refresh(
+        forceMediaIndex: Boolean,
+        enrichMetadata: Boolean,
+        showLoadingIndicator: Boolean,
+    )
+
+    fun refresh(showLoadingIndicator: Boolean) {
+        refresh(
+            forceMediaIndex = false,
+            enrichMetadata = false,
+            showLoadingIndicator = showLoadingIndicator,
+        )
+    }
+
+}
+
 interface LibraryStartupController : LibraryReader {
     fun start()
     fun onPermissionChanged(granted: Boolean)

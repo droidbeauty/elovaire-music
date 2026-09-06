@@ -64,7 +64,6 @@ class AppContainer(
             invalidateArtworkCaches(uris)
         },
     )
-    val preferenceStore get() = services.preferenceStore
     internal val updateController get() = services.updateController
     internal val artistImageRepository get() = services.artistImageRepository
     internal val lyricsService get() = services.lyricsService
@@ -72,7 +71,6 @@ class AppContainer(
     val playbackManager get() = services.playbackManager
     internal val audiobookChapterReader get() = services.audiobookChapterReader
     internal val audiobookDescriptionReader get() = services.audiobookDescriptionReader
-    val libraryRepository get() = services.libraryRepository
     internal val interactionWorkPolicy get() = backgroundWorkPolicy
     internal val dispatchers: AppDispatchers get() = appDispatchers
     internal val playbackResumptionGateway get() = services.playbackResumptionGateway
