@@ -10,6 +10,14 @@ import org.junit.Test
 
 class RootChromePolicyTest {
     @Test
+    fun flatOverlaySkipsRuntimeHazeWhileNormalSurfacesKeepIt() {
+        assertFalse(shouldApplyDynamicBackdropHaze(31, flatOverlay = true, hazeStateAvailable = true))
+        assertTrue(shouldApplyDynamicBackdropHaze(31, flatOverlay = false, hazeStateAvailable = true))
+        assertFalse(shouldApplyDynamicBackdropHaze(30, flatOverlay = false, hazeStateAvailable = true))
+        assertFalse(shouldApplyDynamicBackdropHaze(31, flatOverlay = false, hazeStateAvailable = false))
+    }
+
+    @Test
     fun rootChromeVisibility_showsTopLevelChromeForTopLevelRoutes() {
         val visibility = rootChromeVisibility(
             currentRoute = HOME_ROUTE,

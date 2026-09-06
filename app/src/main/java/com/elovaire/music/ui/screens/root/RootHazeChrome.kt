@@ -48,6 +48,12 @@ internal val LocalChromeHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalPlayerHazeState = compositionLocalOf<HazeState?> { null }
 internal val LocalUseSharedTopBarBackdrop = compositionLocalOf { false }
 
+internal fun shouldApplyDynamicBackdropHaze(
+    sdkInt: Int,
+    flatOverlay: Boolean,
+    hazeStateAvailable: Boolean,
+): Boolean = sdkInt >= Build.VERSION_CODES.S && !flatOverlay && hazeStateAvailable
+
 @Composable
 internal fun statusBarInsetDp(): Dp {
     val density = LocalDensity.current
@@ -194,6 +200,7 @@ internal fun DynamicBackdropSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(0.dp),
     overlayAlpha: Float = 0.7f,
+    flatOverlay: Boolean = false,
     borderColor: Color? = null,
     showTopEdgeLine: Boolean = false,
     showBottomEdgeLine: Boolean = false,
@@ -206,7 +213,12 @@ internal fun DynamicBackdropSurface(
     Box(
         modifier = modifier.clip(shape),
     ) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && effectiveHazeState != null) {
+        if (shouldApplyDynamicBackdropHaze(
+                sdkInt = Build.VERSION.SDK_INT,
+                flatOverlay = flatOverlay,
+                hazeStateAvailable = effectiveHazeState != null,
+            )
+        ) {
             Box(
                 modifier = Modifier
                     .matchParentSize()
@@ -264,6 +276,7 @@ internal fun ProgressiveChromeBackdrop(
 ) {
     DynamicBackdropSurface(
         modifier = modifier,
+        flatOverlay = flatOverlay,
         overlayAlpha = overlayAlpha ?: 0.7f,
         showTopEdgeLine = edge == ProgressiveChromeEdge.Bottom && showEdgeLine,
         showBottomEdgeLine = edge == ProgressiveChromeEdge.Top && showEdgeLine,
