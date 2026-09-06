@@ -39,13 +39,28 @@ class FocusedInteractionBenchmark {
         assumeMacrobenchmarksEnabled()
         benchmarkRule.measureRepeated(
             packageName = TARGET_PACKAGE,
-            metrics = metrics(),
+            metrics = searchMetrics(),
             compilationMode = CompilationMode.None(),
             startupMode = StartupMode.WARM,
             iterations = benchmarkIterations(defaultValue = 3),
             setupBlock = { prepareApp() },
         ) {
             searchJourney()
+        }
+    }
+
+    @Test
+    fun searchRapidInputFrameTiming() {
+        assumeMacrobenchmarksEnabled()
+        benchmarkRule.measureRepeated(
+            packageName = TARGET_PACKAGE,
+            metrics = searchMetrics(),
+            compilationMode = CompilationMode.None(),
+            startupMode = StartupMode.WARM,
+            iterations = benchmarkIterations(defaultValue = 3),
+            setupBlock = { prepareApp() },
+        ) {
+            searchRapidInputJourney()
         }
     }
 
@@ -62,6 +77,39 @@ class FocusedInteractionBenchmark {
             sectionName = "route_change",
             mode = TraceSectionMetric.Mode.Count,
             label = "route_change_count",
+        ),
+    )
+
+    private fun searchMetrics() = metrics() + listOf(
+        TraceSectionMetric(
+            sectionName = "search_index_build",
+            mode = TraceSectionMetric.Mode.Count,
+            label = "search_index_build_count",
+        ),
+        TraceSectionMetric(
+            sectionName = "search_index_build",
+            mode = TraceSectionMetric.Mode.Sum,
+            label = "search_index_build_sum_ms",
+        ),
+        TraceSectionMetric(
+            sectionName = "search_query_preview",
+            mode = TraceSectionMetric.Mode.Count,
+            label = "search_query_preview_count",
+        ),
+        TraceSectionMetric(
+            sectionName = "search_query_preview",
+            mode = TraceSectionMetric.Mode.Sum,
+            label = "search_query_preview_sum_ms",
+        ),
+        TraceSectionMetric(
+            sectionName = "search_query_full",
+            mode = TraceSectionMetric.Mode.Count,
+            label = "search_query_full_count",
+        ),
+        TraceSectionMetric(
+            sectionName = "search_query_full",
+            mode = TraceSectionMetric.Mode.Sum,
+            label = "search_query_full_sum_ms",
         ),
     )
 }

@@ -1812,7 +1812,7 @@ private fun SelectableAlbumPickerRow(
                 )
                 Text(
                     text = album.artist,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

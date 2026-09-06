@@ -14,6 +14,7 @@ internal data class SearchableSong(
     val song: Song,
     val normalizedTitle: String,
     val normalizedArtist: String,
+    val normalizedAlbumArtist: String,
     val normalizedAlbum: String,
     val normalizedComposite: String,
 )
@@ -65,7 +66,7 @@ internal data class NormalizedSearchQuery(
 ) {
     companion object {
         fun from(rawQuery: String): NormalizedSearchQuery {
-            val normalized = normalizeSearchText(rawQuery)
+            val normalized = normalizeSearchQueryText(rawQuery)
             return NormalizedSearchQuery(
                 value = normalized,
                 tokens = if (normalized.isEmpty()) emptyList() else normalized.split(' '),
@@ -132,11 +133,15 @@ private fun ByteArray.toSearchRevisionHex(): String {
     }
 }
 
-internal fun SearchLibrarySnapshot.toSearchIndex(revision: String = signature()): SearchIndex {
+internal fun SearchLibrarySnapshot.toSearchIndex(
+    revision: String = signature(),
+    cancellationCheck: () -> Unit = {},
+): SearchIndex {
     return buildSearchIndex(
         songs = songs,
         albums = albums,
         audiobooks = audiobooks,
+        cancellationCheck = cancellationCheck,
     ).copy(revision = revision)
 }
 
@@ -144,11 +149,27 @@ internal fun buildSearchIndex(
     songs: List<Song>,
     albums: List<Album>,
     audiobooks: List<Audiobook> = emptyList(),
+    cancellationCheck: () -> Unit = {},
 ): SearchIndex {
-    val searchableSongs = songs.map(Song::toSearchableSong)
-    val searchableAlbums = albums.map(Album::toSearchableAlbum)
-    val searchableAudiobooks = audiobooks.map(Audiobook::toSearchableAudiobook)
-    val searchableArtists = buildSearchableArtists(songs)
+    val searchableSongs = ArrayList<SearchableSong>(songs.size)
+    songs.forEachIndexed { index, song ->
+        if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
+        searchableSongs += song.toSearchableSong()
+    }
+    cancellationCheck()
+    val searchableAlbums = ArrayList<SearchableAlbum>(albums.size)
+    albums.forEachIndexed { index, album ->
+        if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
+        searchableAlbums += album.toSearchableAlbum()
+    }
+    cancellationCheck()
+    val searchableAudiobooks = ArrayList<SearchableAudiobook>(audiobooks.size)
+    audiobooks.forEachIndexed { index, audiobook ->
+        if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
+        searchableAudiobooks += audiobook.toSearchableAudiobook()
+    }
+    cancellationCheck()
+    val searchableArtists = buildSearchableArtists(songs, cancellationCheck)
 
     return SearchIndex(
         songs = searchableSongs,
@@ -166,33 +187,55 @@ internal inline fun <T> Iterable<T>.rankMatching(
     crossinline normalizedArtist: (T) -> String,
     crossinline normalizedAlbum: (T) -> String = { "" },
     crossinline normalizedComposite: (T) -> String,
+    crossinline normalizedAlbumArtist: (T) -> String = { "" },
+    crossinline cancellationCheck: () -> Unit = {},
 ): List<RankedResult<T>> {
-    return mapNotNull { item ->
+    val ranked = ArrayList<RankedResult<T>>()
+    for ((index, item) in this.withIndex()) {
+        if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
         scoreMatch(
             query = query,
             normalizedTitle = normalizedTitle(item),
             normalizedArtist = normalizedArtist(item),
             normalizedAlbum = normalizedAlbum(item),
             normalizedComposite = normalizedComposite(item),
+            normalizedAlbumArtist = normalizedAlbumArtist(item),
         )?.let { score ->
-            RankedResult(
+            ranked += RankedResult(
                 value = item,
                 score = score,
             )
         }
     }
+    return ranked
 }
 
 internal fun normalizeSearchText(value: String): String {
+    return normalizeSearchText(value, removeMetadataNoise = true)
+}
+
+internal fun normalizeSearchQueryText(value: String): String {
+    return normalizeSearchText(limitSearchQueryInput(value), removeMetadataNoise = false)
+}
+
+internal fun limitSearchQueryInput(value: String): String {
+    if (value.codePointCount(0, value.length) <= MAX_SEARCH_QUERY_CODE_POINTS) return value
+    return value.substring(0, value.offsetByCodePoints(0, MAX_SEARCH_QUERY_CODE_POINTS))
+}
+
+private fun normalizeSearchText(
+    value: String,
+    removeMetadataNoise: Boolean,
+): String {
     val withoutDiacritics = Normalizer.normalize(value, Normalizer.Form.NFD)
         .replace(SEARCH_DIACRITICS_REGEX, "")
 
-    return withoutDiacritics
+    val normalized = withoutDiacritics
         .lowercase(Locale.ROOT)
         .replace('&', ' ')
         .replace(SEARCH_APOSTROPHE_REGEX, "")
         .replace(SEARCH_PUNCTUATION_REGEX, " ")
-        .replace(SEARCH_NOISE_REGEX, " ")
+    return (if (removeMetadataNoise) normalized.replace(SEARCH_NOISE_REGEX, " ") else normalized)
         .replace(SEARCH_WHITESPACE_REGEX, " ")
         .trim()
 }
@@ -203,6 +246,7 @@ internal fun scoreMatch(
     normalizedArtist: String,
     normalizedAlbum: String = "",
     normalizedComposite: String? = null,
+    normalizedAlbumArtist: String = "",
 ): Int? {
     val normalizedQuery = query.value
     if (normalizedQuery.isBlank()) return null
@@ -213,47 +257,98 @@ internal fun scoreMatch(
     val composite = normalizedComposite ?: buildNormalizedComposite(
         normalizedTitle,
         normalizedArtist,
+        normalizedAlbumArtist,
         normalizedAlbum,
     )
-    if (!tokens.all { token ->
-            tokenMatchesAnyField(
-                token = token,
-                normalizedComposite = composite,
-                normalizedTitle = normalizedTitle,
-                normalizedArtist = normalizedArtist,
-                normalizedAlbum = normalizedAlbum,
-            )
-        }
-    ) return null
-
     var score = 0
 
     if (normalizedTitle == normalizedQuery) score += 120
     if (normalizedArtist == normalizedQuery) score += 90
+    if (normalizedAlbumArtist == normalizedQuery) score += 65
     if (normalizedAlbum == normalizedQuery) score += 75
 
     if (normalizedTitle.startsWith(normalizedQuery)) score += 70
     if (normalizedArtist.startsWith(normalizedQuery)) score += 55
+    if (normalizedAlbumArtist.startsWith(normalizedQuery)) score += 40
     if (normalizedAlbum.startsWith(normalizedQuery)) score += 45
 
     if (normalizedTitle.contains(normalizedQuery)) score += 35
     if (normalizedArtist.contains(normalizedQuery)) score += 25
+    if (normalizedAlbumArtist.contains(normalizedQuery)) score += 18
     if (normalizedAlbum.contains(normalizedQuery)) score += 20
 
-    tokens.forEach { token ->
-        if (normalizedTitle.startsWith(token)) score += 12
-        if (normalizedArtist.startsWith(token)) score += 8
-        if (normalizedAlbum.startsWith(token)) score += 6
-        if (wordStartsWith(normalizedTitle, token)) score += 10
-        if (wordStartsWith(normalizedArtist, token)) score += 7
-        if (wordStartsWith(normalizedAlbum, token)) score += 5
-        if (acronymStartsWith(normalizedArtist, token)) score += 12
-        if (acronymStartsWith(normalizedAlbum, token)) score += 10
-        if (token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)) score += 4
+    for (token in tokens) {
+        val features = tokenMatchFeatures(
+            token = token,
+            normalizedComposite = composite,
+            normalizedTitle = normalizedTitle,
+            normalizedArtist = normalizedArtist,
+            normalizedAlbumArtist = normalizedAlbumArtist,
+            normalizedAlbum = normalizedAlbum,
+        )
+        if (features and TOKEN_MATCHED == 0) return null
+
+        if (features and TOKEN_TITLE_START != 0) score += 12
+        if (features and TOKEN_ARTIST_START != 0) score += 8
+        if (features and TOKEN_ALBUM_ARTIST_START != 0) score += 7
+        if (features and TOKEN_ALBUM_START != 0) score += 6
+        if (features and TOKEN_TITLE_WORD_START != 0) score += 10
+        if (features and TOKEN_ARTIST_WORD_START != 0) score += 7
+        if (features and TOKEN_ALBUM_ARTIST_WORD_START != 0) score += 6
+        if (features and TOKEN_ALBUM_WORD_START != 0) score += 5
+        if (features and TOKEN_ARTIST_ACRONYM != 0) score += 12
+        if (features and TOKEN_ALBUM_ARTIST_ACRONYM != 0) score += 6
+        if (features and TOKEN_ALBUM_ACRONYM != 0) score += 10
+        if (features and TOKEN_TITLE_FUZZY != 0) score += 4
     }
 
     score -= min(composite.length / 80, 10)
     return score
+}
+
+private fun tokenMatchFeatures(
+    token: String,
+    normalizedComposite: String,
+    normalizedTitle: String,
+    normalizedArtist: String,
+    normalizedAlbumArtist: String,
+    normalizedAlbum: String,
+): Int {
+    val titleStartsWith = normalizedTitle.startsWith(token)
+    val artistStartsWith = normalizedArtist.startsWith(token)
+    val albumArtistStartsWith = normalizedAlbumArtist.startsWith(token)
+    val albumStartsWith = normalizedAlbum.startsWith(token)
+    val titleWordStartsWith = wordStartsWith(normalizedTitle, token)
+    val artistWordStartsWith = wordStartsWith(normalizedArtist, token)
+    val albumArtistWordStartsWith = wordStartsWith(normalizedAlbumArtist, token)
+    val albumWordStartsWith = wordStartsWith(normalizedAlbum, token)
+    val titleAcronymStartsWith = acronymStartsWith(normalizedTitle, token)
+    val artistAcronymStartsWith = acronymStartsWith(normalizedArtist, token)
+    val albumArtistAcronymStartsWith = acronymStartsWith(normalizedAlbumArtist, token)
+    val albumAcronymStartsWith = acronymStartsWith(normalizedAlbum, token)
+    val compositeContains = normalizedComposite.contains(token)
+    val fuzzyCompositeMatch = token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token)
+    val fuzzyTitleMatch = token.length >= 4 && fuzzyTokenMatches(normalizedTitle, token)
+    val hasAcronymMatch = titleAcronymStartsWith ||
+        artistAcronymStartsWith ||
+        albumArtistAcronymStartsWith ||
+        albumAcronymStartsWith
+    if (!compositeContains && !hasAcronymMatch && !fuzzyCompositeMatch) return 0
+
+    var features = TOKEN_MATCHED
+    if (titleStartsWith) features = features or TOKEN_TITLE_START
+    if (artistStartsWith) features = features or TOKEN_ARTIST_START
+    if (albumArtistStartsWith) features = features or TOKEN_ALBUM_ARTIST_START
+    if (albumStartsWith) features = features or TOKEN_ALBUM_START
+    if (titleWordStartsWith) features = features or TOKEN_TITLE_WORD_START
+    if (artistWordStartsWith) features = features or TOKEN_ARTIST_WORD_START
+    if (albumArtistWordStartsWith) features = features or TOKEN_ALBUM_ARTIST_WORD_START
+    if (albumWordStartsWith) features = features or TOKEN_ALBUM_WORD_START
+    if (artistAcronymStartsWith) features = features or TOKEN_ARTIST_ACRONYM
+    if (albumArtistAcronymStartsWith) features = features or TOKEN_ALBUM_ARTIST_ACRONYM
+    if (albumAcronymStartsWith) features = features or TOKEN_ALBUM_ACRONYM
+    if (fuzzyTitleMatch) features = features or TOKEN_TITLE_FUZZY
+    return features
 }
 
 internal fun sortRankedSongs(
@@ -309,15 +404,18 @@ internal fun buildNormalizedComposite(vararg parts: String): String {
 internal fun Song.toSearchableSong(): SearchableSong {
     val normalizedTitle = normalizeSearchText(title)
     val normalizedArtist = normalizeSearchText(artist)
+    val normalizedAlbumArtist = normalizeSearchText(albumArtist.orEmpty())
     val normalizedAlbum = normalizeSearchText(album)
     return SearchableSong(
         song = this,
         normalizedTitle = normalizedTitle,
         normalizedArtist = normalizedArtist,
+        normalizedAlbumArtist = normalizedAlbumArtist,
         normalizedAlbum = normalizedAlbum,
         normalizedComposite = buildNormalizedComposite(
             normalizedTitle,
             normalizedArtist,
+            normalizedAlbumArtist,
             normalizedAlbum,
         ),
     )
@@ -348,12 +446,23 @@ internal fun Audiobook.toSearchableAudiobook(): SearchableAudiobook {
     )
 }
 
-private fun buildSearchableArtists(songs: List<Song>): List<SearchableArtist> {
-    return songs
-        .filter { it.libraryArtistName().isNotBlank() }
-        .groupBy { normalizeSearchText(it.libraryArtistName()) }
+private fun buildSearchableArtists(
+    songs: List<Song>,
+    cancellationCheck: () -> Unit,
+): List<SearchableArtist> {
+    val groups = LinkedHashMap<String, MutableList<Song>>()
+    songs.forEachIndexed { index, song ->
+        if (index and SEARCH_CANCELLATION_CHECK_MASK == 0) cancellationCheck()
+        val artistName = song.libraryArtistName()
+        if (artistName.isNotBlank()) {
+            val normalizedName = normalizeSearchText(artistName)
+            if (normalizedName.isNotBlank()) {
+                groups.getOrPut(normalizedName, ::mutableListOf).add(song)
+            }
+        }
+    }
+    return groups
         .mapNotNull { (normalizedName, artistSongs) ->
-            if (normalizedName.isBlank()) return@mapNotNull null
             val displayName = artistSongs
                 .map { it.libraryArtistName().trim() }
                 .filter { it.isNotBlank() }
@@ -378,20 +487,6 @@ private fun buildSearchableArtists(songs: List<Song>): List<SearchableArtist> {
 
 private fun Song.libraryArtistName(): String {
     return albumArtist?.takeIf { it.isNotBlank() } ?: artist
-}
-
-private fun tokenMatchesAnyField(
-    token: String,
-    normalizedComposite: String,
-    normalizedTitle: String,
-    normalizedArtist: String,
-    normalizedAlbum: String,
-): Boolean {
-    return normalizedComposite.contains(token) ||
-        acronymStartsWith(normalizedTitle, token) ||
-        acronymStartsWith(normalizedArtist, token) ||
-        acronymStartsWith(normalizedAlbum, token) ||
-        (token.length >= 4 && fuzzyTokenMatches(normalizedComposite, token))
 }
 
 private fun wordStartsWith(value: String, token: String): Boolean {
@@ -473,3 +568,20 @@ private val SEARCH_NOISE_REGEX = Regex(
     "\\b(feat|ft|featuring|prod|remaster|remastered|explicit|clean|official audio|official video)\\b",
 )
 private val SEARCH_WHITESPACE_REGEX = Regex("\\s+")
+
+internal const val MAX_SEARCH_QUERY_CODE_POINTS = 256
+internal const val SEARCH_CANCELLATION_CHECK_MASK = 255
+
+private const val TOKEN_MATCHED = 1
+private const val TOKEN_TITLE_START = 1 shl 1
+private const val TOKEN_ARTIST_START = 1 shl 2
+private const val TOKEN_ALBUM_ARTIST_START = 1 shl 3
+private const val TOKEN_ALBUM_START = 1 shl 4
+private const val TOKEN_TITLE_WORD_START = 1 shl 5
+private const val TOKEN_ARTIST_WORD_START = 1 shl 6
+private const val TOKEN_ALBUM_ARTIST_WORD_START = 1 shl 7
+private const val TOKEN_ALBUM_WORD_START = 1 shl 8
+private const val TOKEN_ARTIST_ACRONYM = 1 shl 9
+private const val TOKEN_ALBUM_ARTIST_ACRONYM = 1 shl 10
+private const val TOKEN_ALBUM_ACRONYM = 1 shl 11
+private const val TOKEN_TITLE_FUZZY = 1 shl 12

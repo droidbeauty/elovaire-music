@@ -341,19 +341,12 @@ internal class ElovaireMediaTree(
                 ElovaireMediaIds.song(song.id)
             }
         }
-        val artistRows = snapshot.artistSearchRows()
-        val genreRows = snapshot.genreSearchRows()
         val exactAndStrongTitleSongs = snapshot.searchableSongs()
             .filter {
                 it.normalizedTitle == normalizedQuery.value || it.normalizedTitle.startsWith(normalizedQuery.value)
             }
             .sortedBy(SearchableSong::normalizedTitle)
             .map(SearchableSong::song)
-        val broaderSongs = searchIndexedSongsForPicker(snapshot.searchableSongs(), normalizedQuery)
-        val matchingAudiobooks = snapshot.audiobooks.filter { book ->
-            normalizeSearchText(book.title).contains(normalizedQuery.value) ||
-                normalizeSearchText(book.author).contains(normalizedQuery.value)
-        }
         return ArrayList<String>(limit.coerceAtMost(128)).apply {
             val seen = HashSet<String>(limit.coerceAtMost(128))
             fun addDistinctId(mediaId: String) {
@@ -366,32 +359,51 @@ internal class ElovaireMediaTree(
                 }
             }
             addDistinctIds(exactAndStrongTitleSongs) { ElovaireMediaIds.song(it.id) }
-            addDistinctIds(matchingAudiobooks) { ElovaireMediaIds.audiobook(it.stableKey) }
-            addDistinctIds(
-                searchIndexedAlbumsForPicker(snapshot.searchableAlbums(), normalizedQuery),
-            ) { ElovaireMediaIds.album(it.id) }
-            addDistinctIds(
-                searchArtistsForPicker(
-                    artists = artistRows,
-                    query = normalizedQuery,
-                    name = NamedSongs::name,
-                    songs = NamedSongs::songs,
-                    songCount = { it.songs.size },
-                ),
-            ) { ElovaireMediaIds.artist(it.name) }
-            addDistinctIds(
-                searchIndexedPlaylists(snapshot.searchablePlaylists(), normalizedQuery),
-            ) { ElovaireMediaIds.playlist(it.id) }
-            addDistinctIds(
-                searchArtistsForPicker(
-                    artists = genreRows,
-                    query = normalizedQuery,
-                    name = NamedSongs::name,
-                    songs = NamedSongs::songs,
-                    songCount = { it.songs.size },
-                ),
-            ) { ElovaireMediaIds.genre(it.name) }
-            addDistinctIds(broaderSongs) { ElovaireMediaIds.song(it.id) }
+            if (size < limit) {
+                addDistinctIds(
+                    snapshot.audiobooks.filter { book ->
+                        normalizeSearchText(book.title).contains(normalizedQuery.value) ||
+                            normalizeSearchText(book.author).contains(normalizedQuery.value)
+                    },
+                ) { ElovaireMediaIds.audiobook(it.stableKey) }
+            }
+            if (size < limit) {
+                addDistinctIds(
+                    searchIndexedAlbumsForPicker(snapshot.searchableAlbums(), normalizedQuery),
+                ) { ElovaireMediaIds.album(it.id) }
+            }
+            if (size < limit) {
+                addDistinctIds(
+                    searchArtistsForPicker(
+                        artists = snapshot.artistSearchRows(),
+                        query = normalizedQuery,
+                        name = NamedSongs::name,
+                        songs = NamedSongs::songs,
+                        songCount = { it.songs.size },
+                    ),
+                ) { ElovaireMediaIds.artist(it.name) }
+            }
+            if (size < limit) {
+                addDistinctIds(
+                    searchIndexedPlaylists(snapshot.searchablePlaylists(), normalizedQuery),
+                ) { ElovaireMediaIds.playlist(it.id) }
+            }
+            if (size < limit) {
+                addDistinctIds(
+                    searchArtistsForPicker(
+                        artists = snapshot.genreSearchRows(),
+                        query = normalizedQuery,
+                        name = NamedSongs::name,
+                        songs = NamedSongs::songs,
+                        songCount = { it.songs.size },
+                    ),
+                ) { ElovaireMediaIds.genre(it.name) }
+            }
+            if (size < limit) {
+                addDistinctIds(
+                    searchIndexedSongsForPicker(snapshot.searchableSongs(), normalizedQuery),
+                ) { ElovaireMediaIds.song(it.id) }
+            }
         }
     }
 

@@ -55,6 +55,7 @@ internal fun searchIndexedSongsForPicker(
             normalizedArtist = SearchableSong::normalizedArtist,
             normalizedAlbum = SearchableSong::normalizedAlbum,
             normalizedComposite = SearchableSong::normalizedComposite,
+            normalizedAlbumArtist = SearchableSong::normalizedAlbumArtist,
         ),
         sortMode = SearchSortMode.Title,
     )

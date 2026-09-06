@@ -2911,7 +2911,7 @@ private fun FavoriteAlbumCompactCell(
                 )
                 Text(
                     text = album.artist,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3612,7 +3612,7 @@ private fun AlbumGridCard(
                 )
                 Text(
                     text = album.artist,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3691,7 +3691,7 @@ internal fun CompactAlbumRow(
                 )
                 Text(
                     text = album.artist,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

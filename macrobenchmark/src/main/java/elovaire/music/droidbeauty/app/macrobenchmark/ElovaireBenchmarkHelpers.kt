@@ -23,6 +23,20 @@ internal fun MacrobenchmarkScope.waitForAppVisible() {
     acceptFirstLaunchStoragePermissionIfVisible()
 }
 
+private fun MacrobenchmarkScope.findSearchInput(): UiObject2? {
+    return uiDevice.findObject(By.pkg(TARGET_PACKAGE).clazz("android.widget.EditText"))
+        ?: uiDevice.findObject(By.res("search_query_input"))
+}
+
+private fun MacrobenchmarkScope.waitForSearchInput(): UiObject2 {
+    val deadlineMs = SystemClock.uptimeMillis() + CLICK_TIMEOUT_MS
+    while (SystemClock.uptimeMillis() < deadlineMs) {
+        findSearchInput()?.let { return it }
+        SystemClock.sleep(40L)
+    }
+    error("Search input did not become visible")
+}
+
 internal fun MacrobenchmarkScope.grantMediaPermission() {
     runCatching {
         uiDevice.executeShellCommand("pm grant $TARGET_PACKAGE android.permission.READ_MEDIA_AUDIO")
@@ -196,19 +210,46 @@ internal fun MacrobenchmarkScope.topLevelNavigationJourney() {
 internal fun MacrobenchmarkScope.searchJourney() {
     requireClickDescription("Search")
     waitForAppVisible()
-    val inputSelector = By.pkg(TARGET_PACKAGE).clazz("android.widget.EditText")
-    val input = checkNotNull(uiDevice.wait(Until.findObject(inputSelector), CLICK_TIMEOUT_MS)) {
-        "Search input did not become visible"
+    fun setQuery(query: String, waitForSettledResults: Boolean) {
+        val input = waitForSearchInput()
+        input.click()
+        input.text = query
+        if (waitForSettledResults) uiDevice.waitForIdle()
     }
-    input.click()
+
+    setQuery("a", waitForSettledResults = true)
+    setQuery("ar", waitForSettledResults = true)
+    setQuery("artist", waitForSettledResults = true)
+    uiDevice.pressBack()
     uiDevice.waitForIdle()
-    input.text = "a"
-    check(uiDevice.wait(Until.hasObject(inputSelector.text("a")), CLICK_TIMEOUT_MS)) {
-        "Search input did not receive the benchmark query"
+    uiDevice.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.7f)
+    setQuery("zzzzzz", waitForSettledResults = true)
+    setQuery("a", waitForSettledResults = true)
+    uiDevice.pressBack()
+    uiDevice.waitForIdle()
+
+    clickIfAvailable(By.desc("Show all song results"))
+    uiDevice.findObject(By.scrollable(true))?.scroll(Direction.DOWN, 0.7f)
+    clickIfAvailable(By.text("Song name"))
+    clickIfAvailable(By.text("Artist name"))
+    uiDevice.pressBack()
+    clickIfAvailable(By.desc("Clear search"))
+    uiDevice.waitForIdle()
+    pressHome()
+}
+
+internal fun MacrobenchmarkScope.searchRapidInputJourney() {
+    requireClickDescription("Search")
+    waitForAppVisible()
+    val input = waitForSearchInput()
+    input.click()
+    listOf("a", "ar", "art", "arti", "artist", "artist x", "zzzzzz").forEach { query ->
+        findSearchInput()?.text = query
+        SystemClock.sleep(35L)
     }
     uiDevice.waitForIdle()
     uiDevice.pressBack()
-    requireClickDescription("Home")
+    pressHome()
 }
 
 internal fun MacrobenchmarkScope.playerJourneyIfAvailable() {

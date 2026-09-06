@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
 import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
@@ -19,6 +20,7 @@ import elovaire.music.droidbeauty.app.domain.search.albumSearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.search.artistSearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.search.buildSearchResults
 import elovaire.music.droidbeauty.app.domain.search.buildSuggestedAlbums
+import elovaire.music.droidbeauty.app.domain.search.limitSearchQueryInput
 import elovaire.music.droidbeauty.app.domain.search.playbackSourceLabel
 import elovaire.music.droidbeauty.app.domain.search.sanitizeSearchHistory
 import elovaire.music.droidbeauty.app.domain.search.toSearchIndex
@@ -39,6 +41,8 @@ import kotlinx.coroutines.flow.shareIn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
 internal data class SearchUiState(
     val query: String = "",
@@ -99,7 +103,7 @@ internal class SearchViewModel(
 ) : ViewModel() {
     private val searchUiConfig = MutableStateFlow(
         SearchInteractionConfig(
-            query = savedStateHandle.get<String>(KEY_QUERY).orEmpty(),
+            query = limitSearchQueryInput(savedStateHandle.get<String>(KEY_QUERY).orEmpty()),
             showAllSongs = savedStateHandle[KEY_SHOW_ALL_SONGS] ?: false,
             sortMode = savedStateHandle.get<String>(KEY_SORT_MODE)
                 ?.let { saved -> SearchSongSortMode.entries.firstOrNull { it.name == saved } }
@@ -108,6 +112,7 @@ internal class SearchViewModel(
         ).normalized(),
     )
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     private val searchIndex = libraryRepository.contentState
         .map { content ->
             SearchLibrarySnapshot(
@@ -119,11 +124,23 @@ internal class SearchViewModel(
         }
         .map { snapshot -> snapshot to snapshot.signature() }
         .distinctUntilChangedBy { (_, revision) -> revision }
-        .map { (snapshot, revision) -> snapshot.toSearchIndex(revision) }
+        .transformLatest { (snapshot, revision) ->
+            val coroutineContext = currentCoroutineContext()
+            emit(
+                ElovaireTrace.section("search_index_build") {
+                    snapshot.toSearchIndex(revision) {
+                        coroutineContext.ensureActive()
+                    }
+                },
+            )
+        }
         .flowOn(defaultDispatcher)
         .shareIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
+            started = SharingStarted.WhileSubscribed(
+                stopTimeoutMillis = 5_000L,
+                replayExpirationMillis = SEARCH_DERIVED_STATE_REPLAY_EXPIRATION_MS,
+            ),
             replay = 1,
         )
 
@@ -171,16 +188,24 @@ internal class SearchViewModel(
         .distinctUntilChanged()
         .transformLatest<SearchRequest?, SearchResultSnapshot?> { request ->
             if (request != null) {
+                val coroutineContext = currentCoroutineContext()
                 emit(
                     SearchResultSnapshot(
                         key = request.key,
                         rawQuery = request.rawQuery,
-                        results = buildSearchResults(
-                            query = request.query,
-                            sortMode = request.sortMode,
-                            index = request.index,
-                            includeAllSongs = request.includeAllSongs,
-                        ),
+                        results = ElovaireTrace.section(
+                            if (request.includeAllSongs) "search_query_full" else "search_query_preview",
+                        ) {
+                            buildSearchResults(
+                                query = request.query,
+                                sortMode = request.sortMode,
+                                index = request.index,
+                                includeAllSongs = request.includeAllSongs,
+                                cancellationCheck = {
+                                    coroutineContext.ensureActive()
+                                },
+                            )
+                        },
                     ),
                 )
             } else {
@@ -272,14 +297,18 @@ internal class SearchViewModel(
         .distinctUntilChanged()
         .stateIn(
             scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
+            started = SharingStarted.WhileSubscribed(
+                stopTimeoutMillis = 5_000L,
+                replayExpirationMillis = SEARCH_DERIVED_STATE_REPLAY_EXPIRATION_MS,
+            ),
             initialValue = SearchUiState(),
         )
 
     fun onQueryChange(query: String) {
+        val boundedQuery = limitSearchQueryInput(query)
         updateConfig { config ->
-            if (config.query == query) config else config.copy(
-                query = query,
+            if (config.query == boundedQuery) config else config.copy(
+                query = boundedQuery,
                 queryGeneration = config.queryGeneration + 1,
             )
         }
@@ -350,16 +379,23 @@ internal class SearchViewModel(
             val isPlaybackActive: Boolean,
         )
 
-        data class SearchRequest(
+        class SearchRequest(
             val key: SearchResultKey,
             val rawQuery: String,
             val query: NormalizedSearchQuery,
             val sortMode: SearchSortMode,
             val index: SearchIndex,
             val includeAllSongs: Boolean,
-        )
+        ) {
+            override fun equals(other: Any?): Boolean {
+                return other is SearchRequest && key == other.key
+            }
+
+            override fun hashCode(): Int = key.hashCode()
+        }
 
         const val SEARCH_QUERY_DEBOUNCE_MS = 150L
+        const val SEARCH_DERIVED_STATE_REPLAY_EXPIRATION_MS = 30_000L
         const val KEY_QUERY = "search.query"
         const val KEY_SHOW_ALL_SONGS = "search.show_all_songs"
         const val KEY_SORT_MODE = "search.sort_mode"

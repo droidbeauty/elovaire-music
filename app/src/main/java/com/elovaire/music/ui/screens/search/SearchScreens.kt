@@ -350,6 +350,7 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.roundToInt
 import kotlin.math.pow
+import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -524,7 +525,7 @@ private fun SearchScreen(
     val matchingArtists = remember(state.matchingArtists, language) {
         state.matchingArtists.map { artist ->
             SearchHistoryEntry(
-                key = "artist:${artist.name.lowercase()}",
+                key = "artist:${artist.name.lowercase(Locale.ROOT)}",
                 kind = SearchHistoryKind.Artist,
                 title = artist.name,
                 subtitle = localizedCountLabel(artist.songCount, "song", language),
@@ -548,12 +549,16 @@ private fun SearchScreen(
                 onQueryChange(it)
             },
             modifier = Modifier
+                .semantics { testTagsAsResourceId = true }
+                .testTag("search_query_input")
                 .fillMaxWidth()
                 .onFocusChanged { focusState ->
                     isFieldFocused = focusState.isFocused
                 },
             shape = RoundedCornerShape(ElovaireRadii.input),
             singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(onSearch = { dismissSearchInput() }),
             placeholder = { Text(copy.placeholder) },
             leadingIcon = {
                 Icon(
@@ -1011,7 +1016,7 @@ private fun SearchQuickPick(
         )
         Text(
             text = album.artist,
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

@@ -37,14 +37,12 @@ internal class AppBridgeCoordinator(
     private val appStarted = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     private val deferredStartupScheduled = AtomicBoolean(false)
+    private var libraryFoldersJob: Job? = null
 
     fun startPlayback() {
         synchronized(lifecycleLock) {
             if (released.get() || !playbackStarted.compareAndSet(false, true)) return
             playbackIntegration.start()
-            bridgeScope.launch {
-                preferences.libraryFolders.collect(library::setLibraryFolders)
-            }
         }
     }
 
@@ -53,6 +51,11 @@ internal class AppBridgeCoordinator(
             if (released.get()) return
             startPlayback()
             appStarted.set(true)
+            if (libraryFoldersJob == null) {
+                libraryFoldersJob = bridgeScope.launch {
+                    preferences.libraryFolders.collect(library::setLibraryFolders)
+                }
+            }
         }
     }
 
@@ -70,6 +73,8 @@ internal class AppBridgeCoordinator(
             if (!released.compareAndSet(false, true)) return
             appStarted.set(false)
             playbackStarted.set(false)
+            libraryFoldersJob?.cancel()
+            libraryFoldersJob = null
             playbackIntegration.release()
             bridgeScope.cancel()
         }

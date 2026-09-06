@@ -4,7 +4,6 @@ import android.content.Context
 import android.database.sqlite.SQLiteException
 import android.util.Log
 import elovaire.music.droidbeauty.app.data.library.LibraryStartupController
-import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentialStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySourceStore
@@ -35,9 +34,12 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.FlowPreview
 
 /** Owns durable recovery and optional startup work after the object graph is built. */
+@OptIn(FlowPreview::class)
 internal class AppStartupCoordinator(
     private val applicationContext: Context,
     private val appScope: CoroutineScope,
@@ -172,20 +174,33 @@ internal class AppStartupCoordinator(
         if (portableUserDataBackupJob?.isActive == true) return
         portableUserDataBackupJob = appScope.launch {
             var restoreChecked = false
+            val contentSongs = libraryRepository.contentState
+                .map { content -> content.contentRevision to content.songs }
+                .distinctUntilChanged()
+            val scanReadiness = libraryRepository.scanState
+                .map { scan -> scan.permissionGranted to scan.isAuthoritative }
+                .distinctUntilChanged()
             kotlinx.coroutines.flow.combine(
                 userDataStore.userDataSnapshot,
                 userDataStore.userDataReadiness,
-                libraryRepository.contentState,
-                libraryRepository.scanState,
+                contentSongs,
+                scanReadiness,
             ) { snapshot, readiness, content, scan ->
-                PortableUserDataBackupState(snapshot, readiness, content.songs, scan)
+                PortableUserDataBackupState(
+                    snapshot = snapshot,
+                    readiness = readiness,
+                    songs = content.second,
+                    permissionGranted = scan.first,
+                    isAuthoritative = scan.second,
+                )
             }.map { state -> state.copy(userDataRevision = userDataStore.currentUserDataRevision) }
                 .distinctUntilChanged()
+                .debounce(PORTABLE_USER_DATA_BACKUP_COALESCE_DELAY_MS)
                 .collect { state ->
                 if (
                     state.readiness != UserDataReadiness.Ready ||
-                    !state.scan.isAuthoritative ||
-                    !state.scan.permissionGranted
+                    !state.isAuthoritative ||
+                    !state.permissionGranted
                 ) return@collect
                 if (!restoreChecked) {
                     val encoded = withContext(ioDispatcher) { portableUserDataBackup.readBytes() }
@@ -261,13 +276,15 @@ internal class AppStartupCoordinator(
 }
 
 private const val DURABLE_RECOVERY_TIMEOUT_MS = 15_000L
+private const val PORTABLE_USER_DATA_BACKUP_COALESCE_DELAY_MS = 500L
 private const val TAG = "ElovaireStartup"
 
 private data class PortableUserDataBackupState(
     val snapshot: UserDataSnapshot,
     val readiness: UserDataReadiness,
     val songs: List<elovaire.music.droidbeauty.app.domain.model.Song>,
-    val scan: LibraryScanState,
+    val permissionGranted: Boolean,
+    val isAuthoritative: Boolean,
     val userDataRevision: Long = 0L,
 )
 

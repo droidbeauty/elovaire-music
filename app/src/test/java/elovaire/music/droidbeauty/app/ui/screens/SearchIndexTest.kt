@@ -4,8 +4,11 @@ import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
 
@@ -47,6 +50,22 @@ class SearchIndexTest {
     }
 
     @Test
+    fun queryNormalization_preservesMetadataNoiseWordsAsUserInput() {
+        assertEquals("remastered", NormalizedSearchQuery.from("Remastered").value)
+        assertEquals("official audio", NormalizedSearchQuery.from("official audio").value)
+        assertEquals("feat", NormalizedSearchQuery.from("feat").value)
+        assertEquals("", normalizeSearchText("Remastered"))
+    }
+
+    @Test
+    fun queryNormalization_boundsPastedInputWithoutSplittingCodePoints() {
+        val normalized = NormalizedSearchQuery.from("😀".repeat(MAX_SEARCH_QUERY_CODE_POINTS + 8))
+
+        assertEquals(MAX_SEARCH_QUERY_CODE_POINTS, normalized.value.codePointCount(0, normalized.value.length))
+        assertFalse(normalized.value.contains('\uFFFD'))
+    }
+
+    @Test
     fun scoreMatch_keepsScoreWithPrecomputedComposite() {
         val query = NormalizedSearchQuery.from("glass harbor awake")
         val normalizedTitle = normalizeSearchText("Awake")
@@ -83,6 +102,52 @@ class SearchIndexTest {
         )
 
         assertNotNull(score)
+    }
+
+    @Test
+    fun scoreMatch_matchesAlbumArtistAsAnExplicitSearchField() {
+        val song = song(
+            id = 1L,
+            title = "Compilation Track",
+            artist = "Featured Performer",
+            albumArtist = "Various Artists",
+        )
+        val result = buildSearchResults(
+            query = NormalizedSearchQuery.from("various artists"),
+            sortMode = SearchSortMode.Title,
+            index = buildSearchIndex(listOf(song), emptyList()),
+        )
+
+        assertEquals(listOf(song), result.allMatchingSongs)
+    }
+
+    @Test
+    fun buildSearchResults_honorsCooperativeCancellationChecks() {
+        val index = buildSearchIndex(
+            songs = (1L..1_000L).map {
+                id -> song(id = id, title = "Track $id", artist = "Artist", albumArtist = null)
+            },
+            albums = emptyList(),
+        )
+        val cancellation = CancellationMarker()
+        var checks = 0
+
+        try {
+            buildSearchResults(
+                query = NormalizedSearchQuery.from("track"),
+                sortMode = SearchSortMode.Title,
+                index = index,
+                cancellationCheck = {
+                    checks++
+                    if (checks == 2) throw cancellation
+                },
+            )
+        } catch (failure: CancellationMarker) {
+            assertSame(cancellation, failure)
+            assertTrue(checks >= 2)
+            return
+        }
+        throw AssertionError("Search did not honor the cancellation check")
     }
 
     @Test
@@ -233,4 +298,6 @@ class SearchIndexTest {
             songs = songs,
         )
     }
+
+    private class CancellationMarker : RuntimeException()
 }
