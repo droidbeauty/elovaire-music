@@ -415,7 +415,7 @@ private fun CompactNowPlayingBar(
                             )
                             Text(
                                 text = song.artist,
-                                style = MaterialTheme.typography.labelLarge,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                 color = secondaryContentColor,
                                 maxLines = 1,
                             )
@@ -657,7 +657,7 @@ private fun NowPlayingBar(
                     )
                     Text(
                         text = song.artist,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                         color = resolvedSecondaryTextColor,
                         maxLines = 1,
                     )

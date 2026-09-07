@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import elovaire.music.droidbeauty.app.data.library.db.AlbumPlayCountEntity
+import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
 import elovaire.music.droidbeauty.app.data.library.db.FavoriteSongEntity
 import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEntity
 import elovaire.music.droidbeauty.app.data.library.db.RecentPlaybackEntity
@@ -43,6 +44,7 @@ import elovaire.music.droidbeauty.app.data.smartplaylists.updateSmartPlaylistEnt
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.Song
+import androidx.room.withTransaction
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
@@ -78,6 +80,7 @@ internal class RoomUserDataStore(
     ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val recoverySnapshot: UserDataRecoverySnapshot? = null,
     ownerScope: CoroutineScope? = null,
+    private val database: ElovaireDatabase? = null,
 ) : CollectionSettingsStore, MediaLibraryUserDataReader, PlaylistStore, FavoritesStore, PlaybackHistoryStore,
     SearchHistoryStore {
     private val preferences = allowStrictModeDiskReads {
@@ -86,9 +89,7 @@ internal class RoomUserDataStore(
     private val released = AtomicBoolean(false)
     private val lifecycle = AtomicReference(StoreLifecycle.Initializing)
     private val actorFailure = AtomicReference<Throwable?>(null)
-    private val userDataRevision = AtomicLong(
-        preferences.getLong(USER_DATA_REVISION_KEY, 0L).coerceAtLeast(0L),
-    )
+    private val userDataRevision = AtomicLong(0L)
     private val recoveryWriteFailureReported = AtomicBoolean(false)
     private val lastRecoverySnapshot = AtomicReference<UserDataSnapshot?>(null)
     private val recoveryWriteMutex = Mutex()
@@ -773,9 +774,15 @@ internal class RoomUserDataStore(
         if (_favoriteSongIds.value != normalized) _favoriteSongIds.value = normalized
     }
 
-    private fun enqueueCoalesced(name: String, operation: suspend () -> Unit) {
+    private fun enqueueCoalesced(name: String, operation: suspend () -> Boolean) {
+        val changed = AtomicBoolean(false)
         tryEnqueue(
-            RoomOperation(name, operation, advancesUserDataRevision = true),
+            RoomOperation(
+                name = name,
+                block = { changed.set(operation()) },
+                resultProvider = { PlaylistMutationResult.Success(changed = changed.get()) },
+                advancesUserDataRevision = true,
+            ),
             coalescible = true,
         )
     }
@@ -862,9 +869,27 @@ internal class RoomUserDataStore(
 
     @Suppress("TooGenericExceptionCaught")
     private suspend fun runOperation(operation: RoomOperation) {
+        val previousSnapshot = currentSnapshot()
+        var committed = false
         try {
-            operation.block()
-            if (operation.advancesUserDataRevision) advanceUserDataRevision()
+            var revisionToPublish: Long? = null
+            val execute = suspend {
+                operation.block()
+                val result = operation.resultProvider?.invoke()
+                if (operation.advancesUserDataRevision && shouldAdvanceRevision(result)) {
+                    val nextRevision = nextUserDataRevision()
+                    revisionToPublish = nextRevision
+                    database?.userDataDao()?.writeUserDataRevision(nextRevision)
+                }
+            }
+            if (database != null) {
+                database.withTransaction { execute() }
+            } else {
+                execute()
+                revisionToPublish?.let(::persistLegacyUserDataRevision)
+            }
+            committed = true
+            revisionToPublish?.let(userDataRevision::set)
             val snapshot = currentSnapshot()
             publishSnapshot(snapshot)
             persistRecoverySnapshot(snapshot)
@@ -873,18 +898,22 @@ internal class RoomUserDataStore(
                     ?: PlaylistMutationResult.Failure("Mutation did not produce a result."),
             )
         } catch (failure: CancellationException) {
+            if (!committed) publishSnapshot(previousSnapshot)
             if (currentCoroutineContext().isActive) {
                 operation.completion?.cancel(failure)
             } else {
                 throw failure
             }
         } catch (failure: SQLException) {
+            if (!committed) publishSnapshot(previousSnapshot)
             Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
             operation.completion?.complete(PlaylistMutationResult.Failure("Database operation failed.", failure))
         } catch (failure: RuntimeException) {
+            if (!committed) publishSnapshot(previousSnapshot)
             Log.e(TAG, "User-data operation failed: ${operation.name}.", failure)
             operation.completion?.complete(PlaylistMutationResult.Failure("User-data operation failed.", failure))
         } catch (failure: Error) {
+            if (!committed) publishSnapshot(previousSnapshot)
             Log.e(TAG, "User-data actor encountered an unrecoverable operation failure: ${operation.name}.", failure)
             operation.completion?.complete(PlaylistMutationResult.Failure("User-data actor failed.", failure))
             throw failure
@@ -945,25 +974,42 @@ internal class RoomUserDataStore(
         return nextId.getAndUpdate(::nextPersistentUserDataId)
     }
 
-    private fun establishUserDataRevision(
+    private suspend fun establishUserDataRevision(
         legacy: UserDataSnapshot,
         snapshot: UserDataSnapshot,
     ) {
-        if (userDataRevision.get() != 0L) return
+        val persisted = database?.userDataDao()?.userDataRevision()?.coerceAtLeast(0L)
+        if (persisted != null) {
+            userDataRevision.set(persisted)
+            return
+        }
+        val legacyRevision = preferences.getLong(USER_DATA_REVISION_KEY, 0L).coerceAtLeast(0L)
         val recovery = recoverySnapshot?.read()
         val hasExistingData = legacy != UserDataSnapshot() || snapshot != UserDataSnapshot() ||
             recovery != null && recovery != UserDataSnapshot()
-        if (hasExistingData) advanceUserDataRevision()
+        val initialRevision = if (hasExistingData) maxOf(legacyRevision, 1L) else legacyRevision
+        if (database != null) database.userDataDao().writeUserDataRevision(initialRevision)
+        userDataRevision.set(initialRevision)
     }
 
-    private fun advanceUserDataRevision() {
+    private fun nextUserDataRevision(): Long {
         val current = userDataRevision.get()
         check(current < Long.MAX_VALUE) { "User-data revision space is exhausted." }
-        val next = current + 1L
+        return current + 1L
+    }
+
+    private fun persistLegacyUserDataRevision(next: Long) {
         check(preferences.edit().putLong(USER_DATA_REVISION_KEY, next).commit()) {
             "Unable to persist user-data revision"
         }
-        userDataRevision.set(next)
+    }
+
+    private fun shouldAdvanceRevision(result: PlaylistMutationResult?): Boolean {
+        return when (result) {
+            null -> true
+            is PlaylistMutationResult.Success -> result.changed
+            else -> false
+        }
     }
 
     private companion object {

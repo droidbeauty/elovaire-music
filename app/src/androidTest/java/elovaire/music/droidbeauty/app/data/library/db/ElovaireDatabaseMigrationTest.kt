@@ -24,7 +24,7 @@ class ElovaireDatabaseMigrationTest {
 
     @Test
     @Throws(IOException::class)
-    fun migrateOneToSixCreatesUserDataSchemaAndReopens() {
+    fun migrateOneToSevenCreatesUserDataSchemaAndReopens() {
         helper.createDatabase(DATABASE_NAME, 1).use { database ->
             database.execSQL(
                 "INSERT INTO albums(" +
@@ -49,13 +49,14 @@ class ElovaireDatabaseMigrationTest {
 
         helper.runMigrationsAndValidate(
             DATABASE_NAME,
-            6,
+            7,
             true,
             ElovaireDatabase.MIGRATION_1_2,
             ElovaireDatabase.MIGRATION_2_3,
             ElovaireDatabase.MIGRATION_3_4,
             ElovaireDatabase.MIGRATION_4_5,
             ElovaireDatabase.MIGRATION_5_6,
+            ElovaireDatabase.MIGRATION_6_7,
         ).use { database ->
             database.query("SELECT COUNT(*) FROM user_playlists").use { cursor ->
                 assertTrue(cursor.moveToFirst())
@@ -87,6 +88,7 @@ class ElovaireDatabaseMigrationTest {
             ElovaireDatabase.MIGRATION_3_4,
             ElovaireDatabase.MIGRATION_4_5,
             ElovaireDatabase.MIGRATION_5_6,
+            ElovaireDatabase.MIGRATION_6_7,
         ).build()
         try {
             roomDatabase.openHelper.readableDatabase.query(

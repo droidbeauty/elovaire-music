@@ -67,6 +67,7 @@ import kotlinx.coroutines.flow.update
 import java.util.concurrent.atomic.AtomicBoolean
 
 @OptIn(UnstableApi::class)
+@Suppress("TooGenericExceptionCaught")
 internal class AppServices(
     val applicationContext: Context,
     private val appScope: CoroutineScope,
@@ -92,6 +93,7 @@ internal class AppServices(
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
         dao = database.userDataDao(),
+        database = database,
         recoverySnapshot = UserDataRecoverySnapshot(applicationContext),
         ioDispatcher = appDispatchers.io,
         ownerScope = appScope,
@@ -340,6 +342,9 @@ internal class AppServices(
             } catch (failure: IllegalStateException) {
                 networkServicesStarted.set(false)
                 android.util.Log.w("AppServices", "Network services could not start; retrying later.", failure)
+            } catch (failure: RuntimeException) {
+                networkServicesStarted.set(false)
+                android.util.Log.w("AppServices", "Network services could not start; retrying later.", failure)
             }
         }
     }
@@ -382,27 +387,47 @@ internal class AppServices(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        startupCoordinator.release()
-        networkMutationRuntime.release()
-        mediaLibraryInvalidationCoordinator.close()
-        optionalScope.cancel()
-        playbackManager.release()
-        playbackScope.cancel()
-        if (updateControllerDelegate.isInitialized()) updateController.release()
-        if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.release()
-        libraryRepository.release()
-        libraryScope.cancel()
-        if (networkFileSystemRegistryDelegate.isInitialized()) {
-            networkFileSystemRegistryDelegate.value.release()
-        }
-        preferenceStore.release {
-            try {
-                database.close()
-            } finally {
-                databaseResource.close()
+        val databaseClosed = AtomicBoolean(false)
+        val closeDatabase = {
+            if (databaseClosed.compareAndSet(false, true)) {
+                try {
+                    database.close()
+                } finally {
+                    databaseResource.close()
+                }
             }
         }
-        portableSettingsBackup.release()
-        mediaLibraryReadExecutor.close()
+        releaseBestEffort(
+            { startupCoordinator.release() },
+            { networkMutationRuntime.release() },
+            { mediaLibraryInvalidationCoordinator.close() },
+            { optionalScope.cancel() },
+            { playbackManager.release() },
+            { playbackScope.cancel() },
+            { if (updateControllerDelegate.isInitialized()) updateController.release() },
+            { if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.release() },
+            { libraryRepository.release() },
+            { libraryScope.cancel() },
+            {
+                if (networkFileSystemRegistryDelegate.isInitialized()) {
+                    networkFileSystemRegistryDelegate.value.release()
+                }
+            },
+            { mediaMutationJournal.close() },
+            {
+                try {
+                    preferenceStore.release(closeDatabase)
+                } catch (failure: Throwable) {
+                    try {
+                        closeDatabase()
+                    } catch (cleanupFailure: Throwable) {
+                        if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+                    }
+                    throw failure
+                }
+            },
+            { portableSettingsBackup.release() },
+            { mediaLibraryReadExecutor.close() },
+        )
     }
 }

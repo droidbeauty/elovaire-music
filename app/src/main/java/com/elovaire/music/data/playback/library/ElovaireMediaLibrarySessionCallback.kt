@@ -267,9 +267,7 @@ internal class ElovaireMediaLibrarySessionCallback(
     ): ListenableFuture<R> {
         val playerHandler = android.os.Handler(mediaSession.player.applicationLooper)
         val playerExecutor = Executor { command ->
-            if (!playerHandler.post(command)) {
-                source.cancel(false)
-            }
+            if (!playerHandler.post(command)) throw RejectedExecutionException("Player looper is unavailable")
         }
         return Futures.transform(source, transform, playerExecutor)
     }

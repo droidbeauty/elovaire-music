@@ -216,20 +216,30 @@ internal fun rememberRootDeleteController(
     val rootScope = androidx.compose.runtime.rememberCoroutineScope()
     val deleteCoordinator = container.rootDeleteDependencies.deleteHandler
     var pendingSongDeletion by remember { mutableStateOf<DeviceDeletePlan?>(null) }
+    var pendingDeleteStateLoaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(deleteCoordinator) {
+        pendingSongDeletion = deleteCoordinator.restorePendingDeletePlan()
+        pendingDeleteStateLoaded = true
+    }
 
     val deleteSongLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartIntentSenderForResult(),
     ) { result ->
-        val pendingDeletion = pendingSongDeletion ?: return@rememberLauncherForActivityResult
-        pendingSongDeletion = null
-        if (result.resultCode == Activity.RESULT_OK) {
-            rootScope.launch {
+        rootScope.launch {
+            val pendingDeletion = pendingSongDeletion ?: deleteCoordinator.restorePendingDeletePlan()
+            pendingSongDeletion = null
+            if (pendingDeletion == null) return@launch
+            if (result.resultCode == Activity.RESULT_OK) {
                 deleteCoordinator.completeDelete(pendingDeletion)
+            } else {
+                deleteCoordinator.clearPendingDelete(pendingDeletion.operationId)
             }
         }
     }
 
     val deleteSongsCallback: (List<Song>) -> Unit = deleteSongsCallback@{ songs ->
+        if (!pendingDeleteStateLoaded || pendingSongDeletion != null) return@deleteSongsCallback
         rootScope.launch {
             val deletePlan = deleteCoordinator.prepareSongDeletePlan(songs) ?: return@launch
             val request = mediaStoreDeleteRequest(context, deletePlan.uris) ?: return@launch

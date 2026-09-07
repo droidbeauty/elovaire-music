@@ -56,4 +56,20 @@ class AudioFocusStateMachineTest {
             ),
         )
     }
+
+    @Test
+    fun transientFocusGainDoesNotWaitOnCoarseExternalActivityFlag() {
+        assertFalse(
+            shouldWaitForExternalMediaBeforeAutoResume(
+                isTransientFocusInterruption = true,
+                hasActiveExternalMedia = true,
+            ),
+        )
+        assertTrue(
+            shouldWaitForExternalMediaBeforeAutoResume(
+                isTransientFocusInterruption = false,
+                hasActiveExternalMedia = true,
+            ),
+        )
+    }
 }

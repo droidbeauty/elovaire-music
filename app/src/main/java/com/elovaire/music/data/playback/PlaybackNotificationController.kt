@@ -22,6 +22,16 @@ import kotlinx.coroutines.delay
 
 const val EXTRA_OPEN_PLAYER_FROM_NOTIFICATION = "elovaire.music.droidbeauty.app.extra.OPEN_PLAYER_FROM_NOTIFICATION"
 
+internal fun shouldKeepPlaybackServiceForeground(
+    ongoing: Boolean,
+    hasCurrentSong: Boolean,
+    transportShowsPause: Boolean,
+    hasPendingInterruptionResume: Boolean,
+): Boolean {
+    return hasCurrentSong &&
+        ((ongoing && transportShowsPause) || hasPendingInterruptionResume)
+}
+
 @UnstableApi
 class PlaybackNotificationController(
     private val context: Context,
@@ -46,7 +56,14 @@ class PlaybackNotificationController(
                     ongoing: Boolean,
                 ) {
                     val state = playbackManager.state.value
-                    if (ongoing && state.transportShowsPause && state.currentSong != null) {
+                    if (
+                        shouldKeepPlaybackServiceForeground(
+                            ongoing = ongoing,
+                            hasCurrentSong = state.currentSong != null,
+                            transportShowsPause = state.transportShowsPause,
+                            hasPendingInterruptionResume = playbackManager.hasPendingInterruptionResume(),
+                        )
+                    ) {
                         ElovaireMediaLibraryService.start(context, notificationId, notification)
                     } else {
                         ElovaireMediaLibraryService.demote(context)
@@ -157,7 +174,8 @@ class PlaybackNotificationController(
                                     notificationsEnabled &&
                                     latestState.currentSong != null &&
                                     !latestState.isPlaying &&
-                                    !notificationDismissedWhilePaused
+                                    !notificationDismissedWhilePaused &&
+                                    !playbackManager.hasPendingInterruptionResume()
                                 ) {
                                     updateNotificationPlayer(null)
                                 }

@@ -485,6 +485,32 @@ class PreferenceStore internal constructor(
         preferenceScope.cancel()
     }
 
+    internal fun persistPendingDeviceDelete(operationId: String, serializedPlan: String): Boolean {
+        return synchronized(legacyPreferences) {
+            legacyPreferences.edit()
+                .putString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, operationId)
+                .putString(KEY_PENDING_DEVICE_DELETE_PLAN, serializedPlan)
+                .commit()
+        }
+    }
+
+    internal fun readPendingDeviceDelete(): String? = synchronized(legacyPreferences) {
+        legacyPreferences.getString(KEY_PENDING_DEVICE_DELETE_PLAN, null)
+    }
+
+    internal fun clearPendingDeviceDelete(operationId: String): Boolean {
+        return synchronized(legacyPreferences) {
+            if (legacyPreferences.getString(KEY_PENDING_DEVICE_DELETE_OPERATION_ID, null) != operationId) {
+                true
+            } else {
+                legacyPreferences.edit()
+                    .remove(KEY_PENDING_DEVICE_DELETE_OPERATION_ID)
+                    .remove(KEY_PENDING_DEVICE_DELETE_PLAN)
+                    .commit()
+            }
+        }
+    }
+
     private fun persistEqSettings(
         settings: EqSettings,
         immediate: Boolean = true,
@@ -921,6 +947,8 @@ class PreferenceStore internal constructor(
         const val KEY_REVERB_PROFILE = "eq_reverb_profile"
         const val KEY_DISMISSED_UPDATE_VERSION = "dismissed_update_version"
         const val KEY_LAST_AUTOMATIC_UPDATE_CHECK_AT_MS = "last_automatic_update_check_at_ms"
+        const val KEY_PENDING_DEVICE_DELETE_OPERATION_ID = "pending_device_delete_operation_id"
+        const val KEY_PENDING_DEVICE_DELETE_PLAN = "pending_device_delete_plan"
         const val DEFAULT_ALBUM_COLLECTION_LAYOUT_MODE = "Grid"
         const val DEFAULT_ALBUM_COLLECTION_SORT_MODE = "Artist"
         const val DEFAULT_SONG_COLLECTION_SORT_MODE = "Title"

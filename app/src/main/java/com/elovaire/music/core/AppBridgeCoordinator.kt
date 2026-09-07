@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.data.library.db.PersistenceMaintenanceWork
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -13,6 +14,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
 @SuppressLint("UnsafeOptInUsageError")
+@Suppress("TooGenericExceptionCaught")
 internal class AppBridgeCoordinator(
     scope: CoroutineScope,
     private val services: AppServices,
@@ -63,7 +65,20 @@ internal class AppBridgeCoordinator(
         synchronized(lifecycleLock) {
             if (!appStarted.get() || released.get() || !deferredStartupScheduled.compareAndSet(false, true)) return
             bridgeScope.launch(ioDispatcher) {
-                PersistenceMaintenanceWorker.enqueue(applicationContext)
+                try {
+                    PersistenceMaintenanceWorker.enqueue(applicationContext)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (failure: RuntimeException) {
+                    synchronized(lifecycleLock) {
+                        if (!released.get()) deferredStartupScheduled.set(false)
+                    }
+                    android.util.Log.w(
+                        "AppBridgeCoordinator",
+                        "Deferred persistence maintenance was not scheduled; retrying later.",
+                        failure,
+                    )
+                }
             }
         }
     }
@@ -73,10 +88,14 @@ internal class AppBridgeCoordinator(
             if (!released.compareAndSet(false, true)) return
             appStarted.set(false)
             playbackStarted.set(false)
-            libraryFoldersJob?.cancel()
-            libraryFoldersJob = null
-            playbackIntegration.release()
-            bridgeScope.cancel()
+            releaseBestEffort(
+                {
+                    libraryFoldersJob?.cancel()
+                    libraryFoldersJob = null
+                },
+                { playbackIntegration.release() },
+                { bridgeScope.cancel() },
+            )
         }
     }
 }

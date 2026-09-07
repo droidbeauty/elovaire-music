@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 
 internal class RoomPlaybackHistoryStore(
     private val dao: UserDataDao,
-    private val enqueue: (String, suspend () -> Unit) -> Unit,
+    private val enqueue: (String, suspend () -> Boolean) -> Unit,
 ) : PlaybackHistoryStore {
     private val writeBuffer = PlaybackHistoryWriteBuffer()
     private val _albumPlayCounts = MutableStateFlow<Map<Long, Int>>(emptyMap())
@@ -102,9 +102,9 @@ internal class RoomPlaybackHistoryStore(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private suspend fun flushPlaybackCounts() {
+    private suspend fun flushPlaybackCounts(): Boolean {
         val batch = writeBuffer.takeTransitions()
-        if (batch.songCounts.isEmpty() && batch.albumCounts.isEmpty()) return
+        if (batch.songCounts.isEmpty() && batch.albumCounts.isEmpty()) return false
         try {
             dao.incrementPlaybackCounts(batch.songCounts, batch.albumCounts)
         } catch (failure: CancellationException) {
@@ -120,17 +120,18 @@ internal class RoomPlaybackHistoryStore(
         if (batch.albumCounts.isNotEmpty()) {
             _albumPlayCounts.value = _albumPlayCounts.value.incrementedBy(batch.albumCounts)
         }
+        return true
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private suspend fun flushRecentPlayback() {
-        val pending = writeBuffer.takeRecent() ?: return
+    private suspend fun flushRecentPlayback(): Boolean {
+        val pending = writeBuffer.takeRecent() ?: return false
         if (
             pending.songIds == _recentSongIds.value &&
             pending.albumIds == _recentAlbumIds.value &&
             pending.collectionKind == _lastPlayedCollectionKind.value &&
             pending.collectionId == _lastPlayedCollectionId.value
-        ) return
+        ) return false
         try {
             dao.replaceRecentPlayback(
                 entries = pending.songIds.toRecentEntities(RECENT_KIND_SONG) +
@@ -148,6 +149,7 @@ internal class RoomPlaybackHistoryStore(
             throw failure
         }
         publish(pending.songIds, pending.albumIds, pending.collectionKind, pending.collectionId)
+        return true
     }
 
     private companion object {
@@ -292,7 +294,7 @@ private fun Map<Long, Int>.incrementedBy(increments: Map<Long, Int>): Map<Long, 
 
 internal class RoomSearchHistoryStore(
     private val dao: UserDataDao,
-    private val enqueue: (String, suspend () -> Unit) -> Unit,
+    private val enqueue: (String, suspend () -> Boolean) -> Unit,
 ) : SearchHistoryStore {
     private val _searchHistory = MutableStateFlow<List<SearchHistoryEntry>>(emptyList())
     override val searchHistory: StateFlow<List<SearchHistoryEntry>> = _searchHistory.asStateFlow()
@@ -319,11 +321,12 @@ internal class RoomSearchHistoryStore(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private suspend fun persistPendingSearchHistory() {
+    private suspend fun persistPendingSearchHistory(): Boolean {
+        var changed = false
         try {
             while (true) {
                 val desired = synchronized(pendingLock) {
-                    pendingHistory ?: return
+                    pendingHistory ?: return changed
                 }
                 if (desired != _searchHistory.value) {
                     if (desired.isEmpty()) {
@@ -332,12 +335,13 @@ internal class RoomSearchHistoryStore(
                         dao.replaceSearchHistory(desired.mapIndexed { index, item -> item.toEntity(index) })
                     }
                     _searchHistory.value = desired
+                    changed = true
                 }
                 synchronized(pendingLock) {
                     if (pendingHistory == desired) {
                         pendingHistory = null
                         pendingWriteScheduled = false
-                        return
+                        return changed
                     }
                 }
             }

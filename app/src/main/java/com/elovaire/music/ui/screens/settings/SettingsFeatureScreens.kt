@@ -62,7 +62,7 @@ internal fun AudiobookSettingsScreen(
             modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
             contentPadding = PaddingValues(
                 start = 18.dp,
-                top = topBarOccupiedHeight() + 8.dp,
+                top = topBarOccupiedHeight() + 20.dp,
                 end = 18.dp,
                 bottom = bottomPadding + buttonNavigationScrollBoost() + 20.dp,
             ),
@@ -97,17 +97,6 @@ internal fun AudiobookSettingsScreen(
                             onEnabledChanged = onResumePlaybackChanged,
                             modifier = Modifier.fillMaxWidth().padding(horizontal = 2.dp),
                         )
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                            Text(
-                                text = copy.chapterMetadata,
-                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                            )
-                            Text(
-                                text = copy.chapterMetadataSubtitle,
-                                style = MaterialTheme.typography.labelLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                            )
-                        }
                     }
                 }
             }
@@ -119,7 +108,7 @@ internal fun AudiobookSettingsScreen(
         )
         FastScrollbar(
             state = listState,
-            topInset = topBarOccupiedHeight() + 8.dp,
+            topInset = topBarOccupiedHeight() + 20.dp,
             bottomInset = bottomPadding + buttonNavigationScrollBoost(),
         )
     }
@@ -147,7 +136,7 @@ private fun AudiobookSeekSettingRow(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }
@@ -161,12 +150,16 @@ private fun AudiobookSeekSettingRow(
                 enabled = value > 5,
                 onClick = { onValueChanged((value - 5).coerceAtLeast(5)) },
             )
-            Text(
-                text = value.toString(),
+            Box(
                 modifier = Modifier.size(width = 38.dp, height = 36.dp),
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.titleMedium.copy(fontSize = elovaireScaledSp(17f)),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = value.toString(),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium.copy(fontSize = elovaireScaledSp(17f)),
+                )
+            }
             AudiobookStepButton(
                 label = "+",
                 enabled = value < 30,
@@ -182,20 +175,23 @@ private fun AudiobookStepButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    Text(
-        text = label,
+    Box(
         modifier = Modifier
             .size(36.dp)
             .clip(CircleShape)
             .background(
                 MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (enabled) 0.9f else 0.35f),
             )
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(top = 1.dp),
-        textAlign = TextAlign.Center,
-        style = MaterialTheme.typography.titleLarge,
-        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.35f),
-    )
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(
+            text = label,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.35f),
+        )
+    }
 }
 
 @Composable
@@ -248,7 +244,7 @@ internal fun SmartPlaylistSettingsScreen(
                         SectionTitleRow(title = copy.maximumSongs, compact = true)
                         Text(
                             text = copy.maximumSongsSubtitle,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
                         Row(
@@ -266,12 +262,16 @@ internal fun SmartPlaylistSettingsScreen(
                                     )
                                 },
                             )
-                            Text(
-                                text = maxSongs.toString(),
+                            Box(
                                 modifier = Modifier.size(width = 64.dp, height = 36.dp),
-                                textAlign = TextAlign.Center,
-                                style = MaterialTheme.typography.titleMedium.copy(fontSize = elovaireScaledSp(18f)),
-                            )
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = maxSongs.toString(),
+                                    textAlign = TextAlign.Center,
+                                    style = MaterialTheme.typography.titleMedium.copy(fontSize = elovaireScaledSp(18f)),
+                                )
+                            }
                             AudiobookStepButton(
                                 label = "+",
                                 enabled = maxSongs < SmartPlaylistSettingsPolicy.MAX_SONG_LIMIT,

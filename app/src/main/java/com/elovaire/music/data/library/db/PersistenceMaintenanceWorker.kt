@@ -23,11 +23,14 @@ class PersistenceMaintenanceWorker(
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
         var database: ElovaireDatabase? = null
+        var mutationJournal: MediaMutationJournal? = null
         return try {
             database = ElovaireDatabase.create(applicationContext)
+            val journal = MediaMutationJournal(database.libraryDao())
+            mutationJournal = journal
             val maintenance = PersistenceMaintenance(
                 database.persistenceMaintenanceDao(),
-                MediaMutationJournal(database.libraryDao()),
+                journal,
                 userDataDao = database.userDataDao(),
             )
             if (!maintenance.recoverCritical()) {
@@ -60,6 +63,7 @@ class PersistenceMaintenanceWorker(
                 Result.failure()
             }
         } finally {
+            mutationJournal?.close()
             database?.close()
         }
     }

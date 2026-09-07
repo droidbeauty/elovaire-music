@@ -898,7 +898,7 @@ internal fun NowPlayingScreen(
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = playingFromText,
-                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                 color = secondaryContentColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
@@ -1626,13 +1626,19 @@ private fun SongFileInfoPill(
             )
             Text(
                 text = format.ifBlank { "AUDIO" },
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(11f)),
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = elovaireScaledSp(11f),
+                    fontWeight = FontWeight.Medium,
+                ),
                 color = tint.copy(alpha = 0.92f),
                 maxLines = 1,
             )
             Text(
                 text = quality ?: "--",
-                style = MaterialTheme.typography.labelLarge.copy(fontSize = elovaireScaledSp(11f)),
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontSize = elovaireScaledSp(11f),
+                    fontWeight = FontWeight.Medium,
+                ),
                 color = tint.copy(alpha = 0.72f),
                 maxLines = 1,
             )
@@ -2475,7 +2481,7 @@ private fun QueueSongRow(
                 )
                 Text(
                     text = song.artist,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = secondaryTint.copy(alpha = 0.78f),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -3636,6 +3642,7 @@ private fun LyricsOverlay(
                                     text = it.artist,
                                     style = MaterialTheme.typography.labelLarge.copy(
                                         fontSize = elovaireScaledSp(15f),
+                                        fontWeight = FontWeight.Medium,
                                     ),
                                     color = secondaryContentColor,
                                     maxLines = 1,

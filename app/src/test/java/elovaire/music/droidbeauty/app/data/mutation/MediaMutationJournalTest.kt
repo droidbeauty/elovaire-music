@@ -204,6 +204,32 @@ class MediaMutationJournalTest {
         foregroundJournal.mark("active", MediaMutationStatus.Cancelled)
     }
 
+    @Test
+    fun closingTheOwnerMakesAnInterruptedMutationRecoverable() = runBlocking {
+        val stored = mutableMapOf<String, LibraryMutationEntity>()
+        val dao = libraryDao(stored)
+        val foregroundJournal = MediaMutationJournal(
+            dao,
+            FixedClock,
+            { "active-after-close" },
+            NoOpBackendEventSink,
+        )
+        val recoveryJournal = MediaMutationJournal(
+            dao,
+            FixedClock,
+            { "recovery-after-close" },
+            NoOpBackendEventSink,
+        )
+
+        foregroundJournal.create(MediaMutationOperation(type = MediaMutationType.TagEdit))
+        foregroundJournal.close()
+
+        val result = recoveryJournal.recoverIncomplete()
+
+        assertEquals(1, (result as MediaMutationRecoveryResult.Success).recoveredCount)
+        assertEquals(MediaMutationStatus.Cancelled.name, stored.getValue("active-after-close").status)
+    }
+
     private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): LibraryDao {
         return Proxy.newProxyInstance(
             LibraryDao::class.java.classLoader,

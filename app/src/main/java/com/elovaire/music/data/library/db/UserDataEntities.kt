@@ -98,3 +98,9 @@ internal data class UserDataMigrationEntity(
     @androidx.room.PrimaryKey val migrationId: String,
     val completedAtMs: Long,
 )
+
+@Entity(tableName = "user_data_revision")
+internal data class UserDataRevisionEntity(
+    @androidx.room.PrimaryKey val singletonId: Int = 0,
+    val revision: Long,
+)

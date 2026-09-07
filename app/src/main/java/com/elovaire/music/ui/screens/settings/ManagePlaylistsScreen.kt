@@ -202,7 +202,7 @@ private fun ManagePlaylistsEmptyState(copy: PlaylistManagementCopy) {
             )
             Text(
                 text = copy.emptySubtitle,
-                style = secondaryBodyTextStyle(),
+                style = secondaryBodyTextStyle().copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(0.74f),
@@ -270,7 +270,7 @@ private fun ManagePlaylistRow(
                         append(formatDuration(previewSongs.sumOf(Song::durationMs)))
                     }
                 },
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

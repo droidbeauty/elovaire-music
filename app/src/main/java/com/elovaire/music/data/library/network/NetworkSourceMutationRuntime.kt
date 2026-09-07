@@ -9,6 +9,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import java.security.GeneralSecurityException
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
 
 /** Owns the lifetime and stale-result handling for asynchronous source mutations. */
 @Suppress("TooGenericExceptionCaught")
@@ -26,9 +27,11 @@ internal class NetworkSourceMutationRuntime(
 
     fun save(source: NetworkLibrarySource, credentials: NetworkCredentials) {
         if (released.get()) return
-        onProbeResult(source.id, NetworkProbeResult(NetworkAvailability.Checking))
         val accepted = launch(source.id) { token ->
             try {
+                if (!runIfCurrent(source.id, token) {
+                        onProbeResult(source.id, NetworkProbeResult(NetworkAvailability.Checking))
+                    }) return@launch
                 val outcome = coordinator.save(source, credentials)
                 if (!runIfCurrent(source.id, token) {
                         onProbeResult(source.id, outcome.probeResult)
@@ -85,12 +88,17 @@ internal class NetworkSourceMutationRuntime(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
-        val jobs = synchronized(stateLock) {
+        val (jobs, tokens) = synchronized(stateLock) {
             val pending = active.values.mapNotNull { it.job }
+            val tokens = active.values.toList()
             active.clear()
-            pending
+            pending to tokens
         }
         jobs.forEach(Job::cancel)
+        tokens.forEach { token ->
+            token.callbackLock.lock()
+            token.callbackLock.unlock()
+        }
     }
 
     private fun launch(
@@ -118,6 +126,8 @@ internal class NetworkSourceMutationRuntime(
             return false
         }
         previous?.job?.cancel()
+        previous?.callbackLock?.lock()
+        previous?.callbackLock?.unlock()
         job.start()
         return true
     }
@@ -126,10 +136,21 @@ internal class NetworkSourceMutationRuntime(
         sourceId: String,
         token: MutationToken,
         action: () -> Unit,
-    ): Boolean = synchronized(stateLock) {
-        if (released.get() || active[sourceId] !== token) return@synchronized false
-        action()
-        true
+    ): Boolean {
+        token.callbackLock.lock()
+        return try {
+            val current = synchronized(stateLock) {
+                !released.get() && active[sourceId] === token
+            }
+            if (!current) {
+                false
+            } else {
+                action()
+                true
+            }
+        } finally {
+            token.callbackLock.unlock()
+        }
     }
 
     private fun recordFailure(sourceId: String, token: MutationToken, failure: Throwable) {
@@ -152,5 +173,6 @@ internal class NetworkSourceMutationRuntime(
 
     private class MutationToken {
         var job: Job? = null
+        val callbackLock = ReentrantLock()
     }
 }

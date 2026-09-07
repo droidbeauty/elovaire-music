@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.core
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertSame
 import org.junit.Test
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
@@ -98,6 +99,39 @@ class AppRuntimeCoordinatorTest {
 
         assertEquals(listOf("playback-started", "playback-finished", "full-start"), events)
         assertEquals(AppRuntimePhase.Started, coordinator.currentPhase())
+    }
+
+    @Test
+    @Suppress("TooGenericExceptionCaught")
+    fun release_attempts_all_children_and_preserves_the_first_failure() {
+        val events = mutableListOf<String>()
+        val first = IllegalStateException("first")
+        val second = IllegalArgumentException("second")
+        val coordinator = AppRuntimeCoordinator(
+            startPlaybackAction = {},
+            startAction = {},
+            memoryPressureAction = {},
+            releaseAction = {
+                releaseBestEffort(
+                    { events += "one"; throw first },
+                    { events += "two"; throw second },
+                    { events += "three" },
+                )
+            },
+        )
+
+        val thrown = try {
+            coordinator.release()
+            null
+        } catch (failure: Throwable) {
+            failure
+        }
+
+        assertSame(first, thrown)
+        assertEquals(listOf("one", "two", "three"), events)
+        assertEquals(1, thrown?.suppressed?.size)
+        coordinator.release()
+        assertEquals(listOf("one", "two", "three"), events)
     }
 
     private fun coordinator(events: MutableList<String>): AppRuntimeCoordinator {

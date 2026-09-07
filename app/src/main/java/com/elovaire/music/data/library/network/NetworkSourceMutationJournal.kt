@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 import android.content.Context
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import org.json.JSONArray
+import org.json.JSONException
 import org.json.JSONObject
 
 internal enum class NetworkSourceMutationKind {
@@ -19,6 +20,11 @@ internal data class NetworkSourceMutationMarker(
     val newLocationFingerprint: String?,
     val phase: String,
 )
+
+internal class NetworkSourceMutationJournalCorruptionException(
+    message: String,
+    cause: Throwable? = null,
+) : IllegalStateException(message, cause)
 
 /** Small commit marker for the two preference stores and the source-scoped inventory. */
 internal class NetworkSourceMutationJournal(context: Context) {
@@ -59,8 +65,10 @@ internal class NetworkSourceMutationJournal(context: Context) {
 
     fun markPhase(sourceId: String, phase: String) {
         synchronized(lock) {
-            val current = readLocked().firstOrNull { it.sourceId == sourceId } ?: return
-            writeLocked(readLocked().map { marker ->
+            require(phase in VALID_PHASES) { "Unknown network source mutation phase." }
+            val markers = readLocked()
+            val current = markers.firstOrNull { it.sourceId == sourceId } ?: return
+            writeLocked(markers.map { marker ->
                 if (marker.sourceId == sourceId) current.copy(phase = phase) else marker
             })
         }
@@ -106,16 +114,46 @@ internal class NetworkSourceMutationJournal(context: Context) {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")
     private fun readLocked(): List<NetworkSourceMutationMarker> {
-        val array = runCatching { JSONArray(preferences.getString(KEY_MARKERS, "[]")) }.getOrNull()
-            ?: return emptyList()
+        val raw = preferences.getString(KEY_MARKERS, "[]") ?: "[]"
+        val array = try {
+            JSONArray(raw)
+        } catch (failure: JSONException) {
+            throw NetworkSourceMutationJournalCorruptionException(
+                "Network source mutation journal is unreadable.",
+                failure,
+            )
+        }
+        if (array.length() > MAX_MARKERS) {
+            throw NetworkSourceMutationJournalCorruptionException(
+                "Network source mutation journal exceeds its safety bound.",
+            )
+        }
         return buildList {
-            repeat(minOf(array.length(), MAX_MARKERS)) { index ->
-                val item = array.optJSONObject(index) ?: return@repeat
-                val kind = runCatching { NetworkSourceMutationKind.valueOf(item.optString("kind")) }.getOrNull()
-                    ?: return@repeat
+            repeat(array.length()) { index ->
+                val item = array.optJSONObject(index)
+                    ?: throw NetworkSourceMutationJournalCorruptionException(
+                        "Network source mutation journal contains an invalid marker.",
+                    )
+                val kind = try {
+                    NetworkSourceMutationKind.valueOf(item.optString("kind"))
+                } catch (failure: RuntimeException) {
+                    throw NetworkSourceMutationJournalCorruptionException(
+                        "Network source mutation journal contains an unknown mutation kind.",
+                        failure,
+                    )
+                }
                 val sourceId = item.optString("sourceId").trim().takeIf(String::isNotBlank)
-                    ?: return@repeat
+                    ?: throw NetworkSourceMutationJournalCorruptionException(
+                        "Network source mutation journal contains a marker without a source.",
+                    )
+                val phase = item.optString("phase", PHASE_PREPARED)
+                if (phase !in VALID_PHASES) {
+                    throw NetworkSourceMutationJournalCorruptionException(
+                        "Network source mutation journal contains an unknown phase.",
+                    )
+                }
                 add(
                     NetworkSourceMutationMarker(
                         sourceId = sourceId,
@@ -126,7 +164,7 @@ internal class NetworkSourceMutationJournal(context: Context) {
                             .takeIf(String::isNotBlank),
                         newLocationFingerprint = item.optString("newLocationFingerprint")
                             .takeIf(String::isNotBlank),
-                        phase = item.optString("phase", PHASE_PREPARED),
+                        phase = phase,
                     ),
                 )
             }
@@ -138,6 +176,16 @@ internal class NetworkSourceMutationJournal(context: Context) {
         const val KEY_MARKERS = "markers"
         const val MAX_MARKERS = 32
         const val PHASE_PREPARED = "prepared"
+        val VALID_PHASES = setOf(
+            PHASE_PREPARED,
+            "credential_persisted",
+            "source_persisted",
+            "credentials_cleaned",
+            "inventory_invalidated",
+            "runtime_invalidated",
+            "source_removed",
+            "inventory_removed",
+        )
     }
 }
 

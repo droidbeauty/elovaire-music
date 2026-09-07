@@ -72,8 +72,31 @@ internal class AppRuntimeCoordinator(
         try {
             action()
         } catch (failure: Throwable) {
-            release()
+            try {
+                release()
+            } catch (cleanupFailure: Throwable) {
+                if (cleanupFailure !== failure) failure.addSuppressed(cleanupFailure)
+            }
             throw failure
         }
     }
+}
+
+/** Attempts every owned release action while preserving the first failure for the caller. */
+@Suppress("TooGenericExceptionCaught")
+internal fun releaseBestEffort(vararg actions: () -> Unit) {
+    var firstFailure: Throwable? = null
+    actions.forEach { action ->
+        try {
+            action()
+        } catch (failure: Throwable) {
+            val recordedFailure = firstFailure
+            if (recordedFailure == null) {
+                firstFailure = failure
+            } else if (failure !== recordedFailure) {
+                recordedFailure.addSuppressed(failure)
+            }
+        }
+    }
+    firstFailure?.let { throw it }
 }

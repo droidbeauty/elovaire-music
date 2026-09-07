@@ -50,6 +50,12 @@ internal interface UserDataDao {
     @Query("SELECT EXISTS(SELECT 1 FROM user_data_migrations WHERE migrationId = :migrationId)")
     suspend fun migrationComplete(migrationId: String): Boolean
 
+    @Query("SELECT revision FROM user_data_revision WHERE singletonId = 0")
+    suspend fun userDataRevision(): Long?
+
+    @Query("INSERT OR REPLACE INTO user_data_revision(singletonId, revision) VALUES(0, :revision)")
+    suspend fun writeUserDataRevision(revision: Long)
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertPlaylist(playlist: UserPlaylistEntity)
 

@@ -110,13 +110,15 @@ class AppContainer(
         },
         memoryPressureAction = services::onMemoryPressure,
         releaseAction = {
-            openNowPlayingChannel.close()
-            appShortcutChannel.close()
-            bridgeCoordinator.release()
-            notificationControllerHolder.release()
-            services.release()
-            appRuntimeScope.close()
-            appForegroundTracker.close()
+            releaseBestEffort(
+                { openNowPlayingChannel.close() },
+                { appShortcutChannel.close() },
+                { bridgeCoordinator.release() },
+                { notificationControllerHolder.release() },
+                { services.release() },
+                { appRuntimeScope.close() },
+                { appForegroundTracker.close() },
+            )
         },
     )
     val openNowPlayingCommands: Flow<Unit> = openNowPlayingChannel.receiveAsFlow()

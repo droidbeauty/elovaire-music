@@ -58,7 +58,7 @@ class RoomUserDataStoreTest {
 
     @Test
     fun releaseDrainsMandatoryWritesAndRejectsLaterCreates() = runBlocking {
-        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
         val results = List(512) { index -> store.createPlaylist("Playlist $index").await() }
         val ids = results.map { (it as PlaylistMutationResult.Success).playlistId ?: error("missing playlist id") }
         val drained = CompletableDeferred<Unit>()
@@ -142,13 +142,19 @@ class RoomUserDataStoreTest {
 
     @Test
     fun userDataRevisionAdvancesOnlyAfterAnAcceptedMutation() = runBlocking {
-        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock)
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
 
         assertEquals(0L, store.currentUserDataRevision)
         val result = store.createPlaylist("Revisioned").await()
 
         assertTrue(result is PlaylistMutationResult.Success)
         assertEquals(1L, store.currentUserDataRevision)
+        assertEquals(1L, database.userDataDao().userDataRevision())
+
+        val invalid = store.updatePlaylistSongIds(999_999L, listOf(1L)).await()
+        assertTrue(invalid is PlaylistMutationResult.NotFound)
+        assertEquals(1L, store.currentUserDataRevision)
+        assertEquals(1L, database.userDataDao().userDataRevision())
         store.release()
     }
 

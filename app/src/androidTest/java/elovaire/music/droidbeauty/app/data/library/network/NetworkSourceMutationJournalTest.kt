@@ -5,6 +5,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -47,5 +48,28 @@ class NetworkSourceMutationJournalTest {
             )
         }
         assertEquals(32, journal.pending().size)
+    }
+
+    @Test
+    fun malformedJournalDoesNotMasqueradeAsNoPendingMutations() {
+        assertTrue(preferences.edit().putString("markers", "not-json").commit())
+
+        assertThrows(NetworkSourceMutationJournalCorruptionException::class.java) {
+            NetworkSourceMutationJournal(context).pending()
+        }
+    }
+
+    @Test
+    fun unknownMarkerPhaseIsRejectedInsteadOfBeingSkipped() {
+        assertTrue(
+            preferences.edit().putString(
+                "markers",
+                "[{\"sourceId\":\"source\",\"kind\":\"Save\",\"phase\":\"future\"}]",
+            ).commit(),
+        )
+
+        assertThrows(NetworkSourceMutationJournalCorruptionException::class.java) {
+            NetworkSourceMutationJournal(context).pending()
+        }
     }
 }

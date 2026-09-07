@@ -222,7 +222,7 @@ internal fun LibraryFoldersScreen(
                         )
                         Text(
                             text = copy.noFoldersMessage,
-                            style = MaterialTheme.typography.bodyLarge,
+                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                             textAlign = TextAlign.Center,
                         )
@@ -286,7 +286,7 @@ internal fun LibraryFoldersScreen(
             ) {
                 Text(
                     text = copy.removalSafety.trimEnd('.'),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
@@ -615,7 +615,7 @@ private fun LibrarySourceChoice(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
             )
         }
@@ -954,7 +954,7 @@ private fun LibraryFolderListRow(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -962,7 +962,7 @@ private fun LibraryFolderListRow(
             songCountLabel?.let { label ->
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
             }
@@ -1050,7 +1050,7 @@ internal fun SettingNavigationRow(
             )
             Text(
                 text = subtitle,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
             )
         }

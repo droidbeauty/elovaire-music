@@ -25,10 +25,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SearchHistoryEntity::class,
         PlaybackCollectionStateEntity::class,
         UserDataMigrationEntity::class,
+        UserDataRevisionEntity::class,
         NetworkInventoryEntity::class,
         NetworkInventorySourceEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
@@ -47,7 +48,14 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 // this file. WAL keeps short user-data writes from blocking integrity checks.
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
                 .enableMultiInstanceInvalidation()
-                .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6)
+                .addMigrations(
+                    MIGRATION_1_2,
+                    MIGRATION_2_3,
+                    MIGRATION_3_4,
+                    MIGRATION_4_5,
+                    MIGRATION_5_6,
+                    MIGRATION_6_7,
+                )
                 .build()
         }
 
@@ -157,6 +165,16 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS `index_user_playlist_entries_songId` " +
                         "ON `user_playlist_entries` (`songId`)",
+                )
+            }
+        }
+
+        internal val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `user_data_revision` " +
+                        "(`singletonId` INTEGER NOT NULL, `revision` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`singletonId`))",
                 )
             }
         }

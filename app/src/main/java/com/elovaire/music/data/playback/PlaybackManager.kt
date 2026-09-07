@@ -98,6 +98,13 @@ private data class InterruptionResumeState(
     val isActive: Boolean get() = shouldResume
 }
 
+internal fun shouldWaitForExternalMediaBeforeAutoResume(
+    isTransientFocusInterruption: Boolean,
+    hasActiveExternalMedia: Boolean,
+): Boolean {
+    return !isTransientFocusInterruption && hasActiveExternalMedia
+}
+
 private enum class PauseFadeReason {
     Manual,
     AudioInterruption,
@@ -716,6 +723,10 @@ class PlaybackManager(
     fun hasActiveQueue(): Boolean {
         if (released.get()) return false
         return _state.value.queue.isNotEmpty() || player.mediaItemCount > 0
+    }
+
+    internal fun hasPendingInterruptionResume(): Boolean {
+        return !released.get() && shouldKeepInterruptionResumeIntent()
     }
 
     internal fun currentPositionForPersistence(): Long {
@@ -2130,7 +2141,13 @@ class PlaybackManager(
             updateState()
             return
         }
-        if (hasActiveExternalMediaPlayback()) {
+        if (
+            shouldWaitForExternalMediaBeforeAutoResume(
+                isTransientFocusInterruption =
+                    interruptionResumeState.reason == InterruptionResumeReason.TransientFocusLoss,
+                hasActiveExternalMedia = hasActiveExternalMediaPlayback(),
+            )
+        ) {
             scheduleExternalInterruptionResumeWatch()
             return
         }

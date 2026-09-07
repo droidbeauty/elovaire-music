@@ -3,11 +3,33 @@ package elovaire.music.droidbeauty.app.data.playback
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PlaybackNotificationStateTest {
+    @Test
+    fun interruptionResumeKeepsPlaybackServiceForegroundWhilePaused() {
+        assertTrue(
+            shouldKeepPlaybackServiceForeground(
+                ongoing = false,
+                hasCurrentSong = true,
+                transportShowsPause = false,
+                hasPendingInterruptionResume = true,
+            ),
+        )
+        assertFalse(
+            shouldKeepPlaybackServiceForeground(
+                ongoing = false,
+                hasCurrentSong = true,
+                transportShowsPause = false,
+                hasPendingInterruptionResume = false,
+            ),
+        )
+    }
+
     @Test
     fun notificationRenderStateOf_usesOnlyNotificationRelevantFields() {
         val artUri = TestUri("content://art/1")

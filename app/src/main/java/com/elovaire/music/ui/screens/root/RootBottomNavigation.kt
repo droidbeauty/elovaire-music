@@ -100,7 +100,7 @@ private fun BottomNavigationHazeBackground(
         darkTheme = darkTheme,
         edge = ProgressiveChromeEdge.Bottom,
         overlayAlpha = 0.7f,
-        flatOverlay = true,
+        flatOverlay = false,
         showEdgeLine = true,
         modifier = modifier,
     )
