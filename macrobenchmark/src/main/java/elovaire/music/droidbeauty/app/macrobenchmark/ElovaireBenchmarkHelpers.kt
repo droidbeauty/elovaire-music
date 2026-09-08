@@ -253,6 +253,10 @@ internal fun MacrobenchmarkScope.searchRapidInputJourney() {
 }
 
 internal fun MacrobenchmarkScope.playerJourneyIfAvailable() {
+    // searchJourney intentionally returns to the launcher; restore the app before probing
+    // playback so a missing foreground package is not mistaken for a player-flow failure.
+    startActivityAndWait()
+    waitForAppVisible()
     clickDescription("Home")
     waitForAppVisible()
     clickDescription("Play album")

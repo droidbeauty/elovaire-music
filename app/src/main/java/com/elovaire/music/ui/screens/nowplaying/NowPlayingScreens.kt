@@ -1802,7 +1802,7 @@ private fun QueueSheetHeader(
             ) {
                 Text(
                     text = localizedCountLabel(queueSize, "track", language),
-                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Normal),
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = secondaryTint.copy(alpha = 0.7f),
                 )
                 val closeQueueInteractionSource = rememberElovaireInteractionSource()
@@ -2466,7 +2466,7 @@ private fun QueueSongRow(
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 ExplicitTitleText(
                     title = song.title,
@@ -2493,7 +2493,7 @@ private fun QueueSongRow(
             ) {
                 Text(
                     text = formatDuration(song.durationMs),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = secondaryTint.copy(alpha = 0.78f),
                     maxLines = 1,
                     textAlign = TextAlign.End,
@@ -4121,7 +4121,7 @@ private fun LyricsTextEditor(
         if (!errorMessage.isNullOrBlank()) {
             Text(
                 text = errorMessage,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = contentColor.copy(alpha = 0.7f),
             )
         }

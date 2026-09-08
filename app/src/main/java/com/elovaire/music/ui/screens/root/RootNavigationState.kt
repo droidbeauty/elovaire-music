@@ -104,6 +104,7 @@ internal class RootNavigationState(
             "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}",
             "$ALBUM_ROUTE/{albumId}",
             "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+            "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}",
             -> detailOwnerRoute(concreteRoute)
 
             else -> topLevelOwnerRoute(currentRoute, browsingOriginRoute) ?: selectedBottomRoute
@@ -116,7 +117,9 @@ internal class RootNavigationState(
         if (concreteRoute in setOf(PLAYER_ROUTE, SETTINGS_ROUTE, MANAGE_PLAYLISTS_ROUTE, EQUALIZER_ROUTE, CROSSFADE_ROUTE, AUDIOBOOK_SETTINGS_ROUTE, SMART_PLAYLIST_SETTINGS_ROUTE, LIBRARY_FOLDERS_ROUTE, CHANGELOG_ROUTE, ABOUT_ROUTE, PRIVACY_POLICY_ROUTE, RECENTLY_ADDED_ROUTE)) {
             return
         }
-        if (normalizedConcreteRoute == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}") {
+        if (normalizedConcreteRoute == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" ||
+            normalizedConcreteRoute == "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}"
+        ) {
             return
         }
         if (normalizedConcreteRoute in setOf("$ALBUM_ROUTE/{albumId}", "$PLAYLIST_ROUTE/{playlistId}")) {
@@ -307,6 +310,7 @@ private fun String.isOwnerTrackedRoute(): Boolean {
         startsWith("$GENRE_ROUTE/") ||
         startsWith("$LIBRARY_COLLECTION_ROUTE/") ||
         startsWith("$ALBUM_TAG_EDITOR_ROUTE/") ||
+        startsWith("$AUDIOBOOK_TAG_EDITOR_ROUTE/") ||
         this == SMART_PLAYLIST_EDITOR_ROUTE ||
         startsWith("$SMART_PLAYLIST_EDITOR_ROUTE/")
 }

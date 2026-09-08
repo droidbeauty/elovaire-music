@@ -110,6 +110,19 @@ internal class AudiobookProgressStore(context: Context) {
         if (changed) editor.apply()
     }
 
+    /** Moves a checkpoint when a verified tag edit changes the catalog identity of a book. */
+    @Synchronized
+    fun remapBookKey(oldBookKey: String, newBookKey: String) {
+        if (oldBookKey.isBlank() || newBookKey.isBlank() || oldBookKey == newBookKey) return
+        val oldPreferenceKey = key(oldBookKey)
+        val newPreferenceKey = key(newBookKey)
+        val oldRaw = preferences.getString(oldPreferenceKey, null) ?: return
+        val newRaw = preferences.getString(newPreferenceKey, null)
+        val selected = selectNewestCheckpoint(oldRaw, newRaw) ?: return
+        if (!preferences.edit().putString(newPreferenceKey, selected).commit()) return
+        preferences.edit().remove(oldPreferenceKey).commit()
+    }
+
     @Suppress("TooGenericExceptionCaught")
     fun loadPlaybackSpeed(): Float {
         return try {
@@ -132,6 +145,22 @@ internal class AudiobookProgressStore(context: Context) {
         val digest = MessageDigest.getInstance("SHA-256")
             .digest(bookKey.toByteArray(StandardCharsets.UTF_8))
         return "book_" + digest.joinToString("") { byte -> "%02x".format(byte) }
+    }
+
+    private fun selectNewestCheckpoint(first: String, second: String?): String? {
+        val firstTimestamp = checkpointTimestamp(first) ?: return second?.takeIf { checkpointTimestamp(it) != null }
+        val secondTimestamp = second?.let(::checkpointTimestamp)
+        return if (secondTimestamp != null && secondTimestamp >= firstTimestamp) second else first
+    }
+
+    private fun checkpointTimestamp(raw: String): Long? {
+        return try {
+            JSONObject(raw).optLong("updatedAtMs").takeIf { it > 0L }
+        } catch (_: JSONException) {
+            null
+        } catch (_: RuntimeException) {
+            null
+        }
     }
 
     private companion object {

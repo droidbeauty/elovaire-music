@@ -759,7 +759,7 @@ internal fun PlaylistPickerRow(
                 if (playlist.songIds.isEmpty()) {
                     Text(
                         text = copy.noSongsInPlaylistYet,
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                         color = readableSecondaryTextColor().copy(alpha = 0.7f),
                     )
                 } else {

@@ -151,30 +151,32 @@ private fun AudiobookMiniCard(
             requestedSizePx = 320,
             showArtworkGlow = true,
         )
-        Text(
-            text = book.title,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = book.author,
-            style = MaterialTheme.typography.labelLarge,
-            color = readableSecondaryTextColor(),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = if (book.parts.size == 1) {
-                formatDuration(book.durationMs)
-            } else {
-                "${book.parts.size} ${copy.parts}  •  ${formatDuration(book.durationMs)}"
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = readableSecondaryTextColor(),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+            Text(
+                text = book.title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = book.author,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = readableSecondaryTextColor(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = if (book.parts.size == 1) {
+                    formatDuration(book.durationMs)
+                } else {
+                    "${book.parts.size} ${copy.parts}  •  ${formatDuration(book.durationMs)}"
+                },
+                style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium),
+                color = readableSecondaryTextColor(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
         when {
             progress?.completed == true -> Text(copy.completed, style = MaterialTheme.typography.labelSmall, color = readableSecondaryTextColor())
             isCurrentlyPlaying -> Text(copy.listening, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
@@ -379,7 +381,7 @@ private fun AudiobookCollectionRow(
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = book.title,
@@ -387,10 +389,14 @@ private fun AudiobookCollectionRow(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(text = book.author, style = MaterialTheme.typography.bodyMedium, color = readableSecondaryTextColor())
+                Text(
+                    text = book.author,
+                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
+                    color = readableSecondaryTextColor(),
+                )
                 Text(
                     text = "${book.parts.size} ${audiobookCopy(LocalAppLanguage.current).parts}  •  ${formatDuration(book.durationMs)}",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                 )
             }
@@ -427,7 +433,7 @@ private fun AudiobookGridCard(
         )
         Column(
             modifier = Modifier.padding(horizontal = 2.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
                 text = book.title,
@@ -437,7 +443,7 @@ private fun AudiobookGridCard(
             )
             Text(
                 text = book.author,
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -456,6 +462,7 @@ internal fun AudiobookDetailScreen(
     descriptionState: AudiobookDescriptionLoadState,
     bottomPadding: Dp,
     onBack: () -> Unit,
+    onOpenTagEditor: () -> Unit,
     onPlay: (AudiobookPart, Boolean) -> Unit,
     onStartOver: () -> Unit,
 ) {
@@ -511,7 +518,7 @@ internal fun AudiobookDetailScreen(
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(5.dp),
+                    verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
                         text = book.title,
@@ -521,7 +528,7 @@ internal fun AudiobookDetailScreen(
                     )
                     Text(
                         text = book.author,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Medium),
                         color = readableSecondaryTextColor(),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
@@ -543,8 +550,16 @@ internal fun AudiobookDetailScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
-                        Text(formatDuration(elapsedBookMs), style = MaterialTheme.typography.labelLarge, color = readableSecondaryTextColor())
-                        Text(formatDuration((book.durationMs - elapsedBookMs).coerceAtLeast(0L)), style = MaterialTheme.typography.labelLarge, color = readableSecondaryTextColor())
+                        Text(
+                            formatDuration(elapsedBookMs),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                            color = readableSecondaryTextColor(),
+                        )
+                        Text(
+                            formatDuration((book.durationMs - elapsedBookMs).coerceAtLeast(0L)),
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                            color = readableSecondaryTextColor(),
+                        )
                     }
                 }
             }
@@ -658,6 +673,7 @@ internal fun AudiobookDetailScreen(
             title = book.title,
             subtitle = book.author,
             onBack = onBack,
+            actions = listOf(TopBarActionSpec(R.drawable.ic_lucide_square_pen, copy.editTags, onOpenTagEditor)),
             modifier = Modifier.align(Alignment.TopCenter),
         )
     }
@@ -914,14 +930,21 @@ private fun AudiobookPartRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(text = number.toString(), style = MaterialTheme.typography.labelLarge, color = readableSecondaryTextColor())
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+        ) {
             Text(
                 text = part.title,
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Text(text = formatDuration(part.durationMs), style = MaterialTheme.typography.labelLarge, color = readableSecondaryTextColor())
+            Text(
+                text = formatDuration(part.durationMs),
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = readableSecondaryTextColor(),
+            )
         }
         if (selected) {
             Icon(painter = painterResource(R.drawable.ic_lucide_play), contentDescription = null, modifier = Modifier.size(18.dp))

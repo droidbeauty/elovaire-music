@@ -130,7 +130,7 @@ private fun StyleOptionCard(
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
                         text = title,
@@ -239,7 +239,7 @@ private fun PreviewBar(
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Box(
                     modifier = Modifier

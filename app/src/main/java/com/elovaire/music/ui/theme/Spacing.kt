@@ -45,6 +45,9 @@ object ElovaireSpacing {
     // Standard gap between major stacked sections/modules.
     val sectionVerticalGap: Dp = 20.dp
 
+    // Shared gap between a media title and its secondary text.
+    val mediaTextStackGap: Dp = 5.dp
+
     // Top gap between now playing artwork and the title/artist row.
     val nowPlayingTitleTopGap: Dp = 5.dp
 

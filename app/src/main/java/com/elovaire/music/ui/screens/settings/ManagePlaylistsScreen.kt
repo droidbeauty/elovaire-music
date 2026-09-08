@@ -58,6 +58,7 @@ import elovaire.music.droidbeauty.app.ui.i18n.localizedCountLabel
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
+import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import kotlinx.coroutines.Dispatchers
@@ -251,7 +252,7 @@ private fun ManagePlaylistRow(
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
                 text = playlist.name,

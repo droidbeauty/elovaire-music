@@ -328,7 +328,7 @@ internal fun PlaylistDetailScreen(
                                         withStyle(
                                             SpanStyle(
                                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.72f),
-                                                fontWeight = FontWeight.Normal,
+                                                fontWeight = FontWeight.Medium,
                                             ),
                                         ) {
                                             append(formatPlaylistDuration(playlistDurationMs))
@@ -748,7 +748,7 @@ internal fun PlaylistSongRow(
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -790,7 +790,7 @@ internal fun PlaylistSongRow(
                     ) {
                         Text(
                             text = formatDuration(song.durationMs),
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
                             maxLines = 1,
                             textAlign = TextAlign.End,

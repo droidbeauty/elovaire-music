@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.ui.performance.PerformanceState
 
+@Suppress("CyclomaticComplexMethod")
 internal fun rootPerformanceRouteLabel(route: String?): String? {
     return when (route) {
         null -> null
@@ -34,6 +35,7 @@ internal fun rootPerformanceRouteLabel(route: String?): String? {
             route.startsWith("$LIBRARY_COLLECTION_ROUTE/") || route == "$LIBRARY_COLLECTION_ROUTE/{kind}" -> "library_collection"
             route.startsWith("$AUDIOBOOK_ROUTE/") || route == "$AUDIOBOOK_ROUTE/{bookKey}" -> "audiobook_detail"
             route.startsWith("$ALBUM_TAG_EDITOR_ROUTE/") || route == "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> "tag_editor"
+            route.startsWith("$AUDIOBOOK_TAG_EDITOR_ROUTE/") || route == "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}" -> "audiobook_tag_editor"
             else -> "other"
         }
     }

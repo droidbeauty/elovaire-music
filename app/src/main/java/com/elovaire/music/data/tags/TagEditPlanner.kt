@@ -13,8 +13,12 @@ internal data class TagEditPlan(
 }
 
 internal object TagEditPlanner {
-    fun validationFailure(request: AlbumTagEditRequest): TagEditValidationFailure? {
-        val albumSongIds = request.album.songs.asSequence().map(Song::id).toHashSet()
+    fun validationFailure(request: TagMutationRequest): TagEditValidationFailure? {
+        val songIds = request.songs.map(Song::id)
+        if (songIds.size != songIds.toSet().size) {
+            return TagEditValidationFailure.InvalidTrackSelection
+        }
+        val albumSongIds = songIds.toHashSet()
         val trackIds = request.tracks.map(EditableAlbumTrack::songId)
         if (trackIds.size != trackIds.toSet().size || trackIds.any { it !in albumSongIds }) {
             return TagEditValidationFailure.InvalidTrackSelection
@@ -31,11 +35,11 @@ internal object TagEditPlanner {
         return null
     }
 
-    fun plansFor(request: AlbumTagEditRequest): List<TagEditPlan> {
+    fun plansFor(request: TagMutationRequest): List<TagEditPlan> {
         val trackEditsById = request.tracks.associateBy(EditableAlbumTrack::songId)
         val hasAlbumLevelChanges = request.hasAlbumLevelChanges()
         val artworkChanged = request.coverArtUri != null || request.coverArtBytes != null
-        return request.album.songs.mapNotNull { song ->
+        return request.songs.mapNotNull { song ->
             TagEditPlan(
                 song = song,
                 trackEdit = trackEditsById[song.id],
@@ -66,19 +70,19 @@ internal fun AlbumTagEditRequest.retryForFailures(
     )
 }
 
-private fun AlbumTagEditRequest.hasAlbumLevelChanges(): Boolean {
-    return albumTitle !is TagFieldEdit.Unchanged ||
-        albumArtist !is TagFieldEdit.Unchanged ||
+private fun TagMutationRequest.hasAlbumLevelChanges(): Boolean {
+    return collectionTitle !is TagFieldEdit.Unchanged ||
+        collectionArtist !is TagFieldEdit.Unchanged ||
         releaseYear !is TagFieldEdit.Unchanged ||
         genre !is TagFieldEdit.Unchanged
 }
 
-private fun AlbumTagEditRequest.textValues(): Sequence<String> = sequence {
+private fun TagMutationRequest.textValues(): Sequence<String> = sequence {
     tracks.forEach {
         yield(it.title)
         yield(it.artist)
     }
-    listOf(albumTitle, albumArtist, genre).forEach { edit ->
+    listOf(collectionTitle, collectionArtist, genre).forEach { edit ->
         (edit as? TagFieldEdit.Value)?.value?.let { yield(it) }
     }
 }

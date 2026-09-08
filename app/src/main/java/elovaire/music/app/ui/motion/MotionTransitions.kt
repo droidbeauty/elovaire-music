@@ -413,20 +413,33 @@ class MotionTransitions internal constructor(
 
     fun topBarActionSwapTransform(): ContentTransform =
         cached(StaticMotionTransition.TopBarActionSwapTransform) {
-            fadeIn(
+            (fadeIn(
                 animationSpec = specs.tween(
                     durationMillis = MotionDuration.TopBarActionEnter,
-                    delayMillis = MotionDuration.TopBarActionExit,
                     easing = MotionEasing.FadeIn,
                 ),
                 initialAlpha = 0f,
-            ) togetherWith fadeOut(
+            ) + scaleIn(
+                animationSpec = specs.spring(
+                    dampingRatio = 0.78f,
+                    stiffness = 900f,
+                ),
+                initialScale = 0.84f,
+                transformOrigin = TransformOrigin.Center,
+            )) togetherWith (fadeOut(
                 animationSpec = specs.tween(
                     durationMillis = MotionDuration.TopBarActionExit,
                     easing = MotionEasing.FadeOut,
                 ),
                 targetAlpha = 0f,
-            )
+            ) + scaleOut(
+                animationSpec = specs.tween(
+                    durationMillis = MotionDuration.TopBarActionExit,
+                    easing = MotionEasing.RefinedAccelerate,
+                ),
+                targetScale = 0.92f,
+                transformOrigin = TransformOrigin.Center,
+            ))
         }
 
     fun softContentTransform(): ContentTransform =

@@ -368,6 +368,7 @@ internal fun readableSecondaryTextColor(): Color {
 @Composable
 internal fun secondaryBodyTextStyle(): TextStyle {
     return MaterialTheme.typography.bodyLarge.copy(
+        fontWeight = FontWeight.Medium,
         lineHeight = elovaireScaledSp(19.2f),
     )
 }

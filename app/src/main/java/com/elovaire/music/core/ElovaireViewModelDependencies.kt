@@ -22,6 +22,7 @@ import elovaire.music.droidbeauty.app.data.settings.PlaylistStore
 import elovaire.music.droidbeauty.app.data.settings.RootSettingsReader
 import elovaire.music.droidbeauty.app.data.settings.SearchSettingsStore
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditor
+import elovaire.music.droidbeauty.app.data.tags.AudiobookTagEditor
 import kotlinx.coroutines.flow.StateFlow
 
 internal interface RootDeleteDependencies {
@@ -59,6 +60,13 @@ internal interface AlbumTagEditorViewModelDependencies {
     val editor: AlbumTagEditor
 }
 
+internal interface AudiobookTagEditorViewModelDependencies {
+    val libraryReader: LibraryReader
+    val libraryTagUpdates: LibraryTagUpdateWriter
+    val editor: AudiobookTagEditor
+    val remapProgressKey: suspend (String, String) -> Unit
+}
+
 internal interface ElovaireViewModelDependencies {
     val dispatchers: AppDispatchers
     val root: RootViewModelDependencies
@@ -66,6 +74,7 @@ internal interface ElovaireViewModelDependencies {
     val nowPlaying: NowPlayingViewModelDependencies
     val equalizer: EqualizerViewModelDependencies
     val albumTagEditor: AlbumTagEditorViewModelDependencies
+    val audiobookTagEditor: AudiobookTagEditorViewModelDependencies
 }
 
 internal interface PlaybackActionDependencies {

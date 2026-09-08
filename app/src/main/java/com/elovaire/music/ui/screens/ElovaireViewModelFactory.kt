@@ -7,6 +7,7 @@ import androidx.lifecycle.createSavedStateHandle
 import androidx.lifecycle.viewmodel.CreationExtras
 import elovaire.music.droidbeauty.app.core.ElovaireViewModelDependencies
 import elovaire.music.droidbeauty.app.ui.screens.tags.AlbumTagEditorViewModel
+import elovaire.music.droidbeauty.app.ui.screens.tags.AudiobookTagEditorViewModel
 
 internal class ElovaireViewModelFactory(
     private val dependencies: ElovaireViewModelDependencies,
@@ -59,6 +60,17 @@ internal class ElovaireViewModelFactory(
                     libraryRepository = dependencies.albumTagEditor.libraryReader,
                     libraryTagUpdates = dependencies.albumTagEditor.libraryTagUpdates,
                     tagEditorService = dependencies.albumTagEditor.editor,
+                    savedStateHandle = savedStateHandle,
+                ) as T
+            }
+
+            modelClass.isAssignableFrom(AudiobookTagEditorViewModel::class.java) -> {
+                AudiobookTagEditorViewModel(
+                    libraryRepository = dependencies.audiobookTagEditor.libraryReader,
+                    libraryTagUpdates = dependencies.audiobookTagEditor.libraryTagUpdates,
+                    tagEditorService = dependencies.audiobookTagEditor.editor,
+                    remapProgressKey = dependencies.audiobookTagEditor.remapProgressKey,
+                    ioDispatcher = dependencies.dispatchers.io,
                     savedStateHandle = savedStateHandle,
                 ) as T
             }

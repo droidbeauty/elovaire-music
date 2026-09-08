@@ -1008,19 +1008,21 @@ private fun SearchQuickPick(
             cornerRadius = ElovaireRadii.pill,
             showArtworkGlow = true,
         )
-        Text(
-            text = album.title,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = album.artist,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+            Text(
+                text = album.title,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = album.artist,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -1107,19 +1109,21 @@ private fun SearchAudiobooksResults(
                             requestedSizePx = 320,
                             showArtworkGlow = true,
                         )
-                        Text(
-                            text = book.title,
-                            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = book.author,
-                            style = MaterialTheme.typography.labelLarge,
-                            color = readableSecondaryTextColor(),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+                            Text(
+                                text = book.title,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = book.author,
+                                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                                color = readableSecondaryTextColor(),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }
@@ -1145,7 +1149,7 @@ private fun SearchResultsCategoryHeader(
             tint = readableMutedIconColor(),
             modifier = Modifier.size(15.dp),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
@@ -1154,7 +1158,7 @@ private fun SearchResultsCategoryHeader(
             subtitle?.takeIf(String::isNotBlank)?.let {
                 Text(
                     text = it,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                 )
             }
@@ -1347,7 +1351,7 @@ private fun SearchPlaylistListRow(
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
                 text = playlist.name,
@@ -1357,7 +1361,7 @@ private fun SearchPlaylistListRow(
             )
             Text(
                 text = localizedCountLabel(playlist.songIds.size, "track", language),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1429,7 +1433,7 @@ private fun SearchHistoryListRow(
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
                 text = entry.title,
@@ -1439,7 +1443,7 @@ private fun SearchHistoryListRow(
             )
             Text(
                 text = entry.subtitle,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,

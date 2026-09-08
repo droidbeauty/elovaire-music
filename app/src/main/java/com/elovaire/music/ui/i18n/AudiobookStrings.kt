@@ -19,6 +19,7 @@ internal data class AudiobookUiCopy(
     val parts: String,
     val rewind15: String,
     val forward15: String,
+    val editTags: String = "Edit audiobook tags",
 )
 
 internal fun audiobookCopy(language: AppLanguage): AudiobookUiCopy {
@@ -40,6 +41,7 @@ internal fun audiobookCopy(language: AppLanguage): AudiobookUiCopy {
             parts = "części",
             rewind15 = "Cofnij o 15 sekund",
             forward15 = "Przewiń o 15 sekund",
+            editTags = "Edytuj tagi audiobooka",
         )
         AppLanguage.German -> AudiobookUiCopy("Hörbücher", "Weiterhören", "Alle Hörbücher", "Autor", "Fortsetzen", "Wiedergeben", "Erneut wiedergeben", "Von vorn beginnen", "Kapitel", "Abgeschlossen", "Nicht begonnen", "Wird angehört", "Geschwindigkeit", "Teile", "15 Sekunden zurück", "15 Sekunden vor")
         AppLanguage.French -> AudiobookUiCopy("Livres audio", "Reprendre l’écoute", "Tous les livres audio", "Auteur", "Reprendre", "Lire", "Lire à nouveau", "Recommencer", "Chapitres", "Terminé", "Non commencé", "Écoute en cours", "Vitesse", "Parties", "Reculer de 15 secondes", "Avancer de 15 secondes")

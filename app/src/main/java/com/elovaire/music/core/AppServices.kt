@@ -26,6 +26,7 @@ import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSyst
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.playback.NetworkDataSourceFactory
 import androidx.media3.datasource.DefaultDataSource
 import elovaire.music.droidbeauty.app.data.library.db.ElovaireDatabase
@@ -53,6 +54,7 @@ import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
 import elovaire.music.droidbeauty.app.data.settings.UserDataRecoverySnapshot
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagEditorService
+import elovaire.music.droidbeauty.app.data.tags.AudiobookTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
@@ -178,6 +180,10 @@ internal class AppServices(
             ioDispatcher = appDispatchers.io,
         )
     }
+
+    val audiobookTagEditorService by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        AudiobookTagEditorService(albumTagEditorService)
+    }
     val playbackEffectsController = PlaybackEffectsController()
     val playbackManager = PlaybackManager(
         context = applicationContext,
@@ -238,6 +244,7 @@ internal class AppServices(
             _networkProbeResults.update { it - sourceId }
         },
         onSourcesChanged = { sourceId, refreshRequired ->
+            startNetworkServices()
             libraryRepository.unblockNetworkSource(sourceId)
             libraryRepository.setNetworkSources(
                 networkSourceStore.sources.value,
@@ -264,6 +271,7 @@ internal class AppServices(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
     ) {
+        startNetworkServices()
         networkMutationRuntime.save(source, credentials)
     }
 
@@ -327,10 +335,13 @@ internal class AppServices(
     }
 
     private fun startNetworkServices() {
+        if (networkSourceStore.sources.value.none(NetworkLibrarySource::enabled)) return
         if (!networkServicesStarted.compareAndSet(false, true)) return
         optionalScope.launch(appDispatchers.io) {
             try {
-                networkFileSystemRegistryDelegate.value.start()
+                ElovaireTrace.section("network_services_start") {
+                    networkFileSystemRegistryDelegate.value.start()
+                }
             } catch (cancelled: kotlinx.coroutines.CancellationException) {
                 throw cancelled
             } catch (failure: SecurityException) {

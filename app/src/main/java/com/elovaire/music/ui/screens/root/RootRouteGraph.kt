@@ -69,6 +69,19 @@ internal fun RootRouteGraph(
                 )
             }
         }
+        composable(
+            route = "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}",
+            arguments = listOf(navArgument("bookKey") { type = NavType.StringType }),
+        ) { backStackEntry ->
+            AudiobookTagEditorRouteHost(
+                bookKey = backStackEntry.audiobookRouteKey(),
+                backStackEntry = backStackEntry,
+                viewModelFactory = viewModelFactory,
+                appLanguage = routeState.appState.appLanguage,
+                onBack = routeActions::navigateUp,
+                onSaveSucceeded = routeActions::completeAudiobookTagEdit,
+            )
+        }
         composable(PLAYLISTS_ROUTE) {
             PlaylistsRouteHost(navState, routeState.playlists, routeActions, padding)
         }

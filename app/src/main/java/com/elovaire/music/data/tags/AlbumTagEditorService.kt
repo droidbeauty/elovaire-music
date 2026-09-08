@@ -59,12 +59,16 @@ internal data class AlbumTagEditRequest(
     val album: Album,
     val albumTitle: TagFieldEdit<String>,
     val albumArtist: TagFieldEdit<String>,
-    val releaseYear: TagFieldEdit<Int>,
-    val genre: TagFieldEdit<String>,
-    val coverArtUri: Uri?,
-    val coverArtBytes: ByteArray? = null,
-    val tracks: List<EditableAlbumTrack>,
-)
+    override val releaseYear: TagFieldEdit<Int>,
+    override val genre: TagFieldEdit<String>,
+    override val coverArtUri: Uri?,
+    override val coverArtBytes: ByteArray? = null,
+    override val tracks: List<EditableAlbumTrack>,
+) : TagMutationRequest {
+    override val songs: List<Song> get() = album.songs
+    override val collectionTitle: TagFieldEdit<String> get() = albumTitle
+    override val collectionArtist: TagFieldEdit<String> get() = albumArtist
+}
 
 internal data class TagEditApplyResult(
     val editedSongIds: List<Long>,
@@ -115,7 +119,7 @@ internal class AlbumTagEditorService(
     private val mediaMutationJournal: MediaMutationJournal? = null,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val faultInjector: MediaMutationFaultInjector = NoOpMediaMutationFaultInjector,
-) : AlbumTagEditor {
+) : AlbumTagEditor, TagMutationEditor {
     private val appContext = context.applicationContext
     private val contentResolver: ContentResolver = appContext.contentResolver
     private val contentIo = ContentIo(contentResolver)
@@ -124,9 +128,14 @@ internal class AlbumTagEditorService(
     override suspend fun applyEdits(
         request: AlbumTagEditRequest,
         writeConsentGranted: Boolean,
+    ): TagEditApplyResult = applyEdits(request as TagMutationRequest, writeConsentGranted)
+
+    override suspend fun applyEdits(
+        request: TagMutationRequest,
+        writeConsentGranted: Boolean,
     ): TagEditApplyResult = withContext(ioDispatcher) {
-        MediaMutationCoordinator.withTargets(request.album.songs.map(Song::uri)) {
-        logDebug("Applying tag edit album=${request.album.id} tracks=${request.tracks.size}")
+        MediaMutationCoordinator.withTargets(request.songs.map(Song::uri)) {
+        logDebug("Applying tag edit songs=${request.songs.size} tracks=${request.tracks.size}")
         val plans = TagEditPlanner.plansFor(request)
         TagEditPlanner.validationFailure(request)?.let { validationFailure ->
             return@withTargets TagEditApplyResult(
@@ -135,7 +144,7 @@ internal class AlbumTagEditorService(
                 editedFilePaths = emptyList(),
                 editedSongs = emptyList(),
                 artworkChanged = false,
-                failures = request.album.songs.map { song ->
+                failures = request.songs.map { song ->
                     TagEditFailure(
                         songId = song.id,
                         fileName = song.fileName,
@@ -217,7 +226,7 @@ internal class AlbumTagEditorService(
     @Suppress("CyclomaticComplexMethod", "LongMethod", "TooGenericExceptionCaught")
     private suspend fun applyPlan(
         plan: TagEditPlan,
-        request: AlbumTagEditRequest,
+        request: TagMutationRequest,
         coverArtBytes: ByteArray?,
         coverArtMimeType: String?,
         writeConsentGranted: Boolean,
@@ -357,8 +366,8 @@ internal class AlbumTagEditorService(
             val editedSong = song.copy(
                 title = trackEdit?.let { effectiveTrack.title } ?: song.title,
                 artist = trackEdit?.let { effectiveTrack.artist } ?: song.artist,
-                album = request.albumTitle.valueOr(song.album),
-                albumArtist = request.albumArtist.valueOr(song.albumArtist ?: song.artist)
+                album = request.collectionTitle.valueOr(song.album),
+                albumArtist = request.collectionArtist.valueOr(song.albumArtist ?: song.artist)
                     .takeIf(String::isNotBlank),
                 releaseYear = request.releaseYear.valueOr(song.releaseYear),
                 genre = request.genre.valueOr(song.genre),
@@ -433,18 +442,18 @@ internal class AlbumTagEditorService(
     }
 
     private fun expectedTagValues(
-        request: AlbumTagEditRequest,
+        request: TagMutationRequest,
         trackEdit: EditableAlbumTrack?,
         effectiveTrack: EffectiveTrackEdit,
     ): ExpectedTagValues = ExpectedTagValues(
         title = trackEdit?.let { effectiveTrack.title },
         artist = trackEdit?.let { effectiveTrack.artist },
-        album = request.albumTitle.expectedValue(),
-        albumArtist = request.albumArtist.expectedValue(),
+        album = request.collectionTitle.expectedValue(),
+        albumArtist = request.collectionArtist.expectedValue(),
         year = request.releaseYear.expectedYear(),
         genre = request.genre.expectedValue(),
-        shouldClearAlbum = request.albumTitle is TagFieldEdit.Cleared,
-        shouldClearAlbumArtist = request.albumArtist is TagFieldEdit.Cleared,
+        shouldClearAlbum = request.collectionTitle is TagFieldEdit.Cleared,
+        shouldClearAlbumArtist = request.collectionArtist is TagFieldEdit.Cleared,
         shouldClearYear = request.releaseYear is TagFieldEdit.Cleared,
         shouldClearGenre = request.genre is TagFieldEdit.Cleared,
         trackNumber = trackEdit?.let { effectiveTrack.trackNumber.coerceAtLeast(1).toString() },
@@ -535,15 +544,15 @@ internal class AlbumTagEditorService(
     private fun updateTagFile(
         tempFile: File,
         originalSong: Song,
-        request: AlbumTagEditRequest,
+        request: TagMutationRequest,
         track: EffectiveTrackEdit,
         coverArtBytes: ByteArray?,
         coverArtMimeType: String?,
     ) {
         val audioFile = AudioFileIO.read(tempFile)
         val tag = audioFile.tagOrCreateAndSetDefault
-        applyTextEdit(tag, FieldKey.ALBUM, request.albumTitle)
-        applyTextEdit(tag, FieldKey.ALBUM_ARTIST, request.albumArtist)
+        applyTextEdit(tag, FieldKey.ALBUM, request.collectionTitle)
+        applyTextEdit(tag, FieldKey.ALBUM_ARTIST, request.collectionArtist)
         applyTextEdit(tag, FieldKey.GENRE, request.genre)
         if (request.tracks.any { it.songId == originalSong.id }) {
             setOrDeleteTextField(tag, FieldKey.ARTIST, track.artist.trim().ifBlank { originalSong.artist })

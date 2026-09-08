@@ -73,6 +73,7 @@ import elovaire.music.droidbeauty.app.ui.motion.MotionDuration
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionSpecs
 import elovaire.music.droidbeauty.app.ui.motion.rememberMotionTransitions
 import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
+import elovaire.music.droidbeauty.app.ui.theme.ElovaireSpacing
 import elovaire.music.droidbeauty.app.ui.theme.ForceDarkColorScheme
 import elovaire.music.droidbeauty.app.ui.theme.InkText
 import kotlinx.coroutines.delay
@@ -397,7 +398,7 @@ private fun CompactNowPlayingBar(
                         }
                         Column(
                             modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(1.dp),
+                            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                         ) {
                             Text(
                                 text = song.title,
@@ -639,7 +640,7 @@ private fun NowPlayingBar(
                 }
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(1.dp),
+                    verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
                         text = song.title,

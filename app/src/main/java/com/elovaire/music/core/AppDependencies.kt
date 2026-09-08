@@ -7,6 +7,7 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagArtworkInvalidator
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagMutationCoordinator
+import elovaire.music.droidbeauty.app.data.tags.AudiobookTagMutationCoordinator
 
 internal class AppDependencies(
     applicationContext: Context,
@@ -16,6 +17,10 @@ internal class AppDependencies(
 ) {
     private val albumTagMutationCoordinator = AlbumTagMutationCoordinator(
         editor = services.albumTagEditorService,
+        artworkInvalidator = artworkInvalidator,
+    )
+    private val audiobookTagMutationCoordinator = AudiobookTagMutationCoordinator(
+        editor = services.audiobookTagEditorService,
         artworkInvalidator = artworkInvalidator,
     )
 
@@ -104,6 +109,13 @@ internal class AppDependencies(
                 override val libraryReader get() = services.libraryRepository
                 override val libraryTagUpdates get() = services.libraryRepository
                 override val editor get() = albumTagMutationCoordinator
+            }
+        override val audiobookTagEditor: AudiobookTagEditorViewModelDependencies =
+            object : AudiobookTagEditorViewModelDependencies {
+                override val libraryReader get() = services.libraryRepository
+                override val libraryTagUpdates get() = services.libraryRepository
+                override val editor get() = audiobookTagMutationCoordinator
+                override val remapProgressKey: suspend (String, String) -> Unit = services.playbackManager::remapAudiobookProgressKey
             }
     }
 }

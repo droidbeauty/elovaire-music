@@ -478,7 +478,7 @@ internal fun HomeScreen(
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
                         text = homeCopy.indexingMessage,
-                        style = MaterialTheme.typography.bodyLarge,
+                        style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                         color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center,
                     )
@@ -517,7 +517,7 @@ internal fun HomeScreen(
                             )
                             Text(
                                 text = homeCopy.emptyLibraryMessage,
-                                style = MaterialTheme.typography.bodyLarge,
+                                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                 textAlign = TextAlign.Center,
                             )
@@ -690,6 +690,8 @@ private fun LastPlayedAlbumModule(
         val sharedSourceToken = remember { AlbumSharedTransitionToken.next() }
         val sharedTransitionController = LocalAlbumSharedTransitionController.current
         val artwork = rememberArtworkBitmap(album.artUri, size = 512)
+        val artworkMotion = rememberLastPlayedHeroArtworkMotion()
+        val density = LocalDensity.current
         val year = remember(album.songs) { album.songs.firstNotNullOfOrNull { it.releaseYear } }
         val genre = remember(album.songs) {
             album.songs.firstOrNull { it.genre.isNotBlank() && it.genre != "Unknown Genre" }?.genre
@@ -742,6 +744,12 @@ private fun LastPlayedAlbumModule(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .matchParentSize()
+                        .graphicsLayer {
+                            scaleX = artworkMotion.scale
+                            scaleY = artworkMotion.scale
+                            translationX = artworkMotion.translationX * density.density
+                            translationY = artworkMotion.translationY * density.density
+                        }
                         .blur(40.dp),
                     alpha = 0.88f,
                 )
@@ -772,7 +780,7 @@ private fun LastPlayedAlbumModule(
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
                         text = album.title,
@@ -791,7 +799,7 @@ private fun LastPlayedAlbumModule(
                     if (metaItems.isNotEmpty()) {
                         Text(
                             text = metaItems.joinToString("  •  "),
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                             color = secondaryContentColor,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -838,6 +846,8 @@ private fun LastPlayedPlaylistModule(
     ForceDarkColorScheme {
         val artworkSong = songs.firstOrNull()
         val artwork = rememberArtworkBitmap(artworkSong?.artUri, size = 512)
+        val artworkMotion = rememberLastPlayedHeroArtworkMotion()
+        val density = LocalDensity.current
         val gradient = rememberArtworkGradient(artworkSong?.artUri).value
         val totalDurationMs = remember(songs) { songs.sumOf { it.durationMs } }
         val language = LocalAppLanguage.current
@@ -884,6 +894,12 @@ private fun LastPlayedPlaylistModule(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .matchParentSize()
+                        .graphicsLayer {
+                            scaleX = artworkMotion.scale
+                            scaleY = artworkMotion.scale
+                            translationX = artworkMotion.translationX * density.density
+                            translationY = artworkMotion.translationY * density.density
+                        }
                         .blur(40.dp),
                     alpha = 0.88f,
                 )
@@ -909,7 +925,7 @@ private fun LastPlayedPlaylistModule(
                 )
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                 ) {
                     Text(
                         text = playlist.name,
@@ -927,7 +943,7 @@ private fun LastPlayedPlaylistModule(
                     )
                     Text(
                         text = metaItems.joinToString("  •  "),
-                        style = MaterialTheme.typography.labelLarge,
+                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                         color = secondaryContentColor,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -992,6 +1008,54 @@ private fun LastPlayedPlaylistModule(
             }
         }
     }
+}
+
+private data class LastPlayedHeroArtworkMotion(
+    val translationX: Float,
+    val translationY: Float,
+    val scale: Float,
+)
+
+@Composable
+private fun rememberLastPlayedHeroArtworkMotion(): LastPlayedHeroArtworkMotion {
+    if (LocalMotionRuntime.current.reduceMotion) {
+        return LastPlayedHeroArtworkMotion(
+            translationX = 0f,
+            translationY = 0f,
+            scale = 1.08f,
+        )
+    }
+    val motionSpecs = rememberMotionSpecs()
+    val infiniteTransition = rememberInfiniteTransition(label = "last_played_hero_artwork_motion")
+    val translationX by infiniteTransition.animateFloat(
+        initialValue = -7f,
+        targetValue = 7f,
+        animationSpec = infiniteRepeatable(
+            animation = motionSpecs.tween(
+                durationMillis = 11_000,
+                easing = LinearEasing,
+            ),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "last_played_hero_artwork_translation_x",
+    )
+    val translationY by infiniteTransition.animateFloat(
+        initialValue = 5f,
+        targetValue = -6f,
+        animationSpec = infiniteRepeatable(
+            animation = motionSpecs.tween(
+                durationMillis = 8_600,
+                easing = LinearEasing,
+            ),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "last_played_hero_artwork_translation_y",
+    )
+    return LastPlayedHeroArtworkMotion(
+        translationX = translationX,
+        translationY = translationY,
+        scale = 1.08f,
+    )
 }
 
 @Composable
@@ -1824,7 +1888,7 @@ private fun LibraryHubRow(
         )
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
                 text = title,
@@ -1833,7 +1897,7 @@ private fun LibraryHubRow(
             )
             Text(
                 text = detail,
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -2806,7 +2870,7 @@ internal fun FavoriteAlbumsModule(
                     )
                     Column(
                         modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
                     ) {
                         Text(
                             text = title,
@@ -2815,7 +2879,7 @@ internal fun FavoriteAlbumsModule(
                         )
                         Text(
                             text = subtitle,
-                            style = MaterialTheme.typography.labelLarge,
+                            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                             color = readableSecondaryTextColor(),
                         )
                     }
@@ -2906,7 +2970,7 @@ private fun FavoriteAlbumCompactCell(
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = album.title,
@@ -2960,7 +3024,7 @@ private fun CompactSongTile(
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = song.title,
@@ -3005,7 +3069,7 @@ private fun SongGridCard(
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = song.title,
@@ -3048,19 +3112,21 @@ private fun ArtistGridCard(
                 .aspectRatio(1f),
             cornerRadius = ElovaireRadii.pill,
         )
-        Text(
-            text = artist.name,
-            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = "${localizedCountLabel(artist.albumCount, "album", language)}  •  ${localizedCountLabel(artist.songCount, "song", language)}",
-            style = MaterialTheme.typography.labelLarge,
-            color = readableSecondaryTextColor(),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
+            Text(
+                text = artist.name,
+                style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = "${localizedCountLabel(artist.albumCount, "album", language)}  •  ${localizedCountLabel(artist.songCount, "song", language)}",
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = readableSecondaryTextColor(),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -3097,7 +3163,7 @@ internal fun ArtistRow(
         }
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
                 text = artist.name,
@@ -3107,7 +3173,7 @@ internal fun ArtistRow(
             )
             Text(
                 text = "${localizedCountLabel(artist.albumCount, "album", language)}  •  ${localizedCountLabel(artist.songCount, "song", language)}",
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -3175,7 +3241,7 @@ private fun GenreRow(
         }
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
         ) {
             Text(
                 text = genre.name,
@@ -3185,7 +3251,7 @@ private fun GenreRow(
             )
             Text(
                 text = localizedCountLabel(genre.albumCount, "album", language),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
             )
@@ -3255,7 +3321,10 @@ private fun RecentSongRow(
                 modifier = Modifier.size(52.dp),
                 cornerRadius = ElovaireRadii.artwork,
             )
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+            ) {
                 Text(
                     text = song.title,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
@@ -3328,7 +3397,7 @@ private fun SearchSongRow(
         ) {
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3360,7 +3429,7 @@ private fun SearchSongRow(
             ) {
                 Text(
                     text = formatDuration(song.durationMs),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
                     maxLines = 1,
                     textAlign = TextAlign.End,
@@ -3424,7 +3493,7 @@ internal fun HomeRecentSongRow(
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -3456,7 +3525,7 @@ internal fun HomeRecentSongRow(
             ) {
                 Text(
                     text = formatDuration(song.durationMs),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
                     maxLines = 1,
                     textAlign = TextAlign.End,
@@ -3610,7 +3679,7 @@ private fun AlbumGridCard(
         if (showText) {
             Column(
                 modifier = Modifier.padding(horizontal = 2.dp),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = album.title,
@@ -3689,7 +3758,7 @@ internal fun CompactAlbumRow(
                 modifier = Modifier
                     .weight(1f)
                     .padding(end = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = album.title,
@@ -3717,6 +3786,7 @@ internal fun CompactAlbumRow(
                         withStyle(
                             SpanStyle(
                                 color = readableSecondaryTextColor().copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium,
                             ),
                         ) {
                             append(formatDuration(album.durationMs))

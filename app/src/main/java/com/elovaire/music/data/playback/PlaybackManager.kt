@@ -199,6 +199,7 @@ class PlaybackManager(
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
     private val audiobookProgressStore = AudiobookProgressStore(context)
     private var audiobookPlaybackSpeed = 1f
+    @Volatile
     private var activeAudiobookContext: AudiobookPlaybackContext? = null
     private var lastAudiobookCheckpointElapsedMs = 0L
     private val _audiobookProgressRevision = MutableStateFlow(0L)
@@ -1061,6 +1062,13 @@ class PlaybackManager(
 
     internal fun remapAudiobookProgress(replacements: Map<Long, Long>) {
         audiobookProgressStore.remapSongIds(replacements)
+    }
+
+    internal fun remapAudiobookProgressKey(oldBookKey: String, newBookKey: String) {
+        audiobookProgressStore.remapBookKey(oldBookKey, newBookKey)
+        if (activeAudiobookContext?.bookKey == oldBookKey) {
+            activeAudiobookContext = activeAudiobookContext?.copy(bookKey = newBookKey)
+        }
     }
 
     override fun togglePlayback() {

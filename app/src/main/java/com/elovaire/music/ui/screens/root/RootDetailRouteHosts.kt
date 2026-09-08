@@ -150,6 +150,7 @@ internal fun AudiobookDetailRouteHost(
         descriptionState = descriptionState,
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
+        onOpenTagEditor = { routeActions.openAudiobookTagEditor(book.stableKey) },
         onPlay = { part, resume ->
             routeActions.playback.playAudiobook(
                 displayedBook,

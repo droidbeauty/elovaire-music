@@ -488,7 +488,7 @@ internal fun AlbumScreen(
             pushStyle(
                 SpanStyle(
                     color = albumOnSurface.copy(alpha = 0.7f),
-                    fontWeight = FontWeight.Normal,
+                    fontWeight = FontWeight.Medium,
                 ),
             )
             append(formatDuration(album.durationMs))
@@ -1070,7 +1070,10 @@ private fun AlbumSongRow(
                     }
                 }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1101,7 +1104,7 @@ private fun AlbumSongRow(
             ) {
                 Text(
                     text = formatDuration(song.durationMs),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
                     maxLines = 1,
                     textAlign = TextAlign.End,
@@ -1649,7 +1652,10 @@ private fun SelectableCollectionRow(
                         .padding(4.dp),
                 )
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+            ) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold),
@@ -1658,7 +1664,7 @@ private fun SelectableCollectionRow(
                 )
                 Text(
                     text = subtitle,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = readableSecondaryTextColor(),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -1709,7 +1715,10 @@ private fun SelectableSongRow(
                     )
                 }
             }
-            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -1740,7 +1749,7 @@ private fun SelectableSongRow(
             ) {
                 Text(
                     text = formatDuration(song.durationMs),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.68f),
                     modifier = Modifier.width(40.dp),
                     textAlign = TextAlign.End,
@@ -1802,7 +1811,7 @@ private fun SelectableAlbumPickerRow(
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(5.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = album.title,
@@ -1830,12 +1839,13 @@ private fun SelectableAlbumPickerRow(
                         withStyle(
                             SpanStyle(
                                 color = readableSecondaryTextColor().copy(alpha = 0.7f),
+                                fontWeight = FontWeight.Medium,
                             ),
                         ) {
                             append(formatDuration(album.durationMs))
                         }
                     },
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 )
             }
             Box(

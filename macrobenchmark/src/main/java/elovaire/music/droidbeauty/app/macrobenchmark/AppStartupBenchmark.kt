@@ -27,7 +27,7 @@ class AppStartupBenchmark {
         assumeMacrobenchmarksEnabled()
         benchmarkRule.measureRepeated(
             packageName = TARGET_PACKAGE,
-            metrics = listOf(StartupTimingMetric()),
+            metrics = startupMetrics(),
             compilationMode = CompilationMode.None(),
             startupMode = StartupMode.COLD,
             iterations = benchmarkIterations(),
@@ -46,7 +46,7 @@ class AppStartupBenchmark {
         assumeMacrobenchmarksEnabled()
         benchmarkRule.measureRepeated(
             packageName = TARGET_PACKAGE,
-            metrics = listOf(StartupTimingMetric()),
+            metrics = startupMetrics(),
             compilationMode = CompilationMode.None(),
             startupMode = StartupMode.WARM,
             iterations = benchmarkIterations(),
@@ -65,7 +65,7 @@ class AppStartupBenchmark {
         assumeMacrobenchmarksEnabled()
         benchmarkRule.measureRepeated(
             packageName = TARGET_PACKAGE,
-            metrics = listOf(StartupTimingMetric()),
+            metrics = startupMetrics(),
             compilationMode = CompilationMode.Partial(
                 baselineProfileMode = BaselineProfileMode.Require,
             ),
@@ -187,7 +187,32 @@ class AppStartupBenchmark {
         }
     }
 
+    private fun startupMetrics() = listOf(StartupTimingMetric()) + STARTUP_TRACE_SECTIONS.flatMap { section ->
+        listOf(
+            TraceSectionMetric(
+                sectionName = section,
+                mode = TraceSectionMetric.Mode.Count,
+                label = "startup_trace_${section}_count",
+            ),
+            TraceSectionMetric(
+                sectionName = section,
+                mode = TraceSectionMetric.Mode.Sum,
+                label = "startup_trace_${section}_duration_ms",
+            ),
+        )
+    }
+
     private companion object {
+        val STARTUP_TRACE_SECTIONS = listOf(
+            "app_container_create",
+            "app_foreground_tracker_init",
+            "portable_settings_restore",
+            "app_services_init",
+            "playback_player_create",
+            "network_services_start",
+            "deferred_app_start",
+            "deferred_startup",
+        )
         val DURATION_TRACE_SECTIONS = setOf(
             "route_change",
             "library_refresh_scan",

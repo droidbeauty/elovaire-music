@@ -498,7 +498,7 @@ internal fun UpdateAvailableDialog(
                             modifier = Modifier.size(15.dp),
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap)) {
                             Text(
                                 text = "Update available",
                                 style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Medium),
@@ -1053,7 +1053,7 @@ private fun AboutPlayStoreCard(
             )
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(3.dp),
+                verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
             ) {
                 Text(
                     text = localizedAboutLinkLabel(link.label, LocalAppLanguage.current),
@@ -1061,7 +1061,7 @@ private fun AboutPlayStoreCard(
                 )
                 Text(
                     text = "Droid Beauty",
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                     color = contentColor.copy(alpha = 0.76f),
                 )
             }

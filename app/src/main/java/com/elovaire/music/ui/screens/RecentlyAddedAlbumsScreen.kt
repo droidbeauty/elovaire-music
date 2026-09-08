@@ -292,7 +292,7 @@ private fun RecentlyAddedEmptyState(
         Spacer(modifier = Modifier.height(8.dp))
         Text(
             text = "Add music to your device to see something here",
-            style = MaterialTheme.typography.bodyLarge,
+            style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.72f),
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
         )

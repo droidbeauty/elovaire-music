@@ -61,6 +61,7 @@ internal data class TopBarActionSpec(
     @DrawableRes val iconResId: Int,
     val contentDescription: String,
     val onClick: () -> Unit,
+    val enabled: Boolean = true,
 )
 
 private data class SharedTopBarActionVisual(
@@ -247,13 +248,17 @@ internal fun UnifiedTopBar(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     if (supplementalActionIconResId != null && onSupplementalAction != null) {
-                        HeaderIconButton(
-                            iconResId = supplementalActionIconResId,
-                            contentDescription = supplementalActionContentDescription ?: "Action",
-                            showBackground = false,
-                            onClick = onSupplementalAction,
-                            modifier = Modifier.zIndex(1f),
+                        AnimatedSharedTopBarActions(
+                            actions = listOf(
+                                TopBarActionSpec(
+                                    iconResId = supplementalActionIconResId,
+                                    contentDescription = supplementalActionContentDescription ?: "Action",
+                                    onClick = onSupplementalAction,
+                                ),
+                            ),
                         )
+                    } else {
+                        AnimatedSharedTopBarActions(actions = emptyList())
                     }
                     HeaderIconButton(
                         iconResId = R.drawable.ic_lucide_menu,
@@ -384,22 +389,7 @@ private fun TopBarActions(
     actions: List<TopBarActionSpec>,
     modifier: Modifier = Modifier,
 ) {
-    if (actions.isNotEmpty()) {
-        Row(
-            modifier = modifier,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            actions.forEach { action ->
-                HeaderIconButton(
-                    iconResId = action.iconResId,
-                    contentDescription = action.contentDescription,
-                    showBackground = false,
-                    onClick = action.onClick,
-                )
-            }
-        }
-    }
+    AnimatedSharedTopBarActions(actions = actions, modifier = modifier)
 }
 
 @Composable
@@ -418,8 +408,6 @@ private fun AnimatedSharedTopBarActions(
             )
         }
     }
-    if (visualActions.isEmpty()) return
-
     ElovaireAnimatedContent(
         targetState = visualActions,
         modifier = modifier,
@@ -440,9 +428,9 @@ private fun AnimatedSharedTopBarActions(
                 HeaderIconButton(
                     iconResId = visual.iconResId,
                     contentDescription = visual.contentDescription,
-                    enabled = isAuthoritative,
+                    enabled = isAuthoritative && currentAction.enabled,
                     showBackground = false,
-                    onClick = { if (isAuthoritative) currentAction.onClick.invoke() },
+                    onClick = { if (isAuthoritative && currentAction.enabled) currentAction.onClick.invoke() },
                 )
             }
         }
@@ -515,17 +503,19 @@ internal fun SharedTopBarOverlay(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                if (currentSpec.supplementalActionIconResId != null && currentSpec.onSupplementalAction != null) {
-                                    AnimatedSharedTopBarActions(
-                                        actions = listOf(
+                                AnimatedSharedTopBarActions(
+                                    actions = if (currentSpec.supplementalActionIconResId != null && currentSpec.onSupplementalAction != null) {
+                                        listOf(
                                             TopBarActionSpec(
                                                 iconResId = currentSpec.supplementalActionIconResId,
                                                 contentDescription = currentSpec.supplementalActionContentDescription ?: "Action",
                                                 onClick = currentSpec.onSupplementalAction,
                                             ),
-                                        ),
-                                    )
-                                }
+                                        )
+                                    } else {
+                                        emptyList()
+                                    },
+                                )
                                 HeaderIconButton(
                                     iconResId = R.drawable.ic_lucide_menu,
                                     contentDescription = "Menu",
@@ -695,9 +685,9 @@ internal fun SharedTopBarOverlay(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                 }
-                                Text(
-                                    text = currentSpec.subtitle,
-                                    style = MaterialTheme.typography.labelLarge,
+                                    Text(
+                                        text = currentSpec.subtitle,
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                     overflow = TextOverflow.Ellipsis,

@@ -113,6 +113,24 @@ internal class RootRouteActions(
         navigationState.navigateTo(Routes.tagEditor(albumId))
     }
 
+    fun openAudiobookTagEditor(stableKey: String) {
+        navigationState.navigateTo(Routes.audiobookTagEditor(stableKey))
+    }
+
+    fun completeAudiobookTagEdit(stableKey: String) {
+        navController.popBackStack()
+        val current = navController.currentBackStackEntry
+        val currentKey = current
+            ?.takeIf { it.destination.route == "$AUDIOBOOK_ROUTE/{bookKey}" }
+            ?.arguments
+            ?.getString("bookKey")
+            ?.let(Uri::decode)
+        if (currentKey != null && currentKey != stableKey) {
+            navController.popBackStack()
+            openAudiobook(stableKey)
+        }
+    }
+
     fun openEqualizer() {
         navigationState.navigateTo(EQUALIZER_ROUTE)
     }

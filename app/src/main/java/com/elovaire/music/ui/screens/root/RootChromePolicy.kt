@@ -78,4 +78,5 @@ private val CompactNowPlayingHiddenRoutes = setOf(
     NOW_PLAYING_BAR_STYLE_ROUTE,
     PRIVACY_POLICY_ROUTE,
     "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+    "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}",
 )

@@ -576,9 +576,16 @@ private fun SmartEditorChoiceRow(
         iconResId?.let {
             Icon(painter = painterResource(id = it), contentDescription = null, modifier = Modifier.size(18.dp))
         }
-        Column(Modifier.weight(1f)) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),
+        ) {
             Text(text = title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
-            Text(text = value, style = MaterialTheme.typography.labelLarge, color = readableSecondaryTextColor())
+            Text(
+                text = value,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
+                color = readableSecondaryTextColor(),
+            )
         }
     }
 }

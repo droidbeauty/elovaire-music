@@ -42,6 +42,7 @@ internal const val ABOUT_ROUTE = "about"
 internal const val PRIVACY_POLICY_ROUTE = "privacy_policy"
 internal const val ALBUM_ROUTE = "album"
 internal const val ALBUM_TAG_EDITOR_ROUTE = "album_tag_editor"
+internal const val AUDIOBOOK_TAG_EDITOR_ROUTE = "audiobook_tag_editor"
 internal const val LIBRARY_COLLECTION_ROUTE = "library_collection"
 internal const val GENRE_ROUTE = "genre"
 internal const val ARTIST_ROUTE = "artist"
@@ -60,6 +61,7 @@ internal object Routes {
     fun libraryCollection(kind: LibraryCollectionKind): String = "$LIBRARY_COLLECTION_ROUTE/${kind.name}"
     fun tagEditor(albumId: Long): String = "$ALBUM_TAG_EDITOR_ROUTE/$albumId"
     fun audiobook(stableKey: String): String = "$AUDIOBOOK_ROUTE/${Uri.encode(stableKey)}"
+    fun audiobookTagEditor(stableKey: String): String = "$AUDIOBOOK_TAG_EDITOR_ROUTE/${Uri.encode(stableKey)}"
 }
 
 internal val TopLevelRoutes = setOf(
@@ -83,6 +85,7 @@ internal val BottomNavigationRoutes = setOf(
     "$ARTIST_ROUTE/{artistName}",
     AUDIOBOOKS_ROUTE,
     "$AUDIOBOOK_ROUTE/{bookKey}",
+    "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}",
 )
 internal const val NOW_PLAYING_TITLE_TEXT_SIZE_SP = 23f
 internal const val NOW_PLAYING_ARTIST_TEXT_SIZE_SP = 18f
@@ -255,6 +258,7 @@ internal object ElovaireNavigationTransitions {
             "$SMART_PLAYLIST_EDITOR_ROUTE/{smartPlaylistId}",
             "$ALBUM_ROUTE/{albumId}",
             "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+            "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}",
             -> 2
 
             else -> 1
@@ -622,6 +626,7 @@ internal fun String?.normalizedNavigationRoute(): String? {
         this == null -> null
         startsWith("$ALBUM_ROUTE/") -> "$ALBUM_ROUTE/{albumId}"
         startsWith("$ALBUM_TAG_EDITOR_ROUTE/") -> "$ALBUM_TAG_EDITOR_ROUTE/{albumId}"
+        startsWith("$AUDIOBOOK_TAG_EDITOR_ROUTE/") -> "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}"
         startsWith("$PLAYLIST_ROUTE/") -> "$PLAYLIST_ROUTE/{playlistId}"
         startsWith("$GENRE_ROUTE/") -> "$GENRE_ROUTE/{genre}"
         startsWith("$ARTIST_ROUTE/") -> "$ARTIST_ROUTE/{artistName}"
@@ -634,6 +639,7 @@ internal fun androidx.navigation.NavBackStackEntry.elovaireConcreteRoute(): Stri
     return when (destination.route) {
         "$ALBUM_ROUTE/{albumId}" -> Routes.album(arguments.routeLongArg("albumId") ?: return null)
         "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> Routes.tagEditor(arguments.routeLongArg("albumId") ?: return null)
+        "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}" -> Routes.audiobookTagEditor(arguments?.getString("bookKey") ?: return null)
         "$PLAYLIST_ROUTE/{playlistId}" -> Routes.playlist(arguments.routeLongArg("playlistId") ?: return null)
         "$GENRE_ROUTE/{genre}" -> Routes.genre(arguments?.getString("genre") ?: return null)
         "$ARTIST_ROUTE/{artistName}" -> Routes.artist(arguments?.getString("artistName") ?: return null)
@@ -653,6 +659,7 @@ internal fun androidx.navigation.NavBackStackEntry.concreteNavigationRoute(): St
     return when (route) {
         "$ALBUM_ROUTE/{albumId}" -> args.routeLongArg("albumId")?.let(Routes::album)
         "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> args.routeLongArg("albumId")?.let(Routes::tagEditor)
+        "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}" -> args?.getString("bookKey")?.let(Routes::audiobookTagEditor)
         "$PLAYLIST_ROUTE/{playlistId}" -> args.routeLongArg("playlistId")?.let(Routes::playlist)
         "$LIBRARY_COLLECTION_ROUTE/{kind}" -> args?.getString("kind")?.let { "$LIBRARY_COLLECTION_ROUTE/$it" }
         "$GENRE_ROUTE/{genre}" -> args?.getString("genre")?.let(Routes::genre)
@@ -676,6 +683,7 @@ internal fun topLevelOwnerRoute(
         "$ARTIST_ROUTE/{artistName}",
         "$ALBUM_ROUTE/{albumId}",
         "$ALBUM_TAG_EDITOR_ROUTE/{albumId}",
+        "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}",
         -> browsingOriginRoute.takeIf { it in TopLevelRoutes } ?: ALBUMS_ROUTE
 
         else -> browsingOriginRoute.takeIf { it in TopLevelRoutes }
@@ -699,6 +707,7 @@ internal fun transitionTopLevelOwnerRoute(
         "$PLAYLIST_ROUTE/{playlistId}" -> PLAYLISTS_ROUTE
         "$ALBUM_ROUTE/{albumId}" -> fallbackTopLevelRoute.takeIf { it in TopLevelRoutes } ?: ALBUMS_ROUTE
         "$ALBUM_TAG_EDITOR_ROUTE/{albumId}" -> fallbackTopLevelRoute.takeIf { it in TopLevelRoutes } ?: ALBUMS_ROUTE
+        "$AUDIOBOOK_TAG_EDITOR_ROUTE/{bookKey}" -> fallbackTopLevelRoute.takeIf { it in TopLevelRoutes } ?: ALBUMS_ROUTE
         else -> fallbackTopLevelRoute.takeIf { it in TopLevelRoutes }
     }
 }

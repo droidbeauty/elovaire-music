@@ -336,14 +336,14 @@ private fun SmartPlaylistListRow(
             )
             Text(
                 text = "${localizedCountLabel(songs.size, "song", language)} • ${copy.autoUpdating}",
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = smartPlaylistSortLabel(language, summary.playlist.sort.field),
-                style = MaterialTheme.typography.labelLarge,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
                 color = readableSecondaryTextColor().copy(alpha = 0.7f),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -401,7 +401,7 @@ internal fun PlaylistGridTile(
         )
         Text(
             text = localizedCountLabel(playlist.songIds.size, "song", language),
-            style = MaterialTheme.typography.labelLarge,
+            style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
