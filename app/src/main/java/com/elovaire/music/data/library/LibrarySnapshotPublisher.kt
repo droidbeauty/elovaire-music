@@ -135,10 +135,18 @@ internal class LibrarySnapshotPublisher(
             }
             updatedAlbums.add(insertionPoint, album)
         }
+        val audiobookCatalog = if (
+            audiobookContentChanged(current.songs, canonicalUpdatedSongs) ||
+                (current.audiobooks.isEmpty() && canonicalUpdatedSongs.any { it.mediaKind == AudioMediaKind.Audiobook })
+        ) {
+            AudiobookCatalog.build(canonicalUpdatedSongs)
+        } else {
+            current.audiobooks
+        }
         val nextState = LibraryContentState(
             songs = canonicalUpdatedSongs,
             albums = updatedAlbums,
-            audiobooks = AudiobookCatalog.build(canonicalUpdatedSongs),
+            audiobooks = audiobookCatalog,
             removingSongIds = removingSongIds,
             removingAlbumIds = removingAlbumIds,
             contentRevision = libraryPatchedContentRevision(
@@ -198,6 +206,19 @@ internal class LibrarySnapshotPublisher(
         songPositionsById = nextSongPositionsById
         songPositionsByStableKey = nextSongPositionsByStableKey
         albumPositions = state.albums.mapIndexed { index, album -> album.id to index }.toMap()
+    }
+
+    private fun audiobookContentChanged(
+        previousSongs: List<Song>,
+        updatedSongs: List<Song>,
+    ): Boolean {
+        if (previousSongs.size != updatedSongs.size) return true
+        return previousSongs.indices.any { index ->
+            val previous = previousSongs[index]
+            val updated = updatedSongs[index]
+            (previous.mediaKind == AudioMediaKind.Audiobook || updated.mediaKind == AudioMediaKind.Audiobook) &&
+                previous != updated
+        }
     }
 
     private companion object {

@@ -71,6 +71,34 @@ class LibrarySnapshotAssemblerTest {
     }
 
     @Test
+    fun patchSongs_reusesAudiobookCatalogForMusicOnlyEdits() {
+        val music = song(1L, "content://media/external/audio/media/1")
+        val audiobook = song(2L, "file:///books/book/part-1.m4b").copy(
+            mediaKind = elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook,
+            album = "Book",
+            fileName = "part-1.m4b",
+            albumId = 0L,
+            libraryPath = "/books/book/part-1.m4b",
+        )
+        val initial = LibrarySnapshotAssembler.assemble(listOf(music, audiobook))
+        val current = LibraryContentState(
+            songs = initial.songs,
+            albums = initial.albums,
+            audiobooks = initial.audiobooks,
+            contentRevision = initial.contentRevision,
+        )
+        val publisher = LibrarySnapshotPublisher({}, { current })
+
+        val next = publisher.patchSongs(
+            editedSongs = listOf(music.copy(title = "Edited")),
+            removingSongIds = emptySet(),
+            removingAlbumIds = emptySet(),
+        )
+
+        assertSame(initial.audiobooks, next.audiobooks)
+    }
+
+    @Test
     fun patchSongs_movingSongRetainsSongsAlreadyInDestinationAlbum() {
         val moved = song(1L, "content://media/external/audio/media/1")
         val destination = song(2L, "content://media/external/audio/media/2")

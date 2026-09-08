@@ -2337,7 +2337,8 @@ internal fun GenreAlbumsScreen(
 @Composable
 internal fun ArtistDetailScreen(
     artistName: String,
-    libraryState: LibraryUiState,
+    artistSongs: List<Song>,
+    artistAlbums: List<Album>,
     artistBackdropState: ArtistBackdropState,
     songPlayCounts: Map<Long, Int>,
     favoriteSongIds: Set<Long>,
@@ -2352,24 +2353,8 @@ internal fun ArtistDetailScreen(
     onToggleFavorite: (Long) -> Unit,
 ) {
     val normalizedArtist = artistName.ifBlank { "Unknown Artist" }
-    val artistSongs = remember(normalizedArtist, libraryState.songs) {
-        libraryState.songs.filter { song ->
-            song.mediaKind == AudioMediaKind.Music &&
-            song.libraryArtistName().equals(normalizedArtist, ignoreCase = true)
-        }
-    }
     val topSongs = remember(artistSongs, songPlayCounts) {
-        artistSongs
-            .sortedWith(
-                compareByDescending<Song> { songPlayCounts[it.id] ?: 0 }
-                    .thenBy { it.title.lowercase() },
-            )
-            .take(5)
-    }
-    val artistAlbums = remember(normalizedArtist, libraryState.albums) {
-        libraryState.albums
-            .filter { album -> album.artist.equals(normalizedArtist, ignoreCase = true) }
-            .sortedBy { it.title.lowercase() }
+        topArtistSongs(artistSongs, songPlayCounts)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -2461,6 +2446,29 @@ internal fun ArtistDetailScreen(
         )
     }
 }
+
+internal fun topArtistSongs(
+    songs: List<Song>,
+    playCounts: Map<Long, Int>,
+): List<Song> {
+    val comparator = compareByDescending<Song> { playCounts[it.id] ?: 0 }
+        .thenBy { it.title.lowercase() }
+    if (songs.size <= ARTIST_TOP_SONG_LIMIT) return songs.sortedWith(comparator)
+
+    val topSongs = ArrayList<Song>(ARTIST_TOP_SONG_LIMIT)
+    songs.forEach { candidate ->
+        val insertionIndex = topSongs.indexOfFirst { comparator.compare(candidate, it) < 0 }
+        if (insertionIndex >= 0) {
+            topSongs.add(insertionIndex, candidate)
+            if (topSongs.size > ARTIST_TOP_SONG_LIMIT) topSongs.removeAt(topSongs.lastIndex)
+        } else if (topSongs.size < ARTIST_TOP_SONG_LIMIT) {
+            topSongs += candidate
+        }
+    }
+    return topSongs
+}
+
+private const val ARTIST_TOP_SONG_LIMIT = 5
 
 @Composable
 private fun ArtistHeroHeader(

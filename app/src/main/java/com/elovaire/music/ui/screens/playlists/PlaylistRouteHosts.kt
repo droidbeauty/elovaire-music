@@ -30,7 +30,7 @@ internal fun PlaylistsRouteHost(
     PlaylistsScreen(
         playlists = state.playlists,
         smartPlaylists = smartSummaries,
-        libraryState = state.libraryState,
+        songsById = state.songsById,
         topPadding = padding.topContent,
         bottomPadding = padding.bottomContent,
         scrollToTopRequestVersion = navState.playlistsScrollRequestVersion,
@@ -130,6 +130,7 @@ internal fun PlaylistDetailRouteHost(
     PlaylistDetailScreen(
         playlist = playlist,
         librarySongs = state.libraryState.songs,
+        songsById = state.songsById,
         favoriteSongIds = state.favoriteSongIds,
         currentSongId = state.currentSongId,
         isCurrentSongPlaying = state.isCurrentSongPlaying,

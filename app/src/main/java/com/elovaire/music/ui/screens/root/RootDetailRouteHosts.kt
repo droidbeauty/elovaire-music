@@ -359,7 +359,8 @@ internal fun ArtistRouteHost(
     )
     ArtistDetailScreen(
         artistName = artistName,
-        libraryState = routeState.libraryState,
+        artistSongs = artistSongs,
+        artistAlbums = artistAlbums,
         artistBackdropState = artistBackdropState,
         songPlayCounts = appState.songPlayCounts,
         favoriteSongIds = appState.favoriteSongIds,

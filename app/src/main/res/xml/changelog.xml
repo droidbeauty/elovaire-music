@@ -9,6 +9,9 @@
     <release version="2.8.5">
         <item>Improved some previously unfinished areas in audiobook UI and audiobook settings</item>
         <item>Minor tweaks to improve playback stability</item>
+        <item>Technical upgrades to EQ quality</item>
+        <item>Technical upgrades to Android Auto integration</item>
         <item>Bug fixes in the autopause-resume feature</item>
+        <item>General performance upgrades</item>
     </release>
 </changelog>

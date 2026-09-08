@@ -19,7 +19,7 @@ internal class LyricsCache(
     }
     private val atomicFile = AtomicFile(cacheFile)
     private val cacheLock = Any()
-    private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>()
+    private val cacheEntries = LinkedHashMap<String, LyricsCacheEntry>(16, 0.75f, true)
     private var cacheLoaded = false
     private var expiredEntriesPending = false
 
@@ -181,13 +181,7 @@ internal class LyricsCache(
     }
 
     private fun trimLocked(): Boolean {
-        var changed = false
-        while (cacheEntries.size > MAX_ENTRIES) {
-            val firstKey = cacheEntries.keys.firstOrNull() ?: break
-            cacheEntries.remove(firstKey)
-            changed = true
-        }
-        return changed
+        return trimLyricsCacheEntries(cacheEntries, MAX_ENTRIES)
     }
 
     private fun LyricsPayload.toJson(): JSONObject {
@@ -254,4 +248,18 @@ internal class LyricsCache(
         const val RESULT_NOT_FOUND = "not_found"
         const val RESULT_TIMEOUT = "timeout"
     }
+}
+
+internal fun trimLyricsCacheEntries(
+    entries: LinkedHashMap<String, LyricsCacheEntry>,
+    maxEntries: Int,
+): Boolean {
+    require(maxEntries > 0)
+    var changed = false
+    while (entries.size > maxEntries) {
+        val firstKey = entries.keys.firstOrNull() ?: break
+        entries.remove(firstKey)
+        changed = true
+    }
+    return changed
 }

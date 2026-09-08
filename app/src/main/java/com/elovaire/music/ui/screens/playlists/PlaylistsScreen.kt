@@ -48,7 +48,6 @@ import androidx.compose.ui.zIndex
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import kotlinx.coroutines.launch
-import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.domain.model.Playlist
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
@@ -71,7 +70,7 @@ import elovaire.music.droidbeauty.app.ui.theme.ElovaireRadii
 internal fun PlaylistsScreen(
     playlists: List<Playlist>,
     smartPlaylists: List<SmartPlaylistSummary>,
-    libraryState: LibraryUiState,
+    songsById: Map<Long, Song>,
     topPadding: Dp,
     bottomPadding: Dp,
     scrollToTopRequestVersion: Long,
@@ -84,10 +83,10 @@ internal fun PlaylistsScreen(
     val scope = rememberCoroutineScope()
     var playlistBeingRenamed by remember { mutableStateOf<Playlist?>(null) }
     var selectedPlaylistIds by rememberSaveable { mutableStateOf(setOf<Long>()) }
-    val playlistRows = remember(playlists, libraryState.songs) {
+    val playlistRows = remember(playlists, songsById) {
         buildPlaylistRowModels(
             playlists = playlists,
-            songsById = libraryState.songs.associateBy(Song::id),
+            songsById = songsById,
         )
     }
     val gridState = rememberElovaireLazyGridState("playlists_screen")

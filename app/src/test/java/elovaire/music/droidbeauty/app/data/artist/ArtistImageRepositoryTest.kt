@@ -39,7 +39,10 @@ class ArtistImageRepositoryTest {
         val state = repository.backdropState(
             artistName = "Artist",
             songs = listOf(song(artUri = TestUri("content://art/song"))),
-            albums = listOf(album(artUri = art, songCount = 2)),
+            albums = listOf(
+                album(artUri = TestUri("content://art/less-preferred"), songCount = 1),
+                album(artUri = art, songCount = 2),
+            ),
         ).first()
 
         assertSame(art, (state as ArtistBackdropState.Fallback).localArtworkUri)

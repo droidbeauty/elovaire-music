@@ -378,8 +378,8 @@ private object ExternalAudioPrivateCopy {
 
     private fun prune(directory: File, keep: File) {
         val now = System.currentTimeMillis()
-        directory.listFiles()
-            .orEmpty()
+        val files = directory.listFiles().orEmpty()
+        files
             .filter { it != keep }
             .filterNot(ExternalAudioStageUsage::isActive)
             .filter { file ->
@@ -389,13 +389,12 @@ private object ExternalAudioPrivateCopy {
             }
             .forEach(File::delete)
 
-        var totalBytes = directory.listFiles()
-            .orEmpty()
+        val cacheFiles = files
             .filter { it.isFile && !it.name.endsWith(".tmp") }
+        var totalBytes = cacheFiles
             .sumOf(File::length)
         if (totalBytes <= MAX_CACHE_BYTES) return
-        directory.listFiles()
-            .orEmpty()
+        cacheFiles
             .filter { it.isFile && it != keep && !it.name.endsWith(".tmp") }
             .filterNot(ExternalAudioStageUsage::isActive)
             .sortedBy(File::lastModified)

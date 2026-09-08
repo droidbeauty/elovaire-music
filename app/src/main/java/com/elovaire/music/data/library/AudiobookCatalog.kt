@@ -14,28 +14,31 @@ internal object AudiobookCatalog {
             .asSequence()
             .filter { it.mediaKind == AudioMediaKind.Audiobook }
             .groupBy(::groupKey)
-            .values
-            .mapNotNull { parts ->
-                val ordered = parts.sortedWith(
-                    compareBy<Song>({ it.discNumber.coerceAtLeast(1) }, { it.trackNumber.coerceAtLeast(0) }, { it.fileName.lowercase(Locale.ROOT) }, { it.id }),
-                ).distinctBy(Song::id)
-                val first = ordered.firstOrNull() ?: return@mapNotNull null
-                val author = ordered
-                    .asSequence()
-                    .mapNotNull { it.albumArtist?.trim()?.takeIf(String::isNotBlank) ?: it.artist.trim().takeIf(String::isNotBlank) }
-                    .firstOrNull()
-                    ?: "Unknown Author"
-                Audiobook(
-                    stableKey = groupKey(first),
-                    title = bookTitle(first),
-                    author = author,
-                    artUri = ordered.firstNotNullOfOrNull(Song::artUri),
-                    durationMs = ordered.sumOf { it.durationMs.coerceAtLeast(0L) },
-                    parts = ordered.mapIndexed { index, song -> AudiobookPart(song, index + 1) },
-                )
-            }
-            .sortedWith(compareBy({ it.title.lowercase(Locale.ROOT) }, { it.author.lowercase(Locale.ROOT) }, { it.stableKey }))
+            .mapNotNull { (stableKey, parts) -> buildBook(stableKey, parts) }
+            .sortedWith(AUDIOBOOK_COMPARATOR)
             .toList()
+    }
+
+    /** Resolves only the book(s) that can contain [songId], without materializing the catalog. */
+    fun findContaining(songs: List<Song>, songId: Long): Audiobook? {
+        val matchingKeys = songs
+            .asSequence()
+            .filter { it.mediaKind == AudioMediaKind.Audiobook && it.id == songId }
+            .mapTo(linkedSetOf(), ::groupKey)
+        if (matchingKeys.isEmpty()) return null
+
+        val matchingParts = linkedMapOf<String, MutableList<Song>>()
+        songs.forEach { song ->
+            if (song.mediaKind != AudioMediaKind.Audiobook) return@forEach
+            val stableKey = groupKey(song)
+            if (stableKey in matchingKeys) {
+                matchingParts.getOrPut(stableKey, ::mutableListOf).add(song)
+            }
+        }
+        return matchingParts
+            .asSequence()
+            .mapNotNull { (stableKey, parts) -> buildBook(stableKey, parts) }
+            .minWithOrNull(AUDIOBOOK_COMPARATOR)
     }
 
     private fun groupKey(song: Song): String {
@@ -67,6 +70,24 @@ internal object AudiobookCatalog {
             .joinToString("") { byte -> "%02x".format(Locale.ROOT, byte) }
     }
 
+    private fun buildBook(stableKey: String, parts: List<Song>): Audiobook? {
+        val ordered = parts.sortedWith(PART_COMPARATOR).distinctBy(Song::id)
+        val first = ordered.firstOrNull() ?: return null
+        val author = ordered
+            .asSequence()
+            .mapNotNull { it.albumArtist?.trim()?.takeIf(String::isNotBlank) ?: it.artist.trim().takeIf(String::isNotBlank) }
+            .firstOrNull()
+            ?: "Unknown Author"
+        return Audiobook(
+            stableKey = stableKey,
+            title = bookTitle(first),
+            author = author,
+            artUri = ordered.firstNotNullOfOrNull(Song::artUri),
+            durationMs = ordered.sumOf { it.durationMs.coerceAtLeast(0L) },
+            parts = ordered.mapIndexed { index, song -> AudiobookPart(song, index + 1) },
+        )
+    }
+
     private fun bookTitle(song: Song): String {
         return song.album.trim()
             .takeUnless { it.isBlank() || it.equals("Unknown Album", ignoreCase = true) }
@@ -79,4 +100,17 @@ internal object AudiobookCatalog {
             ?: song.title.trim().takeUnless(String::isNullOrBlank)
             ?: song.fileName.substringBeforeLast('.').ifBlank { "Audiobook" }
     }
+
+    private val PART_COMPARATOR = compareBy<Song>(
+        { it.discNumber.coerceAtLeast(1) },
+        { it.trackNumber.coerceAtLeast(0) },
+        { it.fileName.lowercase(Locale.ROOT) },
+        { it.id },
+    )
+
+    private val AUDIOBOOK_COMPARATOR = compareBy<Audiobook>(
+        { it.title.lowercase(Locale.ROOT) },
+        { it.author.lowercase(Locale.ROOT) },
+        { it.stableKey },
+    )
 }

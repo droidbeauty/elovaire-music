@@ -39,6 +39,21 @@ class AudiobookCatalogPropertyTest {
         assertNotEquals(forward.parts.first().song.id, forward.parts.last().song.id)
     }
 
+    @Test
+    fun directContextResolutionMatchesTheFullCatalogWithDuplicateIds() {
+        val songs = listOf(
+            song(1L, "Book A", "Author", "/books/a/part-1.m4b", 1),
+            song(2L, "Book A", "Author", "/books/a/part-2.m4b", 2),
+            song(2L, "Book B", "Author", "/books/b/part-2.m4b", 2),
+            song(3L, "Book B", "Author", "/books/b/part-3.m4b", 3),
+        )
+        val expected = AudiobookCatalog.build(songs).first { book ->
+            book.parts.any { part -> part.song.id == 2L }
+        }
+
+        assertEquals(expected, AudiobookCatalog.findContaining(songs, 2L))
+    }
+
     private fun song(
         id: Long,
         album: String,

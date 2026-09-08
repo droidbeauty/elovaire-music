@@ -93,6 +93,7 @@ import kotlinx.coroutines.Job
 internal fun PlaylistDetailScreen(
     playlist: Playlist?,
     librarySongs: List<Song>,
+    songsById: Map<Long, Song>,
     favoriteSongIds: Set<Long>,
     currentSongId: Long?,
     isCurrentSongPlaying: Boolean,
@@ -107,7 +108,6 @@ internal fun PlaylistDetailScreen(
 ) {
     val revealRegistry = rememberMotionRevealRegistry()
     val motionTransitions = rememberMotionTransitions()
-    val songsById = remember(librarySongs) { librarySongs.associateBy { it.id } }
     val detailState = remember(playlist, songsById) {
         buildPlaylistDetailState(playlist, songsById)
     }

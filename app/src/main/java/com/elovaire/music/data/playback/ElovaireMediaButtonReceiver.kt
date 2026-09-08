@@ -69,9 +69,7 @@ internal fun resolveMediaButtonResumption(
         ?: return null
     val currentSong = queue[index]
     val audiobookContext = if (currentSong.mediaKind == AudioMediaKind.Audiobook) {
-        AudiobookCatalog.build(queue).firstOrNull { book ->
-            book.parts.any { part -> part.song.id == currentSong.id }
-        }?.let { book ->
+        AudiobookCatalog.findContaining(queue, currentSong.id)?.let { book ->
             AudiobookPlaybackContext(
                 bookKey = book.stableKey,
                 orderedSongIds = book.parts.map { it.song.id },

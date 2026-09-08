@@ -44,6 +44,7 @@ class PlaylistDetailComposeTest {
                 PlaylistDetailScreen(
                     playlist = playlist,
                     librarySongs = librarySongs,
+                    songsById = librarySongs.associateBy(Song::id),
                     favoriteSongIds = emptySet(),
                     currentSongId = null,
                     isCurrentSongPlaying = false,

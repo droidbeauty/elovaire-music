@@ -82,8 +82,10 @@ internal fun rememberRootPermissionController(
         }
     }
 
-    fun syncLocalNetworkPermission(granted: Boolean) {
+    fun syncLocalNetworkPermission(granted: Boolean): Boolean {
+        if (hasLocalPermission == granted) return false
         hasLocalPermission = granted
+        return true
     }
 
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -95,7 +97,7 @@ internal fun rememberRootPermissionController(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         localPermissionRequested = true
-        syncLocalNetworkPermission(granted)
+        if (syncLocalNetworkPermission(granted) && hasPermission) container.libraryActionDependencies.libraryController.refresh(showLoadingIndicator = false)
     }
 
     LaunchedEffect(hasPermission) {
@@ -110,10 +112,8 @@ internal fun rememberRootPermissionController(
                 if (hasPermission != refreshedAudioPermission || syncedAudioPermission != refreshedAudioPermission) {
                     syncAudioPermission(refreshedAudioPermission)
                 }
-                if (hasLocalPermission != refreshedLocalPermission) {
-                    syncLocalNetworkPermission(refreshedLocalPermission)
-                }
-                if (refreshedAudioPermission) {
+                val localPermissionChanged = syncLocalNetworkPermission(refreshedLocalPermission)
+                if (refreshedAudioPermission && localPermissionChanged) {
                     container.libraryActionDependencies.libraryController.refresh(showLoadingIndicator = false)
                 }
             }
@@ -171,6 +171,7 @@ internal fun rememberRootPermissionController(
 
     val state = remember(
         hasPermission,
+        hasLocalPermission,
         firstLaunchPermissionExperienceActive,
         playFirstLaunchHomeReveal,
         showFirstLaunchPermissionOverlay,

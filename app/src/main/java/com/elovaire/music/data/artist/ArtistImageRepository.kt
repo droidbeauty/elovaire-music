@@ -47,6 +47,23 @@ internal interface ArtistImageReader {
     ): Flow<ArtistBackdropState>
 }
 
+internal fun selectLocalArtistArtwork(
+    songs: List<Song>,
+    albums: List<Album>,
+): Uri? {
+    val albumArtwork = albums
+        .asSequence()
+        .filter { it.artUri != null }
+        .minWithOrNull(ARTIST_ALBUM_ARTWORK_COMPARATOR)
+        ?.artUri
+    if (albumArtwork != null) return albumArtwork
+    return songs
+        .asSequence()
+        .filter { it.artUri != null }
+        .minWithOrNull(ARTIST_SONG_ARTWORK_COMPARATOR)
+        ?.artUri
+}
+
 internal class ArtistImageRepository(
     private val client: ArtistImageClient = YouTubeMusicArtistImageClient(),
     private val scope: CoroutineScope,
@@ -102,18 +119,7 @@ internal class ArtistImageRepository(
         songs: List<Song>,
         albums: List<Album>,
     ): Flow<ArtistBackdropState> {
-        val localArtworkUri = albums
-                .asSequence()
-                .filter { it.artUri != null }
-                .sortedWith(compareByDescending<Album> { it.songCount }.thenBy { it.title.lowercase(Locale.ROOT) })
-                .mapNotNull(Album::artUri)
-                .firstOrNull()
-                ?: songs
-                    .asSequence()
-                    .filter { it.artUri != null }
-                    .sortedWith(compareByDescending<Song> { it.durationMs }.thenBy { it.album.lowercase(Locale.ROOT) })
-                    .mapNotNull(Song::artUri)
-                    .firstOrNull()
+        val localArtworkUri = selectLocalArtistArtwork(songs, albums)
         return imageState(artistName, localArtworkUri)
     }
 
@@ -349,15 +355,13 @@ internal class ArtistImageRepository(
     }
 
     private fun trimDiskArtworkCache(directory: File, keep: File) {
-        val files = directory.listFiles()
-            ?.filter { it.isFile && it.extension == "img" && it != keep }
-            ?.sortedByDescending(File::lastModified)
-            .orEmpty()
-        directory.listFiles()
-            ?.filter { it.isFile && it.extension == "tmp" }
-            ?.forEach(File::delete)
+        val files = directory.listFiles()?.filter(File::isFile).orEmpty()
+        val artworkFiles = files
+            .filter { it.extension == "img" && it != keep }
+            .sortedByDescending(File::lastModified)
+        files.filter { it.extension == "tmp" }.forEach(File::delete)
         var totalBytes = keep.length()
-        files.forEachIndexed { index, file ->
+        artworkFiles.forEachIndexed { index, file ->
             if (index < DISK_CACHE_FILE_LIMIT - 1 && totalBytes + file.length() <= MAX_DISK_CACHE_BYTES) {
                 totalBytes += file.length()
             } else {
@@ -382,3 +386,9 @@ internal class ArtistImageRepository(
         val ARTIST_KEY_WHITESPACE = Regex("\\s+")
     }
 }
+
+private val ARTIST_ALBUM_ARTWORK_COMPARATOR = compareByDescending<Album> { it.songCount }
+    .thenBy { it.title.lowercase(Locale.ROOT) }
+
+private val ARTIST_SONG_ARTWORK_COMPARATOR = compareByDescending<Song> { it.durationMs }
+    .thenBy { it.album.lowercase(Locale.ROOT) }
