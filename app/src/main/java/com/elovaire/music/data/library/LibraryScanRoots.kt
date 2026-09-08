@@ -15,6 +15,8 @@ internal class LibraryScanRoots(
         return true
     }
 
+    fun selections(): List<LibraryFolderSelection> = selectedFolders
+
     fun filterFingerprint(version: Int): String {
         return listOf(
             version.toString(),

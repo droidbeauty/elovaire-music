@@ -47,6 +47,8 @@ internal class LibraryScanCoordinator(
     fun setLibraryFolders(selections: List<LibraryFolderSelection>): Boolean =
         localScanner.setLibraryFolders(selections)
 
+    internal fun libraryFolderSelections(): List<LibraryFolderSelection> = localScanner.libraryFolderSelections()
+
     fun requiresMediaIndexRepair(): Boolean = localScanner.requiresMediaIndexRepair()
 
     fun currentFilterFingerprint(): String {
@@ -91,6 +93,7 @@ internal class LibraryScanCoordinator(
         mediaStoreGenerationFloor: Long? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         baseSnapshot: LibrarySnapshot? = null,
+        reuseLocalState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): LibrarySnapshot = scanWithStatus(
         refreshMediaIndex = refreshMediaIndex,
@@ -99,6 +102,7 @@ internal class LibraryScanCoordinator(
         mediaStoreGenerationFloor = mediaStoreGenerationFloor,
         targetedNetworkSourceIds = targetedNetworkSourceIds,
         baseSnapshot = baseSnapshot,
+        reuseLocalState = reuseLocalState,
         onProgress = onProgress,
     ).snapshot
 
@@ -109,12 +113,13 @@ internal class LibraryScanCoordinator(
         mediaStoreGenerationFloor: Long? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         baseSnapshot: LibrarySnapshot? = null,
+        reuseLocalState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): CoordinatedLibraryScan {
-        val canReuseLocalState = targetedNetworkSourceIds != null &&
+        val canReuseLocalState = (targetedNetworkSourceIds != null || reuseLocalState) &&
             baseSnapshot != null &&
             !refreshMediaIndex &&
-            refreshMediaPaths.isEmpty() &&
+            (reuseLocalState || refreshMediaPaths.isEmpty()) &&
             !enrichMetadata
         var isComplete = true
         var incompleteMessage: String? = null

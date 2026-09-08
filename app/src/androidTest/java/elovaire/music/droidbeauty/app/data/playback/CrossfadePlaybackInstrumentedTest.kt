@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.data.playback
 import android.content.ContentValues
 import android.net.Uri
 import android.os.Build
-import android.os.SystemClock
 import android.provider.MediaStore
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -17,6 +16,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -73,10 +75,10 @@ class CrossfadePlaybackInstrumentedTest {
             playbackManager.playAlbum(album)
         }
         val initialPlayerVersion = playbackManager.playerInstanceVersion.value
-        val deadline = SystemClock.elapsedRealtime() + 25_000L
-        while (SystemClock.elapsedRealtime() < deadline) {
-            if (playbackManager.state.value.currentSong?.id == incoming.id) break
-            Thread.sleep(100L)
+        runBlocking {
+            withTimeout(25_000L) {
+                playbackManager.state.first { state -> state.currentSong?.id == incoming.id }
+            }
         }
 
         assertEquals(incoming.id, playbackManager.state.value.currentSong?.id)

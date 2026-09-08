@@ -810,7 +810,7 @@ private fun SearchScreen(
                                     albums = state.suggestedAlbums,
                                     title = searchCopy(language).suggestedAlbumsTitle,
                                     subtitle = searchCopy(language).suggestedAlbumsSubtitle,
-                                    iconResId = R.drawable.ic_lucide_eye,
+                                    iconResId = R.drawable.ic_lucide_gem,
                                     onAlbumSelected = { album, origin ->
                                         selectAlbum(album, origin, false)
                                     },

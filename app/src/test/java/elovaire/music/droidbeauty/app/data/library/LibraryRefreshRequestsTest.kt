@@ -105,6 +105,29 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun localReuseIsDroppedWhenAnotherRefreshIsCoalesced() {
+        val merged = LibraryRefreshRequest(
+            targetedPaths = listOf("/storage/emulated/0/Audiobooks"),
+            targetedNetworkSourceIds = emptySet(),
+            reuseLocalState = true,
+        ).mergedWith(LibraryRefreshRequest(enrichMetadata = true))
+
+        assertFalse(merged.reuseLocalState)
+    }
+
+    @Test
+    fun localReuseSurvivesNormalizationForTargetedSafDiscovery() {
+        val normalized = LibraryRefreshRequest(
+            targetedPaths = listOf(" /storage/emulated/0/Audiobooks "),
+            targetedNetworkSourceIds = emptySet(),
+            reuseLocalState = true,
+        ).normalized()
+
+        assertTrue(normalized.reuseLocalState)
+        assertEquals(listOf("/storage/emulated/0/Audiobooks"), normalized.targetedPaths)
+    }
+
+    @Test
     fun fullRefreshSupersedesSourceTargetedRefresh() {
         val merged = LibraryRefreshRequest(targetedNetworkSourceIds = setOf("nas-a"))
             .mergedWith(LibraryRefreshRequest())

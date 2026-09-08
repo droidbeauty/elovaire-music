@@ -5,6 +5,7 @@ import dev.detekt.gradle.Detekt
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.api.tasks.testing.Test
+import org.gradle.api.tasks.GradleBuild
 
 val localProperties = Properties().apply {
     val localPropertiesFile = rootProject.file("local.properties")
@@ -17,9 +18,9 @@ fun releaseSecret(name: String): String? = providers.gradleProperty(name).orNull
     ?: System.getenv(name)
     ?: localProperties.getProperty(name)
 
-val queryPlanOnly = gradle.startParameter.taskNames.any { taskName ->
-    taskName.substringAfterLast(':') == "queryPlanCheck"
-}
+val instrumentationTestClass = normalizedInstrumentationTestClass(
+    providers.gradleProperty(ANDROID_TEST_CLASS_PROPERTY).orNull,
+)
 
 val releaseStoreFile = releaseSecret("RELEASE_STORE_FILE")
 val releaseStorePassword = releaseSecret("RELEASE_STORE_PASSWORD")
@@ -55,10 +56,7 @@ android {
         versionCode = AppBuildConfig.Application.versionCode
         versionName = AppBuildConfig.Application.versionName
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
-        if (queryPlanOnly) {
-            testInstrumentationRunnerArguments["class"] =
-                "elovaire.music.droidbeauty.app.data.library.db.RoomQueryPlanQualificationTest"
-        }
+        instrumentationTestClass?.let { testInstrumentationRunnerArguments["class"] = it }
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -289,10 +287,19 @@ tasks.register<Test>("propertyTest") {
     }
 }
 
-tasks.register("queryPlanCheck") {
+tasks.configureEach {
+    if (name == "installBenchmark") {
+        mustRunAfter(":requirePhysicalPerformanceDevice")
+    }
+}
+
+tasks.register<GradleBuild>("queryPlanCheck") {
     group = "verification"
     description = "Runs the focused device-backed Room query-plan qualification test."
-    dependsOn("connectedDebugAndroidTest")
+    setDir(rootProject.projectDir)
+    tasks = listOf(":app:connectedDebugAndroidTest")
+    startParameter.projectProperties[ANDROID_TEST_CLASS_PROPERTY] = ROOM_QUERY_PLAN_TEST_CLASS
+    mustRunAfter("connectedDebugAndroidTest")
 }
 
 val checkHiddenApiUsage = tasks.register<HiddenApiUsageCheckTask>("checkHiddenApiUsage") {

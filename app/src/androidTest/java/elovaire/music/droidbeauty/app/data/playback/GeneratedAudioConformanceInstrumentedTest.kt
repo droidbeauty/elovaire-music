@@ -3,7 +3,6 @@ package elovaire.music.droidbeauty.app.data.playback
 import android.content.ContentValues
 import android.net.Uri
 import android.os.Build
-import android.os.SystemClock
 import android.provider.MediaStore
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
@@ -28,6 +27,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import kotlin.math.PI
 import kotlin.math.sin
 import org.junit.After
@@ -88,20 +90,16 @@ class GeneratedAudioConformanceInstrumentedTest {
                 playbackManager = manager
                 manager.playAlbum(album)
             }
-            val deadline = SystemClock.elapsedRealtime() + 10_000L
-            var advanced = false
-            while (SystemClock.elapsedRealtime() < deadline) {
-                val manager = playbackManager ?: break
-                if (
-                    manager.state.value.currentSong?.id == song.id &&
-                    manager.state.value.isPlaying
-                ) {
-                    advanced = true
-                    break
+            val state = playbackManager?.let { manager ->
+                runBlocking {
+                    withTimeout(10_000L) {
+                        manager.state.first { state ->
+                            state.currentSong?.id == song.id && state.isPlaying
+                        }
+                    }
                 }
-                Thread.sleep(50L)
             }
-            assertTrue("app playback pipeline did not advance the generated fixture", advanced)
+            assertTrue("app playback pipeline did not advance the generated fixture", state != null)
             assertEquals(song.id, playbackManager?.state?.value?.currentSong?.id)
             assertEquals(1, playbackManager?.state?.value?.queue?.size)
         } finally {

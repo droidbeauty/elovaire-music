@@ -1,10 +1,15 @@
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.io.File
 import java.util.Locale
 import org.gradle.api.DefaultTask
 import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.file.RegularFileProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
@@ -20,9 +25,27 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val baselineResultsDir: DirectoryProperty
 
+    @get:Optional
+    @get:Input
+    abstract val baselineCommit: Property<String>
+
+    @get:Input
+    abstract val repositoryPath: Property<String>
+
+    @get:OutputFile
+    abstract val comparisonSummaryFile: RegularFileProperty
+
     @TaskAction
     fun evaluate() {
         if (!baselineResultsDir.isPresent) {
+            writeSummary(
+                mapOf(
+                    "status" to "SKIPPED",
+                    "reason" to "same-device baseline was not configured",
+                    "candidateCommit" to currentCommit(),
+                    "baselineCommit" to (baselineCommit.orNull ?: "unknown"),
+                ),
+            )
             logger.lifecycle("Benchmark regression evaluation skipped: set -Papp.benchmarkBaselineDir for a same-device baseline.")
             return
         }
@@ -66,8 +89,7 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
             .mapNotNull { current ->
                 val baseline = baselineByKey[current.key to current.environment]
                     ?: return@mapNotNull null
-                if (current.environment.isBlank() || baseline.environment.isBlank()) return@mapNotNull null
-                if (current.environment != baseline.environment) return@mapNotNull null
+                if (!benchmarkEnvironmentsCompatible(current.environment, baseline.environment)) return@mapNotNull null
                 current to baseline
             }
         check(observations.isNotEmpty()) {
@@ -75,6 +97,7 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
         }
 
         val hardRegressions = mutableListOf<String>()
+        val comparisonRecords = mutableListOf<Map<String, Any>>()
         observations.forEach { (current, baseline) ->
             val classification = classifyBenchmarkRegression(
                 metric = current.metric,
@@ -86,6 +109,15 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
                 baseline = baseline.value,
                 current = current.value,
             )
+            comparisonRecords += mapOf(
+                "scenario" to current.scenario,
+                "metric" to current.metric,
+                "environment" to current.environment,
+                "baseline" to baseline.value,
+                "current" to current.value,
+                "delta" to delta,
+                "classification" to classification,
+            )
             if (classification != "PASS") {
                 logger.lifecycle(
                     "scenario=${current.scenario} metric=${current.metric} " +
@@ -96,12 +128,40 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
             if (classification == "HARD_REGRESSION") {
                 hardRegressions +=
                     "${current.scenario}/${current.metric} ${formatDelta(current.metric, delta)} " +
-                        "(${format(baseline.value)} -> ${format(current.value)})"
+                    "(${format(baseline.value)} -> ${format(current.value)})"
             }
         }
+        writeSummary(
+            mapOf(
+                "status" to if (hardRegressions.isEmpty()) "PASS" else "FAIL",
+                "candidateCommit" to currentCommit(),
+                "baselineCommit" to (baselineCommit.orNull ?: "unknown"),
+                "environmentSignatures" to observations.map { it.first.environment }.distinct().sorted(),
+                "observations" to comparisonRecords,
+                "hardRegressions" to hardRegressions,
+            ),
+        )
         check(hardRegressions.isEmpty()) {
             "Benchmark hard regression detected (P2):\n${hardRegressions.joinToString("\n")}"
         }
+    }
+
+    private fun writeSummary(summary: Map<String, Any?>) {
+        val file = comparisonSummaryFile.get().asFile
+        file.parentFile.mkdirs()
+        file.writeText(JsonOutput.prettyPrint(JsonOutput.toJson(summary)))
+    }
+
+    private fun currentCommit(): String {
+        return runCatching {
+            val process = ProcessBuilder("git", "rev-parse", "HEAD")
+                .directory(File(repositoryPath.get()))
+                .redirectErrorStream(true)
+                .start()
+            process.inputStream.bufferedReader().use { it.readText().trim() }.also {
+                check(process.waitFor() == 0)
+            }
+        }.getOrDefault("unknown")
     }
 
     private fun jsonFiles(root: File): List<File> {
@@ -112,7 +172,7 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
         val parsed = runCatching { JsonSlurper().parse(file) }.getOrElse { failure ->
             error("Unable to parse benchmark result ${file.absolutePath}: ${failure.message}")
         }
-        val environment = environmentSignature(parsed)
+        val environment = benchmarkEnvironmentSignature(parsed)
         val samples = mutableListOf<Sample>()
         collectSamples(parsed, file.nameWithoutExtension, "", environment, samples)
         check(samples.isNotEmpty()) {
@@ -152,26 +212,6 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
             is List<*> -> value.forEachIndexed { index, child ->
                 collectSamples(child, scenario, "$path[$index]", environment, samples)
             }
-        }
-    }
-
-    private fun environmentSignature(value: Any?): String {
-        val entries = mutableListOf<String>()
-        collectEnvironment(value, entries)
-        return entries.sorted().joinToString("|")
-    }
-
-    private fun collectEnvironment(value: Any?, entries: MutableList<String>) {
-        when (value) {
-            is Map<*, *> -> value.forEach { (rawKey, child) ->
-                val key = rawKey?.toString().orEmpty()
-                if (key.lowercase(Locale.US) in ENVIRONMENT_KEYS && child !is Map<*, *> && child !is List<*>) {
-                    entries += "$key=$child"
-                } else {
-                    collectEnvironment(child, entries)
-                }
-            }
-            is List<*> -> value.forEach { collectEnvironment(it, entries) }
         }
     }
 
@@ -220,16 +260,58 @@ abstract class BenchmarkRegressionEvaluatorTask : DefaultTask() {
 
     private companion object {
         const val MAX_DIAGNOSTIC_KEYS = 8
-        val ENVIRONMENT_KEYS = setOf(
-            "device",
-            "deviceid",
-            "model",
-            "sdk",
-            "sdkversion",
-            "androidversion",
-            "refreshrate",
-            "compilationmode",
-            "buildtype",
-        )
     }
 }
+
+internal fun benchmarkEnvironmentSignature(value: Any?): String {
+    val entries = mutableListOf<String>()
+    collectBenchmarkEnvironment(value, entries)
+    return entries.sorted().joinToString("|")
+}
+
+internal fun benchmarkEnvironmentsCompatible(current: String, baseline: String): Boolean {
+    return current.isNotBlank() && baseline.isNotBlank() && current == baseline
+}
+
+private fun collectBenchmarkEnvironment(value: Any?, entries: MutableList<String>) {
+    when (value) {
+        is Map<*, *> -> value.forEach { (rawKey, child) ->
+            val key = rawKey?.toString().orEmpty()
+            if (key.lowercase(Locale.US) in BENCHMARK_ENVIRONMENT_KEYS &&
+                child !is Map<*, *> && child !is List<*>
+            ) {
+                entries += "$key=$child"
+            } else {
+                collectBenchmarkEnvironment(child, entries)
+            }
+        }
+        is List<*> -> value.forEach { collectBenchmarkEnvironment(it, entries) }
+    }
+}
+
+private val BENCHMARK_ENVIRONMENT_KEYS = setOf(
+    "device",
+    "deviceid",
+    "model",
+    "fingerprint",
+    "sdk",
+    "sdkversion",
+    "androidversion",
+    "targetsdk",
+    "abi",
+    "architecture",
+    "refreshrate",
+    "displayrefreshrate",
+    "compilationmode",
+    "buildtype",
+    "appbuildtype",
+    "iterations",
+    "fixture",
+    "fixtureprofile",
+    "battery",
+    "charging",
+    "thermal",
+    "benchmarkframework",
+    "schema",
+    "baselineprofile",
+)

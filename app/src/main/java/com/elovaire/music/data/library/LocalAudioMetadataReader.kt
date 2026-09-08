@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.domain.model.VolumeNormalizationMetadata
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import kotlinx.coroutines.CancellationException
+import java.io.File
 
 /** Reads local-file metadata once, then applies the shared source precedence rules. */
 internal class LocalAudioMetadataReader(context: Context) {
@@ -36,7 +37,7 @@ internal class LocalAudioMetadataReader(context: Context) {
                     domain = MediaFailureDomain.Metadata,
                 )
             }
-            val platform = readPlatformMetadata(uri, platformFailureKey)
+            val platform = readPlatformMetadata(uri, filePath, platformFailureKey)
             val embedded = embeddedReader.read(uri, filePath, fileName)
             val canonical = CanonicalMetadataResolver.resolve(
                 embedded = embedded?.toMetadataSourceValues(),
@@ -89,13 +90,24 @@ internal class LocalAudioMetadataReader(context: Context) {
     }
 
     @Suppress("TooGenericExceptionCaught")
-    private fun readPlatformMetadata(uri: Uri, failureKey: MediaFailureKey?): PlatformAudioMetadata {
+    private fun readPlatformMetadata(
+        uri: Uri,
+        filePath: String?,
+        failureKey: MediaFailureKey?,
+    ): PlatformAudioMetadata {
         if (failureKey != null && failureRegistry.shouldSuppress(failureKey)) return PlatformAudioMetadata()
         return try {
             val retriever = MediaMetadataRetriever()
             val resource = BackendResourceRegistry.acquire(BackendResourceKind.ActiveRetriever)
             try {
-                retriever.setDataSource(appContext, uri)
+                val localFile = filePath
+                    ?.let(::File)
+                    ?.takeIf { it.isFile && it.canRead() }
+                if (localFile != null) {
+                    retriever.setDataSource(localFile.absolutePath)
+                } else {
+                    retriever.setDataSource(appContext, uri)
+                }
                 PlatformAudioMetadata(
                     durationMs = retriever.metadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
                         ?.toLongOrNull()

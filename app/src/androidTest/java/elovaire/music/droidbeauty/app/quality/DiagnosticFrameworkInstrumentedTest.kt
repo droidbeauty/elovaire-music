@@ -65,8 +65,9 @@ class DiagnosticFrameworkInstrumentedTest {
         }
 
         assertTrue(completed.await(2, TimeUnit.SECONDS))
-        Handler(Looper.getMainLooper()).post { }
-        Thread.sleep(200L)
+        val mainQueueDrained = CountDownLatch(1)
+        Handler(Looper.getMainLooper()).post(mainQueueDrained::countDown)
+        assertTrue(mainQueueDrained.await(2, TimeUnit.SECONDS))
 
         val events = sink.snapshot()
         assertEquals(6, events.size)

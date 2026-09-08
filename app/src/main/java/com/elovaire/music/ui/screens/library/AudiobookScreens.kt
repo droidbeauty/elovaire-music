@@ -673,7 +673,13 @@ internal fun AudiobookDetailScreen(
             title = book.title,
             subtitle = book.author,
             onBack = onBack,
-            actions = listOf(TopBarActionSpec(R.drawable.ic_lucide_square_pen, copy.editTags, onOpenTagEditor)),
+            actions = listOf(
+                TopBarActionSpec(
+                    iconResId = R.drawable.ic_lucide_square_pen,
+                    contentDescription = copy.editTags,
+                    onClick = onOpenTagEditor,
+                ),
+            ),
             modifier = Modifier.align(Alignment.TopCenter),
         )
     }

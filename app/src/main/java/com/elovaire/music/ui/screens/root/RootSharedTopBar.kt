@@ -103,10 +103,14 @@ internal sealed interface SharedTopBarSpec {
 
 internal fun SharedTopBarSpec.visualSignature(): String {
     return when (this) {
-        is SharedTopBarSpec.Unified -> "unified"
-        is SharedTopBarSpec.Back -> "back"
-        is SharedTopBarSpec.Detail -> "detail"
+        is SharedTopBarSpec.Unified -> "unified:$showSettings:${supplementalActionIconResId ?: 0}"
+        is SharedTopBarSpec.Back -> "back:$centeredTitle:${actions.visualSignature()}"
+        is SharedTopBarSpec.Detail -> "detail:${subtitle.isNullOrBlank()}:${actions.visualSignature()}"
     }
+}
+
+private fun List<TopBarActionSpec>.visualSignature(): String {
+    return joinToString(separator = ",") { action -> "${action.iconResId}:${action.enabled}" }
 }
 
 internal fun topBarMotionDirection(

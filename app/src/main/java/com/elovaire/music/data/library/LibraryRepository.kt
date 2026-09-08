@@ -354,13 +354,17 @@ class LibraryRepository internal constructor(
         showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
         targetedNetworkSourceIds: Set<String>? = null,
         mediaStoreGenerationFloor: Long? = null,
+        targetedPaths: List<String> = emptyList(),
+        reuseLocalState: Boolean = false,
     ) {
         if (released.get() || !_scanState.value.permissionGranted) return
         val request = LibraryRefreshRequest(
             forceMediaIndex = forceMediaIndex,
             enrichMetadata = enrichMetadata,
+            targetedPaths = targetedPaths,
             targetedNetworkSourceIds = targetedNetworkSourceIds,
             mediaStoreGenerationFloor = mediaStoreGenerationFloor,
+            reuseLocalState = reuseLocalState,
         )
         if (scanJob?.isActive == true) {
             refreshRequests.enqueue(request)
@@ -616,6 +620,7 @@ class LibraryRepository internal constructor(
                 mediaStoreGenerationFloor = request.mediaStoreGenerationFloor,
                 targetedNetworkSourceIds = request.targetedNetworkSourceIds,
                 baseSnapshot = existingSnapshot,
+                reuseLocalState = request.reuseLocalState,
                 onProgress = if (showLoadingIndicator) progress@{ current, total ->
                     if (!hasCurrentPermission(permissionVersion)) return@progress
                     val progress = if (total <= 0) {
@@ -857,6 +862,17 @@ class LibraryRepository internal constructor(
         enrichMetadata: Boolean = false,
         showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
     ) {
+        val previousSelections = scanner.libraryFolderSelections()
+        val normalizedSelections = LibraryFolderSelectionResolver.normalize(selections)
+        val addedSelections = normalizedSelections.filterNot(previousSelections::contains)
+        val onlyAddingSafTrees = addedSelections.isNotEmpty() &&
+            normalizedSelections.size > previousSelections.size &&
+            previousSelections.all(normalizedSelections::contains) &&
+            addedSelections.all { it.uri != null }
+        val addedSafPaths = addedSelections.mapNotNull { selection ->
+            selection.path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath)
+        }
+        val canTargetAddedSafTrees = onlyAddingSafTrees && addedSafPaths.size == addedSelections.size
         val changed = scanner.setLibraryFolders(selections)
         if (!changed) return
         if (_scanState.value.permissionGranted) {
@@ -867,9 +883,13 @@ class LibraryRepository internal constructor(
                 observerController.ensureSafTreeObservers(forceRebuild = true)
             }
             refresh(
-                forceMediaIndex = scanner.requiresMediaIndexRepair(),
+                forceMediaIndex = addedSelections.any { it.uri == null },
                 enrichMetadata = enrichMetadata,
                 showLoadingIndicator = showLoadingIndicator,
+                targetedPaths = addedSafPaths.takeIf { canTargetAddedSafTrees }.orEmpty(),
+                targetedNetworkSourceIds = emptySet<String>()
+                    .takeIf { onlyAddingSafTrees && !enrichMetadata },
+                reuseLocalState = onlyAddingSafTrees && !enrichMetadata,
             )
         }
     }

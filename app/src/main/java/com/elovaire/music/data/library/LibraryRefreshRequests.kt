@@ -9,6 +9,8 @@ internal data class LibraryRefreshRequest(
     /** Null means reconcile every source; an empty set means only merge current source state. */
     val targetedNetworkSourceIds: Set<String>? = null,
     val mediaStoreGenerationFloor: Long? = null,
+    /** Reuse the published local snapshot while a targeted SAF source is being discovered. */
+    val reuseLocalState: Boolean = false,
 ) {
     fun mergedWith(other: LibraryRefreshRequest): LibraryRefreshRequest {
         val force = forceMediaIndex || other.forceMediaIndex
@@ -26,6 +28,7 @@ internal data class LibraryRefreshRequest(
             force || targetedNetworkSourceIds == null || other.targetedNetworkSourceIds == null -> null
             else -> targetedNetworkSourceIds + other.targetedNetworkSourceIds
         }
+        val reuseLocalState = reuseLocalState && other.reuseLocalState && !force
         val mergedGenerationFloor = if (
             force || mergedPaths.isNotEmpty() || targetedNetworkSourceIds != null || other.targetedNetworkSourceIds != null
         ) {
@@ -40,6 +43,7 @@ internal data class LibraryRefreshRequest(
             return LibraryRefreshRequest(
                 forceMediaIndex = false,
                 enrichMetadata = enrichMetadata || other.enrichMetadata,
+                reuseLocalState = false,
             )
         }
         return LibraryRefreshRequest(
@@ -48,6 +52,7 @@ internal data class LibraryRefreshRequest(
             targetedPaths = mergedPaths,
             targetedNetworkSourceIds = mergedNetworkSourceIds,
             mediaStoreGenerationFloor = mergedGenerationFloor,
+            reuseLocalState = reuseLocalState,
         )
     }
 
@@ -76,6 +81,7 @@ internal data class LibraryRefreshRequest(
                 ?.toSet(),
             mediaStoreGenerationFloor = mediaStoreGenerationFloor
                 ?.takeIf { !forceMediaIndex && normalizedPaths.isEmpty() && targetedNetworkSourceIds.isNullOrEmpty() },
+            reuseLocalState = reuseLocalState && !forceMediaIndex,
         )
     }
 

@@ -221,16 +221,31 @@ internal class SafTreeLibraryScanner(
                                 providerKey,
                                 child.documentId,
                             )?.stableKey
+                            val libraryPath = resolveSafLibraryPath(canonicalRoot, rootKey, childRelativePath)
+                            val mediaKind = AudioMediaKindClassifier.classify(
+                                isAudiobook = null,
+                                extension = extension,
+                                relativePath = childRelativePath,
+                                absolutePath = libraryPath,
+                            )
                             val detectedFormat = cachedFile?.detectedFormat
-                                ?: audioFormatDetector.detect(
-                                    uri = child.uri,
-                                    fileName = child.name,
-                                    mediaStoreMimeType = child.mimeType,
-                                    revisionKey = revisionKey,
-                                    identityKey = identityKey,
-                                )
+                                ?: if (mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {
+                                    // Audiobook classification is already determined by the
+                                    // extension/folder. Avoid a second extractor pass for each
+                                    // book file; SAF metadata reading below supplies duration.
+                                    AudioScanCandidateMapper.fastDetectedFormat(extension, child.mimeType)
+                                } else {
+                                    audioFormatDetector.detect(
+                                        uri = child.uri,
+                                        fileName = child.name,
+                                        mediaStoreMimeType = child.mimeType,
+                                        revisionKey = revisionKey,
+                                        identityKey = identityKey,
+                                    )
+                                }
                             val metadata = cachedFile?.metadata ?: readMetadata(
                                 uri = child.uri,
+                                filePath = libraryPath,
                                 fileName = child.name,
                                 identityKey = identityKey,
                                 revisionKey = revisionKey,
@@ -239,7 +254,6 @@ internal class SafTreeLibraryScanner(
                                 refreshedCache[documentKey] = CachedSafFile.from(child, detectedFormat, metadata)
                             }
                             val durationMs = detectedFormat.durationMs ?: metadata.durationMs ?: 0L
-                            val libraryPath = resolveSafLibraryPath(canonicalRoot, rootKey, childRelativePath)
                             val stableSongId = stableNegativeId(identityKey ?: "saf-uri:${child.uri}")
                             val candidate = AudioScanCandidate(
                                 id = stableSongId,
@@ -254,12 +268,7 @@ internal class SafTreeLibraryScanner(
                                 absolutePath = libraryPath,
                                 extension = extension,
                                 isMusic = true,
-                                isAudiobook = AudioMediaKindClassifier.classify(
-                                    isAudiobook = null,
-                                    extension = extension,
-                                    relativePath = childRelativePath,
-                                    absolutePath = libraryPath,
-                                ) == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook,
+                                isAudiobook = mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook,
                                 detectedFormat = detectedFormat,
                             )
                             if (audioFileFilter.evaluate(candidate) !is AudioFileFilterDecision.Include) {
@@ -295,12 +304,7 @@ internal class SafTreeLibraryScanner(
                                 metadataResolved = true,
                                 albumArtist = albumArtist,
                                 volumeNormalization = metadata.volumeNormalization,
-                                mediaKind = AudioMediaKindClassifier.classify(
-                                    isAudiobook = null,
-                                    extension = extension,
-                                    relativePath = childRelativePath,
-                                    absolutePath = libraryPath,
-                                ),
+                                mediaKind = mediaKind,
                             )
                         } catch (cancelled: CancellationException) {
                             throw cancelled
@@ -469,13 +473,14 @@ internal class SafTreeLibraryScanner(
 
     private fun readMetadata(
         uri: Uri,
+        filePath: String,
         fileName: String,
         identityKey: String?,
         revisionKey: String?,
     ): LocalAudioMetadata {
         return localMetadataReader.read(
             uri = uri,
-            filePath = null,
+            filePath = filePath,
             fileName = fileName,
             identityKey = identityKey,
             revisionKey = revisionKey,

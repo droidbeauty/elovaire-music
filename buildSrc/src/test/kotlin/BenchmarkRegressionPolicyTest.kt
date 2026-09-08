@@ -5,6 +5,27 @@ import org.junit.Test
 
 class BenchmarkRegressionPolicyTest {
     @Test
+    fun environmentSignatureIsStableAndIncludesHardwareIdentity() {
+        val first = benchmarkEnvironmentSignature(
+            mapOf(
+                "model" to "Pixel",
+                "fingerprint" to "build-a",
+                "abi" to "arm64-v8a",
+                "metrics" to listOf(mapOf("timeMs" to 10)),
+            ),
+        )
+        val reordered = benchmarkEnvironmentSignature(
+            mapOf("abi" to "arm64-v8a", "fingerprint" to "build-a", "model" to "Pixel"),
+        )
+
+        assertEquals("abi=arm64-v8a|fingerprint=build-a|model=Pixel", first.substringBefore("|metrics"))
+        assertEquals(first.substringBefore("|metrics"), reordered)
+        assertTrue(benchmarkEnvironmentsCompatible(first, reordered))
+        assertFalse(benchmarkEnvironmentsCompatible(first, "model=Pixel|fingerprint=build-b"))
+        assertFalse(benchmarkEnvironmentsCompatible("", reordered))
+    }
+
+    @Test
     fun signedFrameOverrunHandlesNegativeHealthyMargins() {
         assertEquals(
             BenchmarkRegressionClassification.PASS,

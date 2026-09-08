@@ -83,6 +83,8 @@ internal class MediaStoreScanner(
 
     internal fun hasSafSelections(): Boolean = scanRoots.hasSafSelections()
 
+    internal fun libraryFolderSelections(): List<LibraryFolderSelection> = scanRoots.selections()
+
     internal fun safTreeSelections(): List<LibraryFolderSelection> = scanRoots.safTreeSelections()
 
     fun invalidateMetadataCacheForPaths(paths: Collection<String>) {

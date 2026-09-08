@@ -64,6 +64,7 @@ tasks.configureEach {
     if (name == "connectedCheck" || name == "connectedBenchmarkAndroidTest") {
         dependsOn(":app:installBenchmark")
         mustRunAfter(":app:installBenchmark")
+        mustRunAfter(":requirePhysicalPerformanceDevice")
     }
 }
 

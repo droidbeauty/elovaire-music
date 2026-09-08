@@ -63,6 +63,25 @@ val requireBackendQualificationDevice = tasks.register("requireBackendQualificat
     }
 }
 
+val requirePhysicalPerformanceDevice = tasks.register<PhysicalDeviceQualificationTask>("requirePhysicalPerformanceDevice") {
+    group = "verification"
+    description = "Validates the selected physical device and records its benchmark environment."
+    serial.set(providers.environmentVariable("ANDROID_SERIAL").map(String::trim).orElse(""))
+    adbExecutable.set(
+        providers.environmentVariable("ANDROID_SDK_ROOT")
+            .map { java.io.File(it, "platform-tools/adb").absolutePath }
+            .orElse(
+                providers.environmentVariable("ANDROID_HOME")
+                    .map { java.io.File(it, "platform-tools/adb").absolutePath },
+            )
+            .orElse("adb"),
+    )
+    benchmarkVariant.set(providers.gradleProperty("app.benchmarkVariant").orElse("benchmark"))
+    compilationMode.set(providers.gradleProperty("app.benchmarkCompilationMode").orElse("project-defined"))
+    iterations.set(providers.gradleProperty("app.benchmarkIterations").orElse("project-defined"))
+    fixtureProfile.set(providers.gradleProperty("app.benchmarkFixtureProfile").orElse("unspecified"))
+}
+
 val quickQuality = tasks.register("quickQuality") {
     group = "verification"
     description = "Runs fast correctness, static, architecture, resource, and dependency checks."
@@ -93,6 +112,9 @@ val benchmarkRegressionCheck = tasks.register<BenchmarkRegressionEvaluatorTask>(
     providers.gradleProperty("app.benchmarkBaselineDir").orNull?.let { baselinePath ->
         baselineResultsDir.set(rootProject.file(baselinePath))
     }
+    baselineCommit.set(providers.gradleProperty("app.benchmarkBaselineCommit").orElse("unknown"))
+    repositoryPath.set(rootProject.projectDir.absolutePath)
+    comparisonSummaryFile.set(layout.buildDirectory.file("reports/benchmark-regression/summary.json"))
 }
 benchmarkRegressionCheck.configure {
     mustRunAfter(":macrobenchmark:connectedCheck")
@@ -102,6 +124,7 @@ val performanceQuality = tasks.register("performanceQuality") {
     group = "verification"
     description = "Runs physical-device Macrobenchmark, Baseline Profile, and regression qualification."
     dependsOn(
+        requirePhysicalPerformanceDevice,
         ":app:installBenchmark",
         ":app:assembleBenchmark",
         ":macrobenchmark:connectedCheck",
