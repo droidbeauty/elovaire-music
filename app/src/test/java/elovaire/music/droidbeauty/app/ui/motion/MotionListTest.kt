@@ -1,6 +1,7 @@
 package elovaire.music.droidbeauty.app.ui.motion
 
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -14,6 +15,7 @@ class MotionListTest {
         }
 
         assertTrue(registry.isRevealed("new-song"))
+        assertEquals(0, registry.retainedKeyCount)
         assertFalse(MotionRevealRegistry().isRevealed("new-song"))
     }
 }

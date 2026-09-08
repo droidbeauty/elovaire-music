@@ -30,8 +30,14 @@ class MotionRevealRegistry {
     @Synchronized
     fun markRevealed(key: Any) {
         if (revealBudgetExhausted || !revealedKeys.add(key)) return
-        if (revealedKeys.size >= MAX_REVEALED_KEYS) revealBudgetExhausted = true
+        if (revealedKeys.size >= MAX_REVEALED_KEYS) {
+            revealBudgetExhausted = true
+            revealedKeys.clear()
+        }
     }
+
+    internal val retainedKeyCount: Int
+        @Synchronized get() = revealedKeys.size
 
 }
 

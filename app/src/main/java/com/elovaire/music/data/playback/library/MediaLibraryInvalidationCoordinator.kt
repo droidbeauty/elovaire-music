@@ -43,6 +43,7 @@ internal object MediaLibraryInvalidationParents {
                 ElovaireMediaId.Artists.value,
                 ElovaireMediaId.Genres.value,
                 ElovaireMediaId.RecentlyAdded.value,
+                ElovaireMediaId.Audiobooks.value,
             )
         }
         if (previous.favoriteSongIds != current.favoriteSongIds) {

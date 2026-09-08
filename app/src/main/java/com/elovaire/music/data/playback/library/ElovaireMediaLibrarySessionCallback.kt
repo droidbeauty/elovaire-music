@@ -32,6 +32,7 @@ import elovaire.music.droidbeauty.app.data.playback.PlaybackCommandOrigin
 import elovaire.music.droidbeauty.app.data.playback.pendingMediaButtonResumption
 import elovaire.music.droidbeauty.app.data.playback.toPlayerRepeatMode
 import elovaire.music.droidbeauty.app.core.getParcelableExtraCompat
+import elovaire.music.droidbeauty.app.domain.search.NormalizedSearchQuery
 
 @OptIn(UnstableApi::class)
 internal class ElovaireMediaLibrarySessionCallback(
@@ -301,7 +302,7 @@ private class MediaLibrarySearchCache {
         revision: String,
         loader: () -> Int,
     ): Int {
-        val key = SearchKey(controller, query, revision)
+        val key = SearchKey(controller, NormalizedSearchQuery.from(query).value, revision)
         synchronized(this) { counts[key] }?.let { return it }
         val loaded = loader()
         synchronized(this) {
@@ -317,7 +318,7 @@ private class MediaLibrarySearchCache {
         limit: Int,
         loader: () -> List<MediaItem>,
     ): List<MediaItem> {
-        val key = PageKey(controller, query, revision, offset, limit)
+        val key = PageKey(controller, NormalizedSearchQuery.from(query).value, revision, offset, limit)
         synchronized(this) { pages[key] }?.let { return it }
         val loaded = loader().toList()
         synchronized(this) {

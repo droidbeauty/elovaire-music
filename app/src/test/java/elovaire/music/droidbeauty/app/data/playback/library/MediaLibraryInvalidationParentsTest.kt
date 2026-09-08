@@ -27,6 +27,7 @@ class MediaLibraryInvalidationParentsTest {
                 ElovaireMediaId.Artists.value,
                 ElovaireMediaId.Genres.value,
                 ElovaireMediaId.RecentlyAdded.value,
+                ElovaireMediaId.Audiobooks.value,
                 ElovaireMediaId.Favorites.value,
                 ElovaireMediaIds.playlist(7L),
                 ElovaireMediaId.Playlists.value,

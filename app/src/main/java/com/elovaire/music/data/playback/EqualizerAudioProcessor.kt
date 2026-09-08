@@ -439,6 +439,15 @@ internal class EqualizerAudioProcessor(
     private var activeBandFrequenciesHz = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.copyOf()
     private var activeBandIndices = IntArray(EqualizerDspModel.BAND_COUNT)
     private var activeBandCount = 0
+    private var bandCoefficientPlan = Array(EqualizerDspModel.BAND_COUNT) { BiquadCoefficients.identity() }
+    private var bassHighPassCoefficient = BiquadCoefficients.identity()
+    private var bassDetectorCoefficient = BiquadCoefficients.identity()
+    private var bassCoefficient = BiquadCoefficients.identity()
+    private var bassBodyCoefficient = BiquadCoefficients.identity()
+    private var bassAccentCoefficient = BiquadCoefficients.identity()
+    private var bassTrimCoefficient = BiquadCoefficients.identity()
+    private var midrangeCoefficient = BiquadCoefficients.identity()
+    private var trebleCoefficient = BiquadCoefficients.identity()
     private var bandFilters: Array<Array<BiquadFilterState>> = emptyArray()
     private var bassHighPassFilters: Array<BiquadFilterState> = emptyArray()
     private var bassDetectorFilters: Array<BiquadFilterState> = emptyArray()
@@ -467,6 +476,8 @@ internal class EqualizerAudioProcessor(
     // Smooth targets every audio block, but rebuild trigonometric filter coefficients at a bounded cadence.
     private var framesSinceCoefficientUpdate = COEFFICIENT_UPDATE_STRIDE_FRAMES
     private var coefficientUpdatePending = true
+    private var coefficientPlanBuilds = 0L
+    private var coefficientApplications = 0L
 
     fun updateSettings(settings: EqSettings) {
         currentSettings = settings.copy(
@@ -567,6 +578,8 @@ internal class EqualizerAudioProcessor(
         targetBandGainsDb = FloatArray(EqualizerDspModel.BAND_COUNT)
         activeBandFrequenciesHz = EqualizerDspModel.BAND_CENTER_FREQUENCIES_HZ.copyOf()
         activeBandCount = 0
+        coefficientPlanBuilds = 0L
+        coefficientApplications = 0L
     }
 
     private fun resetProcessingState() {
@@ -775,115 +788,98 @@ internal class EqualizerAudioProcessor(
     }
 
     private fun rebuildCoefficients() {
+        coefficientPlanBuilds += 1L
         activeBandCount = 0
+        for (bandIndex in currentBandGainsDb.indices) {
+            val frequencyHz = activeBandFrequenciesHz.getOrElse(bandIndex) { -1f }
+            val bandIsActive = frequencyHz > 0f && abs(currentBandGainsDb[bandIndex]) > 0.01f
+            bandCoefficientPlan[bandIndex] = if (bandIsActive) {
+                BiquadCoefficients.peaking(
+                    sampleRateHz = sampleRateHz.toFloat(),
+                    centerFrequencyHz = frequencyHz,
+                    q = EqualizerDspModel.bandDefinition(bandIndex).q,
+                    gainDb = currentBandGainsDb[bandIndex],
+                )
+            } else {
+                BiquadCoefficients.identity()
+            }
+            if (bandIsActive) activeBandIndices[activeBandCount++] = bandIndex
+        }
+        bassHighPassCoefficient = if (currentBassAmount > 0.0005f) {
+            BiquadCoefficients.highPass(
+                sampleRateHz = sampleRateHz.toFloat(),
+                cutoffFrequencyHz = safeConfig.bassConfig.highPassFrequencyHz,
+                q = 0.707f,
+            )
+        } else BiquadCoefficients.identity()
+        bassDetectorCoefficient = if (currentBassAmount > 0.0005f) {
+            BiquadCoefficients.lowPass(
+                sampleRateHz = sampleRateHz.toFloat(),
+                cutoffFrequencyHz = safeConfig.bassConfig.detectorLowPassFrequencyHz,
+                q = 0.707f,
+            )
+        } else BiquadCoefficients.identity()
+        val effectiveShelfDb = (currentBassShelfDb + currentBassDynamicReductionDb).coerceAtLeast(0f)
+        val effectiveBodyDb = (currentBassBodyDb + (currentBassDynamicReductionDb * 0.35f)).coerceAtLeast(0f)
+        val effectivePunchDb = (currentBassAccentDb + (currentBassDynamicReductionDb * 0.5f)).coerceAtLeast(0f)
+        bassCoefficient = BiquadCoefficients.lowShelf(
+            sampleRateHz = sampleRateHz.toFloat(),
+            cornerFrequencyHz = safeConfig.bassConfig.shelfFrequencyHz,
+            slope = safeConfig.bassConfig.shelfSlope,
+            gainDb = effectiveShelfDb,
+        )
+        bassBodyCoefficient = if (abs(effectiveBodyDb) > 0.01f) {
+            BiquadCoefficients.peaking(
+                sampleRateHz = sampleRateHz.toFloat(),
+                centerFrequencyHz = safeConfig.bassConfig.bodyCenterHz,
+                q = safeConfig.bassConfig.bodyQ,
+                gainDb = effectiveBodyDb,
+            )
+        } else BiquadCoefficients.identity()
+        bassAccentCoefficient = if (abs(effectivePunchDb) > 0.01f) {
+            BiquadCoefficients.peaking(
+                sampleRateHz = sampleRateHz.toFloat(),
+                centerFrequencyHz = safeConfig.bassConfig.punchCenterHz,
+                q = safeConfig.bassConfig.punchQ,
+                gainDb = effectivePunchDb,
+            )
+        } else BiquadCoefficients.identity()
+        bassTrimCoefficient = if (abs(currentBassTrimDb) > 0.01f) {
+            BiquadCoefficients.peaking(
+                sampleRateHz = sampleRateHz.toFloat(),
+                centerFrequencyHz = safeConfig.bassConfig.mudTrimCenterHz,
+                q = safeConfig.bassConfig.mudTrimQ,
+                gainDb = currentBassTrimDb,
+            )
+        } else BiquadCoefficients.identity()
+        midrangeCoefficient = if (abs(currentMidrangeDb) > 0.01f) {
+            BiquadCoefficients.peaking(
+                sampleRateHz = sampleRateHz.toFloat(),
+                centerFrequencyHz = safeConfig.midrangeCenterFrequencyHz,
+                q = safeConfig.midrangeQ,
+                gainDb = currentMidrangeDb,
+            )
+        } else BiquadCoefficients.identity()
+        trebleCoefficient = BiquadCoefficients.highShelf(
+            sampleRateHz = sampleRateHz.toFloat(),
+            cornerFrequencyHz = safeConfig.trebleShelfFrequencyHz,
+            slope = safeConfig.trebleShelfSlope,
+            gainDb = currentTrebleDb,
+        )
         for (channelIndex in 0 until channelCount) {
             for (bandIndex in currentBandGainsDb.indices) {
-                val frequencyHz = activeBandFrequenciesHz.getOrElse(bandIndex) { -1f }
-                val bandIsActive = frequencyHz > 0f && abs(currentBandGainsDb[bandIndex]) > 0.01f
-                val coefficients = if (bandIsActive) {
-                    BiquadCoefficients.peaking(
-                        sampleRateHz = sampleRateHz.toFloat(),
-                        centerFrequencyHz = frequencyHz,
-                        q = EqualizerDspModel.bandDefinition(bandIndex).q,
-                        gainDb = currentBandGainsDb[bandIndex],
-                    )
-                } else {
-                    BiquadCoefficients.identity()
-                }
-                bandFilters[channelIndex][bandIndex].setCoefficients(coefficients)
-                if (channelIndex == 0 && bandIsActive) {
-                    activeBandIndices[activeBandCount++] = bandIndex
-                }
+                bandFilters[channelIndex][bandIndex].setCoefficients(bandCoefficientPlan[bandIndex])
+                coefficientApplications += 1L
             }
-            bassHighPassFilters[channelIndex].setCoefficients(
-                if (currentBassAmount > 0.0005f) {
-                    BiquadCoefficients.highPass(
-                        sampleRateHz = sampleRateHz.toFloat(),
-                        cutoffFrequencyHz = safeConfig.bassConfig.highPassFrequencyHz,
-                        q = 0.707f,
-                    )
-                } else {
-                    BiquadCoefficients.identity()
-                },
-            )
-            bassDetectorFilters[channelIndex].setCoefficients(
-                if (currentBassAmount > 0.0005f) {
-                    BiquadCoefficients.lowPass(
-                        sampleRateHz = sampleRateHz.toFloat(),
-                        cutoffFrequencyHz = safeConfig.bassConfig.detectorLowPassFrequencyHz,
-                        q = 0.707f,
-                    )
-                } else {
-                    BiquadCoefficients.identity()
-                },
-            )
-            val effectiveShelfDb = (currentBassShelfDb + currentBassDynamicReductionDb).coerceAtLeast(0f)
-            val effectiveBodyDb = (currentBassBodyDb + (currentBassDynamicReductionDb * 0.35f)).coerceAtLeast(0f)
-            val effectivePunchDb = (currentBassAccentDb + (currentBassDynamicReductionDb * 0.5f)).coerceAtLeast(0f)
-            bassFilters[channelIndex].setCoefficients(
-                BiquadCoefficients.lowShelf(
-                    sampleRateHz = sampleRateHz.toFloat(),
-                    cornerFrequencyHz = safeConfig.bassConfig.shelfFrequencyHz,
-                    slope = safeConfig.bassConfig.shelfSlope,
-                    gainDb = effectiveShelfDb,
-                ),
-            )
-            bassBodyFilters[channelIndex].setCoefficients(
-                if (abs(effectiveBodyDb) > 0.01f) {
-                    BiquadCoefficients.peaking(
-                        sampleRateHz = sampleRateHz.toFloat(),
-                        centerFrequencyHz = safeConfig.bassConfig.bodyCenterHz,
-                        q = safeConfig.bassConfig.bodyQ,
-                        gainDb = effectiveBodyDb,
-                    )
-                } else {
-                    BiquadCoefficients.identity()
-                },
-            )
-            bassAccentFilters[channelIndex].setCoefficients(
-                if (abs(effectivePunchDb) > 0.01f) {
-                    BiquadCoefficients.peaking(
-                        sampleRateHz = sampleRateHz.toFloat(),
-                        centerFrequencyHz = safeConfig.bassConfig.punchCenterHz,
-                        q = safeConfig.bassConfig.punchQ,
-                        gainDb = effectivePunchDb,
-                    )
-                } else {
-                    BiquadCoefficients.identity()
-                },
-            )
-            bassTrimFilters[channelIndex].setCoefficients(
-                if (abs(currentBassTrimDb) > 0.01f) {
-                    BiquadCoefficients.peaking(
-                        sampleRateHz = sampleRateHz.toFloat(),
-                        centerFrequencyHz = safeConfig.bassConfig.mudTrimCenterHz,
-                        q = safeConfig.bassConfig.mudTrimQ,
-                        gainDb = currentBassTrimDb,
-                    )
-                } else {
-                    BiquadCoefficients.identity()
-                },
-            )
-            midrangeFilters[channelIndex].setCoefficients(
-                if (abs(currentMidrangeDb) > 0.01f) {
-                    BiquadCoefficients.peaking(
-                        sampleRateHz = sampleRateHz.toFloat(),
-                        centerFrequencyHz = safeConfig.midrangeCenterFrequencyHz,
-                        q = safeConfig.midrangeQ,
-                        gainDb = currentMidrangeDb,
-                    )
-                } else {
-                    BiquadCoefficients.identity()
-                },
-            )
-            trebleFilters[channelIndex].setCoefficients(
-                BiquadCoefficients.highShelf(
-                    sampleRateHz = sampleRateHz.toFloat(),
-                    cornerFrequencyHz = safeConfig.trebleShelfFrequencyHz,
-                    slope = safeConfig.trebleShelfSlope,
-                    gainDb = currentTrebleDb,
-                ),
-            )
+            bassHighPassFilters[channelIndex].setCoefficients(bassHighPassCoefficient)
+            bassDetectorFilters[channelIndex].setCoefficients(bassDetectorCoefficient)
+            bassFilters[channelIndex].setCoefficients(bassCoefficient)
+            bassBodyFilters[channelIndex].setCoefficients(bassBodyCoefficient)
+            bassAccentFilters[channelIndex].setCoefficients(bassAccentCoefficient)
+            bassTrimFilters[channelIndex].setCoefficients(bassTrimCoefficient)
+            midrangeFilters[channelIndex].setCoefficients(midrangeCoefficient)
+            trebleFilters[channelIndex].setCoefficients(trebleCoefficient)
+            coefficientApplications += 8L
         }
     }
 
@@ -1044,6 +1040,8 @@ internal class EqualizerAudioProcessor(
             limiterGainReductionDb = limiterGainReductionDb,
             limiterEvents = limiterEvents,
             dspBypassed = targetWetMix == 0f,
+            coefficientPlanBuilds = coefficientPlanBuilds,
+            coefficientApplications = coefficientApplications,
         )
     }
 
@@ -1069,6 +1067,8 @@ internal data class EqualizerDiagnosticsSnapshot(
     val limiterGainReductionDb: Float,
     val limiterEvents: Long,
     val dspBypassed: Boolean,
+    val coefficientPlanBuilds: Long,
+    val coefficientApplications: Long,
 )
 
 private data class BiquadCoefficients(

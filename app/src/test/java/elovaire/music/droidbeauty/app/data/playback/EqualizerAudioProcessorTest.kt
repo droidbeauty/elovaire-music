@@ -55,6 +55,9 @@ class EqualizerAudioProcessorTest {
         processor.flush(AudioProcessor.StreamMetadata.DEFAULT)
         processor.queueInput(input)
 
-        assertEquals(1, processor.debugSnapshot().activeFilterCount)
+        val diagnostics = processor.debugSnapshot()
+        assertEquals(1, diagnostics.activeFilterCount)
+        assertEquals(1L, diagnostics.coefficientPlanBuilds)
+        assertEquals(52L, diagnostics.coefficientApplications)
     }
 }
