@@ -2027,25 +2027,47 @@ internal fun BoxScope.QueueEdgeHaze(
     endIntensity: Float,
 ) {
     if (!visible) return
+    val surface = MaterialTheme.colorScheme.surface
     Box(
         modifier = Modifier
             .align(alignment)
             .fillMaxWidth()
             .height(20.dp)
             .hazeEffect(hazeState) {
-                progressive = HazeProgressive.verticalGradient(
+                progressive = softEdgeBlurProgressive(
                     startIntensity = startIntensity,
                     endIntensity = endIntensity,
-                    preferPerformance = true,
                 )
                 blurRadius = 20.dp
-                backgroundColor = Color.Transparent
+                backgroundColor = surface.copy(alpha = 0.7f)
                 tints = listOf(
-                    HazeTint(Color.Black.copy(alpha = 0.06f)),
+                    HazeTint(surface.copy(alpha = 0.24f)),
                     HazeTint(tint.copy(alpha = 0.04f)),
                 )
-                noiseFactor = 0.015f
+                noiseFactor = 0.012f
             },
+    )
+}
+
+private fun softEdgeBlurProgressive(
+    startIntensity: Float,
+    endIntensity: Float,
+): HazeProgressive {
+    fun smoothStep(fraction: Float): Float = fraction * fraction * (3f - 2f * fraction)
+    fun intensityAt(fraction: Float): Float =
+        (startIntensity + (endIntensity - startIntensity) * smoothStep(fraction))
+            .coerceIn(0f, 1f)
+
+    return HazeProgressive.Brush(
+        Brush.verticalGradient(
+            colorStops = arrayOf(
+                0f to Color.Black.copy(alpha = intensityAt(0f)),
+                0.16f to Color.Black.copy(alpha = intensityAt(0.16f)),
+                0.4f to Color.Black.copy(alpha = intensityAt(0.4f)),
+                0.68f to Color.Black.copy(alpha = intensityAt(0.68f)),
+                1f to Color.Black.copy(alpha = intensityAt(1f)),
+            ),
+        ),
     )
 }
 
@@ -3469,6 +3491,7 @@ private fun LyricsOverlay(
     val navigationBarInset = navigationBarInsetDp()
     val bottomBlurSurfaceHeight = lyricsBottomBlurArea + navigationBarInset
     val lyricsHazeState = rememberHazeState()
+    val surface = MaterialTheme.colorScheme.surface
     val listState = rememberLazyListState()
     var autoScrollHeld by remember(song?.id) { mutableStateOf(false) }
     var autoScrollResumeJob by remember(song?.id) { mutableStateOf<kotlinx.coroutines.Job?>(null) }
@@ -3809,33 +3832,32 @@ private fun LyricsOverlay(
                 .clipToBounds()
                 .zIndex(3f),
         ) {
-            if (!isEditingLyrics && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                Box(
-                    modifier = Modifier
-                        .matchParentSize()
-                        .hazeEffect(lyricsHazeState) {
-                            progressive = HazeProgressive.LinearGradient(
-                                startIntensity = 0f,
-                                endIntensity = 1f,
-                                preferPerformance = true,
-                            )
-                            blurRadius = 34.dp
-                            backgroundColor = Color.Transparent
-                            tints = listOf(
-                                HazeTint(tintColor.copy(alpha = 0.06f)),
-                                HazeTint(tintColor.copy(alpha = 0.02f)),
-                            )
-                            noiseFactor = 0.02f
-                        },
-                )
-            }
             ElovaireAnimatedVisibility(
                 visible = !isEditingLyrics,
+                modifier = Modifier.matchParentSize(),
                 enter = motionTransitions.standardEnter(),
                 exit = motionTransitions.standardExit(),
                 label = "lyrics_bottom_shadow_visibility",
             ) {
-                Box(modifier = Modifier.matchParentSize()) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .hazeEffect(lyricsHazeState) {
+                                progressive = softEdgeBlurProgressive(
+                                    startIntensity = 0f,
+                                    endIntensity = 1f,
+                                )
+                                blurRadius = 34.dp
+                                backgroundColor = surface.copy(alpha = 0.7f)
+                                tints = listOf(
+                                    HazeTint(surface.copy(alpha = 0.24f)),
+                                    HazeTint(tintColor.copy(alpha = 0.04f)),
+                                )
+                                noiseFactor = 0.012f
+                            },
+                    )
+                } else {
                     Box(
                         modifier = Modifier
                             .matchParentSize()
@@ -3843,10 +3865,8 @@ private fun LyricsOverlay(
                                 Brush.verticalGradient(
                                     colors = listOf(
                                         Color.Transparent,
-                                        tintColor.copy(alpha = 0.08f),
-                                        tintColor.copy(alpha = 0.28f),
-                                        tintColor.copy(alpha = 0.62f),
-                                        tintColor.copy(alpha = 0.96f),
+                                        surface.copy(alpha = 0.18f),
+                                        surface.copy(alpha = 0.7f),
                                     ),
                                 ),
                             ),

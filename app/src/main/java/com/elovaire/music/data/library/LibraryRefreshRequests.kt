@@ -6,10 +6,12 @@ internal data class LibraryRefreshRequest(
     val forceMediaIndex: Boolean = false,
     val enrichMetadata: Boolean = false,
     val targetedPaths: List<String> = emptyList(),
+    /** Null scans all configured SAF trees; a set scans only those tree identities. */
+    val targetedSafTreeIds: Set<String>? = null,
     /** Null means reconcile every source; an empty set means only merge current source state. */
     val targetedNetworkSourceIds: Set<String>? = null,
     val mediaStoreGenerationFloor: Long? = null,
-    /** Reuse the published local snapshot while a targeted SAF source is being discovered. */
+    /** Reuse unaffected local sources while a targeted SAF source is being discovered. */
     val reuseLocalState: Boolean = false,
 ) {
     fun mergedWith(other: LibraryRefreshRequest): LibraryRefreshRequest {
@@ -28,9 +30,17 @@ internal data class LibraryRefreshRequest(
             force || targetedNetworkSourceIds == null || other.targetedNetworkSourceIds == null -> null
             else -> targetedNetworkSourceIds + other.targetedNetworkSourceIds
         }
+        val mergedSafTreeIds = when {
+            force || targetedSafTreeIds == null || other.targetedSafTreeIds == null -> null
+            else -> targetedSafTreeIds + other.targetedSafTreeIds
+        }
         val reuseLocalState = reuseLocalState && other.reuseLocalState && !force
         val mergedGenerationFloor = if (
-            force || mergedPaths.isNotEmpty() || targetedNetworkSourceIds != null || other.targetedNetworkSourceIds != null
+            force ||
+                mergedPaths.isNotEmpty() ||
+                mergedSafTreeIds != null ||
+                targetedNetworkSourceIds != null ||
+                other.targetedNetworkSourceIds != null
         ) {
             null
         } else {
@@ -43,6 +53,7 @@ internal data class LibraryRefreshRequest(
             return LibraryRefreshRequest(
                 forceMediaIndex = false,
                 enrichMetadata = enrichMetadata || other.enrichMetadata,
+                targetedSafTreeIds = null,
                 reuseLocalState = false,
             )
         }
@@ -50,6 +61,7 @@ internal data class LibraryRefreshRequest(
             forceMediaIndex = force,
             enrichMetadata = enrichMetadata || other.enrichMetadata,
             targetedPaths = mergedPaths,
+            targetedSafTreeIds = mergedSafTreeIds,
             targetedNetworkSourceIds = mergedNetworkSourceIds,
             mediaStoreGenerationFloor = mergedGenerationFloor,
             reuseLocalState = reuseLocalState,
@@ -71,16 +83,30 @@ internal data class LibraryRefreshRequest(
             return copy(
                 forceMediaIndex = false,
                 targetedPaths = emptyList(),
+                targetedSafTreeIds = null,
             )
         }
         return copy(
             targetedPaths = normalizedPaths,
+            targetedSafTreeIds = if (forceMediaIndex) {
+                null
+            } else {
+                targetedSafTreeIds
+                    ?.map(String::trim)
+                    ?.filter(String::isNotBlank)
+                    ?.toSet()
+            },
             targetedNetworkSourceIds = targetedNetworkSourceIds
                 ?.map(String::trim)
                 ?.filter(String::isNotBlank)
                 ?.toSet(),
             mediaStoreGenerationFloor = mediaStoreGenerationFloor
-                ?.takeIf { !forceMediaIndex && normalizedPaths.isEmpty() && targetedNetworkSourceIds.isNullOrEmpty() },
+                ?.takeIf {
+                    !forceMediaIndex &&
+                        normalizedPaths.isEmpty() &&
+                        targetedSafTreeIds.isNullOrEmpty() &&
+                        targetedNetworkSourceIds.isNullOrEmpty()
+                },
             reuseLocalState = reuseLocalState && !forceMediaIndex,
         )
     }
@@ -135,6 +161,7 @@ internal class LibraryRefreshRequests {
         pending = pending?.copy(
             forceMediaIndex = false,
             targetedPaths = emptyList(),
+            targetedSafTreeIds = null,
         )?.takeIf { it.enrichMetadata }
     }
 

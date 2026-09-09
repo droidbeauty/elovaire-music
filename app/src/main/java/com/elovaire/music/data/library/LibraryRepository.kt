@@ -354,6 +354,7 @@ class LibraryRepository internal constructor(
         forceMediaIndex: Boolean = false,
         enrichMetadata: Boolean = false,
         showLoadingIndicator: Boolean = _contentState.value.songs.isEmpty(),
+        targetedSafTreeIds: Set<String>? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         mediaStoreGenerationFloor: Long? = null,
         targetedPaths: List<String> = emptyList(),
@@ -364,6 +365,7 @@ class LibraryRepository internal constructor(
             forceMediaIndex = forceMediaIndex,
             enrichMetadata = enrichMetadata,
             targetedPaths = targetedPaths,
+            targetedSafTreeIds = targetedSafTreeIds,
             targetedNetworkSourceIds = targetedNetworkSourceIds,
             mediaStoreGenerationFloor = mediaStoreGenerationFloor,
             reuseLocalState = reuseLocalState,
@@ -411,6 +413,7 @@ class LibraryRepository internal constructor(
                             "force_index" to refreshRequest.forceMediaIndex.toString(),
                             "enrich_metadata" to refreshRequest.enrichMetadata.toString(),
                             "targeted_paths" to refreshRequest.targetedPaths.size.toString(),
+                            "targeted_saf_trees" to (refreshRequest.targetedSafTreeIds?.size?.toString() ?: "all"),
                             "targeted_network_sources" to
                                 (refreshRequest.targetedNetworkSourceIds?.size?.toString() ?: "all"),
                         ),
@@ -628,6 +631,7 @@ class LibraryRepository internal constructor(
                 refreshMediaPaths = request.targetedPaths,
                 enrichMetadata = request.enrichMetadata,
                 mediaStoreGenerationFloor = request.mediaStoreGenerationFloor,
+                targetedSafTreeIds = request.targetedSafTreeIds,
                 targetedNetworkSourceIds = request.targetedNetworkSourceIds,
                 baseSnapshot = existingSnapshot,
                 reuseLocalState = request.reuseLocalState,
@@ -879,10 +883,8 @@ class LibraryRepository internal constructor(
             normalizedSelections.size > previousSelections.size &&
             previousSelections.all(normalizedSelections::contains) &&
             addedSelections.all { it.uri != null }
-        val addedSafPaths = addedSelections.mapNotNull { selection ->
-            selection.path.takeUnless(LibraryFolderSelectionResolver::isUriBackedPath)
-        }
-        val canTargetAddedSafTrees = onlyAddingSafTrees && addedSafPaths.size == addedSelections.size
+        val addedSafTreeIds = addedSelections.mapNotNull { selection -> safTreeIdentity(selection.uri) }.toSet()
+        val canTargetAddedSafTrees = onlyAddingSafTrees && addedSafTreeIds.size == addedSelections.size
         val changed = scanner.setLibraryFolders(selections)
         if (!changed) return
         if (_scanState.value.permissionGranted) {
@@ -896,7 +898,7 @@ class LibraryRepository internal constructor(
                 forceMediaIndex = addedSelections.any { it.uri == null },
                 enrichMetadata = enrichMetadata,
                 showLoadingIndicator = showLoadingIndicator,
-                targetedPaths = addedSafPaths.takeIf { canTargetAddedSafTrees }.orEmpty(),
+                targetedSafTreeIds = addedSafTreeIds.takeIf { canTargetAddedSafTrees },
                 targetedNetworkSourceIds = emptySet<String>()
                     .takeIf { onlyAddingSafTrees && !enrichMetadata },
                 reuseLocalState = onlyAddingSafTrees && !enrichMetadata,

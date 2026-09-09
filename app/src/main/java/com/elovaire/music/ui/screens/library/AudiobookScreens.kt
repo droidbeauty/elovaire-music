@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.ui.screens
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,16 +57,23 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import elovaire.music.droidbeauty.app.R
 import elovaire.music.droidbeauty.app.data.playback.AudiobookProgress
 import elovaire.music.droidbeauty.app.data.playback.resolveAudiobookProgress
 import elovaire.music.droidbeauty.app.data.playback.audiobookPartPrefixDurations
 import elovaire.music.droidbeauty.app.domain.model.Audiobook
 import elovaire.music.droidbeauty.app.domain.model.AudiobookPart
+import elovaire.music.droidbeauty.app.domain.model.Playlist
+import elovaire.music.droidbeauty.app.domain.model.Song
+import elovaire.music.droidbeauty.app.data.settings.PlaylistMutationResult
 import elovaire.music.droidbeauty.app.ui.components.ArtworkImage
 import elovaire.music.droidbeauty.app.ui.components.rememberArtworkBitmap
 import elovaire.music.droidbeauty.app.ui.i18n.LocalAppLanguage
+import elovaire.music.droidbeauty.app.ui.i18n.UiPhrase
 import elovaire.music.droidbeauty.app.ui.i18n.audiobookCopy
+import elovaire.music.droidbeauty.app.ui.i18n.uiPhrase
 import elovaire.music.droidbeauty.app.ui.interaction.elovaireActionBump
 import elovaire.music.droidbeauty.app.ui.interaction.rememberElovaireInteractionSource
 import elovaire.music.droidbeauty.app.ui.motion.ElovaireAnimatedVisibility
@@ -197,105 +206,233 @@ internal fun AudiobooksScreen(
     bottomPadding: Dp,
     onBack: () -> Unit,
     onBookSelected: (Audiobook) -> Unit,
+    playlists: List<Playlist>,
+    playlistSongsById: Map<Long, Song>,
+    onAddSongsToPlaylist: (Long, List<Long>) -> PlaylistMutationRequest,
+    onCreatePlaylist: PlaylistCreateAction,
+    onDeleteSongsFromDevice: (List<Song>) -> Unit,
 ) {
     val copy = audiobookCopy(LocalAppLanguage.current)
     var layoutModeName by rememberSaveable { mutableStateOf(AlbumLayoutMode.Compact.name) }
+    var selectedBookKeys by rememberSaveable { mutableStateOf(setOf<String>()) }
+    var showPlaylistPicker by rememberSaveable { mutableStateOf(false) }
     val layoutMode = remember(layoutModeName) {
         AlbumLayoutMode.entries.firstOrNull { it.name == layoutModeName } ?: AlbumLayoutMode.Compact
     }
+    val selectionModeActive = selectedBookKeys.isNotEmpty()
+    val selectedBooks = remember(books, selectedBookKeys) {
+        books.filter { it.stableKey in selectedBookKeys }
+    }
+    val selectedSongs = remember(books, selectedBookKeys) {
+        selectedAudiobookSongs(books, selectedBookKeys)
+    }
+    val motionTransitions = rememberMotionTransitions()
+    val selectionHazeState = rememberHazeState()
+    val selectionTopInset by androidx.compose.animation.core.animateDpAsState(
+        targetValue = if (selectionModeActive) 50.dp else 0.dp,
+        animationSpec = elovaire.music.droidbeauty.app.ui.motion.ElovaireMotion.sizeSoft(),
+        label = "audiobook_selection_top_inset",
+    )
+    LaunchedEffect(books.map(Audiobook::stableKey)) {
+        selectedBookKeys = pruneAudiobookSelection(selectedBookKeys, books)
+        if (selectedBookKeys.isEmpty()) showPlaylistPicker = false
+    }
+    BackHandler(enabled = selectionModeActive) {
+        selectedBookKeys = emptySet()
+        showPlaylistPicker = false
+    }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val gridState = rememberElovaireLazyGridState("audiobooks_screen_grid")
+    fun onBookClick(book: Audiobook) {
+        if (selectionModeActive) {
+            selectedBookKeys = toggleAudiobookSelection(selectedBookKeys, book.stableKey)
+        } else {
+            onBookSelected(book)
+        }
+    }
+    fun onBookLongPress(book: Audiobook) {
+        selectedBookKeys = selectedBookKeys + book.stableKey
+    }
     Box(modifier = Modifier.fillMaxSize()) {
-        when (layoutMode) {
-            AlbumLayoutMode.Compact -> {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .ensureSingleItemRubberBand(listState),
-                    overscrollEffect = null,
-                    contentPadding = PaddingValues(
-                        start = 20.dp,
-                        top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
-                        end = 20.dp,
-                        bottom = bottomPadding,
-                    ),
-                ) {
-                    item(key = "audiobooks_view_switcher") {
-                        AudiobooksViewSwitcher(
-                            layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutModeName = it.name },
-                        )
-                    }
-                    item(key = "audiobooks_view_switcher_gap") {
-                        Spacer(modifier = Modifier.height(16.dp))
-                    }
-                    itemsIndexed(
-                        items = books,
-                        key = { _, book -> book.stableKey },
-                        contentType = { _, _ -> "audiobook_row" },
-                    ) { index, book ->
-                        AudiobookCollectionRow(book = book, onClick = { onBookSelected(book) })
-                        if (index != books.lastIndex) {
-                            DividerLine()
-                        }
-                    }
-                }
-                FastScrollbar(
-                    state = listState,
-                    topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
-                    bottomInset = bottomPadding + 16.dp,
-                )
-            }
-
-            AlbumLayoutMode.Grid -> {
-                LazyVerticalGrid(
-                    state = gridState,
-                    columns = GridCells.Fixed(2),
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .ensureSingleItemRubberBand(gridState),
-                    overscrollEffect = null,
-                    contentPadding = PaddingValues(
-                        start = 20.dp,
-                        top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap,
-                        end = 20.dp,
-                        bottom = bottomPadding,
-                    ),
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    item(
-                        key = "audiobooks_view_switcher",
-                        span = { GridItemSpan(2) },
-                    ) {
-                        AudiobooksViewSwitcher(
-                            layoutMode = layoutMode,
-                            onLayoutModeChanged = { layoutModeName = it.name },
-                        )
-                    }
-                    items(
-                        items = books,
-                        key = Audiobook::stableKey,
-                        contentType = { "audiobook_grid_card" },
-                    ) { book ->
-                        AudiobookGridCard(book = book, onClick = { onBookSelected(book) })
-                    }
-                }
-                FastScrollbar(
-                    state = gridState,
-                    topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap,
-                    bottomInset = bottomPadding + 16.dp,
-                )
-            }
-
-            AlbumLayoutMode.DenseGrid -> Unit
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .hazeSource(selectionHazeState, zIndex = -1f),
+        ) {
+            AudiobookCollectionContent(
+                books = books,
+                layoutMode = layoutMode,
+                bottomPadding = bottomPadding,
+                selectionTopInset = selectionTopInset,
+                selectionModeActive = selectionModeActive,
+                selectedBookKeys = selectedBookKeys,
+                onLayoutModeChanged = { layoutModeName = it.name },
+                onBookClick = ::onBookClick,
+                onBookLongPress = ::onBookLongPress,
+            )
         }
         DetailListTopBar(
             title = copy.allAudiobooks,
             subtitle = null,
             onBack = onBack,
             modifier = Modifier.align(Alignment.TopCenter),
+        )
+        AudiobookSelectionOverlay(
+            visible = selectionModeActive,
+            motionTransitions = motionTransitions,
+            hazeState = selectionHazeState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .align(Alignment.TopCenter)
+                .zIndex(3f),
+            onAddToPlaylist = { showPlaylistPicker = true },
+            onDelete = {
+                if (selectedSongs.isNotEmpty()) onDeleteSongsFromDevice(selectedSongs)
+                selectedBookKeys = emptySet()
+            },
+        )
+    }
+    if (showPlaylistPicker && selectionModeActive) {
+        PlaylistSelectionDialog(
+            title = uiPhrase(LocalAppLanguage.current, UiPhrase.AddToPlaylist),
+            subtitle = selectedBooks.joinToString(" • ") { it.title },
+            playlists = playlists.filterNot(Playlist::isSystem),
+            playlistSongsById = playlistSongsById,
+            onDismiss = { showPlaylistPicker = false },
+            onPlaylistSelected = { playlistId ->
+                val result = onAddSongsToPlaylist(playlistId, selectedSongs.map(Song::id)).await()
+                if (result is PlaylistMutationResult.Success) {
+                    showPlaylistPicker = false
+                    selectedBookKeys = emptySet()
+                }
+                result
+            },
+            onCreatePlaylist = onCreatePlaylist,
+        )
+    }
+}
+
+@Composable
+private fun AudiobookCollectionContent(
+    books: List<Audiobook>,
+    layoutMode: AlbumLayoutMode,
+    bottomPadding: Dp,
+    selectionTopInset: Dp,
+    selectionModeActive: Boolean,
+    selectedBookKeys: Set<String>,
+    onLayoutModeChanged: (AlbumLayoutMode) -> Unit,
+    onBookClick: (Audiobook) -> Unit,
+    onBookLongPress: (Audiobook) -> Unit,
+) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val gridState = rememberElovaireLazyGridState("audiobooks_screen_grid")
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (layoutMode) {
+        AlbumLayoutMode.Compact -> {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(listState),
+                overscrollEffect = null,
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap + selectionTopInset,
+                    end = 20.dp,
+                    bottom = bottomPadding,
+                ),
+            ) {
+                item(key = "audiobooks_view_switcher") {
+                    AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+                }
+                item(key = "audiobooks_view_switcher_gap") {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
+                itemsIndexed(
+                    items = books,
+                    key = { _, book -> book.stableKey },
+                    contentType = { _, _ -> "audiobook_row" },
+                ) { index, book ->
+                    AudiobookCollectionRow(
+                        book = book,
+                        selectionMode = selectionModeActive,
+                        selected = book.stableKey in selectedBookKeys,
+                        onClick = { onBookClick(book) },
+                        onLongPress = { onBookLongPress(book) },
+                    )
+                    if (index != books.lastIndex) DividerLine()
+                }
+            }
+            FastScrollbar(
+                state = listState,
+                topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap + selectionTopInset,
+                bottomInset = bottomPadding + 16.dp,
+            )
+        }
+
+        AlbumLayoutMode.Grid -> {
+            LazyVerticalGrid(
+                state = gridState,
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize().ensureSingleItemRubberBand(gridState),
+                overscrollEffect = null,
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    top = detailTopBarOccupiedHeight() + ElovaireSpacing.detailListTopGap + selectionTopInset,
+                    end = 20.dp,
+                    bottom = bottomPadding,
+                ),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item(key = "audiobooks_view_switcher", span = { GridItemSpan(2) }) {
+                    AudiobooksViewSwitcher(layoutMode, onLayoutModeChanged)
+                }
+                items(
+                    items = books,
+                    key = Audiobook::stableKey,
+                    contentType = { "audiobook_grid_card" },
+                ) { book ->
+                    AudiobookGridCard(
+                        book = book,
+                        selectionMode = selectionModeActive,
+                        selected = book.stableKey in selectedBookKeys,
+                        onClick = { onBookClick(book) },
+                        onLongPress = { onBookLongPress(book) },
+                    )
+                }
+            }
+            FastScrollbar(
+                state = gridState,
+                topInset = detailTopBarOccupiedHeight() + ElovaireSpacing.detailCompactTopGap + selectionTopInset,
+                bottomInset = bottomPadding + 16.dp,
+            )
+        }
+
+            AlbumLayoutMode.DenseGrid -> Unit
+        }
+    }
+}
+
+@Composable
+private fun AudiobookSelectionOverlay(
+    visible: Boolean,
+    motionTransitions: elovaire.music.droidbeauty.app.ui.motion.MotionTransitions,
+    hazeState: dev.chrisbanes.haze.HazeState,
+    modifier: Modifier,
+    onAddToPlaylist: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    ElovaireAnimatedVisibility(
+        visible = visible,
+        modifier = modifier,
+        enter = motionTransitions.verticalRevealEnter(),
+        exit = motionTransitions.verticalRevealExit(),
+        label = "audiobook_selection_menu",
+    ) {
+        TopBarSelectionMenu(
+            topBarHeight = detailTopBarOccupiedHeight(),
+            hazeState = hazeState,
+            onAddToPlaylist = onAddToPlaylist,
+            onDelete = onDelete,
         )
     }
 }
@@ -356,13 +493,21 @@ internal fun AudiobookUnavailableScreen(
 @Composable
 private fun AudiobookCollectionRow(
     book: Audiobook,
+    selectionMode: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
 ) {
     val artworkAspectRatio = audiobookArtworkAspectRatio(book)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongPress,
+            )
             .padding(vertical = 12.dp),
     ) {
         Row(
@@ -400,6 +545,12 @@ private fun AudiobookCollectionRow(
                     color = readableSecondaryTextColor(),
                 )
             }
+            if (selectionMode) {
+                SelectionIndicatorIcon(
+                    selected = selected,
+                    modifier = Modifier.padding(end = 10.dp),
+                )
+            }
             Icon(
                 painter = painterResource(R.drawable.ic_lucide_chevron_left),
                 contentDescription = null,
@@ -414,23 +565,43 @@ private fun AudiobookCollectionRow(
 @Composable
 private fun AudiobookGridCard(
     book: Audiobook,
+    selectionMode: Boolean,
+    selected: Boolean,
     onClick: () -> Unit,
+    onLongPress: () -> Unit,
 ) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick),
+            .combinedClickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+                onLongClick = onLongPress,
+            ),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ArtworkImage(
-            uri = book.artUri,
-            title = book.title,
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .aspectRatio(audiobookArtworkAspectRatio(book)),
-            cornerRadius = ElovaireRadii.artwork,
-            requestedSizePx = 384,
-        )
+        ) {
+            ArtworkImage(
+                uri = book.artUri,
+                title = book.title,
+                modifier = Modifier.matchParentSize(),
+                cornerRadius = ElovaireRadii.artwork,
+                requestedSizePx = 384,
+            )
+            if (selectionMode) {
+                SelectionIndicatorIcon(
+                    selected = selected,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(8.dp),
+                )
+            }
+        }
         Column(
             modifier = Modifier.padding(horizontal = 2.dp),
             verticalArrangement = Arrangement.spacedBy(ElovaireSpacing.mediaTextStackGap),

@@ -61,6 +61,11 @@ internal fun AudiobooksRouteHost(
         bottomPadding = padding.detailBottom,
         onBack = routeActions::navigateUp,
         onBookSelected = { book -> routeActions.openAudiobook(book.stableKey) },
+        playlists = routeState.playlists.playlists,
+        playlistSongsById = routeState.songsById,
+        onAddSongsToPlaylist = routeActions.playlists::addSongsToPlaylist,
+        onCreatePlaylist = routeActions.playlists::createPlaylist,
+        onDeleteSongsFromDevice = routeActions.delete::deleteSongsFromDevice,
     )
 }
 

@@ -118,13 +118,61 @@ class LibraryRefreshRequestsTest {
     @Test
     fun localReuseSurvivesNormalizationForTargetedSafDiscovery() {
         val normalized = LibraryRefreshRequest(
-            targetedPaths = listOf(" /storage/emulated/0/Audiobooks "),
+            targetedSafTreeIds = setOf(" provider | tree/a "),
             targetedNetworkSourceIds = emptySet(),
             reuseLocalState = true,
         ).normalized()
 
         assertTrue(normalized.reuseLocalState)
-        assertEquals(listOf("/storage/emulated/0/Audiobooks"), normalized.targetedPaths)
+        assertEquals(setOf("provider | tree/a"), normalized.targetedSafTreeIds)
+        assertTrue(normalized.targetedPaths.isEmpty())
+    }
+
+    @Test
+    fun targetedSafTreeRefreshes_mergeWithoutBroadeningToAllTrees() {
+        val merged = LibraryRefreshRequest(
+            targetedSafTreeIds = setOf("provider|tree/a"),
+            targetedNetworkSourceIds = emptySet(),
+            reuseLocalState = true,
+        ).mergedWith(
+            LibraryRefreshRequest(
+                targetedSafTreeIds = setOf("provider|tree/b"),
+                targetedNetworkSourceIds = emptySet(),
+                reuseLocalState = true,
+            ),
+        )
+
+        assertEquals(setOf("provider|tree/a", "provider|tree/b"), merged.targetedSafTreeIds)
+        assertEquals(emptySet<String>(), merged.targetedNetworkSourceIds)
+        assertTrue(merged.reuseLocalState)
+    }
+
+    @Test
+    fun targetedSafRefresh_reusesPublishedMediaStoreState() {
+        assertTrue(
+            shouldReusePublishedMediaStoreState(
+                targetedSafTreeIds = setOf("provider|tree/a"),
+                hasBaseSnapshot = true,
+                refreshMediaIndex = false,
+                enrichMetadata = false,
+            ),
+        )
+        assertFalse(
+            shouldReusePublishedMediaStoreState(
+                targetedSafTreeIds = setOf("provider|tree/a"),
+                hasBaseSnapshot = true,
+                refreshMediaIndex = false,
+                enrichMetadata = true,
+            ),
+        )
+    }
+
+    @Test
+    fun fullSafRefresh_supersedesTargetedSafTreeRefresh() {
+        val merged = LibraryRefreshRequest(targetedSafTreeIds = setOf("provider|tree/a"))
+            .mergedWith(LibraryRefreshRequest())
+
+        assertNull(merged.targetedSafTreeIds)
     }
 
     @Test

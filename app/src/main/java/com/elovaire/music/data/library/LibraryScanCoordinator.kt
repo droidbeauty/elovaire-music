@@ -91,6 +91,7 @@ internal class LibraryScanCoordinator(
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
         mediaStoreGenerationFloor: Long? = null,
+        targetedSafTreeIds: Set<String>? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         baseSnapshot: LibrarySnapshot? = null,
         reuseLocalState: Boolean = false,
@@ -100,6 +101,7 @@ internal class LibraryScanCoordinator(
         refreshMediaPaths = refreshMediaPaths,
         enrichMetadata = enrichMetadata,
         mediaStoreGenerationFloor = mediaStoreGenerationFloor,
+        targetedSafTreeIds = targetedSafTreeIds,
         targetedNetworkSourceIds = targetedNetworkSourceIds,
         baseSnapshot = baseSnapshot,
         reuseLocalState = reuseLocalState,
@@ -111,15 +113,27 @@ internal class LibraryScanCoordinator(
         refreshMediaPaths: List<String> = emptyList(),
         enrichMetadata: Boolean = true,
         mediaStoreGenerationFloor: Long? = null,
+        targetedSafTreeIds: Set<String>? = null,
         targetedNetworkSourceIds: Set<String>? = null,
         baseSnapshot: LibrarySnapshot? = null,
         reuseLocalState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): CoordinatedLibraryScan {
-        val canReuseLocalState = (targetedNetworkSourceIds != null || reuseLocalState) &&
+        val canReuseLocalState = targetedSafTreeIds == null &&
+            (targetedNetworkSourceIds != null || reuseLocalState) &&
             baseSnapshot != null &&
             !refreshMediaIndex &&
-            (reuseLocalState || refreshMediaPaths.isEmpty()) &&
+            refreshMediaPaths.isEmpty() &&
+            !enrichMetadata
+        val canReuseMediaStoreState = shouldReusePublishedMediaStoreState(
+            targetedSafTreeIds = targetedSafTreeIds,
+            hasBaseSnapshot = baseSnapshot != null,
+            refreshMediaIndex = refreshMediaIndex,
+            enrichMetadata = enrichMetadata,
+        )
+        val canReuseNetworkState = targetedNetworkSourceIds != null &&
+            baseSnapshot != null &&
+            !refreshMediaIndex &&
             !enrichMetadata
         var isComplete = true
         var incompleteMessage: String? = null
@@ -133,6 +147,8 @@ internal class LibraryScanCoordinator(
                 mediaStoreGenerationFloor = mediaStoreGenerationFloor,
                 onProgress = onProgress,
                 baseSnapshot = baseSnapshot,
+                targetedSafTreeIds = targetedSafTreeIds,
+                reuseMediaStoreState = canReuseMediaStoreState,
             )
             isComplete = localResult.isComplete
             incompleteMessage = localResult.incompleteMessage
@@ -156,7 +172,7 @@ internal class LibraryScanCoordinator(
         }
         val sourcesToScan = if (targetedNetworkSourceIds == null) {
             availableNetworkSources
-        } else if (!canReuseLocalState) {
+        } else if (!canReuseNetworkState) {
             availableNetworkSources
         } else {
             availableNetworkSources.filter { it.id in targetedNetworkSourceIds }
@@ -207,10 +223,12 @@ internal class LibraryScanCoordinator(
         mediaStoreGenerationFloor: Long?,
         onProgress: ((current: Int, total: Int) -> Unit)?,
         baseSnapshot: LibrarySnapshot?,
+        targetedSafTreeIds: Set<String>?,
+        reuseMediaStoreState: Boolean,
     ): LocalSourceScanResult {
         val localResult = localScanner.scanSafely(
             refreshMediaIndex = refreshMediaIndex,
-            refreshMediaPaths = refreshMediaPaths,
+            refreshMediaPaths = refreshMediaPaths.takeUnless { targetedSafTreeIds != null }.orEmpty(),
             enrichMetadata = enrichMetadata,
             mediaStoreGenerationFloor = mediaStoreGenerationFloor,
             baseMediaStoreSongs = baseSnapshot?.songs
@@ -218,6 +236,7 @@ internal class LibraryScanCoordinator(
                 .filter { song ->
                     MediaIdentityResolver.resolve(song) is MediaSourceIdentity.MediaStoreItem
                 },
+            reuseMediaStoreState = reuseMediaStoreState,
             onProgress = onProgress,
         )
         val local = when (localResult) {
@@ -233,10 +252,12 @@ internal class LibraryScanCoordinator(
         }
         val configuredSafTrees = localScanner.safTreeSelections()
         val configuredSafTreeIds = configuredSafTrees.mapNotNull { safTreeIdentity(it.uri) }.toSet()
-        val safSelections = if (refreshMediaPaths.isEmpty()) {
-            configuredSafTrees
-        } else {
-            configuredSafTrees.filter { selection ->
+        val safSelections = when {
+            targetedSafTreeIds != null -> configuredSafTrees.filter { selection ->
+                safTreeIdentity(selection.uri) in targetedSafTreeIds
+            }
+            refreshMediaPaths.isEmpty() -> configuredSafTrees
+            else -> configuredSafTrees.filter { selection ->
                 shouldScanSafTreeForPaths(selection, refreshMediaPaths)
             }
         }
@@ -332,6 +353,16 @@ internal data class CoordinatedLibraryScan(
     val incompleteMessage: String? = null,
 )
 
+internal fun shouldReusePublishedMediaStoreState(
+    targetedSafTreeIds: Set<String>?,
+    hasBaseSnapshot: Boolean,
+    refreshMediaIndex: Boolean,
+    enrichMetadata: Boolean,
+): Boolean = targetedSafTreeIds != null &&
+    hasBaseSnapshot &&
+    !refreshMediaIndex &&
+    !enrichMetadata
+
 private data class LocalSourceScanResult(
     val songs: List<Song>,
     val isComplete: Boolean,
@@ -354,9 +385,9 @@ internal fun shouldScanSafTreeForPaths(
 
 internal fun safTreeIdentity(uri: Uri?): String? {
     if (uri == null || !uri.scheme.equals("content", ignoreCase = true)) return null
-    return runCatching {
-        "${uri.authority.orEmpty().lowercase(Locale.ROOT)}|${DocumentsContract.getTreeDocumentId(uri)}"
-    }.getOrNull()
+    val authority = uri.authority.orEmpty().lowercase(Locale.ROOT)
+    val documentId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
+    return "$authority|${documentId ?: uri.toString()}"
 }
 
 internal fun networkFilterFingerprint(sources: List<NetworkLibrarySource>): String {

@@ -102,8 +102,12 @@ internal class MediaStoreScanner(
         enrichMetadata: Boolean = true,
         mediaStoreGenerationFloor: Long? = null,
         baseMediaStoreSongs: List<Song> = emptyList(),
+        reuseMediaStoreState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): LibrarySnapshot {
+        if (reuseMediaStoreState) {
+            return LibrarySnapshotAssembler.assemble(baseMediaStoreSongs)
+        }
         val decisionMap = ScannerDebugLogger.newDecisionMap()
         val indexRefreshJob: Deferred<MediaStoreIndexRefreshResult?>? = when {
             refreshMediaIndex -> {
@@ -381,6 +385,7 @@ internal class MediaStoreScanner(
         enrichMetadata: Boolean = true,
         mediaStoreGenerationFloor: Long? = null,
         baseMediaStoreSongs: List<Song> = emptyList(),
+        reuseMediaStoreState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): LocalLibraryScanResult {
         return try {
@@ -391,6 +396,7 @@ internal class MediaStoreScanner(
                     enrichMetadata = enrichMetadata,
                     mediaStoreGenerationFloor = mediaStoreGenerationFloor,
                     baseMediaStoreSongs = baseMediaStoreSongs,
+                    reuseMediaStoreState = reuseMediaStoreState,
                     onProgress = onProgress,
                 ),
             )
