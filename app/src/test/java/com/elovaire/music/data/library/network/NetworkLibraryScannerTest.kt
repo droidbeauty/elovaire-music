@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
 import android.net.TestUri
+import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
+import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.domain.model.Song
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -52,6 +54,41 @@ class NetworkLibraryScannerTest {
         assertEquals(null, parseWebDavContentRange("bytes 19-10/100"))
         assertEquals(null, parseWebDavContentRange("bytes 10-19/not-a-size"))
         assertEquals(null, parseWebDavContentRange("bytes 10-19/*")?.totalLength)
+    }
+
+    @Test
+    fun networkMetadataUsesTheCanonicalResolverForInvalidAndFallbackValues() {
+        val network = NetworkMetadataReadResult(
+            succeeded = true,
+            durationMs = 1_000L,
+            title = "  ",
+            artist = " Network artist ",
+            albumArtist = " ",
+            album = "Album",
+            releaseYear = 0,
+            genre = "  Genre  ",
+            trackNumber = -2,
+            discNumber = 2,
+        )
+
+        val resolved = CanonicalMetadataResolver.resolve(
+            embedded = network.toMetadataSourceValues(),
+            indexed = MetadataSourceValues(
+                title = "Filename title",
+                artist = "Filename artist",
+                albumArtist = "Filename artist",
+                trackNumber = "4",
+                discNumber = "1",
+            ),
+        )
+
+        assertEquals("Filename title", resolved.title)
+        assertEquals("Network artist", resolved.artist)
+        assertEquals("Filename artist", resolved.albumArtist)
+        assertEquals(4, resolved.trackNumber)
+        assertEquals(2, resolved.discNumber)
+        assertEquals(null, resolved.releaseYear)
+        assertEquals("Genre", resolved.genre)
     }
 
     private fun inventory(path: String, id: Long): NetworkInventoryEntry =

@@ -12,20 +12,23 @@ interface LibraryReader {
 interface LibraryActionController {
     fun onPermissionChanged(granted: Boolean)
 
-    fun refresh(
-        forceMediaIndex: Boolean,
-        enrichMetadata: Boolean,
-        showLoadingIndicator: Boolean,
-    )
+    fun refresh(intent: LibraryRefreshIntent)
+}
 
-    fun refresh(showLoadingIndicator: Boolean) {
-        refresh(
-            forceMediaIndex = false,
-            enrichMetadata = false,
-            showLoadingIndicator = showLoadingIndicator,
-        )
-    }
+enum class LibraryRefreshReason {
+    UserInitiated,
+    PermissionReconciliation,
+}
 
+data class LibraryRefreshIntent(
+    val reason: LibraryRefreshReason,
+    val showLoadingIndicator: Boolean,
+) {
+    internal val forceMediaIndex: Boolean
+        get() = reason == LibraryRefreshReason.UserInitiated
+
+    internal val enrichMetadata: Boolean
+        get() = reason == LibraryRefreshReason.UserInitiated
 }
 
 interface LibraryStartupController : LibraryReader {
@@ -36,4 +39,11 @@ interface LibraryStartupController : LibraryReader {
 
 interface LibraryTagUpdateWriter {
     suspend fun applyVerifiedTagEdits(editedSongs: List<Song>)
+}
+
+/** Result of migrating user-data keys after a scanner proved a media identity relocation. */
+internal enum class SongRelocationOutcome {
+    Applied,
+    RetryableFailure,
+    UnrecoverableConflict,
 }

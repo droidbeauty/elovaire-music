@@ -26,4 +26,19 @@ class PortableSettingsBackupTest {
 
         assertEquals(first, second)
     }
+
+    @Test
+    fun bootSnapshotUsesStableTypedValuesAndSettingsOnly() {
+        val first = settingsBootSnapshotChecksum(
+            linkedMapOf("theme_mode" to "dark", "playback_volume" to 0.5f, "favorite_song_ids" to "ignored"),
+        )
+        val second = settingsBootSnapshotChecksum(
+            linkedMapOf("playback_volume" to 0.5f, "theme_mode" to "dark"),
+        )
+
+        assertEquals(first, second)
+        val snapshot = SettingsSnapshot(mapOf("playback_volume" to 0.5f, "last_automatic_update_check_at_ms" to 7))
+        assertEquals(0.5f, snapshot.getFloat("playback_volume", 1f))
+        assertEquals(7L, snapshot.getLong("last_automatic_update_check_at_ms", 0L))
+    }
 }

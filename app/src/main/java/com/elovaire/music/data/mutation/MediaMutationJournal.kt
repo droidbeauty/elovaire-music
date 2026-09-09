@@ -1,7 +1,7 @@
 package elovaire.music.droidbeauty.app.data.mutation
 
 import android.net.Uri
-import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
+import elovaire.music.droidbeauty.app.data.library.db.MediaMutationDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
@@ -78,7 +78,7 @@ private fun MediaMutationType.defaultReconciliation(): MediaMutationReconciliati
 }
 
 internal class MediaMutationJournal(
-    private val dao: LibraryDao,
+    private val dao: MediaMutationDao,
     private val clock: AppClock = AndroidAppClock,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val backendEventSink: BackendEventSink = LogcatBackendEventSink,

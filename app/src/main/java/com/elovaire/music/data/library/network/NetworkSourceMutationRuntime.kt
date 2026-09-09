@@ -7,7 +7,6 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import java.security.GeneralSecurityException
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
@@ -15,10 +14,8 @@ import java.util.concurrent.locks.ReentrantLock
 @Suppress("TooGenericExceptionCaught")
 internal class NetworkSourceMutationRuntime(
     private val scope: CoroutineScope,
-    private val coordinator: NetworkSourceCoordinator,
-    private val onProbeResult: (sourceId: String, result: NetworkProbeResult) -> Unit,
-    private val onSourceRemoved: (sourceId: String) -> Unit,
-    private val onSourcesChanged: (sourceId: String, refreshRequired: Boolean) -> Unit,
+    private val coordinator: NetworkSourceMutationBackend,
+    private val onResult: (NetworkSourceMutationResult) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     private val released = AtomicBoolean(false)
@@ -27,59 +24,48 @@ internal class NetworkSourceMutationRuntime(
 
     fun save(source: NetworkLibrarySource, credentials: NetworkCredentials) {
         if (released.get()) return
-        val accepted = launch(source.id) { token ->
+        launch(source.id) { token ->
             try {
                 if (!runIfCurrent(source.id, token) {
-                        onProbeResult(source.id, NetworkProbeResult(NetworkAvailability.Checking))
-                    }) return@launch
-                val outcome = coordinator.save(source, credentials)
-                if (!runIfCurrent(source.id, token) {
-                        onProbeResult(source.id, outcome.probeResult)
-                    }) return@launch
-                if (!runIfCurrent(source.id, token) {
-                        onSourcesChanged(source.id, outcome.refreshRequired)
-                    }) return@launch
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (failure: GeneralSecurityException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: SecurityException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: IllegalArgumentException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: IllegalStateException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: Exception) {
-                recordFailure(source.id, token, failure)
+                    onResult(NetworkSourceMutationResult.Checking(source.id))
+                }) return@launch
+                val outcome = try {
+                    coordinator.save(source, credentials)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (failure: Exception) {
+                    recordFailure(source.id, token, failure)
+                    return@launch
+                }
+                runIfCurrent(source.id, token) {
+                    onResult(
+                        NetworkSourceMutationResult.Saved(
+                            sourceId = source.id,
+                            probeResult = outcome.probeResult,
+                            refreshRequired = outcome.refreshRequired,
+                        ),
+                    )
+                }
             } finally {
                 clearToken(source.id, token)
             }
         }
-        if (!accepted) return
     }
 
     fun remove(source: NetworkLibrarySource) {
         launch(source.id) { token ->
             try {
-                coordinator.remove(source)
-                if (!runIfCurrent(source.id, token) {
-                        onSourceRemoved(source.id)
-                    }) return@launch
-                if (!runIfCurrent(source.id, token) {
-                        onSourcesChanged(source.id, true)
-                    }) return@launch
-            } catch (cancellation: CancellationException) {
-                throw cancellation
-            } catch (failure: GeneralSecurityException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: SecurityException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: IllegalArgumentException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: IllegalStateException) {
-                recordFailure(source.id, token, failure)
-            } catch (failure: Exception) {
-                recordFailure(source.id, token, failure)
+                try {
+                    coordinator.remove(source)
+                } catch (cancellation: CancellationException) {
+                    throw cancellation
+                } catch (failure: Exception) {
+                    recordFailure(source.id, token, failure)
+                    return@launch
+                }
+                runIfCurrent(source.id, token) {
+                    onResult(NetworkSourceMutationResult.Removed(source.id))
+                }
             } finally {
                 clearToken(source.id, token)
             }
@@ -155,11 +141,10 @@ internal class NetworkSourceMutationRuntime(
 
     private fun recordFailure(sourceId: String, token: MutationToken, failure: Throwable) {
         runIfCurrent(sourceId, token) {
-            onProbeResult(
-                sourceId,
-                NetworkProbeResult(
-                    availability = NetworkAvailability.Unavailable,
-                    message = failure::class.simpleName,
+            onResult(
+                NetworkSourceMutationResult.Failed(
+                    sourceId = sourceId,
+                    failureType = failure::class.simpleName,
                 ),
             )
         }
@@ -175,4 +160,23 @@ internal class NetworkSourceMutationRuntime(
         var job: Job? = null
         val callbackLock = ReentrantLock()
     }
+}
+
+internal sealed interface NetworkSourceMutationResult {
+    val sourceId: String
+
+    data class Checking(override val sourceId: String) : NetworkSourceMutationResult
+
+    data class Saved(
+        override val sourceId: String,
+        val probeResult: NetworkProbeResult,
+        val refreshRequired: Boolean,
+    ) : NetworkSourceMutationResult
+
+    data class Removed(override val sourceId: String) : NetworkSourceMutationResult
+
+    data class Failed(
+        override val sourceId: String,
+        val failureType: String?,
+    ) : NetworkSourceMutationResult
 }

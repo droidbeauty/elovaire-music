@@ -2,6 +2,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import android.media.MediaDataSource
 import android.media.MediaMetadataRetriever
+import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import elovaire.music.droidbeauty.app.data.library.MediaFailureCategory
 import elovaire.music.droidbeauty.app.data.library.MediaFailureDomain
 import elovaire.music.droidbeauty.app.data.library.MediaFailureKey
@@ -85,6 +86,19 @@ internal data class NetworkMetadataReadResult(
     val trackNumber: Int?,
     val discNumber: Int?,
 )
+
+internal fun NetworkMetadataReadResult.toMetadataSourceValues(): MetadataSourceValues {
+    return MetadataSourceValues(
+        title = title,
+        artist = artist,
+        albumArtist = albumArtist,
+        album = album,
+        releaseYear = releaseYear,
+        genre = genre,
+        trackNumber = trackNumber?.toString(),
+        discNumber = discNumber?.toString(),
+    )
+}
 
 private class RangeMediaDataSource(
     private val registry: NetworkFileSystemRegistry,

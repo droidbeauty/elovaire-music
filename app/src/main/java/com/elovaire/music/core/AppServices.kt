@@ -5,6 +5,7 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.data.library.LibraryRepository
+import elovaire.music.droidbeauty.app.data.library.SongRelocationOutcome
 import elovaire.music.droidbeauty.app.data.library.LibrarySnapshotStore
 import elovaire.music.droidbeauty.app.data.library.LibraryScanCoordinator
 import elovaire.music.droidbeauty.app.data.library.MediaStoreScanner
@@ -16,10 +17,12 @@ import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySourceS
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryProtocol
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
+import elovaire.music.droidbeauty.app.data.library.network.NetworkAvailability
 import elovaire.music.droidbeauty.app.data.library.network.NetworkProbeResult
 import elovaire.music.droidbeauty.app.data.library.network.NetworkInventoryStore
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceCoordinator
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationRuntime
+import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationResult
 import elovaire.music.droidbeauty.app.data.library.network.NetworkSourceMutationJournal
 import elovaire.music.droidbeauty.app.data.library.network.SmbNetworkFileSystem
 import elovaire.music.droidbeauty.app.data.library.network.WebDavNetworkFileSystem
@@ -58,9 +61,6 @@ import elovaire.music.droidbeauty.app.data.tags.AudiobookTagEditorService
 import elovaire.music.droidbeauty.app.data.update.UpdateController
 import elovaire.music.droidbeauty.app.data.update.createUpdateController
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -77,21 +77,16 @@ internal class AppServices(
     private val backgroundWorkPolicy: AppBackgroundWorkPolicy,
     private val portableSettingsBackup: PortableSettingsBackup,
 ) {
-    private val playbackScope = CoroutineScope(
-        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
-    )
-    private val libraryScope = CoroutineScope(
-        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
-    )
-    private val optionalScope = CoroutineScope(
-        appScope.coroutineContext + SupervisorJob(appScope.coroutineContext[Job]),
-    )
+    private val serviceScopes = AppServiceScopes(appScope)
+    private val playbackScope = serviceScopes.playback
+    private val libraryScope = serviceScopes.library
+    private val optionalScope = serviceScopes.optional
     private val networkServicesStarted = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
     private val mediaLibraryReadExecutor = MediaLibraryReadExecutor.bounded()
     private val database = ElovaireDatabase.create(applicationContext)
     private val databaseResource = BackendResourceRegistry.acquire(BackendResourceKind.DatabaseInstance)
-    private val mediaMutationJournal = MediaMutationJournal(database.libraryDao())
+    private val mediaMutationJournal = MediaMutationJournal(database.mediaMutationDao())
     private val userDataStore = RoomUserDataStore(
         context = applicationContext,
         dao = database.userDataDao(),
@@ -106,11 +101,13 @@ internal class AppServices(
         userDataStore = userDataStore,
         ioDispatcher = appDispatchers.io,
         ownerScope = appScope,
+        initialSettings = portableSettingsBackup.bootSettingsSnapshot(),
+        portableSettingsBackup = portableSettingsBackup,
     )
     private val networkSourceStore = NetworkLibrarySourceStore(applicationContext)
     private val networkSourceMutationJournal = NetworkSourceMutationJournal(applicationContext)
     private val _networkProbeResults = MutableStateFlow<Map<String, NetworkProbeResult>>(emptyMap())
-    private val networkInventoryStore = NetworkInventoryStore(applicationContext, database.libraryDao())
+    private val networkInventoryStore = NetworkInventoryStore(applicationContext, database.networkInventoryDao())
     private val networkCredentialStoreDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         NetworkCredentialStore(applicationContext)
     }
@@ -219,16 +216,17 @@ internal class AppServices(
         },
         scope = libraryScope,
         backgroundWorkPolicy = backgroundWorkPolicy,
-        libraryIndexStore = LibraryIndexStore(database.libraryDao()),
+        libraryIndexStore = LibraryIndexStore(database.libraryIndexDao()),
         ioDispatcher = appDispatchers.io,
         defaultDispatcher = appDispatchers.default,
         onSongRelocations = { replacements ->
             when (val result = userDataStore.relocateSongReferences(replacements).await()) {
                 is PlaylistMutationResult.Success -> {
                     playbackManager.remapAudiobookProgress(replacements)
-                    true
+                    SongRelocationOutcome.Applied
                 }
-                else -> false
+                is PlaylistMutationResult.Failure -> SongRelocationOutcome.RetryableFailure
+                else -> SongRelocationOutcome.UnrecoverableConflict
             }
         },
     ).also {
@@ -237,21 +235,50 @@ internal class AppServices(
     private val networkMutationRuntime = NetworkSourceMutationRuntime(
         scope = optionalScope,
         coordinator = networkSourceCoordinator,
-        onProbeResult = { sourceId, result ->
-            _networkProbeResults.update { it + (sourceId to result) }
-        },
-        onSourceRemoved = { sourceId ->
-            _networkProbeResults.update { it - sourceId }
-        },
-        onSourcesChanged = { sourceId, refreshRequired ->
-            startNetworkServices()
-            libraryRepository.unblockNetworkSource(sourceId)
-            libraryRepository.setNetworkSources(
-                networkSourceStore.sources.value,
-                enrichMetadata = false,
-                showLoadingIndicator = true,
-                forceRefreshSourceIds = if (refreshRequired) setOf(sourceId) else emptySet(),
-            )
+        onResult = { result ->
+            when (result) {
+                is NetworkSourceMutationResult.Checking -> {
+                    _networkProbeResults.update {
+                        it + (result.sourceId to NetworkProbeResult(NetworkAvailability.Checking))
+                    }
+                }
+                is NetworkSourceMutationResult.Saved -> {
+                    _networkProbeResults.update { it + (result.sourceId to result.probeResult) }
+                    startNetworkServices()
+                    libraryRepository.unblockNetworkSource(result.sourceId)
+                    libraryRepository.setNetworkSources(
+                        networkSourceStore.sources.value,
+                        enrichMetadata = false,
+                        showLoadingIndicator = true,
+                        forceRefreshSourceIds = if (result.refreshRequired) {
+                            setOf(result.sourceId)
+                        } else {
+                            emptySet()
+                        },
+                    )
+                }
+                is NetworkSourceMutationResult.Removed -> {
+                    _networkProbeResults.update { it - result.sourceId }
+                    startNetworkServices()
+                    libraryRepository.unblockNetworkSource(result.sourceId)
+                    libraryRepository.setNetworkSources(
+                        networkSourceStore.sources.value,
+                        enrichMetadata = false,
+                        showLoadingIndicator = true,
+                        forceRefreshSourceIds = setOf(result.sourceId),
+                    )
+                }
+                is NetworkSourceMutationResult.Failed -> {
+                    _networkProbeResults.update {
+                        it + (
+                            result.sourceId to NetworkProbeResult(
+                                availability = NetworkAvailability.Unavailable,
+                                message = result.failureType,
+                            )
+                        )
+                    }
+                }
+            }
         },
         ioDispatcher = appDispatchers.io,
     )
@@ -412,13 +439,13 @@ internal class AppServices(
             { startupCoordinator.release() },
             { networkMutationRuntime.release() },
             { mediaLibraryInvalidationCoordinator.close() },
-            { optionalScope.cancel() },
+            { serviceScopes.cancelOptional() },
             { playbackManager.release() },
-            { playbackScope.cancel() },
+            { serviceScopes.cancelPlayback() },
             { if (updateControllerDelegate.isInitialized()) updateController.release() },
             { if (artistImageRepositoryDelegate.isInitialized()) artistImageRepository.release() },
             { libraryRepository.release() },
-            { libraryScope.cancel() },
+            { serviceScopes.cancelLibrary() },
             {
                 if (networkFileSystemRegistryDelegate.isInitialized()) {
                     networkFileSystemRegistryDelegate.value.release()

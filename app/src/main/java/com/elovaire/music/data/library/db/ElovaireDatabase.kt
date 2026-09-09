@@ -33,9 +33,13 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     exportSchema = true,
 )
 internal abstract class ElovaireDatabase : RoomDatabase() {
-    abstract fun libraryDao(): LibraryDao
+    abstract fun libraryIndexDao(): LibraryIndexDao
+    abstract fun mediaMutationDao(): MediaMutationDao
+    abstract fun networkInventoryDao(): NetworkInventoryDao
     abstract fun persistenceMaintenanceDao(): PersistenceMaintenanceDao
     abstract fun userDataDao(): UserDataDao
+    abstract fun playbackHistoryDao(): PlaybackHistoryDao
+    abstract fun searchHistoryDao(): SearchHistoryDao
 
     companion object {
         fun create(context: Context): ElovaireDatabase {
@@ -47,7 +51,6 @@ internal abstract class ElovaireDatabase : RoomDatabase() {
                 // The app and the WorkManager maintenance worker can hold separate handles to
                 // this file. WAL keeps short user-data writes from blocking integrity checks.
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                .enableMultiInstanceInvalidation()
                 .addMigrations(
                     MIGRATION_1_2,
                     MIGRATION_2_3,

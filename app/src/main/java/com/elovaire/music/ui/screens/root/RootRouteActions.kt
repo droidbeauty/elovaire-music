@@ -10,6 +10,8 @@ import elovaire.music.droidbeauty.app.core.PlaylistActionDependencies
 import elovaire.music.droidbeauty.app.core.SettingsActionDependencies
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelection
 import elovaire.music.droidbeauty.app.data.library.LibraryFolderSelectionResolver
+import elovaire.music.droidbeauty.app.data.library.LibraryRefreshIntent
+import elovaire.music.droidbeauty.app.data.library.LibraryRefreshReason
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
@@ -169,9 +171,10 @@ internal class RootRouteActions(
 
     fun refreshLibrary() {
         libraryDependencies.libraryController.refresh(
-            forceMediaIndex = true,
-            enrichMetadata = true,
-            showLoadingIndicator = true,
+            LibraryRefreshIntent(
+                reason = LibraryRefreshReason.UserInitiated,
+                showLoadingIndicator = true,
+            ),
         )
     }
 

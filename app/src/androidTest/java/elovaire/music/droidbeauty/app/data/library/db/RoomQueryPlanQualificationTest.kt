@@ -18,7 +18,7 @@ import org.junit.runner.RunWith
 class RoomQueryPlanQualificationTest {
     private lateinit var database: ElovaireDatabase
     private lateinit var dao: UserDataDao
-    private lateinit var libraryDao: LibraryDao
+    private lateinit var libraryDao: LibraryIndexDao
 
     @Before
     fun setUp() {
@@ -27,7 +27,7 @@ class RoomQueryPlanQualificationTest {
             ElovaireDatabase::class.java,
         ).build()
         dao = database.userDataDao()
-        libraryDao = database.libraryDao()
+        libraryDao = database.libraryIndexDao()
     }
 
     @After

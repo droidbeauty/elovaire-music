@@ -2,7 +2,7 @@ package elovaire.music.droidbeauty.app.data.mutation
 
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.backend.NoOpBackendEventSink
-import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
+import elovaire.music.droidbeauty.app.data.library.db.MediaMutationDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
 import elovaire.music.droidbeauty.app.domain.kernel.MediaMutationStatus
 import elovaire.music.droidbeauty.app.domain.kernel.isValidMutationTransition
@@ -230,10 +230,10 @@ class MediaMutationJournalTest {
         assertEquals(MediaMutationStatus.Cancelled.name, stored.getValue("active-after-close").status)
     }
 
-    private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): LibraryDao {
+    private fun libraryDao(stored: MutableMap<String, LibraryMutationEntity>): MediaMutationDao {
         return Proxy.newProxyInstance(
-            LibraryDao::class.java.classLoader,
-            arrayOf(LibraryDao::class.java),
+            MediaMutationDao::class.java.classLoader,
+            arrayOf(MediaMutationDao::class.java),
         ) { _, method, arguments ->
             when (method.name) {
                 "mutation" -> stored[arguments?.get(0) as String]
@@ -246,7 +246,7 @@ class MediaMutationJournalTest {
                 "toString" -> "TestLibraryDao"
                 else -> error("Unexpected DAO call: ${method.name}")
             }
-        } as LibraryDao
+        } as MediaMutationDao
     }
 
     private object FixedClock : AppClock {

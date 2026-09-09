@@ -3,13 +3,10 @@ package elovaire.music.droidbeauty.app.data.library
 import android.net.TestUri
 import elovaire.music.droidbeauty.app.core.FakeAppClock
 import elovaire.music.droidbeauty.app.data.library.db.AlbumEntity
-import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
+import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexDao
 import elovaire.music.droidbeauty.app.data.library.db.LibraryIndexStore
-import elovaire.music.droidbeauty.app.data.library.db.LibraryMutationEntity
 import elovaire.music.droidbeauty.app.data.library.db.LibraryScanGenerationEntity
 import elovaire.music.droidbeauty.app.data.library.db.MediaFileEntity
-import elovaire.music.droidbeauty.app.data.library.db.NetworkInventoryEntity
-import elovaire.music.droidbeauty.app.data.library.db.NetworkInventorySourceEntity
 import elovaire.music.droidbeauty.app.data.library.db.SongEntity
 import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -88,7 +85,7 @@ class LibraryIndexStoreTest {
     )
 }
 
-private class RecordingLibraryDao : LibraryDao {
+private class RecordingLibraryDao : LibraryIndexDao {
     var replaceCount = 0
     var changedSongIds = emptyList<Long>()
     var changedAlbumIds = emptyList<Long>()
@@ -97,8 +94,6 @@ private class RecordingLibraryDao : LibraryDao {
     var retiredMediaFilesGeneration: Long? = null
 
     override suspend fun latestGenerationId(): Long? = null
-    override suspend fun recoverableMutations(): List<LibraryMutationEntity> = emptyList()
-    override suspend fun mutation(mutationId: String): LibraryMutationEntity? = null
     override suspend fun insertScanGeneration(generation: LibraryScanGenerationEntity) = Unit
     override suspend fun upsertSongs(songs: List<SongEntity>) {
         changedSongIds = songs.map(SongEntity::songId)
@@ -107,20 +102,6 @@ private class RecordingLibraryDao : LibraryDao {
         changedAlbumIds = albums.map(AlbumEntity::albumId)
     }
     override suspend fun upsertMediaFiles(files: List<MediaFileEntity>) = Unit
-    override suspend fun upsertMutation(mutation: LibraryMutationEntity) = Unit
-    override suspend fun networkInventory(sourceId: String): List<NetworkInventoryEntity> = emptyList()
-    override suspend fun networkInventorySource(sourceId: String): NetworkInventorySourceEntity? = null
-    override suspend fun upsertNetworkInventory(entries: List<NetworkInventoryEntity>) = Unit
-    override suspend fun upsertNetworkInventorySource(source: NetworkInventorySourceEntity) = Unit
-    override suspend fun refreshNetworkInventorySource(
-        sourceId: String,
-        committedAtMs: Long,
-        availability: String,
-        locationFingerprint: String,
-    ) = Unit
-    override suspend fun deleteUnseenNetworkInventory(sourceId: String, generation: Long) = Unit
-    override suspend fun deleteNetworkInventory(sourceId: String) = Unit
-    override suspend fun deleteNetworkInventorySource(sourceId: String) = Unit
     override suspend fun markSongsMissingFromGeneration(generationId: Long, removedAtMs: Long) = Unit
     override suspend fun markAlbumsMissingFromGeneration(generationId: Long, removedAtMs: Long) = Unit
     override suspend fun deleteMediaFilesMissingFromGeneration(generationId: Long) {

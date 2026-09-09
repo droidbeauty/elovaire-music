@@ -5,7 +5,7 @@ import dev.detekt.gradle.Detekt
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.api.tasks.testing.Test
-import org.gradle.api.tasks.GradleBuild
+import org.gradle.api.tasks.Exec
 
 val localProperties = Properties().apply {
     val localPropertiesFile = rootProject.file("local.properties")
@@ -57,6 +57,8 @@ android {
         versionName = AppBuildConfig.Application.versionName
         testInstrumentationRunner = AppBuildConfig.Testing.instrumentationRunner
         instrumentationTestClass?.let { testInstrumentationRunnerArguments["class"] = it }
+        // Orchestrator isolates instrumentation invocations and clears the app process state.
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
         vectorDrawables {
             useSupportLibrary = true
         }
@@ -293,12 +295,17 @@ tasks.configureEach {
     }
 }
 
-tasks.register<GradleBuild>("queryPlanCheck") {
+tasks.register<Exec>("queryPlanCheck") {
     group = "verification"
     description = "Runs the focused device-backed Room query-plan qualification test."
-    setDir(rootProject.projectDir)
-    tasks = listOf(":app:connectedDebugAndroidTest")
-    startParameter.projectProperties[ANDROID_TEST_CLASS_PROPERTY] = ROOM_QUERY_PLAN_TEST_CLASS
+    workingDir(rootProject.projectDir)
+    commandLine(
+        rootProject.file("gradlew").absolutePath,
+        "--no-daemon",
+        ":app:connectedDebugAndroidTest",
+        "-P$ANDROID_TEST_CLASS_PROPERTY=$ROOM_QUERY_PLAN_TEST_CLASS",
+        "--console=plain",
+    )
     mustRunAfter("connectedDebugAndroidTest")
 }
 

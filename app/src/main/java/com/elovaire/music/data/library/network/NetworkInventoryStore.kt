@@ -2,7 +2,7 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import android.content.Context
 import android.net.Uri
-import elovaire.music.droidbeauty.app.data.library.db.LibraryDao
+import elovaire.music.droidbeauty.app.data.library.db.NetworkInventoryDao
 import elovaire.music.droidbeauty.app.data.library.db.NetworkInventoryEntity
 import elovaire.music.droidbeauty.app.data.library.db.NetworkInventorySourceEntity
 import elovaire.music.droidbeauty.app.data.library.AudioMediaKindClassifier
@@ -14,7 +14,7 @@ import org.json.JSONObject
 /** Durable, source-scoped listing state. A committed generation is authoritative only after listing succeeds. */
 internal class NetworkInventoryStore(
     context: Context,
-    private val dao: LibraryDao,
+    private val dao: NetworkInventoryDao,
 ) {
     private val appContext = context.applicationContext
     private val legacyCacheFile by lazy(LazyThreadSafetyMode.NONE) {

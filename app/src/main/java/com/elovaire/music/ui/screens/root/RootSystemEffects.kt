@@ -24,6 +24,9 @@ import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
 import elovaire.music.droidbeauty.app.core.hasLocalNetworkPermission
 import elovaire.music.droidbeauty.app.core.requiredAudioPermission
 import elovaire.music.droidbeauty.app.data.library.DeviceDeletePlan
+import elovaire.music.droidbeauty.app.data.library.LibraryActionController
+import elovaire.music.droidbeauty.app.data.library.LibraryRefreshIntent
+import elovaire.music.droidbeauty.app.data.library.LibraryRefreshReason
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
 import elovaire.music.droidbeauty.app.domain.model.Album
 import elovaire.music.droidbeauty.app.domain.model.Song
@@ -66,12 +69,8 @@ internal fun rememberRootPermissionController(
     var hasPermission by remember { mutableStateOf(context.hasAudioReadPermission()) }
     var hasLocalPermission by remember { mutableStateOf(context.hasLocalNetworkPermission()) }
     var localPermissionRequested by rememberSaveable { mutableStateOf(false) }
-    var firstLaunchPermissionExperienceActive by rememberSaveable {
-        mutableStateOf(!hasPermission)
-    }
-    var playFirstLaunchHomeReveal by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var firstLaunchPermissionExperienceActive by rememberSaveable { mutableStateOf(!hasPermission) }
+    var playFirstLaunchHomeReveal by rememberSaveable { mutableStateOf(false) }
     var syncedAudioPermission by remember { mutableStateOf<Boolean?>(null) }
 
     fun syncAudioPermission(granted: Boolean) {
@@ -97,7 +96,9 @@ internal fun rememberRootPermissionController(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
         localPermissionRequested = true
-        if (syncLocalNetworkPermission(granted) && hasPermission) container.libraryActionDependencies.libraryController.refresh(showLoadingIndicator = false)
+        if (syncLocalNetworkPermission(granted) && hasPermission) {
+            requestPermissionReconciliation(container.libraryActionDependencies.libraryController)
+        }
     }
 
     LaunchedEffect(hasPermission) {
@@ -114,7 +115,7 @@ internal fun rememberRootPermissionController(
                 }
                 val localPermissionChanged = syncLocalNetworkPermission(refreshedLocalPermission)
                 if (refreshedAudioPermission && localPermissionChanged) {
-                    container.libraryActionDependencies.libraryController.refresh(showLoadingIndicator = false)
+                    requestPermissionReconciliation(container.libraryActionDependencies.libraryController)
                 }
             }
         }
@@ -136,7 +137,6 @@ internal fun rememberRootPermissionController(
             localNetworkPermissionLauncher.launch(AndroidCapabilities.LOCAL_NETWORK_PERMISSION)
         }
     }
-
     val showFirstLaunchPermissionOverlay = shouldShowFirstLaunchPermissionOverlay(
         firstLaunchPermissionExperienceActive = firstLaunchPermissionExperienceActive,
         hasAudioPermission = hasPermission,
@@ -198,6 +198,15 @@ internal fun rememberRootPermissionController(
             setFirstLaunchPermissionExperienceActiveAction = { firstLaunchPermissionExperienceActive = it },
         )
     }
+}
+
+private fun requestPermissionReconciliation(controller: LibraryActionController) {
+    controller.refresh(
+        LibraryRefreshIntent(
+            reason = LibraryRefreshReason.PermissionReconciliation,
+            showLoadingIndicator = false,
+        ),
+    )
 }
 
 internal class RootDeleteController internal constructor(

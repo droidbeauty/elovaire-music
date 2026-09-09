@@ -14,8 +14,6 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 private val Context.settingsDataStore: DataStore<Preferences> by preferencesDataStore(
     name = "elovaire_settings",
@@ -33,32 +31,31 @@ private val Context.settingsDataStore: DataStore<Preferences> by preferencesData
 
 internal fun Context.elovaireSettingsDataStore(): DataStore<Preferences> = settingsDataStore
 
-internal class SettingsSnapshot(
-    private val values: Preferences,
+internal class SettingsSnapshot internal constructor(
+    private val values: Map<String, Any?>,
 ) {
+    constructor(values: Preferences) : this(
+        values.asMap().entries.associate { (key, value) -> key.name to value },
+    )
+
     fun getBoolean(key: String, default: Boolean): Boolean =
-        values[booleanPreferencesKey(key)] ?: default
+        values[key] as? Boolean ?: default
 
     fun getFloat(key: String, default: Float): Float =
-        values[floatPreferencesKey(key)] ?: default
+        (values[key] as? Number)?.toFloat() ?: default
 
     fun getInt(key: String, default: Int): Int =
-        values[intPreferencesKey(key)] ?: default
+        (values[key] as? Number)?.toInt() ?: default
 
     fun getLong(key: String, default: Long): Long =
-        values[longPreferencesKey(key)] ?: default
+        (values[key] as? Number)?.toLong() ?: default
 
     fun getString(key: String, default: String?): String? =
-        values[stringPreferencesKey(key)] ?: default
+        values[key] as? String ?: default
 
-    fun contains(key: String): Boolean = values.asMap().keys.any { it.name == key }
-}
+    fun contains(key: String): Boolean = key in values
 
-internal fun readInitialSettings(
-    dataStore: DataStore<Preferences>,
-    dispatcher: kotlinx.coroutines.CoroutineDispatcher,
-): SettingsSnapshot = runBlocking(dispatcher) {
-    SettingsSnapshot(dataStore.data.first())
+    internal fun asMap(): Map<String, Any?> = values
 }
 
 internal suspend fun DataStore<Preferences>.editSettings(

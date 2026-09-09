@@ -8,6 +8,15 @@ internal data class NetworkSourceMutationOutcome(
     val refreshRequired: Boolean,
 )
 
+internal interface NetworkSourceMutationBackend {
+    suspend fun save(
+        source: NetworkLibrarySource,
+        credentials: NetworkCredentials,
+    ): NetworkSourceMutationOutcome
+
+    suspend fun remove(source: NetworkLibrarySource)
+}
+
 /** Serializes each source independently so late probes cannot publish obsolete state. */
 internal class NetworkSourceCoordinator(
     private val sourceStore: NetworkLibrarySourceStore,
@@ -15,7 +24,7 @@ internal class NetworkSourceCoordinator(
     private val registryProvider: () -> NetworkFileSystemRegistry,
     private val inventoryStore: NetworkInventoryStore,
     private val mutationJournal: NetworkSourceMutationJournal,
-) {
+) : NetworkSourceMutationBackend {
     private val mutationLockRegistry = Any()
     private val mutationLocks = mutableMapOf<String, MutationLock>()
 
@@ -36,7 +45,7 @@ internal class NetworkSourceCoordinator(
     }
 
     @Suppress("TooGenericExceptionCaught")
-    suspend fun save(
+    override suspend fun save(
         source: NetworkLibrarySource,
         credentials: NetworkCredentials,
     ): NetworkSourceMutationOutcome = withSourceLock(source.id) {
@@ -113,7 +122,7 @@ internal class NetworkSourceCoordinator(
         outcome
     }
 
-    suspend fun remove(source: NetworkLibrarySource) = withSourceLock(source.id) {
+    override suspend fun remove(source: NetworkLibrarySource) = withSourceLock(source.id) {
         val currentSource = sourceStore.sources.value.firstOrNull { it.id == source.id }
         mutationJournal.prepareRemove(currentSource ?: source)
         registryProvider().invalidate(source.id)

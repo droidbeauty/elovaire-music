@@ -3,6 +3,7 @@ package elovaire.music.droidbeauty.app.core
 import android.content.Context
 import elovaire.music.droidbeauty.app.data.library.DeviceDeleteCoordinator
 import elovaire.music.droidbeauty.app.data.library.LibraryActionController
+import elovaire.music.droidbeauty.app.data.library.LibraryRefreshIntent
 import elovaire.music.droidbeauty.app.data.library.network.NetworkCredentials
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.tags.AlbumTagArtworkInvalidator
@@ -51,15 +52,11 @@ internal class AppDependencies(
                 services.libraryRepository.onPermissionChanged(granted)
             }
 
-            override fun refresh(
-                forceMediaIndex: Boolean,
-                enrichMetadata: Boolean,
-                showLoadingIndicator: Boolean,
-            ) {
+            override fun refresh(intent: LibraryRefreshIntent) {
                 services.libraryRepository.refresh(
-                    forceMediaIndex = forceMediaIndex,
-                    enrichMetadata = enrichMetadata,
-                    showLoadingIndicator = showLoadingIndicator,
+                    forceMediaIndex = intent.forceMediaIndex,
+                    enrichMetadata = intent.enrichMetadata,
+                    showLoadingIndicator = intent.showLoadingIndicator,
                 )
             }
 

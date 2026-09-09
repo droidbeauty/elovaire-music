@@ -2,6 +2,8 @@ package elovaire.music.droidbeauty.app.data.library.network
 
 import android.content.Context
 import android.net.Uri
+import elovaire.music.droidbeauty.app.data.audio.CanonicalMetadataResolver
+import elovaire.music.droidbeauty.app.data.audio.MetadataSourceValues
 import com.hierynomus.smbj.common.SMBRuntimeException
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
@@ -480,33 +482,41 @@ internal class NetworkLibraryScanner(
             ?.takeIf { artistAndTitle.size == 2 && it.isNotBlank() }
             ?: "Unknown Artist"
         val displayTitle = if (artistAndTitle.size == 2) artistAndTitle[1].trim().ifBlank { filenameTitle } else filenameTitle
+        val canonical = CanonicalMetadataResolver.resolve(
+            embedded = metadata?.toMetadataSourceValues(),
+            indexed = MetadataSourceValues(
+                title = displayTitle,
+                artist = artist,
+                album = album,
+                genre = "Unknown Genre",
+                trackNumber = parseTrackNumber(fileName).takeIf { it > 0 }?.toString(),
+                discNumber = "1",
+            ),
+        )
         val extension = fileName.substringAfterLast('.', "").uppercase(Locale.ROOT)
         val songId = preservedSongId ?: NetworkSourceIdentity.songId(source.id, normalizedPath, sourceEntryId)
-        val resolvedArtist = metadata?.artist?.trim().takeIf { !it.isNullOrBlank() } ?: artist
-        val resolvedTitle = metadata?.title?.trim().takeIf { !it.isNullOrBlank() } ?: displayTitle
-        val resolvedAlbum = metadata?.album?.trim().takeIf { !it.isNullOrBlank() } ?: album
         return Song(
             id = songId,
-            title = resolvedTitle,
+            title = canonical.title ?: displayTitle,
             isExplicit = false,
-            artist = resolvedArtist,
-            album = resolvedAlbum,
-            releaseYear = metadata?.releaseYear,
-            genre = metadata?.genre?.trim().takeIf { !it.isNullOrBlank() } ?: "Unknown Genre",
+            artist = canonical.artist ?: "Unknown Artist",
+            album = canonical.album ?: album,
+            releaseYear = canonical.releaseYear,
+            genre = canonical.genre ?: "Unknown Genre",
             audioFormat = extension,
             audioQuality = null,
             fileName = fileName,
             albumId = NetworkSourceIdentity.songId(source.id, "album:$parent"),
             durationMs = metadata?.durationMs ?: 0L,
-            trackNumber = metadata?.trackNumber ?: parseTrackNumber(fileName),
-            discNumber = metadata?.discNumber ?: 1,
+            trackNumber = canonical.trackNumber ?: 0,
+            discNumber = canonical.discNumber ?: 1,
             dateAddedSeconds = modifiedAtMs?.div(1_000L) ?: 0L,
             dateModifiedSeconds = modifiedAtMs?.div(1_000L),
             libraryPath = "network/${source.id}/$normalizedPath",
             uri = NetworkResourceUri.create(source.id, normalizedPath),
             artUri = artUri,
             metadataResolved = metadata?.succeeded == true,
-            albumArtist = metadata?.albumArtist?.trim().takeIf { !it.isNullOrBlank() } ?: resolvedArtist,
+            albumArtist = canonical.albumArtist ?: canonical.artist ?: "Unknown Artist",
             volumeNormalization = null,
             mediaKind = AudioMediaKindClassifier.classify(
                 isAudiobook = null,

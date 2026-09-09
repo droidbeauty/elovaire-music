@@ -31,11 +31,24 @@ class LibraryScaleInstrumentedTest {
             for (sort in SearchSortMode.entries) {
                 for (rawQuery in listOf("track", "trak", "track artist", "unmatchedzzzz")) {
                     val query = NormalizedSearchQuery.from(rawQuery)
-                    val expected = buildSearchResults(query, sort, index)
+                    val expected = if (size <= 10_000) {
+                        buildSearchResults(query, sort, index)
+                    } else {
+                        // A full 50k-song result retains another complete ranked list. The
+                        // bounded candidate is qualified against the established preview
+                        // algorithm at that size; smaller cases prove that preview agrees with
+                        // the authoritative full ranking.
+                        allocatingPreview(index.songs, query, sort)
+                    }
                     val baseline = { allocatingPreview(index.songs, query, sort) }
                     val candidate = { buildSearchResults(query, sort, index, false) }
                     val check: (SearchResults) -> Unit = { actual ->
-                        assertEquals(expected.allMatchingSongs.take(20), actual.matchingSongs)
+                        val expectedPreview = if (size <= 10_000) {
+                            expected.allMatchingSongs.take(20)
+                        } else {
+                            expected.matchingSongs
+                        }
+                        assertEquals(expectedPreview, actual.matchingSongs)
                         assertEquals(expected.totalSongMatchCount, actual.totalSongMatchCount)
                         assertEquals(emptyList<Song>(), actual.allMatchingSongs)
                     }

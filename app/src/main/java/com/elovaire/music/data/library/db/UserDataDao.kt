@@ -10,7 +10,7 @@ import elovaire.music.droidbeauty.app.data.library.canonicalizeMediaIdRelocation
 
 @Dao
 @Suppress("TooManyFunctions")
-internal interface UserDataDao {
+internal interface UserDataDao : PlaybackHistoryDao, SearchHistoryDao {
     @Query("SELECT * FROM user_playlists ORDER BY playlistId")
     suspend fun playlists(): List<UserPlaylistEntity>
 
@@ -31,21 +31,6 @@ internal interface UserDataDao {
 
     @Query("SELECT * FROM favorite_songs ORDER BY position")
     suspend fun favorites(): List<FavoriteSongEntity>
-
-    @Query("SELECT * FROM song_play_counts ORDER BY songId")
-    suspend fun songPlayCounts(): List<SongPlayCountEntity>
-
-    @Query("SELECT * FROM album_play_counts ORDER BY albumId")
-    suspend fun albumPlayCounts(): List<AlbumPlayCountEntity>
-
-    @Query("SELECT * FROM recent_playback ORDER BY kind, position")
-    suspend fun recentPlayback(): List<RecentPlaybackEntity>
-
-    @Query("SELECT * FROM search_history ORDER BY position")
-    suspend fun searchHistory(): List<SearchHistoryEntity>
-
-    @Query("SELECT * FROM playback_collection_state WHERE singletonId = 0")
-    suspend fun playbackCollectionState(): PlaybackCollectionStateEntity?
 
     @Query("SELECT EXISTS(SELECT 1 FROM user_data_migrations WHERE migrationId = :migrationId)")
     suspend fun migrationComplete(migrationId: String): Boolean
@@ -165,45 +150,6 @@ internal interface UserDataDao {
     @Query("SELECT COALESCE(MAX(position), -1) FROM favorite_songs")
     suspend fun lastFavoritePosition(): Int
 
-    @Query("DELETE FROM song_play_counts")
-    suspend fun clearSongPlayCounts()
-
-    @Query("DELETE FROM album_play_counts")
-    suspend fun clearAlbumPlayCounts()
-
-    @Query(
-        "INSERT INTO song_play_counts(songId, playCount) VALUES(:songId, :increment) " +
-            "ON CONFLICT(songId) DO UPDATE SET playCount = MIN(playCount + :increment, 2147483647)",
-    )
-    suspend fun incrementSongPlayCount(songId: Long, increment: Int = 1)
-
-    @Query(
-        "INSERT INTO album_play_counts(albumId, playCount) VALUES(:albumId, :increment) " +
-            "ON CONFLICT(albumId) DO UPDATE SET playCount = MIN(playCount + :increment, 2147483647)",
-    )
-    suspend fun incrementAlbumPlayCount(albumId: Long, increment: Int = 1)
-
-    @Transaction
-    suspend fun incrementPlaybackCounts(
-        songCounts: Map<Long, Int>,
-        albumCounts: Map<Long, Int>,
-    ) {
-        songCounts.forEach { (songId, increment) -> incrementSongPlayCount(songId, increment) }
-        albumCounts.forEach { (albumId, increment) -> incrementAlbumPlayCount(albumId, increment) }
-    }
-
-    @Query("DELETE FROM recent_playback")
-    suspend fun clearRecentPlayback()
-
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertRecentPlayback(entries: List<RecentPlaybackEntity>)
-
-    @Upsert
-    suspend fun upsertPlaybackCollectionState(state: PlaybackCollectionStateEntity)
-
-    @Query("DELETE FROM search_history")
-    suspend fun clearSearchHistory()
-
     @Query("DELETE FROM user_playlist_entries")
     suspend fun clearPlaylistEntries()
 
@@ -215,9 +161,6 @@ internal interface UserDataDao {
 
     @Query("DELETE FROM playback_collection_state")
     suspend fun clearPlaybackCollectionState()
-
-    @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertSearchHistory(entries: List<SearchHistoryEntity>)
 
     /** Restores only user-owned rows after a failed Room read; library/index rows are untouched. */
     @Transaction
@@ -285,22 +228,6 @@ internal interface UserDataDao {
         check(songIdsForPlaylist(playlistId) == songIds.distinct()) {
             "Playlist entry write readback failed for $playlistId."
         }
-    }
-
-    @Transaction
-    suspend fun replaceRecentPlayback(
-        entries: List<RecentPlaybackEntity>,
-        state: PlaybackCollectionStateEntity,
-    ) {
-        clearRecentPlayback()
-        if (entries.isNotEmpty()) insertRecentPlayback(entries)
-        upsertPlaybackCollectionState(state)
-    }
-
-    @Transaction
-    suspend fun replaceSearchHistory(entries: List<SearchHistoryEntity>) {
-        clearSearchHistory()
-        if (entries.isNotEmpty()) insertSearchHistory(entries)
     }
 
     /**

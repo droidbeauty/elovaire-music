@@ -19,6 +19,7 @@ import elovaire.music.droidbeauty.app.data.library.db.SearchHistoryEntity
 import elovaire.music.droidbeauty.app.data.library.db.SongPlayCountEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserDataDao
 import elovaire.music.droidbeauty.app.data.library.db.UserDataMigrationEntity
+import elovaire.music.droidbeauty.app.data.library.db.UserDataRepairer
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserPlaylistEntryEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserSmartPlaylistEntity
@@ -110,8 +111,14 @@ internal class RoomUserDataStore(
     private val maxQueueDepth = AtomicInteger()
     private val submissionLock = Any()
     private val coalescedOperations = LinkedHashMap<String, RoomOperation>()
-    private val playbackHistoryStore = RoomPlaybackHistoryStore(dao, ::enqueueCoalesced)
-    private val searchHistoryStore = RoomSearchHistoryStore(dao, ::enqueueCoalesced)
+    private val playbackHistoryStore = RoomPlaybackHistoryStore(
+        database?.playbackHistoryDao() ?: dao,
+        ::enqueueCoalesced,
+    )
+    private val searchHistoryStore = RoomSearchHistoryStore(
+        database?.searchHistoryDao() ?: dao,
+        ::enqueueCoalesced,
+    )
 
     private val _userPlaylists = MutableStateFlow<List<Playlist>>(emptyList())
     override val playlists: StateFlow<List<Playlist>> = _userPlaylists.asStateFlow()
@@ -567,6 +574,7 @@ internal class RoomUserDataStore(
             }
             check(dao.migrationComplete(MIGRATION_ID))
             clearLegacyUserData(preferences)
+            repairDeterministicUserDataIfNeeded()
             val snapshot = loadSnapshot()
             establishUserDataRevision(legacy, snapshot)
             publishSnapshot(snapshot)
@@ -600,6 +608,7 @@ internal class RoomUserDataStore(
                     collectionId = recovery.lastPlayedCollectionId,
                 ),
             )
+            repairDeterministicUserDataIfNeeded()
             val restored = loadSnapshot()
             establishUserDataRevision(UserDataSnapshot(), restored)
             publishSnapshot(restored)
@@ -649,6 +658,19 @@ internal class RoomUserDataStore(
             lastPlayedCollectionId = collectionState?.collectionId,
             searchHistory = dao.searchHistory().mapNotNull(SearchHistoryEntity::toDomain),
         )
+    }
+
+    private suspend fun repairDeterministicUserDataIfNeeded() {
+        val maintenanceDao = database?.persistenceMaintenanceDao() ?: return
+        if (maintenanceDao.foreignKeyViolationCount() > 0) return
+        val plan = UserDataRepairer.plan(
+            invalidPlaylistEntries = maintenanceDao.invalidPlaylistEntryCount() > 0,
+            invalidFavorites = maintenanceDao.invalidFavoritePositionCount() > 0,
+            invalidRecentPlayback = maintenanceDao.invalidRecentPositionCount() > 0,
+            invalidSongPlayCounts = maintenanceDao.invalidSongPlayCountCount() > 0,
+            invalidAlbumPlayCounts = maintenanceDao.invalidAlbumPlayCountCount() > 0,
+        )
+        if (!plan.isEmpty) dao.repairDeterministicUserData(plan)
     }
 
     private fun publishSnapshot(snapshot: UserDataSnapshot) {

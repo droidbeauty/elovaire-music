@@ -101,7 +101,9 @@ class LibraryRepository internal constructor(
     private val clock: AppClock = AndroidAppClock,
     private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
     private val libraryIndexStore: LibraryIndexStore? = null,
-    private val onSongRelocations: suspend (Map<Long, Long>) -> Boolean = { true },
+    private val onSongRelocations: suspend (Map<Long, Long>) -> SongRelocationOutcome = {
+        SongRelocationOutcome.Applied
+    },
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val defaultDispatcher: CoroutineDispatcher = Dispatchers.Default,
 ) : LibraryStartupController, LibraryTagUpdateWriter {
@@ -591,12 +593,20 @@ class LibraryRepository internal constructor(
             LibraryChangeSetCalculator.between(previousSongs, nextSnapshot.songs)
         }
         if (changeSet.relocated.isNotEmpty()) {
-            val relocated = onSongRelocations(
+            val relocationOutcome = onSongRelocations(
                 changeSet.relocated.associate { relocation ->
                     relocation.before.id to relocation.after.id
                 },
             )
-            check(relocated) { "Unable to preserve user-data references during media relocation." }
+            when (relocationOutcome) {
+                SongRelocationOutcome.Applied -> Unit
+                SongRelocationOutcome.RetryableFailure -> error(
+                    "Unable to preserve user-data references during media relocation; retry is required.",
+                )
+                SongRelocationOutcome.UnrecoverableConflict -> error(
+                    "Media relocation conflicts with existing user-data references.",
+                )
+            }
         }
         snapshotPublisher.publishState(nextContentState)
         return PreparedLibrarySnapshot(

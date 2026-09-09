@@ -38,12 +38,12 @@ class AppContainer(
     private val appDispatchers = AppDispatchers.production()
     private val appRuntimeScope = AppRuntimeScope()
     private val appScope = appRuntimeScope.scope
-    private val portableSettingsBackup = ElovaireTrace.section("portable_settings_restore") {
+    private val portableSettingsBackup = ElovaireTrace.section("portable_settings_init") {
         PortableSettingsBackup(
             context = applicationContext,
             ioDispatcher = appDispatchers.io,
             ownerScope = appScope,
-        ).also { it.restore() }
+        )
     }
 
     private val services = ElovaireTrace.section("app_services_init") {

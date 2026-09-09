@@ -2,7 +2,9 @@ package elovaire.music.droidbeauty.app.data.settings
 
 import android.net.Uri
 import elovaire.music.droidbeauty.app.data.library.db.PlaybackCollectionStateEntity
+import elovaire.music.droidbeauty.app.data.library.db.PlaybackHistoryDao
 import elovaire.music.droidbeauty.app.data.library.db.RecentPlaybackEntity
+import elovaire.music.droidbeauty.app.data.library.db.SearchHistoryDao
 import elovaire.music.droidbeauty.app.data.library.db.SearchHistoryEntity
 import elovaire.music.droidbeauty.app.data.library.db.UserDataDao
 import elovaire.music.droidbeauty.app.data.library.isValidMediaId
@@ -15,7 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
 internal class RoomPlaybackHistoryStore(
-    private val dao: UserDataDao,
+    private val dao: PlaybackHistoryDao,
     private val enqueue: (String, suspend () -> Boolean) -> Unit,
 ) : PlaybackHistoryStore {
     private val writeBuffer = PlaybackHistoryWriteBuffer()
@@ -293,7 +295,7 @@ private fun Map<Long, Int>.incrementedBy(increments: Map<Long, Int>): Map<Long, 
 }
 
 internal class RoomSearchHistoryStore(
-    private val dao: UserDataDao,
+    private val dao: SearchHistoryDao,
     private val enqueue: (String, suspend () -> Boolean) -> Unit,
 ) : SearchHistoryStore {
     private val _searchHistory = MutableStateFlow<List<SearchHistoryEntry>>(emptyList())

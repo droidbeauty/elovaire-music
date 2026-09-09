@@ -10,7 +10,7 @@ import elovaire.music.droidbeauty.app.data.library.MediaIdentityResolver
 import elovaire.music.droidbeauty.app.data.library.libraryIndexContentRevision
 
 internal class LibraryIndexStore(
-    private val dao: LibraryDao,
+    private val dao: LibraryIndexDao,
     private val clock: AppClock = AndroidAppClock,
 ) {
     private var lastIndexedRevision: String? = null

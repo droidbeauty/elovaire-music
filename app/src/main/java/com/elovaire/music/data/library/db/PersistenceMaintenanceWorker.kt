@@ -26,12 +26,11 @@ class PersistenceMaintenanceWorker(
         var mutationJournal: MediaMutationJournal? = null
         return try {
             database = ElovaireDatabase.create(applicationContext)
-            val journal = MediaMutationJournal(database.libraryDao())
+            val journal = MediaMutationJournal(database.mediaMutationDao())
             mutationJournal = journal
             val maintenance = PersistenceMaintenance(
                 database.persistenceMaintenanceDao(),
                 journal,
-                userDataDao = database.userDataDao(),
             )
             if (!maintenance.recoverCritical()) {
                 return Result.failure()

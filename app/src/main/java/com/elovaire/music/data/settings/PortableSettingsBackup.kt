@@ -2,32 +2,27 @@ package elovaire.music.droidbeauty.app.data.settings
 
 import android.content.Context
 import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.booleanPreferencesKey
-import androidx.datastore.preferences.core.floatPreferencesKey
-import androidx.datastore.preferences.core.intPreferencesKey
-import androidx.datastore.preferences.core.longPreferencesKey
-import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.core.stringSetPreferencesKey
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import java.security.MessageDigest
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlin.coroutines.EmptyCoroutineContext
 
 @OptIn(FlowPreview::class)
@@ -44,9 +39,17 @@ internal class PortableSettingsBackup(
             appContext.getSharedPreferences(BACKUP_FILE_NAME, Context.MODE_PRIVATE)
         }
     }
+    private val bootSnapshot by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
+        allowStrictModeDiskReads {
+            appContext.getSharedPreferences(BOOT_SNAPSHOT_FILE_NAME, Context.MODE_PRIVATE)
+        }
+    }
     private val restored = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val released = AtomicBoolean(false)
+    private val pendingBootSnapshot = AtomicReference<Map<String, Any?>?>(null)
+    private val bootSnapshotJobLock = Any()
+    private var bootSnapshotJob: Job? = null
     private val mirrorScope = CoroutineScope(
         (ownerScope?.coroutineContext ?: EmptyCoroutineContext) +
             SupervisorJob(ownerScope?.coroutineContext?.get(Job)) +
@@ -54,27 +57,44 @@ internal class PortableSettingsBackup(
     )
     private var settingsObservationJob: Job? = null
 
-    fun restore() {
-        if (released.get()) return
-        if (!restored.compareAndSet(false, true)) return
-        runBlocking(ioDispatcher) {
-            val backupValues = backup.all.filterKeys(::isPortableSettingKey)
-            val current = settingsDataStore.data.first().portableValues()
-            if (current.isEmpty() && backupValues.isNotEmpty() && isValidBackup(backupValues)) {
-                settingsDataStore.edit { values ->
-                    backupValues.forEach { (key, value) -> values.putPortableValue(key, value) }
+    /** Returns the last validated synchronous boot snapshot without touching DataStore. */
+    fun bootSettingsSnapshot(): SettingsSnapshot {
+        val stored = readBootSnapshot()
+        if (stored != null) return SettingsSnapshot(stored)
+
+        val legacy = allowStrictModeDiskReads {
+            appContext.getSharedPreferences(PreferenceStorage.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
+                .all
+                .filterKeys { it in settingsPreferenceKeys }
+        }
+        return SettingsSnapshot(legacy.mapValues { (_, value) -> value })
+    }
+
+    /** Checkpoints only the small immutable settings snapshot needed for the next process start. */
+    fun checkpointBootSettings(values: Map<String, Any?>) {
+        val filtered = values.filterKeys { it in settingsPreferenceKeys }
+        pendingBootSnapshot.set(filtered)
+        synchronized(bootSnapshotJobLock) {
+            if (bootSnapshotJob?.isActive != true && !released.get()) {
+                bootSnapshotJob = mirrorScope.launch {
+                    kotlinx.coroutines.delay(BOOT_SNAPSHOT_COALESCE_DELAY_MS)
+                    flushPendingBootSnapshot()
                 }
             }
-            syncAll(settingsDataStore.data.first())
         }
+    }
+
+    fun restore() {
+        start()
     }
 
     fun start() {
         if (released.get()) return
-        restore()
-        if (released.get()) return
         if (!started.compareAndSet(false, true)) return
         settingsObservationJob = mirrorScope.launch {
+            ElovaireTrace.suspendSection("portable_settings_restore") {
+                restoreDataStoreIfEmpty()
+            }
             settingsDataStore.data
                 .debounce(MIRROR_COALESCE_DELAY_MS)
                 .collect(::syncAll)
@@ -87,7 +107,38 @@ internal class PortableSettingsBackup(
             settingsObservationJob?.cancel()
         }
         settingsObservationJob = null
+        runBlocking(ioDispatcher) { flushBootSnapshot() }
         mirrorScope.cancel()
+    }
+
+    suspend fun flushBootSnapshot() {
+        val job = synchronized(bootSnapshotJobLock) { bootSnapshotJob }
+        job?.join()
+        flushPendingBootSnapshot()
+    }
+
+    private suspend fun flushPendingBootSnapshot() {
+        while (true) {
+            val values = pendingBootSnapshot.getAndSet(null) ?: break
+            writeBootSnapshot(values)
+        }
+        synchronized(bootSnapshotJobLock) {
+            bootSnapshotJob = null
+            if (pendingBootSnapshot.get() != null && !released.get()) {
+                bootSnapshotJob = mirrorScope.launch { flushPendingBootSnapshot() }
+            }
+        }
+    }
+
+    private fun writeBootSnapshot(values: Map<String, Any?>) {
+        val editor = bootSnapshot.edit()
+        bootSnapshot.all.keys
+            .filterNot { it == BOOT_FORMAT_VERSION_KEY || it == BOOT_CHECKSUM_KEY }
+            .forEach(editor::remove)
+        values.forEach { (key, value) -> editor.putPreferenceValue(key, value) }
+        editor.putInt(BOOT_FORMAT_VERSION_KEY, BOOT_FORMAT_VERSION)
+        editor.putString(BOOT_CHECKSUM_KEY, settingsBootSnapshotChecksum(values))
+        check(editor.commit()) { "Unable to persist settings boot snapshot" }
     }
 
     private fun syncAll(settings: Preferences) {
@@ -112,6 +163,35 @@ internal class PortableSettingsBackup(
         }
     }
 
+    private suspend fun restoreDataStoreIfEmpty() {
+        if (restored.getAndSet(true)) return
+        val bootValues = readBootSnapshot()
+        val backupValues = backup.all.filterKeys(::isPortableSettingKey)
+        val current = settingsDataStore.data.first().asMap()
+        if (current.isNotEmpty()) return
+        val values = when {
+            bootValues != null -> bootValues
+            backupValues.isNotEmpty() && isValidBackup(backupValues) -> backupValues
+            else -> emptyMap()
+        }
+        if (values.isEmpty()) return
+        settingsDataStore.edit { target ->
+            values.forEach { (key, value) -> target.putDataStoreValue(key, value) }
+        }
+    }
+
+    private fun readBootSnapshot(): Map<String, Any?>? {
+        return allowStrictModeDiskReads {
+            val values = bootSnapshot.all
+                .filterKeys { it in settingsPreferenceKeys }
+            if (values.isEmpty()) return@allowStrictModeDiskReads null
+            val version = runCatching { bootSnapshot.getInt(BOOT_FORMAT_VERSION_KEY, 0) }.getOrDefault(0)
+            val checksum = runCatching { bootSnapshot.getString(BOOT_CHECKSUM_KEY, null) }.getOrNull()
+            if (version != BOOT_FORMAT_VERSION || checksum != settingsBootSnapshotChecksum(values)) return@allowStrictModeDiskReads null
+            values
+        }
+    }
+
     private fun isValidBackup(values: Map<String, *>): Boolean {
         val storedVersion = runCatching { backup.getInt(BACKUP_FORMAT_VERSION_KEY, 0) }.getOrDefault(0)
         val storedChecksum = runCatching { backup.getString(BACKUP_CHECKSUM_KEY, null) }.getOrNull()
@@ -132,15 +212,20 @@ internal class PortableSettingsBackup(
         }
     }
 
-    private fun MutablePreferences.putPortableValue(key: String, value: Any?) {
-        return when (value) {
-            is Boolean -> set(booleanPreferencesKey(key), value)
-            is Float -> set(floatPreferencesKey(key), value)
-            is Int -> set(intPreferencesKey(key), value)
-            is Long -> set(longPreferencesKey(key), value)
-            is String -> set(stringPreferencesKey(key), value)
-            is Set<*> -> set(stringSetPreferencesKey(key), value.filterIsInstance<String>().toSet())
-            else -> Unit
+    private fun androidx.datastore.preferences.core.MutablePreferences.putDataStoreValue(
+        key: String,
+        value: Any?,
+    ) {
+        when (value) {
+            is Boolean -> set(androidx.datastore.preferences.core.booleanPreferencesKey(key), value)
+            is Float -> set(androidx.datastore.preferences.core.floatPreferencesKey(key), value)
+            is Int -> set(androidx.datastore.preferences.core.intPreferencesKey(key), value)
+            is Long -> set(androidx.datastore.preferences.core.longPreferencesKey(key), value)
+            is String -> set(androidx.datastore.preferences.core.stringPreferencesKey(key), value)
+            is Set<*> -> set(
+                androidx.datastore.preferences.core.stringSetPreferencesKey(key),
+                value.filterIsInstance<String>().toSet(),
+            )
         }
     }
 
@@ -150,6 +235,11 @@ internal class PortableSettingsBackup(
         const val BACKUP_CHECKSUM_KEY = "_checksum"
         const val BACKUP_CREATED_AT_KEY = "_created_at_ms"
         const val BACKUP_FORMAT_VERSION = 1
+        const val BOOT_SNAPSHOT_FILE_NAME = "settings_boot_snapshot"
+        const val BOOT_FORMAT_VERSION_KEY = "_format_version"
+        const val BOOT_CHECKSUM_KEY = "_checksum"
+        const val BOOT_FORMAT_VERSION = 1
+        const val BOOT_SNAPSHOT_COALESCE_DELAY_MS = 100L
         const val MIRROR_COALESCE_DELAY_MS = 400L
     }
 }
@@ -162,6 +252,27 @@ private fun Preferences.portableValues(): Map<String, Any?> = asMap()
 internal fun portableSettingsBackupChecksum(values: Map<String, *>): String {
     val canonical = values
         .filterKeys(::isPortableSettingKey)
+        .toSortedMap()
+        .entries
+        .joinToString("\n") { (key, value) ->
+            val (type, encoded) = when (value) {
+                is Boolean -> "boolean" to value.toString()
+                is Float -> "float" to value.toString()
+                is Int -> "int" to value.toString()
+                is Long -> "long" to value.toString()
+                is Set<*> -> "string_set" to value.filterIsInstance<String>().sorted().joinToString(",")
+                else -> "string" to value?.toString().orEmpty()
+            }
+            "$key:$type:${encoded.length}:$encoded"
+        }
+    return MessageDigest.getInstance("SHA-256")
+        .digest(canonical.toByteArray(Charsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
+}
+
+internal fun settingsBootSnapshotChecksum(values: Map<String, *>): String {
+    val canonical = values
+        .filterKeys { it in settingsPreferenceKeys }
         .toSortedMap()
         .entries
         .joinToString("\n") { (key, value) ->

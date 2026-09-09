@@ -18,6 +18,7 @@ import elovaire.music.droidbeauty.app.domain.model.SearchHistoryEntry
 import elovaire.music.droidbeauty.app.domain.model.SearchHistoryKind
 import android.net.Uri
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -70,6 +71,44 @@ class RoomUserDataStoreTest {
         assertEquals(ids, database.userDataDao().playlists().map { it.playlistId })
         assertTrue(store.createPlaylist("After release").await() is PlaylistMutationResult.Failure)
         assertEquals(512, database.userDataDao().playlists().size)
+    }
+
+    @Test
+    fun startupRepairPublishesTheRepairedDurableSnapshotBeforeReady() = runBlocking {
+        database.userDataDao().insertPlaylist(UserPlaylistEntity(41L, "Repair", false))
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO user_playlist_entries(playlistId, songId, position) VALUES(41, 10, -1), (41, 20, 7)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO favorite_songs(songId, position) VALUES(10, -3), (20, 8)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO recent_playback(kind, itemId, position) VALUES('song', 10, -2), ('song', 20, 9)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO song_play_counts(songId, playCount) VALUES(10, -4)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO album_play_counts(albumId, playCount) VALUES(1, -5)",
+        )
+
+        val store = RoomUserDataStore(context, database.userDataDao(), FixedClock, database = database)
+        withTimeout(10_000L) {
+            store.userDataReadiness.first { it == UserDataReadiness.Ready }
+        }
+
+        assertEquals(listOf(10L to 0, 20L to 1), database.userDataDao().playlistEntries().map { it.songId to it.position })
+        assertEquals(listOf(10L to 0, 20L to 1), database.userDataDao().favorites().map { it.songId to it.position })
+        assertEquals(listOf(10L to 0, 20L to 1), database.userDataDao().recentPlayback().map { it.itemId to it.position })
+        assertEquals(0, database.userDataDao().songPlayCounts().single().playCount)
+        assertEquals(0, database.userDataDao().albumPlayCounts().single().playCount)
+        assertEquals(listOf(10L, 20L), store.playlists.value.single().songIds)
+        assertEquals(listOf(10L, 20L), store.favoriteSongIds.value)
+        assertEquals(listOf(10L, 20L), store.recentSongIds.value)
+        assertEquals(mapOf(10L to 0), store.songPlayCounts.value)
+        assertEquals(mapOf(1L to 0), store.albumPlayCounts.value)
+
+        store.release()
     }
 
     @Test
