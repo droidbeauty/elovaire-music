@@ -15,6 +15,11 @@ internal data class PlaylistPickerRowModel(
     val index: Int,
 )
 
+internal data class PlaylistPreview(
+    val songs: List<Song>,
+    val durationMs: Long,
+)
+
 internal data class PlaylistDetailState(
     val playlist: Playlist?,
     val songs: List<Song>,
@@ -29,7 +34,7 @@ internal fun buildPlaylistRowModels(
     return playlists.map { playlist ->
         PlaylistRowModel(
             playlist = playlist,
-            previewSongs = playlist.songIds.mapNotNull(songsById::get),
+            previewSongs = buildPlaylistPreview(playlist.songIds, songsById).songs,
         )
     }
 }
@@ -39,14 +44,31 @@ internal fun buildPlaylistPickerRowModels(
     songsById: Map<Long, Song>,
 ): List<PlaylistPickerRowModel> {
     return playlists.mapIndexed { index, playlist ->
-        val previewSongs = playlist.songIds.mapNotNull(songsById::get)
+        val preview = buildPlaylistPreview(playlist.songIds, songsById)
         PlaylistPickerRowModel(
             playlist = playlist,
-            previewSongs = previewSongs,
-            durationMs = previewSongs.sumOf(Song::durationMs),
+            previewSongs = preview.songs,
+            durationMs = preview.durationMs,
             index = index,
         )
     }
+}
+
+internal fun buildPlaylistPreview(
+    songIds: List<Long>,
+    songsById: Map<Long, Song>,
+): PlaylistPreview {
+    val previewSongs = ArrayList<Song>(PREVIEW_SONG_LIMIT)
+    val usedAlbumIds = HashSet<Long>(PREVIEW_SONG_LIMIT)
+    var durationMs = 0L
+    songIds.forEach { songId ->
+        val song = songsById[songId] ?: return@forEach
+        durationMs += song.durationMs
+        if (previewSongs.size < PREVIEW_SONG_LIMIT && usedAlbumIds.add(song.albumId)) {
+            previewSongs += song
+        }
+    }
+    return PlaylistPreview(previewSongs, durationMs)
 }
 
 internal fun buildPlaylistDetailState(
@@ -81,9 +103,16 @@ internal fun buildPlaylistDetailState(
 }
 
 internal fun playlistCollageSongs(songs: List<Song>): List<Song> {
-    val usedAlbumIds = LinkedHashSet<Long>(4)
-    return songs.filter { song -> usedAlbumIds.add(song.albumId) }.take(4)
+    val usedAlbumIds = HashSet<Long>(PREVIEW_SONG_LIMIT)
+    return buildList(PREVIEW_SONG_LIMIT) {
+        for (song in songs) {
+            if (usedAlbumIds.add(song.albumId)) add(song)
+            if (size == PREVIEW_SONG_LIMIT) break
+        }
+    }
 }
+
+private const val PREVIEW_SONG_LIMIT = 4
 
 internal fun formatPlaylistDuration(durationMs: Long): String {
     val hours = durationMs / 3_600_000

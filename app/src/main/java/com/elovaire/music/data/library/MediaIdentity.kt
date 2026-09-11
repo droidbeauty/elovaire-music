@@ -173,22 +173,48 @@ internal object MediaIdentityResolver {
             return TrackMatchResolution(TrackMatchConfidence.NoMatch)
         }
         identity.sourceStableKey?.let { sourceKey ->
-            val exact = songs.filter { stableKey(it) == sourceKey }
-            if (exact.size == 1) return TrackMatchResolution(TrackMatchConfidence.Exact, exact.single())
-            if (exact.size > 1) return TrackMatchResolution(TrackMatchConfidence.Ambiguous)
+            var exactSong: Song? = null
+            var exactCount = 0
+            for (song in songs) {
+                if (stableKey(song) == sourceKey) {
+                    exactSong = song
+                    exactCount += 1
+                }
+            }
+            if (exactCount == 1) return TrackMatchResolution(TrackMatchConfidence.Exact, exactSong)
+            if (exactCount > 1) return TrackMatchResolution(TrackMatchConfidence.Ambiguous)
         }
-        val candidates = songs.mapNotNull { song ->
-            trackMatchScore(identity, song)?.let { score -> song to score }
+        var bestSong: Song? = null
+        var bestScore: Int? = null
+        var tied = false
+        for (song in songs) {
+            val score = trackMatchScore(identity, song) ?: continue
+            when {
+                bestScore == null || score > bestScore -> {
+                    bestSong = song
+                    bestScore = score
+                    tied = false
+                }
+                score == bestScore -> tied = true
+            }
         }
-        val bestScore = candidates.maxOfOrNull { it.second } ?: return TrackMatchResolution(TrackMatchConfidence.NoMatch)
-        val best = candidates.filter { it.second == bestScore }
-        if (best.size != 1) return TrackMatchResolution(TrackMatchConfidence.Ambiguous)
-        val confidence = when {
-            bestScore >= STRONG_TRACK_MATCH_SCORE -> TrackMatchConfidence.Strong
-            bestScore >= PROBABLE_TRACK_MATCH_SCORE -> TrackMatchConfidence.Probable
-            else -> TrackMatchConfidence.NoMatch
+        if (bestSong == null || tied) {
+            return if (bestSong == null) {
+                TrackMatchResolution(TrackMatchConfidence.NoMatch)
+            } else {
+                TrackMatchResolution(TrackMatchConfidence.Ambiguous)
+            }
         }
-        return TrackMatchResolution(confidence, best.single().first.takeIf { confidence != TrackMatchConfidence.NoMatch })
+        val confidence = trackMatchConfidence(bestScore ?: return TrackMatchResolution(TrackMatchConfidence.NoMatch))
+        return TrackMatchResolution(confidence, bestSong.takeIf { confidence != TrackMatchConfidence.NoMatch })
+    }
+
+    fun prepareTrackMatcher(songs: List<Song>): PreparedTrackMatcher = PreparedTrackMatcher(songs)
+
+    internal fun trackMatchConfidence(score: Int): TrackMatchConfidence = when {
+        score >= STRONG_TRACK_MATCH_SCORE -> TrackMatchConfidence.Strong
+        score >= PROBABLE_TRACK_MATCH_SCORE -> TrackMatchConfidence.Probable
+        else -> TrackMatchConfidence.NoMatch
     }
 
     fun source(
@@ -265,6 +291,98 @@ internal object MediaIdentityResolver {
         val documentId = runCatching { DocumentsContract.getDocumentId(uri) }.getOrNull()
         val treeId = runCatching { DocumentsContract.getTreeDocumentId(uri) }.getOrNull()
         return safDocument(uri.authority, documentId, treeId)
+    }
+}
+
+internal class PreparedTrackMatcher(songs: List<Song>) {
+    private val candidates = songs.map(::PreparedTrackCandidate)
+    private val uniqueBySourceKey = HashMap<String, PreparedTrackCandidate>(candidates.size)
+    private val ambiguousSourceKeys = HashSet<String>()
+
+    init {
+        candidates.forEach { candidate ->
+            if (candidate.sourceKey in ambiguousSourceKeys) return@forEach
+            val previous = uniqueBySourceKey.putIfAbsent(candidate.sourceKey, candidate)
+            if (previous != null) {
+                uniqueBySourceKey.remove(candidate.sourceKey)
+                ambiguousSourceKeys += candidate.sourceKey
+            }
+        }
+    }
+
+    fun resolve(identity: TrackMatchIdentity): TrackMatchResolution {
+        if (identity.version != TRACK_MATCH_IDENTITY_VERSION) {
+            return TrackMatchResolution(TrackMatchConfidence.NoMatch)
+        }
+        identity.sourceStableKey?.let { sourceKey ->
+            uniqueBySourceKey[sourceKey]?.let { candidate ->
+                return TrackMatchResolution(TrackMatchConfidence.Exact, candidate.song)
+            }
+            if (sourceKey in ambiguousSourceKeys) {
+                return TrackMatchResolution(TrackMatchConfidence.Ambiguous)
+            }
+        }
+        var bestCandidate: PreparedTrackCandidate? = null
+        var bestScore: Int? = null
+        var tied = false
+        candidates.forEach { candidate ->
+            val score = candidate.score(identity) ?: return@forEach
+            when {
+                bestScore == null || score > bestScore -> {
+                    bestCandidate = candidate
+                    bestScore = score
+                    tied = false
+                }
+                score == bestScore -> tied = true
+            }
+        }
+        if (bestCandidate == null || tied) {
+            return if (bestCandidate == null) {
+                TrackMatchResolution(TrackMatchConfidence.NoMatch)
+            } else {
+                TrackMatchResolution(TrackMatchConfidence.Ambiguous)
+            }
+        }
+        val confidence = MediaIdentityResolver.trackMatchConfidence(
+            bestScore ?: return TrackMatchResolution(TrackMatchConfidence.NoMatch),
+        )
+        return TrackMatchResolution(
+            confidence,
+            bestCandidate.song.takeIf { confidence != TrackMatchConfidence.NoMatch },
+        )
+    }
+}
+
+private class PreparedTrackCandidate(val song: Song) {
+    val sourceKey: String = MediaIdentityResolver.stableKey(song)
+    private val normalizedTitle = song.title.matchIdentityText()
+    private val normalizedArtist = song.artist.matchIdentityText()
+    private val normalizedAlbum = song.album.matchIdentityText()
+    private val normalizedAlbumArtist = song.albumArtist?.matchIdentityText()
+    private val normalizedFileName = song.fileName.matchIdentityText()
+
+    fun score(identity: TrackMatchIdentity): Int? {
+        if (identity.normalizedTitle.isBlank() || normalizedTitle != identity.normalizedTitle) return null
+
+        var score = 5
+        if (identity.normalizedArtist.isNotBlank() && normalizedArtist == identity.normalizedArtist) score += 4
+        else if (identity.normalizedArtist.isNotBlank()) return null
+
+        if (identity.normalizedAlbum.isNotBlank() && normalizedAlbum == identity.normalizedAlbum) score += 2
+        if (!identity.normalizedAlbumArtist.isNullOrBlank() && normalizedAlbumArtist == identity.normalizedAlbumArtist) score += 1
+
+        identity.durationMs?.let { duration ->
+            if (song.durationMs <= 0L || kotlin.math.abs(duration - song.durationMs) > DURATION_TOLERANCE_MS) return null
+            score += if (duration == song.durationMs) 4 else 2
+        }
+        identity.trackNumber?.let { track ->
+            if (song.trackNumber == track) score += 1 else if (song.trackNumber > 0) return null
+        }
+        identity.discNumber?.let { disc ->
+            if (song.discNumber == disc) score += 1 else if (song.discNumber > 0) return null
+        }
+        if (!identity.normalizedFileName.isNullOrBlank() && normalizedFileName == identity.normalizedFileName) score += 2
+        return score
     }
 }
 

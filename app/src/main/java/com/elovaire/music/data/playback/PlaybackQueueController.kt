@@ -228,25 +228,33 @@ internal class PlaybackQueueController(
             return
         }
         if (updatedSongs.isEmpty()) return
-        val queuedSongIds = state.queue.asSequence().mapTo(linkedSetOf(), Song::id)
-        val songsById = updatedSongs.associateQueuedSongsById(queuedSongIds)
-        val queuedIdentities = state.queue.mapTo(hashSetOf(), MediaIdentityResolver::stableKey)
-        val songsByIdentity = updatedSongs
-            .asSequence()
-            .filter { MediaIdentityResolver.stableKey(it) in queuedIdentities }
-            .associateBy(MediaIdentityResolver::stableKey)
-        val queuedPaths = state.queue.mapNotNull { song ->
-            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)
-        }.toSet()
-        val songsByPath = updatedSongs
-            .asSequence()
-            .mapNotNull { song ->
-                LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let { it to song }
+        val queuedSongIds = linkedSetOf<Long>()
+        val queuedIdentities = hashSetOf<String>()
+        val queuedPaths = hashSetOf<String>()
+        state.queue.forEach { song ->
+            queuedSongIds += song.id
+            queuedIdentities += MediaIdentityResolver.stableKey(song)
+            LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)?.let(queuedPaths::add)
+        }
+        val remainingIds = queuedSongIds.toMutableSet()
+        val songsById = LinkedHashMap<Long, Song>(queuedSongIds.size)
+        val songsByIdentity = LinkedHashMap<String, Song>()
+        val songsByPath = LinkedHashMap<String, Song>()
+        val ambiguousPaths = hashSetOf<String>()
+        updatedSongs.forEach { song ->
+            if (remainingIds.remove(song.id)) songsById[song.id] = song
+
+            val identity = MediaIdentityResolver.stableKey(song)
+            if (identity in queuedIdentities) songsByIdentity[identity] = song
+
+            val path = LibrarySongDuplicateResolver.normalizedRealPath(song.libraryPath)
+            if (path != null && path in queuedPaths && path !in ambiguousPaths) {
+                if (songsByPath.putIfAbsent(path, song) != null) {
+                    songsByPath.remove(path)
+                    ambiguousPaths += path
+                }
             }
-            .groupBy({ it.first }, { it.second })
-            .filterValues { songs -> songs.size == 1 }
-            .mapValues { (_, songs) -> songs.single() }
-            .filterKeys(queuedPaths::contains)
+        }
         if (songsById.isEmpty() && songsByIdentity.isEmpty() && songsByPath.isEmpty()) return
         val refreshedQueue = queueMetadataRefresher.refreshQueueIfNeeded(
             queue = state.queue,

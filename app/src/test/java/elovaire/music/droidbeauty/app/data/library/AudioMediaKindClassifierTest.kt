@@ -23,6 +23,7 @@ class AudioMediaKindClassifierTest {
         assertEquals(AudioMediaKind.Audiobook, AudioMediaKindClassifier.classify(false, "m4b", "Music/book.m4b", null))
         assertEquals(AudioMediaKind.Audiobook, AudioMediaKindClassifier.classify(null, "mp3", "Audiobooks/Test/01.mp3", null))
         assertEquals(AudioMediaKind.Audiobook, AudioMediaKindClassifier.classify(false, "mp3", "Music/Test/01.mp3", null, "Audiobooks/Test"))
+        assertEquals(AudioMediaKind.Audiobook, AudioMediaKindClassifier.classify(false, "mp3", "01.mp3", null, "Audiobooks"))
         assertEquals(AudioMediaKind.Audiobook, AudioMediaKindClassifier.classify(null, "flac", "music\\AUDIOBOOKS\\Test\\01.flac", null))
         assertEquals(AudioMediaKind.Music, AudioMediaKindClassifier.classify(false, "mp3", "Podcasts/talk.mp3", null))
         assertEquals(AudioMediaKind.Music, AudioMediaKindClassifier.classify(false, "amr", "Recordings/voice.amr", null))

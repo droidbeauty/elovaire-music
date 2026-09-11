@@ -128,7 +128,7 @@ internal fun ManagePlaylistsScreen(
                 ) { index, playlist ->
                     ManagePlaylistRow(
                         playlist = playlist,
-                        previewSongs = playlist.songIds.mapNotNull(songsById::get),
+                        preview = buildPlaylistPreview(playlist.songIds, songsById),
                         appLanguage = appLanguage,
                         exportContentDescription = copy.exportAction,
                         onExport = {
@@ -233,7 +233,7 @@ private fun PlaylistManagementActionBar(
 @Composable
 private fun ManagePlaylistRow(
     playlist: Playlist,
-    previewSongs: List<Song>,
+    preview: PlaylistPreview,
     appLanguage: AppLanguage,
     exportContentDescription: String,
     onExport: () -> Unit,
@@ -246,7 +246,7 @@ private fun ManagePlaylistRow(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         PlaylistArtworkPreview(
-            songs = previewSongs,
+            songs = preview.songs,
             title = playlist.name,
             modifier = Modifier.size(72.dp),
         )
@@ -268,7 +268,7 @@ private fun ManagePlaylistRow(
                     }
                     append("  •  ")
                     withStyle(SpanStyle(color = readableSecondaryTextColor().copy(alpha = 0.7f))) {
-                        append(formatDuration(previewSongs.sumOf(Song::durationMs)))
+                        append(formatDuration(preview.durationMs))
                     }
                 },
                 style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Medium),

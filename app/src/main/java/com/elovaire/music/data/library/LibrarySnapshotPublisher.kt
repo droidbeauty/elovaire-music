@@ -120,12 +120,13 @@ internal class LibrarySnapshotPublisher(
             }
             addAll(replacementPositions)
         }
+        val affectedSongsByAlbum = affectedPositions
+            .asSequence()
+            .map(canonicalUpdatedSongs::get)
+            .filter { it.mediaKind == AudioMediaKind.Music }
+            .groupBy(Song::albumId)
         val rebuiltAlbums = affectedAlbumIds.flatMap { albumId ->
-            buildAlbumsFromSongs(
-                affectedPositions.map(canonicalUpdatedSongs::get).filter {
-                    it.albumId == albumId && it.mediaKind == AudioMediaKind.Music
-                },
-            )
+            buildAlbumsFromSongs(affectedSongsByAlbum[albumId].orEmpty())
         }
         val updatedAlbums = current.albums.toMutableList()
         albumPositions.filterKeys(affectedAlbumIds::contains).values.sortedDescending().forEach(updatedAlbums::removeAt)
@@ -136,7 +137,12 @@ internal class LibrarySnapshotPublisher(
             updatedAlbums.add(insertionPoint, album)
         }
         val audiobookCatalog = if (
-            audiobookContentChanged(current.songs, canonicalUpdatedSongs) ||
+                audiobookContentChanged(
+                    previousSongs = current.songs,
+                    updatedSongs = canonicalUpdatedSongs,
+                    changedPositions = replacementPositions,
+                    globalCanonicalization = canonicalUpdatedSongs !== updatedSongs,
+                ) ||
                 (current.audiobooks.isEmpty() && canonicalUpdatedSongs.any { it.mediaKind == AudioMediaKind.Audiobook })
         ) {
             AudiobookCatalog.build(canonicalUpdatedSongs)
@@ -211,9 +217,11 @@ internal class LibrarySnapshotPublisher(
     private fun audiobookContentChanged(
         previousSongs: List<Song>,
         updatedSongs: List<Song>,
+        changedPositions: List<Int>,
+        globalCanonicalization: Boolean,
     ): Boolean {
-        if (previousSongs.size != updatedSongs.size) return true
-        return previousSongs.indices.any { index ->
+        val positions = if (globalCanonicalization) previousSongs.indices else changedPositions
+        return positions.any { index ->
             val previous = previousSongs[index]
             val updated = updatedSongs[index]
             (previous.mediaKind == AudioMediaKind.Audiobook || updated.mediaKind == AudioMediaKind.Audiobook) &&

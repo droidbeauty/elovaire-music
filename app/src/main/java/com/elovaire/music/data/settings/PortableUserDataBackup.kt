@@ -222,8 +222,9 @@ internal fun PortableUserData.mergeInto(
     songs: List<Song>,
 ): PortableUserDataImport {
     var unresolved = 0
+    val trackMatcher = MediaIdentityResolver.prepareTrackMatcher(songs)
     fun resolve(identity: TrackMatchIdentity): Long? {
-        val result = MediaIdentityResolver.resolveTrackMatch(identity, songs)
+        val result = trackMatcher.resolve(identity)
         when (result.confidence) {
             TrackMatchConfidence.Exact,
             TrackMatchConfidence.Strong,

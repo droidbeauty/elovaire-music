@@ -139,15 +139,3 @@ internal class PlaybackStateReducer(
         const val MAX_HISTORY_ITEMS = 12
     }
 }
-
-internal fun List<Song>.associateQueuedSongsById(queuedSongIds: Set<Long>): Map<Long, Song> {
-    if (queuedSongIds.isEmpty()) return emptyMap()
-    val remainingIds = queuedSongIds.toMutableSet()
-    val songsById = LinkedHashMap<Long, Song>(queuedSongIds.size)
-    for (song in this) {
-        if (!remainingIds.remove(song.id)) continue
-        songsById[song.id] = song
-        if (remainingIds.isEmpty()) break
-    }
-    return songsById
-}

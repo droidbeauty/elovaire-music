@@ -169,8 +169,17 @@ internal object LibraryChangeSetCalculator {
     }
 
     private fun sameSong(first: Song, second: Song): Boolean {
-        return first.id == second.id &&
-            first.title == second.title &&
+        return sameLogicalContent(first, second) &&
+            first.id == second.id &&
+            first.fileName == second.fileName &&
+            first.dateAddedSeconds == second.dateAddedSeconds &&
+            first.libraryPath == second.libraryPath &&
+            first.uri.toString() == second.uri.toString() &&
+            first.artUri?.toString() == second.artUri?.toString()
+    }
+
+    private fun sameLogicalContent(first: Song, second: Song): Boolean {
+        return first.title == second.title &&
             first.isExplicit == second.isExplicit &&
             first.artist == second.artist &&
             first.album == second.album &&
@@ -178,35 +187,16 @@ internal object LibraryChangeSetCalculator {
             first.genre == second.genre &&
             first.audioFormat == second.audioFormat &&
             first.audioQuality == second.audioQuality &&
-            first.fileName == second.fileName &&
             first.albumId == second.albumId &&
             first.durationMs == second.durationMs &&
             first.trackNumber == second.trackNumber &&
             first.discNumber == second.discNumber &&
-            first.dateAddedSeconds == second.dateAddedSeconds &&
             first.dateModifiedSeconds == second.dateModifiedSeconds &&
-            first.libraryPath == second.libraryPath &&
-            first.uri.toString() == second.uri.toString() &&
-            first.artUri?.toString() == second.artUri?.toString() &&
             first.metadataResolved == second.metadataResolved &&
             first.albumArtist == second.albumArtist &&
             first.volumeNormalization == second.volumeNormalization &&
             first.mediaKind == second.mediaKind &&
             first.bookmarkMs == second.bookmarkMs
-    }
-
-    private fun sameLogicalContent(first: Song, second: Song): Boolean {
-        return sameSong(
-            first.copy(
-                id = second.id,
-                fileName = second.fileName,
-                dateAddedSeconds = second.dateAddedSeconds,
-                libraryPath = second.libraryPath,
-                uri = second.uri,
-                artUri = second.artUri,
-            ),
-            second,
-        )
     }
 
     private fun locatorChanged(first: Song, second: Song): Boolean {

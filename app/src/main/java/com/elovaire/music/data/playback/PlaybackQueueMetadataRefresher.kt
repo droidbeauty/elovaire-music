@@ -22,24 +22,27 @@ internal class PlaybackQueueMetadataRefresher {
             queue.isEmpty() ||
             (librarySongsById.isEmpty() && librarySongsByIdentity.isEmpty() && librarySongsByPath.isEmpty())
         ) return null
-        var changed = false
-        val refreshedQueue = queue.map { queuedSong ->
+        var refreshedQueue: ArrayList<Song>? = null
+        queue.forEachIndexed { index, queuedSong ->
             val librarySong = librarySongsById[queuedSong.id]
                 ?: librarySongsByIdentity[MediaIdentityResolver.stableKey(queuedSong)]
                 ?: LibrarySongDuplicateResolver.normalizedRealPath(queuedSong.libraryPath)
                     ?.let(librarySongsByPath::get)
             if (librarySong != null && librarySong != queuedSong) {
-                changed = true
-                librarySong
+                val target = refreshedQueue ?: ArrayList<Song>(queue.size).also {
+                    it.addAll(queue.subList(0, index))
+                    refreshedQueue = it
+                }
+                target.add(librarySong)
             } else {
-                queuedSong
+                refreshedQueue?.add(queuedSong)
             }
         }
-        if (!changed) return null
-        val signature = refreshedQueue.queueMetadataSignature()
+        val updatedQueue = refreshedQueue ?: return null
+        val signature = updatedQueue.queueMetadataSignature()
         if (signature == lastQueueMetadataSignature) return null
         lastQueueMetadataSignature = signature
-        return refreshedQueue
+        return updatedQueue
     }
 
     /**
@@ -64,6 +67,7 @@ internal class PlaybackQueueMetadataRefresher {
             .groupBy({ it.first }, { it.second })
             .filterValues { it.size == 1 }
             .mapValues { (_, songs) -> songs.single() }
+        val trackMatcher by lazy { MediaIdentityResolver.prepareTrackMatcher(librarySongs) }
 
         val retained = ArrayList<Song>(queue.size)
         val retainedOriginalIndices = ArrayList<Int>(queue.size)
@@ -73,9 +77,8 @@ internal class PlaybackQueueMetadataRefresher {
             val match = songsByIdentity[MediaIdentityResolver.stableKey(queuedSong)]
                 ?: LibrarySongDuplicateResolver.normalizedRealPath(queuedSong.libraryPath)
                     ?.let(songsByPath::get)
-                ?: MediaIdentityResolver.resolveTrackMatch(
+                ?: trackMatcher.resolve(
                     MediaIdentityResolver.trackMatchIdentity(queuedSong).copy(sourceStableKey = null),
-                    librarySongs,
                 ).takeIf { it.confidence == TrackMatchConfidence.Strong }
                     ?.song
             if (match == null) {

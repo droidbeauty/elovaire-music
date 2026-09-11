@@ -210,7 +210,10 @@ internal class PlaybackIntegrationCoordinator(
             withContext(ioDispatcher) { sessionStore.clear() }
             return
         }
-        val songsById = songs.associateBy { it.id }
+        val requestedSongIds = persisted.queueSongIds.toHashSet()
+        val songsById = songs.asSequence()
+            .filter { it.id in requestedSongIds }
+            .associateBy { it.id }
         val restoredQueue = persisted.queueSongIds.mapNotNull(songsById::get)
         if (!isPlaybackSessionFullyResolved(persisted.queueSongIds, songsById.keys)) {
             // The scan is authoritative here: missing entries are no longer merely
@@ -282,8 +285,7 @@ internal fun isPlaybackSessionFullyResolved(
     resolvedSongIds: Collection<Long>,
 ): Boolean {
     if (persistedSongIds.isEmpty()) return false
-    val resolved = resolvedSongIds.toSet()
-    return persistedSongIds.all(resolved::contains)
+    return persistedSongIds.all(resolvedSongIds::contains)
 }
 
 private data class PersistedRecentPlayback(

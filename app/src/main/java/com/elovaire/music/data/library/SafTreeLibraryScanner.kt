@@ -227,6 +227,11 @@ internal class SafTreeLibraryScanner(
                                 extension = extension,
                                 relativePath = childRelativePath,
                                 absolutePath = libraryPath,
+                                // The selected tree itself is not part of [childRelativePath].
+                                // Keep its display name as source context so a root named
+                                // "Audiobooks" classifies supported files even when the
+                                // provider cannot resolve the tree to a filesystem path.
+                                sourcePath = selection.displayName,
                             )
                             val detectedFormat = cachedFile?.detectedFormat
                                 ?: if (mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Audiobook) {

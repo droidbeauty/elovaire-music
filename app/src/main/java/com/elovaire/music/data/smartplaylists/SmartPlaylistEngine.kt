@@ -25,12 +25,9 @@ internal object SmartPlaylistEngine {
             nowMs = nowMs,
         )
         val preparedDefinition = PreparedSmartPlaylist(definition)
-        val normalized = songs.asSequence()
+        val matched = songs.asSequence()
             .filter { it.mediaKind == AudioMediaKind.Music }
             .map { song -> NormalizedSong(song, preparedDefinition) }
-            .toList()
-        val matched = normalized
-            .asSequence()
             .filter { it.matches(preparedDefinition, context) }
             .toList()
         val sorted = sort(definition, matched, context)

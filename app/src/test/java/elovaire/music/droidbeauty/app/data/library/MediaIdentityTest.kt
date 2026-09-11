@@ -124,6 +124,26 @@ class MediaIdentityTest {
         assertTrue(result.song == null)
     }
 
+    @Test
+    fun preparedTrackMatcherPreservesSingleLookupResults() {
+        val original = song(10L)
+        val moved = original.copy(id = 500L, uri = TestUri("content://media/external/audio/media/500"))
+        val duplicate = original.copy(id = 900L, uri = TestUri("content://media/external/audio/media/900"))
+        val candidates = listOf(moved, duplicate)
+        val matcher = MediaIdentityResolver.prepareTrackMatcher(candidates)
+        val identities = listOf(
+            MediaIdentityResolver.trackMatchIdentity(original),
+            MediaIdentityResolver.trackMatchIdentity(original).copy(version = 99),
+        )
+
+        identities.forEach { identity ->
+            assertEquals(
+                MediaIdentityResolver.resolveTrackMatch(identity, candidates),
+                matcher.resolve(identity),
+            )
+        }
+    }
+
     private fun song(modifiedSeconds: Long): Song = Song(
         id = 1L,
         title = "Title",

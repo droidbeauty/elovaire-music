@@ -187,25 +187,21 @@ internal class NetworkLibraryScanner(
                 message = incompleteReason?.let { "scan-incomplete:$it" },
             ),
         )
-        val audioEntries = entries
-            .asSequence()
-            .filterNot(NetworkFileEntry::isDirectory)
-            .filter { entry -> isSupportedAudioExtension(entry.path.substringAfterLast('.', "")) }
-            .map { entry -> entry.copy(path = NetworkPathPolicy.normalizeRelativePath(entry.path)) }
-            .distinctBy(NetworkFileEntry::path)
-            .toList()
+        val audioEntries = normalizeAudioEntries(entries)
         val cachedByPath = cached.associateBy { it.entry.path }
-        val cachedByEntryId = cached
-            .mapNotNull { item -> item.entry.sourceEntryId?.let { it to item } }
-            .groupBy({ it.first }, { it.second })
+        val cachedByEntryId = uniqueCachedEntriesBySourceEntryId(cached)
         val revisionIndex = buildNetworkRevisionIndex(cached)
         val artworkByDirectory = if (enrichMetadata) {
-            entries
-                .asSequence()
-                .filterNot(NetworkFileEntry::isDirectory)
-                .filter(NetworkFileEntry::isSupportedArtwork)
-                .groupBy { it.path.substringBeforeLast('/', "") }
-                .mapValues { (_, candidates) -> candidates.minBy(NetworkFileEntry::artworkPriority) }
+            val bestArtworkByDirectory = LinkedHashMap<String, NetworkFileEntry>()
+            entries.forEach { entry ->
+                if (entry.isDirectory || !entry.isSupportedArtwork()) return@forEach
+                val directory = entry.path.substringBeforeLast('/', "")
+                val current = bestArtworkByDirectory[directory]
+                if (current == null || entry.artworkPriority() < current.artworkPriority()) {
+                    bestArtworkByDirectory[directory] = entry
+                }
+            }
+            bestArtworkByDirectory
                 .entries
                 .take(MAX_ARTWORKS_PER_SCAN)
                 .associate { (directory, entry) ->
@@ -285,9 +281,7 @@ internal class NetworkLibraryScanner(
             return NetworkLibrarySourceScanResult(emptyList(), isComplete = false)
         }
         val cachedByPath = cached.associateBy { it.entry.path }
-        val cachedByEntryId = cached
-            .mapNotNull { item -> item.entry.sourceEntryId?.let { it to item } }
-            .groupBy({ it.first }, { it.second })
+        val cachedByEntryId = uniqueCachedEntriesBySourceEntryId(cached)
         val enriched = buildInventoryEntries(
             source = source,
             audioEntries = cached.map(NetworkInventoryEntry::entry),
@@ -320,7 +314,7 @@ internal class NetworkLibraryScanner(
         source: NetworkLibrarySource,
         audioEntries: List<NetworkFileEntry>,
         cachedByPath: Map<String, NetworkInventoryEntry>,
-        cachedByEntryId: Map<String, List<NetworkInventoryEntry>>,
+        cachedByEntryId: Map<String, NetworkInventoryEntry>,
         revisionIndex: Map<NetworkRevisionKey, NetworkInventoryEntry?>,
         artworkByDirectory: Map<String, Uri?>,
         enrichMetadata: Boolean,
@@ -333,7 +327,7 @@ internal class NetworkLibraryScanner(
             if (!isCurrent()) throw NetworkScanSupersededException()
             val previous = cachedByPath[entry.path]
                 ?: entry.sourceEntryId
-                    ?.let { cachedByEntryId[it].orEmpty().singleOrNull() }
+                    ?.let(cachedByEntryId::get)
                 ?: entry.revisionCandidate(revisionIndex)
             if (
                 previous != null &&
@@ -565,6 +559,37 @@ internal fun mergePartialNetworkInventory(
     cached.forEach { merged[it.entry.path] = it }
     discovered.forEach { merged[it.entry.path] = it }
     return merged.values.map(NetworkInventoryEntry::song)
+}
+
+private fun uniqueCachedEntriesBySourceEntryId(
+    entries: List<NetworkInventoryEntry>,
+): Map<String, NetworkInventoryEntry> {
+    val unique = LinkedHashMap<String, NetworkInventoryEntry>()
+    val ambiguous = HashSet<String>()
+    entries.forEach { entry ->
+        val sourceEntryId = entry.entry.sourceEntryId ?: return@forEach
+        if (sourceEntryId in ambiguous) return@forEach
+        if (unique.putIfAbsent(sourceEntryId, entry) != null) {
+            unique.remove(sourceEntryId)
+            ambiguous += sourceEntryId
+        }
+    }
+    return unique
+}
+
+private fun normalizeAudioEntries(entries: List<NetworkFileEntry>): List<NetworkFileEntry> {
+    return buildList {
+        val seenPaths = HashSet<String>()
+        entries.forEach { entry ->
+            if (entry.isDirectory || !isSupportedAudioExtension(entry.path.substringAfterLast('.', ""))) {
+                return@forEach
+            }
+            val normalizedPath = NetworkPathPolicy.normalizeRelativePath(entry.path)
+            if (seenPaths.add(normalizedPath)) {
+                add(if (entry.path == normalizedPath) entry else entry.copy(path = normalizedPath))
+            }
+        }
+    }
 }
 
 private fun NetworkFileEntry.isSupportedArtwork(): Boolean {

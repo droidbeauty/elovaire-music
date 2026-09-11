@@ -32,13 +32,13 @@ internal object LibrarySongDuplicateResolver {
         val accepted = ArrayList<Song>(acceptedMediaStoreSongs.size + acceptedSafSongs.size)
         accepted += acceptedMediaStoreSongs
 
-        val mediaStoreByStrongKey = acceptedMediaStoreSongs
+        val mediaStoreStrongKeys = acceptedMediaStoreSongs
             .asSequence()
-            .flatMap { song -> strongKeys(song).asSequence().map { key -> key to song } }
-            .toMap()
+            .flatMap { song -> strongKeys(song).asSequence() }
+            .toSet()
 
         acceptedSafSongs.forEach { safSong ->
-            val duplicate = strongKeys(safSong).any { key -> key in mediaStoreByStrongKey }
+            val duplicate = strongKeys(safSong).any { key -> key in mediaStoreStrongKeys }
             if (!duplicate) {
                 accepted += safSong
             }
@@ -77,8 +77,7 @@ internal object LibrarySongDuplicateResolver {
             return source is MediaSourceIdentity.MediaStoreItem ||
                 (source == null && song.id > 0L)
         }
-        val mediaStoreSongs = songs.filter(::isMediaStoreSong)
-        val safSongs = songs.filterNot(::isMediaStoreSong)
+        val (mediaStoreSongs, safSongs) = songs.partition(::isMediaStoreSong)
         return mergeMediaStoreAndSafSongs(mediaStoreSongs, safSongs)
     }
 

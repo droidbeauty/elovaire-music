@@ -30,12 +30,10 @@ private fun Song.recentLibraryTimestampSeconds(): Long {
 private const val RECENTLY_ADDED_WINDOW_SECONDS = 14L * 24L * 60L * 60L
 
 internal fun recentAlbumsFor(
-    libraryState: LibraryUiState,
+    albumsById: Map<Long, Album>,
     playbackState: PlaybackUiState,
 ): List<Album> {
-    val albumsById = libraryState.albums.associateBy { it.id }
-    val played = playbackState.recentAlbumIds.mapNotNull(albumsById::get)
-    return played.take(6)
+    return playbackState.recentAlbumIds.mapNotNull(albumsById::get).take(6)
 }
 
 internal fun favoriteAlbumsFor(
@@ -44,20 +42,24 @@ internal fun favoriteAlbumsFor(
     recentAlbums: List<Album>,
     recentlyAddedAlbums: List<Album>,
 ): List<Album> {
-    val rankedByFrequency = libraryState.albums
-        .mapNotNull { album ->
-            val playCount = album.songs.sumOf { songPlayCounts[it.id] ?: 0 }
-            if (playCount > 0) album to playCount else null
-        }
+    val rankedByFrequency = libraryState.albums.asSequence()
+        .filter { album -> album.songs.sumOf { songPlayCounts[it.id] ?: 0 } > 0 }
         .sortedWith(
-            compareByDescending<Pair<Album, Int>> { it.second }
-                .thenBy { it.first.artist.lowercase() }
-                .thenBy { it.first.title.lowercase() },
+            compareByDescending<Album> { album -> album.songs.sumOf { songPlayCounts[it.id] ?: 0 } }
+                .thenBy { it.artist.lowercase() }
+                .thenBy { it.title.lowercase() },
         )
-        .map { it.first }
 
     return buildList {
-        (rankedByFrequency + recentAlbums + recentlyAddedAlbums).forEach { album ->
+        rankedByFrequency.forEach { album ->
+            if (none { it.id == album.id }) add(album)
+            if (size == 6) return@buildList
+        }
+        recentAlbums.forEach { album ->
+            if (none { it.id == album.id }) add(album)
+            if (size == 6) return@buildList
+        }
+        recentlyAddedAlbums.forEach { album ->
             if (none { it.id == album.id }) add(album)
             if (size == 6) return@buildList
         }
@@ -70,29 +72,17 @@ internal fun suggestedAlbumsFor(
     recentAlbumIds: List<Long>,
 ): List<Album> {
     val recentAlbumIdSet = recentAlbumIds.toSet()
-    val rarePlayedAlbums = libraryState.albums
-        .mapNotNull { album ->
-            val playCount = albumPlayCounts[album.id] ?: 0
-            if (playCount > 0) album to playCount else null
-        }
-        .sortedWith(
-            compareBy<Pair<Album, Int>> { it.second }
-                .thenBy { album -> if (album.first.id in recentAlbumIdSet) 1 else 0 }
-                .thenBy { it.first.artist.lowercase() }
-                .thenBy { it.first.title.lowercase() },
-        )
-        .map { it.first }
-
-    val neverPlayedAlbums = libraryState.albums
-        .filter { (albumPlayCounts[it.id] ?: 0) == 0 }
-        .sortedWith(
-            compareBy<Album> { if (it.id in recentAlbumIdSet) 1 else 0 }
-                .thenBy { it.artist.lowercase() }
-                .thenBy { it.title.lowercase() },
-        )
+    val comparator = compareBy<Album> { album -> if ((albumPlayCounts[album.id] ?: 0) > 0) 0 else 1 }
+        .thenBy { album -> albumPlayCounts[album.id] ?: 0 }
+        .thenBy { album -> if (album.id in recentAlbumIdSet) 1 else 0 }
+        .thenBy { it.artist.lowercase() }
+        .thenBy { it.title.lowercase() }
+    val sortedAlbums = libraryState.albums
+        .filter { (albumPlayCounts[it.id] ?: 0) >= 0 }
+        .sortedWith(comparator)
 
     return buildList {
-        (rarePlayedAlbums + neverPlayedAlbums).forEach { album ->
+        sortedAlbums.forEach { album ->
             if (none { it.id == album.id }) add(album)
             if (size == 6) return@buildList
         }

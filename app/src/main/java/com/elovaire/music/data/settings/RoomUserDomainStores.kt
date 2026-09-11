@@ -94,10 +94,7 @@ internal class RoomPlaybackHistoryStore(
     fun relocateSongIds(replacements: Map<Long, Long>) {
         if (replacements.isEmpty()) return
         writeBuffer.relocateSongIds(replacements)
-        _songPlayCounts.value = _songPlayCounts.value
-            .entries
-            .groupBy { resolveRelocatedSongId(it.key, replacements) }
-            .mapValues { (_, entries) -> entries.maxOf { it.value } }
+        _songPlayCounts.value = mergeRelocatedPlayCounts(_songPlayCounts.value, replacements)
         _recentSongIds.value = _recentSongIds.value
             .map { resolveRelocatedSongId(it, replacements) }
             .distinct()
@@ -256,12 +253,7 @@ internal class PlaybackHistoryWriteBuffer {
     @Synchronized
     fun relocateSongIds(replacements: Map<Long, Long>) {
         if (replacements.isEmpty()) return
-        val relocatedCounts = HashMap<Long, Int>(songCounts.size)
-        songCounts.forEach { (id, count) ->
-            val resolvedId = resolveRelocatedSongId(id, replacements)
-            val existing = relocatedCounts[resolvedId]
-            if (existing == null || count > existing) relocatedCounts[resolvedId] = count
-        }
+        val relocatedCounts = mergeRelocatedPlayCounts(songCounts, replacements)
         songCounts.clear()
         songCounts.putAll(relocatedCounts)
         val pendingRecent = recent
@@ -282,6 +274,20 @@ internal fun resolveRelocatedSongId(id: Long, replacements: Map<Long, Long>): Lo
         val next = replacements[current] ?: return current
         if (!visited.add(current) || next == current) return current
         current = next
+    }
+}
+
+internal fun mergeRelocatedPlayCounts(
+    counts: Map<Long, Int>,
+    replacements: Map<Long, Long>,
+): Map<Long, Int> {
+    if (counts.isEmpty() || replacements.isEmpty()) return counts
+    return LinkedHashMap<Long, Int>(counts.size).apply {
+        counts.forEach { (id, count) ->
+            val resolvedId = resolveRelocatedSongId(id, replacements)
+            val existing = this[resolvedId]
+            if (existing == null || count > existing) this[resolvedId] = count
+        }
     }
 }
 
