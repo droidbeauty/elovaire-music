@@ -372,6 +372,30 @@ internal object AudioFormatPolicy {
         ),
     )
 
+    private val capabilityByExtension: Map<String, AudioFormatCapability> = buildMap {
+        capabilities.forEach { capability ->
+            capability.extensions.forEach { extension ->
+                val key = extension.lowercase(Locale.ROOT)
+                if (!containsKey(key)) put(key, capability)
+            }
+        }
+    }
+
+    private val capabilityByMimeType: Map<String, AudioFormatCapability> = buildMap {
+        capabilities.forEach { capability ->
+            capability.mimeTypes.forEach { mimeType ->
+                val key = mimeType.lowercase(Locale.ROOT)
+                if (!containsKey(key)) put(key, capability)
+            }
+        }
+    }
+
+    private val capabilityByFormat: Map<AudioContainerFormat, AudioFormatCapability> = buildMap {
+        capabilities.forEach { capability ->
+            if (!containsKey(capability.format)) put(capability.format, capability)
+        }
+    }
+
     val scannerExtensions: Set<String> = capabilities
         .filter { it.playbackSupport != PlaybackSupport.Unsupported }
         .flatMapTo(linkedSetOf()) { it.extensions }
@@ -401,7 +425,7 @@ internal object AudioFormatPolicy {
 
     fun capabilityForExtension(extension: String?): AudioFormatCapability? {
         val normalized = extension.orEmpty().trim().lowercase(Locale.ROOT)
-        return capabilities.firstOrNull { normalized in it.extensions }
+        return capabilityByExtension[normalized]
     }
 
     fun capabilityForFileName(fileName: String): AudioFormatCapability? {
@@ -409,7 +433,7 @@ internal object AudioFormatPolicy {
     }
 
     fun capabilityFor(format: AudioContainerFormat): AudioFormatCapability? {
-        return capabilities.firstOrNull { it.format == format }
+        return capabilityByFormat[format]
     }
 
     fun resolveContainer(
@@ -656,7 +680,7 @@ internal object AudioFormatPolicy {
 
     fun capabilityForMimeType(mimeType: String?): AudioFormatCapability? {
         val normalized = mimeType.orEmpty().lowercase(Locale.ROOT)
-        return capabilities.firstOrNull { normalized in it.mimeTypes }
+        return capabilityByMimeType[normalized]
     }
 
     private fun AudioFormatCapability?.orEmptyAllowedCodecs(): Set<String> {

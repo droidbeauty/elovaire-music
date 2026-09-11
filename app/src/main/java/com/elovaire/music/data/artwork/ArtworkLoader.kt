@@ -514,8 +514,14 @@ internal object ArtworkBitmapCache {
     @Synchronized
     private fun trim(level: Int) {
         when (memoryPressureForTrimLevel(level)) {
-            MemoryPressure.Critical -> cache.evictAll()
-            MemoryPressure.Moderate -> cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
+            MemoryPressure.Critical -> {
+                cache.evictAll()
+                ArtworkGradientCache.clear()
+            }
+            MemoryPressure.Moderate -> {
+                cache.trimToSize((maxCacheBytes / 2).coerceAtLeast(1))
+                ArtworkGradientCache.clear()
+            }
             MemoryPressure.Normal -> Unit
         }
     }
@@ -541,6 +547,11 @@ internal object ArtworkGradientCache {
             return size > MAX_GRADIENTS
         }
     }
+    private val accents = object : LinkedHashMap<String, Int>(MAX_GRADIENTS, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Int>?): Boolean {
+            return size > MAX_GRADIENTS
+        }
+    }
 
     @Synchronized
     fun gradient(key: String): List<Int>? = gradients[key]
@@ -551,15 +562,24 @@ internal object ArtworkGradientCache {
     }
 
     @Synchronized
+    fun accent(key: String): Int? = accents[key]
+
+    @Synchronized
+    fun putAccent(key: String, color: Int) {
+        accents[key] = color
+    }
+
+    @Synchronized
     fun removeMatching(uriKeys: Set<String>) {
         if (uriKeys.isEmpty()) return
-        val iterator = gradients.entries.iterator()
-        while (iterator.hasNext()) {
-            val entry = iterator.next()
-            if (uriKeys.any { uriKey -> entry.key.startsWith("$uriKey|") }) {
-                iterator.remove()
-            }
-        }
+        gradients.keys.removeAll { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
+        accents.keys.removeAll { key -> uriKeys.any { uriKey -> key.startsWith("$uriKey|") } }
+    }
+
+    @Synchronized
+    fun clear() {
+        gradients.clear()
+        accents.clear()
     }
 }
 

@@ -2028,48 +2028,68 @@ internal fun BoxScope.QueueEdgeHaze(
 ) {
     if (!visible) return
     val surface = MaterialTheme.colorScheme.surface
+    val edgeMask = softEdgeBlurMask(
+        startIntensity = startIntensity,
+        endIntensity = endIntensity,
+    )
     Box(
         modifier = Modifier
             .align(alignment)
             .fillMaxWidth()
             .height(20.dp)
+            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
             .hazeEffect(hazeState) {
                 progressive = softEdgeBlurProgressive(
                     startIntensity = startIntensity,
                     endIntensity = endIntensity,
                 )
                 blurRadius = 20.dp
-                backgroundColor = surface.copy(alpha = 0.7f)
+                backgroundColor = surface.copy(alpha = 0.42f)
                 tints = listOf(
-                    HazeTint(surface.copy(alpha = 0.24f)),
-                    HazeTint(tint.copy(alpha = 0.04f)),
+                    HazeTint(surface.copy(alpha = 0.12f)),
+                    HazeTint(tint.copy(alpha = 0.025f)),
                 )
                 noiseFactor = 0.012f
+            }
+            .drawWithContent {
+                drawContent()
+                drawRect(
+                    brush = edgeMask,
+                    blendMode = BlendMode.DstIn,
+                )
             },
+    )
+}
+
+private fun softEdgeBlurMask(
+    startIntensity: Float,
+    endIntensity: Float,
+): Brush {
+    fun smoothStep(fraction: Float): Float = fraction * fraction * (3f - 2f * fraction)
+    fun intensityAt(fraction: Float): Float =
+        (startIntensity + (endIntensity - startIntensity) * smoothStep(fraction))
+            .coerceIn(0f, 1f)
+
+    return Brush.verticalGradient(
+        colorStops = arrayOf(
+            0f to Color.Black.copy(alpha = intensityAt(0f)),
+            0.16f to Color.Black.copy(alpha = intensityAt(0.16f)),
+            0.4f to Color.Black.copy(alpha = intensityAt(0.4f)),
+            0.68f to Color.Black.copy(alpha = intensityAt(0.68f)),
+            1f to Color.Black.copy(alpha = intensityAt(1f)),
+        ),
     )
 }
 
 private fun softEdgeBlurProgressive(
     startIntensity: Float,
     endIntensity: Float,
-): HazeProgressive {
-    fun smoothStep(fraction: Float): Float = fraction * fraction * (3f - 2f * fraction)
-    fun intensityAt(fraction: Float): Float =
-        (startIntensity + (endIntensity - startIntensity) * smoothStep(fraction))
-            .coerceIn(0f, 1f)
-
-    return HazeProgressive.Brush(
-        Brush.verticalGradient(
-            colorStops = arrayOf(
-                0f to Color.Black.copy(alpha = intensityAt(0f)),
-                0.16f to Color.Black.copy(alpha = intensityAt(0.16f)),
-                0.4f to Color.Black.copy(alpha = intensityAt(0.4f)),
-                0.68f to Color.Black.copy(alpha = intensityAt(0.68f)),
-                1f to Color.Black.copy(alpha = intensityAt(1f)),
-            ),
-        ),
-    )
-}
+): HazeProgressive = HazeProgressive.Brush(
+    softEdgeBlurMask(
+        startIntensity = startIntensity,
+        endIntensity = endIntensity,
+    ),
+)
 
 @Composable
 private fun QueueSeparator(
@@ -3840,21 +3860,33 @@ private fun LyricsOverlay(
                 label = "lyrics_bottom_shadow_visibility",
             ) {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    val edgeMask = softEdgeBlurMask(
+                        startIntensity = 0f,
+                        endIntensity = 1f,
+                    )
                     Box(
                         modifier = Modifier
                             .matchParentSize()
+                            .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
                             .hazeEffect(lyricsHazeState) {
                                 progressive = softEdgeBlurProgressive(
                                     startIntensity = 0f,
                                     endIntensity = 1f,
                                 )
                                 blurRadius = 34.dp
-                                backgroundColor = surface.copy(alpha = 0.7f)
+                                backgroundColor = surface.copy(alpha = 0.42f)
                                 tints = listOf(
-                                    HazeTint(surface.copy(alpha = 0.24f)),
-                                    HazeTint(tintColor.copy(alpha = 0.04f)),
+                                    HazeTint(surface.copy(alpha = 0.12f)),
+                                    HazeTint(tintColor.copy(alpha = 0.025f)),
                                 )
                                 noiseFactor = 0.012f
+                            }
+                            .drawWithContent {
+                                drawContent()
+                                drawRect(
+                                    brush = edgeMask,
+                                    blendMode = BlendMode.DstIn,
+                                )
                             },
                     )
                 } else {

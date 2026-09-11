@@ -319,8 +319,8 @@ internal class CrossfadeCueAnalyzer(
         silenceLevelDb: Float = CrossfadeSilencePolicy.BASE_LEVEL_DB,
     ): CrossfadeCue {
         val normalizedSilenceLevelDb = CrossfadeSilencePolicy.sanitizeLevelDb(silenceLevelDb)
-        val outgoingCue = analyzeSong(outgoing, normalizedSilenceLevelDb).await()
-        val incomingCue = analyzeSong(incoming, normalizedSilenceLevelDb).await()
+        val outgoingCue = analyzeSong(outgoing, normalizedSilenceLevelDb)
+        val incomingCue = analyzeSong(incoming, normalizedSilenceLevelDb)
         logDebug(
             "analyze_pair analyzer_silence_db=$normalizedSilenceLevelDb " +
                 "detected_mix_out_ms=${outgoingCue.mixOutMs} " +
@@ -348,7 +348,7 @@ internal class CrossfadeCueAnalyzer(
         cache.clear()
     }
 
-    private fun analyzeSong(song: Song, silenceLevelDb: Float): Deferred<SongCue> {
+    private suspend fun analyzeSong(song: Song, silenceLevelDb: Float): SongCue {
         val key = CacheKey(
             uri = song.uri.toString(),
             durationMs = song.durationMs,
@@ -356,11 +356,10 @@ internal class CrossfadeCueAnalyzer(
             fileName = song.fileName,
             silenceLevelDb = silenceLevelDb.toInt(),
         )
-        cache[key]?.let { return scope.async { it } }
-        synchronized(inFlight) {
-            cache[key]?.let { return scope.async { it } }
-            inFlight[key]?.let { return it }
-            return scope.async(dispatcher) {
+        cache[key]?.let { return it }
+        val pending = synchronized(inFlight) {
+            cache[key]?.let { return it }
+            inFlight[key] ?: scope.async(dispatcher) {
                 // Publish before the Deferred completes so a second request for the same key
                 // cannot start another decoder while the completion callback is being dispatched.
                 analyzeSongUncached(song, silenceLevelDb).also { result ->
@@ -375,6 +374,7 @@ internal class CrossfadeCueAnalyzer(
                 }
             }
         }
+        return pending.await()
     }
 
     private fun analyzeSongUncached(song: Song, silenceLevelDb: Float): SongCue {

@@ -45,13 +45,11 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
             return@forEach
         }
 
-        val matches = LRC_TIME_REGEX.findAll(rawLine).toList()
+        val matches = LRC_TIME_REGEX.findAll(rawLine)
         val text = sanitizeLyricLine(rawLine.replace(LRC_TIME_REGEX, "").trim()).orEmpty()
 
-        if (matches.isEmpty()) {
-            if (text.isNotBlank() && !METADATA_ONLY_LINE_REGEX.matches(text)) {
-                plain += text
-            }
+        if (matches.firstOrNull() == null) {
+            if (text.isNotBlank()) plain += text
             return@forEach
         }
 
@@ -71,7 +69,7 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
             LyricsPayload(
                 lines = lines,
                 isSynced = false,
-                sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsText(),
+                sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsTextAfterBreakNormalization(),
             )
         }
     }
@@ -100,24 +98,8 @@ internal fun parseLrcOrPlain(raw: String): LyricsPayload? {
     return LyricsPayload(
         lines = indexed,
         isSynced = true,
-        sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsText(),
+        sourceTextForEmbedding = normalizedRaw.canonicalEmbeddedLyricsTextAfterBreakNormalization(),
     )
-}
-
-internal fun parseSyncedLyrics(rawLyrics: String?): List<LyricsLine>? {
-    return rawLyrics
-        ?.takeIf { it.isNotBlank() }
-        ?.let(::parseLrcOrPlain)
-        ?.takeIf { it.isSynced }
-        ?.lines
-}
-
-internal fun parsePlainLyrics(rawLyrics: String?): List<LyricsLine>? {
-    return rawLyrics
-        ?.takeIf { it.isNotBlank() }
-        ?.let(::parseLrcOrPlain)
-        ?.lines
-        ?.takeIf { lines -> lines.any { it.text.isNotBlank() } }
 }
 
 internal fun sanitizeLyricLine(line: String): String? {
@@ -159,6 +141,10 @@ internal fun String.normalizeLyricBreaks(): String {
 internal fun String.canonicalEmbeddedLyricsText(): String =
     normalizeLyricBreaks()
         .replace(EXCESS_BREAKS_REGEX, "\n\n")
+        .trimEnd()
+
+private fun String.canonicalEmbeddedLyricsTextAfterBreakNormalization(): String =
+    replace(EXCESS_BREAKS_REGEX, "\n\n")
         .trimEnd()
 
 internal fun LyricsPayload.toEmbeddedLyricsText(): String =

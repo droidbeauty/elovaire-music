@@ -54,4 +54,20 @@ class ArtworkLoaderTest {
         assertFalse(isArtworkBoundsSafe(8_193, 1))
         assertFalse(isArtworkBoundsSafe(8_192, 8_192))
     }
+
+    @Test
+    fun paletteAccentCache_isBoundedAndInvalidatesByArtworkIdentity() {
+        ArtworkGradientCache.clear()
+        repeat(161) { index ->
+            ArtworkGradientCache.putAccent("content://artwork/$index|UI|accent", index)
+        }
+
+        assertEquals(null, ArtworkGradientCache.accent("content://artwork/0|UI|accent"))
+        assertEquals(160, ArtworkGradientCache.accent("content://artwork/160|UI|accent"))
+
+        ArtworkGradientCache.removeMatching(setOf("content://artwork/160"))
+
+        assertEquals(null, ArtworkGradientCache.accent("content://artwork/160|UI|accent"))
+        ArtworkGradientCache.clear()
+    }
 }

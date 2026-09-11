@@ -350,7 +350,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
     }
 
     private fun responseFragmentDocument(fragment: String): ByteArray {
-        val prefix = Regex("<(?:([A-Za-z_][A-Za-z0-9_.-]*):)?response\\b", RegexOption.IGNORE_CASE)
+        val prefix = RESPONSE_OPEN_TAG
             .find(fragment)
             ?.groupValues
             ?.getOrNull(1)
@@ -425,16 +425,27 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         )
     }
 
-    private fun Element.childElement(name: String): Element? = childElements(name).firstOrNull()
+    private fun Element.childElement(name: String): Element? {
+        val children = childNodes
+        for (index in 0 until children.length) {
+            val element = children.item(index) as? Element ?: continue
+            if (element.matchesName(name)) return element
+        }
+        return null
+    }
 
     private fun Element.childElements(name: String): List<Element> {
         val children = childNodes
-        return (0 until children.length)
-            .mapNotNull { children.item(it) as? Element }
-            .filter { element ->
-                (element.localName ?: element.tagName.substringAfterLast(':'))
-                    .equals(name, ignoreCase = true)
-            }
+        val matches = ArrayList<Element>()
+        for (index in 0 until children.length) {
+            val element = children.item(index) as? Element ?: continue
+            if (element.matchesName(name)) matches += element
+        }
+        return matches
+    }
+
+    private fun Element.matchesName(name: String): Boolean {
+        return (localName ?: tagName.substringAfterLast(':')).equals(name, ignoreCase = true)
     }
 
     internal fun hrefToPath(href: String, source: NetworkLibrarySource, requestedPath: String): String? {
@@ -485,7 +496,7 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         failure.remoteIoFailureKind().toNetworkAvailability()
 
     private fun parseHttpStatus(value: String): Int? =
-        Regex("\\b(\\d{3})\\b").find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        HTTP_STATUS_REGEX.find(value)?.groupValues?.getOrNull(1)?.toIntOrNull()
 
     private fun isSuccessfulHttpStatus(statusCode: Int?): Boolean =
         statusCode == null || statusCode in 200..299
@@ -512,6 +523,11 @@ internal class WebDavNetworkFileSystem : NetworkFileSystem {
         const val HTTP_RANGE_NOT_SATISFIABLE = 416
         const val MAX_REDIRECTS = 3
         val REDIRECT_STATUSES = setOf(301, 302, 303, 307, 308)
+        val RESPONSE_OPEN_TAG = Regex(
+            "<(?:([A-Za-z_][A-Za-z0-9_.-]*):)?response\\b",
+            RegexOption.IGNORE_CASE,
+        )
+        val HTTP_STATUS_REGEX = Regex("\\b(\\d{3})\\b")
         val RESPONSE_FRAGMENT = Regex(
             "<(?:[A-Za-z_][A-Za-z0-9_.-]*:)?response\\b.*?</(?:[A-Za-z_][A-Za-z0-9_.-]*:)?response\\s*>",
             setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL),

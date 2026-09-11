@@ -217,11 +217,22 @@ fun rememberArtworkPaletteAccent(
 ): State<Color?> {
     val context = LocalContext.current
     val normalizedSize = normalizeArtworkRequestSize(size)
-    return produceState<Color?>(initialValue = null, key1 = uri, key2 = normalizedSize) {
+    val cacheKey = rememberPaletteAccentCacheKey(uri, normalizedSize)
+    val cachedAccent = cacheKey?.let { ArtworkGradientCache.accent(it) }
+    return produceState<Color?>(
+        initialValue = cachedAccent?.let(::Color),
+        key1 = uri,
+        key2 = normalizedSize,
+    ) {
+        val cached = cacheKey?.let { ArtworkGradientCache.accent(it) }
+        if (cached != null) {
+            value = Color(cached)
+            return@produceState
+        }
         val bitmap = withContext(Dispatchers.IO) {
             loadArtworkBitmapAwaitingAdmission(context, uri, normalizedSize)
         }
-        value = bitmap?.let {
+        val accent = bitmap?.let {
             withContext(Dispatchers.Default) {
                 val palette = Palette.from(it).generate()
                 val swatch = palette.darkMutedSwatch
@@ -231,6 +242,10 @@ fun rememberArtworkPaletteAccent(
                     ?: palette.vibrantSwatch
                 swatch?.rgb?.let(::mutedPaletteColor)
             }
+        }
+        value = accent
+        if (cacheKey != null && accent != null) {
+            ArtworkGradientCache.putAccent(cacheKey, accent.toArgb())
         }
     }
 }
@@ -258,6 +273,17 @@ private fun rememberGradientCacheKey(
         targetPx = size,
         purpose = ArtworkPurpose.UiLarge,
     )?.let { "${it.cacheKey}|gradient" }.orEmpty()
+}
+
+private fun rememberPaletteAccentCacheKey(
+    uri: Uri?,
+    size: Int,
+): String? {
+    return artworkRequestKey(
+        uri = uri,
+        targetPx = size,
+        purpose = artworkPurposeForSize(size),
+    )?.let { "${it.cacheKey}|accent" }
 }
 
 private fun artworkPurposeForSize(size: Int): ArtworkPurpose {

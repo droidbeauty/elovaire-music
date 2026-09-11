@@ -103,12 +103,6 @@ internal data class PlayerUiState(
     val sleepTimer: PlaybackSleepTimerState = PlaybackSleepTimerState(),
 )
 
-internal data class MiniPlayerUiState(
-    val currentSong: Song? = null,
-    val isPlaying: Boolean = false,
-    val transportShowsPause: Boolean = false,
-)
-
 internal class NowPlayingViewModel(
     private val playbackManager: NowPlayingPlayback,
     private val preferenceStore: NowPlayingSettingsStore,
@@ -155,23 +149,6 @@ internal class NowPlayingViewModel(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000L),
             initialValue = PlayerUiState(),
-        )
-
-    val miniPlayerUiState: StateFlow<MiniPlayerUiState> = combine(
-        playbackManager.nowPlayingState,
-        playbackManager.transportState,
-    ) { nowPlaying, transport ->
-        MiniPlayerUiState(
-            currentSong = nowPlaying.currentSong,
-            isPlaying = transport.isPlaying,
-            transportShowsPause = transport.transportShowsPause,
-        )
-    }
-        .distinctUntilChanged()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = MiniPlayerUiState(),
         )
 
     @OptIn(ExperimentalCoroutinesApi::class)

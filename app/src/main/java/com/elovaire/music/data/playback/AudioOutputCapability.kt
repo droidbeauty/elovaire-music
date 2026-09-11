@@ -42,12 +42,9 @@ internal data class AudioOutputCapabilitySnapshot(
         get() = source == AudioOutputCapabilitySource.ActiveRoute &&
             devices.any { it.route == AudioOutputRouteKind.Usb }
 
-    val hasAvailableUsbOutput: Boolean
-        get() = devices.any { it.route == AudioOutputRouteKind.Usb }
-
-    val routeSignature: Int
-        get() = devices.sortedWith(compareBy(AudioOutputDeviceCapability::id, AudioOutputDeviceCapability::type))
-            .fold(31 * platformSdk + source.ordinal) { result, device ->
+    val routeSignature: Int = devices
+        .sortedWith(compareBy(AudioOutputDeviceCapability::id, AudioOutputDeviceCapability::type))
+        .fold(31 * platformSdk + source.ordinal) { result, device ->
             var value = 31 * result + device.id
             value = 31 * value + device.type
             value = 31 * value + device.route.ordinal

@@ -70,7 +70,7 @@ class AudioOutputCapabilityTest {
         )
 
         assertFalse(capabilities.hasActiveUsbOutput)
-        assertTrue(capabilities.hasAvailableUsbOutput)
+        assertTrue(capabilities.devices.any { it.route == AudioOutputRouteKind.Usb })
         assertTrue(decision.offloadAllowed)
     }
 
@@ -127,6 +127,34 @@ class AudioOutputCapabilityTest {
         )
         val second = AudioOutputCapabilitySnapshot(
             devices = listOf(usbDevice(1), usbDevice(3)),
+            platformSdk = 35,
+        )
+
+        assertEquals(first.routeSignature, second.routeSignature)
+    }
+
+    @Test
+    fun routeSignatureIgnoresCapabilityOrdering() {
+        val first = AudioOutputCapabilitySnapshot(
+            devices = listOf(
+                usbDevice(3).copy(
+                    sampleRates = listOf(96_000, 48_000, 48_000),
+                    channelCounts = listOf(2, 1),
+                    channelMasks = listOf(12, 3, 12),
+                    encodings = listOf(24, 16, 24),
+                ),
+            ),
+            platformSdk = 35,
+        )
+        val second = AudioOutputCapabilitySnapshot(
+            devices = listOf(
+                usbDevice(3).copy(
+                    sampleRates = listOf(48_000, 96_000, 48_000),
+                    channelCounts = listOf(1, 2),
+                    channelMasks = listOf(3, 12, 12),
+                    encodings = listOf(16, 24, 24),
+                ),
+            ),
             platformSdk = 35,
         )
 

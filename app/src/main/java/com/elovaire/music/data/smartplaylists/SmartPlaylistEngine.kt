@@ -123,10 +123,26 @@ private class NormalizedSong(
     val song: Song,
     definition: PreparedSmartPlaylist,
 ) {
-    val normalizedTitle = song.title.normalizeSmartText()
-    val normalizedArtist = (song.albumArtist ?: song.artist).normalizeSmartText()
-    val normalizedAlbum = song.album.normalizeSmartText()
-    val normalizedGenre = song.genre.normalizeSmartText()
+    val normalizedTitle = if (definition.needsNormalizedTitle) {
+        song.title.normalizeSmartText()
+    } else {
+        ""
+    }
+    val normalizedArtist = if (definition.needsNormalizedArtist) {
+        (song.albumArtist ?: song.artist).normalizeSmartText()
+    } else {
+        ""
+    }
+    val normalizedAlbum = if (definition.needsNormalizedAlbum) {
+        song.album.normalizeSmartText()
+    } else {
+        ""
+    }
+    val normalizedGenre = if (definition.needsNormalizedGenre) {
+        song.genre.normalizeSmartText()
+    } else {
+        ""
+    }
     val normalizedAudioFormat = if (definition.hasFileFormatRule) {
         song.audioFormat.lowercase(Locale.ROOT)
     } else {
@@ -150,6 +166,14 @@ private data class PreparedSmartPlaylist(
 ) {
     val hasFileFormatRule = rules.any { it.source is SmartPlaylistRule.FileFormatIs }
     val hasFolderRule = rules.any { it.source is SmartPlaylistRule.FolderContains }
+    val needsNormalizedTitle = source.sort.field != SmartPlaylistSortField.Random ||
+        rules.any { it.source is SmartPlaylistRule.TitleContains }
+    val needsNormalizedArtist = source.sort.field == SmartPlaylistSortField.Artist ||
+        rules.any { it.source is SmartPlaylistRule.ArtistContains }
+    val needsNormalizedAlbum = source.sort.field == SmartPlaylistSortField.Album ||
+        rules.any { it.source is SmartPlaylistRule.AlbumContains }
+    val needsNormalizedGenre = source.sort.field == SmartPlaylistSortField.Genre ||
+        rules.any { it.source is SmartPlaylistRule.GenreMatches }
 }
 
 private data class PreparedSmartPlaylistRule(

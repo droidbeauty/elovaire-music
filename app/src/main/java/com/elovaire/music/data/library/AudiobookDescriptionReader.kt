@@ -25,12 +25,14 @@ internal class GoogleBooksAudiobookDescriptionReader(
     private val descriptionCache = LinkedHashMap<String, String?>(CACHE_CAPACITY, 0.75f, true)
 
     override suspend fun description(book: Audiobook): String? {
-        val key = descriptionKey(book)
+        val title = book.title.trim()
+        val author = book.author.trim()
+        val key = descriptionKey(title, author)
         synchronized(cacheLock) {
             if (descriptionCache.containsKey(key)) return descriptionCache[key]
         }
         val result = try {
-            val query = buildQuery(book)
+            val query = buildQuery(title, author)
             val encodedQuery = URLEncoder.encode(query, Charsets.UTF_8.name())
             val response = transport.get(
                 rawUrl = "https://www.googleapis.com/books/v1/volumes?q=$encodedQuery&maxResults=5&printType=books",
@@ -43,7 +45,7 @@ internal class GoogleBooksAudiobookDescriptionReader(
             if (response.statusCode !in 200..299) {
                 null
             } else {
-                parseGoogleBooksDescription(String(response.body, Charsets.UTF_8), book)
+                parseGoogleBooksDescription(String(response.body, Charsets.UTF_8), title)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
@@ -68,15 +70,15 @@ internal class GoogleBooksAudiobookDescriptionReader(
         return result
     }
 
-    private fun buildQuery(book: Audiobook): String = buildString {
-        append("intitle:").append(book.title.trim())
-        if (book.author.isNotBlank()) {
-            append(" inauthor:").append(book.author.trim())
+    private fun buildQuery(title: String, author: String): String = buildString {
+        append("intitle:").append(title)
+        if (author.isNotBlank()) {
+            append(" inauthor:").append(author)
         }
     }
 
-    private fun descriptionKey(book: Audiobook): String =
-        "${book.title.trim().lowercase(Locale.ROOT)}|${book.author.trim().lowercase(Locale.ROOT)}"
+    private fun descriptionKey(title: String, author: String): String =
+        "${title.lowercase(Locale.ROOT)}|${author.lowercase(Locale.ROOT)}"
 
     private companion object {
         const val CACHE_CAPACITY = 32
@@ -85,33 +87,39 @@ internal class GoogleBooksAudiobookDescriptionReader(
 }
 
 internal fun parseGoogleBooksDescription(body: String, book: Audiobook): String? {
+    return parseGoogleBooksDescription(body, book.title.trim())
+}
+
+private fun parseGoogleBooksDescription(body: String, title: String): String? {
     val items = JSONObject(body).optJSONArray("items") ?: return null
+    val normalizedTitle = title.lowercase(Locale.ROOT)
     var firstDescription: String? = null
     for (index in 0 until items.length()) {
         val volumeInfo = items.optJSONObject(index)?.optJSONObject("volumeInfo") ?: continue
         val description = normalizeBookDescription(volumeInfo.optString("description")) ?: continue
         if (firstDescription == null) firstDescription = description
         val resultTitle = volumeInfo.optString("title")
-        if (titlesMatch(resultTitle, book.title)) return description
+        if (titlesMatch(resultTitle, normalizedTitle)) return description
     }
     return firstDescription
 }
 
 private fun normalizeBookDescription(value: String): String? {
     val normalized = value
-        .replace(Regex("<[^>]*>"), " ")
-        .replace(Regex("\\s+"), " ")
+        .replace(HTML_TAG_REGEX, " ")
+        .replace(WHITESPACE_REGEX, " ")
         .trim()
         .take(MAX_DESCRIPTION_CHARACTERS)
     return normalized.takeIf(String::isNotBlank)
 }
 
-private fun titlesMatch(first: String, second: String): Boolean {
+private fun titlesMatch(first: String, normalizedSecond: String): Boolean {
     val normalizedFirst = first.trim().lowercase(Locale.ROOT)
-    val normalizedSecond = second.trim().lowercase(Locale.ROOT)
     return normalizedFirst.isNotBlank() && normalizedSecond.isNotBlank() &&
         (normalizedFirst == normalizedSecond ||
             normalizedFirst.contains(normalizedSecond) || normalizedSecond.contains(normalizedFirst))
 }
 
 private const val MAX_DESCRIPTION_CHARACTERS = 20_000
+private val HTML_TAG_REGEX = Regex("<[^>]*>")
+private val WHITESPACE_REGEX = Regex("\\s+")
