@@ -351,7 +351,6 @@ class PlaybackManager(
     private val queueMetadataRefresher = PlaybackQueueMetadataRefresher()
     private val stateReducer = PlaybackStateReducer(
         playerProvider = { player },
-        currentDisplayedVolume = ::currentDisplayedVolumeFraction,
         onRecentPlaybackChanged = onRecentPlaybackChanged,
     )
     private var pauseFadeJob: Job? = null
@@ -1613,10 +1612,13 @@ class PlaybackManager(
         if (currentSong != null && (player.isPlaying || player.playWhenReady)) {
             resetUnexpectedIdleRecoveryGuard()
         }
-        userVolume = currentEffectiveVolumeFraction()
+        val displayedVolume = currentEffectiveVolumeFraction()
+        userVolume = displayedVolume
         val updatedState = stateReducer.reduce(
             existingState = existingState,
             isPauseTransitioningToStopped = isPauseTransitioningToStopped,
+            resolvedQueueIndex = currentIndex,
+            displayedVolume = displayedVolume,
         )
         if (BuildConfig.DEBUG) {
             assertPlaybackInvariants(updatedState)
@@ -2390,19 +2392,6 @@ class PlaybackManager(
         if (shouldBypassSystemStreamVolume()) return userVolume
         val currentSystemFraction = currentSystemVolumeFraction()
         return (currentSystemFraction * volumeFineGain).coerceIn(0f, 1f).quantizedVolume()
-    }
-
-    private fun currentDisplayedVolumeFraction(): Float {
-        if (usbDacHardwareVolumeManager.shouldOwnVolumeControls()) {
-            return usbDacHardwareVolumeManager.currentHardwareVolume() ?: userVolume
-        }
-        if (isDirectPlaybackActive) {
-            return currentSystemVolumeFraction().quantizedVolume()
-        }
-        if (usesFixedVolumeOutput()) {
-            return userVolume
-        }
-        return currentEffectiveVolumeFraction()
     }
 
     private fun shouldBypassSystemStreamVolume(): Boolean {

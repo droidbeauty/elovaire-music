@@ -5,13 +5,8 @@ import androidx.compose.runtime.remember
 import elovaire.music.droidbeauty.app.data.library.LibraryContentState
 import elovaire.music.droidbeauty.app.data.library.LibraryScanState
 import elovaire.music.droidbeauty.app.data.library.LibraryUiState
-import elovaire.music.droidbeauty.app.data.playback.PlaybackNowPlayingState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
-import elovaire.music.droidbeauty.app.data.playback.PlaybackQueueState
-import elovaire.music.droidbeauty.app.data.playback.PlaybackTransportState
 import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
-import elovaire.music.droidbeauty.app.data.playback.PlaybackVolumeState
-import elovaire.music.droidbeauty.app.data.playback.RecentPlaybackState
 import elovaire.music.droidbeauty.app.data.smartplaylists.SmartPlaylist
 import elovaire.music.droidbeauty.app.data.smartplaylists.BuiltInSmartPlaylistType
 import elovaire.music.droidbeauty.app.domain.model.Album
@@ -98,31 +93,6 @@ internal fun libraryUiStateOf(
         removingSongIds = content.removingSongIds,
         removingAlbumIds = content.removingAlbumIds,
         errorMessage = scan.errorMessage,
-    )
-}
-
-internal fun playbackUiStateOf(
-    nowPlaying: PlaybackNowPlayingState,
-    transport: PlaybackTransportState,
-    queue: PlaybackQueueState,
-    volume: PlaybackVolumeState,
-    recent: RecentPlaybackState,
-): PlaybackUiState {
-    return PlaybackUiState(
-        queue = queue.queue,
-        currentIndex = queue.currentIndex,
-        isPlaying = transport.isPlaying,
-        transportShowsPause = transport.transportShowsPause,
-        repeatMode = transport.repeatMode,
-        shuffleEnabled = transport.shuffleEnabled,
-        sourceLabel = nowPlaying.sourceLabel,
-        volume = volume.volume,
-        audioSessionId = nowPlaying.audioSessionId,
-        recentSongIds = recent.recentSongIds,
-        recentAlbumIds = recent.recentAlbumIds,
-        sourcePlaylistId = queue.sourcePlaylistId,
-        lastPlayedCollectionKind = recent.lastPlayedCollectionKind,
-        lastPlayedCollectionId = recent.lastPlayedCollectionId,
     )
 }
 

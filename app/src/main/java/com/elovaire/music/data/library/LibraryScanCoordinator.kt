@@ -6,6 +6,7 @@ import android.provider.MediaStore
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibraryScanner
 import elovaire.music.droidbeauty.app.data.library.network.NetworkLibrarySource
 import elovaire.music.droidbeauty.app.data.library.network.NetworkResourceUri
@@ -119,6 +120,9 @@ internal class LibraryScanCoordinator(
         reuseLocalState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
     ): CoordinatedLibraryScan {
+        val baseSources = baseSnapshot?.songs
+            ?.let(::partitionBaseSnapshot)
+            ?: BaseSnapshotSources.Empty
         val canReuseLocalState = targetedSafTreeIds == null &&
             (targetedNetworkSourceIds != null || reuseLocalState) &&
             baseSnapshot != null &&
@@ -138,7 +142,7 @@ internal class LibraryScanCoordinator(
         var isComplete = true
         var incompleteMessage: String? = null
         val localSongs = if (canReuseLocalState) {
-            requireNotNull(baseSnapshot).songs.filterNot { NetworkResourceUri.isNetworkUri(it.uri) }
+            baseSources.nonNetworkSongs
         } else {
             val localResult = scanLocalSources(
                 refreshMediaIndex = refreshMediaIndex,
@@ -146,7 +150,7 @@ internal class LibraryScanCoordinator(
                 enrichMetadata = enrichMetadata,
                 mediaStoreGenerationFloor = mediaStoreGenerationFloor,
                 onProgress = onProgress,
-                baseSnapshot = baseSnapshot,
+                baseSources = baseSources,
                 targetedSafTreeIds = targetedSafTreeIds,
                 reuseMediaStoreState = canReuseMediaStoreState,
             )
@@ -156,12 +160,7 @@ internal class LibraryScanCoordinator(
         }
         if (networkSources.none(NetworkLibrarySource::enabled)) {
             return CoordinatedLibraryScan(
-                snapshot = LibrarySnapshotAssembler.assemble(
-                    localSongs.sortedWith(
-                        compareByDescending<Song> { it.dateAddedSeconds }
-                            .thenBy { MediaIdentityResolver.stableKey(it) },
-                    ),
-                ),
+                snapshot = assembleFinalLibrarySnapshot(localSongs),
                 isComplete = isComplete,
                 incompleteMessage = incompleteMessage,
             )
@@ -181,15 +180,8 @@ internal class LibraryScanCoordinator(
         val preservedNetworkSourceIds = networkSources
             .filter { it.enabled && it.id !in sourcesToScanIds }
             .mapTo(hashSetOf(), NetworkLibrarySource::id)
-        val existingNetworkSongs = baseSnapshot?.songs
-            .orEmpty()
-            .asSequence()
-            .mapNotNull { song ->
-                NetworkResourceUri.sourceId(song.uri)
-                    ?.takeIf(preservedNetworkSourceIds::contains)
-                    ?.let { sourceId -> sourceId to song }
-            }
-            .groupBy({ (sourceId, _) -> sourceId }, { (_, song) -> song })
+        val existingNetworkSongs = baseSources.networkSongsBySource
+            .filterKeys(preservedNetworkSourceIds::contains)
         val networkScan = networkScannerProvider().scanWithStatus(
             sources = sourcesToScan,
             forceRefresh = refreshMediaIndex,
@@ -205,12 +197,7 @@ internal class LibraryScanCoordinator(
                 if (sourceId != null) networkSongsBySource[sourceId] = songs
             }
         return CoordinatedLibraryScan(
-            snapshot = LibrarySnapshotAssembler.assemble(
-                (localSongs + networkSongsBySource.values.flatten()).sortedWith(
-                    compareByDescending<Song> { it.dateAddedSeconds }
-                        .thenBy { MediaIdentityResolver.stableKey(it) },
-                ),
-            ),
+            snapshot = assembleFinalLibrarySnapshot(localSongs + networkSongsBySource.values.flatten()),
             isComplete = isComplete,
             incompleteMessage = incompleteMessage,
         )
@@ -222,7 +209,7 @@ internal class LibraryScanCoordinator(
         enrichMetadata: Boolean,
         mediaStoreGenerationFloor: Long?,
         onProgress: ((current: Int, total: Int) -> Unit)?,
-        baseSnapshot: LibrarySnapshot?,
+        baseSources: BaseSnapshotSources,
         targetedSafTreeIds: Set<String>?,
         reuseMediaStoreState: Boolean,
     ): LocalSourceScanResult {
@@ -231,23 +218,15 @@ internal class LibraryScanCoordinator(
             refreshMediaPaths = refreshMediaPaths.takeUnless { targetedSafTreeIds != null }.orEmpty(),
             enrichMetadata = enrichMetadata,
             mediaStoreGenerationFloor = mediaStoreGenerationFloor,
-            baseMediaStoreSongs = baseSnapshot?.songs
-                .orEmpty()
-                .filter { song ->
-                    MediaIdentityResolver.resolve(song) is MediaSourceIdentity.MediaStoreItem
-                },
+            baseMediaStoreSongs = baseSources.mediaStoreSongs,
             reuseMediaStoreState = reuseMediaStoreState,
             onProgress = onProgress,
         )
         val local = when (localResult) {
-            is LocalLibraryScanResult.Complete -> localResult.snapshot
+            is LocalLibraryScanResult.Complete -> localResult.songs
             is LocalLibraryScanResult.Unavailable -> {
                 ScannerDebugLogger.logSourceFailure(localResult.failure)
-                baseSnapshot?.let { snapshot ->
-                    LibrarySnapshotAssembler.assemble(
-                        snapshot.songs.filterNot { NetworkResourceUri.isNetworkUri(it.uri) },
-                    )
-                } ?: LibrarySnapshot(emptyList(), emptyList())
+                baseSources.nonNetworkSongs
             }
         }
         val configuredSafTrees = localScanner.safTreeSelections()
@@ -265,12 +244,13 @@ internal class LibraryScanCoordinator(
         val safIncomplete = safResults.any { it !is SafTreeScanResult.Complete }
         val currentMediaStoreVolumes = localScanner.currentSyncState()?.volumes
             ?.mapTo(hashSetOf(), LibraryMediaStoreVolumeSyncState::volumeName)
-        val preservedDetachedMediaStoreSongs = baseSnapshot?.songs.orEmpty().filter { song ->
-            val source = MediaIdentityResolver.resolve(song)
-            source is MediaSourceIdentity.MediaStoreItem &&
-                source.volumeName != MediaStore.VOLUME_EXTERNAL &&
-                currentMediaStoreVolumes != null &&
-                source.volumeName !in currentMediaStoreVolumes
+        val preservedDetachedMediaStoreSongs = if (currentMediaStoreVolumes == null) {
+            emptyList()
+        } else {
+            baseSources.mediaStoreSongsByVolume
+                .filterKeys { volume -> volume != MediaStore.VOLUME_EXTERNAL && volume !in currentMediaStoreVolumes }
+                .values
+                .flatten()
         }
         val safSongs = safResults.flatMap { result ->
             when (result) {
@@ -285,14 +265,14 @@ internal class LibraryScanCoordinator(
             .filter { it !is SafTreeScanResult.Complete }
             .mapNotNull { safTreeIdentity(it.selection.uri) }
             .toSet()
-        val preservedSafSongs = baseSnapshot?.songs.orEmpty().filter { song ->
-            val treeId = safTreeIdentity(song.uri)
-            treeId in failedSafTreeIds || treeId != null &&
-                treeId in configuredSafTreeIds && treeId !in scannedSafTreeIds
-        }
+        val preservedSafTreeIds = failedSafTreeIds + configuredSafTreeIds - scannedSafTreeIds
+        val preservedSafSongs = baseSources.safSongsByTree
+            .filterKeys(preservedSafTreeIds::contains)
+            .values
+            .flatten()
         val localUnavailable = localResult is LocalLibraryScanResult.Unavailable
         val mergedSongs = LibrarySongDuplicateResolver.mergeMediaStoreAndSafSongs(
-            mediaStoreSongs = local.songs + preservedDetachedMediaStoreSongs,
+            mediaStoreSongs = local + preservedDetachedMediaStoreSongs,
             safSongs = safSongs + preservedSafSongs,
         )
         ScannerDebugLogger.recordSafSummary(
@@ -347,6 +327,21 @@ internal class LibraryScanCoordinator(
         get() = localScanner.targetExistenceProbe
 }
 
+private fun assembleFinalLibrarySnapshot(songs: List<Song>): LibrarySnapshot {
+    return ElovaireTrace.section("library_song_sort") {
+        ElovaireTrace.section("library_album_build") {
+            LibrarySnapshotAssembler.assembleSourceDeduplicated(sortLibrarySongs(songs))
+        }
+    }
+}
+
+internal fun sortLibrarySongs(songs: List<Song>): List<Song> {
+    return songs.sortedWith(
+        compareByDescending<Song> { it.dateAddedSeconds }
+            .thenBy { MediaIdentityResolver.stableKey(it) },
+    )
+}
+
 internal data class CoordinatedLibraryScan(
     val snapshot: LibrarySnapshot,
     val isComplete: Boolean,
@@ -368,6 +363,58 @@ private data class LocalSourceScanResult(
     val isComplete: Boolean,
     val incompleteMessage: String?,
 )
+
+private data class BaseSnapshotSources(
+    val nonNetworkSongs: List<Song>,
+    val mediaStoreSongs: List<Song>,
+    val mediaStoreSongsByVolume: Map<String, List<Song>>,
+    val safSongsByTree: Map<String, List<Song>>,
+    val networkSongsBySource: Map<String, List<Song>>,
+) {
+    companion object {
+        val Empty = BaseSnapshotSources(
+            nonNetworkSongs = emptyList(),
+            mediaStoreSongs = emptyList(),
+            mediaStoreSongsByVolume = emptyMap(),
+            safSongsByTree = emptyMap(),
+            networkSongsBySource = emptyMap(),
+        )
+    }
+}
+
+private fun partitionBaseSnapshot(songs: List<Song>): BaseSnapshotSources {
+    val nonNetworkSongs = ArrayList<Song>(songs.size)
+    val mediaStoreSongs = ArrayList<Song>()
+    val mediaStoreSongsByVolume = linkedMapOf<String, MutableList<Song>>()
+    val safSongsByTree = linkedMapOf<String, MutableList<Song>>()
+    val networkSongsBySource = linkedMapOf<String, MutableList<Song>>()
+    songs.forEach { song ->
+        if (NetworkResourceUri.isNetworkUri(song.uri)) {
+            NetworkResourceUri.sourceId(song.uri)?.let { sourceId ->
+                networkSongsBySource.getOrPut(sourceId, ::mutableListOf).add(song)
+            }
+            return@forEach
+        }
+        nonNetworkSongs += song
+        when (val source = MediaIdentityResolver.resolve(song)) {
+            is MediaSourceIdentity.MediaStoreItem -> {
+                mediaStoreSongs += song
+                mediaStoreSongsByVolume.getOrPut(source.volumeName, ::mutableListOf).add(song)
+            }
+            else -> Unit
+        }
+        safTreeIdentity(song.uri)?.let { treeId ->
+            safSongsByTree.getOrPut(treeId, ::mutableListOf).add(song)
+        }
+    }
+    return BaseSnapshotSources(
+        nonNetworkSongs = nonNetworkSongs,
+        mediaStoreSongs = mediaStoreSongs,
+        mediaStoreSongsByVolume = mediaStoreSongsByVolume,
+        safSongsByTree = safSongsByTree,
+        networkSongsBySource = networkSongsBySource,
+    )
+}
 
 internal fun shouldScanSafTreeForPaths(
     selection: LibraryFolderSelection,

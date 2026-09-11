@@ -43,14 +43,14 @@ class MediaStoreScannerInstrumentedTest {
         }
         assertTrue(fixtureName in directRows)
 
-        val snapshot = runBlocking {
+        val songs = runBlocking {
             MediaStoreScanner(context).scan(
                 refreshMediaIndex = false,
                 enrichMetadata = false,
             )
         }
 
-        assertTrue("MediaStore fixture was not included: $uri", snapshot.songs.any { song ->
+        assertTrue("MediaStore fixture was not included: $uri", songs.any { song ->
             song.fileName == fixtureName
         })
     }
@@ -60,7 +60,7 @@ class MediaStoreScannerInstrumentedTest {
         val fixtureName = "elovaire-scan-failure-${System.nanoTime()}.wav"
         insertWav(fixtureName)
 
-        val snapshot = runBlocking {
+        val songs = runBlocking {
             MediaStoreScanner(
                 context = context,
                 indexRefresher = object : MediaStoreIndexRefresher {
@@ -79,7 +79,7 @@ class MediaStoreScannerInstrumentedTest {
             )
         }
 
-        assertTrue(snapshot.songs.any { song -> song.fileName == fixtureName })
+        assertTrue(songs.any { song -> song.fileName == fixtureName })
         assertTrue(ScannerDebugLogger.latestDiagnosticSnapshot()?.indexRefresh?.startsWith("Unavailable:") == true)
     }
 

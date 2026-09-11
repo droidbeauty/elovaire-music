@@ -32,12 +32,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -131,23 +129,6 @@ class LibraryRepository internal constructor(
     private var lastSuccessfulMediaStoreSyncState: LibraryMediaStoreSyncState? = null
     override val contentState: StateFlow<LibraryContentState> = _contentState.asStateFlow()
     override val scanState: StateFlow<LibraryScanState> = _scanState.asStateFlow()
-    val state: StateFlow<LibraryUiState> = combine(contentState, scanState) { content, scan ->
-        LibraryUiState(
-            permissionGranted = scan.permissionGranted,
-            isLoading = scan.isLoading,
-            scanProgress = scan.scanProgress,
-            songs = content.songs,
-            albums = content.albums,
-            audiobooks = content.audiobooks,
-            removingSongIds = content.removingSongIds,
-            removingAlbumIds = content.removingAlbumIds,
-            errorMessage = scan.errorMessage,
-        )
-    }.stateIn(
-        scope = scope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = LibraryUiState(),
-    )
     private val observerController = LibraryObserverController(
         appContext = appContext,
         scanner = scanner.localScanner,

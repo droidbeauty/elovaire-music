@@ -6,7 +6,6 @@ import elovaire.music.droidbeauty.app.core.performance.ElovaireTrace
 import elovaire.music.droidbeauty.app.core.MemoryPressure
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
-import elovaire.music.droidbeauty.app.domain.model.LibrarySnapshot
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
 import java.util.Locale
@@ -104,9 +103,9 @@ internal class MediaStoreScanner(
         baseMediaStoreSongs: List<Song> = emptyList(),
         reuseMediaStoreState: Boolean = false,
         onProgress: ((current: Int, total: Int) -> Unit)? = null,
-    ): LibrarySnapshot {
+    ): List<Song> {
         if (reuseMediaStoreState) {
-            return LibrarySnapshotAssembler.assemble(baseMediaStoreSongs)
+            return baseMediaStoreSongs
         }
         val decisionMap = ScannerDebugLogger.newDecisionMap()
         val indexRefreshJob: Deferred<MediaStoreIndexRefreshResult?>? = when {
@@ -335,47 +334,21 @@ internal class MediaStoreScanner(
 
         currentCoroutineContext().ensureActive()
         val mergedSongs = if (usingDelta) {
-            mergeMediaStoreDelta(
+            val merged = mergeMediaStoreDelta(
                 baseSongs = baseMediaStoreSongs,
                 changedSongs = songs,
                 currentIdentityKeys = requireNotNull(deltaIdentityKeys),
             )
+            scannedMetadataUris.addAll(merged.retainedIdentityKeys)
+            merged.songs
         } else {
             songs
         }
         decisionMap.logSummary(mergedSongs.size)
 
-        if (usingDelta) {
-            scannedMetadataUris.addAll(mergedSongs.mapTo(hashSetOf(), MediaIdentityResolver::stableKey))
-        }
         metadataCache.retainOnly(scannedMetadataUris)
 
-        val sortedSongs = ElovaireTrace.section("library_song_sort") {
-            mergedSongs.sortedByDescending { it.dateAddedSeconds }
-        }
-        return ElovaireTrace.section("library_album_build") {
-            LibrarySnapshotAssembler.assemble(sortedSongs)
-        }
-    }
-
-    private fun mergeMediaStoreDelta(
-        baseSongs: List<Song>,
-        changedSongs: List<Song>,
-        currentIdentityKeys: Set<String>,
-    ): List<Song> {
-        val changedByKey = changedSongs.associateBy(MediaIdentityResolver::stableKey)
-        val baseKeys = baseSongs.mapTo(hashSetOf(), MediaIdentityResolver::stableKey)
-        return buildList(baseSongs.size + changedSongs.size) {
-            baseSongs.forEach { baseSong ->
-                val key = MediaIdentityResolver.stableKey(baseSong)
-                if (key in currentIdentityKeys) add(changedByKey[key] ?: baseSong)
-            }
-            changedSongs.forEach { changedSong ->
-                if (MediaIdentityResolver.stableKey(changedSong) !in baseKeys) {
-                    add(changedSong)
-                }
-            }
-        }
+        return mergedSongs
     }
 
     @Suppress("TooGenericExceptionCaught")
@@ -478,8 +451,45 @@ private data class MediaStoreQueryRead(
     val totalRows: Int,
 )
 
+internal data class MediaStoreDeltaMergeResult(
+    val songs: List<Song>,
+    val retainedIdentityKeys: Set<String>,
+)
+
+internal fun mergeMediaStoreDelta(
+    baseSongs: List<Song>,
+    changedSongs: List<Song>,
+    currentIdentityKeys: Set<String>,
+): MediaStoreDeltaMergeResult {
+    val changedByKey = LinkedHashMap<String, Song>(changedSongs.size)
+    val changedKeys = ArrayList<String>(changedSongs.size)
+    changedSongs.forEach { changedSong ->
+        val key = MediaIdentityResolver.stableKey(changedSong)
+        changedByKey[key] = changedSong
+        changedKeys += key
+    }
+    val baseKeys = HashSet<String>(baseSongs.size)
+    val retainedIdentityKeys = changedByKey.keys.toMutableSet()
+    val mergedSongs = buildList(baseSongs.size + changedSongs.size) {
+        baseSongs.forEach { baseSong ->
+            val key = MediaIdentityResolver.stableKey(baseSong)
+            baseKeys += key
+            if (key in currentIdentityKeys) {
+                add(changedByKey[key] ?: baseSong)
+                retainedIdentityKeys += key
+            }
+        }
+        changedKeys.forEachIndexed { index, key ->
+            if (key !in baseKeys) {
+                add(changedSongs[index])
+            }
+        }
+    }
+    return MediaStoreDeltaMergeResult(mergedSongs, retainedIdentityKeys)
+}
+
 internal sealed interface LocalLibraryScanResult {
-    data class Complete(val snapshot: LibrarySnapshot) : LocalLibraryScanResult
+    data class Complete(val songs: List<Song>) : LocalLibraryScanResult
     data class Unavailable(val failure: Throwable) : LocalLibraryScanResult
 }
 

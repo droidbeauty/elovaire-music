@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 
@@ -55,25 +56,6 @@ internal class RootViewModel(
         initialValue = libraryUiStateOf(
             dependencies.libraryReader.contentState.value,
             dependencies.libraryReader.scanState.value,
-        ),
-    )
-
-    val playbackState = combine(
-        dependencies.playbackReader.nowPlayingState,
-        dependencies.playbackReader.transportState,
-        dependencies.playbackReader.queueState,
-        dependencies.playbackReader.volumeState,
-        dependencies.playbackReader.recentPlaybackState,
-        ::playbackUiStateOf,
-    ).distinctUntilChanged().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = playbackUiStateOf(
-            dependencies.playbackReader.nowPlayingState.value,
-            dependencies.playbackReader.transportState.value,
-            dependencies.playbackReader.queueState.value,
-            dependencies.playbackReader.volumeState.value,
-            dependencies.playbackReader.recentPlaybackState.value,
         ),
     )
 
@@ -134,13 +116,8 @@ internal class RootViewModel(
     private val favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds
         .map { ids -> ids.toSet() }
         .distinctUntilChanged()
-        .stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.WhileSubscribed(5_000L),
-            initialValue = dependencies.rootSettingsReader.favoriteSongIds.value.toSet(),
-        )
 
-    val collectionState = combine(
+    private val collectionState: Flow<RootCollectionState> = combine(
         dependencies.rootSettingsReader.playlists,
         dependencies.rootSettingsReader.smartPlaylists,
         favoriteSongIds,
@@ -154,21 +131,11 @@ internal class RootViewModel(
             albumPlayCounts = albumCounts,
             songPlayCounts = songCounts,
         )
-    }.distinctUntilChanged().stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000L),
-        initialValue = RootCollectionState(
-            playlists = dependencies.rootSettingsReader.playlists.value,
-            smartPlaylists = dependencies.rootSettingsReader.smartPlaylists.value,
-            favoriteSongIds = favoriteSongIds.value,
-            albumPlayCounts = dependencies.rootSettingsReader.albumPlayCounts.value,
-            songPlayCounts = dependencies.rootSettingsReader.songPlayCounts.value,
-        ),
-    )
+    }.distinctUntilChanged()
 
     val appState: StateFlow<RootAppState> = combine(
         libraryState,
-        playbackState,
+        dependencies.playbackState,
         appearanceState,
         collectionState,
     ) { library, playback, appearance, collections ->
@@ -199,16 +166,16 @@ internal class RootViewModel(
         started = SharingStarted.WhileSubscribed(5_000L),
         initialValue = RootAppState(
             library = libraryState.value,
-            playback = playbackState.value,
+            playback = dependencies.playbackState.value,
             themeMode = appearanceState.value.themeMode,
             textSizePreset = appearanceState.value.textSizePreset,
             appLanguage = appearanceState.value.appLanguage,
             nowPlayingBarStyle = appearanceState.value.nowPlayingBarStyle,
-            playlists = collectionState.value.playlists,
-            smartPlaylists = collectionState.value.smartPlaylists,
-            favoriteSongIds = collectionState.value.favoriteSongIds,
-            albumPlayCounts = collectionState.value.albumPlayCounts,
-            songPlayCounts = collectionState.value.songPlayCounts,
+            playlists = dependencies.rootSettingsReader.playlists.value,
+            smartPlaylists = dependencies.rootSettingsReader.smartPlaylists.value,
+            favoriteSongIds = dependencies.rootSettingsReader.favoriteSongIds.value.toSet(),
+            albumPlayCounts = dependencies.rootSettingsReader.albumPlayCounts.value,
+            songPlayCounts = dependencies.rootSettingsReader.songPlayCounts.value,
             albumCollectionLayoutModeName = appearanceState.value.albumCollectionLayoutModeName,
             songCollectionGridEnabled = appearanceState.value.songCollectionGridEnabled,
             albumCollectionSortModeName = appearanceState.value.albumCollectionSortModeName,

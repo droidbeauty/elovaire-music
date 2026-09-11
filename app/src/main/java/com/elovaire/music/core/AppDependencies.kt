@@ -85,7 +85,7 @@ internal class AppDependencies(
         override val root: RootViewModelDependencies = object : RootViewModelDependencies {
             override val libraryReader get() = services.libraryRepository
             override val rootSettingsReader get() = services.preferenceStore
-            override val playbackReader get() = services.playbackManager
+            override val playbackState get() = services.playbackManager.state
         }
         override val search: SearchViewModelDependencies = object : SearchViewModelDependencies {
             override val libraryReader get() = services.libraryRepository

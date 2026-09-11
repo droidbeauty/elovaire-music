@@ -8,7 +8,6 @@ import elovaire.music.droidbeauty.app.domain.model.Song
 @UnstableApi
 internal class PlaybackStateReducer(
     private val playerProvider: () -> Player,
-    private val currentDisplayedVolume: () -> Float,
     private val onRecentPlaybackChanged: (
         songIds: List<Long>,
         albumIds: List<Long>,
@@ -30,11 +29,13 @@ internal class PlaybackStateReducer(
     fun reduce(
         existingState: PlaybackUiState,
         isPauseTransitioningToStopped: Boolean,
+        resolvedQueueIndex: Int,
+        displayedVolume: Float,
     ): PlaybackUiState {
         val player = playerProvider()
         val normalizedQueue = normalizePlaybackQueue(
             queueSize = existingState.queue.size,
-            currentIndex = resolveCurrentQueueIndex(existingState),
+            currentIndex = resolvedQueueIndex,
             sourcePlaylistId = existingState.sourcePlaylistId,
         )
         val currentIndex = normalizedQueue.currentIndex
@@ -79,7 +80,7 @@ internal class PlaybackStateReducer(
             repeatMode = player.repeatMode.toPlaybackRepeatMode(),
             shuffleEnabled = player.shuffleModeEnabled,
             sourceLabel = existingState.sourceLabel ?: currentSong?.album,
-            volume = currentDisplayedVolume(),
+            volume = displayedVolume,
             audioSessionId = player.audioSessionId.takeIf { it > 0 } ?: 0,
             recentSongIds = recentSongIds,
             recentAlbumIds = recentAlbumIds,

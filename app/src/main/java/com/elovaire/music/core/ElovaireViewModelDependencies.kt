@@ -11,6 +11,7 @@ import elovaire.music.droidbeauty.app.data.lyrics.LyricsReader
 import elovaire.music.droidbeauty.app.data.lyrics.LyricsWriter
 import elovaire.music.droidbeauty.app.data.playback.NowPlayingPlayback
 import elovaire.music.droidbeauty.app.data.playback.PlaybackReader
+import elovaire.music.droidbeauty.app.data.playback.PlaybackUiState
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsStore
 import elovaire.music.droidbeauty.app.data.settings.AppearanceSettingsWriter
 import elovaire.music.droidbeauty.app.data.settings.EqualizerSettingsStore
@@ -35,7 +36,11 @@ internal interface RootReadDependencies {
     val playbackReader: PlaybackReader
 }
 
-internal interface RootViewModelDependencies : RootReadDependencies
+internal interface RootViewModelDependencies {
+    val libraryReader: LibraryReader
+    val rootSettingsReader: RootSettingsReader
+    val playbackState: StateFlow<PlaybackUiState>
+}
 
 internal interface SearchViewModelDependencies {
     val libraryReader: LibraryReader

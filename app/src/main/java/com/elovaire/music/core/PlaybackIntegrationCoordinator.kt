@@ -5,6 +5,7 @@ import elovaire.music.droidbeauty.app.data.library.LibraryReader
 import elovaire.music.droidbeauty.app.data.playback.PlaybackEffects
 import elovaire.music.droidbeauty.app.data.playback.PlaybackCollectionKind
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
+import elovaire.music.droidbeauty.app.data.playback.PlaybackRepeatMode
 import elovaire.music.droidbeauty.app.data.playback.PersistedPlaybackSession
 import elovaire.music.droidbeauty.app.data.playback.PlaybackSessionStore
 import elovaire.music.droidbeauty.app.data.settings.PlaybackIntegrationSettings
@@ -53,6 +54,7 @@ internal class PlaybackIntegrationCoordinator(
     private var restorationAttempted = false
     private var cachedQueue: List<elovaire.music.droidbeauty.app.domain.model.Song>? = null
     private var cachedQueueIds: List<Long> = emptyList()
+    private var lastSessionKey: SessionKey? = null
     private val released = AtomicBoolean(false)
     private val started = AtomicBoolean(false)
     private val sessionWriterScope = CoroutineScope(
@@ -159,6 +161,7 @@ internal class PlaybackIntegrationCoordinator(
                         emptyFlow()
                     } else {
                         flow {
+                            delay(PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS)
                             while (true) {
                                 emit(PlaybackCheckpoint.RecoveryPosition)
                                 delay(PLAYBACK_RECOVERY_CHECKPOINT_INTERVAL_MS)
@@ -174,7 +177,6 @@ internal class PlaybackIntegrationCoordinator(
                             val positionMs = withContext(Dispatchers.Main.immediate) {
                                 playback.currentPositionForPersistence()
                             }
-                            playback.checkpointAudiobookProgress()
                             persistSession(positionMs)
                         }
                     }
@@ -238,23 +240,37 @@ internal class PlaybackIntegrationCoordinator(
         allowAfterRelease: Boolean = false,
     ) {
         if (!restorationAttempted || released.get() && !allowAfterRelease) return
-        playback.checkpointAudiobookProgress()
         val queue = playback.queueState.value
         if (queue.queue.isEmpty()) {
+            if (!allowAfterRelease && lastSessionKey == SessionKey.Empty) return
+            lastSessionKey = SessionKey.Empty
+            playback.checkpointAudiobookProgress()
             sessionWrites.trySend(null)
             return
         }
         val transport = playback.transportState.value
+        val sessionKey = SessionKey(
+            queueSongIds = queueSongIds(queue.queue),
+            currentSongId = queue.queue.getOrNull(queue.currentIndex)?.id,
+            currentIndex = queue.currentIndex,
+            repeatMode = transport.repeatMode,
+            shuffleEnabled = transport.shuffleEnabled,
+            sourcePlaylistId = queue.sourcePlaylistId,
+            wasPlaying = transport.isPlaying || transport.transportShowsPause,
+        )
+        if (positionOverrideMs == null && !allowAfterRelease && sessionKey == lastSessionKey) return
+        lastSessionKey = sessionKey
+        playback.checkpointAudiobookProgress()
         sessionWrites.trySend(
             PersistedPlaybackSession(
-                queueSongIds = queueSongIds(queue.queue),
-                currentSongId = queue.queue.getOrNull(queue.currentIndex)?.id,
-                currentIndex = queue.currentIndex,
+                queueSongIds = sessionKey.queueSongIds,
+                currentSongId = sessionKey.currentSongId,
+                currentIndex = sessionKey.currentIndex,
                 positionMs = positionOverrideMs ?: playback.progressState.value.positionMs,
-                repeatMode = transport.repeatMode,
-                shuffleEnabled = transport.shuffleEnabled,
-                sourcePlaylistId = queue.sourcePlaylistId,
-                wasPlaying = transport.isPlaying || transport.transportShowsPause,
+                repeatMode = sessionKey.repeatMode,
+                shuffleEnabled = sessionKey.shuffleEnabled,
+                sourcePlaylistId = sessionKey.sourcePlaylistId,
+                wasPlaying = sessionKey.wasPlaying,
                 savedAtWallTimeMs = clock.wallTimeMs(),
             ),
         )
@@ -294,3 +310,25 @@ private data class PersistedRecentPlayback(
     val collectionKind: PlaybackCollectionKind?,
     val collectionId: Long?,
 )
+
+private data class SessionKey(
+    val queueSongIds: List<Long>,
+    val currentSongId: Long?,
+    val currentIndex: Int,
+    val repeatMode: PlaybackRepeatMode,
+    val shuffleEnabled: Boolean,
+    val sourcePlaylistId: Long?,
+    val wasPlaying: Boolean,
+) {
+    companion object {
+        val Empty = SessionKey(
+            queueSongIds = emptyList(),
+            currentSongId = null,
+            currentIndex = -1,
+            repeatMode = PlaybackRepeatMode.Off,
+            shuffleEnabled = false,
+            sourcePlaylistId = null,
+            wasPlaying = false,
+        )
+    }
+}

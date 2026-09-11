@@ -10,9 +10,17 @@ import java.util.Locale
 
 internal object LibrarySnapshotAssembler {
     fun assemble(songs: List<Song>): LibrarySnapshot {
-        val canonicalSongs = canonicalizeAlbumIds(
-            LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(songs),
+        return assembleCanonicalSongs(
+            canonicalizeAlbumIds(LibrarySongDuplicateResolver.dedupeLoadedSnapshotSongs(songs)),
         )
+    }
+
+    /** Assembles a fresh source composition whose MediaStore/SAF duplicate invariant is known. */
+    internal fun assembleSourceDeduplicated(songs: List<Song>): LibrarySnapshot {
+        return assembleCanonicalSongs(canonicalizeAlbumIds(songs))
+    }
+
+    private fun assembleCanonicalSongs(canonicalSongs: List<Song>): LibrarySnapshot {
         val musicSongs = canonicalSongs.filter {
             it.mediaKind == elovaire.music.droidbeauty.app.domain.model.AudioMediaKind.Music
         }
