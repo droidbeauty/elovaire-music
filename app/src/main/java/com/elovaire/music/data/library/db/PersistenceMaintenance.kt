@@ -96,6 +96,7 @@ internal class PersistenceMaintenance(
     private val dao: PersistenceMaintenanceDao,
     private val mutationJournal: MediaMutationJournal,
     private val clock: AppClock = AndroidAppClock,
+    private val userDataDao: UserDataDao? = null,
 ) {
     suspend fun recoverCritical(): Boolean {
         return mutationJournal.recoverIncomplete() is MediaMutationRecoveryResult.Success
@@ -116,6 +117,16 @@ internal class PersistenceMaintenance(
         val orphanCount = dao.activeOrphanSongCount()
         val repairRequired = dao.repairRequiredMutationCount() > 0
         val invalidSmartPlaylists = dao.invalidSmartPlaylistCount()
+        val repairPlan = UserDataRepairer.plan(
+            invalidPlaylistEntries = dao.invalidPlaylistEntryCount() > 0,
+            invalidFavorites = dao.invalidFavoritePositionCount() > 0,
+            invalidRecentPlayback = dao.invalidRecentPositionCount() > 0,
+            invalidSongPlayCounts = dao.invalidSongPlayCountCount() > 0,
+            invalidAlbumPlayCounts = dao.invalidAlbumPlayCountCount() > 0,
+        )
+        if (userDataDao != null && !repairPlan.isEmpty) {
+            userDataDao.repairDeterministicUserData(repairPlan)
+        }
         val userDataConsistent = dao.invalidPlaylistEntryCount() == 0 &&
             dao.invalidFavoritePositionCount() == 0 &&
             dao.invalidSongPlayCountCount() == 0 &&

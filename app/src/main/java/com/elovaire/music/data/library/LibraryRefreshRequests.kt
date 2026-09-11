@@ -54,6 +54,7 @@ internal data class LibraryRefreshRequest(
                 forceMediaIndex = false,
                 enrichMetadata = enrichMetadata || other.enrichMetadata,
                 targetedSafTreeIds = null,
+                targetedNetworkSourceIds = mergedNetworkSourceIds,
                 reuseLocalState = false,
             )
         }

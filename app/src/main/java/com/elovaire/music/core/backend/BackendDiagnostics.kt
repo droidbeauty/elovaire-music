@@ -22,6 +22,8 @@ internal enum class BackendResourceKind(val key: String) {
     ActiveNetworkMetadataRead("active_network_metadata_reads"),
     ActiveNetworkArtworkRead("active_network_artwork_reads"),
     ActiveNetworkListing("active_network_listings"),
+    WaitingNetworkBackgroundRead("waiting_network_background_reads"),
+    WaitingNetworkPlaybackRead("waiting_network_playback_reads"),
     ActiveSmbSession("active_smb_sessions"),
     ActiveWebDavRequest("active_webdav_requests"),
     ActiveMetadataRead("active_metadata_reads"),
@@ -97,6 +99,14 @@ internal object BackendResourceRegistry {
     fun set(kind: BackendResourceKind, count: Int) {
         synchronized(lock) {
             if (count <= 0) counts.remove(kind) else counts[kind] = count
+        }
+    }
+
+    fun adjust(kind: BackendResourceKind, delta: Int) {
+        require(delta != 0)
+        synchronized(lock) {
+            val next = (counts[kind] ?: 0) + delta
+            if (next <= 0) counts.remove(kind) else counts[kind] = next
         }
     }
 

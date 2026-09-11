@@ -1,6 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library
 
-import android.os.SystemClock
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
 import java.util.LinkedHashMap
 
 internal enum class MediaFailureDomain {
@@ -37,7 +37,7 @@ internal data class MediaFailureRecord(
 /** In-memory suppression for repeatedly failing unchanged media; it never blacklists a file. */
 internal class MediaFailureRegistry(
     // Backoff is process-local elapsed time; wall-clock changes must not extend or skip it.
-    private val nowMs: () -> Long = { SystemClock.elapsedRealtime() },
+    private val nowMs: () -> Long = { AndroidAppClock.elapsedTimeMs() },
     private val maxEntries: Int = MAX_ENTRIES,
 ) {
     private val entries = object : LinkedHashMap<MediaFailureKey, MediaFailureRecord>(maxEntries, 0.75f, true) {

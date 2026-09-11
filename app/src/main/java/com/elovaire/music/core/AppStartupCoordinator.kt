@@ -20,6 +20,8 @@ import elovaire.music.droidbeauty.app.data.settings.RoomUserDataStore
 import elovaire.music.droidbeauty.app.data.settings.UserDataReadiness
 import elovaire.music.droidbeauty.app.data.settings.UserDataSnapshot
 import elovaire.music.droidbeauty.app.data.update.UpdateController
+import elovaire.music.droidbeauty.app.core.backend.BackendFailure
+import elovaire.music.droidbeauty.app.core.backend.classifyBackendFailure
 import com.google.common.util.concurrent.SettableFuture
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
@@ -36,7 +38,51 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.FlowPreview
+
+internal enum class DurableStartupPhase {
+    NotStarted,
+    Recovering,
+    Ready,
+    Degraded,
+    Failed,
+    Released,
+}
+
+internal enum class DurableStartupComponent {
+    MediaMutationRecovery,
+    NetworkSourceMutationRecovery,
+}
+
+internal data class DurableStartupState(
+    val phase: DurableStartupPhase,
+    val retryableComponents: Set<DurableStartupComponent> = emptySet(),
+    val failure: BackendFailure? = null,
+)
+
+internal fun startupStateAfterRecovery(
+    mediaMutationRecoverySucceeded: Boolean,
+    networkRecoverySucceeded: Boolean,
+    blockedSourceIds: Set<String>,
+): DurableStartupState {
+    val retryableComponents = buildSet {
+        if (!mediaMutationRecoverySucceeded) add(DurableStartupComponent.MediaMutationRecovery)
+        if (!networkRecoverySucceeded || blockedSourceIds.isNotEmpty()) {
+            add(DurableStartupComponent.NetworkSourceMutationRecovery)
+        }
+    }
+    return if (retryableComponents.isEmpty()) {
+        DurableStartupState(DurableStartupPhase.Ready)
+    } else {
+        DurableStartupState(
+            phase = DurableStartupPhase.Degraded,
+            retryableComponents = retryableComponents,
+        )
+    }
+}
 
 /** Owns durable recovery and optional startup work after the object graph is built. */
 @OptIn(FlowPreview::class)
@@ -59,6 +105,10 @@ internal class AppStartupCoordinator(
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     internal val durableStartupReady = SettableFuture.create<Unit>()
+    private val _durableStartupState = MutableStateFlow(
+        DurableStartupState(DurableStartupPhase.NotStarted),
+    )
+    internal val durableStartupState: StateFlow<DurableStartupState> = _durableStartupState.asStateFlow()
 
     private val exitDiagnosticsDelegate = lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
         AppExitDiagnostics(applicationContext)
@@ -90,12 +140,14 @@ internal class AppStartupCoordinator(
     fun startPlayback() {
         if (released.get() || !playbackStarted.compareAndSet(false, true)) return
         if (!durableStartupStarted.compareAndSet(false, true)) return
+        _durableStartupState.value = DurableStartupState(DurableStartupPhase.Recovering)
         startPortableUserDataBackup()
         criticalRecoveryScope.launch {
             try {
                 val mediaMutationRecoverySucceeded = recoverCriticalMediaMutations()
                 val pendingSourceIds = networkSourceMutationJournal.pending()
                     .mapTo(linkedSetOf(), NetworkSourceMutationMarker::sourceId)
+                var networkRecoverySucceeded = true
                 val blockedSourceIds = try {
                     withTimeout(DURABLE_RECOVERY_TIMEOUT_MS) {
                         networkSourceMutationJournal.recover(
@@ -107,22 +159,28 @@ internal class AppStartupCoordinator(
                     }
                     emptySet()
                 } catch (_: TimeoutCancellationException) {
+                    networkRecoverySucceeded = false
                     pendingSourceIds
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (failure: SQLiteException) {
+                    networkRecoverySucceeded = false
                     Log.w(TAG, "Network source mutation recovery deferred", failure)
                     pendingSourceIds
                 } catch (failure: IllegalStateException) {
+                    networkRecoverySucceeded = false
                     Log.w(TAG, "Network source mutation recovery deferred", failure)
                     pendingSourceIds
                 } catch (failure: SecurityException) {
+                    networkRecoverySucceeded = false
                     Log.w(TAG, "Network source mutation recovery deferred", failure)
                     pendingSourceIds
                 } catch (failure: java.security.GeneralSecurityException) {
+                    networkRecoverySucceeded = false
                     Log.w(TAG, "Network source credential recovery deferred", failure)
                     pendingSourceIds
                 } catch (failure: RuntimeException) {
+                    networkRecoverySucceeded = false
                     Log.e(TAG, "Network source mutation recovery failed", failure)
                     pendingSourceIds
                 }
@@ -131,6 +189,11 @@ internal class AppStartupCoordinator(
                 }
                 libraryRepository.start()
                 libraryRepository.onPermissionChanged(applicationContext.hasAudioReadPermission())
+                _durableStartupState.value = startupStateAfterRecovery(
+                    mediaMutationRecoverySucceeded = mediaMutationRecoverySucceeded,
+                    networkRecoverySucceeded = networkRecoverySucceeded,
+                    blockedSourceIds = blockedSourceIds,
+                )
                 durableStartupReady.set(Unit)
                 optionalScope.launch(ioDispatcher) {
                     runOptionalStartup(mediaMutationRecoverySucceeded)
@@ -140,6 +203,10 @@ internal class AppStartupCoordinator(
                 throw cancelled
             } catch (failure: Exception) {
                 Log.e(TAG, "Durable playback startup failed", failure)
+                _durableStartupState.value = DurableStartupState(
+                    phase = DurableStartupPhase.Failed,
+                    failure = classifyBackendFailure(failure),
+                )
                 durableStartupReady.setException(failure)
             }
         }
@@ -147,6 +214,7 @@ internal class AppStartupCoordinator(
 
     fun release() {
         if (!released.compareAndSet(false, true)) return
+        _durableStartupState.value = DurableStartupState(DurableStartupPhase.Released)
         portableUserDataBackupJob?.cancel()
         portableUserDataBackupJob = null
         criticalRecoveryScope.cancel()

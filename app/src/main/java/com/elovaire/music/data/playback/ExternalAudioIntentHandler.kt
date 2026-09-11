@@ -11,6 +11,8 @@ import android.provider.OpenableColumns
 import android.provider.DocumentsContract
 import android.webkit.MimeTypeMap
 import elovaire.music.droidbeauty.app.core.hasAudioReadPermission
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.domain.model.Song
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatDetector
 import elovaire.music.droidbeauty.app.data.audio.AudioFormatPolicy
@@ -26,7 +28,6 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.security.MessageDigest
 import java.util.Locale
-import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.ensureActive
@@ -49,6 +50,7 @@ internal object ExternalAudioIntentHandler {
         context: Context,
         intent: Intent?,
         ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+        clock: AppClock = AndroidAppClock,
     ): Song? = withContext(ioDispatcher) {
         if (!canHandle(intent)) return@withContext null
         val uri = intent?.data ?: return@withContext null
@@ -72,7 +74,7 @@ internal object ExternalAudioIntentHandler {
         if (declaredCapability == null && uri.scheme != ContentResolver.SCHEME_CONTENT) {
             return@withContext null
         }
-        val playbackUri = context.resolvePlaybackUri(uri, displayName)
+        val playbackUri = context.resolvePlaybackUri(uri, displayName, clock)
             ?: return@withContext null
         val detected = AudioFormatDetector(context).detect(playbackUri, displayName, mimeType)
         if (!detected.detectionSucceeded || AudioFormatPolicy.playbackSupport(detected) == PlaybackSupport.Unsupported) {
@@ -110,10 +112,11 @@ internal object ExternalAudioIntentHandler {
     private suspend fun Context.resolvePlaybackUri(
         uri: Uri,
         displayName: String,
+        clock: AppClock,
     ): Uri? {
         if (uri.scheme != ContentResolver.SCHEME_CONTENT) return uri
         if (hasDurableContentAccess(uri)) return uri
-        return ExternalAudioPrivateCopy.materialize(this, uri, displayName)
+        return ExternalAudioPrivateCopy.materialize(this, uri, displayName, clock)
     }
 
     private fun Context.hasDurableContentAccess(uri: Uri): Boolean {
@@ -217,16 +220,17 @@ private object ExternalAudioPrivateCopy {
         context: Context,
         sourceUri: Uri,
         displayName: String,
+        clock: AppClock,
     ): Uri? {
         val metadata = queryMetadata(context.contentResolver, sourceUri)
         val cacheKey = if (metadata.hasReliableRevision) {
             externalAudioStageKey(sourceUri, metadata)
         } else {
-            freshExternalAudioStageKey(sourceUri)
+            freshExternalAudioStageKey(sourceUri, clock)
         }
         return withStageLock(sourceUri.toString()) {
             ExternalAudioStageUsage.registerDirectory(context.noBackupFilesDir.resolve(DIRECTORY_NAME))
-            materializeLocked(context, sourceUri, displayName, metadata, cacheKey)
+            materializeLocked(context, sourceUri, displayName, metadata, cacheKey, clock)
         }
     }
 
@@ -236,6 +240,7 @@ private object ExternalAudioPrivateCopy {
         displayName: String,
         metadata: ExternalAudioStageMetadata,
         cacheKey: String,
+        clock: AppClock,
     ): Uri? {
         val directory = context.noBackupFilesDir.resolve(DIRECTORY_NAME)
         if (!directory.exists() && !directory.mkdirs()) return null
@@ -246,7 +251,7 @@ private object ExternalAudioPrivateCopy {
             target.length() > 0L &&
             target.length() == metadata.sizeBytes
         ) {
-            prune(directory, target)
+            prune(directory, target, clock)
             return Uri.fromFile(target)
         }
         if (target.exists() && !target.isFile) return null
@@ -297,7 +302,7 @@ private object ExternalAudioPrivateCopy {
             } catch (unsupported: AtomicMoveNotSupportedException) {
                 throw IOException("The file system cannot atomically commit external audio.", unsupported)
             }
-            prune(directory, target)
+            prune(directory, target, clock)
             Uri.fromFile(target)
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             temporary.delete()
@@ -358,12 +363,12 @@ private object ExternalAudioPrivateCopy {
         }.getOrDefault(ExternalAudioStageMetadata())
     }
 
-    private fun freshExternalAudioStageKey(sourceUri: Uri): String {
+    private fun freshExternalAudioStageKey(sourceUri: Uri, clock: AppClock): String {
         return externalAudioStageKey(
             sourceUri = sourceUri,
             metadata = ExternalAudioStageMetadata(
                 sizeBytes = null,
-                modifiedAtMs = UUID.randomUUID().mostSignificantBits,
+                modifiedAtMs = clock.wallTimeMs(),
             ),
         )
     }
@@ -376,8 +381,8 @@ private object ExternalAudioPrivateCopy {
         return suffix.takeIf(String::isNotBlank)?.let { ".$it" }.orEmpty()
     }
 
-    private fun prune(directory: File, keep: File) {
-        val now = System.currentTimeMillis()
+    private fun prune(directory: File, keep: File, clock: AppClock) {
+        val now = clock.wallTimeMs()
         val files = directory.listFiles().orEmpty()
         files
             .filter { it != keep }

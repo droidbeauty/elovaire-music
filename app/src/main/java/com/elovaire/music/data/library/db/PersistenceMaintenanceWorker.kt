@@ -1,9 +1,6 @@
 package elovaire.music.droidbeauty.app.data.library.db
 
 import android.content.Context
-import android.database.sqlite.SQLiteDatabaseLockedException
-import android.database.sqlite.SQLiteException
-import android.database.sqlite.SQLiteTableLockedException
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -13,6 +10,8 @@ import androidx.work.OneTimeWorkRequest
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.backend.classifyBackendFailure
+import elovaire.music.droidbeauty.app.core.backend.shouldRetry
 import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CancellationException
@@ -21,6 +20,7 @@ class PersistenceMaintenanceWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
+    @Suppress("TooGenericExceptionCaught")
     override suspend fun doWork(): Result {
         var database: ElovaireDatabase? = null
         var mutationJournal: MediaMutationJournal? = null
@@ -31,6 +31,7 @@ class PersistenceMaintenanceWorker(
             val maintenance = PersistenceMaintenance(
                 database.persistenceMaintenanceDao(),
                 journal,
+                userDataDao = database.userDataDao(),
             )
             if (!maintenance.recoverCritical()) {
                 return Result.failure()
@@ -55,8 +56,8 @@ class PersistenceMaintenanceWorker(
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (failure: SQLiteException) {
-            if (failure.isTransientMaintenanceFailure() && runAttemptCount < MAX_RETRY_COUNT) {
+        } catch (failure: Exception) {
+            if (classifyBackendFailure(failure).shouldRetry(runAttemptCount, MAX_RETRY_COUNT)) {
                 Result.retry()
             } else {
                 Result.failure()
@@ -109,8 +110,4 @@ internal fun persistenceHealthCheckDue(nowMs: Long, lastSuccessfulHealthCheckMs:
 
 internal fun DatabaseHealth.isMaintenanceSuccessful(): Boolean {
     return physicalIntegrityValid && foreignKeysValid && orphanCount == 0 && !recoveryRequired && userDataConsistent
-}
-
-private fun Throwable.isTransientMaintenanceFailure(): Boolean {
-    return this is SQLiteDatabaseLockedException || this is SQLiteTableLockedException
 }

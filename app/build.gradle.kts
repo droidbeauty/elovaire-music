@@ -362,7 +362,6 @@ val checkArchitectureBoundaries = tasks.register<ArchitectureBoundaryCheckTask>(
         fileTree("src/main") {
             include("**/*.kt", "**/*.java", "**/*.xml")
         },
-        rootProject.file("README.md"),
     )
 }
 

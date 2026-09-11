@@ -9,6 +9,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import elovaire.music.droidbeauty.app.core.backend.BackendFailureDisposition
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -75,10 +76,40 @@ class NetworkSourceMutationRuntimeTest {
 
         assertEquals(source.id, results.first().sourceId)
         assertEquals(NetworkSourceMutationResult.Checking(source.id), results.first())
-        assertEquals(
-            NetworkSourceMutationResult.Failed(source.id, "IllegalStateException"),
-            results.last(),
+        val failure = results.last() as NetworkSourceMutationResult.Failed
+        assertEquals(source.id, failure.sourceId)
+        assertEquals("IllegalStateException", failure.failureType)
+        assertEquals(BackendFailureDisposition.InvariantViolation, failure.disposition)
+        assertEquals("not available", failure.failure?.cause?.message)
+        runtime.release()
+    }
+
+    @Test
+    fun remoteFailureRetainsRetryDisposition() = runTest {
+        val source = source()
+        val results = mutableListOf<NetworkSourceMutationResult>()
+        val runtime = NetworkSourceMutationRuntime(
+            scope = this,
+            coordinator = object : NetworkSourceMutationBackend {
+                override suspend fun save(
+                    source: NetworkLibrarySource,
+                    credentials: NetworkCredentials,
+                ): NetworkSourceMutationOutcome = throw NetworkRemoteIoException(
+                    kind = RemoteIoFailureKind.Timeout,
+                    message = "temporary timeout",
+                )
+
+                override suspend fun remove(source: NetworkLibrarySource) = Unit
+            },
+            onResult = results::add,
+            ioDispatcher = StandardTestDispatcher(testScheduler),
         )
+
+        runtime.save(source, NetworkCredentials("user", "password"))
+        advanceUntilIdle()
+
+        val failure = results.last() as NetworkSourceMutationResult.Failed
+        assertEquals(BackendFailureDisposition.RetryableTransient, failure.disposition)
         runtime.release()
     }
 

@@ -1,6 +1,8 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.content.Context
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import org.json.JSONException
 import org.json.JSONObject
@@ -17,13 +19,19 @@ data class AudiobookProgress(
 )
 
 /** App-owned audiobook checkpoints. Song identity is the existing stable media identity. */
-internal class AudiobookProgressStore(context: Context) {
+internal class AudiobookProgressStore(
+    context: Context,
+    private val clock: AppClock = AndroidAppClock,
+) {
     private val preferences = allowStrictModeDiskReads {
         context.applicationContext.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
     }
 
     @Synchronized
-    fun load(bookKey: String, nowMs: Long = System.currentTimeMillis()): AudiobookProgress? {
+    fun load(bookKey: String): AudiobookProgress? = load(bookKey, clock.wallTimeMs())
+
+    @Synchronized
+    fun load(bookKey: String, nowMs: Long): AudiobookProgress? {
         if (bookKey.isBlank()) return null
         val raw = preferences.getString(key(bookKey), null) ?: return null
         return try {

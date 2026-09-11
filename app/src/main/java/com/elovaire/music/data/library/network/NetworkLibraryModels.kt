@@ -4,6 +4,7 @@ import java.security.MessageDigest
 import java.net.URI
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
+import elovaire.music.droidbeauty.app.core.backend.BackendFailureDisposition
 
 internal enum class NetworkReadPurpose {
     Playback,
@@ -170,6 +171,28 @@ internal fun RemoteIoFailureKind.toNetworkAvailability(): NetworkAvailability = 
     RemoteIoFailureKind.Interrupted,
     RemoteIoFailureKind.Unknown,
     -> NetworkAvailability.Unavailable
+}
+
+internal fun RemoteIoFailureKind.toBackendFailureDisposition(): BackendFailureDisposition = when (this) {
+    RemoteIoFailureKind.Authentication,
+    RemoteIoFailureKind.Permission,
+    -> BackendFailureDisposition.PermissionRequired
+    RemoteIoFailureKind.HostUnreachable,
+    RemoteIoFailureKind.Timeout,
+    RemoteIoFailureKind.ConnectionReset,
+    RemoteIoFailureKind.SessionInvalid,
+    RemoteIoFailureKind.TransientServer,
+    RemoteIoFailureKind.Interrupted,
+    -> BackendFailureDisposition.RetryableTransient
+    RemoteIoFailureKind.SourceRemoved,
+    RemoteIoFailureKind.ShareMissing,
+    RemoteIoFailureKind.PathMissing,
+    -> BackendFailureDisposition.SourceUnavailable
+    RemoteIoFailureKind.RangeOutOfBounds,
+    RemoteIoFailureKind.RangeUnsupported,
+    RemoteIoFailureKind.Protocol,
+    -> BackendFailureDisposition.MalformedInput
+    RemoteIoFailureKind.Unknown -> BackendFailureDisposition.InvariantViolation
 }
 
 internal data class NetworkProbeResult(

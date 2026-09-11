@@ -3,7 +3,9 @@ package elovaire.music.droidbeauty.app.data.library.network
 import java.io.IOException
 import java.io.InputStream
 import java.util.concurrent.atomic.AtomicInteger
+import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
@@ -27,6 +29,7 @@ class NetworkOperationAdmissionTest {
 
     @Test
     fun exhaustedPermitFailsWithinBoundedWait() {
+        BackendResourceRegistry.clear()
         val admission = NetworkOperationAdmission(backgroundCapacity = 1, playbackCapacity = 1, maxWaitMs = 1L)
         val held = admission.acquire(NetworkReadPurpose.Playback)
         try {
@@ -38,6 +41,7 @@ class NetworkOperationAdmissionTest {
             held.close()
         }
         assertEquals(0, admission.snapshot().activePlayback)
+        assertFalse("waiting_network_playback_reads" in BackendResourceRegistry.snapshot())
     }
 
     @Test

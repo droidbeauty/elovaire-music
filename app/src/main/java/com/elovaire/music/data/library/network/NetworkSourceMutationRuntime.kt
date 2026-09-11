@@ -7,6 +7,9 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import elovaire.music.droidbeauty.app.core.backend.BackendFailure
+import elovaire.music.droidbeauty.app.core.backend.BackendFailureDisposition
+import elovaire.music.droidbeauty.app.core.backend.classifyBackendFailure
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.locks.ReentrantLock
 
@@ -140,11 +143,21 @@ internal class NetworkSourceMutationRuntime(
     }
 
     private fun recordFailure(sourceId: String, token: MutationToken, failure: Throwable) {
+        val classification = if (failure is NetworkRemoteIoException) {
+            BackendFailure(
+                disposition = failure.kind.toBackendFailureDisposition(),
+                cause = failure,
+            )
+        } else {
+            classifyBackendFailure(failure)
+        }
         runIfCurrent(sourceId, token) {
             onResult(
                 NetworkSourceMutationResult.Failed(
                     sourceId = sourceId,
                     failureType = failure::class.simpleName,
+                    disposition = classification.disposition,
+                    failure = classification,
                 ),
             )
         }
@@ -178,5 +191,7 @@ internal sealed interface NetworkSourceMutationResult {
     data class Failed(
         override val sourceId: String,
         val failureType: String?,
+        val disposition: BackendFailureDisposition = BackendFailureDisposition.InvariantViolation,
+        val failure: BackendFailure? = null,
     ) : NetworkSourceMutationResult
 }

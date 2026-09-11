@@ -4,6 +4,9 @@ import androidx.room.Room
 import androidx.sqlite.db.SimpleSQLiteQuery
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import elovaire.music.droidbeauty.app.core.AppClock
+import elovaire.music.droidbeauty.app.core.backend.NoOpBackendEventSink
+import elovaire.music.droidbeauty.app.data.mutation.MediaMutationJournal
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -164,5 +167,52 @@ class UserDataDaoTest {
         assertEquals(listOf(10L to 0, 20L to 1), dao.recentPlayback().map { it.itemId to it.position })
         assertEquals(0, dao.songPlayCounts().single().playCount)
         assertEquals(0, dao.albumPlayCounts().single().playCount)
+    }
+
+    @Test
+    fun maintenanceRepairsDeterministicUserDriftBeforeReportingHealth() = runBlocking {
+        dao.insertPlaylist(UserPlaylistEntity(1L, "Repair", false))
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO user_playlist_entries(playlistId, songId, position) VALUES(1, 10, -1), (1, 20, 7)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO favorite_songs(songId, position) VALUES(10, -3), (20, 8)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO recent_playback(kind, itemId, position) VALUES('song', 10, -2), ('song', 20, 9)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO song_play_counts(songId, playCount) VALUES(10, -4)",
+        )
+        database.openHelper.writableDatabase.execSQL(
+            "INSERT INTO album_play_counts(albumId, playCount) VALUES(1, -5)",
+        )
+
+        val journal = MediaMutationJournal(
+            dao = database.mediaMutationDao(),
+            clock = object : AppClock {
+                override fun wallTimeMs() = 1_000_000L
+                override fun elapsedTimeMs() = 2_000_000L
+            },
+            operationIdGenerator = { "maintenance-test" },
+            backendEventSink = NoOpBackendEventSink,
+        )
+        try {
+            val health = PersistenceMaintenance(
+                dao = database.persistenceMaintenanceDao(),
+                mutationJournal = journal,
+                userDataDao = dao,
+            ).checkAndPrune()
+
+            assertEquals(PersistenceHealthStatus.Healthy, health.status)
+            assertTrue(health.userDataConsistent)
+            assertEquals(listOf(10L to 0, 20L to 1), dao.playlistEntries().map { it.songId to it.position })
+            assertEquals(listOf(10L to 0, 20L to 1), dao.favorites().map { it.songId to it.position })
+            assertEquals(listOf(10L to 0, 20L to 1), dao.recentPlayback().map { it.itemId to it.position })
+            assertEquals(0, dao.songPlayCounts().single().playCount)
+            assertEquals(0, dao.albumPlayCounts().single().playCount)
+        } finally {
+            journal.close()
+        }
     }
 }

@@ -17,90 +17,100 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
         sourceFiles.files.filter { it.isFile }.forEach { file ->
             val path = normalizeGuardrailPath(file.invariantSeparatorsPath)
             val text = file.readText()
-            if (coreImportsUi(path, text)) {
+            val code = stripCommentsAndStringLiterals(text)
+            val codeWithLiterals = stripCommentsPreservingLiterals(text)
+            if (coreImportsUi(path, code)) {
                 violations += "$path makes the application core depend on a UI implementation"
             }
             if (
                 "/domain/kernel/" in path &&
-                (Regex("(?m)^import android(?:x)?[.]").containsMatchIn(text) || "elovaire.music.droidbeauty.app.data." in text)
+                (Regex("(?m)^import android(?:x)?[.]").containsMatchIn(code) ||
+                    "elovaire.music.droidbeauty.app.data." in code)
             ) {
                 violations += "$path makes the domain kernel depend on Android or a data implementation"
             }
-            if ("GlobalScope" in text) violations += "$path uses GlobalScope"
-            FORBIDDEN_OEM_BRANCH_MARKERS.firstOrNull(text::contains)?.let { marker ->
+            if ("GlobalScope" in code) violations += "$path uses GlobalScope"
+            if (
+                "/ui/" !in path &&
+                    ("System.currentTimeMillis" in code || "SystemClock.elapsedRealtime" in code) &&
+                    !isGuardrailPathAllowed(path, CLOCK_ALLOWED)
+            ) {
+                violations += "$path reads wall or elapsed time outside the application clock boundary"
+            }
+            FORBIDDEN_OEM_BRANCH_MARKERS.firstOrNull(code::contains)?.let { marker ->
                 violations += "$path branches on broad OEM identity without an evidence-backed platform quirk: $marker"
             }
-            FORBIDDEN_UPDATE_MARKERS.firstOrNull(text::contains)?.takeIf { _ ->
+            FORBIDDEN_UPDATE_MARKERS.firstOrNull(code::contains)?.takeIf { _ ->
                 !isGuardrailPathAllowed(path, UPDATE_ALLOWED)
             }?.let { marker ->
                 violations += "$path reintroduces removed OTA update functionality: $marker"
             }
-            FORBIDDEN_ARTWORK_SOURCE_MARKERS.firstOrNull(text::contains)?.let { marker ->
+            FORBIDDEN_ARTWORK_SOURCE_MARKERS.firstOrNull(code::contains)?.let { marker ->
                 violations += "$path reintroduces a disallowed album-art source: $marker"
             }
-            if ("Channel.UNLIMITED" in text) {
+            if ("Channel.UNLIMITED" in code) {
                 violations += "$path introduces an unreviewed unbounded operation queue"
             }
-            if ("/ui/" in path && "elovaire.music.droidbeauty.app.data.library.db" in text) {
+            if ("/ui/" in path && "elovaire.music.droidbeauty.app.data.library.db" in code) {
                 violations += "$path imports the library database implementation"
             }
             if (
                 "/ui/" in path &&
-                    Regex("container\\.(playbackManager|libraryRepository|preferenceStore)").containsMatchIn(text)
+                    Regex("container\\.(playbackManager|libraryRepository|preferenceStore)").containsMatchIn(code)
             ) {
                 violations += "$path reaches a concrete application service instead of an action/read dependency"
             }
-            if ("MediaStore.createWriteRequest" in text && !isGuardrailPathAllowed(path, setOf("/platform/MediaStoreAccessRequests.kt"))) {
+            if ("MediaStore.createWriteRequest" in code && !isGuardrailPathAllowed(path, setOf("/platform/MediaStoreAccessRequests.kt"))) {
                 violations += "$path creates MediaStore write requests outside the platform boundary"
             }
-            if ("BitmapFactory" in text && !isGuardrailPathAllowed(path, BITMAP_ALLOWED)) {
+            if ("BitmapFactory" in code && !isGuardrailPathAllowed(path, BITMAP_ALLOWED)) {
                 violations += "$path decodes bitmaps outside the approved image boundaries"
             }
-            if (("HttpURLConnection" in text || ".openConnection(" in text) && !isGuardrailPathAllowed(path, HTTP_ALLOWED)) {
+            if (("HttpURLConnection" in code || ".openConnection(" in code) && !isGuardrailPathAllowed(path, HTTP_ALLOWED)) {
                 violations += "$path opens an ad hoc HTTP connection"
             }
-            if (Regex("(?<!Bounded)\\bHttpTransport\\(").containsMatchIn(text)) {
+            if (Regex("(?<!Bounded)\\bHttpTransport\\(").containsMatchIn(code)) {
                 violations += "$path constructs a duplicate HTTP transport"
             }
-            if ("AppContainer(" in text && !isGuardrailPathAllowed(path, setOf("/ElovaireApp.kt", "/core/AppContainer.kt"))) {
+            if ("AppContainer(" in code && !isGuardrailPathAllowed(path, setOf("/ElovaireApp.kt", "/core/AppContainer.kt"))) {
                 violations += "$path constructs the application graph outside ElovaireApp"
             }
-            if ("ExoPlayer.Builder" in text && !isGuardrailPathAllowed(path, setOf("/data/playback/PlaybackPlayerFactory.kt"))) {
+            if ("ExoPlayer.Builder" in code && !isGuardrailPathAllowed(path, setOf("/data/playback/PlaybackPlayerFactory.kt"))) {
                 violations += "$path creates an ExoPlayer outside the player factory"
             }
             if (
-                "AudioFormatPolicy.capabilities" in text &&
+                "AudioFormatPolicy.capabilities" in code &&
                 !isGuardrailPathAllowed(path, setOf("/data/audio/AudioFormatPolicy.kt"))
             ) {
                 violations += "$path bypasses the audio-format registry API"
             }
-            if (" external fun " in text && !isGuardrailPathAllowed(path, NATIVE_ALLOWED)) {
+            if (" external fun " in code && !isGuardrailPathAllowed(path, NATIVE_ALLOWED)) {
                 violations += "$path declares a native entry point outside an approved bridge"
             }
             if (
-                ("registerAudioDeviceCallback" in text || "unregisterAudioDeviceCallback" in text) &&
+                ("registerAudioDeviceCallback" in code || "unregisterAudioDeviceCallback" in code) &&
                 !isGuardrailPathAllowed(path, setOf("/data/playback/PlaybackRuntimeResources.kt"))
             ) {
                 violations += "$path registers audio-device callbacks outside playback runtime resources"
             }
             if (
-                ("getSharedPreferences" in text || "SharedPreferences" in text) &&
+                ("getSharedPreferences" in code || "SharedPreferences" in code) &&
                 !isGuardrailPathAllowed(path, SHARED_PREFERENCES_ALLOWED)
             ) {
                 violations += "$path accesses SharedPreferences outside an approved persistence boundary"
             }
-            if (path.endsWith("ViewModel.kt") && "AppContainer" in text) {
+            if (path.endsWith("ViewModel.kt") && "AppContainer" in code) {
                 violations += "$path depends on the broad application container"
             }
             if (
-                "CoroutineScope(SupervisorJob" in text &&
+                "CoroutineScope(SupervisorJob" in code &&
                 !isGuardrailPathAllowed(path, SUPERVISOR_SCOPE_ALLOWED)
             ) {
                 violations += "$path creates an unapproved independent supervisor scope"
             }
             if (
-                ("SharedPreferences" in text || "PreferenceStorage" in text) &&
-                LEGACY_USER_DATA_KEYS.any(text::contains) &&
+                ("SharedPreferences" in code || "PreferenceStorage" in code) &&
+                LEGACY_USER_DATA_KEYS.any(codeWithLiterals::contains) &&
                 !path.endsWith("/data/settings/RoomUserDataStore.kt")
             ) {
                 violations += "$path accesses legacy structured preference storage outside its migration boundary"
@@ -138,6 +148,7 @@ abstract class ArchitectureBoundaryCheckTask : DefaultTask() {
             "/data/library/network/NetworkSourceMutationJournal.kt",
             "/data/library/db/PersistenceMaintenanceWorker.kt",
         )
+        val CLOCK_ALLOWED = setOf("/core/AppRuntimeBoundaries.kt")
         val SUPERVISOR_SCOPE_ALLOWED = setOf(
             "/core/PlaybackIntegrationCoordinator.kt",
             "/data/settings/PortableSettingsBackup.kt",

@@ -1,12 +1,13 @@
 package elovaire.music.droidbeauty.app.data.playback
 
 import android.os.Handler
-import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import elovaire.music.droidbeauty.app.BuildConfig
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.domain.model.Song
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -61,6 +62,7 @@ internal class PlaybackCrossfadeController(
     private val releasePlayer: (ExoPlayer) -> Unit,
     private val onPromote: (outgoing: ExoPlayer, incoming: ExoPlayer) -> Unit,
     private val onFailed: () -> Unit,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     var state: CrossfadeState = CrossfadeState.Idle
         private set
@@ -94,7 +96,7 @@ internal class PlaybackCrossfadeController(
         override fun run() {
             val outgoingPlayer = outgoing ?: return cancel()
             val incomingPlayer = incoming ?: return cancel()
-            val elapsed = SystemClock.elapsedRealtime() - fadeStartedAtElapsedMs
+            val elapsed = clock.elapsedTimeMs() - fadeStartedAtElapsedMs
             val progress = (elapsed.toFloat() / fadeDurationMs.coerceAtLeast(1L))
                 .coerceIn(0f, 1f)
             val (outgoingEnvelope, incomingEnvelope) = equalPowerCrossfadeEnvelope(progress)
@@ -451,7 +453,7 @@ internal class PlaybackCrossfadeController(
         logDebug("fade duration=$fadeDurationMs position=${outgoingPlayer.currentPosition}")
         incomingPlayer.playWhenReady = true
         incomingPlayer.play()
-        fadeStartedAtElapsedMs = SystemClock.elapsedRealtime()
+        fadeStartedAtElapsedMs = clock.elapsedTimeMs()
         frameRunnable.run()
     }
 

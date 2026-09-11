@@ -86,6 +86,18 @@ class BackendDiagnosticsTest {
         assertEquals(emptyMap<String, Int>(), BackendResourceRegistry.snapshot())
     }
 
+    @Test
+    fun resourceRegistryAdjustReturnsToBaseline() {
+        BackendResourceRegistry.clear()
+
+        BackendResourceRegistry.adjust(BackendResourceKind.WaitingNetworkBackgroundRead, 2)
+        assertEquals(2, BackendResourceRegistry.snapshot()["waiting_network_background_reads"])
+        BackendResourceRegistry.adjust(BackendResourceKind.WaitingNetworkBackgroundRead, -1)
+        BackendResourceRegistry.adjust(BackendResourceKind.WaitingNetworkBackgroundRead, -1)
+
+        assertEquals(emptyMap<String, Int>(), BackendResourceRegistry.snapshot())
+    }
+
     private class TestClock : AppClock {
         override fun wallTimeMs(): Long = 1_000L
         override fun elapsedTimeMs(): Long = 100L

@@ -3,12 +3,12 @@ package elovaire.music.droidbeauty.app.core
 import android.os.SystemClock
 import java.util.UUID
 
-internal interface AppClock {
+interface AppClock {
     fun wallTimeMs(): Long
     fun elapsedTimeMs(): Long
 }
 
-internal object AndroidAppClock : AppClock {
+object AndroidAppClock : AppClock {
     override fun wallTimeMs(): Long = System.currentTimeMillis()
 
     override fun elapsedTimeMs(): Long = SystemClock.elapsedRealtime()

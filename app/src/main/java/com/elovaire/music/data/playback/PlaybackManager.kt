@@ -12,7 +12,6 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.audio.AudioProcessor
 import androidx.media3.common.AudioAttributes
@@ -31,6 +30,8 @@ import elovaire.music.droidbeauty.app.BuildConfig
 import elovaire.music.droidbeauty.app.core.safeOutputDevices
 import elovaire.music.droidbeauty.app.core.safeActiveRoutedOutputDevicesForAttributes
 import elovaire.music.droidbeauty.app.core.AndroidCapabilities
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import elovaire.music.droidbeauty.app.core.allowStrictModeDiskReads
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
@@ -191,13 +192,14 @@ class PlaybackManager(
         lastPlayedCollectionKind: PlaybackCollectionKind?,
         lastPlayedCollectionId: Long?,
     ) -> Unit = { _, _, _, _ -> },
+    private val clock: AppClock = AndroidAppClock,
 ) : NowPlayingPlayback {
     private val scope = scope
     private val appContext = context.applicationContext
     private val audioProcessorsProvider = audioProcessorsProvider
     private val hasSignalAlteringEffects = hasSignalAlteringEffects
     private val onRecentPlaybackChanged = onRecentPlaybackChanged
-    private val audiobookProgressStore = AudiobookProgressStore(context)
+    private val audiobookProgressStore = AudiobookProgressStore(context, clock)
     private var audiobookPlaybackSpeed = 1f
     @Volatile
     private var activeAudiobookContext: AudiobookPlaybackContext? = null
@@ -233,6 +235,7 @@ class PlaybackManager(
     private val crossfadeCueAnalyzer = CrossfadeCueAnalyzer(
         context = appContext,
         scope = scope,
+        clock = clock,
     )
     private val playerFactory = PlaybackPlayerFactory(
         context = appContext,
@@ -279,10 +282,11 @@ class PlaybackManager(
         releasePlayer = ::releasePlayer,
         onPromote = { outgoing, incoming -> promoteCrossfadePlayer(outgoing, incoming) },
         onFailed = { scheduleStatePublish() },
+        clock = clock,
     )
     private val sleepTimerController = PlaybackSleepTimerController(
         scope = scope,
-        elapsedRealtimeMs = SystemClock::elapsedRealtime,
+        elapsedRealtimeMs = clock::elapsedTimeMs,
         onTimerFired = ::stopAndClearQueue,
         setPauseAtEndOfMediaItems = { enabled -> player.setPauseAtEndOfMediaItems(enabled) },
     )
@@ -347,6 +351,7 @@ class PlaybackManager(
             publishProgressSnapshot()
             shouldPollProgress()
         },
+        elapsedTimeMs = clock::elapsedTimeMs,
     )
     private val queueMetadataRefresher = PlaybackQueueMetadataRefresher()
     private val stateReducer = PlaybackStateReducer(
@@ -1038,7 +1043,7 @@ class PlaybackManager(
         val song = _state.value.queue.getOrNull(queueIndex) ?: return
         if (song.mediaKind != AudioMediaKind.Audiobook) return
         val context = activeAudiobookContext ?: return
-        val nowElapsedMs = SystemClock.elapsedRealtime()
+        val nowElapsedMs = clock.elapsedTimeMs()
         if (!force && nowElapsedMs - lastAudiobookCheckpointElapsedMs < AUDIOBOOK_CHECKPOINT_INTERVAL_MS) return
         val bookElapsedMs = resolveAudiobookBookElapsed(
             context = context,
@@ -1051,7 +1056,7 @@ class PlaybackManager(
             songId = song.id,
             positionMs = positionMs,
             durationMs = durationMs,
-            nowMs = System.currentTimeMillis(),
+            nowMs = clock.wallTimeMs(),
             bookElapsedMs = bookElapsedMs,
             bookDurationMs = context.bookDurationMs,
         )
@@ -2020,7 +2025,7 @@ class PlaybackManager(
     }
 
     private fun registerUnexpectedIdleRecoveryAttempt(): Boolean {
-        val nowElapsedMs = SystemClock.elapsedRealtime()
+        val nowElapsedMs = clock.elapsedTimeMs()
         unexpectedIdleRecoveryCount = if (
             nowElapsedMs - lastUnexpectedIdleRecoveryElapsedMs <= UNEXPECTED_IDLE_RECOVERY_WINDOW_MS
         ) {
@@ -2116,7 +2121,7 @@ class PlaybackManager(
         interruptionResumeState = InterruptionResumeState(
             shouldResume = true,
             reason = reason,
-            startedAtElapsedMs = SystemClock.elapsedRealtime(),
+            startedAtElapsedMs = clock.elapsedTimeMs(),
         )
         shouldResumeAfterTransientFocusLoss = true
         pausedForAudioFocusLoss = true
@@ -2129,7 +2134,7 @@ class PlaybackManager(
         if (!state.shouldResume) return false
         if (_state.value.queue.isEmpty()) return false
         if (isManualPausePending || isStoppingQueue) return false
-        val elapsedMs = SystemClock.elapsedRealtime() - state.startedAtElapsedMs
+        val elapsedMs = clock.elapsedTimeMs() - state.startedAtElapsedMs
         return elapsedMs <= EXTERNAL_INTERRUPTION_MAX_WATCH_MS
     }
 
@@ -2185,10 +2190,10 @@ class PlaybackManager(
         if (!shouldKeepInterruptionResumeIntent() || externalInterruptionResumeJob?.isActive == true) return
         val operationRevision = playbackOperationRevision
         externalInterruptionResumeJob = scope.launch {
-            val startedAtMs = SystemClock.elapsedRealtime()
+            val startedAtMs = clock.elapsedTimeMs()
             var quietConfirmations = 0
             while (isActive && isCurrentPlaybackOperation(operationRevision) && shouldKeepInterruptionResumeIntent()) {
-                val elapsedMs = SystemClock.elapsedRealtime() - startedAtMs
+                val elapsedMs = clock.elapsedTimeMs() - startedAtMs
                 if (elapsedMs >= EXTERNAL_INTERRUPTION_MAX_WATCH_MS) {
                     clearInterruptionResumeState()
                     break

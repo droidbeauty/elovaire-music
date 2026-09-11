@@ -4,7 +4,8 @@ import android.content.Context
 import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
-import android.os.SystemClock
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import androidx.media3.common.C
@@ -302,6 +303,7 @@ internal class CrossfadeCueAnalyzer(
     context: Context,
     private val scope: CoroutineScope,
     private val dispatcher: CoroutineDispatcher = Dispatchers.Default,
+    private val clock: AppClock = AndroidAppClock,
 ) {
     private val appContext = context.applicationContext
     private val cache = Collections.synchronizedMap(
@@ -625,7 +627,7 @@ internal class CrossfadeCueAnalyzer(
         var outputFormat = inputFormat
         var inputEnded = false
         var outputEnded = false
-        val deadline = SystemClock.elapsedRealtime() + MAX_DECODE_WALL_TIME_MS
+        val deadline = clock.elapsedTimeMs() + MAX_DECODE_WALL_TIME_MS
         var accumulator: PcmEnvelopeAccumulator? = null
         var firstInputSampleTimeUs: Long? = null
         var firstOutputTimeUs: Long? = null
@@ -638,7 +640,7 @@ internal class CrossfadeCueAnalyzer(
                 throw CrossfadeDecodeFailure("decoder_configure_or_start_failure", error)
             }
             while (!outputEnded) {
-                if (SystemClock.elapsedRealtime() > deadline) {
+                if (clock.elapsedTimeMs() > deadline) {
                     throw CrossfadeDecodeFailure("decoder_timeout")
                 }
                 if (!inputEnded) {

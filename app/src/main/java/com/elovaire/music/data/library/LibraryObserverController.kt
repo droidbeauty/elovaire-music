@@ -195,7 +195,11 @@ internal class LibraryObserverController(
                 val rootPaths = roots.map(File::getAbsolutePath)
                 if (!forceRebuild && currentRootPaths == rootPaths) return@withContext null
                 roots.mapNotNull(::createMusicDirectoryObserver)
-            } ?: return@launch
+            }
+            if (observers == null) {
+                if (observerRebuildJob === currentJob) observerRebuildJob = null
+                return@launch
+            }
             try {
                 if (observerRebuildJob !== currentJob || !directoryObserversEnabled) return@launch
                 withContext(ioDispatcher) {

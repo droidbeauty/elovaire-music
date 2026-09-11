@@ -1,6 +1,5 @@
 package elovaire.music.droidbeauty.app.data.library.network
 
-import android.os.SystemClock
 import com.hierynomus.msdtyp.AccessMask
 import com.hierynomus.msfscc.FileAttributes
 import com.hierynomus.msfscc.fileinformation.FileIdBothDirectoryInformation
@@ -22,6 +21,8 @@ import java.util.concurrent.CompletableFuture
 import java.util.concurrent.ExecutionException
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceKind
 import elovaire.music.droidbeauty.app.core.backend.BackendResourceRegistry
+import elovaire.music.droidbeauty.app.core.AndroidAppClock
+import elovaire.music.droidbeauty.app.core.AppClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -30,6 +31,7 @@ import kotlinx.coroutines.launch
 
 internal class SmbNetworkFileSystem(
     private val scope: CoroutineScope,
+    private val clock: AppClock = AndroidAppClock,
 ) : NetworkFileSystem {
     private val sessionMapLock = Any()
     private val sessions = mutableMapOf<String, SourceSession>()
@@ -218,7 +220,7 @@ internal class SmbNetworkFileSystem(
         )
         val staleSessions = mutableListOf<SourceSession>()
         val selected = synchronized(sessionMapLock) {
-            sessions.values.filterTo(staleSessions) { it.isIdle(SystemClock.elapsedRealtime()) }
+            sessions.values.filterTo(staleSessions) { it.isIdle(clock.elapsedTimeMs()) }
             staleSessions.forEach { session -> sessions.remove(session.key.sourceKey, session) }
             val current = sessions[source.id]
             if (current != null && current.key == key && current.isUsable()) {
@@ -272,7 +274,7 @@ internal class SmbNetworkFileSystem(
         private var resources: SessionResources? = null
         private var connecting: CompletableFuture<SessionResources>? = null
         private var activeLeases = 0
-        private var lastUsedElapsedMs = SystemClock.elapsedRealtime()
+        private var lastUsedElapsedMs = clock.elapsedTimeMs()
         private var invalidated = false
         private var idleCloseJob: Job? = null
 
@@ -295,7 +297,7 @@ internal class SmbNetworkFileSystem(
                     idleCloseJob?.cancel()
                     idleCloseJob = null
                     activeLeases += 1
-                    lastUsedElapsedMs = SystemClock.elapsedRealtime()
+                    lastUsedElapsedMs = clock.elapsedTimeMs()
                     return SessionLease(currentResources.share, ::releaseLease)
                 }
                 val existingConnect = connecting
@@ -347,7 +349,7 @@ internal class SmbNetworkFileSystem(
                 idleCloseJob?.cancel()
                 idleCloseJob = null
                 activeLeases += 1
-                lastUsedElapsedMs = SystemClock.elapsedRealtime()
+                lastUsedElapsedMs = clock.elapsedTimeMs()
                 return SessionLease(resolved.share, ::releaseLease)
             }
         }
@@ -375,7 +377,7 @@ internal class SmbNetworkFileSystem(
         private fun releaseLease() {
             val closing = synchronized(lock) {
                 activeLeases = (activeLeases - 1).coerceAtLeast(0)
-                lastUsedElapsedMs = SystemClock.elapsedRealtime()
+                lastUsedElapsedMs = clock.elapsedTimeMs()
                 if (activeLeases == 0) {
                     if (invalidated) {
                         detachResourcesLocked()
@@ -396,7 +398,7 @@ internal class SmbNetworkFileSystem(
                     if (
                         activeLeases == 0 &&
                         !invalidated &&
-                        SystemClock.elapsedRealtime() - lastUsedElapsedMs >= SESSION_IDLE_TIMEOUT_MS
+                        clock.elapsedTimeMs() - lastUsedElapsedMs >= SESSION_IDLE_TIMEOUT_MS
                     ) {
                         invalidated = true
                         detachResourcesLocked()

@@ -240,12 +240,14 @@ internal class NetworkOperationAdmission(
         val active = if (purpose == NetworkReadPurpose.Playback) activePlayback else activeBackground
         val waiting = if (purpose == NetworkReadPurpose.Playback) waitingPlayback else waitingBackground
         waiting.incrementAndGet()
+        BackendResourceRegistry.adjust(purpose.waitingResourceKind(), 1)
         try {
             acquire(semaphore)
             active.incrementAndGet()
             return Permit(semaphore, active)
         } finally {
             waiting.decrementAndGet()
+            BackendResourceRegistry.adjust(purpose.waitingResourceKind(), -1)
         }
     }
 
@@ -293,4 +295,12 @@ internal class NetworkOperationAdmission(
     private companion object {
         const val MAX_WAIT_MS = 10_000L
     }
+}
+
+private fun NetworkReadPurpose.waitingResourceKind(): BackendResourceKind = when (this) {
+    NetworkReadPurpose.Playback -> BackendResourceKind.WaitingNetworkPlaybackRead
+    NetworkReadPurpose.Metadata,
+    NetworkReadPurpose.Artwork,
+    NetworkReadPurpose.Listing,
+    -> BackendResourceKind.WaitingNetworkBackgroundRead
 }

@@ -78,6 +78,22 @@ class LibraryRefreshRequestsTest {
     }
 
     @Test
+    fun tooManyPaths_doNotBroadenAnUnrelatedNetworkRefresh() {
+        val merged = LibraryRefreshRequest(
+            targetedNetworkSourceIds = setOf("nas-a"),
+        ).mergedWith(
+            LibraryRefreshRequest(
+                targetedPaths = (1..65).map { "/music/$it.mp3" },
+                targetedNetworkSourceIds = emptySet(),
+            ),
+        )
+
+        assertEquals(setOf("nas-a"), merged.targetedNetworkSourceIds)
+        assertTrue(merged.targetedPaths.isEmpty())
+        assertTrue(merged.targetedSafTreeIds == null)
+    }
+
+    @Test
     fun clearIndexRefresh_keepsPendingMetadataEnrichmentOnly() {
         val requests = LibraryRefreshRequests()
         requests.enqueue(

@@ -2,11 +2,12 @@ package elovaire.music.droidbeauty.app.data.library
 
 import android.content.Context
 import android.net.Uri
+import elovaire.music.droidbeauty.app.core.OperationIdGenerator
+import elovaire.music.droidbeauty.app.core.UuidOperationIdGenerator
 import elovaire.music.droidbeauty.app.data.playback.PlaybackManager
 import elovaire.music.droidbeauty.app.data.settings.PreferenceStore
 import elovaire.music.droidbeauty.app.domain.model.Song
 import java.io.File
-import java.util.UUID
 import org.json.JSONArray
 import org.json.JSONObject
 import kotlinx.coroutines.CoroutineDispatcher
@@ -45,6 +46,7 @@ internal class DeviceDeleteCoordinator(
     private val preferenceStore: PreferenceStore,
     private val invalidateArtwork: (Collection<Uri?>) -> Unit,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val operationIdGenerator: OperationIdGenerator = UuidOperationIdGenerator,
 ) : DeviceDeleteHandler {
     override suspend fun prepareSongDeletePlan(songs: List<Song>): DeviceDeletePlan? {
         val uniqueSongs = songs.distinctBy(Song::id)
@@ -52,7 +54,7 @@ internal class DeviceDeleteCoordinator(
         return withContext(ioDispatcher) {
             val filePaths = querySongFilePaths(uniqueSongs)
             val plan = DeviceDeletePlan(
-                operationId = UUID.randomUUID().toString(),
+                operationId = operationIdGenerator.nextId(),
                 targets = uniqueSongs.map { song ->
                     DeviceDeleteTarget(song.id, song.albumId, song.uri, song.artUri)
                 },

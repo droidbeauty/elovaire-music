@@ -209,10 +209,9 @@ val buildStructureCheck = tasks.register("buildStructureCheck") {
     group = "verification"
     description = "Checks that module build scripts use the central build structure."
     val projectRoot = rootProject.projectDir
-    val moduleBuildScripts = listOf(
-        projectRoot.resolve("app/build.gradle.kts"),
-        projectRoot.resolve("macrobenchmark/build.gradle.kts"),
-    )
+    val moduleBuildScripts = subprojects
+        .map { it.buildFile }
+        .filter { it.name.endsWith(".gradle.kts") }
     val settingsFile = projectRoot.resolve("settings.gradle.kts")
     val catalogFile = projectRoot.resolve("gradle/libs.versions.toml")
     val appBuildConfigFile = projectRoot.resolve("buildSrc/src/main/kotlin/AppBuildConfig.kt")
